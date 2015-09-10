@@ -42,6 +42,6 @@ install (PROGRAMS ../src/redis-server       ../src/redis-cli
         ../src/redis-benchmark              ../src/redis-check-dump 
         ../src/redis-check-aof              ./cluster_config.sh  
         ./redis_xxxx.conf.template		    ./redis_xxxx_init_script.template
-        ./crontab_xxxx.template             DESTINATION redis_${CPACK_PACKAGE_VERSION})
+        ./crontab_xxxx.template             DESTINATION ${CPACK_PACKAGE_FILE_NAME})
 
 include(CPack)
