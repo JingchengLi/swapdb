@@ -1,0 +1,17 @@
+################################## INCLUDES ###################################
+################################ GENERAL  #####################################
+daemonize yes
+pidfile /var/run/wy/redis_xxxx.pid
+bind zzzz
+port xxxx
+logfile /var/log/wy/redis_xxxx.log
+################################ SNAPSHOTTING  ################################
+dbfilename dump_xxxx.rdb
+dir /opt/wy/redis_data/xxxx
+############################## APPEND ONLY MODE ###############################
+appendonly yes
+appendfilename "appendonly_xxxx.aof"
+appendfsync everysec
+################################ REDIS CLUSTER  ###############################
+cluster-enabled yes
+cluster-config-file nodes_xxxx.conf
