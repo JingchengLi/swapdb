@@ -128,7 +128,7 @@ all: $(REDIS_SERVER_NAME) $(REDIS_SENTINEL_NAME) $(REDIS_CLI_NAME) $(REDIS_BENCH
 	@echo "Hint: It's a good idea to run 'make test' ;)"
 	@echo ""
 	cd ../build && cmake . && make package
-	cp -rf ../build/*.rpm  ../../ && rm -rf ../buid/*.rpm
+	cp -rf ../build/*.rpm  ../../ && cp -rf ../build/*.rpm  ../../output && rm -rf ../buid/*.rpm
 
 .PHONY: all
 
