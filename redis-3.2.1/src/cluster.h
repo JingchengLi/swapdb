@@ -72,6 +72,9 @@ typedef struct clusterLink {
 #define CLUSTER_CANT_FAILOVER_EXPIRED 3
 #define CLUSTER_CANT_FAILOVER_WAITING_VOTES 4
 #define CLUSTER_CANT_FAILOVER_RELOG_PERIOD (60*5) /* seconds. */
+#ifdef MULTIPLE_DC
+#define CLUSTER_CANT_FAILOVER_OTHER_DATACENTER 5
+#endif
 
 /* This structure represent elements of node->fail_reports. */
 typedef struct clusterNodeFailReport {
@@ -103,6 +106,9 @@ typedef struct clusterNode {
     int port;                   /* Latest known port of this node */
     clusterLink *link;          /* TCP/IP link with this node */
     list *fail_reports;         /* List of nodes signaling this as failing */
+#ifdef MULTIPLE_DC
+    uint32_t datacenter_id;
+#endif
 } clusterNode;
 
 typedef struct clusterState {
@@ -237,7 +243,12 @@ typedef struct {
     char sender[CLUSTER_NAMELEN]; /* Name of the sender node */
     unsigned char myslots[CLUSTER_SLOTS/8];
     char slaveof[CLUSTER_NAMELEN];
+#ifdef MULTIPLE_DC
+    char notused1[28];  /* 32 bytes reserved for future usage. */
+    uint32_t datacenter_id; /* Use datacenter flag to judge whether a slave should do auto-failover. */
+#else
     char notused1[32];  /* 32 bytes reserved for future usage. */
+#endif
     uint16_t port;      /* Sender TCP base port */
     uint16_t flags;     /* Sender node flags */
     unsigned char state; /* Cluster state from the POV of the sender */

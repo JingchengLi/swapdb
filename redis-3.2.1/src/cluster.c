@@ -1543,6 +1543,7 @@ int clusterProcessPacket(clusterLink *link) {
     uint32_t totlen = ntohl(hdr->totlen);
     uint16_t type = ntohs(hdr->type);
 
+
     server.cluster->stats_bus_messages_received++;
     serverLog(LL_DEBUG,"--- Processing packet of type %d, %lu bytes",
         type, (unsigned long) totlen);
@@ -1556,6 +1557,9 @@ int clusterProcessPacket(clusterLink *link) {
         return 1;
     }
 
+#ifdef MULTIPLE_DC
+    uint32_t datacenter_id = ntohl(hdr->datacenter_id);
+#endif
     uint16_t flags = ntohs(hdr->flags);
     uint64_t senderCurrentEpoch = 0, senderConfigEpoch = 0;
     clusterNode *sender;
@@ -1610,6 +1614,11 @@ int clusterProcessPacket(clusterLink *link) {
             clusterDoBeforeSleep(CLUSTER_TODO_SAVE_CONFIG|
                                  CLUSTER_TODO_FSYNC_CONFIG);
         }
+#ifdef MULTIPLE_DC
+        if (link->node) {
+            link->node->datacenter_id = datacenter_id;
+        }
+#endif
         /* Update the replication offset info for this node. */
         sender->repl_offset = ntohu64(hdr->offset);
         sender->repl_offset_time = mstime();
@@ -2145,6 +2154,9 @@ void clusterBuildMessageHdr(clusterMsg *hdr, int type) {
     /* Set the currentEpoch and configEpochs. */
     hdr->currentEpoch = htonu64(server.cluster->currentEpoch);
     hdr->configEpoch = htonu64(master->configEpoch);
+#ifdef MULTIPLE_DC
+    hdr->datacenter_id = htonl(server.datacenter_id);
+#endif
 
     /* Set the replication offset. */
     if (nodeIsSlave(myself))
@@ -2470,6 +2482,11 @@ void clusterSendFailoverAuthIfNeeded(clusterNode *node, clusterMsg *request) {
     unsigned char *claimed_slots = request->myslots;
     int force_ack = request->mflags[0] & CLUSTERMSG_FLAG0_FORCEACK;
     int j;
+#ifdef MULTIPLE_DC
+    uint32_t node_datacenter_id = ntohl(request->datacenter_id);
+    /* the node is not in the same datacenter with me and not a manual failover.*/
+    if (node_datacenter_id != server.datacenter_id && !force_ack) return;
+#endif
 
     /* IF we are not a master serving at least 1 slot, we don't have the
      * right to vote, as the cluster size in Redis Cluster is the number
@@ -2588,8 +2605,17 @@ int clusterGetSlaveRank(void) {
 
     myoffset = replicationGetSlaveOffset();
     for (j = 0; j < master->numslaves; j++)
+#ifdef MULTIPLE_DC
+        if (master->datacenter_id != myself->datacenter_id) {
+            return master->numslaves-1;
+        }
+        if (master->slaves[j] != myself &&
+            master->slaves[j]->repl_offset > myoffset &&
+                master->slaves[j]->datacenter_id == master->datacenter_id) rank++;
+#else
         if (master->slaves[j] != myself &&
             master->slaves[j]->repl_offset > myoffset) rank++;
+#endif
     return rank;
 }
 
@@ -2737,6 +2763,13 @@ void clusterHandleSlaveFailover(void) {
         server.cluster->cant_failover_reason = CLUSTER_CANT_FAILOVER_NONE;
         return;
     }
+
+#ifdef MULTIPLE_DC
+    if (myself->slaveof->datacenter_id != myself->datacenter_id && !manual_failover) {
+        server.cluster->cant_failover_reason = CLUSTER_CANT_FAILOVER_OTHER_DATACENTER;
+        return;
+    }
+#endif
 
     /* Set data_age to the number of seconds we are disconnected from
      * the master. */

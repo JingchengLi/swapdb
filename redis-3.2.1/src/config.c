@@ -295,6 +295,10 @@ void loadServerConfigFromString(char *config) {
             }
         } else if (!strcasecmp(argv[0],"maxmemory") && argc == 2) {
             server.maxmemory = memtoll(argv[1],NULL);
+#ifdef MULTIPLE_DC
+        } else if (!strcasecmp(argv[0],"datacenter-id") && argc == 2) {
+            server.datacenter_id = atoi(argv[1]);
+#endif
         } else if (!strcasecmp(argv[0],"maxmemory-policy") && argc == 2) {
             server.maxmemory_policy =
                 configEnumGetValue(maxmemory_policy_enum,argv[1]);
@@ -891,6 +895,10 @@ void configSetCommand(client *c) {
       "tcp-keepalive",server.tcpkeepalive,0,LLONG_MAX) {
     } config_set_numerical_field(
       "maxmemory-samples",server.maxmemory_samples,1,LLONG_MAX) {
+#ifdef MULTIPLE_DC
+    } config_set_numerical_field(
+      "datacenter-id",server.datacenter_id,0,UINT_MAX) {
+#endif
     } config_set_numerical_field(
       "timeout",server.maxidletime,0,LONG_MAX) {
     } config_set_numerical_field(
@@ -1098,6 +1106,9 @@ void configGetCommand(client *c) {
     config_get_numerical_field("cluster-slave-validity-factor",server.cluster_slave_validity_factor);
     config_get_numerical_field("repl-diskless-sync-delay",server.repl_diskless_sync_delay);
     config_get_numerical_field("tcp-keepalive",server.tcpkeepalive);
+#ifdef MULTIPLE_DC
+    config_get_numerical_field("datacenter-id",server.datacenter_id);
+#endif
 
     /* Bool (yes/no) values */
     config_get_bool_field("cluster-require-full-coverage",
@@ -1831,6 +1842,9 @@ int rewriteConfig(char *path) {
     rewriteConfigYesNoOption(state,"aof-rewrite-incremental-fsync",server.aof_rewrite_incremental_fsync,CONFIG_DEFAULT_AOF_REWRITE_INCREMENTAL_FSYNC);
     rewriteConfigYesNoOption(state,"aof-load-truncated",server.aof_load_truncated,CONFIG_DEFAULT_AOF_LOAD_TRUNCATED);
     rewriteConfigEnumOption(state,"supervised",server.supervised_mode,supervised_mode_enum,SUPERVISED_NONE);
+#ifdef MULTIPLE_DC
+    rewriteConfigNumericalOption(state,"datacenter-id",server.datacenter_id,0);
+#endif
 
     /* Rewrite Sentinel config if in Sentinel mode. */
     if (server.sentinel_mode) rewriteConfigSentinelOption(state);

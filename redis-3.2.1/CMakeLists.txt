@@ -5,7 +5,7 @@ cmake_policy(SET CMP0015 NEW)
 
 SET(LIBRARY_OUTPUT_PATH "${CMAKE_SOURCE_DIR}/build/lib")
 SET(EXECUTABLE_OUTPUT_PATH "${CMAKE_SOURCE_DIR}/build")
-set(CMAKE_C_FLAGS "-std=c99 -pedantic  -U__STRICT_ANSI__") # that would be bad
+set(CMAKE_C_FLAGS "-std=c99 -pedantic  -U__STRICT_ANSI__ -DMULTIPLE_DC") # that would be bad
 
 INCLUDE_DIRECTORIES(
         "deps/jemalloc/include"
