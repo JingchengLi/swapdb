@@ -2606,9 +2606,6 @@ int clusterGetSlaveRank(void) {
     myoffset = replicationGetSlaveOffset();
     for (j = 0; j < master->numslaves; j++)
 #ifdef MULTIPLE_DC
-        if (master->datacenter_id != myself->datacenter_id) {
-            return master->numslaves-1;
-        }
         if (master->slaves[j] != myself &&
             master->slaves[j]->repl_offset > myoffset &&
                 master->slaves[j]->datacenter_id == master->datacenter_id) rank++;
