@@ -898,6 +898,11 @@ void configSetCommand(client *c) {
 #ifdef MULTIPLE_DC
     } config_set_numerical_field(
       "datacenter-id",server.datacenter_id,0,UINT_MAX) {
+            if (server.cluster_enabled) {
+                if (server.cluster && server.cluster->myself) {
+                    server.cluster->myself->datacenter_id = server.datacenter_id;
+                }
+            }
 #endif
     } config_set_numerical_field(
       "timeout",server.maxidletime,0,LONG_MAX) {

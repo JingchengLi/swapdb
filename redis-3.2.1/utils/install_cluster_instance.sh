@@ -124,6 +124,7 @@ s#^logfile .+\$#logfile ${REDIS_LOG_FILE}#; \
 s#^dir .+\$#dir ${REDIS_DATA_DIR}#; \
 s#^pidfile .+\$#pidfile ${PIDFILE}#; \
 s#^daemonize no\$#daemonize yes#; \
+s#^protected-mode yes\$#protected-mode no#; \
 s#^\# cluster-enabled yes\$#cluster-enabled yes#;
 EOF
 sed -r "$SED_EXPR" $DEFAULT_CONFIG  >> $TMP_FILE

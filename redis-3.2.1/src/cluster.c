@@ -177,6 +177,9 @@ int clusterLoadConfig(char *filename) {
             if (p) *p = '\0';
             if (!strcasecmp(s,"myself")) {
                 serverAssert(server.cluster->myself == NULL);
+#ifdef MULTIPLE_DC
+                n->datacenter_id = server.datacenter_id;
+#endif
                 myself = server.cluster->myself = n;
                 n->flags |= CLUSTER_NODE_MYSELF;
             } else if (!strcasecmp(s,"master")) {
@@ -429,6 +432,9 @@ void clusterInit(void) {
          * by the createClusterNode() function. */
         myself = server.cluster->myself =
             createClusterNode(NULL,CLUSTER_NODE_MYSELF|CLUSTER_NODE_MASTER);
+#ifdef MULTIPLE_DC
+        myself->datacenter_id = server.datacenter_id;
+#endif
         serverLog(LL_NOTICE,"No cluster configuration found, I'm %.40s",
             myself->name);
         clusterAddNode(myself);
@@ -675,6 +681,9 @@ clusterNode *createClusterNode(char *nodename, int flags) {
     node->orphaned_time = 0;
     node->repl_offset_time = 0;
     node->repl_offset = 0;
+#ifdef MULTIPLE_DC
+    node->datacenter_id = 0;
+#endif
     listSetFreeMethod(node->fail_reports,zfree);
     return node;
 }
@@ -2608,7 +2617,8 @@ int clusterGetSlaveRank(void) {
 #ifdef MULTIPLE_DC
         if (master->slaves[j] != myself &&
             master->slaves[j]->repl_offset > myoffset &&
-                master->slaves[j]->datacenter_id == master->datacenter_id) rank++;
+            (master->slaves[j]->datacenter_id == master->datacenter_id
+             || server.datacenter_id != master->datacenter_id)) rank++;
 #else
         if (master->slaves[j] != myself &&
             master->slaves[j]->repl_offset > myoffset) rank++;
@@ -2764,6 +2774,7 @@ void clusterHandleSlaveFailover(void) {
 #ifdef MULTIPLE_DC
     if (myself->slaveof->datacenter_id != myself->datacenter_id && !manual_failover) {
         server.cluster->cant_failover_reason = CLUSTER_CANT_FAILOVER_OTHER_DATACENTER;
+        clusterLogCantFailover(CLUSTER_CANT_FAILOVER_OTHER_DATACENTER);
         return;
     }
 #endif
