@@ -1567,7 +1567,7 @@ int clusterProcessPacket(clusterLink *link) {
     }
 
 #ifdef MULTIPLE_DC
-    uint32_t datacenter_id = ntohl(hdr->datacenter_id);
+    unsigned char datacenter_id = ntohl(hdr->datacenter_id);
 #endif
     uint16_t flags = ntohs(hdr->flags);
     uint64_t senderCurrentEpoch = 0, senderConfigEpoch = 0;
@@ -2492,7 +2492,7 @@ void clusterSendFailoverAuthIfNeeded(clusterNode *node, clusterMsg *request) {
     int force_ack = request->mflags[0] & CLUSTERMSG_FLAG0_FORCEACK;
     int j;
 #ifdef MULTIPLE_DC
-    uint32_t node_datacenter_id = ntohl(request->datacenter_id);
+    unsigned char node_datacenter_id = ntohl(request->datacenter_id);
     /* the node is not in the same datacenter with me and not a manual failover.*/
     if (node_datacenter_id != server.datacenter_id && !force_ack) return;
 #endif

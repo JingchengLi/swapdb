@@ -897,7 +897,7 @@ void configSetCommand(client *c) {
       "maxmemory-samples",server.maxmemory_samples,1,LLONG_MAX) {
 #ifdef MULTIPLE_DC
     } config_set_numerical_field(
-      "datacenter-id",server.datacenter_id,0,UINT_MAX) {
+      "datacenter-id",server.datacenter_id,0,UCHAR_MAX) {
             if (server.cluster_enabled) {
                 if (server.cluster && server.cluster->myself) {
                     server.cluster->myself->datacenter_id = server.datacenter_id;

@@ -107,7 +107,7 @@ typedef struct clusterNode {
     clusterLink *link;          /* TCP/IP link with this node */
     list *fail_reports;         /* List of nodes signaling this as failing */
 #ifdef MULTIPLE_DC
-    uint32_t datacenter_id;
+    unsigned char datacenter_id;
 #endif
 } clusterNode;
 
@@ -244,8 +244,8 @@ typedef struct {
     unsigned char myslots[CLUSTER_SLOTS/8];
     char slaveof[CLUSTER_NAMELEN];
 #ifdef MULTIPLE_DC
-    char notused1[28];  /* 32 bytes reserved for future usage. */
-    uint32_t datacenter_id; /* Use datacenter flag to judge whether a slave should do auto-failover. */
+    char notused1[31];  /* 32 bytes reserved for future usage. */
+    unsigned char datacenter_id; /* Use datacenter flag to judge whether a slave should do auto-failover. */
 #else
     char notused1[32];  /* 32 bytes reserved for future usage. */
 #endif
