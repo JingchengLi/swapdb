@@ -55,6 +55,10 @@ typedef struct clusterLink {
 #define CLUSTER_NODE_NOADDR   64  /* We don't know the address of this node */
 #define CLUSTER_NODE_MEET 128     /* Send a MEET message to this node */
 #define CLUSTER_NODE_MIGRATE_TO 256 /* Master elegible for replica migration. */
+#ifdef MULTIPLE_DC
+/* we reserve some 512-2048 for possible redis upgrade later. */
+#define CLUSTER_NODE_DATACENTER_CHANGED  4096 /* my datacenter-id changed and we need to inform other nodes. */
+#endif
 #define CLUSTER_NODE_NULL_NAME "\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000"
 
 #define nodeIsMaster(n) ((n)->flags & CLUSTER_NODE_MASTER)
@@ -64,6 +68,9 @@ typedef struct clusterLink {
 #define nodeWithoutAddr(n) ((n)->flags & CLUSTER_NODE_NOADDR)
 #define nodeTimedOut(n) ((n)->flags & CLUSTER_NODE_PFAIL)
 #define nodeFailed(n) ((n)->flags & CLUSTER_NODE_FAIL)
+#ifdef MULTIPLE_DC
+#define nodeDatacenterChanged(n) ((n)->flags & CLUSTER_NODE_DATACENTER_CHANGED)
+#endif
 
 /* Reasons why a slave is not able to failover. */
 #define CLUSTER_CANT_FAILOVER_NONE 0

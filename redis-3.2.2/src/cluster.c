@@ -1623,8 +1623,12 @@ int clusterProcessPacket(clusterLink *link) {
                                  CLUSTER_TODO_FSYNC_CONFIG);
         }
 #ifdef MULTIPLE_DC
-        if (link->node) {
-            link->node->datacenter_id = datacenter_id;
+        serverLog(LL_DEBUG, "[MULTIPLE_DC]sender(%s:%d) old datacenter_id:%u, new datacenter-id:%u",
+                  sender->ip, sender->port, (unsigned int)sender->datacenter_id, (unsigned int)datacenter_id);
+        if (sender->datacenter_id != datacenter_id) {
+            serverLog(LL_NOTICE, "[MULTIPLE_DC]node(%s:%d) datacenter-id changed from %u to %u",
+                      sender->ip, sender->port, sender->datacenter_id, datacenter_id);
+            sender->datacenter_id = datacenter_id;
         }
 #endif
         /* Update the replication offset info for this node. */
@@ -2493,7 +2497,12 @@ void clusterSendFailoverAuthIfNeeded(clusterNode *node, clusterMsg *request) {
 #ifdef MULTIPLE_DC
     unsigned char node_datacenter_id = ntohl(request->datacenter_id);
     /* the node is not in the same datacenter with me and not a manual failover.*/
-    if (node_datacenter_id != server.datacenter_id && !force_ack) return;
+    if (node_datacenter_id != server.datacenter_id && !force_ack) {
+        serverLog(LL_WARNING, "[MULTIPLE_DC]don't vote sender(%s), datacenter_id is %u, "
+                "my datacenter_id is %u, force_ack is %d", request->sender,
+                  (unsigned int)node_datacenter_id, (unsigned int)server.datacenter_id, force_ack);
+        return;
+    }
 #endif
 
     /* IF we are not a master serving at least 1 slot, we don't have the
@@ -2772,6 +2781,9 @@ void clusterHandleSlaveFailover(void) {
 
 #ifdef MULTIPLE_DC
     if (myself->slaveof->datacenter_id != myself->datacenter_id && !manual_failover) {
+        serverLog(LL_WARNING, "[MULTIPLE_DC] can't failover for a master in other datacenter."
+                  "my datacenter-id is %u, my master's datacenter-id is %u.",
+                  (unsigned int)myself->datacenter_id, (unsigned int)myself->slaveof->datacenter_id);
         server.cluster->cant_failover_reason = CLUSTER_CANT_FAILOVER_OTHER_DATACENTER;
         clusterLogCantFailover(CLUSTER_CANT_FAILOVER_OTHER_DATACENTER);
         return;
@@ -3112,6 +3124,14 @@ void clusterCron(void) {
     mstime_t handshake_timeout;
 
     iteration++; /* Number of times this function was called so far. */
+
+#ifdef MULTIPLE_DC
+    if (nodeDatacenterChanged(myself)) {
+        /* braodcast my config to all nodes so they will update their datacenter-id of me. */
+        clusterBroadcastPong(CLUSTER_BROADCAST_ALL);
+        myself->flags &= ~CLUSTER_NODE_DATACENTER_CHANGED;
+    }
+#endif
 
     /* The handshake timeout is the time after which a handshake node that was
      * not turned into a normal node is removed from the nodes. Usually it is

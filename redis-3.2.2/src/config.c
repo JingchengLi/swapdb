@@ -913,7 +913,13 @@ void configSetCommand(client *c) {
       "datacenter-id",server.datacenter_id,0,UCHAR_MAX) {
             if (server.cluster_enabled) {
                 if (server.cluster && server.cluster->myself) {
-                    server.cluster->myself->datacenter_id = server.datacenter_id;
+                    if (server.cluster->myself->datacenter_id != server.datacenter_id) {
+                        serverLog(LL_NOTICE, "[MULTIPLE_DC] my datacenter-id changed from %u to %u",
+                                  (unsigned int)server.cluster->myself->datacenter_id, (unsigned int)server.datacenter_id);
+                        server.cluster->myself->datacenter_id = server.datacenter_id;
+                        /* we will broadcast our config to all nodes in clusterCron. */
+                        server.cluster->myself->flags |= CLUSTER_NODE_DATACENTER_CHANGED;
+                    }
                 }
             }
 #endif
