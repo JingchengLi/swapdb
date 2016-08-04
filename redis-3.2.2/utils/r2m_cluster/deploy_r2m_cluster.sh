@@ -121,7 +121,7 @@ do
             if ($0~/zzzz/) {
                 gsub("zzzz","'$IP'",$0)
             }
-            printf $0
+            print $0
         }' $CLUSTER_TEMPLATE_CONF > $CONFIG_DIR/r2m_$PORT.conf
         instances_str=$instances_str" "$IP":"$PORT
         echo "../../src/redis-server  $CONFIG_DIR/r2m_$PORT.conf"
