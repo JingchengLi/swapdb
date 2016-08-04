@@ -5,6 +5,13 @@ CLUSTER_TEMPLATE_CONF=redis_xxxx.conf.template
 CLUSTER_INSTANCES_CSV_FILE=cluster_instances.csv
 CLUSTER_INSTANCES_CSV_FILE_DEAULT=cluster_instances.csv.default
 
+prepare_dir() {
+    mkdir -p $CONFIG_DIR
+    mkdir -p /var/run/wy/
+    mkdir -p /export/log/wy
+    mkdir -p /export/wy/redis_data
+}
+
 clear_redis() {
     PORT=$1
     ../../src/redis-cli -p $PORT shutdown nosave
@@ -103,9 +110,7 @@ if [ ! -f "../../src/redis-server" ];then
 fi
 echo "nodes_cnt:$nodes_cnt"
 
-mkdir -p $CONFIG_DIR
-mkdir -p /var/run/wy/
-mkdir -p /export/log/wy
+prepare_dir
 
 while read LINE
 do
