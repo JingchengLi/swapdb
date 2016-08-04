@@ -4,6 +4,14 @@ CONFIG_DIR=/etc/redis
 CLUSTER_TEMPLATE_CONF=redis_xxxx.conf.template
 CLUSTER_INSTANCES_CSV_FILE=cluster_instances.csv
 
+clear_redis() {
+    PORT=$1
+    ../../src/redis-cli -p $PORT shutdown nosave
+    rm /var/run/wy/redis_$PORT.pid
+    rm /export/log/wy/redis_$PORT.log
+    rm /export/wy/redis_data/$PORT -rf
+}
+
 #check for root user
 if [ "$(id -u)" -ne 0 ] ; then
     echo "You must run this script as root. Sorry!"
@@ -62,6 +70,10 @@ else
     exit 1
 fi
 echo "master_cnt:$master_cnt"
+if [ $master_cnt -lt 3 ];then
+    echo "redis cluster must have at least 3 master instances."
+    exit 1
+fi
 
 replicas=`awk '{if ($0~/^replicas/) {printf $2; exit} else next}' $CLUSTER_INSTANCES_CSV_FILE`
 test_str=`echo $replicas | grep -oE "^[0-9]+$"`
@@ -78,7 +90,8 @@ echo "replicas:$replicas"
 
 nodes_cnt=`awk 'BEGIN {a=0} {if ($0~/^redis/) a++} END {printf a}' $CLUSTER_INSTANCES_CSV_FILE`
 if [ $(($master_cnt*($replicas+1))) -ne $(($nodes_cnt)) ]; then
-    echo "redis nodes count is not match master count and replicas."
+    echo "redis nodes count is not match! master count($master_cnt),replicas($replicas)."\
+        " you should have $(($master_cnt*($replicas+1))) redis instances. but there are $(($nodes_cnt)) instances."
     exit 1
 fi
 
@@ -91,6 +104,27 @@ echo "nodes_cnt:$nodes_cnt"
 mkdir -p $CONFIG_DIR
 mkdir -p /var/run/wy/
 mkdir -p /export/log/wy
+
+while read LINE
+do
+    # redis 127.0.0.1:7000
+    test_str=`echo $LINE | grep -oE "^redis"`
+    if [ "" != "$test_str" ]; then
+        IP=`echo $LINE | awk '{print $2}' | awk -F':' '{printf $1}'`
+        PORT=`echo $LINE | awk '{print $2}' | awk -F':' '{printf $2}'`
+        test_str=`echo $IP | grep -oE "^[.0-9]+$"`
+        if [ ""x = "$test_str"x ];then
+            echo "Invalid ip argument:$IP"
+            exit 1
+        fi
+        test_str=`echo $PORT | grep -oE "^[0-9]+$"`
+        if [ ""x = "$test_str"x ];then
+            echo "Invalid port argument:$PORT"
+            exit 1
+        fi
+        clear_redis $PORT
+    fi
+done < $CLUSTER_INSTANCES_CSV_FILE
 
 instances_str=""
 while read LINE
@@ -125,7 +159,6 @@ do
         }' $CLUSTER_TEMPLATE_CONF > $CONFIG_DIR/r2m_$PORT.conf
         instances_str=$instances_str" "$IP":"$PORT
         echo "../../src/redis-server  $CONFIG_DIR/r2m_$PORT.conf"
-        clear_redis $PORT
         mkdir -p /export/wy/redis_data/$PORT
         ../../src/redis-server  $CONFIG_DIR/r2m_$PORT.conf
     fi
@@ -133,12 +166,3 @@ done < $CLUSTER_INSTANCES_CSV_FILE
 
 echo "../../src/redis-trib.rb create --replicas $replicas $instances_str"
 ../../src/redis-trib.rb create --replicas $replicas $instances_str
-
-
-clear_redis() {
-    PORT=$1
-    rm /var/run/wy/redis_$PORT.pid
-    rm /export/log/wy/redis_$PORT.log
-    rm /export/wy/redis_data/$PORT -rf
-}
-
