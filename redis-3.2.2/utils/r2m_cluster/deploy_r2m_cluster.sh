@@ -3,6 +3,7 @@
 CONFIG_DIR=/etc/redis
 CLUSTER_TEMPLATE_CONF=redis_xxxx.conf.template
 CLUSTER_INSTANCES_CSV_FILE=cluster_instances.csv
+CLUSTER_INSTANCES_CSV_FILE_DEAULT=cluster_instances.csv.default
 
 clear_redis() {
     PORT=$1
@@ -24,7 +25,8 @@ if [ ! -f  $CLUSTER_TEMPLATE_CONF ] ; then
 fi
 
 if [ ! -f $CLUSTER_INSTANCES_CSV_FILE ] ; then
-    CLUSTER_INSTANCES_CSV_FILE=cluster_instances.csv.default
+    echo "\033[31m $CLUSTER_INSTANCES_CSV_FILE not found, use default config file:$CLUSTER_INSTANCES_CSV_FILE_DEAULT\n\033[0m"
+    CLUSTER_INSTANCES_CSV_FILE=$CLUSTER_INSTANCES_CSV_FILE_DEAULT
     if [ ! -f $CLUSTER_INSTANCES_CSV_FILE ] ; then
         echo "cluster instances config file don't exist."
         exit 1
@@ -37,9 +39,9 @@ if [ "$is_cluster_enabled" != "yes" ] ; then
     exit 1
 fi
 
-awk 'BEGIN {print "R2M cluster instances config is:\n>>>>>>>>>>>>>>>>>>>>"} {
-    if($0!~/^#/)print $0
-    } END {print "<<<<<<<<<<<<<<<<<<<<<\nplease confirm these!!!"}' $CLUSTER_INSTANCES_CSV_FILE
+awk 'BEGIN {print "R2M cluster instances config is:\n\033[33m>>>>>>>>>>>>>>>>>>>>"} {
+    if($0!~/^#/)print "\033[33m"$0
+    } END {print "\033[33m<<<<<<<<<<<<<<<<<<<<<\nplease confirm these!!!\033[0m"}' $CLUSTER_INSTANCES_CSV_FILE
 
 read -p "CONTINUE(yes/no):" input
 if [ "$input" != "yes" ] ; then
