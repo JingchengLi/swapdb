@@ -1566,7 +1566,7 @@ int clusterProcessPacket(clusterLink *link) {
     }
 
 #ifdef MULTIPLE_DC
-    unsigned char datacenter_id = ntohl(hdr->datacenter_id);
+    unsigned char datacenter_id = hdr->datacenter_id;
 #endif
     uint16_t flags = ntohs(hdr->flags);
     uint64_t senderCurrentEpoch = 0, senderConfigEpoch = 0;
@@ -2167,7 +2167,9 @@ void clusterBuildMessageHdr(clusterMsg *hdr, int type) {
     hdr->currentEpoch = htonu64(server.cluster->currentEpoch);
     hdr->configEpoch = htonu64(master->configEpoch);
 #ifdef MULTIPLE_DC
-    hdr->datacenter_id = htonl(server.datacenter_id);
+    hdr->datacenter_id = server.datacenter_id;
+    serverLog(LL_DEBUG, "[MULTIPLE_DC]%s,server.datacenter_id:%u,hdr->datacenter_id:%u",
+              __FUNCTION__, (unsigned int)server.datacenter_id, (unsigned int)hdr->datacenter_id);
 #endif
 
     /* Set the replication offset. */
