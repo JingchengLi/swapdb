@@ -2495,11 +2495,13 @@ void clusterSendFailoverAuthIfNeeded(clusterNode *node, clusterMsg *request) {
     int force_ack = request->mflags[0] & CLUSTERMSG_FLAG0_FORCEACK;
     int j;
 #ifdef MULTIPLE_DC
-    unsigned char node_datacenter_id = ntohl(request->datacenter_id);
+    unsigned char node_datacenter_id = request->datacenter_id;
     /* the node is not in the same datacenter with me and not a manual failover.*/
     if (node_datacenter_id != server.datacenter_id && !force_ack) {
+        char sender_buf[CLUSTER_NAMELEN+1] = {0};
+        snprintf(sender_buf, CLUSTER_NAMELEN, "%s", request->sender);
         serverLog(LL_WARNING, "[MULTIPLE_DC]don't vote sender(%s), datacenter_id is %u, "
-                "my datacenter_id is %u, force_ack is %d", request->sender,
+                "my datacenter_id is %u, force_ack is %d", sender_buf,
                   (unsigned int)node_datacenter_id, (unsigned int)server.datacenter_id, force_ack);
         return;
     }
