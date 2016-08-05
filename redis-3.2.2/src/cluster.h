@@ -56,7 +56,7 @@ typedef struct clusterLink {
 #define CLUSTER_NODE_MEET 128     /* Send a MEET message to this node */
 #define CLUSTER_NODE_MIGRATE_TO 256 /* Master elegible for replica migration. */
 #ifdef MULTIPLE_DC
-/* we reserve some 512-2048 for possible redis upgrade later. */
+/* we reserve 512-2048 for possible redis upgrade later. */
 #define CLUSTER_NODE_DATACENTER_CHANGED  4096 /* my datacenter-id changed and we need to inform other nodes. */
 #endif
 #define CLUSTER_NODE_NULL_NAME "\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000"
