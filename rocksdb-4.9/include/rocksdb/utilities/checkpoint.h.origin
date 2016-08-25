@@ -1,4 +1,4 @@
-// Copyright (c) 2013, Facebook, Inc.  All rights reserved.
+// Copyright (c) 2011-present, Facebook, Inc.  All rights reserved.
 // This source code is licensed under the BSD-style license found in the
 // LICENSE file in the root directory of this source tree. An additional grant
 // of patent rights can be found in the PATENTS file in the same directory.
@@ -6,9 +6,9 @@
 // A checkpoint is an openable snapshot of a database at a point in time.
 
 #pragma once
+#ifndef ROCKSDB_LITE
 
 #include <string>
-#include <vector>
 #include "rocksdb/status.h"
 
 namespace rocksdb {
@@ -29,12 +29,8 @@ class Checkpoint {
   // The directory will be an absolute path
   virtual Status CreateCheckpoint(const std::string& checkpoint_dir);
 
-  virtual Status GetCheckpointFiles(std::vector<std::string> &live_files, uint64_t &manifest_file_size, uint64_t &sequence_number);
-  virtual Status CreateCheckpointWithFiles(const std::string& checkpoint_dir, std::vector<std::string> &live_files,
-      uint64_t manifest_file_size, uint64_t sequence_number);
-  
-  virtual void StopCreate() {};
   virtual ~Checkpoint() {}
 };
 
 }  // namespace rocksdb
+#endif  // !ROCKSDB_LITE

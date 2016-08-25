@@ -43,11 +43,6 @@ class CompactionFilter {
     uint32_t column_family_id;
   };
 
-  //@ADD
-  char meta_prefix_;
-  int32_t meta_version_; // TODO 删除
-  int32_t meta_timestamp_; // TODO
-
   virtual ~CompactionFilter() {}
 
   // The compaction process invokes this
