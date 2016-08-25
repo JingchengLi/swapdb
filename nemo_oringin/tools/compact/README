@@ -1,0 +1,5 @@
+Tool for Manual Compact
+
+Usage:
+./compact db_path type
+type is one of: kv, hash, list, zset, set, all
