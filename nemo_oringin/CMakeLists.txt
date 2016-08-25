@@ -3,13 +3,13 @@ project(nemo)
 set (CMAKE_CXX_FLAGS "-Wall -W -Wno-unused-parameter -g -O2 -D__STDC_FORMAT_MACROS -fPIC -std=c++11")
 
 INCLUDE_DIRECTORIES(
-    ../rocksdb-4.9/include
+    ./3rdparty/rocksdb/include
     include
 )
 
-LINK_DIRECTORIES (
-    3rdparty/rocksdb
-)
+#LINK_DIRECTORIES (
+#    3rdparty/rocksdb
+#)
 
 SET ( SOURCES
     src/nemo_admin.cc
@@ -40,6 +40,6 @@ set_target_properties(libnemo-shared PROPERTIES
 set_property(TARGET libnemo-static PROPERTY CXX_STANDARD 11)                                                                                                                              
 set_property(TARGET libnemo-shared PROPERTY CXX_STANDARD 11)
 
-TARGET_LINK_LIBRARIES ( libnemo-static librocksdb.so)
-TARGET_LINK_LIBRARIES ( libnemo-shared librocksdb.so)
+TARGET_LINK_LIBRARIES ( libnemo-static ./3rdparty/rocksdb/librocksdb.so)
+TARGET_LINK_LIBRARIES ( libnemo-shared ./3rdparty/rocksdb/librocksdb.so)
 
