@@ -81,14 +81,6 @@ class ColumnFamilyHandle {
 static const int kMajorVersion = __ROCKSDB_MAJOR__;
 static const int kMinorVersion = __ROCKSDB_MINOR__;
 
-//@ADD
-const char kMetaPrefix_KV = '\0';
-const char kMetaPrefix_HASH = 'H';
-const char kMetaPrefix_ZSET = 'Z';
-const char kMetaPrefix_SET = 'S';
-const char kMetaPrefix_LIST = 'L';
-
-
 // A range of keys
 struct Range {
   Slice start;          // Included in the range
