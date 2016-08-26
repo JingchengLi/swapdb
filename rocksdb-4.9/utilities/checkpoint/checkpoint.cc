@@ -101,9 +101,20 @@ Status CheckpointImpl::GetCheckpointFiles(std::vector<std::string> &live_files, 
 Status CheckpointImpl::CreateCheckpointWithFiles(const std::string& checkpoint_dir, std::vector<std::string> &live_files,
     uint64_t manifest_file_size, uint64_t sequence_number) {
   bool same_fs = true;
+#if 1
+//@ADD
+  Status s = db_->GetEnv()->FileExists(checkpoint_dir);
+  if (s.ok()) {
+    return Status::InvalidArgument("Directory exists");
+  }
+  if (!s.IsNotFound()) {
+    return s;
+  }
+#else
   if (db_->GetEnv()->FileExists(checkpoint_dir)) {
     return Status::InvalidArgument("Directory exists");
   }
+#endif
 
   Log(db_->GetOptions().info_log,
       "Started the snapshot process -- creating snapshot in directory %s",
@@ -111,8 +122,14 @@ Status CheckpointImpl::CreateCheckpointWithFiles(const std::string& checkpoint_d
 
   std::string full_private_path = checkpoint_dir + ".tmp";
 
+#if 1
+  //@ADD
+  // create snapshot directory
+  s = db_->GetEnv()->CreateDir(full_private_path);
+#else
   // create snapshot directory
   Status s = db_->GetEnv()->CreateDir(full_private_path);
+#endif
 
   // copy/hard link live_files
   for (size_t i = 0; s.ok() && i < live_files.size(); ++i) {

@@ -827,6 +827,12 @@ class DB {
     return AddFile(DefaultColumnFamily(), file_info, move_file);
   }
 
+  //@ADD
+  // Get Key Version
+  virtual void GetKeyVersionAndTS(const Slice& key, int32_t *version, int32_t *timestamp) { }
+  virtual char GetMetaPrefix() const { return '\0'; };
+  //char meta_prefix_;
+
 #endif  // ROCKSDB_LITE
 
   // Sets the globally unique ID created at database creation time by invoking

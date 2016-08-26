@@ -359,47 +359,7 @@ DBImpl::DBImpl(const DBOptions& options, const std::string& dbname)
   DumpSupportInfo(db_options_.info_log.get());
 }
 
-//@ADD
-// Get key version and timestamp according to MetaKey;
-// Meta_key is meta_prefix + key, except for KV structure.
-// Meta_val is val + (int32_t)version + (int32_t)timestamp.
-// Note: The format is based on nemo
-// A return value of 0 means that KV do not have meta.
-void DBImpl::GetKeyVersionAndTS(const Slice& key, int32_t *version, int32_t *timestamp) {
-  *version = 0;
-  *timestamp = 0;
-
-  // KV do not have meta_prefix
-  if (meta_prefix_ == kMetaPrefix_KV) {
-    return;
-  }
-
-  std::string value;
-
-  Status st;
-  if (meta_prefix_ == key[0]) {
-    st = this->Get(ReadOptions(), DefaultColumnFamily(), key, &value);
-  } else {
-    // separator of meta and data
-    if (key.size() == 1) {
-      *version = 0;
-      *timestamp = 0;
-      return;
-    }
-
-    std::string meta_key(1, meta_prefix_);
-    int32_t len = *((uint8_t *)(key.data() + 1));
-    meta_key.append(key.data() + 2, len);
-    st = this->Get(ReadOptions(), DefaultColumnFamily(), meta_key, &value);
-  }
-
-  if (st.ok()) {
-    *version = DecodeFixed32(value.data() + value.size() - kVersionLength - kTSLength);
-    *timestamp = DecodeFixed32(value.data() + value.size() - kTSLength);
-  }
-}
-
-    // Will lock the mutex_,  will wait for completion if wait is true
+// Will lock the mutex_,  will wait for completion if wait is true
 void DBImpl::CancelAllBackgroundWork(bool wait) {
   InstrumentedMutexLock l(&mutex_);
   shutting_down_.store(true, std::memory_order_release);
