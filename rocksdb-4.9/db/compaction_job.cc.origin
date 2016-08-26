@@ -668,8 +668,6 @@ void CompactionJob::ProcessKeyValueCompaction(SubcompactionState* sub_compact) {
     prev_prepare_write_nanos = IOSTATS(prepare_write_nanos);
   }
 
-  //TODO merge nemo modifications
-
   ColumnFamilyData* cfd = sub_compact->compaction->column_family_data();
   const MutableCFOptions* mutable_cf_options =
       sub_compact->compaction->mutable_cf_options();
