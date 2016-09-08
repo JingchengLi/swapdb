@@ -372,7 +372,7 @@ bool DBWithTTLImpl::IsStale(const Slice& value, int32_t ttl, Env* env) {
   if (!env->GetCurrentTime(&curtime).ok()) {
     return false;  // Treat the data as fresh if could not get current time
   }
-  int32_t timestamp_value = DecodeFixed32(value.data() + value.size() - kTSLength);
+  int32_t timestamp_value = DecodeFixed32(value.data() + value.size() - kTSLength); // to modify ljc
   if (timestamp_value == 0) { // 0 means fresh
       return false;
   }
