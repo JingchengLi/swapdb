@@ -82,7 +82,8 @@ static const int kMajorVersion = __ROCKSDB_MAJOR__;
 static const int kMinorVersion = __ROCKSDB_MINOR__;
 
 //@ADD
-const char kMetaPrefix_KV = '\0';
+//const char kMetaPrefix_KV = '\0';
+const char kMetaPrefix_KV = 'k';
 const char kMetaPrefix_HASH = 'H';
 const char kMetaPrefix_ZSET = 'Z';
 const char kMetaPrefix_SET = 'S';
@@ -830,7 +831,9 @@ class DB {
   //@ADD
   // Get Key Version
   virtual void GetKeyVersionAndTS(const Slice& key, int32_t *version, int32_t *timestamp) { }
-  virtual char GetMetaPrefix() const { return '\0'; };
+  //virtual char GetMetaPrefix() const { return '\0'; };
+  virtual char GetMetaPrefix() const { return kMetaPrefix_KV; }; // check ljc
+
   //char meta_prefix_;
 
 #endif  // ROCKSDB_LITE
