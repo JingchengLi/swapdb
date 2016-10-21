@@ -18,6 +18,9 @@ int main() { fprintf(stderr, "Please install gflags to run tools\n"); }
 #include <string>
 #include <unordered_map>
 
+#include <sys/time.h>
+#include <unistd.h>
+#include "util/random.h"
 #include "port/port_posix.h"
 #include "rocksdb/env.h"
 #include "util/mutexlock.h"
