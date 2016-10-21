@@ -70,3 +70,5 @@ LOG
 db_logs/
 tp2/
 fbcode/
+
+third-party/gtest-1.7.0/fused-src/gtest/Makefile
