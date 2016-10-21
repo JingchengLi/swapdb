@@ -59,6 +59,12 @@ class Status {
     kBusy = 11,
     kExpired = 12,
     kTryAgain = 13,
+
+    /* Added for r2m, begin */
+    /* 14~32 reserved*/
+    kDecodeError = 33,
+    kDkeyExists = 34,
+    /* Added for r2m, end */
   };
 
   Code code() const { return code_; }
@@ -154,6 +160,22 @@ class Status {
   static Status TryAgain(const Slice& msg, const Slice& msg2 = Slice()) {
     return Status(kTryAgain, msg, msg2);
   }
+
+  /* Added for r2m, begin */
+  static Status DkeyExists(SubCode msg = kNone) { return Status(kDkeyExists, msg);}
+  static Status DkeyExists(const Slice& msg, const Slice& msg2 = Slice()) {
+    return Status(kDkeyExists, msg, msg2);
+  }
+
+  static Status DecodeError(SubCode msg = kNone) { return Status(kDecodeError, msg);}
+  static Status DecodeError(const Slice& msg, const Slice& msg2 = Slice()) {
+    return Status(kDecodeError, msg, msg2);
+  }
+
+  bool IsDecodeError() const { return code() == kDecodeError; };
+
+  bool IsDkeyExists() const { return code() == kDkeyExists; };
+  /* Added for r2m, end*/
 
   // Returns true iff the status indicates success.
   bool ok() const { return code() == kOk; }
