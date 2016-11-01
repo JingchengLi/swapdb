@@ -11,4 +11,8 @@ snappy_unittest
 stamp-h1
 testdata
 
+.libs/libsnappy.lai
+.libs/libsnappy.so
+.libs/libsnappy.so.1
+.libs/libsnappy.so.1.1.4
 
