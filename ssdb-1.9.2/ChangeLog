@@ -1,0 +1,133 @@
+* 1.9.4
+	* Incompatible changes:
+		- Treat unsupported redis command's reply as REPLY_MULTI_BULK(2016-07-26)
+		- Not writting pidfile when not running daemonized(2016-07-17)
+	* New features:
+		- Add OUT_OF_SYNC status, slave not flushdb when this status(2016-06-17)
+* 1.9.3
+	* New features:
+		- Do not allow slave request binlogs with seq greater than max_seq(2016-03-18)
+		- CLI comands with nagios output format(2016-03-06)
+		- User can input binary data via ssdb-cli(2016-02-24)
+		- Add ip_filter relative commands(2016-02-17)
+	* Bug fixes:
+		- Report error when setting ttl(expire) fail(2016-04-25)
+		- Fix ttl not be deleted when deleting the only one key with ttl in the db, issue#885(2016-03-02)
+		- Fix bug when connecting to multi masters, the slave saves only one master's status(2016-03-01)
+* 1.9.2
+	* New features:
+		- Binlog capacity can be set in config file(2016-01-14)
+		- Provide zfix command to repair broken zset(2015-12-02)
+		- Supports specifying slaveof.host in ssdb.conf(2015-11-23)
+		- Do not allow flushdb when replication is in use(2015-11-16)
+		- Provide server side flushdb(2015-09-17)
+		- The slave will flush db when receive copy_begin(2015-07-28)
+	* Incompatible changes:
+		- Will not support db size for redis clients(2015-08-07)
+	* Bug fixes:
+		- Fix ttl not be deleted when deleting the only one key with ttl in the db, issue#885(2016-03-02)
+		- Fix Logger bug on multi-threads, which halt the service for seconds(2016-01-25)
+		- Fix bug when ssdb-cli is soft linked(2016-01-25)
+		- Fix zclear infinite loop when data is broken(2015-12-02)
+		- Fix setbit crash on very big offset(2015-11-17)
+		- Fix Jedis zadd() score in scientific notation(2015-10-22)
+* 1.9.1
+	* Incompatible changes:
+		- zrank/zrrank return not_found(prev is error) if member not exists(2015-07-16)
+		- PHP API zrank/zrrank return null(prev is false) if member not exists(2015-07-16)
+* 1.9.0
+	* New features:
+		- Update MAX_PACKET_SIZE to 128MB(2015-04-28)
+		- Process most read commands in reader threads, not main thread(2015-04-28)
+		- Add bitcount command, which is similar to Redis's bitcount(2015-04-15)
+		- Add zpop_front, zpop_back command(2015-04-01)
+		- Support static library build for iOS(2015-03-26)
+		- Update options.max_open_files default value to 500(2015-03-15)
+		- Add version command(2015-03-10)
+		- Add rkeys command(2015-02-15)
+	* Bug fixes:
+		- Fix replication status display error(2015-04-09)
+* 1.8.1
+	* Bug fixes:
+		- Fix ttl bug(https://github.com/ideawu/ssdb/issues/628)(2015-03-14)
+* 1.8.0
+	* New features:
+		- Support SSDB style keys command through redis-cli(2014-12-08)
+		- Replication supports AUTH(2014-12-01)
+		- Sync qset operations(2014-11-05)
+		- Add dbsize command(2014-11-02)
+		- Include sync clients' stats in info(2014-11-02)
+		- Refactor codes, separate into: libutil, libnet, libssdb(2014-11-02)
+	* Bug fixes:
+		- Fix bug when process dump and sync140 command with redis-cli(2015-01-27)
+* 1.7.0.1
+	* New features:
+		- Sync qset operations(2014-11-05)
+		- *incr commands return error if value cannot be converted to integer(2014-10-24)
+		- Include replication/sync stats in info(2014-10-23)
+		- Add set_key_range, get_key_range(for KV) command(2014-10-22)
+		- Add qset/lset command(sync won't work), rewrite Response(2014-10-19)
+* 1.7.0.0
+	* New features:
+		- export(ssdb-cli) command supports -i(interactive) option(2014-10-16)
+		- ssdb-cli performance improved(2014-10-11)
+		- Add export, import commands in ssdb-cli(2014-10-11)
+		- Add qtrim_front, qtrim_back commands(2014-10-11)
+		- ssdb-dump support auth(2014-10-10)
+		- Add max_open_files config, default is 100(2014-10-08)
+		- Add auth command(2014-09-20)
+		- Enable qpop multi elements at a time(2014-09-16)
+	* Incompatible changes:
+		- Rewrite hexmem, this affects log messages(2014-10-10)
+* 1.6.8.8
+	* New features:
+		- Add hrlist, zrlist, qrlist commands(2014-07-27)
+		- Add string/bit operations: getbit, setbit, bitcount, strlen, substr(getrange)(2014-06-07)
+		- Put multi_*get commands to execute in worker thread(2014-06-17)
+	* Incompatible changes:
+		- Delete expireation info when deleting key(2014-06-28)
+		- Inlucde links, total_calls in info cmd's reply(2014-06-17)
+		- Rename redis_getrange command to getrange(2014-07-27)
+	* Bug fixes:
+		- Fix ssdb-bench bug on del bench(2014-08-21)
+		- Return entrire string when substr's params are ommitted(2014-07-27)
+		- Fix key expiration/ttl bug(2014-07-02)
+		- Fix zRangeByScore(redis) bug(2014-06-28)
+
+* 1.6.8.7
+	* New features:
+		- Add string/bit operations: getbit, setbit, bitcount, strlen, substr(getrange)(2014-06-07)
+		- Add expire command(2014-05-28)
+		- Add ttl command(2014-05-26)
+		- Add `flushdb list`(2014-05-22)
+		- Support Android build
+		- Add sync speed limit
+
+* 1.6.8.6 (2014-03-29)
+	* New features:
+		- Reduce round trip time for single request(2014-04-04)
+		- Add zcount, zsum, zavg, zRemRangeByScore, zRemRangeByRank commands(2014-04-06)
+		- Update redis-import.php to use Redis SCAN command if available(2014-04-07)
+		- qpush/qpush_* accept multiple values(2014-04-13)
+		- Don't push all expiration keys in memory, use less memory(2014-05-03)
+		- Provide an option to disable binlog(2014-05-03)
+		- Add hgetall command(2014-05-03)
+		- Fix memory issue on cache_size larger than 2048(2014-05-12);
+	* Incompatible changes:
+		- qpush returns the length of the queue/list after the push operations(2014-04-10)
+		- zrscan returns keys with score equal to score_start if key_start is ommit, previously it only returns keys with scores less than score_start(2014-04-23)
+	* Bug fixes:
+		- Redesign network flow, support very large batch commands
+		- Fix bug on ssdb-dump that lose data, print out error message(2014-04-05)
+
+* 1.6.8.5 (2014-03-05)
+	* New features:
+		- Add qslice(lrange), qget(lindex, lget) commands.
+		- Add getset, setnx commands.
+	* Incompatible changes:
+		- Queue/List data will be replicated(sync) to slaves.
+	* Bug fixes:
+		- Fix ssdb::Client::connect() possible memory leak
+		- Fix ttl overflow bug
+		- Fix nodejs api bug on binary data(2014-03-27)
+
