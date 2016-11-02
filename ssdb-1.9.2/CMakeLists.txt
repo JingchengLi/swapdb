@@ -25,14 +25,20 @@ LINK_DIRECTORIES(
 
 SET(CMAKE_C_FLAGS "-DNDEBUG -D__STDC_FORMAT_MACROS -Wall -O2 -Wno-sign-compare")
 
-ADD_LIBRARY(libjemalloc deps/jemalloc-4.1.0/lib)
-SET_TARGET_PROPERTIES(libjemalloc PROPERTIES LINKER_LANGUAGE C)
+ADD_LIBRARY(libjemalloc-static deps/jemalloc-4.1.0/lib)
+SET_TARGET_PROPERTIES(libjemalloc-static PROPERTIES 
+    LINKER_LANGUAGE C
+    OUTPUT_NAME "jemalloc")
 
-ADD_LIBRARY(libsnappy deps/snappy-1.1.0/.libs)
-SET_TARGET_PROPERTIES(libsnappy PROPERTIES LINKER_LANGUAGE CXX)
+ADD_LIBRARY(libsnappy-static deps/snappy-1.1.0/.libs)
+SET_TARGET_PROPERTIES(libsnappy-static PROPERTIES
+    LINKER_LANGUAGE CXX
+    OUTPUT_NAME "snappy")
 
-ADD_LIBRARY(libleveldb deps/leveldb-1.18)
-SET_TARGET_PROPERTIES(libleveldb PROPERTIES LINKER_LANGUAGE CXX)
+ADD_LIBRARY(libleveldb-static deps/leveldb-1.18)
+SET_TARGET_PROPERTIES(libleveldb-static PROPERTIES 
+    LINKER_LANGUAGE CXX
+    OUTPUT_NAME "leveldb")
 
 # src/ssdb
 # libssdb.a
@@ -139,4 +145,4 @@ src/cluster_migrate.cpp
 )
 
 ADD_EXECUTABLE(ssdb-server ${SRC_OBJS})                                                                                                                                             
-TARGET_LINK_LIBRARIES(ssdb-server libleveldb libssdb-static libutil-static libnet-static libsnappy libjemalloc pthread rt) 
+TARGET_LINK_LIBRARIES(ssdb-server libssdb-static libutil-static libnet-static leveldb snappy jemalloc pthread rt) 
