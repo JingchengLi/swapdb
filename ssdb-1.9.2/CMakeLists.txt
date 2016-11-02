@@ -83,6 +83,22 @@ set_target_properties(libssdb-client-shared PROPERTIES
     LINKER_LANGUAGE CXX
     OUTPUT_NAME "ssdb-client")
 
+# src/codec
+# libcodec.a
+SET( CODEC_OBJS
+src/codec/util.cpp
+src/codec/encode.cpp
+)
+
+ADD_LIBRARY(libcodec-static STATIC ${CODEC_OBJS})
+ADD_LIBRARY(libcodec-shared SHARED ${CODEC_OBJS})
+set_target_properties(libcodec-static PROPERTIES
+    LINKER_LANGUAGE CXX
+    OUTPUT_NAME "codec")
+set_target_properties(libcodec-shared PROPERTIES
+    LINKER_LANGUAGE CXX
+    OUTPUT_NAME "codec")
+
 # src/net
 # libnet.a
 
