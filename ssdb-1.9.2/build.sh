@@ -80,6 +80,16 @@ if [ ! -f Makefile ]; then
 fi
 cd "$DIR"
 
+DIR=`pwd`
+cd $LEVELDB_PATH
+if [ -f Makefile ]; then
+    echo ""
+    echo "##### building leveldb... #####"
+    make
+    echo "##### building leveldb finished #####"
+    echo ""
+fi
+cd "$DIR"
 
 case "$TARGET_OS" in
 	CYGWIN*|FreeBSD|OS_ANDROID_CROSSCOMPILE)

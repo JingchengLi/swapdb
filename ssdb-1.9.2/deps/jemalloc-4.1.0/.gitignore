@@ -4,6 +4,9 @@
 /bin/jemalloc.sh
 /bin/jeprof
 
+lib/libjemalloc.so
+lib/libjemalloc.so.2
+
 /config.stamp
 /config.log
 /config.status
