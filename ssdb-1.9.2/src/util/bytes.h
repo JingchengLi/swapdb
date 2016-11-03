@@ -200,6 +200,17 @@ public:
 		size -= n;
 		return n;
 	}
+	int read_uint16(uint16_t *ret){
+		if(size_t(size) < sizeof(uint16_t)){
+			return -1;
+		}
+		if(ret){
+			*ret = *(uint16_t *)p;
+		}
+		p += sizeof(uint16_t);
+		size -= sizeof(uint16_t);
+		return sizeof(uint16_t);
+	}
 	int read_int64(int64_t *ret){
 		if(size_t(size) < sizeof(int64_t)){
 			return -1;
@@ -247,6 +258,24 @@ public:
 		p += len;
 		size -= len;
 		return 1 + len;
+	}
+	int read_16_data(std::string *ret=NULL){
+		if(size < 2){
+			return -1;
+		}
+		uint16_t len = *(uint16_t *)p;
+		len = be16toh(len);
+		p += 2;
+		size -= 2;
+		if(size < len){
+			return -1;
+		}
+		if(ret){
+			ret->assign(p, len);
+		}
+		p += len;
+		size -= len;
+		return 2 + len;
 	}
 };
 

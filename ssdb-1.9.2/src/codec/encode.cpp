@@ -2,7 +2,6 @@
 // Created by a1 on 16-11-2.
 //
 #include "encode.h"
-#include "ssdb/const.h"
 
 string encode_meta_key(const string& key){
     string buf;
@@ -82,6 +81,8 @@ string encode_list_key(const string& key, uint64_t seq, uint16_t version){
     version = htobe16(version);
     buf.append((char *)&version, sizeof(uint16_t));
 
+    uint16_t len = htobe16((uint16_t)key.size());
+    buf.append((char *)&len, sizeof(uint16_t));
     buf.append(key);
 
     seq = htobe64(seq);

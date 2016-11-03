@@ -5,8 +5,12 @@
 #ifndef SSDB_UTIL_H
 #define SSDB_UTIL_H
 
+#include "ssdb/const.h"
+
 #include <stdlib.h>
 #include <stdint.h>
+#include <string>
+using namespace std;
 
 #define KEY_DELETE_MASK 'D'
 #define KEY_ENABLED_MASK 'E'

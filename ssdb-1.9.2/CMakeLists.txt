@@ -88,6 +88,7 @@ set_target_properties(libssdb-client-shared PROPERTIES
 SET( CODEC_OBJS
 src/codec/util.cpp
 src/codec/encode.cpp
+src/codec/decode.cpp
 )
 
 ADD_LIBRARY(libcodec-static STATIC ${CODEC_OBJS})
