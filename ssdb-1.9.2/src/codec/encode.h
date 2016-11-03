@@ -6,8 +6,6 @@
 #define SSDB_ENCODE_H
 
 #include "util.h"
-#include <string>
-using namespace std;
 
 string encode_meta_key(const string& key);
 
