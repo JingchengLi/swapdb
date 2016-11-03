@@ -2,6 +2,7 @@
 // Created by a1 on 16-11-2.
 //
 #include "encode.h"
+#include "ssdb/const.h"
 
 string encode_meta_key(const string& key){
     string buf;
@@ -90,6 +91,65 @@ string encode_list_key(const string& key, uint64_t seq, uint16_t version){
 
     zipSaveInteger(seq_buf, seq, ZIP_INT_64B);
     buf.append((const char*)seq_buf, 8);
+
+    return buf;
+}
+
+string encode_kv_val(const string& val){
+    string buf;
+    buf.append(1, DataType::KV);
+    buf.append(val);
+    return buf;
+}
+
+string encode_meta_val_internal(const char type, uint64_t length, uint16_t version, char del){
+    string buf;
+    unsigned char p[3] = {0};
+    unsigned char len_buf[9] = {0};
+
+    buf.append(1, type);
+    zipSaveInteger(p, version, ZIP_INT_16B); // 2 Bytes
+    buf.append((const char*)p, 2);
+
+    buf.append(1, del);
+
+    zipSaveInteger(len_buf, length, ZIP_INT_64B);
+    buf.append((const char*)len_buf, 8);
+
+    return buf;
+}
+
+string encode_hash_meta_val(uint64_t length, uint16_t version, char del){
+    return encode_meta_val_internal(DataType::HSIZE, length, version, del);
+}
+
+string encode_set_meta_val(uint64_t length, uint16_t version, char del){
+    return encode_meta_val_internal(DataType::SSIZE, length, version, del);
+}
+
+string encode_zset_meta_val(uint64_t length, uint16_t version, char del){
+    return encode_meta_val_internal(DataType::ZSIZE, length, version, del);
+}
+
+string encode_list_meta_val(uint64_t length, uint64_t left, uint64_t right, uint16_t version, char del){
+    string buf;
+    unsigned char p[3] = {0};
+    unsigned char u64[9] = {0};
+
+    buf.append(1, DataType::LSZIE);
+    zipSaveInteger(p, version, ZIP_INT_16B); // 2 Bytes
+    buf.append((const char*)p, 2);
+
+    buf.append(1, del);
+
+    zipSaveInteger(u64, length, ZIP_INT_64B);
+    buf.append((const char*)u64, 8);
+
+    zipSaveInteger(u64, left, ZIP_INT_64B);
+    buf.append((const char*)u64, 8);
+
+    zipSaveInteger(u64, right, ZIP_INT_64B);
+    buf.append((const char*)u64, 8);
 
     return buf;
 }

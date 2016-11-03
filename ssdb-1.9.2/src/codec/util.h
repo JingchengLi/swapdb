@@ -8,6 +8,11 @@
 #include <stdlib.h>
 #include <stdint.h>
 
+#define KEY_DELETE_MASK 'D'
+#define KEY_ENABLED_MASK 'E'
+
+#define ZSET_SCORE_SHIFT 1000000000000000000LL
+
 /* for linux x86-64/amd64/i386, it's little endian, don't need convert. */
 #define memrev16ifbe(p)
 #define memrev32ifbe(p)

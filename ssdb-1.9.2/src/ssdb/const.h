@@ -18,6 +18,8 @@ public:
 	static const char ZSET		= 's'; // key => score
 	static const char ZSCORE	= 'z'; // key|score => ""
 	static const char ZSIZE		= 'Z';
+	static const char SSIZE		= 'S';
+	static const char LSZIE		= 'L';
 	static const char QUEUE		= 'q';
 	static const char QSIZE		= 'Q';
 	static const char MIN_PREFIX = HASH;
