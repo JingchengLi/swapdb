@@ -25,10 +25,14 @@ void Options::load(const Config &conf){
 	cache_size = (size_t)conf.get_num("leveldb.cache_size");
 	block_size = (size_t)conf.get_num("leveldb.block_size");
 	compaction_speed = conf.get_num("leveldb.compaction_speed");
-#endif
 	max_open_files = (size_t)conf.get_num("leveldb.max_open_files");
 	write_buffer_size = (size_t)conf.get_num("leveldb.write_buffer_size");
 	compression = conf.get_str("leveldb.compression");
+#else
+	max_open_files = (size_t)conf.get_num("rocksdb.max_open_files");
+	write_buffer_size = (size_t)conf.get_num("rocksdb.write_buffer_size");
+	compression = conf.get_str("rocksdb.compression");
+#endif
 	std::string binlog = conf.get_str("replication.binlog");
 	binlog_capacity = (size_t)conf.get_num("replication.binlog.capacity");
 
