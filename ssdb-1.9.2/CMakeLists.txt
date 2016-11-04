@@ -6,15 +6,17 @@ SET(JEMALLOC_PATH=${CMAKE_CURRENT_SOURCE_DIR}/deps/jemalloc-4.1.0)
 SET(SNAPPY_PATH=${CMAKE_CURRENT_SOURCE_DIR}/deps/snappy-1.1.0)
 
 INCLUDE_DIRECTORIES(
-    ${CMAKE_CURRENT_SOURCE_DIR}/deps/leveldb-1.18/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/deps/leveldb-1.18/include/leveldb
+    #${CMAKE_CURRENT_SOURCE_DIR}/deps/leveldb-1.18/include
+    #${CMAKE_CURRENT_SOURCE_DIR}/deps/leveldb-1.18/include/leveldb
+    ${CMAKE_CURRENT_SOURCE_DIR}/deps/rocksdb-4.11.2/include
     ${CMAKE_CURRENT_SOURCE_DIR}/deps/jemalloc-4.1.0/include
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${CMAKE_CURRENT_SOURCE_DIR}/src/client
     )
 
 LINK_DIRECTORIES(
-    ${CMAKE_CURRENT_SOURCE_DIR}/deps/leveldb-1.18/
+    #${CMAKE_CURRENT_SOURCE_DIR}/deps/leveldb-1.18/
+    ${CMAKE_CURRENT_SOURCE_DIR}/deps/rocksdb-4.11.2/
     ${CMAKE_CURRENT_SOURCE_DIR}/deps/snappy-1.1.0/.libs
     ${CMAKE_CURRENT_SOURCE_DIR}/deps/jemalloc-4.1.0/lib/
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ssdb
@@ -23,7 +25,7 @@ LINK_DIRECTORIES(
     ${CMAKE_CURRENT_SOURCE_DIR}/src/net
     )
 
-SET(CMAKE_C_FLAGS "-DNDEBUG -D__STDC_FORMAT_MACROS -Wall -O2 -Wno-sign-compare")
+SET(CMAKE_CXX_FLAGS "-DNDEBUG -D__STDC_FORMAT_MACROS -Wall -O2 -Wno-sign-compare -std=c++11")
 
 ADD_LIBRARY(libjemalloc-static deps/jemalloc-4.1.0/lib)
 SET_TARGET_PROPERTIES(libjemalloc-static PROPERTIES 
@@ -35,10 +37,16 @@ SET_TARGET_PROPERTIES(libsnappy-static PROPERTIES
     LINKER_LANGUAGE CXX
     OUTPUT_NAME "snappy")
 
-ADD_LIBRARY(libleveldb-static deps/leveldb-1.18)
-SET_TARGET_PROPERTIES(libleveldb-static PROPERTIES 
+#ADD_LIBRARY(libleveldb-static deps/leveldb-1.18)
+#SET_TARGET_PROPERTIES(libleveldb-static PROPERTIES
+#    LINKER_LANGUAGE CXX
+#    OUTPUT_NAME "leveldb")
+
+ADD_LIBRARY(librocksdb-static deps/rocksdb-4.11.2)
+TARGET_LINK_LIBRARIES ( librocksdb-static snappy gtest gflags )
+SET_TARGET_PROPERTIES(librocksdb-static PROPERTIES
     LINKER_LANGUAGE CXX
-    OUTPUT_NAME "leveldb")
+    OUTPUT_NAME "rocksdb")
 
 # src/ssdb
 # libssdb.a
@@ -56,7 +64,7 @@ src/ssdb/ttl.cpp
 
 ADD_LIBRARY(libssdb-static STATIC ${SSDB_OBJS})                                                                                                                                                  
 #ADD_LIBRARY(libssdb-shared SHARED ${SSDB_OBJS})
-TARGET_LINK_LIBRARIES ( libssdb-static leveldb snappy )
+TARGET_LINK_LIBRARIES ( libssdb-static rocksdb snappy )
 #TARGET_LINK_LIBRARIES ( libssdb-shared leveldb )
 set_target_properties(libssdb-static PROPERTIES
     LINKER_LANGUAGE CXX
@@ -162,4 +170,4 @@ src/cluster_migrate.cpp
 )
 
 ADD_EXECUTABLE(ssdb-server ${SRC_OBJS})                                                                                                                                             
-TARGET_LINK_LIBRARIES(ssdb-server libssdb-static libutil-static libnet-static leveldb snappy jemalloc pthread rt) 
+TARGET_LINK_LIBRARIES(ssdb-server libssdb-static libutil-static libnet-static rocksdb gtest gflags snappy jemalloc pthread rt)

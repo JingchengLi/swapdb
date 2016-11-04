@@ -10,7 +10,12 @@ found in the LICENSE file.
 #include "t_queue.h"
 #include "../util/log.h"
 #include "../util/config.h"
+#ifdef USE_LEVELDB
 #include "leveldb/iterator.h"
+#else
+#include "rocksdb/iterator.h"
+#define leveldb rocksdb
+#endif
 
 Iterator::Iterator(leveldb::Iterator *it,
 		const std::string &end,

@@ -18,6 +18,9 @@
 #  JEMALLOC_LIBRARIES         The jemalloc library/libraries
 #  JEMALLOC_INCLUDE_DIR       The location of jemalloc headers
 
+# for ssdb project only
+SET (JEMALLOC_ROOT_DIR ../jemalloc-4.1.0)
+
 find_path(JEMALLOC_ROOT_DIR
     NAMES include/jemalloc/jemalloc.h
 )
