@@ -1,6 +1,7 @@
 ios
 888*.conf
 var888*
+*.so
 *.exe
 *.o
 *.a
@@ -37,12 +38,8 @@ api/php/b.php
 api/php/c.php
 api/java/Test.java
 src/util/test_sorted_set
-Makefile
 .idea/
 CMakeCache.txt
 CMakeFiles/
 cmake_install.cmake
-libnet.so
-libssdb-client.so
-libutil.so
 
