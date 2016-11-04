@@ -10,7 +10,12 @@ found in the LICENSE file.
 #include <string>
 #include "../util/bytes.h"
 
+#ifdef USE_LEVELDB
 namespace leveldb{
+#else
+#define leveldb rocksdb
+namespace rocksdb{
+#endif
 	class Iterator;
 }
 

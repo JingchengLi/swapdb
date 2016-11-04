@@ -4,10 +4,18 @@ Use of this source code is governed by a BSD-style license that can be
 found in the LICENSE file.
 */
 #include "ssdb_impl.h"
+#ifdef USE_LEVELDB
 #include "leveldb/env.h"
 #include "leveldb/iterator.h"
 #include "leveldb/cache.h"
 #include "leveldb/filter_policy.h"
+#else
+#include "rocksdb/env.h"
+#include "rocksdb/iterator.h"
+#include "rocksdb/cache.h"
+#include "rocksdb/filter_policy.h"
+#define leveldb rocksdb
+#endif
 
 #include "iterator.h"
 #include "t_kv.h"
@@ -27,23 +35,27 @@ SSDBImpl::~SSDBImpl(){
 	if(ldb){
 		delete ldb;
 	}
+#ifdef USE_LEVELDB
 	if(options.block_cache){
 		delete options.block_cache;
 	}
 	if(options.filter_policy){
 		delete options.filter_policy;
 	}
+#endif
 }
 
 SSDB* SSDB::open(const Options &opt, const std::string &dir){
 	SSDBImpl *ssdb = new SSDBImpl();
 	ssdb->options.create_if_missing = true;
 	ssdb->options.max_open_files = opt.max_open_files;
+#ifdef USE_LEVELDB
 	ssdb->options.filter_policy = leveldb::NewBloomFilterPolicy(10);
 	ssdb->options.block_cache = leveldb::NewLRUCache(opt.cache_size * 1048576);
 	ssdb->options.block_size = opt.block_size * 1024;
-	ssdb->options.write_buffer_size = opt.write_buffer_size * 1024 * 1024;
 	ssdb->options.compaction_speed = opt.compaction_speed;
+#endif
+	ssdb->options.write_buffer_size = opt.write_buffer_size * 1024 * 1024;
 	if(opt.compression == "yes"){
 		ssdb->options.compression = leveldb::kSnappyCompression;
 	}else{

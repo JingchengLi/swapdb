@@ -51,11 +51,13 @@ void MyApplication::run(){
 
 	log_info("main_db          : %s", data_db_dir.c_str());
 	log_info("meta_db          : %s", meta_db_dir.c_str());
+#ifdef USE_LEVELDB
 	log_info("cache_size       : %d MB", option.cache_size);
 	log_info("block_size       : %d KB", option.block_size);
+	log_info("compaction_speed : %d MB/s", option.compaction_speed);
+#endif
 	log_info("write_buffer     : %d MB", option.write_buffer_size);
 	log_info("max_open_files   : %d", option.max_open_files);
-	log_info("compaction_speed : %d MB/s", option.compaction_speed);
 	log_info("compression      : %s", option.compression.c_str());
 	log_info("binlog           : %s", option.binlog? "yes" : "no");
 	log_info("binlog_capacity  : %d", option.binlog_capacity);
