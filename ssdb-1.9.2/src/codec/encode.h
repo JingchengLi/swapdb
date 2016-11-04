@@ -39,4 +39,9 @@ string encode_zset_meta_val(uint64_t length, uint16_t version = 0, char del = KE
 
 string encode_list_meta_val(uint64_t length, uint64_t left, uint64_t right, uint16_t version = 0, char del = KEY_ENABLED_MASK);
 
+/*
+ * delete key
+ */
+string encode_delete_key(const string& key, uint16_t version = 0);
+
 #endif //SSDB_ENCODE_H

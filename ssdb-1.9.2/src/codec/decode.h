@@ -64,9 +64,9 @@ public:
 
 public:
     char        type;
-    uint64_t    length;
-    uint16_t    version;
     char        del;
+    uint16_t    version;
+    uint64_t    length;
 };
 typedef MetaVal HashMetaVal;
 typedef MetaVal SetMetaVal;
@@ -79,6 +79,20 @@ public:
 public:
     uint64_t    left;
     uint64_t    right;
+};
+
+/*
+ * decode delete key class
+ */
+class DeleteKey{
+public:
+    int DecodeDeleteKey(const string& str);
+
+public:
+    char        type;
+    uint16_t    slot;
+    uint16_t    version;
+    string      key;
 };
 
 #endif //SSDB_DECODE_H
