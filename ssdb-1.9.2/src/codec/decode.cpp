@@ -167,3 +167,26 @@ int ListMetaVal::DecodeMetaVal(const string &str) {
     }
     return 0;
 }
+
+/*
+ * decode delete key class
+ */
+int DeleteKey::DecodeDeleteKey(const string &str) {
+    Decoder decoder(str.data(), str.size());
+    if(decoder.skip(1) == -1){
+        return -1;
+    } else{
+        type = str[0];
+    }
+    if (decoder.read_uint16(&version) == -1){
+        return -1;
+    } else{
+        version = be16toh(version);
+    }
+    if (decoder.read_uint16(&slot) == -1){
+        return -1;
+    } else{
+        slot = be16toh(slot);
+    }
+    return decoder.read_data(&key);
+}
