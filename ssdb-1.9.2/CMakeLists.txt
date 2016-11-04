@@ -19,6 +19,7 @@ LINK_DIRECTORIES(
     ${CMAKE_CURRENT_SOURCE_DIR}/deps/rocksdb-4.11.2/
     ${CMAKE_CURRENT_SOURCE_DIR}/deps/snappy-1.1.0/.libs
     ${CMAKE_CURRENT_SOURCE_DIR}/deps/jemalloc-4.1.0/lib/
+    ${CMAKE_CURRENT_SOURCE_DIR}/deps/rocksdb-4.11.2/third-party/gtest-1.7.0/fused-src/gtest
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ssdb
     ${CMAKE_CURRENT_SOURCE_DIR}/src/client
     ${CMAKE_CURRENT_SOURCE_DIR}/src/util
