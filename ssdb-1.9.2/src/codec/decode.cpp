@@ -28,13 +28,13 @@ int ItemKey::DecodeItemKey(const string &str) {
     if (str[0] != 'S'){
         return -1;
     }
+    if (decoder.read_16_data(&key) == -1){
+        return -1;
+    }
     if (decoder.read_uint16(&version) == -1){
         return -1;
     } else{
         version = be16toh(version);
-    }
-    if (decoder.read_16_data(&key) == -1){
-        return -1;
     }
     return decoder.read_data(&field);
 }
@@ -47,13 +47,13 @@ int ZScoreItemKey::DecodeItemKey(const string &str) {
     if (str[0] != 'S'){
         return -1;
     }
+    if (decoder.read_16_data(&key) == -1){
+        return -1;
+    }
     if (decoder.read_uint16(&version) == -1){
         return -1;
     } else{
         version = be16toh(version);
-    }
-    if (decoder.read_16_data(&key) == -1){
-        return -1;
     }
     uint64_t tscore = 0;
     if (decoder.read_uint64(&tscore) == -1){
@@ -77,13 +77,13 @@ int ListItemKey::DecodeItemKey(const string &str) {
     if (str[0] != 'S'){
         return -1;
     }
+    if (decoder.read_16_data(&key) == -1){
+        return -1;
+    }
     if (decoder.read_uint16(&version) == -1){
         return -1;
     } else{
         version = be16toh(version);
-    }
-    if (decoder.read_16_data(&key) == -1){
-        return -1;
     }
     if (decoder.read_uint64(&seq) == -1){
         return -1;
@@ -178,15 +178,18 @@ int DeleteKey::DecodeDeleteKey(const string &str) {
     } else{
         type = str[0];
     }
-    if (decoder.read_uint16(&version) == -1){
-        return -1;
-    } else{
-        version = be16toh(version);
-    }
     if (decoder.read_uint16(&slot) == -1){
         return -1;
     } else{
         slot = be16toh(slot);
     }
-    return decoder.read_data(&key);
+    if (decoder.read_16_data(&key) == -1){
+        return -1;
+    }
+    if (decoder.read_uint16(&version) == -1){
+        return -1;
+    } else{
+        version = be16toh(version);
+    }
+    return 0;
 }
