@@ -20,12 +20,13 @@ string encode_key_internal(const string& key, const string& field, uint16_t vers
     string buf;
 
     buf.append(1, 'S');
-    version = htobe16(version);
-    buf.append((char *)&version, sizeof(uint16_t));
 
     uint16_t len = htobe16((uint16_t)key.size());
     buf.append((char *)&len, sizeof(uint16_t));
     buf.append(key);
+
+    version = htobe16(version);
+    buf.append((char *)&version, sizeof(uint16_t));
 
     buf.append(field);
 
@@ -58,12 +59,13 @@ string encode_zscore_key(const string& key, const string& member, double score, 
     string buf;
 
     buf.append(1, 'S');
-    version = htobe16(version);
-    buf.append((char *)&version, sizeof(uint16_t));
 
     uint16_t len = htobe16((uint16_t)key.size());
     buf.append((char *)&len, sizeof(uint16_t));
     buf.append(key);
+
+    version = htobe16(version);
+    buf.append((char *)&version, sizeof(uint16_t));
 
     uint64_t new_score = encodeScore(score);
     new_score = htobe64(new_score);
@@ -78,12 +80,13 @@ string encode_list_key(const string& key, uint64_t seq, uint16_t version){
     string buf;
 
     buf.append(1, 'S');
-    version = htobe16(version);
-    buf.append((char *)&version, sizeof(uint16_t));
 
     uint16_t len = htobe16((uint16_t)key.size());
     buf.append((char *)&len, sizeof(uint16_t));
     buf.append(key);
+
+    version = htobe16(version);
+    buf.append((char *)&version, sizeof(uint16_t));
 
     seq = htobe64(seq);
     buf.append((char *)&seq, sizeof(uint64_t));
@@ -152,13 +155,17 @@ string encode_list_meta_val(uint64_t length, uint64_t left, uint64_t right, uint
 string encode_delete_key(const string& key, uint16_t version){
     string buf;
     buf.append(1, KEY_DELETE_MASK);
-    version = htobe16(version);
-    buf.append((char *)&version, sizeof(uint16_t));
 
     uint16_t slot = (uint16_t)keyHashSlot(key.data(), (int)key.size());
     slot = htobe16(slot);
     buf.append((char *)&slot, sizeof(uint16_t));
 
+    uint16_t len = htobe16((uint16_t)key.size());
+    buf.append((char *)&len, sizeof(uint16_t));
     buf.append(key);
+
+    version = htobe16(version);
+    buf.append((char *)&version, sizeof(uint16_t));
+
     return buf;
 }
