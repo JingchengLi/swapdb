@@ -104,7 +104,9 @@ int KvMetaVal::DecodeMetaVal(const string &str) {
     if(decoder.skip(1) == -1){
         return -1;
     }
-    type = str[0];
+    if ((type = str[0]) != DataType::KV){
+        return -1;
+    }
 
     decoder.read_data(&value);
     return 0;
@@ -116,6 +118,9 @@ int MetaVal::DecodeMetaVal(const string &str) {
         return -1;
     }
     type = str[0];
+    if ((type != DataType::HSIZE) && (type != DataType::SSIZE) && (type != DataType::ZSIZE)){
+        return -1;
+    }
 
     if (decoder.read_uint16(&version) == -1){
         return -1;
@@ -126,7 +131,10 @@ int MetaVal::DecodeMetaVal(const string &str) {
     if(decoder.skip(1) == -1){
         return -1;
     }
-    type = str[3];
+    del = str[3];
+    if((del != KEY_DELETE_MASK) && (del != KEY_ENABLED_MASK)){
+        return -1;
+    }
 
     if (decoder.read_uint64(&length) == -1){
         return -1;
@@ -141,7 +149,9 @@ int ListMetaVal::DecodeMetaVal(const string &str) {
     if(decoder.skip(1) == -1){
         return -1;
     }
-    type = str[0];
+    if ((type = str[0]) != DataType::LSZIE){
+        return -1;
+    }
 
     if (decoder.read_uint16(&version) == -1){
         return -1;
@@ -152,7 +162,10 @@ int ListMetaVal::DecodeMetaVal(const string &str) {
     if(decoder.skip(1) == -1){
         return -1;
     }
-    type = str[3];
+    del = str[3];
+    if((del != KEY_DELETE_MASK) && (del != KEY_ENABLED_MASK)){
+        return -1;
+    }
 
     if (decoder.read_uint64(&length) == -1){
         return -1;
@@ -180,7 +193,9 @@ int DeleteKey::DecodeDeleteKey(const string &str) {
     if(decoder.skip(1) == -1){
         return -1;
     } else{
-        type = str[0];
+        if ((type = str[0]) != KEY_DELETE_MASK){
+            return -1;
+        }
     }
     if (decoder.read_uint16(&slot) == -1){
         return -1;
