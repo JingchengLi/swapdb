@@ -17,7 +17,8 @@ int MetaKey::DecodeMetaKey(const string &str) {
     } else{
         slot = be16toh(slot);
     }
-    return decoder.read_data(&key);
+    decoder.read_data(&key);
+    return 0;
 }
 
 int ItemKey::DecodeItemKey(const string &str) {
@@ -36,7 +37,8 @@ int ItemKey::DecodeItemKey(const string &str) {
     } else{
         version = be16toh(version);
     }
-    return decoder.read_data(&field);
+    decoder.read_data(&field);
+    return 0;
 }
 
 int ZScoreItemKey::DecodeItemKey(const string &str) {
@@ -62,7 +64,8 @@ int ZScoreItemKey::DecodeItemKey(const string &str) {
         tscore = be64toh(tscore);
         score = decodeScore(tscore);
     }
-    return decoder.read_data(&field);
+    decoder.read_data(&field);
+    return 0;
 }
 
 inline double decodeScore(const int64_t score) {
@@ -103,7 +106,8 @@ int KvMetaVal::DecodeMetaVal(const string &str) {
     }
     type = str[0];
 
-    return decoder.read_data(&value);
+    decoder.read_data(&value);
+    return 0;
 }
 
 int MetaVal::DecodeMetaVal(const string &str) {
