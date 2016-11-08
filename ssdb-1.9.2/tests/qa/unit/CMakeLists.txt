@@ -7,17 +7,20 @@ SET(JEMALLOC_PATH=${BUILD_PATH}/deps/jemalloc-4.1.0)
 SET(SNAPPY_PATH=${BUILD_PATH}/deps/snappy-1.1.0)
 
 INCLUDE_DIRECTORIES(
-    ${BUILD_PATH}/deps/leveldb-1.18/include
-    ${BUILD_PATH}/deps/leveldb-1.18/include/leveldb
+    #${BUILD_PATH}/deps/leveldb-1.18/include
+    #${BUILD_PATH}/deps/leveldb-1.18/include/leveldb
+    ${BUILD_PATH}/deps/rocksdb-4.11.2/include
     ${BUILD_PATH}/deps/jemalloc-4.1.0/include
     ${BUILD_PATH}/src
     ${BUILD_PATH}/src/client
     ${BUILD_PATH}/tests/gtest_1.7.0/include
     ${BUILD_PATH}/src/codec/
+    include
     )
 
 LINK_DIRECTORIES(
-    ${BUILD_PATH}/deps/leveldb-1.18/
+    #${BUILD_PATH}/deps/leveldb-1.18/
+    ${BUILD_PATH}/deps/rocksdb-4.11.2/
     ${BUILD_PATH}/deps/snappy-1.1.0/.libs
     ${BUILD_PATH}/deps/jemalloc-4.1.0/lib/
     ${BUILD_PATH}/src/ssdb
@@ -36,7 +39,7 @@ IF(GCOV)
     SET(CMAKE_EXE_LINKER_FLAGS "-fprofile-arcs -ftest-coverage")  
 endif()
 
-SET(CMAKE_CXX_FLAGS "-DNDEBUG -D__STDC_FORMAT_MACROS -Wall -O2 -Wno-sign-compare")
+SET(CMAKE_CXX_FLAGS "-DNDEBUG -D__STDC_FORMAT_MACROS -Wall -O2 -Wno-sign-compare -std=c++11")
 
 ADD_LIBRARY(libjemalloc-static ${BUILD_PATH}/deps/jemalloc-4.1.0/lib)
 SET_TARGET_PROPERTIES(libjemalloc-static PROPERTIES 
@@ -48,10 +51,16 @@ SET_TARGET_PROPERTIES(libsnappy-static PROPERTIES
     LINKER_LANGUAGE CXX
     OUTPUT_NAME "snappy")
 
-ADD_LIBRARY(libleveldb-static ${BUILD_PATH}/deps/leveldb-1.18)
-SET_TARGET_PROPERTIES(libleveldb-static PROPERTIES 
+#ADD_LIBRARY(libleveldb-static ${BUILD_PATH}/deps/leveldb-1.18)
+#SET_TARGET_PROPERTIES(libleveldb-static PROPERTIES 
+#    LINKER_LANGUAGE CXX
+#    OUTPUT_NAME "leveldb")
+
+ADD_LIBRARY(librocksdb-static ${BUILD_PATH}/deps/rocksdb-4.11.2)
+TARGET_LINK_LIBRARIES ( librocksdb-static snappy gtest gflags  )
+SET_TARGET_PROPERTIES(librocksdb-static PROPERTIES
     LINKER_LANGUAGE CXX
-    OUTPUT_NAME "leveldb")
+    OUTPUT_NAME "rocksdb")
 
 # src/ssdb
 # libssdb.a
@@ -69,7 +78,7 @@ SET( SSDB_OBJS
 
 ADD_LIBRARY(libssdb-static STATIC ${SSDB_OBJS})                                                                                                                                                  
 #ADD_LIBRARY(libssdb-shared SHARED ${SSDB_OBJS})
-TARGET_LINK_LIBRARIES ( libssdb-static leveldb snappy )
+TARGET_LINK_LIBRARIES ( libssdb-static rocksdb snappy )
 #TARGET_LINK_LIBRARIES ( libssdb-shared leveldb )
 set_target_properties(libssdb-static PROPERTIES
     LINKER_LANGUAGE CXX
@@ -101,6 +110,7 @@ set_target_properties(libssdb-client-shared PROPERTIES
 SET( CODEC_OBJS
     ${BUILD_PATH}/src/codec/util.cpp
     ${BUILD_PATH}/src/codec/encode.cpp
+    ${BUILD_PATH}/src/codec/decode.cpp
 )
 
 ADD_LIBRARY(libcodec-static STATIC ${CODEC_OBJS})
@@ -111,6 +121,14 @@ set_target_properties(libcodec-static PROPERTIES
 set_target_properties(libcodec-shared PROPERTIES
     LINKER_LANGUAGE CXX
     OUTPUT_NAME "codec")
+
+ADD_EXECUTABLE(test_codec 
+    ${CODEC_OBJS}                                                                                                                                             
+    ${GTEST_SRC}
+    ${GTEST_CODEC_SRC}
+    )
+
+TARGET_LINK_LIBRARIES(test_codec gtest) 
 
 # src/net
 # libnet.a
@@ -176,4 +194,4 @@ SET( SRC_OBJS
 )
 
 ADD_EXECUTABLE(ssdb-server ${SRC_OBJS})                                                                                                                                             
-TARGET_LINK_LIBRARIES(ssdb-server libssdb-static libutil-static libnet-static leveldb snappy jemalloc pthread rt gtest libcodec-static) 
+TARGET_LINK_LIBRARIES(ssdb-server libssdb-static libutil-static libnet-static snappy bz2 z jemalloc pthread rt gtest gflags libcodec-static) 
