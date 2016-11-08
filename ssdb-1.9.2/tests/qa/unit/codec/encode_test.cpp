@@ -191,7 +191,8 @@ TEST_F(EncodeTest, Test_encode_zscore_key) {
     {
         key = GetRandomKey_(); 
         member = GetRandomField_();
-        score = GetRandomFloat_();
+        score = n^0x1?(double)GetRandomUInt64_(0, MAX_UINT64-1)\
+                :-(double)GetRandomUInt64_(0, MAX_UINT64-1);
         version = GetRandomVer_();
         compare_encode_zscore_key( key, member, score, version, space);
     }
