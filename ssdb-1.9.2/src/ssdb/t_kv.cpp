@@ -94,49 +94,10 @@ int SSDBImpl::multi_del(const std::vector<Bytes> &keys, int offset, char log_typ
 
 int SSDBImpl::set(const Bytes &key, const Bytes &val, char log_type){
     return SetGeneric(key.String(), val.String(), OBJ_SET_NO_FLAGS, 0);
-/*	if(key.empty()){
-		log_error("empty key!");
-		//return -1;
-		return 0;
-	}
-	Transaction trans(binlogs);
-
-// todo r2m adaptation
-	std::string buf = encode_kv_key(key);
-	binlogs->Put(buf, slice(val));
-	binlogs->add_log(log_type, BinlogCommand::KSET, buf);
-	leveldb::Status s = binlogs->commit();
-	if(!s.ok()){
-		log_error("set error: %s", s.ToString().c_str());
-		return -1;
-	}
-	return 1;*/
 }
 
 int SSDBImpl::setnx(const Bytes &key, const Bytes &val, char log_type){
     return SetGeneric(key.String(), val.String(), OBJ_SET_NX, 0);
-	if(key.empty()){
-		log_error("empty key!");
-		//return -1;
-		return 0;
-	}
-	Transaction trans(binlogs);
-
-	std::string tmp;
-	int found = this->get(key, &tmp);
-	if(found != 0){
-		return 0;
-	}
-// todo r2m adaptation
-	std::string buf = encode_kv_key(key);
-	binlogs->Put(buf, slice(val));
-	binlogs->add_log(log_type, BinlogCommand::KSET, buf);
-	leveldb::Status s = binlogs->commit();
-	if(!s.ok()){
-		log_error("set error: %s", s.ToString().c_str());
-		return -1;
-	}
-	return 1;
 }
 
 int SSDBImpl::getset(const Bytes &key, std::string *val, const Bytes &newval, char log_type){
