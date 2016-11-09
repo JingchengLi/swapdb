@@ -164,6 +164,7 @@ private:
 	int _qpop(const Bytes &name, std::string *item, uint64_t front_or_back_seq, char log_type=BinlogType::SYNC);
 
 	int SetGeneric(const std::string &key, const std::string &val, int flags, const int64_t expire, char log_type=BinlogType::SYNC);
+    int KDel(const Bytes &key, char log_type=BinlogType::SYNC);
 	int KDelNoLock(const Bytes &key, char log_type=BinlogType::SYNC);
 	int DelKeyByType(const std::string &key, const std::string &type);
 };
