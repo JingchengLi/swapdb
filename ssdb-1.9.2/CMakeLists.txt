@@ -171,4 +171,4 @@ src/cluster_migrate.cpp
 )
 
 ADD_EXECUTABLE(ssdb-server ${SRC_OBJS})                                                                                                                                             
-TARGET_LINK_LIBRARIES(ssdb-server libssdb-static libutil-static libnet-static rocksdb gtest gflags snappy jemalloc pthread rt z bz2)
+TARGET_LINK_LIBRARIES(ssdb-server libssdb-static libutil-static libnet-static libcodec-static rocksdb gtest gflags snappy jemalloc pthread rt z bz2)

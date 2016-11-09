@@ -35,6 +35,9 @@ SSDBImpl::~SSDBImpl(){
 	if(ldb){
 		delete ldb;
 	}
+//	if(expiration){
+//		delete expiration;
+//	}
 #ifdef USE_LEVELDB
 	if(options.block_cache){
 		delete options.block_cache;
@@ -70,6 +73,7 @@ SSDB* SSDB::open(const Options &opt, const std::string &dir){
 		goto err;
 	}
 	ssdb->binlogs = new BinlogQueue(ssdb->ldb, opt.binlog, opt.binlog_capacity);
+//    ssdb->expiration = new ExpirationHandler(ssdb); //todo 后续如果支持set命令中设置过期时间，添加此行，同时删除serv.cpp中相应代码
 
 	return ssdb;
 err:

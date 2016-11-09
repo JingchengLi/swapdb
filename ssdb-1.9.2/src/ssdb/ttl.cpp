@@ -76,6 +76,36 @@ int ExpirationHandler::set_ttl(const Bytes &key, int64_t ttl){
 	return 0;
 }
 
+int ExpirationHandler::set_ttl_internal(const Bytes &key, int64_t ttl_ms){
+	int64_t expired = time_ms() + ttl_ms;
+	char data[30];
+	int size = snprintf(data, sizeof(data), "%" PRId64, expired);
+	if(size <= 0){
+		log_error("snprintf return error!");
+		return -1;
+	}
+
+	int ret = ssdb->zsetNoLock(this->list_name, key, Bytes(data, size));
+	if(ret == -1){
+		return -1;
+	}
+	if(expired < first_timeout){
+		first_timeout = expired;
+	}
+	std::string s_key = key.String();
+	if(!fast_keys.empty() && expired <= fast_keys.max_score()){
+		fast_keys.add(s_key, expired);
+		if(fast_keys.size() > BATCH_SIZE){
+			fast_keys.pop_back();
+		}
+	}else{
+		fast_keys.del(s_key);
+		//log_debug("don't put in fast_keys");
+	}
+
+	return 0;
+}
+
 int ExpirationHandler::del_ttl(const Bytes &key){
 	// 这样用是有 bug 的, 虽然 fast_keys 为空, 不代表整个 ttl 队列为空
 	// if(!this->fast_keys.empty()){
