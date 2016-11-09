@@ -42,6 +42,7 @@ private:
 };
 
 
+// todo r2m adaptation
 class KIterator{
 public:
 	std::string key;
@@ -57,6 +58,7 @@ private:
 };
 
 
+// todo r2m adaptation
 class HIterator{
 public:
 	std::string name;
@@ -73,6 +75,7 @@ private:
 };
 
 
+// todo r2m adaptation
 class ZIterator{
 public:
 	std::string name;

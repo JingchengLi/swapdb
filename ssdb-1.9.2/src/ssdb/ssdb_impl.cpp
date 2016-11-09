@@ -175,6 +175,7 @@ int SSDBImpl::raw_get(const Bytes &key, std::string *val){
 }
 
 uint64_t SSDBImpl::size(){
+	// todo r2m adaptation
 	std::string s = "A";
 	std::string e(1, 'z' + 1);
 	leveldb::Range ranges[1];
@@ -219,6 +220,7 @@ void SSDBImpl::compact(){
 	ldb->CompactRange(NULL, NULL);
 }
 
+// todo r2m adaptation
 int SSDBImpl::key_range(std::vector<std::string> *keys){
 	int ret = 0;
 	std::string kstart, kend;

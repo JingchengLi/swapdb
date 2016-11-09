@@ -3,9 +3,11 @@ Copyright (c) 2012-2014 The SSDB Authors. All rights reserved.
 Use of this source code is governed by a BSD-style license that can be
 found in the LICENSE file.
 */
+// todo r2m adaptation
 #include "t_queue.h"
 
 static int qget_by_seq(leveldb::DB* db, const Bytes &name, uint64_t seq, std::string *val){
+// todo r2m adaptation
 	std::string key = encode_qitem_key(name, seq);
 	leveldb::Status s;
 
@@ -42,6 +44,7 @@ static int qdel_one(SSDBImpl *ssdb, const Bytes &name, uint64_t seq){
 }
 
 static int qset_one(SSDBImpl *ssdb, const Bytes &name, uint64_t seq, const Bytes &item){
+// todo r2m adaptation
 	std::string key = encode_qitem_key(name, seq);
 	leveldb::Status s;
 
@@ -57,6 +60,7 @@ static int64_t incr_qsize(SSDBImpl *ssdb, const Bytes &name, int64_t incr){
 	size += incr;
 	if(size <= 0){
 		ssdb->binlogs->Delete(encode_qsize_key(name));
+// todo r2m adaptation
 		qdel_one(ssdb, name, QFRONT_SEQ);
 		qdel_one(ssdb, name, QBACK_SEQ);
 	}else{
@@ -68,6 +72,7 @@ static int64_t incr_qsize(SSDBImpl *ssdb, const Bytes &name, int64_t incr){
 /****************/
 
 int64_t SSDBImpl::qsize(const Bytes &name){
+// todo r2m adaptation
 	std::string key = encode_qsize_key(name);
 	std::string val;
 
@@ -90,6 +95,7 @@ int64_t SSDBImpl::qsize(const Bytes &name){
 int SSDBImpl::qfront(const Bytes &name, std::string *item){
 	int ret = 0;
 	uint64_t seq;
+// todo r2m adaptation
 	ret = qget_uint64(this->ldb, name, QFRONT_SEQ, &seq);
 	if(ret == -1){
 		return -1;
@@ -105,6 +111,7 @@ int SSDBImpl::qfront(const Bytes &name, std::string *item){
 int SSDBImpl::qback(const Bytes &name, std::string *item){
 	int ret = 0;
 	uint64_t seq;
+// todo r2m adaptation
 	ret = qget_uint64(this->ldb, name, QBACK_SEQ, &seq);
 	if(ret == -1){
 		return -1;
@@ -124,6 +131,7 @@ int SSDBImpl::qset_by_seq(const Bytes &name, uint64_t seq, const Bytes &item, ch
 	if(size == -1){
 		return -1;
 	}
+// todo r2m adaptation
 	ret = qget_uint64(this->ldb, name, QFRONT_SEQ, &min_seq);
 	if(ret == -1){
 		return -1;
@@ -138,6 +146,7 @@ int SSDBImpl::qset_by_seq(const Bytes &name, uint64_t seq, const Bytes &item, ch
 		return -1;
 	}
 
+// todo r2m adaptation
 	std::string buf = encode_qitem_key(name, seq);
 	binlogs->add_log(log_type, BinlogCommand::QSET, buf);
 
@@ -162,6 +171,7 @@ int SSDBImpl::qset(const Bytes &name, int64_t index, const Bytes &item, char log
 	
 	int ret;
 	uint64_t seq;
+// todo r2m adaptation
 	if(index >= 0){
 		ret = qget_uint64(this->ldb, name, QFRONT_SEQ, &seq);
 		seq += index;
@@ -181,6 +191,7 @@ int SSDBImpl::qset(const Bytes &name, int64_t index, const Bytes &item, char log
 		return -1;
 	}
 
+// todo r2m adaptation
 	//log_info("qset %s %" PRIu64 "", hexmem(name.data(), name.size()).c_str(), seq);
 	std::string buf = encode_qitem_key(name, seq);
 	binlogs->add_log(log_type, BinlogCommand::QSET, buf);
@@ -203,6 +214,7 @@ int64_t SSDBImpl::_qpush(const Bytes &name, const Bytes &item, uint64_t front_or
 	if(ret == -1){
 		return -1;
 	}
+// todo r2m adaptation
 	// update front and/or back
 	if(ret == 0){
 		seq = QITEM_SEQ_INIT;
@@ -229,6 +241,7 @@ int64_t SSDBImpl::_qpush(const Bytes &name, const Bytes &item, uint64_t front_or
 		return -1;
 	}
 
+// todo r2m adaptation
 	std::string buf = encode_qitem_key(name, seq);
 	if(front_or_back_seq == QFRONT_SEQ){
 		binlogs->add_log(log_type, BinlogCommand::QPUSH_FRONT, buf);
@@ -376,6 +389,7 @@ int SSDBImpl::qrlist(const Bytes &name_s, const Bytes &name_e, uint64_t limit,
 
 int SSDBImpl::qfix(const Bytes &name){
 	Transaction trans(binlogs);
+// todo r2m adaptation
 	std::string key_s = encode_qitem_key(name, QITEM_MIN_SEQ - 1);
 	std::string key_e = encode_qitem_key(name, QITEM_MAX_SEQ);
 
@@ -387,6 +401,7 @@ int SSDBImpl::qfix(const Bytes &name){
 	while(it->next()){
 		//dump(it->key().data(), it->key().size());
 		if(seq_min == 0){
+// todo r2m adaptation
 			if(decode_qitem_key(it->key(), NULL, &seq_min) == -1){
 				// or just delete it?
 				error = true;
