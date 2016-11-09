@@ -101,24 +101,28 @@ int SSDBImpl::setnx(const Bytes &key, const Bytes &val, char log_type){
 }
 
 int SSDBImpl::getset(const Bytes &key, std::string *val, const Bytes &newval, char log_type){
-	if(key.empty()){
-		log_error("empty key!");
-		//return -1;
-		return 0;
-	}
+    std::string key_type;
+    int ret = type(key.String(), &key_type);
+    if (ret == -1){
+        return -1;
+    } else if (ret == 1 && key_type != "string"){
+        return -1;
+    } else if (ret == 1 && key_type == "string"){
+        get(key.String(), val);
+    }
+
 	Transaction trans(binlogs);
 
-	int found = this->get(key, val);
-// todo r2m adaptation
-	std::string buf = encode_kv_key(key);
-	binlogs->Put(buf, slice(newval));
+	std::string buf = encode_meta_key(key.String());
+    std::string meta_val = encode_kv_val(newval.String());
+	binlogs->Put(buf, meta_val);
 	binlogs->add_log(log_type, BinlogCommand::KSET, buf);
 	leveldb::Status s = binlogs->commit();
 	if(!s.ok()){
 		log_error("set error: %s", s.ToString().c_str());
 		return -1;
 	}
-	return found;
+	return ret;
 }
 
 
@@ -336,6 +340,7 @@ int SSDBImpl::KDelNoLock(const Bytes &key, char log_type){
  */
 int SSDBImpl::type(const Bytes &key, std::string *type){
 	*type = "none";
+    int ret = 0;
 	std::string val;
 	std::string meta_key = encode_meta_key(key.String());
 	leveldb::Status s = ldb->Get(leveldb::ReadOptions(), meta_key, &val);
@@ -349,6 +354,7 @@ int SSDBImpl::type(const Bytes &key, std::string *type){
 
 	if (val[0] == DataType::KV){
 		*type = "string";
+        ret = 1;
 	} else if (val[0] == DataType::HSIZE){
 		HashMetaVal hv;
 		if (hv.DecodeMetaVal(val) == -1){
@@ -356,6 +362,7 @@ int SSDBImpl::type(const Bytes &key, std::string *type){
 		}
 		if (hv.del == KEY_ENABLED_MASK){
 			*type = "hash";
+            ret = 1;
 		}
 	} else if (val[0] == DataType::SSIZE){
 		SetMetaVal sv;
@@ -364,6 +371,7 @@ int SSDBImpl::type(const Bytes &key, std::string *type){
 		}
 		if (sv.del == KEY_ENABLED_MASK){
 			*type = "set";
+            ret = 1;
 		}
 	} else if (val[0] == DataType::ZSIZE){
 		ZSetMetaVal zs;
@@ -372,6 +380,7 @@ int SSDBImpl::type(const Bytes &key, std::string *type){
 		}
 		if (zs.del == KEY_ENABLED_MASK){
 			*type = "zset";
+            ret = 1;
 		}
 	} else if (val[0] == DataType::LSZIE){
 		ListMetaVal ls;
@@ -380,10 +389,11 @@ int SSDBImpl::type(const Bytes &key, std::string *type){
 		}
 		if (ls.del == KEY_ENABLED_MASK){
 			*type = "list";
+            ret = 1;
 		}
 	} else{
 		return -1;
 	}
 
-	return 0;
+	return ret;
 }
