@@ -114,6 +114,7 @@ int SSDBImpl::set(const Bytes &key, const Bytes &val, char log_type){
 }
 
 int SSDBImpl::setnx(const Bytes &key, const Bytes &val, char log_type){
+    return SetGeneric(key.String(), val.String(), OBJ_SET_NX, 0);
 	if(key.empty()){
 		log_error("empty key!");
 		//return -1;
@@ -161,7 +162,24 @@ int SSDBImpl::getset(const Bytes &key, std::string *val, const Bytes &newval, ch
 
 
 int SSDBImpl::del(const Bytes &key, char log_type){
-	Transaction trans(binlogs);
+    std::string key_type;
+    int ret = type(key.String(), &key_type);
+    if (ret == -1){
+        return -1;
+    }
+    if (key_type == "string"){
+        KDel(key);
+    } else if (key_type == "hash"){
+        hclear(key);
+    } else if (key_type == "set"){
+        //todo
+    } else if (key_type == "zset"){
+        //todo
+    } else if (key_type == "list"){
+        //todo
+    }
+
+/*	Transaction trans(binlogs);
 
 // todo r2m adaptation
 	std::string buf = encode_kv_key(key);
@@ -171,7 +189,7 @@ int SSDBImpl::del(const Bytes &key, char log_type){
 	if(!s.ok()){
 		log_error("del error: %s", s.ToString().c_str());
 		return -1;
-	}
+	}*/
 	return 1;
 }
 
@@ -328,6 +346,21 @@ int SSDBImpl::DelKeyByType(const std::string &key, const std::string &type){
 	}
 
 	return 0;
+}
+
+int SSDBImpl::KDel(const Bytes &key, char log_type){
+    Transaction trans(binlogs);
+
+    std::string buf = encode_meta_key(key.String());
+    binlogs->Delete(buf);
+    binlogs->add_log(log_type, BinlogCommand::KDEL, buf);
+
+    leveldb::Status s = binlogs->commit();
+    if(!s.ok()){
+        log_error("set error: %s", s.ToString().c_str());
+        return -1;
+    }
+    return 1;
 }
 
 int SSDBImpl::KDelNoLock(const Bytes &key, char log_type){
