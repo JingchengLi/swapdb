@@ -53,15 +53,18 @@ int SSDBImpl::multi_set(const std::vector<Bytes> &kvs, int offset, char log_type
 	it = kvs.begin() + offset;
 	for(; it != kvs.end(); it += 2){
 		const Bytes &key = *it;
-		if(key.empty()){
-			log_error("empty key!");
-			return 0;
-			//return -1;
-		}
+        std::string key_type;
+        int ret = type(key.String(), &key_type);
+        if (ret == -1){
+            return  -1;
+        } else if (ret == 1){
+            DelKeyByType(key.String(), key_type);
+        }
+
 		const Bytes &val = *(it + 1);
-// todo r2m adaptation
-		std::string buf = encode_kv_key(key);
-		binlogs->Put(buf, slice(val));
+		std::string buf = encode_meta_key(key.String());
+        std::string meta_val = encode_kv_val(val.String());
+		binlogs->Put(buf, meta_val);
 		binlogs->add_log(log_type, BinlogCommand::KSET, buf);
 	}
 	leveldb::Status s = binlogs->commit();
