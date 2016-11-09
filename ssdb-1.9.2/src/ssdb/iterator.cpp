@@ -89,6 +89,7 @@ bool Iterator::next(){
 
 /* KV */
 
+// todo r2m adaptation
 KIterator::KIterator(Iterator *it){
 	this->it = it;
 	this->return_val_ = true;
@@ -124,6 +125,7 @@ bool KIterator::next(){
 
 /* HASH */
 
+// todo r2m adaptation
 HIterator::HIterator(Iterator *it, const Bytes &name){
 	this->it = it;
 	this->name.assign(name.data(), name.size());
@@ -164,6 +166,7 @@ bool HIterator::next(){
 
 /* ZSET */
 
+// todo r2m adaptation
 ZIterator::ZIterator(Iterator *it, const Bytes &name){
 	this->it = it;
 	this->name.assign(name.data(), name.size());

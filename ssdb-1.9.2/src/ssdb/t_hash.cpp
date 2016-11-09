@@ -3,6 +3,7 @@ Copyright (c) 2012-2014 The SSDB Authors. All rights reserved.
 Use of this source code is governed by a BSD-style license that can be
 found in the LICENSE file.
 */
+// todo r2m adaptation : remove this
 #include "t_hash.h"
 
 static int hset_one(SSDBImpl *ssdb, const Bytes &name, const Bytes &key, const Bytes &val, char log_type);
@@ -83,6 +84,7 @@ int SSDBImpl::hincr(const Bytes &name, const Bytes &key, int64_t by, int64_t *ne
 }
 
 int64_t SSDBImpl::hsize(const Bytes &name){
+// todo r2m adaptation
 	std::string size_key = encode_hsize_key(name);
 	std::string val;
 	leveldb::Status s;
@@ -101,6 +103,7 @@ int64_t SSDBImpl::hsize(const Bytes &name){
 	}
 }
 
+// todo r2m adaptation
 int64_t SSDBImpl::hclear(const Bytes &name){
 	int64_t count = 0;
 	while(1){
@@ -125,6 +128,7 @@ int64_t SSDBImpl::hclear(const Bytes &name){
 }
 
 int SSDBImpl::hget(const Bytes &name, const Bytes &key, std::string *val){
+// todo r2m adaptation
 	std::string dbkey = encode_hash_key(name, key);
 	leveldb::Status s = ldb->Get(leveldb::ReadOptions(), dbkey, val);
 	if(s.IsNotFound()){
@@ -140,6 +144,7 @@ int SSDBImpl::hget(const Bytes &name, const Bytes &key, std::string *val){
 HIterator* SSDBImpl::hscan(const Bytes &name, const Bytes &start, const Bytes &end, uint64_t limit){
 	std::string key_start, key_end;
 
+// todo r2m adaptation
 	key_start = encode_hash_key(name, start);
 	if(!end.empty()){
 		key_end = encode_hash_key(name, end);
@@ -153,6 +158,7 @@ HIterator* SSDBImpl::hscan(const Bytes &name, const Bytes &start, const Bytes &e
 HIterator* SSDBImpl::hrscan(const Bytes &name, const Bytes &start, const Bytes &end, uint64_t limit){
 	std::string key_start, key_end;
 
+// todo r2m adaptation
 	key_start = encode_hash_key(name, start);
 	if(start.empty()){
 		key_start.append(1, 255);
@@ -166,6 +172,7 @@ HIterator* SSDBImpl::hrscan(const Bytes &name, const Bytes &start, const Bytes &
 	return new HIterator(this->rev_iterator(key_start, key_end, limit), name);
 }
 
+// todo r2m adaptation
 static void get_hnames(Iterator *it, std::vector<std::string> *list){
 	while(it->next()){
 		Bytes ks = it->key();
@@ -180,6 +187,7 @@ static void get_hnames(Iterator *it, std::vector<std::string> *list){
 	}
 }
 
+// todo r2m adaptation
 int SSDBImpl::hlist(const Bytes &name_s, const Bytes &name_e, uint64_t limit,
 		std::vector<std::string> *list){
 	std::string start;
@@ -196,6 +204,7 @@ int SSDBImpl::hlist(const Bytes &name_s, const Bytes &name_e, uint64_t limit,
 	return 0;
 }
 
+// todo r2m adaptation
 int SSDBImpl::hrlist(const Bytes &name_s, const Bytes &name_e, uint64_t limit,
 		std::vector<std::string> *list){
 	std::string start;
@@ -232,12 +241,14 @@ static int hset_one(SSDBImpl *ssdb, const Bytes &name, const Bytes &key, const B
 	int ret = 0;
 	std::string dbval;
 	if(ssdb->hget(name, key, &dbval) == 0){ // not found
+// todo r2m adaptation
 		std::string hkey = encode_hash_key(name, key);
 		ssdb->binlogs->Put(hkey, slice(val));
 		ssdb->binlogs->add_log(log_type, BinlogCommand::HSET, hkey);
 		ret = 1;
 	}else{
 		if(dbval != val){
+// todo r2m adaptation
 			std::string hkey = encode_hash_key(name, key);
 			ssdb->binlogs->Put(hkey, slice(val));
 			ssdb->binlogs->add_log(log_type, BinlogCommand::HSET, hkey);
@@ -261,6 +272,7 @@ static int hdel_one(SSDBImpl *ssdb, const Bytes &name, const Bytes &key, char lo
 		return 0;
 	}
 
+// todo r2m adaptation
 	std::string hkey = encode_hash_key(name, key);
 	ssdb->binlogs->Delete(hkey);
 	ssdb->binlogs->add_log(log_type, BinlogCommand::HDEL, hkey);
@@ -271,6 +283,7 @@ static int hdel_one(SSDBImpl *ssdb, const Bytes &name, const Bytes &key, char lo
 static int incr_hsize(SSDBImpl *ssdb, const Bytes &name, int64_t incr){
 	int64_t size = ssdb->hsize(name);
 	size += incr;
+// todo r2m adaptation
 	std::string size_key = encode_hsize_key(name);
 	if(size == 0){
 		ssdb->binlogs->Delete(size_key);

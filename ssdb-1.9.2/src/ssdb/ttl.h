@@ -19,6 +19,7 @@ public:
 	ExpirationHandler(SSDB *ssdb);
 	~ExpirationHandler();
 
+// todo r2m adaptation
 	// "In Redis 2.6 or older the command returns -1 if the key does not exist
 	// or if the key exist but has no associated expire. Starting with Redis 2.8.."
 	// I stick to Redis 2.6

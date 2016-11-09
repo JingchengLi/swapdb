@@ -3,6 +3,7 @@ Copyright (c) 2012-2014 The SSDB Authors. All rights reserved.
 Use of this source code is governed by a BSD-style license that can be
 found in the LICENSE file.
 */
+// todo r2m adaptation : remove this
 #include "t_kv.h"
 
 int SSDBImpl::multi_set(const std::vector<Bytes> &kvs, int offset, char log_type){
@@ -18,6 +19,7 @@ int SSDBImpl::multi_set(const std::vector<Bytes> &kvs, int offset, char log_type
 			//return -1;
 		}
 		const Bytes &val = *(it + 1);
+// todo r2m adaptation
 		std::string buf = encode_kv_key(key);
 		binlogs->Put(buf, slice(val));
 		binlogs->add_log(log_type, BinlogCommand::KSET, buf);
@@ -37,6 +39,7 @@ int SSDBImpl::multi_del(const std::vector<Bytes> &keys, int offset, char log_typ
 	it = keys.begin() + offset;
 	for(; it != keys.end(); it++){
 		const Bytes &key = *it;
+// todo r2m adaptation
 		std::string buf = encode_kv_key(key);
 		binlogs->Delete(buf);
 		binlogs->add_log(log_type, BinlogCommand::KDEL, buf);
@@ -57,6 +60,7 @@ int SSDBImpl::set(const Bytes &key, const Bytes &val, char log_type){
 	}
 	Transaction trans(binlogs);
 
+// todo r2m adaptation
 	std::string buf = encode_kv_key(key);
 	binlogs->Put(buf, slice(val));
 	binlogs->add_log(log_type, BinlogCommand::KSET, buf);
@@ -81,6 +85,7 @@ int SSDBImpl::setnx(const Bytes &key, const Bytes &val, char log_type){
 	if(found != 0){
 		return 0;
 	}
+// todo r2m adaptation
 	std::string buf = encode_kv_key(key);
 	binlogs->Put(buf, slice(val));
 	binlogs->add_log(log_type, BinlogCommand::KSET, buf);
@@ -101,6 +106,7 @@ int SSDBImpl::getset(const Bytes &key, std::string *val, const Bytes &newval, ch
 	Transaction trans(binlogs);
 
 	int found = this->get(key, val);
+// todo r2m adaptation
 	std::string buf = encode_kv_key(key);
 	binlogs->Put(buf, slice(newval));
 	binlogs->add_log(log_type, BinlogCommand::KSET, buf);
@@ -116,6 +122,7 @@ int SSDBImpl::getset(const Bytes &key, std::string *val, const Bytes &newval, ch
 int SSDBImpl::del(const Bytes &key, char log_type){
 	Transaction trans(binlogs);
 
+// todo r2m adaptation
 	std::string buf = encode_kv_key(key);
 	binlogs->Delete(buf);
 	binlogs->add_log(log_type, BinlogCommand::KDEL, buf);
@@ -143,6 +150,7 @@ int SSDBImpl::incr(const Bytes &key, int64_t by, int64_t *new_val, char log_type
 		}
 	}
 
+// todo r2m adaptation
 	std::string buf = encode_kv_key(key);
 	binlogs->Put(buf, str(*new_val));
 	binlogs->add_log(log_type, BinlogCommand::KSET, buf);
@@ -169,6 +177,7 @@ int SSDBImpl::get(const Bytes &key, std::string *val){
 	return 1;
 }
 
+// todo r2m adaptation
 KIterator* SSDBImpl::scan(const Bytes &start, const Bytes &end, uint64_t limit){
 	std::string key_start, key_end;
 	key_start = encode_kv_key(start);
@@ -183,6 +192,7 @@ KIterator* SSDBImpl::scan(const Bytes &start, const Bytes &end, uint64_t limit){
 	return new KIterator(this->iterator(key_start, key_end, limit));
 }
 
+// todo r2m adaptation
 KIterator* SSDBImpl::rscan(const Bytes &start, const Bytes &end, uint64_t limit){
 	std::string key_start, key_end;
 
@@ -224,6 +234,7 @@ int SSDBImpl::setbit(const Bytes &key, int bitoffset, int on, char log_type){
 		val[len] &= ~(1 << bit);
 	}
 
+// todo r2m adaptation
 	std::string buf = encode_kv_key(key);
 	binlogs->Put(buf, val);
 	binlogs->add_log(log_type, BinlogCommand::KSET, buf);
