@@ -36,6 +36,18 @@ int SSDBImpl::zset(const Bytes &name, const Bytes &key, const Bytes &score, char
 	return ret;
 }
 
+int SSDBImpl::zsetNoLock(const Bytes &name, const Bytes &key, const Bytes &score, char log_type){
+	int ret = zset_one(this, name, key, score, log_type);
+	if(ret >= 0){
+		if(ret > 0){
+			if(incr_zsize(this, name, ret) == -1){
+				return -1;
+			}
+		}
+	}
+	return ret;
+}
+
 int SSDBImpl::zdel(const Bytes &name, const Bytes &key, char log_type){
 	Transaction trans(binlogs);
 

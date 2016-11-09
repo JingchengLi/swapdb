@@ -27,6 +27,7 @@ public:
 	// The caller must hold mutex before calling set/del functions
 	int del_ttl(const Bytes &key);
 	int set_ttl(const Bytes &key, int64_t ttl);
+	int set_ttl_internal(const Bytes &key, int64_t ttl_ms);
 
 private:
 	SSDB *ssdb;

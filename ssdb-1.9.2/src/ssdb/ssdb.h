@@ -40,6 +40,9 @@ public:
 	virtual int raw_del(const Bytes &key) = 0;
 	virtual int raw_get(const Bytes &key, std::string *val) = 0;
 
+	/* 	General	*/
+	virtual int type(const Bytes &key, std::string *type) = 0;
+
 	/* key value */
 
 	virtual int set(const Bytes &key, const Bytes &val, char log_type=BinlogType::SYNC) = 0;
@@ -78,6 +81,7 @@ public:
 	/* zset */
 
 	virtual int zset(const Bytes &name, const Bytes &key, const Bytes &score, char log_type=BinlogType::SYNC) = 0;
+	virtual int zsetNoLock(const Bytes &name, const Bytes &key, const Bytes &score, char log_type=BinlogType::SYNC) = 0;
 	virtual int zdel(const Bytes &name, const Bytes &key, char log_type=BinlogType::SYNC) = 0;
 	// -1: error, 1: ok, 0: value is not an integer or out of range
 	virtual int zincr(const Bytes &name, const Bytes &key, int64_t by, int64_t *new_val, char log_type=BinlogType::SYNC) = 0;

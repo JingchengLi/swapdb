@@ -24,6 +24,7 @@ found in the LICENSE file.
 #include "t_hash.h"
 #include "t_zset.h"
 #include "t_queue.h"
+#include "ssdb/ttl.h"
 
 inline
 static leveldb::Slice slice(const Bytes &b){
@@ -40,6 +41,7 @@ private:
 	SSDBImpl();
 public:
 	BinlogQueue *binlogs;
+    ExpirationHandler *expiration;
 	
 	virtual ~SSDBImpl();
 
@@ -61,6 +63,9 @@ public:
 	virtual int raw_set(const Bytes &key, const Bytes &val);
 	virtual int raw_del(const Bytes &key);
 	virtual int raw_get(const Bytes &key, std::string *val);
+
+	/* 	General	*/
+	virtual int type(const Bytes &key, std::string *type);
 
 	/* key value */
 
@@ -102,6 +107,7 @@ public:
 	/* zset */
 
 	virtual int zset(const Bytes &name, const Bytes &key, const Bytes &score, char log_type=BinlogType::SYNC);
+    virtual int zsetNoLock(const Bytes &name, const Bytes &key, const Bytes &score, char log_type=BinlogType::SYNC);
 	virtual int zdel(const Bytes &name, const Bytes &key, char log_type=BinlogType::SYNC);
 	// -1: error, 1: ok, 0: value is not an integer or out of range
 	virtual int zincr(const Bytes &name, const Bytes &key, int64_t by, int64_t *new_val, char log_type=BinlogType::SYNC);
@@ -156,6 +162,10 @@ public:
 private:
 	int64_t _qpush(const Bytes &name, const Bytes &item, uint64_t front_or_back_seq, char log_type=BinlogType::SYNC);
 	int _qpop(const Bytes &name, std::string *item, uint64_t front_or_back_seq, char log_type=BinlogType::SYNC);
+
+	int SetGeneric(const std::string &key, const std::string &val, int flags, const int64_t expire, char log_type=BinlogType::SYNC);
+	int KDelNoLock(const Bytes &key, char log_type=BinlogType::SYNC);
+	int DelKeyByType(const std::string &key, const std::string &type);
 };
 
 #endif
