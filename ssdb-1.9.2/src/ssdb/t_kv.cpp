@@ -13,18 +13,18 @@ int SSDBImpl::SetGeneric(const std::string &key, const std::string &val, int fla
 		return -1;
 	}
 
-	std::string key_type;
-	if (type(key, &key_type) == -1){
-		return -1;
-	}
-
-	if ((flags & OBJ_SET_NX) && (key_type != "none")){
-		return -1;
-	} else if ((flags & OBJ_SET_XX) && (key_type == "none")){
-		return -1;
-	}
-
 	Transaction trans(binlogs);
+
+    std::string key_type;
+    if (type(key, &key_type) == -1){
+        return -1;
+    }
+
+    if ((flags & OBJ_SET_NX) && (key_type != "none")){
+        return -1;
+    } else if ((flags & OBJ_SET_XX) && (key_type == "none")){
+        return -1;
+    }
 
 	if (key_type != "none"){
 		DelKeyByType(key, key_type);
@@ -108,17 +108,11 @@ int SSDBImpl::setnx(const Bytes &key, const Bytes &val, char log_type){
 }
 
 int SSDBImpl::getset(const Bytes &key, std::string *val, const Bytes &newval, char log_type){
-    std::string key_type;
-    int ret = type(key, &key_type);
-    if (ret == -1){
+    Transaction trans(binlogs);
+    int ret = get(key, val);
+    if ( ret == -1){
         return -1;
-    } else if (ret == 1 && key_type != "string"){
-        return -1;
-    } else if (ret == 1 && key_type == "string"){
-        get(key, val);
     }
-
-	Transaction trans(binlogs);
 
 	std::string buf = encode_meta_key(key.String());
     std::string meta_val = encode_kv_val(newval.String());
@@ -221,7 +215,7 @@ int SSDBImpl::get(const Bytes &key, std::string *val){
 }
 
 // todo r2m adaptation
-KIterator* SSDBImpl::scan(const Bytes &start, const Bytes &end, uint64_t limit){
+KIterator* SSDBImpl::scan(const Bytes &start, const Bytes &end, uint64_t limit){    //不支持kv scan，redis也不支持
 	std::string key_start, key_end;
 	key_start = encode_kv_key(start);
 	if(end.empty()){
@@ -236,7 +230,7 @@ KIterator* SSDBImpl::scan(const Bytes &start, const Bytes &end, uint64_t limit){
 }
 
 // todo r2m adaptation
-KIterator* SSDBImpl::rscan(const Bytes &start, const Bytes &end, uint64_t limit){
+KIterator* SSDBImpl::rscan(const Bytes &start, const Bytes &end, uint64_t limit){   //不支持kv scan，redis也不支持
 	std::string key_start, key_end;
 
 	key_start = encode_kv_key(start);
@@ -253,10 +247,6 @@ KIterator* SSDBImpl::rscan(const Bytes &start, const Bytes &end, uint64_t limit)
 }
 
 int SSDBImpl::setbit(const Bytes &key, int bitoffset, int on, char log_type){
-	if(key.empty()){
-		log_error("empty key!");
-		return 0;
-	}
 	Transaction trans(binlogs);
 	
 	std::string val;
