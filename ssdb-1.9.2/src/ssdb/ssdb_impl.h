@@ -166,7 +166,7 @@ private:
 	int SetGeneric(const std::string &key, const std::string &val, int flags, const int64_t expire, char log_type=BinlogType::SYNC);
     int KDel(const Bytes &key, char log_type=BinlogType::SYNC);
 	int KDelNoLock(const Bytes &key, char log_type=BinlogType::SYNC);
-	int DelKeyByType(const std::string &key, const std::string &type);
+	int DelKeyByType(const Bytes &key, const std::string &type);
 };
 
 #endif

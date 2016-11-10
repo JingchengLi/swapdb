@@ -54,11 +54,11 @@ int SSDBImpl::multi_set(const std::vector<Bytes> &kvs, int offset, char log_type
 	for(; it != kvs.end(); it += 2){
 		const Bytes &key = *it;
         std::string key_type;
-        int ret = type(key.String(), &key_type);
+        int ret = type(key, &key_type);
         if (ret == -1){
             return  -1;
         } else if (ret == 1){
-            DelKeyByType(key.String(), key_type);
+            DelKeyByType(key, key_type);
         }
 
 		const Bytes &val = *(it + 1);
@@ -75,7 +75,7 @@ int SSDBImpl::multi_set(const std::vector<Bytes> &kvs, int offset, char log_type
 	return (kvs.size() - offset)/2;
 }
 
-int SSDBImpl::multi_del(const std::vector<Bytes> &keys, int offset, char log_type){
+int SSDBImpl::multi_del(const std::vector<Bytes> &keys, int offset, char log_type){ //注：redis中不支持该接口
 	Transaction trans(binlogs);
 
 	std::vector<Bytes>::const_iterator it;
@@ -83,9 +83,13 @@ int SSDBImpl::multi_del(const std::vector<Bytes> &keys, int offset, char log_typ
 	for(; it != keys.end(); it++){
 		const Bytes &key = *it;
 // todo r2m adaptation
-		std::string buf = encode_kv_key(key);
-		binlogs->Delete(buf);
-		binlogs->add_log(log_type, BinlogCommand::KDEL, buf);
+        std::string key_type;
+        int ret = type(key, &key_type);
+        if (ret == -1){
+            return -1;
+        } else if(ret == 1){
+            DelKeyByType(key, key_type);
+        }
 	}
 	leveldb::Status s = binlogs->commit();
 	if(!s.ok()){
@@ -105,13 +109,13 @@ int SSDBImpl::setnx(const Bytes &key, const Bytes &val, char log_type){
 
 int SSDBImpl::getset(const Bytes &key, std::string *val, const Bytes &newval, char log_type){
     std::string key_type;
-    int ret = type(key.String(), &key_type);
+    int ret = type(key, &key_type);
     if (ret == -1){
         return -1;
     } else if (ret == 1 && key_type != "string"){
         return -1;
     } else if (ret == 1 && key_type == "string"){
-        get(key.String(), val);
+        get(key, val);
     }
 
 	Transaction trans(binlogs);
@@ -131,7 +135,7 @@ int SSDBImpl::getset(const Bytes &key, std::string *val, const Bytes &newval, ch
 
 int SSDBImpl::del(const Bytes &key, char log_type){
     std::string key_type;
-    int ret = type(key.String(), &key_type);
+    int ret = type(key, &key_type);
     if (ret == -1){
         return -1;
     }
@@ -298,7 +302,7 @@ int SSDBImpl::getbit(const Bytes &key, int bitoffset){
 /*
  * private API
  */
-int SSDBImpl::DelKeyByType(const std::string &key, const std::string &type){
+int SSDBImpl::DelKeyByType(const Bytes &key, const std::string &type){
 	//todo 内部接口，保证操作的原子性，调用No Commit接口
 	int ret = 0;
 	if ("string" == type){
