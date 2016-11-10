@@ -198,11 +198,14 @@ int proc_del(NetworkServer *net, Link *link, const Request &req, Response *resp)
 	int ret = serv->ssdb->del(req[1]);
 	if(ret == -1){
 		resp->push_back("error");
-	}else{
+	} else if(ret == 0){
+		resp->push_back("not found");
+		resp->push_back("0");
+	} else{
 		serv->expiration->del_ttl(req[1]);
 			
 		resp->push_back("ok");
-		resp->push_back("1");
+		resp->push_back(str(ret));
 	}
 	return 0;
 }

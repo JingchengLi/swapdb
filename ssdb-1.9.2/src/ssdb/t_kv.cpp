@@ -130,13 +130,13 @@ int SSDBImpl::getset(const Bytes &key, std::string *val, const Bytes &newval, ch
 int SSDBImpl::del(const Bytes &key, char log_type){
     std::string key_type;
     int ret = type(key, &key_type);
-    if (ret == -1){
-        return -1;
+    if (ret != 1){
+        return ret;
     }
     if (key_type == "string"){
-        KDel(key);
+        ret = KDel(key);
     } else if (key_type == "hash"){
-        hclear(key);
+        ret = hclear(key);
     } else if (key_type == "set"){
         //todo
     } else if (key_type == "zset"){
