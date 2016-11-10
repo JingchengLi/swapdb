@@ -199,7 +199,7 @@ int proc_del(NetworkServer *net, Link *link, const Request &req, Response *resp)
 	if(ret == -1){
 		resp->push_back("error");
 	} else if(ret == 0){
-		resp->push_back("not found");
+		resp->push_back("not_found");
 		resp->push_back("0");
 	} else{
 		serv->expiration->del_ttl(req[1]);
