@@ -175,15 +175,20 @@ int SSDBImpl::incr(const Bytes &key, int64_t by, int64_t *new_val, char log_type
 	}else if(ret == 0){
 		*new_val = by;
 	}else{
-		*new_val = str_to_int64(old) + by;
-		if(errno != 0){
-			return 0;
-		}
+        int64_t oldvalue = str_to_int64(old);
+        if(errno != 0){
+            return 0;
+        }
+        if ((by < 0 && oldvalue < 0 && by < (LLONG_MIN-oldvalue)) ||
+            (by > 0 && oldvalue > 0 && by > (LLONG_MAX-oldvalue))) {
+            return 0;
+        }
+		*new_val = oldvalue + by;
 	}
 
-// todo r2m adaptation
-	std::string buf = encode_kv_key(key);
-	binlogs->Put(buf, str(*new_val));
+	std::string buf = encode_meta_key(key.String());
+    std::string meta_val = encode_kv_val(str(*new_val));
+	binlogs->Put(buf, meta_val);
 	binlogs->add_log(log_type, BinlogCommand::KSET, buf);
 
 	leveldb::Status s = binlogs->commit();
