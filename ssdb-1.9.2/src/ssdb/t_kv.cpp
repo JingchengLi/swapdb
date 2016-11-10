@@ -264,9 +264,9 @@ int SSDBImpl::setbit(const Bytes &key, int bitoffset, int on, char log_type){
 	if(ret == -1){
 		return -1;
 	}
-	
-	int len = bitoffset / 8;
-	int bit = bitoffset % 8;
+
+    int len = bitoffset >> 3;
+    int bit = 7 - (bitoffset & 0x7);
 	if(len >= val.size()){
 		val.resize(len + 1, 0);
 	}
@@ -277,9 +277,9 @@ int SSDBImpl::setbit(const Bytes &key, int bitoffset, int on, char log_type){
 		val[len] &= ~(1 << bit);
 	}
 
-// todo r2m adaptation
-	std::string buf = encode_kv_key(key);
-	binlogs->Put(buf, val);
+	std::string buf = encode_meta_key(key.String());
+    std::string meta_val = encode_kv_val(val);
+	binlogs->Put(buf, meta_val);
 	binlogs->add_log(log_type, BinlogCommand::KSET, buf);
 	leveldb::Status s = binlogs->commit();
 	if(!s.ok()){
@@ -295,9 +295,9 @@ int SSDBImpl::getbit(const Bytes &key, int bitoffset){
 	if(ret == -1){
 		return -1;
 	}
-	
-	int len = bitoffset / 8;
-	int bit = bitoffset % 8;
+
+    int len = bitoffset >> 3;
+    int bit = 7 - (bitoffset & 0x7);
 	if(len >= val.size()){
 		return 0;
 	}
