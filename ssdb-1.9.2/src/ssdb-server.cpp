@@ -96,7 +96,9 @@ void MyApplication::run(){
 	log_info("%s exit.", APP_NAME);
 }
 
+#ifndef GTESTING
 int main(int argc, char **argv){
 	MyApplication app;
 	return app.main(argc, argv);
 }
+#endif
