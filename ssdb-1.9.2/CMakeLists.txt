@@ -26,7 +26,13 @@ LINK_DIRECTORIES(
     ${CMAKE_CURRENT_SOURCE_DIR}/src/net
     )
 
-SET(CMAKE_CXX_FLAGS "-DNDEBUG -D__STDC_FORMAT_MACROS -Wall -O2 -Wno-sign-compare -std=c++11")
+IF(GCOV)
+    ADD_DEFINITIONS("-fprofile-arcs -ftest-coverage")
+    SET(CMAKE_EXE_LINKER_FLAGS "-fprofile-arcs -ftest-coverage")  
+    SET(CMAKE_CXX_FLAGS "-DNDEBUG -D__STDC_FORMAT_MACROS -Wall -O0 -Wno-sign-compare -std=c++11")
+ELSE()
+    SET(CMAKE_CXX_FLAGS "-DNDEBUG -D__STDC_FORMAT_MACROS -Wall -O2 -Wno-sign-compare -std=c++11")
+ENDIF()
 
 ADD_LIBRARY(libjemalloc-static deps/jemalloc-4.1.0/lib)
 SET_TARGET_PROPERTIES(libjemalloc-static PROPERTIES 
