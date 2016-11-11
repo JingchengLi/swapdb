@@ -299,9 +299,8 @@ int SSDBImpl::getbit(const Bytes &key, int bitoffset){
  */
 int SSDBImpl::DelKeyByType(const Bytes &key, const std::string &type){
 	//todo 内部接口，保证操作的原子性，调用No Commit接口
-	int ret = 0;
 	if ("string" == type){
-		ret = KDelNoLock(key);
+		KDelNoLock(key);
 	} else if ("hash" == type){
 //		s = HDelKeyNoLock(key, &res);
 	} else if ("list" == type){

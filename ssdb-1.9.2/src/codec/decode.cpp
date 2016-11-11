@@ -4,6 +4,8 @@
 #include "decode.h"
 #include "util/bytes.h"
 
+static double decodeScore(const int64_t score);
+
 int MetaKey::DecodeMetaKey(const string &str) {
     Decoder decoder(str.data(), str.size());
     if(decoder.skip(1) == -1){
@@ -68,7 +70,7 @@ int ZScoreItemKey::DecodeItemKey(const string &str) {
     return 0;
 }
 
-inline double decodeScore(const int64_t score) {
+static double decodeScore(const int64_t score) {
     return (double)(score - ZSET_SCORE_SHIFT) / 100000.0;
 }
 

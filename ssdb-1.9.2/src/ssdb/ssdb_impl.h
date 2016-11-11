@@ -21,10 +21,11 @@ found in the LICENSE file.
 #include "binlog.h"
 #include "iterator.h"
 #include "t_kv.h"
-#include "t_hash.h"
+//#include "t_hash.h"
 #include "t_zset.h"
 #include "t_queue.h"
 #include "ssdb/ttl.h"
+#include "codec/decode.h"
 
 inline
 static leveldb::Slice slice(const Bytes &b){
@@ -103,6 +104,8 @@ public:
 			std::vector<std::string> *list);
 	virtual HIterator* hscan(const Bytes &name, const Bytes &start, const Bytes &end, uint64_t limit);
 	virtual HIterator* hrscan(const Bytes &name, const Bytes &start, const Bytes &end, uint64_t limit);
+    int     GetHashMetaVal(const std::string &meta_key, HashMetaVal &hv);
+    int     GetHashItemValInternal(const std::string &item_key, std::string *val);
 
 	/* zset */
 

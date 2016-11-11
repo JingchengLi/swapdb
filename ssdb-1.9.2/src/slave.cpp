@@ -6,6 +6,7 @@ found in the LICENSE file.
 #include "net/fde.h"
 #include "util/log.h"
 #include "slave.h"
+#include "ssdb/t_hash.h"
 #include "include.h"
 
 Slave::Slave(SSDB *ssdb, SSDB *meta, const char *ip, int port, bool is_mirror){

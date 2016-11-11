@@ -44,8 +44,6 @@ public:
     uint64_t    seq;
 };
 
-static double decodeScore(const int64_t score);
-
 /*
  * decode meta value class
  */
