@@ -3,20 +3,24 @@
 //
 #include "encode.h"
 
-string encode_meta_key(const string& key){
+static string encode_key_internal(const string& key, const string& field, uint16_t version);
+static string encode_meta_val_internal(const char type, uint64_t length, uint16_t version, char del);
+static uint64_t encodeScore(const double score);
+
+string encode_meta_key(const Bytes& key){
     string buf;
 
     buf.append(1, 'M');
-    uint16_t slot = (uint16_t)keyHashSlot(key.data(), (int)key.size());
+    uint16_t slot = (uint16_t)keyHashSlot(key.data(), key.size());
     slot = htobe16(slot);
     buf.append((char *)&slot, sizeof(uint16_t));
 
-    buf.append(key);
+    buf.append(key.String());
 
     return buf;
 }
 
-string encode_key_internal(const string& key, const string& field, uint16_t version){
+static string encode_key_internal(const string& key, const string& field, uint16_t version){
     string buf;
 
     buf.append(1, 'S');
@@ -33,8 +37,8 @@ string encode_key_internal(const string& key, const string& field, uint16_t vers
     return buf;
 }
 
-string encode_hash_key(const string& key, const string& field, uint16_t version){
-    return encode_key_internal(key, field, version);
+string encode_hash_key(const Bytes& key, const Bytes& field, uint16_t version){
+    return encode_key_internal(key.String(), field.String(), version);
 }
 
 string encode_set_key(const string& key, const string& member, uint16_t version){
@@ -45,7 +49,7 @@ string encode_zset_key(const string& key, const string& member, uint16_t version
     return encode_key_internal(key, member, version);
 }
 
-inline uint64_t encodeScore(const double score) {
+static uint64_t encodeScore(const double score) {
     int64_t iscore;
     if (score < 0) {
         iscore = (int64_t)(score * 100000LL - 0.5) + ZSET_SCORE_SHIFT;
@@ -101,7 +105,7 @@ string encode_kv_val(const string& val){
     return buf;
 }
 
-string encode_meta_val_internal(const char type, uint64_t length, uint16_t version, char del){
+static string encode_meta_val_internal(const char type, uint64_t length, uint16_t version, char del){
     string buf;
 
     buf.append(1, type);

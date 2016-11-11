@@ -4,7 +4,10 @@ Use of this source code is governed by a BSD-style license that can be
 found in the LICENSE file.
 */
 // todo r2m adaptation : remove this
-#include "t_hash.h"
+//#include "t_hash.h"
+#include "ssdb_impl.h"
+#include "codec/encode.h"
+#include "codec/decode.h"
 
 static int hset_one(SSDBImpl *ssdb, const Bytes &name, const Bytes &key, const Bytes &val, char log_type);
 static int hdel_one(SSDBImpl *ssdb, const Bytes &name, const Bytes &key, char log_type);
@@ -84,22 +87,13 @@ int SSDBImpl::hincr(const Bytes &name, const Bytes &key, int64_t by, int64_t *ne
 }
 
 int64_t SSDBImpl::hsize(const Bytes &name){
-// todo r2m adaptation
-	std::string size_key = encode_hsize_key(name);
-	std::string val;
-	leveldb::Status s;
-
-	s = ldb->Get(leveldb::ReadOptions(), size_key, &val);
-	if(s.IsNotFound()){
-		return 0;
-	}else if(!s.ok()){
-		return -1;
-	}else{
-		if(val.size() != sizeof(uint64_t)){
-			return 0;
-		}
-		int64_t ret = *(int64_t *)val.data();
-		return ret < 0? 0 : ret;
+	HashMetaVal hv;
+	std::string size_key = encode_meta_key(name);
+	int ret = GetHashMetaVal(size_key, hv);
+	if (ret != 1){
+		return ret;
+	} else{
+		return (int64_t)hv.length;
 	}
 }
 
@@ -128,8 +122,14 @@ int64_t SSDBImpl::hclear(const Bytes &name){
 }
 
 int SSDBImpl::hget(const Bytes &name, const Bytes &key, std::string *val){
-// todo r2m adaptation
-	std::string dbkey = encode_hash_key(name, key);
+	HashMetaVal hv;
+	std::string meta_key = encode_meta_key(name);
+	int ret = GetHashMetaVal(meta_key, hv);
+	if (ret != 1){
+		return ret;
+	}
+
+	std::string dbkey = encode_hash_key(name, key, hv.version);
 	leveldb::Status s = ldb->Get(leveldb::ReadOptions(), dbkey, val);
 	if(s.IsNotFound()){
 		return 0;
@@ -172,7 +172,7 @@ HIterator* SSDBImpl::hrscan(const Bytes &name, const Bytes &start, const Bytes &
 	return new HIterator(this->rev_iterator(key_start, key_end, limit), name);
 }
 
-// todo r2m adaptation
+/*// todo r2m adaptation //编码规则决定无法支持该操作，redis也不支持该操作
 static void get_hnames(Iterator *it, std::vector<std::string> *list){
 	while(it->next()){
 		Bytes ks = it->key();
@@ -185,12 +185,12 @@ static void get_hnames(Iterator *it, std::vector<std::string> *list){
 		}
 		list->push_back(n);
 	}
-}
+}*/
 
 // todo r2m adaptation
 int SSDBImpl::hlist(const Bytes &name_s, const Bytes &name_e, uint64_t limit,
 		std::vector<std::string> *list){
-	std::string start;
+/*	std::string start;
 	std::string end;
 	
 	start = encode_hsize_key(name_s);
@@ -200,14 +200,14 @@ int SSDBImpl::hlist(const Bytes &name_s, const Bytes &name_e, uint64_t limit,
 	
 	Iterator *it = this->iterator(start, end, limit);
 	get_hnames(it, list);
-	delete it;
+	delete it;*/
 	return 0;
 }
 
 // todo r2m adaptation
 int SSDBImpl::hrlist(const Bytes &name_s, const Bytes &name_e, uint64_t limit,
 		std::vector<std::string> *list){
-	std::string start;
+/*	std::string start;
 	std::string end;
 	
 	start = encode_hsize_key(name_s);
@@ -220,60 +220,91 @@ int SSDBImpl::hrlist(const Bytes &name_s, const Bytes &name_e, uint64_t limit,
 	
 	Iterator *it = this->rev_iterator(start, end, limit);
 	get_hnames(it, list);
-	delete it;
+	delete it;*/
 	return 0;
+}
+
+int SSDBImpl::GetHashMetaVal(const std::string &meta_key, HashMetaVal &hv){
+	std::string meta_val;
+	leveldb::Status s = ldb->Get(leveldb::ReadOptions(), meta_key, &meta_val);
+	if (s.IsNotFound()){
+		return 0;
+	} else if (!s.ok() && !s.IsNotFound()){
+		return -1;
+	} else{
+		int ret = hv.DecodeMetaVal(meta_val);
+		if (ret == -1 || hv.type != DataType::HSIZE){
+			return -1;
+		} else if (hv.del == KEY_DELETE_MASK){
+			return 0;
+		}
+	}
+	return 1;
+}
+
+int SSDBImpl::GetHashItemValInternal(const std::string &item_key, std::string *val){
+	leveldb::Status s = ldb->Get(leveldb::ReadOptions(), item_key, val);
+	if (s.IsNotFound()){
+		return 0;
+	} else if (!s.ok() && !s.IsNotFound()){
+		return -1;
+	}
+	return 1;
 }
 
 // returns the number of newly added items
 static int hset_one(SSDBImpl *ssdb, const Bytes &name, const Bytes &key, const Bytes &val, char log_type){
-	if(name.empty() || key.empty()){
-		log_error("empty name or key!");
-		return -1;
-	}
-	if(name.size() > SSDB_KEY_LEN_MAX ){
-		log_error("name too long! %s", hexmem(name.data(), name.size()).c_str());
-		return -1;
-	}
-	if(key.size() > SSDB_KEY_LEN_MAX){
-		log_error("key too long! %s", hexmem(key.data(), key.size()).c_str());
-		return -1;
-	}
 	int ret = 0;
 	std::string dbval;
-	if(ssdb->hget(name, key, &dbval) == 0){ // not found
-// todo r2m adaptation
+	HashMetaVal hv;
+	std::string meta_key = encode_meta_key(name.String());
+	ret = ssdb->GetHashMetaVal(meta_key, hv);
+	if (ret == -1){
+		return -1;
+	} else if (ret == 0 && hv.del == KEY_DELETE_MASK){
+		std::string hkey = encode_hash_key(name, key, (uint16_t)(hv.version+1));
+		ssdb->binlogs->Put(hkey, slice(val));
+		ssdb->binlogs->add_log(log_type, BinlogCommand::HSET, hkey);
+		ret = 1;
+	} else if (ret == 0){
 		std::string hkey = encode_hash_key(name, key);
 		ssdb->binlogs->Put(hkey, slice(val));
 		ssdb->binlogs->add_log(log_type, BinlogCommand::HSET, hkey);
 		ret = 1;
-	}else{
-		if(dbval != val){
-// todo r2m adaptation
-			std::string hkey = encode_hash_key(name, key);
-			ssdb->binlogs->Put(hkey, slice(val));
-			ssdb->binlogs->add_log(log_type, BinlogCommand::HSET, hkey);
+	} else{
+		std::string item_key = encode_hash_key(name, key, hv.version);
+		ret = ssdb->GetHashItemValInternal(item_key, &dbval);
+		if (ret == -1){
+			return -1;
+		} else if (ret == 0){
+			ssdb->binlogs->Put(item_key, slice(val));
+			ssdb->binlogs->add_log(log_type, BinlogCommand::HSET, item_key);
+			ret = 1;
+		} else{
+			if(dbval != val){
+				ssdb->binlogs->Put(item_key, slice(val));
+				ssdb->binlogs->add_log(log_type, BinlogCommand::HSET, item_key);
+			}
+			ret = 0;
 		}
-		ret = 0;
 	}
 	return ret;
 }
 
 static int hdel_one(SSDBImpl *ssdb, const Bytes &name, const Bytes &key, char log_type){
-	if(name.size() > SSDB_KEY_LEN_MAX ){
-		log_error("name too long! %s", hexmem(name.data(), name.size()).c_str());
-		return -1;
-	}
-	if(key.size() > SSDB_KEY_LEN_MAX){
-		log_error("key too long! %s", hexmem(key.data(), key.size()).c_str());
-		return -1;
-	}
+	int ret = 0;
 	std::string dbval;
-	if(ssdb->hget(name, key, &dbval) == 0){
-		return 0;
+	HashMetaVal hv;
+	std::string meta_key = encode_meta_key(name);
+	ret = ssdb->GetHashMetaVal(meta_key, hv);
+	if (ret != 1){
+		return ret;
 	}
-
-// todo r2m adaptation
-	std::string hkey = encode_hash_key(name, key);
+	std::string hkey = encode_hash_key(name, key, hv.version);
+	ret = ssdb->GetHashItemValInternal(hkey, &dbval);
+	if (ret != 1){
+		return ret;
+	}
 	ssdb->binlogs->Delete(hkey);
 	ssdb->binlogs->add_log(log_type, BinlogCommand::HDEL, hkey);
 	
@@ -281,14 +312,43 @@ static int hdel_one(SSDBImpl *ssdb, const Bytes &name, const Bytes &key, char lo
 }
 
 static int incr_hsize(SSDBImpl *ssdb, const Bytes &name, int64_t incr){
-	int64_t size = ssdb->hsize(name);
-	size += incr;
-// todo r2m adaptation
-	std::string size_key = encode_hsize_key(name);
-	if(size == 0){
-		ssdb->binlogs->Delete(size_key);
-	}else{
-		ssdb->binlogs->Put(size_key, leveldb::Slice((char *)&size, sizeof(int64_t)));
+	HashMetaVal hv;
+	std::string size_key = encode_meta_key(name);
+	int ret = ssdb->GetHashMetaVal(size_key, hv);
+	if (ret == -1){
+		return ret;
+	} else if (ret == 0 && hv.del == KEY_DELETE_MASK){
+		if (incr > 0){
+			std::string size_val = encode_hash_meta_val((uint64_t)incr, (uint16_t)(hv.version+1));
+			ssdb->binlogs->Put(size_key, size_val);
+		} else{
+			return -1;
+		}
+	} else if (ret == 0){
+		if (incr > 0){
+			std::string size_val = encode_hash_meta_val((uint64_t)incr);
+			ssdb->binlogs->Put(size_key, size_val);
+		} else{
+			return -1;
+		}
+	} else{
+		uint64_t len = hv.length;
+		if (incr > 0) {
+			len += incr;
+		} else if (incr < 0) {
+			uint64_t u64 = static_cast<uint64_t>(-incr);
+			if (len < u64) {
+				return -1;
+			}
+			len = len - u64;
+		}
+		if (len == 0){
+			ssdb->binlogs->Delete(size_key);
+		} else{
+			std::string size_val = encode_hash_meta_val(len, hv.version);
+			ssdb->binlogs->Put(size_key, size_val);
+		}
 	}
+
 	return 0;
 }
