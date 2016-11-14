@@ -8,41 +8,15 @@
 #include "ssdb_test.h"
 using namespace std;
 
-string Keys []= {
-    "", "0", "1", "10", "123", "4321", "1234567890",
-    "a", "ab", "cba", "abcdefghijklmnopqrstuvwxyz",
-    "A", "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
-    "a0b1", "A0aB9", "~!@#$%^&*()",
-    "-`_+=|';:.,/?<>'`", "0{a}1", "00{aa}2{55}",
-    "99{{1111}lll", "key_normal_{214}_gsdg"
-};
-
 class KVTest : public SSDBTest
 {
     public:
-        ssdb::Client *client;
         ssdb::Status s;
         std::vector<std::string> list;
-        std::map<std::string, std::string> kvs;
         std::vector<std::string> keys;
+        std::map<std::string, std::string> kvs;
         string key, val, getVal, field;
-        uint16_t keysNum;
-
-        virtual void SetUp(){
-            port = 8888;
-            ip = "127.0.0.1";
-            client = ssdb::Client::connect(ip.data(), port);
-            ASSERT_TRUE(client != NULL)<<"fail to connect to server!";
-            keysNum = sizeof(Keys)/sizeof(string);
-        }
-
-        virtual void TearDown(){
-            delete client;
-        }
-
-    private:
-        string ip;
-        int port;
+        uint32_t keysNum;
 };
 
 TEST_F(KVTest, Test_kv_set) {
@@ -51,13 +25,13 @@ TEST_F(KVTest, Test_kv_set) {
     s = client->get(key, &getVal);\
     ASSERT_TRUE(s.ok()&&(val == getVal))<<"fail to get key val!"<<endl;
 
-#define FalseSet s = client->set(key, val);\
-    ASSERT_TRUE(s.error())<<"this key should set fail!"<<endl;
+// #define FalseSet s = client->set(key, val);\
+    // ASSERT_TRUE(s.error())<<"this key should set fail!"<<endl;
  
     //Some special keys
-    for(int n = 0; n < keysNum; n++)
+    for(vector<string>::iterator it = Keys.begin(); it != Keys.end(); it++)
     {
-        key = Keys[n];
+        key = *it;
         val = GetRandomVal_(); 
         OKSet
         //set exsit key
@@ -74,11 +48,11 @@ TEST_F(KVTest, Test_kv_set) {
         OKSet
     }
 
-    //other types key
+    //other types key, kv can set other types
     s = client->del(key);
     field = GetRandomField_();
     s = client->hset(field, key, val);
-    FalseSet
+    OKSet
 
     //MaxLength key
     key = GetRandomBytes_(maxKeyLen_);
@@ -140,9 +114,9 @@ TEST_F(KVTest, Test_kv_del) {
     ASSERT_TRUE(s.not_found())<<"this key should be not found!"<<endl;
 
     //Some special keys
-    for(int n = 0; n < keysNum; n++)
+    for(vector<string>::iterator it = Keys.begin(); it != Keys.end(); it++)
     {
-        key = Keys[n];
+        key = *it;
         val = GetRandomVal_(); 
         s = client->set(key, val);
         OKDel
@@ -164,36 +138,35 @@ TEST_F(KVTest, Test_kv_del) {
     key = GetRandomBytes_(maxKeyLen_);
     s = client->set(key, val);
     OKDel
-        NotFoundDel
+    NotFoundDel
 }
 
 TEST_F(KVTest, Test_kv_incr) {
-#define OKIncr incr = rand()%MAX_UINT64;\
-    incr = n&1?incr:(-incr);\
+#define OKIncr incr = GetRandomInt64_();\
     s = client->del(key);\
     s = client->incr(key, incr, &ret);\
-    ASSERT_TRUE(s.ok());\
+    EXPECT_EQ(s.code(),"ok");\
     s = client->get(key, &getVal);\
-    ASSERT_EQ(incr, atoi(getVal.data()));\
+    ASSERT_EQ(to_string(incr), getVal);\
     \
     s = client->incr(key, n, &ret);\
     ASSERT_TRUE(s.ok());\
     s = client->get(key, &getVal);\
-    ASSERT_EQ(incr+n, atoi(getVal.data()));
-    stringstream stream;
+    ASSERT_EQ(to_string(incr+n), getVal);
 
-    int64_t incr, ret;
+    int64_t incr, ret, n = 0;
     //Some special keys
-    for(int n = 0; n < keysNum; n++)
+    for(vector<string>::iterator it = Keys.begin(); it != Keys.end(); it++)
     {
-        key = Keys[n]; 
+        n++;
+        key = *it;
         OKIncr
     }
 
     //Some random keys
     keysNum = 100;
     val = ""; 
-    for(int n = 0; n < keysNum; n++)
+    for(n = 0; n < keysNum; n++)
     {
         key = GetRandomKey_(); 
         OKIncr
@@ -232,7 +205,8 @@ TEST_F(KVTest, Test_kv_scan) {
     client->set("00000000k1","v1");
     client->set("00000000k2","v2");
     s = client->scan("00000000k0", "00000000k2", 2, &list);
-    ASSERT_TRUE(s.ok() && list.size() == 2);
+    ASSERT_EQ(list.size() , 4);
+    ASSERT_TRUE(s.ok() && list.size() == 4);
     ASSERT_EQ("00000000k1", list[0]);
     ASSERT_EQ("v1", list[1]);
     ASSERT_EQ("00000000k2", list[2]);
@@ -249,7 +223,7 @@ TEST_F(KVTest, Test_kv_rscan) {
     client->set("00000000k1","v1");
     client->set("00000000k2","v2");
     s = client->rscan("00000000k3", "00000000k1", 2, &list);
-    ASSERT_TRUE(s.ok() && list.size() == 2);
+    ASSERT_TRUE(s.ok() && list.size() == 4);
     ASSERT_EQ("00000000k2", list[0]);
     ASSERT_EQ("v2", list[1]);
     ASSERT_EQ("00000000k1", list[2]);
@@ -262,11 +236,11 @@ TEST_F(KVTest, Test_kv_rscan) {
 TEST_F(KVTest, Test_kv_multi_set_get_del) {
     string key1, key2, val1, val2, key3, val3;
 
-    for(int n = 0; n < keysNum; n++)
+    for(vector<string>::iterator it = Keys.begin(); it != Keys.end(); it++)
     {
-        key1 = Keys[n]; 
-        key2 = Keys[n]+'2'; 
-        key3 = Keys[n]+'3'; 
+        key1 = *it; 
+        key2 = key1+'2'; 
+        key3 = key1+'3'; 
         val1 = "";//GetRandomVal_();
         val2 = val1+'2';
         val3 = val1+'3';

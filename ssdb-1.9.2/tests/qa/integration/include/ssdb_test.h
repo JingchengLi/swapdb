@@ -4,6 +4,7 @@
 #include <sys/time.h>
 #include <unistd.h>
 #include <sstream>
+#include "SSDB_client.h"
 
 #include "gtest/gtest.h"
 
@@ -31,16 +32,31 @@ class SSDBTest : public ::testing::Test
 public:
 	SSDBTest()
 	{
+        Keys = {
+            "", "0", "1", "10", "123", "4321", "1234567890",
+            "a", "ab", "cba", "abcdefghijklmnopqrstuvwxyz",
+            "A", "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+            "a0b1", "A0aB9", "~!@#$%^&*()",
+            "-`_+=|';:.,/?<>'`", "0{a}1", "00{aa}2{55}",
+            "99{{1111}lll", "key_normal_{214}_gsdg"
+        };
 	}
 
 	virtual ~SSDBTest()
 	{
 	}
 
-	virtual void SetUp()
-	{
-	}
-	
+    virtual void SetUp(){
+        port = 8888;
+        ip = "127.0.0.1";
+        client = ssdb::Client::connect(ip.data(), port);
+        ASSERT_TRUE(client != NULL)<<"fail to connect to server!";
+    }
+
+    virtual void TearDown(){
+        delete client;
+    }
+
 	string GetRandomBytes_(const unsigned int length)
 	{
 		struct timeval currentTime;
@@ -49,7 +65,7 @@ public:
 		string randomBytes;
 		for(unsigned int index = 0; index != length; index++)
 		{
-			randomBytes += char(random()%256);
+			randomBytes += char(random()%95+32);//visible bytes
 		}
 		return randomBytes;
 	}
@@ -62,12 +78,24 @@ public:
 		return (random()%(Max+1-Min))+Min;
 	}
 
-	int64_t GetRandomInt64_(int64_t Min, int64_t Max) {
-		assert(Max >= Min);
+	// int64_t GetRandomInt64_(int64_t Min = MIN_INT64, int64_t Max = MAX_INT64-1) {
+		// assert(Max >= Min);
+		// struct timeval currentTime;
+		// gettimeofday(&currentTime, NULL);
+		// srand(currentTime.tv_usec);
+		// return (random()%(Max+1-Min))+Min;
+	// }
+
+	int64_t GetRandomInt64_() {
+        int64_t randowmInt64 = 0;
 		struct timeval currentTime;
-		gettimeofday(&currentTime, NULL);
-		srand(currentTime.tv_usec);
-		return (random()%(Max+1-Min))+Min;
+        for(int count = 0; count < 64; count++)
+        {
+            gettimeofday(&currentTime, NULL);
+            srand(currentTime.tv_usec);
+            randowmInt64 = ( randowmInt64<<1 ) | ( rand()&1 );
+        }
+		return randowmInt64;
 	}
 
 	uint64_t GetRandomUInt64_(uint64_t Min, uint64_t Max) {
@@ -78,13 +106,8 @@ public:
 		return (random()%(Max+1-Min))+Min;
 	}
 
-	double GetRandomFloat_(int64_t min = 0, int64_t max= 256 ) {//6λ??ЧС??λ??
-		assert(max >= min);
-		int base_precision = 1000000;
-		int64_t min_ex = min * base_precision;
-		int64_t max_ex = max * base_precision;
-		int64_t res_int = GetRandomInt64_(min_ex, max_ex);
-		return res_int*1.0/base_precision;
+	double GetRandomFloat_() {
+		return (double)GetRandomInt64_();
 	}
 	
 	inline unsigned int GetRandomSeq_()
@@ -122,10 +145,6 @@ public:
 		return (d_diff<eps) && (d_diff>-eps);
 	}
 	
-	//Macro
-	virtual void TearDown()
-	{
-	}
 protected:
 	static const uint64_t maxSeq = MAX_UINT64-1;
 	static const uint64_t minSeq = 0;
@@ -140,6 +159,11 @@ protected:
 	static const unsigned int maxValLen_ = 1024000;
 	static const unsigned int minValLen_ = 1;
 	static const unsigned int charsSetLen_ = 62;
+    std::vector<std::string> Keys;
+    ssdb::Client *client;
+private:
+    string ip;
+    int port;
 };
 
 #endif
