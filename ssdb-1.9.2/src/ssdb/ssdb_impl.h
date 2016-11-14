@@ -170,6 +170,8 @@ private:
     int KDel(const Bytes &key, char log_type=BinlogType::SYNC);
 	int KDelNoLock(const Bytes &key, char log_type=BinlogType::SYNC);
 	int DelKeyByType(const Bytes &key, const std::string &type);
+
+    HIterator* hscan_internal(const Bytes &name, const Bytes &start, const Bytes &end, uint16_t version, uint64_t limit);
 };
 
 #endif

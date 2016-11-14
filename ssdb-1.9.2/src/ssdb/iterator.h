@@ -64,8 +64,9 @@ public:
 	std::string name;
 	std::string key;
 	std::string val;
+	uint16_t 	version;
 
-	HIterator(Iterator *it, const Bytes &name);
+	HIterator(Iterator *it, const Bytes &name, uint16_t version = 0);
 	~HIterator();
 	void return_val(bool onoff);
 	bool next();
