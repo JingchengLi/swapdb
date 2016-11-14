@@ -97,34 +97,46 @@ int64_t SSDBImpl::hsize(const Bytes &name){
 	}
 }
 
-// todo r2m adaptation
-int64_t SSDBImpl::hclear(const Bytes &name){
-	int64_t count = 0;
+int SSDBImpl::HDelKeyNoLock(const Bytes &name, char log_type){
     HashMetaVal hv;
     std::string meta_key = encode_meta_key(name);
     int ret = GetHashMetaVal(meta_key, hv);
     if (ret != 1){
         return ret;
     }
-	while(1){
-		HIterator *it = this->hscan_internal(name, "", "", hv.version, -1);
-		int num = 0;
-		while(it->next()){
-			int ret = this->hdel(name, it->key);
-			if(ret == -1){
-				delete it;
-				return 0;
-			}
-			num ++;
-		};
-		delete it;
 
-		if(num == 0){
-			break;
-		}
-		count += num;
-	}
-	return count;
+    HIterator *it = this->hscan_internal(name, "", "", hv.version, -1);
+    int num = 0;
+    while(it->next()){
+        ret = hdel_one(this, name, it->key, log_type);
+        if (-1 == ret){
+            return -1;
+        } else if (ret > 0){
+            num++;
+        }
+    }
+    if (num > 0){
+        if(incr_hsize(this, name, -num) == -1){
+            return -1;
+        }
+    }
+
+    return num;
+}
+
+int64_t SSDBImpl::hclear(const Bytes &name){
+    Transaction trans(binlogs);
+
+    int num = HDelKeyNoLock(name);
+
+    if (num > 0){
+        leveldb::Status s = binlogs->commit();
+        if (!s.ok()){
+            return -1;
+        }
+    }
+
+    return num;
 }
 
 int SSDBImpl::hget(const Bytes &name, const Bytes &key, std::string *val){

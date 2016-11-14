@@ -172,6 +172,7 @@ private:
 	int DelKeyByType(const Bytes &key, const std::string &type);
 
     HIterator* hscan_internal(const Bytes &name, const Bytes &start, const Bytes &end, uint16_t version, uint64_t limit);
+	int HDelKeyNoLock(const Bytes &name, char log_type=BinlogType::SYNC);
 };
 
 #endif
