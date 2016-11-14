@@ -160,17 +160,16 @@ int SSDBImpl::hget(const Bytes &name, const Bytes &key, std::string *val){
 }
 
 HIterator* SSDBImpl::hscan(const Bytes &name, const Bytes &start, const Bytes &end, uint64_t limit){
-	std::string key_start, key_end;
-
-// todo r2m adaptation
-	key_start = encode_hash_key(name, start);
-	if(!end.empty()){
-		key_end = encode_hash_key(name, end);
-	}
-	//dump(key_start.data(), key_start.size(), "scan.start");
-	//dump(key_end.data(), key_end.size(), "scan.end");
-
-	return new HIterator(this->iterator(key_start, key_end, limit), name);
+    HashMetaVal hv;
+    std::string meta_key = encode_meta_key(name);
+    int ret = GetHashMetaVal(meta_key, hv);
+    if (0 == ret && hv.del == KEY_DELETE_MASK){
+        return hscan_internal(name, start, end, hv.version+1, limit);
+    } else if (ret > 0){
+        return hscan_internal(name, start, end, hv.version, limit);
+    } else{
+        return hscan_internal(name, start, end, 0, limit);
+    }
 }
 
 HIterator* SSDBImpl::hscan_internal(const Bytes &name, const Bytes &start, const Bytes &end, uint16_t version, uint64_t limit){
@@ -184,21 +183,31 @@ HIterator* SSDBImpl::hscan_internal(const Bytes &name, const Bytes &start, const
     return new HIterator(this->iterator(key_start, key_end, limit), name, version);
 }
 
+HIterator* SSDBImpl::hrscan_internal(const Bytes &name, const Bytes &start, const Bytes &end, uint16_t version, uint64_t limit){
+    std::string key_start, key_end;
+
+    key_start = encode_hash_key(name, start, version);
+    if(start.empty()){
+        key_start.append(1, 255);
+    }
+    if(!end.empty()){
+        key_end = encode_hash_key(name, end, version);
+    }
+
+    return new HIterator(this->rev_iterator(key_start, key_end, limit), name, version);
+}
+
 HIterator* SSDBImpl::hrscan(const Bytes &name, const Bytes &start, const Bytes &end, uint64_t limit){
-	std::string key_start, key_end;
-
-// todo r2m adaptation
-	key_start = encode_hash_key(name, start);
-	if(start.empty()){
-		key_start.append(1, 255);
-	}
-	if(!end.empty()){
-		key_end = encode_hash_key(name, end);
-	}
-	//dump(key_start.data(), key_start.size(), "scan.start");
-	//dump(key_end.data(), key_end.size(), "scan.end");
-
-	return new HIterator(this->rev_iterator(key_start, key_end, limit), name);
+    HashMetaVal hv;
+    std::string meta_key = encode_meta_key(name);
+    int ret = GetHashMetaVal(meta_key, hv);
+    if (0 == ret && hv.del == KEY_DELETE_MASK){
+        return hrscan_internal(name, start, end, hv.version+1, limit);
+    } else if (ret > 0){
+        return hrscan_internal(name, start, end, hv.version, limit);
+    } else{
+        return hrscan_internal(name, start, end, 0, limit);
+    }
 }
 
 /*// todo r2m adaptation //编码规则决定无法支持该操作，redis也不支持该操作
