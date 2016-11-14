@@ -100,8 +100,14 @@ int64_t SSDBImpl::hsize(const Bytes &name){
 // todo r2m adaptation
 int64_t SSDBImpl::hclear(const Bytes &name){
 	int64_t count = 0;
+    HashMetaVal hv;
+    std::string meta_key = encode_meta_key(name);
+    int ret = GetHashMetaVal(meta_key, hv);
+    if (ret != 1){
+        return ret;
+    }
 	while(1){
-		HIterator *it = this->hscan(name, "", "", 1000);
+		HIterator *it = this->hscan_internal(name, "", "", hv.version, -1);
 		int num = 0;
 		while(it->next()){
 			int ret = this->hdel(name, it->key);
@@ -153,6 +159,17 @@ HIterator* SSDBImpl::hscan(const Bytes &name, const Bytes &start, const Bytes &e
 	//dump(key_end.data(), key_end.size(), "scan.end");
 
 	return new HIterator(this->iterator(key_start, key_end, limit), name);
+}
+
+HIterator* SSDBImpl::hscan_internal(const Bytes &name, const Bytes &start, const Bytes &end, uint16_t version, uint64_t limit){
+    std::string key_start, key_end;
+
+    key_start = encode_hash_key(name, start, version);
+    if(!end.empty()){
+        key_end = encode_hash_key(name, end, version);
+    }
+
+    return new HIterator(this->iterator(key_start, key_end, limit), name, version);
 }
 
 HIterator* SSDBImpl::hrscan(const Bytes &name, const Bytes &start, const Bytes &end, uint64_t limit){

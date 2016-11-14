@@ -10,6 +10,7 @@ found in the LICENSE file.
 #include "t_queue.h"
 #include "../util/log.h"
 #include "../util/config.h"
+#include "codec/decode.h"
 #ifdef USE_LEVELDB
 #include "leveldb/iterator.h"
 #else
@@ -126,9 +127,10 @@ bool KIterator::next(){
 /* HASH */
 
 // todo r2m adaptation
-HIterator::HIterator(Iterator *it, const Bytes &name){
+HIterator::HIterator(Iterator *it, const Bytes &name, uint16_t version){
 	this->it = it;
 	this->name.assign(name.data(), name.size());
+	this->version = version;
 	this->return_val_ = true;
 }
 
@@ -146,16 +148,14 @@ bool HIterator::next(){
 		Bytes vs = it->val();
 		//dump(ks.data(), ks.size(), "z.next");
 		//dump(vs.data(), vs.size(), "z.next");
-		if(ks.data()[0] != DataType::HASH){
-			return false;
-		}
-		std::string n;
-		if(decode_hash_key(ks, &n, &key) == -1){
+		HashItemKey hk;
+		if(hk.DecodeItemKey(ks.String()) == -1){
 			continue;
 		}
-		if(n != this->name){
+		if(hk.key != this->name || hk.version != this->version){
 			return false;
 		}
+		this->key = hk.field;
 		if(return_val_){
 			this->val.assign(vs.data(), vs.size());
 		}
