@@ -37,6 +37,7 @@ TEST_F(KVTest, Test_kv_set) {
         //set exsit key
         val = GetRandomVal_(); 
         OKSet
+        s = client->del(key);
     }
 
     //Some random keys
@@ -46,6 +47,7 @@ TEST_F(KVTest, Test_kv_set) {
     {
         key = GetRandomKey_(); 
         OKSet
+        s = client->del(key);
     }
 
     //other types key, kv can set other types
@@ -53,10 +55,12 @@ TEST_F(KVTest, Test_kv_set) {
     field = GetRandomField_();
     s = client->hset(field, key, val);
     OKSet
+    s = client->del(key);
 
     //MaxLength key
     key = GetRandomBytes_(maxKeyLen_);
     OKSet
+    s = client->del(key);
 
     /* key += "K";
     FalseSet */
@@ -88,6 +92,9 @@ TEST_F(KVTest, Test_kv_get) {
 #define NotFoundGet s = client->get(key, &getVal);\
     ASSERT_TRUE(s.not_found())<<"this key should be not found!"<<endl;
 
+#define ErrorGet s = client->get(key, &getVal);\
+    ASSERT_TRUE(s.error())<<"this key should be error!"<<endl;
+
     //Some random keys
     for(int n = 0; n < 5; n++)
     {
@@ -100,8 +107,9 @@ TEST_F(KVTest, Test_kv_get) {
     //other types key
     s = client->del(key);
     field = GetRandomField_();
-    s = client->hset(field, key, val);
-    NotFoundGet
+    s = client->hset(key, field, val);
+    ErrorGet
+    s = client->hdel(key, field);
 }
 
 TEST_F(KVTest, Test_kv_del) {
@@ -152,7 +160,8 @@ TEST_F(KVTest, Test_kv_incr) {
     s = client->incr(key, n, &ret);\
     ASSERT_TRUE(s.ok());\
     s = client->get(key, &getVal);\
-    ASSERT_EQ(to_string(incr+n), getVal);
+    ASSERT_EQ(to_string(incr+n), getVal);\
+    s = client->del(key);
 
     int64_t incr, ret, n = 0;
     //Some special keys
@@ -184,6 +193,7 @@ TEST_F(KVTest, Test_kv_incr) {
     ASSERT_TRUE(s.error());
     s = client->get(key, &getVal);
     ASSERT_EQ(-1, atoi(getVal.data()));
+    s = client->del(key);
 }
 
 TEST_F(KVTest, Test_kv_keys) {
@@ -196,6 +206,8 @@ TEST_F(KVTest, Test_kv_keys) {
     ASSERT_TRUE(s.ok() && list.size() == 2);
     ASSERT_EQ("000000001", list[0]);
     ASSERT_EQ("000000002", list[1]);
+    client->del("000000001");
+    client->del("000000002");
 }
 
 TEST_F(KVTest, Test_kv_scan) {
@@ -214,6 +226,8 @@ TEST_F(KVTest, Test_kv_scan) {
     list.clear();
     s = client->scan("00000000k2", "00000000k0", 2, &list);
     ASSERT_EQ(0, list.size());
+    client->del("00000000k1");
+    client->del("00000000k2");
 }
 
 TEST_F(KVTest, Test_kv_rscan) {
@@ -231,6 +245,8 @@ TEST_F(KVTest, Test_kv_rscan) {
     list.clear();
     s = client->rscan("00000000k1", "00000000k3", 2, &list);
     ASSERT_EQ(0, list.size());
+    client->del("00000000k1");
+    client->del("00000000k2");
 }
 
 TEST_F(KVTest, Test_kv_multi_set_get_del) {
@@ -314,6 +330,7 @@ TEST_F(KVTest, Test_kv_setnx) {
     ASSERT_TRUE(s.error());
     s = client->get(key,&getVal);
     ASSERT_EQ(val, getVal);
+    s = client->del(key);
 }
 
 TEST_F(KVTest, Test_kv_setbit_getbit) {
@@ -342,6 +359,7 @@ TEST_F(KVTest, Test_kv_setbit_getbit) {
     s = client->setbit(key, 3, 1);
     s = client->get(key, &getVal);
     ASSERT_EQ("0", getVal);
+    s = client->del(key);
 }
 
 TEST_F(KVTest, Test_kv_getset) {
@@ -359,4 +377,5 @@ TEST_F(KVTest, Test_kv_getset) {
     ASSERT_EQ(val, getVal);
     s = client->get(key, &getVal);
     ASSERT_EQ(val2, getVal);
+    s = client->del(key);
 }
