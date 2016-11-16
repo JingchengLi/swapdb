@@ -34,6 +34,13 @@ found in the LICENSE file.
 #endif
 
 
+const int ZSET_SCORE_INTEGER_DIGITS = 13;
+const int ZSET_SCORE_DECIMAL_DIGITS = 5;
+//const int64_t ZSET_SCORE_SHIFT = 1000000000000000000LL; //1,000,000,000,000,000,000
+const int64_t ZSET_SCORE_MAX = 10000000000000LL;               //10,000,000,000,000 ( *10,000 for Shift )
+const int64_t ZSET_SCORE_MIN = -ZSET_SCORE_MAX;
+const double eps = 1e-5;
+
 static inline double millitime(){
 	struct timeval now;
 	gettimeofday(&now, NULL);
