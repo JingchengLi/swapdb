@@ -31,16 +31,16 @@ int decode_zsize_key(const Bytes &slice, std::string *name){
 	return 0;
 }
 
-static inline
-std::string encode_zset_key(const Bytes &name, const Bytes &key){
-	std::string buf;
-	buf.append(1, DataType::ZSET);
-	buf.append(1, (uint8_t)name.size());
-	buf.append(name.data(), name.size());
-	buf.append(1, (uint8_t)key.size());
-	buf.append(key.data(), key.size());
-	return buf;
-}
+//static inline
+//std::string encode_zset_key(const Bytes &name, const Bytes &key){
+//	std::string buf;
+//	buf.append(1, DataType::ZSET);
+//	buf.append(1, (uint8_t)name.size());
+//	buf.append(name.data(), name.size());
+//	buf.append(1, (uint8_t)key.size());
+//	buf.append(key.data(), key.size());
+//	return buf;
+//}
 
 static inline
 int decode_zset_key(const Bytes &slice, std::string *name, std::string *key){
@@ -58,26 +58,26 @@ int decode_zset_key(const Bytes &slice, std::string *name, std::string *key){
 }
 
 // type, len, key, score, =, val
-static inline
-std::string encode_zscore_key(const Bytes &key, const Bytes &val, const Bytes &score){
-	std::string buf;
-	buf.append(1, DataType::ZSCORE);
-	buf.append(1, (uint8_t)key.size());
-	buf.append(key.data(), key.size());
-
-	int64_t s = score.Int64();
-	if(s < 0){
-		buf.append(1, '-');
-	}else{
-		buf.append(1, '=');
-	}
-	s = encode_score(s);
-
-	buf.append((char *)&s, sizeof(int64_t));
-	buf.append(1, '=');
-	buf.append(val.data(), val.size());
-	return buf;
-}
+//static inline
+//std::string encode_zscore_key(const Bytes &key, const Bytes &val, const Bytes &score){
+//	std::string buf;
+//	buf.append(1, DataType::ZSCORE);
+//	buf.append(1, (uint8_t)key.size());
+//	buf.append(key.data(), key.size());
+//
+//	int64_t s = score.Int64();
+//	if(s < 0){
+//		buf.append(1, '-');
+//	}else{
+//		buf.append(1, '=');
+//	}
+//	s = encode_score(s);
+//
+//	buf.append((char *)&s, sizeof(int64_t));
+//	buf.append(1, '=');
+//	buf.append(val.data(), val.size());
+//	return buf;
+//}
 
 static inline
 int decode_zscore_key(const Bytes &slice, std::string *name, std::string *key, std::string *score){

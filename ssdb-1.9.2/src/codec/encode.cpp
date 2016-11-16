@@ -45,8 +45,8 @@ string encode_set_key(const string& key, const string& member, uint16_t version)
     return encode_key_internal(key, member, version);
 }
 
-string encode_zset_key(const string& key, const string& member, uint16_t version){
-    return encode_key_internal(key, member, version);
+string encode_zset_key(const Bytes& key, const Bytes& member, uint16_t version){
+    return encode_key_internal(key.String(), member.String(), version);
 }
 
 static uint64_t encodeScore(const double score) {
@@ -59,14 +59,14 @@ static uint64_t encodeScore(const double score) {
     return (uint64_t)(iscore);
 }
 
-string encode_zscore_key(const string& key, const string& member, double score, uint16_t version){
+string encode_zscore_key(const Bytes& key, const Bytes& member, double score, uint16_t version){
     string buf;
 
     buf.append(1, 'S');
 
     uint16_t len = htobe16((uint16_t)key.size());
     buf.append((char *)&len, sizeof(uint16_t));
-    buf.append(key);
+    buf.append(key.data(), key.size());
 
     version = htobe16(version);
     buf.append((char *)&version, sizeof(uint16_t));
@@ -75,7 +75,7 @@ string encode_zscore_key(const string& key, const string& member, double score, 
     new_score = htobe64(new_score);
     buf.append((char *)&new_score, sizeof(uint64_t));
 
-    buf.append(member);
+    buf.append(member.data(), member.size());
 
     return buf;
 }

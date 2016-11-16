@@ -14,9 +14,9 @@ string encode_hash_key(const Bytes& key, const Bytes& field, uint16_t version = 
 
 string encode_set_key(const string& key, const string& member, uint16_t version);
 
-string encode_zset_key(const string& key, const string& member, uint16_t version);
+string encode_zset_key(const Bytes& key, const Bytes& member, uint16_t version = 0);
 
-string encode_zscore_key(const string& key, const string& member, double score, uint16_t version);
+string encode_zscore_key(const Bytes& key, const Bytes& member, double score, uint16_t version = 0);
 
 string encode_list_key(const string& key, uint64_t seq, uint16_t version);
 
