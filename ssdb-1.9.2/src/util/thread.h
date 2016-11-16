@@ -17,6 +17,7 @@ found in the LICENSE file.
 
 class Mutex{
 	private:
+		friend class CondVar;
 		pthread_mutex_t mutex;
 	public:
 		Mutex(){
@@ -30,6 +31,29 @@ class Mutex{
 		}
 		void unlock(){
 			pthread_mutex_unlock(&mutex);
+		}
+};
+
+class CondVar{
+	private:
+		pthread_cond_t	cv_;
+		Mutex*			mu_;
+	public:
+		explicit CondVar(Mutex* mu)
+		: mu_(mu) {
+			pthread_cond_init(&cv_, NULL);
+		}
+		~CondVar(){
+			pthread_cond_destroy(&cv_);
+		}
+		void wait(){
+			pthread_cond_wait(&cv_, &mu_->mutex);
+		}
+		void signal(){
+			pthread_cond_signal(&cv_);
+		}
+		void signalAll(){
+			pthread_cond_broadcast(&cv_);
 		}
 };
 

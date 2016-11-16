@@ -302,7 +302,7 @@ int SSDBImpl::DelKeyByType(const Bytes &key, const std::string &type){
 	if ("string" == type){
 		KDelNoLock(key);
 	} else if ("hash" == type){
-//		s = HDelKeyNoLock(key, &res);
+		HDelKeyNoLock(key);
 	} else if ("list" == type){
 //		s = LDelKeyNoLock(key, &res);
 	} else if ("set" == type){
