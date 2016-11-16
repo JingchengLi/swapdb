@@ -23,9 +23,11 @@ found in the LICENSE file.
 #include "t_zset.h"
 #include "t_queue.h"
 
-SSDBImpl::SSDBImpl(){
+SSDBImpl::SSDBImpl()
+	: bg_cv_(&mutex_bgtask_){
 	ldb = NULL;
 	binlogs = NULL;
+	this->bgtask_flag_ = true;
 }
 
 SSDBImpl::~SSDBImpl(){
@@ -38,6 +40,8 @@ SSDBImpl::~SSDBImpl(){
 //	if(expiration){
 //		delete expiration;
 //	}
+	Locking l(&this->mutex_bgtask_);
+	this->stop();
 #ifdef USE_LEVELDB
 	if(options.block_cache){
 		delete options.block_cache;
@@ -74,6 +78,7 @@ SSDB* SSDB::open(const Options &opt, const std::string &dir){
 	}
 	ssdb->binlogs = new BinlogQueue(ssdb->ldb, opt.binlog, opt.binlog_capacity);
 //    ssdb->expiration = new ExpirationHandler(ssdb); //todo 后续如果支持set命令中设置过期时间，添加此行，同时删除serv.cpp中相应代码
+    ssdb->start();
 
 	return ssdb;
 err:
@@ -356,4 +361,91 @@ int SSDBImpl::key_range(std::vector<std::string> *keys){
 	keys->push_back(qend);
 	
 	return ret;
+}
+
+void SSDBImpl::start() {
+	int err = pthread_create(&bg_tid_, NULL, &thread_func, this);
+	if(err != 0){
+		log_fatal("can't create thread: %s", strerror(err));
+		exit(0);
+	}
+}
+
+void SSDBImpl::stop() {
+	this->bgtask_flag_ = false;
+}
+
+void SSDBImpl::AddBGTask(const BGTask &task) {
+	mutex_bgtask_.lock();
+	bg_tasks_.push(task);
+	//printf ("AddBGTask push task{ type=%d, op=%d argv1= %s}, Signal\n", task.type, task.op, task.argv1.c_str());
+	bg_cv_.signal();
+	mutex_bgtask_.unlock();
+}
+
+int SSDBImpl::delKey(const char type, std::string key, uint16_t version) {
+    Transaction trans(binlogs);
+
+    char log_type=BinlogType::SYNC;
+	if (type == kHASH){
+		HIterator* it = hscan_internal(key, "", "", version, -1);
+		while (it->next()){
+			std::string item_key = encode_hash_key(it->name, it->key, version);
+            binlogs->Delete(item_key);
+            binlogs->add_log(log_type, BinlogCommand::HDEL, item_key);
+		}
+        std::string del_key = encode_delete_key(key, version);
+        binlogs->Delete(del_key);
+        std::string meta_key = encode_meta_key(key);
+        HashMetaVal hv;
+        int ret = GetHashMetaVal(meta_key, hv);
+        if (ret == 0 && hv.del == KEY_DELETE_MASK && hv.version == version){
+            binlogs->Delete(meta_key);
+        }
+	}
+
+    leveldb::Status s = binlogs->commit();
+    if (!s.ok()){
+        log_fatal("SSDBImpl::delKey Backend Task error!");
+        return -1;
+    }
+
+    return 0;
+}
+
+void SSDBImpl::runBGTask() {
+	while (bgtask_flag_){
+		mutex_bgtask_.lock();
+
+		while (bg_tasks_.empty() && bgtask_flag_){
+			bg_cv_.wait();
+		}
+
+		BGTask task;
+		if (!bg_tasks_.empty()){
+			task = bg_tasks_.front();
+			bg_tasks_.pop();
+		}
+		mutex_bgtask_.unlock();
+
+		if (!bgtask_flag_){
+			return;
+		}
+
+		switch (task.op){
+			case OPERATION::kDEL_KEY :
+                delKey(task.type, task.argv1, task.argv2);
+				break;
+			default:
+				break;
+		}
+	}
+}
+
+void* SSDBImpl::thread_func(void *arg) {
+    SSDBImpl *bg_task = (SSDBImpl *)arg;
+
+	bg_task->runBGTask();
+
+	return (void *)NULL;
 }

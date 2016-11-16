@@ -26,6 +26,42 @@ found in the LICENSE file.
 #include "t_queue.h"
 #include "ssdb/ttl.h"
 #include "codec/decode.h"
+#include "codec/encode.h"
+
+#include <queue>
+#include <atomic>
+#include "util/thread.h"
+
+#define MAX_NUM_DELETE 10
+
+enum DBType {
+    kNONE = 0,
+    kKV,
+    kHASH,
+    kLIST,
+    kZSET,
+    kSET,
+    kALL
+};
+
+enum OPERATION {
+	kNONE_OP = 0,
+	kDEL_KEY,
+	kCLEAN_RANGE,
+	kCLEAN_ALL,
+};
+
+struct BGTask {
+    DBType      type;
+	OPERATION   op;
+	std::string argv1;
+	uint16_t    argv2;
+
+	BGTask() : type(kNONE), op(OPERATION::kNONE_OP) { }
+	BGTask(DBType _type, const OPERATION _op, const std::string &_argv1, const uint16_t &_argv2)
+			: type(_type), op(_op), argv1(_argv1), argv2(_argv2) {}
+
+};
 
 inline
 static leveldb::Slice slice(const Bytes &b){
@@ -174,6 +210,21 @@ private:
     HIterator* hscan_internal(const Bytes &name, const Bytes &start, const Bytes &end, uint16_t version, uint64_t limit);
     HIterator* hrscan_internal(const Bytes &name, const Bytes &start, const Bytes &end, uint16_t version, uint64_t limit);
 	int HDelKeyNoLock(const Bytes &name, char log_type=BinlogType::SYNC);
+
+private:
+	//    pthread_mutex_t mutex_bgtask_;
+	Mutex mutex_bgtask_;
+	std::atomic<bool> bgtask_flag_;
+	pthread_t bg_tid_;
+	std::queue<BGTask> bg_tasks_;
+	CondVar bg_cv_;
+
+	void start();
+	void stop();
+	void AddBGTask(const BGTask& task);
+	int  delKey(const char type, std::string key, uint16_t version);
+	void runBGTask();
+	static void* thread_func(void *arg);
 };
 
 #endif

@@ -212,14 +212,15 @@ int proc_del(NetworkServer *net, Link *link, const Request &req, Response *resp)
 
 int proc_scan(NetworkServer *net, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *)net->data;
-	CHECK_NUM_PARAMS(4);
+//	CHECK_NUM_PARAMS(4);
 
-	uint64_t limit = req[3].Uint64();
-	KIterator *it = serv->ssdb->scan(req[1], req[2], limit);
+//	uint64_t limit = req[3].Uint64();
+//	KIterator *it = serv->ssdb->scan(req[1], req[2], limit);
+	Iterator *it = serv->ssdb->iterator("", "", -1);
 	resp->push_back("ok");
 	while(it->next()){
-		resp->push_back(it->key);
-		resp->push_back(it->val);
+		resp->push_back(it->key().String());
+		resp->push_back(it->val().String());
 	}
 	delete it;
 	return 0;
