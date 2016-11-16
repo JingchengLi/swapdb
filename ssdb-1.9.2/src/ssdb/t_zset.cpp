@@ -105,21 +105,13 @@ int SSDBImpl::zincr(const Bytes &name, const Bytes &key, int64_t by, int64_t *ne
 }
 
 int64_t SSDBImpl::zsize(const Bytes &name) {
-    std::string size_key = encode_zsize_key(name);
-    std::string val;
-    leveldb::Status s;
-
-    s = ldb->Get(leveldb::ReadOptions(), size_key, &val);
-    if (s.IsNotFound()) {
-        return 0;
-    } else if (!s.ok()) {
-        return -1;
+    ZSetMetaVal zv;
+    std::string size_key = encode_meta_key(name);
+    int ret = GetZSetMetaVal(size_key, zv);
+    if (ret <= 0) {
+        return ret;
     } else {
-        if (val.size() != sizeof(uint64_t)) {
-            return 0;
-        }
-        int64_t ret = *(int64_t *) val.data();
-        return ret < 0 ? 0 : ret;
+        return (int64_t) zv.length;
     }
 }
 
@@ -359,8 +351,6 @@ static int zset_one(SSDBImpl *ssdb, const Bytes &name, const Bytes &key, const B
         double new_score = score.Double();
         double old_score = *((double *) old_val.data());
 
-        const double eps = 1e-5;
-
         if (found == 0) {
             zset_internal(ssdb, name, key, score, log_type, zv.version);
 
@@ -401,30 +391,34 @@ void zset_internal(const SSDBImpl *ssdb, const Bytes &name, const Bytes &key, co
 }
 
 static int zdel_one(SSDBImpl *ssdb, const Bytes &name, const Bytes &key, char log_type) {
-    if (name.size() > SSDB_KEY_LEN_MAX) {
-        log_error("name too long!");
+    ZSetMetaVal zv;
+    std::string meta_key = encode_meta_key(name);
+    int ret = ssdb->GetZSetMetaVal(meta_key, zv);
+    if (ret == -1) {
         return -1;
-    }
-    if (key.size() > SSDB_KEY_LEN_MAX) {
-        log_error("key too long!");
-        return -1;
-    }
-    std::string old_val;
-    int found = ssdb->zget(name, key, &old_val);
-    if (found != 1) {
+    } else if (ret == 0) {
         return 0;
+    } else {
+        std::string old_val;
+        int found = ssdb->zget(name, key, &old_val);
+        if (found == -1) {
+            return -1;
+        } else if (found == 0) {
+            return 0;
+        } else {
+            //found
+            double old_score = *((double *) old_val.data());
+
+            std::string old_score_key = encode_zscore_key(name, key, old_score, zv.version);
+            std::string old_zset_key = encode_zset_key(name, key, zv.version);
+
+            ssdb->binlogs->Delete(old_score_key);
+            ssdb->binlogs->add_log(log_type, BinlogCommand::ZDEL, old_score_key);
+            ssdb->binlogs->Delete(old_zset_key);
+            ssdb->binlogs->add_log(log_type, BinlogCommand::ZDEL, old_zset_key);
+
+        }
     }
-
-    std::string k0, k1;
-    // delete zscore key
-    double old_score = *((double *) old_val.data());
-    k1 = encode_zscore_key(name, key, old_score);
-    ssdb->binlogs->Delete(k1);
-
-    // delete zset
-    k0 = encode_zset_key(name, key);
-    ssdb->binlogs->Delete(k0);
-    ssdb->binlogs->add_log(log_type, BinlogCommand::ZDEL, k0);
 
     return 1;
 }
@@ -433,23 +427,23 @@ static int incr_zsize(SSDBImpl *ssdb, const Bytes &name, int64_t incr) {
     ZSetMetaVal zv;
     std::string size_key = encode_meta_key(name);
     int ret = ssdb->GetZSetMetaVal(size_key, zv);
-    if (ret == -1){
+    if (ret == -1) {
         return ret;
-    } else if (ret == 0 && zv.del == KEY_DELETE_MASK){
-        if (incr > 0){
-            std::string size_val = encode_zset_meta_val((uint64_t)incr, (uint16_t)(zv.version+1));
+    } else if (ret == 0 && zv.del == KEY_DELETE_MASK) {
+        if (incr > 0) {
+            std::string size_val = encode_zset_meta_val((uint64_t) incr, (uint16_t) (zv.version + 1));
             ssdb->binlogs->Put(size_key, size_val);
-        } else{
+        } else {
             return -1;
         }
-    } else if (ret == 0){
-        if (incr > 0){
-            std::string size_val = encode_zset_meta_val((uint64_t)incr);
+    } else if (ret == 0) {
+        if (incr > 0) {
+            std::string size_val = encode_zset_meta_val((uint64_t) incr);
             ssdb->binlogs->Put(size_key, size_val);
-        } else{
+        } else {
             return -1;
         }
-    } else{
+    } else {
         uint64_t len = zv.length;
         if (incr > 0) {
             len += incr;
@@ -460,9 +454,9 @@ static int incr_zsize(SSDBImpl *ssdb, const Bytes &name, int64_t incr) {
             }
             len = len - u64;
         }
-        if (len == 0){
+        if (len == 0) {
             ssdb->binlogs->Delete(size_key);
-        } else{
+        } else {
             std::string size_val = encode_zset_meta_val(len, zv.version);
             ssdb->binlogs->Put(size_key, size_val);
         }
