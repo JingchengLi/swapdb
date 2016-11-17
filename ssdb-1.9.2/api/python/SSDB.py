@@ -139,6 +139,40 @@ class SSDB_Response(object):
 		this.set(resp[0], resp[1 : ])
 		return this
 
+	def double_map_resp(this, resp):
+		pass
+		this.type = 'map'
+		if resp[0]=='ok':
+			pass
+
+			if len(resp) % 2==1:
+				pass
+				data = {'index': [],'items': {},}
+				i = 1
+
+				while i<len(resp):
+					pass
+					k = resp[i]
+					v = resp[(i + 1)]
+					try:
+						pass
+						v = v
+					except Exception , e:
+						pass
+						v = - (3.1415926)
+					data['index'].append(k)
+					data['items'][k] = v
+					pass
+					i += 2
+				this.set('ok', data)
+			else:
+				pass
+				this.set('server_error', 'Invalid response')
+		else:
+			pass
+			this.set(resp[0], resp[1 : ])
+		return this
+
 	def int_map_resp(this, resp):
 		pass
 		this.type = 'map'
@@ -295,7 +329,11 @@ class SSDB(object):
 				pass
 				return ret.str_map_resp(resp)
 				break
-			if False or ((cmd) == 'zscan') or ((cmd) == 'zrscan') or ((cmd) == 'zrange') or ((cmd) == 'zrrange') or ((cmd) == 'zpop_front') or ((cmd) == 'zpop_back'):
+			if False  or ((cmd) == 'zrange') or ((cmd) == 'zrrange'):
+				pass
+				return ret.double_map_resp(resp)
+				break
+			if False or ((cmd) == 'zscan') or ((cmd) == 'zrscan') or ((cmd) == 'zpop_front') or ((cmd) == 'zpop_back'):
 				pass
 				return ret.int_map_resp(resp)
 				break
