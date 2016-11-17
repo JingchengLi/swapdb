@@ -81,9 +81,11 @@ class ZIterator{
 public:
 	std::string name;
 	std::string key;
-	std::string score;
+	double      score;
 
-	ZIterator(Iterator *it, const Bytes &name);
+	uint16_t 	version;
+
+	ZIterator(Iterator *it, const Bytes &name, uint16_t version);
 	~ZIterator();
 	bool skip(uint64_t offset);
 	bool next();

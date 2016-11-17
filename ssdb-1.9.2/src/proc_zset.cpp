@@ -196,7 +196,7 @@ int proc_zrange(NetworkServer *net, Link *link, const Request &req, Response *re
 	resp->push_back("ok");
 	while(it->next()){
 		resp->push_back(it->key);
-		resp->push_back(it->score);
+		resp->push_back(str(it->score));
 	}
 	delete it;
 	return 0;
@@ -212,7 +212,7 @@ int proc_zrrange(NetworkServer *net, Link *link, const Request &req, Response *r
 	resp->push_back("ok");
 	while(it->next()){
 		resp->push_back(it->key);
-		resp->push_back(it->score);
+		resp->push_back(str(it->score));
 	}
 	delete it;
 	return 0;
@@ -268,7 +268,7 @@ int proc_zscan(NetworkServer *net, Link *link, const Request &req, Response *res
 	resp->push_back("ok");
 	while(it->next()){
 		resp->push_back(it->key);
-		resp->push_back(it->score);
+		resp->push_back(str(it->score));
 	}
 	delete it;
 	return 0;
@@ -291,7 +291,7 @@ int proc_zrscan(NetworkServer *net, Link *link, const Request &req, Response *re
 	resp->push_back("ok");
 	while(it->next()){
 		resp->push_back(it->key);
-		resp->push_back(it->score);
+		resp->push_back(str(it->score));
 	}
 	delete it;
 	return 0;
@@ -376,14 +376,14 @@ int proc_zsum(NetworkServer *net, Link *link, const Request &req, Response *resp
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(4);
 
-	int64_t sum = 0;
+	double sum = 0;
 	ZIterator *it = serv->ssdb->zscan(req[1], "", req[2], req[3], -1);
 	while(it->next()){
-		sum += str_to_int64(it->score);
+		sum += it->score;
 	}
 	delete it;
 
-	resp->reply_int(0, sum);
+	resp->reply_double(0, sum);
 	return 0;
 }
 
@@ -391,15 +391,15 @@ int proc_zavg(NetworkServer *net, Link *link, const Request &req, Response *resp
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(4);
 
-	int64_t sum = 0;
+	double sum = 0;
 	int64_t count = 0;
 	ZIterator *it = serv->ssdb->zscan(req[1], "", req[2], req[3], -1);
 	while(it->next()){
-		sum += str_to_int64(it->score);
+		sum += it->score;
 		count ++;
 	}
 	delete it;
-	double avg = (double)sum/count;
+	double avg = sum/ (double)count;
 
 	resp->push_back("ok");
 	resp->add(avg);

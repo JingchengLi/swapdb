@@ -164,79 +164,93 @@ static ZIterator *ziterator(
         SSDBImpl *ssdb,
         const Bytes &name, const Bytes &key_start,
         const Bytes &score_start, const Bytes &score_end,
-        uint64_t limit, Iterator::Direction direction) {
+        uint64_t limit, Iterator::Direction direction, uint16_t version) {
     if (direction == Iterator::FORWARD) {
         std::string start, end;
         if (score_start.empty()) {
-            start = encode_zscore_key(name, key_start, ZSET_SCORE_MIN);
+            start = encode_zscore_key(name, key_start, ZSET_SCORE_MIN, version);
         } else {
-            start = encode_zscore_key(name, key_start, score_start.Double());
+            start = encode_zscore_key(name, key_start, score_start.Double(), version);
         }
         if (score_end.empty()) {
-            end = encode_zscore_key(name, "\xff", ZSET_SCORE_MAX);
+            end = encode_zscore_key(name, "\xff", ZSET_SCORE_MAX, version);
         } else {
-            end = encode_zscore_key(name, "\xff", score_end.Double());
+            end = encode_zscore_key(name, "\xff", score_end.Double(), version);
         }
-        return new ZIterator(ssdb->iterator(start, end, limit), name);
+        return new ZIterator(ssdb->iterator(start, end, limit), name, version);
     } else {
         std::string start, end;
         if (score_start.empty()) {
-            start = encode_zscore_key(name, key_start, ZSET_SCORE_MAX);
+            start = encode_zscore_key(name, key_start, ZSET_SCORE_MAX, version);
         } else {
             if (key_start.empty()) {
-                start = encode_zscore_key(name, "\xff", score_start.Double());
+                start = encode_zscore_key(name, "\xff", score_start.Double(), version);
             } else {
-                start = encode_zscore_key(name, key_start, score_start.Double());
+                start = encode_zscore_key(name, key_start, score_start.Double(), version);
             }
         }
         if (score_end.empty()) {
-            end = encode_zscore_key(name, "", ZSET_SCORE_MIN);
+            end = encode_zscore_key(name, "", ZSET_SCORE_MIN, version);
         } else {
-            end = encode_zscore_key(name, "", score_end.Double());
+            end = encode_zscore_key(name, "", score_end.Double(), version);
         }
-        return new ZIterator(ssdb->rev_iterator(start, end, limit), name);
+        return new ZIterator(ssdb->rev_iterator(start, end, limit), name, version);
     }
 }
 
 int64_t SSDBImpl::zrank(const Bytes &name, const Bytes &key) {
-    ZIterator *it = ziterator(this, name, "", "", "", INT_MAX, Iterator::FORWARD);
+    ZSetMetaVal zv;
+    std::string meta_key = encode_meta_key(name);
+    int res = GetZSetMetaVal(meta_key, zv);
+    if (res != 1) {
+        return -1;
+    }
+
+    bool found = false;
+    std::unique_ptr<ZIterator> it(ziterator(this, name, "", "", "", INT_MAX, Iterator::FORWARD, zv.version));
     uint64_t ret = 0;
     while (true) {
         if (it->next() == false) {
-            ret = -1;
             break;
         }
         if (key == it->key) {
+            found = true;
             break;
         }
         ret++;
     }
-    delete it;
-    return ret;
+    return found ? ret : -1;
 }
 
 int64_t SSDBImpl::zrrank(const Bytes &name, const Bytes &key) {
-    ZIterator *it = ziterator(this, name, "", "", "", INT_MAX, Iterator::BACKWARD);
+    ZSetMetaVal zv;
+    std::string meta_key = encode_meta_key(name);
+    int res = GetZSetMetaVal(meta_key, zv);
+    if (res != 1) {
+        return -1;
+    }
+
+    bool found = false;
+    std::unique_ptr<ZIterator> it(ziterator(this, name, "", "", "", INT_MAX, Iterator::BACKWARD, 0));
     uint64_t ret = 0;
     while (true) {
         if (it->next() == false) {
-            ret = -1;
             break;
         }
         if (key == it->key) {
+            found = true;
             break;
         }
         ret++;
     }
-    delete it;
-    return ret;
+    return found ? ret : -1;
 }
 
 ZIterator *SSDBImpl::zrange(const Bytes &name, uint64_t offset, uint64_t limit) {
     if (offset + limit > limit) {
         limit = offset + limit;
     }
-    ZIterator *it = ziterator(this, name, "", "", "", limit, Iterator::FORWARD);
+    ZIterator *it = ziterator(this, name, "", "", "", limit, Iterator::FORWARD, 0);
     it->skip(offset);
     return it;
 }
@@ -245,7 +259,7 @@ ZIterator *SSDBImpl::zrrange(const Bytes &name, uint64_t offset, uint64_t limit)
     if (offset + limit > limit) {
         limit = offset + limit;
     }
-    ZIterator *it = ziterator(this, name, "", "", "", limit, Iterator::BACKWARD);
+    ZIterator *it = ziterator(this, name, "", "", "", limit, Iterator::BACKWARD, 0);
     it->skip(offset);
     return it;
 }
@@ -262,7 +276,7 @@ ZIterator *SSDBImpl::zscan(const Bytes &name, const Bytes &key,
     } else {
         score = score_start.String();
     }
-    return ziterator(this, name, key, score, score_end, limit, Iterator::FORWARD);
+    return ziterator(this, name, key, score, score_end, limit, Iterator::FORWARD, 0);
 }
 
 ZIterator *SSDBImpl::zrscan(const Bytes &name, const Bytes &key,
@@ -276,7 +290,7 @@ ZIterator *SSDBImpl::zrscan(const Bytes &name, const Bytes &key,
     } else {
         score = score_start.String();
     }
-    return ziterator(this, name, key, score, score_end, limit, Iterator::BACKWARD);
+    return ziterator(this, name, key, score, score_end, limit, Iterator::BACKWARD, 0);
 }
 
 static void get_znames(Iterator *it, std::vector<std::string> *list) {
