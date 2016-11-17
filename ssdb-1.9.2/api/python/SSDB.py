@@ -159,7 +159,7 @@ class SSDB_Response(object):
 						v = v
 					except Exception , e:
 						pass
-						v = - (3.1415926)
+						v = - (3.14159)
 					data['index'].append(k)
 					data['items'][k] = v
 					pass
@@ -313,11 +313,11 @@ class SSDB(object):
 					pass
 					return ret.list_resp(resp)
 				break
-			if False or ((cmd) == 'dbsize') or ((cmd) == 'getbit') or ((cmd) == 'setbit') or ((cmd) == 'countbit') or ((cmd) == 'bitcount') or ((cmd) == 'strlen') or ((cmd) == 'ttl') or ((cmd) == 'expire') or ((cmd) == 'setnx') or ((cmd) == 'incr') or ((cmd) == 'decr') or ((cmd) == 'zdecr') or ((cmd) == 'hincr') or ((cmd) == 'hdecr') or ((cmd) == 'hsize') or ((cmd) == 'zsize') or ((cmd) == 'qsize') or ((cmd) == 'zrank') or ((cmd) == 'zrrank') or ((cmd) == 'zsum') or ((cmd) == 'zcount') or ((cmd) == 'zremrangebyrank') or ((cmd) == 'zremrangebyscore') or ((cmd) == 'hclear') or ((cmd) == 'zclear') or ((cmd) == 'qclear') or ((cmd) == 'qpush') or ((cmd) == 'qpush_front') or ((cmd) == 'qpush_back') or ((cmd) == 'qtrim_front') or ((cmd) == 'qtrim_back'):
+			if False or ((cmd) == 'dbsize') or ((cmd) == 'getbit') or ((cmd) == 'setbit') or ((cmd) == 'countbit') or ((cmd) == 'bitcount') or ((cmd) == 'strlen') or ((cmd) == 'ttl') or ((cmd) == 'expire') or ((cmd) == 'setnx') or ((cmd) == 'incr') or ((cmd) == 'decr') or ((cmd) == 'zdecr') or ((cmd) == 'hincr') or ((cmd) == 'hdecr') or ((cmd) == 'hsize') or ((cmd) == 'zsize') or ((cmd) == 'qsize') or ((cmd) == 'zrank') or ((cmd) == 'zrrank') or ((cmd) == 'zcount') or ((cmd) == 'zremrangebyrank') or ((cmd) == 'zremrangebyscore') or ((cmd) == 'hclear') or ((cmd) == 'zclear') or ((cmd) == 'qclear') or ((cmd) == 'qpush') or ((cmd) == 'qpush_front') or ((cmd) == 'qpush_back') or ((cmd) == 'qtrim_front') or ((cmd) == 'qtrim_back'):
 				pass
 				return ret.int_resp(resp)
 				break
-			if False or ((cmd) == 'zavg') or ((cmd) == 'zget') or ((cmd) == 'zincr') :
+			if False or ((cmd) == 'zavg') or ((cmd) == 'zget') or ((cmd) == 'zincr') or ((cmd) == 'zsum') :
 				pass
 				return ret.float_resp(resp)
 				break
@@ -329,13 +329,9 @@ class SSDB(object):
 				pass
 				return ret.str_map_resp(resp)
 				break
-			if False  or ((cmd) == 'zrange') or ((cmd) == 'zrrange'):
+			if False  or ((cmd) == 'zrange') or ((cmd) == 'zrrange') or ((cmd) == 'zpop_front') or ((cmd) == 'zpop_back') or ((cmd) == 'zscan') or ((cmd) == 'zrscan'):
 				pass
 				return ret.double_map_resp(resp)
-				break
-			if False or ((cmd) == 'zscan') or ((cmd) == 'zrscan') or ((cmd) == 'zpop_front') or ((cmd) == 'zpop_back'):
-				pass
-				return ret.int_map_resp(resp)
 				break
 			if False or ((cmd) == 'auth') or ((cmd) == 'exists') or ((cmd) == 'hexists') or ((cmd) == 'zexists'):
 				pass
