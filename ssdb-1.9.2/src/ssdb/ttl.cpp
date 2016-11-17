@@ -132,7 +132,7 @@ void ExpirationHandler::load_expiration_keys_from_db(int num){
 	while(it->next()){
 		n ++;
 		std::string &key = it->key;
-		int64_t score = str_to_int64(it->score);
+		int64_t score = static_cast<int64_t>(it->score);
 		if(score < 2000000000){
 			// older version compatible
 			score *= 1000;

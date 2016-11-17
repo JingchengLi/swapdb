@@ -26,7 +26,7 @@ public:
 };
 typedef ItemKey HashItemKey;
 typedef ItemKey SetItemKey;
-typedef ItemKey ZSetItemKey;
+//typedef ItemKey ZSetItemKey;
 
 class ZScoreItemKey : public ItemKey{
 public:

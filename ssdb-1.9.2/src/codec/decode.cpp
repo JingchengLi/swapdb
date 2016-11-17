@@ -48,7 +48,7 @@ int ZScoreItemKey::DecodeItemKey(const string &str) {
     if(decoder.skip(1) == -1){
         return -1;
     }
-    if (str[0] != 'S'){
+    if (str[0] != DataType::ZSCORE){
         return -1;
     }
     if (decoder.read_16_data(&key) == -1){

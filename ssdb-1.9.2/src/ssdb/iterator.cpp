@@ -167,9 +167,11 @@ bool HIterator::next(){
 /* ZSET */
 
 // todo r2m adaptation
-ZIterator::ZIterator(Iterator *it, const Bytes &name){
+ZIterator::ZIterator(Iterator *it, const Bytes &name, uint16_t version){
 	this->it = it;
 	this->name.assign(name.data(), name.size());
+
+	this->version = version;
 }
 
 ZIterator::~ZIterator(){
@@ -189,15 +191,23 @@ bool ZIterator::next(){
 	while(it->next()){
 		Bytes ks = it->key();
 		//Bytes vs = it->val();
-		//dump(ks.data(), ks.size(), "z.next");
-		//dump(vs.data(), vs.size(), "z.next");
-		if(ks.data()[0] != DataType::ZSCORE){
-			return false;
-		}
-		if(decode_zscore_key(ks, NULL, &key, &score) == -1){
+		dump(ks.data(), ks.size(), "z.next");
+//		dump(vs.data(), vs.size(), "z.next");
+
+		ZScoreItemKey zk;
+		if(zk.DecodeItemKey(ks.String()) == -1){
 			continue;
 		}
+		if(zk.key != this->name || zk.version != this->version){
+			return false;
+		}
+
+		this->key = zk.field;
+		this->score = zk.score;
+
+//		this->key = zk.field;
 		return true;
+
 	}
 	return false;
 }

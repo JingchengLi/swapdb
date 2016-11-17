@@ -62,7 +62,7 @@ static uint64_t encodeScore(const double score) {
 string encode_zscore_key(const Bytes& key, const Bytes& member, double score, uint16_t version){
     string buf;
 
-    buf.append(1, 'S');
+    buf.append(1, DataType::ZSCORE);
 
     uint16_t len = htobe16((uint16_t)key.size());
     buf.append((char *)&len, sizeof(uint16_t));
