@@ -191,7 +191,7 @@ bool ZIterator::next(){
 	while(it->next()){
 		Bytes ks = it->key();
 		//Bytes vs = it->val();
-		dump(ks.data(), ks.size(), "z.next");
+//		dump(ks.data(), ks.size(), "z.next");
 //		dump(vs.data(), vs.size(), "z.next");
 
 		ZScoreItemKey zk;

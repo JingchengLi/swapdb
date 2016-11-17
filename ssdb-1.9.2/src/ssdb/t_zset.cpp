@@ -231,7 +231,7 @@ int64_t SSDBImpl::zrrank(const Bytes &name, const Bytes &key) {
     }
 
     bool found = false;
-    std::unique_ptr<ZIterator> it(ziterator(this, name, "", "", "", INT_MAX, Iterator::BACKWARD, 0));
+    std::unique_ptr<ZIterator> it(ziterator(this, name, "", "", "", INT_MAX, Iterator::BACKWARD, zv.version));
     uint64_t ret = 0;
     while (true) {
         if (it->next() == false) {
@@ -247,25 +247,49 @@ int64_t SSDBImpl::zrrank(const Bytes &name, const Bytes &key) {
 }
 
 ZIterator *SSDBImpl::zrange(const Bytes &name, uint64_t offset, uint64_t limit) {
+    uint16_t version = 0;
+    ZSetMetaVal zv;
+    std::string meta_key = encode_meta_key(name);
+    int res = GetZSetMetaVal(meta_key, zv);
+    if (res == 1) {
+        version = zv.version;
+    }
+
     if (offset + limit > limit) {
         limit = offset + limit;
     }
-    ZIterator *it = ziterator(this, name, "", "", "", limit, Iterator::FORWARD, 0);
+    ZIterator *it = ziterator(this, name, "", "", "", limit, Iterator::FORWARD, version);
     it->skip(offset);
     return it;
 }
 
 ZIterator *SSDBImpl::zrrange(const Bytes &name, uint64_t offset, uint64_t limit) {
+    uint16_t version = 0;
+    ZSetMetaVal zv;
+    std::string meta_key = encode_meta_key(name);
+    int res = GetZSetMetaVal(meta_key, zv);
+    if (res == 1) {
+        version = zv.version;
+    }
+
     if (offset + limit > limit) {
         limit = offset + limit;
     }
-    ZIterator *it = ziterator(this, name, "", "", "", limit, Iterator::BACKWARD, 0);
+    ZIterator *it = ziterator(this, name, "", "", "", limit, Iterator::BACKWARD, version);
     it->skip(offset);
     return it;
 }
 
 ZIterator *SSDBImpl::zscan(const Bytes &name, const Bytes &key,
                            const Bytes &score_start, const Bytes &score_end, uint64_t limit) {
+    uint16_t version = 0;
+    ZSetMetaVal zv;
+    std::string meta_key = encode_meta_key(name);
+    int res = GetZSetMetaVal(meta_key, zv);
+    if (res == 1) {
+        version = zv.version;
+    }
+
     std::string score;
     // if only key is specified, load its value
     if (!key.empty() && score_start.empty()) {
@@ -276,11 +300,19 @@ ZIterator *SSDBImpl::zscan(const Bytes &name, const Bytes &key,
     } else {
         score = score_start.String();
     }
-    return ziterator(this, name, key, score, score_end, limit, Iterator::FORWARD, 0);
+    return ziterator(this, name, key, score, score_end, limit, Iterator::FORWARD, version);
 }
 
 ZIterator *SSDBImpl::zrscan(const Bytes &name, const Bytes &key,
                             const Bytes &score_start, const Bytes &score_end, uint64_t limit) {
+    uint16_t version = 0; //TODO op later
+    ZSetMetaVal zv;
+    std::string meta_key = encode_meta_key(name);
+    int res = GetZSetMetaVal(meta_key, zv);
+    if (res == 1) {
+        version = zv.version;
+    }
+
     std::string score;
     // if only key is specified, load its value
     if (!key.empty() && score_start.empty()) {
@@ -290,21 +322,19 @@ ZIterator *SSDBImpl::zrscan(const Bytes &name, const Bytes &key,
     } else {
         score = score_start.String();
     }
-    return ziterator(this, name, key, score, score_end, limit, Iterator::BACKWARD, 0);
+    return ziterator(this, name, key, score, score_end, limit, Iterator::BACKWARD, version);
 }
 
 static void get_znames(Iterator *it, std::vector<std::string> *list) {
     while (it->next()) {
         Bytes ks = it->key();
         //dump(ks.data(), ks.size());
-        if (ks.data()[0] != DataType::ZSIZE) {
-            break;
-        }
-        std::string n;
-        if (decode_zsize_key(ks, &n) == -1) {
+
+        ZScoreItemKey zk;
+        if(zk.DecodeItemKey(ks.String()) == -1){
             continue;
         }
-        list->push_back(n);
+        list->push_back(str(zk.score));
     }
 }
 
