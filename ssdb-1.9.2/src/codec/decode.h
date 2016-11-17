@@ -75,8 +75,8 @@ public:
     virtual int DecodeMetaVal(const string& str);
 
 public:
-    uint64_t    left;
-    uint64_t    right;
+    uint64_t    left_seq;
+    uint64_t    right_seq;
 };
 
 /*

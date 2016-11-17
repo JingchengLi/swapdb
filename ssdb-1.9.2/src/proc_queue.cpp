@@ -12,8 +12,9 @@ int proc_qsize(NetworkServer *net, Link *link, const Request &req, Response *res
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(2);
 
-	int64_t ret = serv->ssdb->qsize(req[1]);
-	resp->reply_int(ret, ret);
+	uint64_t len;
+	int64_t ret = serv->ssdb->LLen(req[1], &len);
+	resp->reply_int(ret, len);
 	return 0;
 }
 
@@ -65,7 +66,16 @@ int proc_qpush_func(NetworkServer *net, Link *link, const Request &req, Response
 }
 
 int proc_qpush_front(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	return proc_qpush_func(net, link, req, resp, QFRONT);
+//	return proc_qpush_func(net, link, req, resp, QFRONT);
+	CHECK_NUM_PARAMS(3);
+	SSDBServer *serv = (SSDBServer *)net->data;
+
+	const Bytes &name = req[1];
+	const Bytes &val = req[2];
+	uint64_t len;
+	int ret = serv->ssdb->LPush(name, val, &len);
+	resp->reply_int(ret, len);
+	return 0;
 }
 
 int proc_qpush_back(NetworkServer *net, Link *link, const Request &req, Response *resp){
@@ -117,7 +127,15 @@ int proc_qpop_func(NetworkServer *net, Link *link, const Request &req, Response 
 }
 
 int proc_qpop_front(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	return proc_qpop_func(net, link, req, resp, QFRONT);
+//	return proc_qpop_func(net, link, req, resp, QFRONT);
+	CHECK_NUM_PARAMS(2);
+	SSDBServer *serv = (SSDBServer *)net->data;
+
+	const Bytes &name = req[1];
+	std::string val;
+	int ret = serv->ssdb->LPop(name, &val);
+	resp->reply_get(ret, &val);
+	return 0;
 }
 
 int proc_qpop_back(NetworkServer *net, Link *link, const Request &req, Response *resp){
@@ -255,7 +273,7 @@ int proc_qget(NetworkServer *net, Link *link, const Request &req, Response *resp
 
 	int64_t index = req[2].Int64();
 	std::string item;
-	int ret = serv->ssdb->qget(req[1], index, &item);
+	int ret = serv->ssdb->LIndex(req[1], index, &item);
 	resp->reply_get(ret, &item);
 	return 0;
 }

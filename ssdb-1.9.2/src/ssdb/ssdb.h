@@ -78,6 +78,12 @@ public:
 	virtual HIterator* hscan(const Bytes &name, const Bytes &start, const Bytes &end, uint64_t limit) = 0;
 	virtual HIterator* hrscan(const Bytes &name, const Bytes &start, const Bytes &end, uint64_t limit) = 0;
 
+	/*  list  */
+	virtual int LIndex(const Bytes &key, const int64_t index, std::string *val) = 0;
+	virtual int LLen(const Bytes &key, uint64_t *llen) = 0;
+	virtual int LPop(const Bytes &key, std::string *val) = 0;
+	virtual int LPush(const Bytes &key, const Bytes &val, uint64_t *llen) = 0;
+
 	/* zset */
 
 	virtual int zset(const Bytes &name, const Bytes &key, const Bytes &score, char log_type=BinlogType::SYNC) = 0;
