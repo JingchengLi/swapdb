@@ -84,13 +84,13 @@ public:
 	virtual int zsetNoLock(const Bytes &name, const Bytes &key, const Bytes &score, char log_type=BinlogType::SYNC) = 0;
 	virtual int zdel(const Bytes &name, const Bytes &key, char log_type=BinlogType::SYNC) = 0;
 	// -1: error, 1: ok, 0: value is not an integer or out of range
-	virtual int zincr(const Bytes &name, const Bytes &key, int64_t by, int64_t *new_val, char log_type=BinlogType::SYNC) = 0;
+	virtual int zincr(const Bytes &name, const Bytes &key, double by, double *new_val, char log_type=BinlogType::SYNC) = 0;
 	
 	virtual int64_t zsize(const Bytes &name) = 0;
 	/**
 	 * @return -1: error; 0: not found; 1: found
 	 */
-	virtual int zget(const Bytes &name, const Bytes &key, std::string *score) = 0;
+	virtual int zget(const Bytes &name, const Bytes &key, double *score) = 0;
 	virtual int64_t zrank(const Bytes &name, const Bytes &key) = 0;
 	virtual int64_t zrrank(const Bytes &name, const Bytes &key) = 0;
 	virtual ZIterator* zrange(const Bytes &name, uint64_t offset, uint64_t limit) = 0;

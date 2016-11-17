@@ -14,7 +14,7 @@ int proc_zexists(NetworkServer *net, Link *link, const Request &req, Response *r
 
 	const Bytes &name = req[1];
 	const Bytes &key = req[2];
-	std::string val;
+	double val = 0;
 	int ret = serv->ssdb->zget(name, key, &val);
 	resp->reply_bool(ret);
 	return 0;
@@ -26,7 +26,7 @@ int proc_multi_zexists(NetworkServer *net, Link *link, const Request &req, Respo
 
 	resp->push_back("ok");
 	const Bytes &name = req[1];
-	std::string val;
+	double val = 0;
 	for(Request::const_iterator it=req.begin()+2; it!=req.end(); it++){
 		const Bytes &key = *it;
 		int64_t ret = serv->ssdb->zget(name, key, &val);
@@ -113,11 +113,11 @@ int proc_multi_zget(NetworkServer *net, Link *link, const Request &req, Response
 	it ++;
 	for(; it!=req.end(); it+=1){
 		const Bytes &key = *it;
-		std::string score;
+		double score = 0;
 		int ret = serv->ssdb->zget(name, key, &score);
 		if(ret == 1){
 			resp->push_back(key.String());
-			resp->push_back(score);
+			resp->push_back(str(score));
 		}
 	}
 	return 0;
@@ -145,9 +145,9 @@ int proc_zget(NetworkServer *net, Link *link, const Request &req, Response *resp
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(3);
 
-	std::string score;
+	double score = 0;
 	int ret = serv->ssdb->zget(req[1], req[2], &score);
-	resp->reply_get(ret, &score);
+	resp->reply_double(ret, score);
 	return 0;
 }
 
@@ -221,7 +221,7 @@ int proc_zrrange(NetworkServer *net, Link *link, const Request &req, Response *r
 int proc_zclear(NetworkServer *net, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(2);
-	
+
 	const Bytes &name = req[1];
 	int64_t count = 0;
 	std::string key_start, score_start;
@@ -240,7 +240,7 @@ int proc_zclear(NetworkServer *net, Link *link, const Request &req, Response *re
 			num ++;
 		};
 		delete it;
-		
+
 		if(num == 0){
 			break;
 		}
@@ -337,13 +337,13 @@ int proc_zrlist(NetworkServer *net, Link *link, const Request &req, Response *re
 static int _zincr(SSDB *ssdb, const Request &req, Response *resp, int dir){
 	CHECK_NUM_PARAMS(3);
 
-	int64_t by = 1;
+	double by = 1;
 	if(req.size() > 3){
 		by = req[3].Int64();
 	}
-	int64_t new_val;
+	double new_val;
 	int ret = ssdb->zincr(req[1], req[2], dir * by, &new_val);
-	resp->reply_int(ret, new_val);
+	resp->reply_double(ret, new_val);
 	return 0;
 }
 
@@ -367,7 +367,7 @@ int proc_zcount(NetworkServer *net, Link *link, const Request &req, Response *re
 		count ++;
 	}
 	delete it;
-	
+
 	resp->reply_int(0, count);
 	return 0;
 }
@@ -382,7 +382,7 @@ int proc_zsum(NetworkServer *net, Link *link, const Request &req, Response *resp
 		sum += str_to_int64(it->score);
 	}
 	delete it;
-	
+
 	resp->reply_int(0, sum);
 	return 0;
 }
@@ -400,7 +400,7 @@ int proc_zavg(NetworkServer *net, Link *link, const Request &req, Response *resp
 	}
 	delete it;
 	double avg = (double)sum/count;
-	
+
 	resp->push_back("ok");
 	resp->add(avg);
 	return 0;
@@ -422,7 +422,7 @@ int proc_zremrangebyscore(NetworkServer *net, Link *link, const Request &req, Re
 		}
 	}
 	delete it;
-	
+
 	resp->reply_int(0, count);
 	return 0;
 }
@@ -445,7 +445,7 @@ int proc_zremrangebyrank(NetworkServer *net, Link *link, const Request &req, Res
 		}
 	}
 	delete it;
-	
+
 	resp->reply_int(0, count);
 	return 0;
 }
@@ -490,7 +490,7 @@ int proc_zpop_back(NetworkServer *net, Link *link, const Request &req, Response 
 int proc_zfix(NetworkServer *net, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(2);
-	
+
 	const Bytes &name = req[1];
 	int64_t ret = serv->ssdb->zfix(name);
 	resp->reply_int(ret, ret);

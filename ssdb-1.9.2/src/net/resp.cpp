@@ -75,6 +75,15 @@ void Response::reply_int(int status, int64_t val){
 	}
 }
 
+void Response::reply_double(int status, double val){
+	if(status == -1){
+		resp.push_back("error");
+	}else{
+		resp.push_back("ok");
+		this->add(val);
+	}
+}
+
 void Response::reply_get(int status, const std::string *val, const char *errmsg){
 	if(status == -1){
 		resp.push_back("error");

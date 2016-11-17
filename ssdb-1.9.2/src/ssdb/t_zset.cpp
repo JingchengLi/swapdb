@@ -72,17 +72,18 @@ int SSDBImpl::zdel(const Bytes &name, const Bytes &key, char log_type) {
     return ret;
 }
 
-int SSDBImpl::zincr(const Bytes &name, const Bytes &key, int64_t by, int64_t *new_val, char log_type) {
+int SSDBImpl::zincr(const Bytes &name, const Bytes &key, double by, double *new_val, char log_type) {
     Transaction trans(binlogs);
+//TODO here
+    double old_score;
+    int ret = this->zget(name, key, &old_score);
 
-    std::string old;
-    int ret = this->zget(name, key, &old);
     if (ret == -1) {
         return -1;
     } else if (ret == 0) {
         *new_val = by;
     } else {
-        *new_val = str_to_int64(old) + by;
+        *new_val = old_score + by;
     }
 
     ret = zset_one(this, name, key, str(*new_val), log_type);
@@ -134,7 +135,9 @@ int SSDBImpl::GetZSetMetaVal(const std::string &meta_key, ZSetMetaVal &zv) {
 }
 
 //zscore
-int SSDBImpl::zget(const Bytes &name, const Bytes &key, std::string *score) {
+int SSDBImpl::zget(const Bytes &name, const Bytes &key, double *score) {
+    *score = 0;
+
     ZSetMetaVal zv;
     std::string meta_key = encode_meta_key(name);
     int ret = GetZSetMetaVal(meta_key, zv);
@@ -153,8 +156,7 @@ int SSDBImpl::zget(const Bytes &name, const Bytes &key, std::string *score) {
         return -1;
     }
 
-    double d_score = *((double *) (str_score.data()));
-    *score = str(d_score);
+    *score = *((double *) (str_score.data()));
     return 1;
 }
 
@@ -253,7 +255,10 @@ ZIterator *SSDBImpl::zscan(const Bytes &name, const Bytes &key,
     std::string score;
     // if only key is specified, load its value
     if (!key.empty() && score_start.empty()) {
-        this->zget(name, key, &score);
+        double d_score = 0;
+        this->zget(name, key, &d_score);
+        score = str(d_score);
+
     } else {
         score = score_start.String();
     }
@@ -265,7 +270,9 @@ ZIterator *SSDBImpl::zrscan(const Bytes &name, const Bytes &key,
     std::string score;
     // if only key is specified, load its value
     if (!key.empty() && score_start.empty()) {
-        this->zget(name, key, &score);
+        double d_score = 0;
+        this->zget(name, key, &d_score);
+        score = str(d_score);
     } else {
         score = score_start.String();
     }
@@ -322,11 +329,6 @@ int SSDBImpl::zrlist(const Bytes &name_s, const Bytes &name_e, uint64_t limit,
     return 0;
 }
 
-static std::string filter_score(const Bytes &score) {
-    int64_t s = score.Int64();
-    return str(s);
-}
-
 // returns the number of newly added items
 static int zset_one(SSDBImpl *ssdb, const Bytes &name, const Bytes &key, const Bytes &score, char log_type) {
     ZSetMetaVal zv;
@@ -342,14 +344,13 @@ static int zset_one(SSDBImpl *ssdb, const Bytes &name, const Bytes &key, const B
         zset_internal(ssdb, name, key, score, log_type, 0);
         ret = 1;
     } else {
-        std::string old_val;
-        int found = ssdb->zget(name, key, &old_val);
+        double new_score = score.Double();
+        double old_score = 0;
+
+        int found = ssdb->zget(name, key, &old_score);
         if (found == -1) {
             return -1;
         }
-
-        double new_score = score.Double();
-        double old_score = *((double *) old_val.data());
 
         if (found == 0) {
             zset_internal(ssdb, name, key, score, log_type, zv.version);
@@ -399,15 +400,14 @@ static int zdel_one(SSDBImpl *ssdb, const Bytes &name, const Bytes &key, char lo
     } else if (ret == 0) {
         return 0;
     } else {
-        std::string old_val;
-        int found = ssdb->zget(name, key, &old_val);
+        double old_score = 0;
+        int found = ssdb->zget(name, key, &old_score);
         if (found == -1) {
             return -1;
         } else if (found == 0) {
             return 0;
         } else {
             //found
-            double old_score = *((double *) old_val.data());
 
             std::string old_score_key = encode_zscore_key(name, key, old_score, zv.version);
             std::string old_zset_key = encode_zset_key(name, key, zv.version);
