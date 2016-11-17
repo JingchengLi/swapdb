@@ -339,7 +339,7 @@ static int _zincr(SSDB *ssdb, const Request &req, Response *resp, int dir){
 
 	double by = 1;
 	if(req.size() > 3){
-		by = req[3].Int64();
+		by = req[3].Double();
 	}
 	double new_val;
 	int ret = ssdb->zincr(req[1], req[2], dir * by, &new_val);
