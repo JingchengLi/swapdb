@@ -114,6 +114,16 @@ public:
     int     GetHashMetaVal(const std::string &meta_key, HashMetaVal &hv);
     int     GetHashItemValInternal(const std::string &item_key, std::string *val);
 
+    /*  list  */
+    virtual int LIndex(const Bytes &key, const int64_t index, std::string *val);
+    virtual int LLen(const Bytes &key, uint64_t *llen);
+    virtual int LPop(const Bytes &key, std::string *val);
+    virtual int LPush(const Bytes &key, const Bytes &val, uint64_t *llen);
+    int     GetListMetaVal(const std::string& meta_key, ListMetaVal& lv);
+    int     GetListItemVal(const std::string& item_key, std::string* val);
+    int     DoLPush(ListMetaVal &meta_val, const Bytes &key, const Bytes &val, std::string &meta_key);
+    void    PushFirstListItem(const Bytes &key, const Bytes &val, const std::string &meta_key, uint16_t version);
+
 	/* zset */
 
 	virtual int zset(const Bytes &name, const Bytes &key, const Bytes &score, char log_type=BinlogType::SYNC);

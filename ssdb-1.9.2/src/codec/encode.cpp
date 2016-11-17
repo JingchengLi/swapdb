@@ -80,14 +80,14 @@ string encode_zscore_key(const Bytes& key, const Bytes& member, double score, ui
     return buf;
 }
 
-string encode_list_key(const string& key, uint64_t seq, uint16_t version){
+string encode_list_key(const Bytes& key, uint64_t seq, uint16_t version){
     string buf;
 
     buf.append(1, 'S');
 
     uint16_t len = htobe16((uint16_t)key.size());
     buf.append((char *)&len, sizeof(uint16_t));
-    buf.append(key);
+    buf.append(key.String());
 
     version = htobe16(version);
     buf.append((char *)&version, sizeof(uint16_t));

@@ -174,15 +174,15 @@ int ListMetaVal::DecodeMetaVal(const string &str) {
     } else{
         length = be64toh(length);
     }
-    if (decoder.read_uint64(&left) == -1){
+    if (decoder.read_uint64(&left_seq) == -1){
         return -1;
     } else{
-        left = be64toh(left);
+        left_seq = be64toh(left_seq);
     }
-    if (decoder.read_uint64(&right) == -1){
+    if (decoder.read_uint64(&right_seq) == -1){
         return -1;
     } else{
-        right = be64toh(right);
+        right_seq = be64toh(right_seq);
     }
     return 0;
 }

@@ -67,6 +67,7 @@ src/ssdb/t_zset.cpp
 src/ssdb/t_queue.cpp
 src/ssdb/binlog.cpp
 src/ssdb/ttl.cpp
+src/ssdb/t_list.cpp
 )
 
 ADD_LIBRARY(libssdb-static STATIC ${SSDB_OBJS})                                                                                                                                                  

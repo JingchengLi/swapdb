@@ -18,7 +18,7 @@ string encode_zset_key(const Bytes& key, const Bytes& member, uint16_t version =
 
 string encode_zscore_key(const Bytes& key, const Bytes& member, double score, uint16_t version = 0);
 
-string encode_list_key(const string& key, uint64_t seq, uint16_t version);
+string encode_list_key(const Bytes& key, uint64_t seq, uint16_t version = 0);
 
 /*
  * encode meta value
