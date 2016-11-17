@@ -375,70 +375,109 @@ void SSDBImpl::stop() {
 	this->bgtask_flag_ = false;
 }
 
-void SSDBImpl::AddBGTask(const BGTask &task) {
-	mutex_bgtask_.lock();
-	bg_tasks_.push(task);
-	//printf ("AddBGTask push task{ type=%d, op=%d argv1= %s}, Signal\n", task.type, task.op, task.argv1.c_str());
-	bg_cv_.signal();
-	mutex_bgtask_.unlock();
+void SSDBImpl::load_delete_keys_from_db(int num) {
+    std::string start;
+    start.append(1, 'D');
+    Iterator* it = iterator(start, "", num);
+    while (it->next()){
+        if (it->key().String()[0] != KEY_DELETE_MASK){
+            break;
+        }
+        tasks_.push(it->key().String());
+    }
 }
 
-int SSDBImpl::delKey(const char type, std::string key, uint16_t version) {
-    Transaction trans(binlogs);
+int SSDBImpl::delete_meta_key(const DeleteKey& dk) {
+    std::string meta_key = encode_meta_key(dk.key);
+    std::string meta_val;
+    leveldb::Status s = ldb->Get(leveldb::ReadOptions(), meta_key, &meta_val);
+    if (!s.ok() && !s.IsNotFound()){
+        return -1;
+    } else if(s.ok()){
+        Decoder decoder(meta_val.data(), meta_val.size());
+        if(decoder.skip(1) == -1){
+            return -1;
+        }
+        char type = meta_val[0];
 
-    char log_type=BinlogType::SYNC;
-	if (type == kHASH){
-		HIterator* it = hscan_internal(key, "", "", version, -1);
-		while (it->next()){
-			std::string item_key = encode_hash_key(it->name, it->key, version);
-            binlogs->Delete(item_key);
-            binlogs->add_log(log_type, BinlogCommand::HDEL, item_key);
-		}
-        std::string del_key = encode_delete_key(key, version);
-        binlogs->Delete(del_key);
-        std::string meta_key = encode_meta_key(key);
-        HashMetaVal hv;
-        int ret = GetHashMetaVal(meta_key, hv);
-        if (ret == 0 && hv.del == KEY_DELETE_MASK && hv.version == version){
+        uint16_t version = 0;
+        if (decoder.read_uint16(&version) == -1){
+            return -1;
+        } else{
+            version = be16toh(version);
+        }
+
+        char del = meta_val[3];
+
+        if (type == dk.key_type && del == KEY_DELETE_MASK && version == dk.version){
             binlogs->Delete(meta_key);
         }
-	}
+    }
+    return 0;
+}
+
+void SSDBImpl::delete_key_loop(const std::string &del_key) {
+    Transaction trans(binlogs);
+
+    DeleteKey dk;
+    if(dk.DecodeDeleteKey(del_key) == -1){
+        log_fatal("delete key error!");
+        return;
+    }
+
+    char log_type=BinlogType::SYNC;
+    std::string start = encode_hash_key(dk.key, "", dk.version);
+    Iterator* it = iterator(start, "", -1);
+    while (it->next()){
+        ItemKey ik;
+        std::string item_key = it->key().String();
+        if (ik.DecodeItemKey(item_key) == -1){
+            log_fatal("decode delete key error!");
+            return;
+        }
+        if (ik.key == dk.key && ik.version == dk.version){
+            binlogs->Delete(item_key);
+            binlogs->add_log(log_type, BinlogCommand::HDEL, item_key);
+        }
+    }
+    binlogs->Delete(del_key);
+
+    if (delete_meta_key(dk) == -1){
+        log_fatal("delete meta key error!");
+        return;
+    }
 
     leveldb::Status s = binlogs->commit();
     if (!s.ok()){
         log_fatal("SSDBImpl::delKey Backend Task error!");
-        return -1;
+        return ;
     }
-
-    return 0;
 }
 
 void SSDBImpl::runBGTask() {
 	while (bgtask_flag_){
 		mutex_bgtask_.lock();
+        if (tasks_.empty()){
+            load_delete_keys_from_db(1000);
+            if (tasks_.empty()){
+                mutex_bgtask_.unlock();
+                usleep(1000 * 1000);
+            } else{
+                mutex_bgtask_.unlock();
+            }
+        }
 
-		while (bg_tasks_.empty() && bgtask_flag_){
-			bg_cv_.wait();
-		}
+        std::string del_key;
+        mutex_bgtask_.lock();
+        if (!tasks_.empty()){
+            del_key = tasks_.front();
+            tasks_.pop();
+        }
+        mutex_bgtask_.unlock();
 
-		BGTask task;
-		if (!bg_tasks_.empty()){
-			task = bg_tasks_.front();
-			bg_tasks_.pop();
-		}
-		mutex_bgtask_.unlock();
-
-		if (!bgtask_flag_){
-			return;
-		}
-
-		switch (task.op){
-			case OPERATION::kDEL_KEY :
-                delKey(task.type, task.argv1, task.argv2);
-				break;
-			default:
-				break;
-		}
+        if (!del_key.empty()){
+            delete_key_loop(del_key);
+        }
 	}
 }
 
