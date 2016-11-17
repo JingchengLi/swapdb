@@ -88,6 +88,7 @@ public:
 
 public:
     char        type;
+    char        key_type;
     uint16_t    slot;
     uint16_t    version;
     string      key;

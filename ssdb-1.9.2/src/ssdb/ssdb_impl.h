@@ -34,35 +34,6 @@ found in the LICENSE file.
 
 #define MAX_NUM_DELETE 10
 
-enum DBType {
-    kNONE = 0,
-    kKV,
-    kHASH,
-    kLIST,
-    kZSET,
-    kSET,
-    kALL
-};
-
-enum OPERATION {
-	kNONE_OP = 0,
-	kDEL_KEY,
-	kCLEAN_RANGE,
-	kCLEAN_ALL,
-};
-
-struct BGTask {
-    DBType      type;
-	OPERATION   op;
-	std::string argv1;
-	uint16_t    argv2;
-
-	BGTask() : type(kNONE), op(OPERATION::kNONE_OP) { }
-	BGTask(DBType _type, const OPERATION _op, const std::string &_argv1, const uint16_t &_argv2)
-			: type(_type), op(_op), argv1(_argv1), argv2(_argv2) {}
-
-};
-
 inline
 static leveldb::Slice slice(const Bytes &b){
 	return leveldb::Slice(b.data(), b.size());
@@ -218,13 +189,14 @@ private:
 	Mutex mutex_bgtask_;
 	std::atomic<bool> bgtask_flag_;
 	pthread_t bg_tid_;
-	std::queue<BGTask> bg_tasks_;
+    std::queue<std::string> tasks_;
 	CondVar bg_cv_;
 
 	void start();
 	void stop();
-	void AddBGTask(const BGTask& task);
-	int  delKey(const char type, std::string key, uint16_t version);
+    void load_delete_keys_from_db(int num);
+    void delete_key_loop(const std::string& del_key);
+    int  delete_meta_key(const DeleteKey& dk);
 	void runBGTask();
 	static void* thread_func(void *arg);
 };

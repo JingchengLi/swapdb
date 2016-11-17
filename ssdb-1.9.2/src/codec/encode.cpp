@@ -156,20 +156,22 @@ string encode_list_meta_val(uint64_t length, uint64_t left, uint64_t right, uint
 /*
  * delete key
  */
-string encode_delete_key(const string& key, uint16_t version){
+string encode_delete_key(const Bytes& key, char key_type, uint16_t version){
     string buf;
     buf.append(1, KEY_DELETE_MASK);
 
-    uint16_t slot = (uint16_t)keyHashSlot(key.data(), (int)key.size());
+    uint16_t slot = (uint16_t)keyHashSlot(key.data(), key.size());
     slot = htobe16(slot);
     buf.append((char *)&slot, sizeof(uint16_t));
 
     uint16_t len = htobe16((uint16_t)key.size());
     buf.append((char *)&len, sizeof(uint16_t));
-    buf.append(key);
+    buf.append(key.String());
 
     version = htobe16(version);
     buf.append((char *)&version, sizeof(uint16_t));
+
+    buf.append(1, key_type);
 
     return buf;
 }
