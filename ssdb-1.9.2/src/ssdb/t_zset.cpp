@@ -358,13 +358,12 @@ static int zset_one(SSDBImpl *ssdb, const Bytes &name, const Bytes &key, const B
         } else if (found == 1) {
             if (fabs(old_score - new_score) < eps) {
                 //same
-                return 0;
             } else {
                 string old_score_key = encode_zscore_key(name, key, old_score, zv.version);
                 ssdb->binlogs->Delete(old_score_key);
                 zset_internal(ssdb, name, key, score, log_type, zv.version);
             }
-            return 1;
+            return 0;
         } else {
             //error
             return -1;
