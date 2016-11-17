@@ -117,9 +117,9 @@ int ExpirationHandler::del_ttl(const Bytes &key){
 }
 
 int64_t ExpirationHandler::get_ttl(const Bytes &key){
-	std::string score;
+	double score = 0;
 	if(ssdb->zget(this->list_name, key, &score) == 1){
-		int64_t ex = str_to_int64(score);
+		int64_t ex = static_cast<int64_t>(score);
 		return (ex - time_ms())/1000;
 	}
 	return -1;
