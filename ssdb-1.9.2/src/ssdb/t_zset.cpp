@@ -75,7 +75,7 @@ int SSDBImpl::zdel(const Bytes &name, const Bytes &key, char log_type) {
 int SSDBImpl::zincr(const Bytes &name, const Bytes &key, double by, double *new_val, char log_type) {
     Transaction trans(binlogs);
 //TODO here
-    double old_score;
+    double old_score = 0;
     int ret = this->zget(name, key, &old_score);
 
     if (ret == -1) {
