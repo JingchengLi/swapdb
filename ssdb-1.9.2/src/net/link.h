@@ -58,6 +58,7 @@ class Link{
 			error_ = true;
 		}
 
+		static Link *unixsocket(const std::string &path);
 		static Link* connect(const char *ip, int port);
 		static Link* listen(const char *ip, int port);
 		Link* accept();
@@ -102,6 +103,7 @@ class Link{
 		const std::vector<Bytes>* request(const Bytes &s1, const Bytes &s2, const Bytes &s3);
 		const std::vector<Bytes>* request(const Bytes &s1, const Bytes &s2, const Bytes &s3, const Bytes &s4);
 		const std::vector<Bytes>* request(const Bytes &s1, const Bytes &s2, const Bytes &s3, const Bytes &s4, const Bytes &s5);
+
 };
 
 #endif
