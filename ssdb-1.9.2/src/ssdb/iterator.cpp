@@ -10,7 +10,7 @@ found in the LICENSE file.
 #include "t_queue.h"
 #include "../util/log.h"
 #include "../util/config.h"
-#include "codec/decode.h"
+#include "../codec/decode.h"
 #ifdef USE_LEVELDB
 #include "leveldb/iterator.h"
 #else

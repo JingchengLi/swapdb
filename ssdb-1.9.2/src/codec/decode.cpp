@@ -2,7 +2,7 @@
 // Created by a1 on 16-11-3.
 //
 #include "decode.h"
-#include "util/bytes.h"
+#include "../util/bytes.h"
 
 static double decodeScore(const int64_t score);
 

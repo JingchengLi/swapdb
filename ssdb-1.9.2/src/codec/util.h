@@ -5,7 +5,7 @@
 #ifndef SSDB_UTIL_H
 #define SSDB_UTIL_H
 
-#include "ssdb/const.h"
+#include "../ssdb/const.h"
 
 #include <stdlib.h>
 #include <stdint.h>

@@ -6,8 +6,8 @@ found in the LICENSE file.
 // todo r2m adaptation : remove this
 //#include "t_hash.h"
 #include "ssdb_impl.h"
-#include "codec/encode.h"
-#include "codec/decode.h"
+#include "../codec/encode.h"
+#include "../codec/decode.h"
 
 static int hset_one(SSDBImpl *ssdb, const Bytes &name, const Bytes &key, const Bytes &val, char log_type);
 static int hdel_one(SSDBImpl *ssdb, const Bytes &name, const Bytes &key, char log_type);

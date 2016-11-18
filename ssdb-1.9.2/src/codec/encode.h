@@ -6,7 +6,7 @@
 #define SSDB_ENCODE_H
 
 #include "util.h"
-#include "util/bytes.h"
+#include "../util/bytes.h"
 
 string encode_meta_key(const Bytes& key);
 

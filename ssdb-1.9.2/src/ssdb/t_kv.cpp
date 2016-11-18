@@ -5,8 +5,8 @@ found in the LICENSE file.
 */
 // todo r2m adaptation : remove this
 #include "t_kv.h"
-#include "codec/encode.h"
-#include "codec/decode.h"
+#include "../codec/encode.h"
+#include "../codec/decode.h"
 
 int SSDBImpl::SetGeneric(const std::string &key, const std::string &val, int flags, const int64_t expire, char log_type){
 	if (expire < 0){
