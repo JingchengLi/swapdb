@@ -32,6 +32,21 @@ Status _read_int64(const std::vector<std::string> *resp, int64_t *ret){
 }
 
 inline static
+Status _read_double(const std::vector<std::string> *resp, double *ret){
+	Status s(resp);
+	if(s.ok()){
+		if(resp->size() >= 2){
+			if(ret){
+				*ret = str_to_double(resp->at(1).data(), resp->at(1).size());
+			}
+		}else{
+			return Status("server_error");
+		}
+	}
+	return s;
+}
+
+inline static
 Status _read_str(const std::vector<std::string> *resp, std::string *ret){
 	Status s(resp);
 	if(s.ok()){
@@ -417,13 +432,13 @@ Status ClientImpl::multi_hdel(const std::string &name, const std::vector<std::st
 
 
 
-Status ClientImpl::zget(const std::string &name, const std::string &key, int64_t *ret){
+Status ClientImpl::zget(const std::string &name, const std::string &key, double *ret){
 	const std::vector<std::string> *resp;
 	resp = this->request("zget", name, key);
-	return _read_int64(resp, ret);
+	return _read_double(resp, ret);
 }
 
-Status ClientImpl::zset(const std::string &name, const std::string &key, int64_t score){
+Status ClientImpl::zset(const std::string &name, const std::string &key, double score){
 	std::string s_score = str(score);
 	const std::vector<std::string> *resp;
 	resp = this->request("zset", name, key, s_score);
@@ -438,11 +453,11 @@ Status ClientImpl::zdel(const std::string &name, const std::string &key){
 	return s;
 }
 
-Status ClientImpl::zincr(const std::string &name, const std::string &key, int64_t incrby, int64_t *ret){
+Status ClientImpl::zincr(const std::string &name, const std::string &key, double incrby, double *ret){
 	std::string s_incrby = str(incrby);
 	const std::vector<std::string> *resp;
 	resp = this->request("zincr", name, key, s_incrby);
-	return _read_int64(resp, ret);
+	return _read_double(resp, ret);
 }
 
 Status ClientImpl::zsize(const std::string &name, int64_t *ret){
@@ -492,7 +507,7 @@ Status ClientImpl::zrrange(const std::string &name,
 }
 
 Status ClientImpl::zkeys(const std::string &name, const std::string &key_start,
-	int64_t *score_start, int64_t *score_end,
+	double *score_start, double *score_end,
 	uint64_t limit, std::vector<std::string> *ret)
 {
 	std::string s_score_start = score_start? str(*score_start) : "";
