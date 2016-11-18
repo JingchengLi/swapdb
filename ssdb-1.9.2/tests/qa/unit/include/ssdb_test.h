@@ -29,7 +29,16 @@ class SSDBTest : public ::testing::Test
 public:
 	SSDBTest()
 	{
-	}
+        Keys = {
+            "", "0", "1", "10", "123", "4321", "1234567890",
+            "a", "ab", "cba", "abcdefghijklmnopqrstuvwxyz",
+            "A", "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+            "a0b1", "A0aB9", "~!@#$%^&*()",
+            "-`_+=|';:.,/?<>'`", "0{a}1", "00{aa}2{55}",
+            "99{{1111}lll", "key_normal_{214}_gsdg"
+        };
+        KeyTypes = {'H'};
+    }
 
 	virtual ~SSDBTest()
 	{
@@ -60,12 +69,16 @@ public:
 		return (random()%(Max+1-Min))+Min;
 	}
 
-	int64_t GetRandomInt64_(int64_t Min, int64_t Max) {
-		assert(Max >= Min);
+	int64_t GetRandomInt64_() {
+        int64_t randomInt64 = 0;
 		struct timeval currentTime;
-		gettimeofday(&currentTime, NULL);
-		srand(currentTime.tv_usec);
-		return (random()%(Max+1-Min))+Min;
+        for(int count = 0; count < 64; count++)
+        {
+            gettimeofday(&currentTime, NULL);
+            srand(currentTime.tv_usec);
+            randomInt64 = ( randomInt64<<1 ) | ( rand()&1 );
+        }
+		return randomInt64;
 	}
 
 	int64_t GetRandomUInt64_(uint64_t Min, uint64_t Max) {
@@ -75,13 +88,10 @@ public:
 		srand(currentTime.tv_usec);
 		return (random()%(Max+1-Min))+Min;
 	}
-
-	double GetRandomFloat_(int64_t min = 0, int64_t max= 256 ) {//6λ??ЧС??λ??
-		assert(max >= min);
+	
+	double GetRandomDouble_() {
 		int base_precision = 1000000;
-		int64_t min_ex = min * base_precision;
-		int64_t max_ex = max * base_precision;
-		int64_t res_int = GetRandomInt64_(min_ex, max_ex);
+		int64_t res_int = GetRandomInt64_();
 		return res_int*1.0/base_precision;
 	}
 	
@@ -138,6 +148,8 @@ protected:
 	static const unsigned int maxValLen_ = 1024000;
 	static const unsigned int minValLen_ = 1;
 	static const unsigned int charsSetLen_ = 62;
+    std::vector<std::string> Keys;
+    std::vector<char> KeyTypes;
 };
 
 #endif

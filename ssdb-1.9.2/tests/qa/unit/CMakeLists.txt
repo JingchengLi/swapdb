@@ -76,6 +76,7 @@ SET( SSDB_OBJS
     ${BUILD_PATH}/src/ssdb/t_queue.cpp
     ${BUILD_PATH}/src/ssdb/binlog.cpp
     ${BUILD_PATH}/src/ssdb/ttl.cpp
+    ${BUILD_PATH}/src/ssdb/t_list.cpp
 )
 
 ADD_LIBRARY(libssdb-static STATIC ${SSDB_OBJS})                                                                                                                                                  

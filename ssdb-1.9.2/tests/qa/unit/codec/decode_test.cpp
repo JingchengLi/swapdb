@@ -5,14 +5,6 @@
 #include "ssdb_test.h"
 #include <stdlib.h>
 using namespace std;
-string deKeys []= {
-        "", "0", "1", "10", "123", "4321", "1234567890",
-        "a", "ab", "cba", "abcdefghijklmnopqrstuvwxyz",
-        "A", "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
-        "a0b1", "A0aB9", "~!@#$%^&*()",
-        "-`_+=|';:.,/?<>'`", "0{a}1", "00{aa}2{55}",
-        "99{{1111}lll", "key_normal_{214}_gsdg"
-    };
 
 class DecodeTest : public SSDBTest
 {
@@ -30,10 +22,10 @@ void compare_meta_key(const string & key){
 TEST_F(DecodeTest, Test_DecodeMetaKey) {
 
     //Some special keys
-    uint16_t keysNum = sizeof(deKeys)/sizeof(string);
+    uint16_t keysNum = sizeof(Keys)/sizeof(string);
 
     for(int n = 0; n < keysNum; n++)
-        compare_meta_key(deKeys[n]);
+        compare_meta_key(Keys[n]);
 
     //Some random keys
     keysNum = 100;
@@ -89,10 +81,10 @@ TEST_F(DecodeTest, Test_DecodeItemKey) {
     }
 
     // Some special keys
-    keysNum = sizeof(deKeys)/sizeof(string);
+    keysNum = sizeof(Keys)/sizeof(string);
 
     for(int n = 0; n < keysNum; n++)
-        compare_ItemKey(deKeys[n], field, version);
+        compare_ItemKey(Keys[n], field, version);
 
     // MaxLength key
     compare_ItemKey(GetRandomBytes_(maxKeyLen_), field, version);
@@ -129,23 +121,22 @@ TEST_F(DecodeTest, Test_ZScore_DecodeItemKey) {
     {
         key = GetRandomKey_(); 
         member = GetRandomField_(); 
-        score = (n&0x1)?(double)GetRandomUInt64_(0, MAX_UINT64-1)\
-                :-(double)GetRandomUInt64_(0, MAX_UINT64-1);
+        score = GetRandomDouble_();
         version = GetRandomVer_(); 
         compare_ZScoreItemKey(key, member, score, version);
     }
 
     // Some special keys
-    keysNum = sizeof(deKeys)/sizeof(string);
+    keysNum = sizeof(Keys)/sizeof(string);
 
     for(int n = 0; n < keysNum; n++)
-        compare_ZScoreItemKey(deKeys[n], member, score, version);
+        compare_ZScoreItemKey(Keys[n], member, score, version);
 
     // MaxLength key
     compare_ZScoreItemKey(GetRandomBytes_(maxKeyLen_), member, score, version);
 
     // error return
-    string dummyItemKey [] = {"", "XXXXXXXXX", "S1", "S112", "S11223"};
+    string dummyItemKey [] = {"", "XXXXXXXXX", "z1", "z112", "z11223"};
     ZScoreItemKey zscoreitemkey;
     for(int n = 0; n < sizeof(dummyItemKey)/sizeof(string); n++)
         EXPECT_EQ(-1, zscoreitemkey.DecodeItemKey(dummyItemKey[n]));
@@ -180,10 +171,10 @@ TEST_F(DecodeTest, Test_List_DecodeItemKey) {
     }
 
     // Some special keys
-    keysNum = sizeof(deKeys)/sizeof(string);
+    keysNum = sizeof(Keys)/sizeof(string);
 
     for(int n = 0; n < keysNum; n++)
-        compare_ListItemKey(deKeys[n], seq, version);
+        compare_ListItemKey(Keys[n], seq, version);
 
     // MaxLength key
     compare_ListItemKey(GetRandomBytes_(maxKeyLen_), seq, version);
@@ -272,9 +263,9 @@ TEST_F(DecodeTest, Test_DecodeMetaVal) {
 } 
 
 
-void compare_List_MetaVal(uint64_t length, uint64_t left, uint64_t right, uint16_t version, char del){
+void compare_List_MetaVal(uint64_t length, uint64_t left_seq, uint64_t right_seq, uint16_t version, char del){
     string meta_val;
-    meta_val = encode_list_meta_val(length, left, right, version, del);
+    meta_val = encode_list_meta_val(length, left_seq, right_seq, version, del);
 
     ListMetaVal metaval;
 
@@ -282,24 +273,24 @@ void compare_List_MetaVal(uint64_t length, uint64_t left, uint64_t right, uint16
     EXPECT_EQ(del, metaval.del);
     EXPECT_EQ('L', metaval.type);
     EXPECT_EQ(length, metaval.length);
-    EXPECT_EQ(left, metaval.left);
-    EXPECT_EQ(right, metaval.right);
+    EXPECT_EQ(left_seq, metaval.left_seq);
+    EXPECT_EQ(right_seq, metaval.right_seq);
     EXPECT_EQ(version, metaval.version);
 }
 
 TEST_F(DecodeTest, Test_List_DecodeMetaVal) {
     char del;
     uint16_t version;
-    uint64_t length, left, right;
+    uint64_t length, left_seq, right_seq;
 
     for(int n = 0; n < 100; n++)
     {
         del = n&0x1?'D':'E';
         version = GetRandomVer_();
         length = GetRandomUInt64_(0, MAX_UINT64-1);
-        left = GetRandomUInt64_(0, MAX_UINT64-1);
-        right = GetRandomUInt64_(0, MAX_UINT64-1);
-        compare_List_MetaVal(length, left, right, version, del);
+        left_seq = GetRandomUInt64_(0, MAX_UINT64-1);
+        right_seq = GetRandomUInt64_(0, MAX_UINT64-1);
+        compare_List_MetaVal(length, left_seq, right_seq, version, del);
     }
 
     // error return
@@ -310,9 +301,9 @@ TEST_F(DecodeTest, Test_List_DecodeMetaVal) {
         EXPECT_EQ(-1, metaval.DecodeMetaVal(dummyMetaVal[n]));
 } 
 
-void compare_DeleteKey(const string &key, uint16_t version){
+void compare_DeleteKey(const string &key, char key_type, uint16_t version){
     string delete_key;
-    delete_key = encode_delete_key(key, version);
+    delete_key = encode_delete_key(key, key_type, version);
 
     uint16_t slot = (uint16_t)keyHashSlot(key.data(), (int)key.size());
     DeleteKey deletekey;
@@ -322,11 +313,13 @@ void compare_DeleteKey(const string &key, uint16_t version){
     EXPECT_EQ(version, deletekey.version);
     EXPECT_EQ(0, key.compare(deletekey.key));
     EXPECT_EQ(slot, deletekey.slot);
+    EXPECT_EQ(key_type, deletekey.key_type);
 }
 
 TEST_F(DecodeTest, Test_DeleteKey) {
     uint16_t version;
     string key;
+    char key_type;
 
     //Some random keys
     uint16_t keysNum = 100;
@@ -334,20 +327,21 @@ TEST_F(DecodeTest, Test_DeleteKey) {
     {
         key = GetRandomKey_(); 
         version = GetRandomVer_();
-        compare_DeleteKey(key, version);
+        key_type = KeyTypes[n%sizeof(KeyTypes)];
+        compare_DeleteKey(key, key_type, version);
     }
 
     //Some special keys
-    keysNum = sizeof(deKeys)/sizeof(string);
+    keysNum = sizeof(Keys)/sizeof(string);
 
     for(int n = 0; n < keysNum; n++)
-        compare_DeleteKey(deKeys[n], version);
+        compare_DeleteKey(Keys[n], key_type, version);
 
     //MaxLength key
-    compare_DeleteKey(GetRandomBytes_(maxKeyLen_), version);
+    compare_DeleteKey(GetRandomBytes_(maxKeyLen_), key_type, version);
 
     //error return
-    string true_key = encode_delete_key(key, version);
+    string true_key = encode_delete_key(key, key_type, version);
     string dummyDelKey [] = {"", "X11", "D1", "D111111"};
     DeleteKey deletekey;
     for(int n = 0; n < sizeof(dummyDelKey)/sizeof(string); n++)
