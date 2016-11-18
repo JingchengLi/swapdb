@@ -180,10 +180,10 @@ public:
 
 	/// @name Zset methods
 	/// @{
-	virtual Status zget(const std::string &name, const std::string &key, int64_t *ret) = 0;
-	virtual Status zset(const std::string &name, const std::string &key, int64_t score) = 0;
+	virtual Status zget(const std::string &name, const std::string &key, double *ret) = 0;
+	virtual Status zset(const std::string &name, const std::string &key, double score) = 0;
 	virtual Status zdel(const std::string &name, const std::string &key) = 0;
-	virtual Status zincr(const std::string &name, const std::string &key, int64_t incrby, int64_t *ret) = 0;
+	virtual Status zincr(const std::string &name, const std::string &key, double incrby, double *ret) = 0;
 	virtual Status zsize(const std::string &name, int64_t *ret) = 0;
 	/**
 	 * Delete all of the keys in a zset, return the number of keys deleted.
@@ -214,7 +214,7 @@ public:
 	 * @param score_end NULL means no limit.
 	 */
 	virtual Status zkeys(const std::string &name, const std::string &key_start,
-		int64_t *score_start, int64_t *score_end,
+		double *score_start, double *score_end,
 		uint64_t limit, std::vector<std::string> *ret) = 0;
 	/**
 	 * Return key-score pairs.

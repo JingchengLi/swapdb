@@ -67,10 +67,10 @@ public:
 	virtual Status multi_hset(const std::string &name, const std::map<std::string, std::string> &kvs);
 	virtual Status multi_hdel(const std::string &name, const std::vector<std::string> &keys);
 
-	virtual Status zget(const std::string &name, const std::string &key, int64_t *ret);
-	virtual Status zset(const std::string &name, const std::string &key, int64_t score);
+	virtual Status zget(const std::string &name, const std::string &key, double *ret);
+	virtual Status zset(const std::string &name, const std::string &key, double score);
 	virtual Status zdel(const std::string &name, const std::string &key);
-	virtual Status zincr(const std::string &name, const std::string &key, int64_t incrby, int64_t *ret);
+	virtual Status zincr(const std::string &name, const std::string &key, double incrby, double *ret);
 	virtual Status zsize(const std::string &name, int64_t *ret);
 	virtual Status zclear(const std::string &name, int64_t *ret=NULL);
 	virtual Status zrank(const std::string &name, const std::string &key, int64_t *ret);
@@ -82,7 +82,7 @@ public:
 		uint64_t offset, uint64_t limit,
 		std::vector<std::string> *ret);
 	virtual Status zkeys(const std::string &name, const std::string &key_start,
-		int64_t *score_start, int64_t *score_end,
+		double *score_start, double *score_end,
 		uint64_t limit, std::vector<std::string> *ret);
 	virtual Status zscan(const std::string &name, const std::string &key_start,
 		int64_t *score_start, int64_t *score_end,
