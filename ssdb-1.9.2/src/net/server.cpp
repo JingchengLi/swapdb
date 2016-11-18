@@ -182,6 +182,8 @@ NetworkServer* NetworkServer::init(const Config &conf, int num_readers, int num_
 				exit(1);
 			}
 			serv->serv_socket->noblock();
+			log_info("server listen on %s", unixsocketfile);
+
 		}
 
 		// see UNP
