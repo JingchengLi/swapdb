@@ -53,6 +53,7 @@ NetworkServer::NetworkServer(){
 
 	//conf = NULL;
 	serv_link = NULL;
+	serv_socket = nullptr;
 	link_count = 0;
 
 	fdes = new Fdevents();
@@ -88,6 +89,9 @@ NetworkServer::NetworkServer(){
 NetworkServer::~NetworkServer(){
 	//delete conf;
 	delete serv_link;
+	if (serv_socket != nullptr ) {
+		delete serv_socket;
+	}
 	delete fdes;
 	delete ip_filter;
 
@@ -161,13 +165,25 @@ NetworkServer* NetworkServer::init(const Config &conf, int num_readers, int num_
 		if(ip == NULL || ip[0] == '\0'){
 			ip = "127.0.0.1";
 		}
-		
+//
 		serv->serv_link = Link::listen(ip, port);
 		if(serv->serv_link == NULL){
 			log_fatal("error opening server socket! %s", strerror(errno));
 			fprintf(stderr, "error opening server socket! %s\n", strerror(errno));
 			exit(1);
 		}
+
+		const char *unixsocketfile = conf.get_str("server.file");
+		if( strlen(unixsocketfile) != 0) {
+			serv->serv_socket = Link::unixsocket(unixsocketfile);
+			if(serv->serv_socket == NULL){
+				log_fatal("error opening server socket! %s", strerror(errno));
+				fprintf(stderr, "error opening server socket! %s\n", strerror(errno));
+				exit(1);
+			}
+			serv->serv_socket->noblock();
+		}
+
 		// see UNP
 		// if client send RST between server's calls of select() and accept(),
 		// accept() will block until next connection.
@@ -208,6 +224,9 @@ void NetworkServer::serve(){
 	const Fdevents::events_t *events;
 
 	fdes->set(serv_link->fd(), FDEVENT_IN, 0, serv_link);
+	if (serv_socket != nullptr) {
+		fdes->set(serv_socket->fd(), FDEVENT_IN, 0, serv_socket);
+	}
 	fdes->set(this->reader->fd(), FDEVENT_IN, 0, this->reader);
 	fdes->set(this->writer->fd(), FDEVENT_IN, 0, this->writer);
 	
@@ -239,11 +258,21 @@ void NetworkServer::serve(){
 		for(int i=0; i<(int)events->size(); i++){
 			const Fdevent *fde = events->at(i);
 			if(fde->data.ptr == serv_link){
-				Link *link = accept_link();
+				Link *link = accept_link(serv_link);
 				if(link){
 					this->link_count ++;				
 					log_debug("new link from %s:%d, fd: %d, links: %d",
 						link->remote_ip, link->remote_port, link->fd(), this->link_count);
+					fdes->set(link->fd(), FDEVENT_IN, 1, link);
+				}else{
+					log_debug("accept return NULL");
+				}
+			}else if(fde->data.ptr == serv_socket){
+				Link *link = accept_link(serv_socket);
+				if(link){
+					this->link_count ++;
+					log_debug("new link from %s:%d, fd: %d, links: %d",
+							  link->remote_ip, link->remote_port, link->fd(), this->link_count);
 					fdes->set(link->fd(), FDEVENT_IN, 1, link);
 				}else{
 					log_debug("accept return NULL");
@@ -310,8 +339,8 @@ void NetworkServer::serve(){
 	}
 }
 
-Link* NetworkServer::accept_link(){
-	Link *link = serv_link->accept();
+Link* NetworkServer::accept_link(Link *l){
+	Link *link = l->accept();
 	if(link == NULL){
 		log_error("accept failed! %s", strerror(errno));
 		return NULL;

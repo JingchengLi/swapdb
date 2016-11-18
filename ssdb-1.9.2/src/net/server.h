@@ -29,9 +29,10 @@ private:
 
 	//Config *conf;
 	Link *serv_link;
+	Link *serv_socket;
 	Fdevents *fdes;
 
-	Link* accept_link();
+	Link* accept_link(Link *link);
 	int proc_result(ProcJob *job, ready_list_t *ready_list);
 	int proc_client_event(const Fdevent *fde, ready_list_t *ready_list);
 
