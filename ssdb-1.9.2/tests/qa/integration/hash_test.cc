@@ -162,25 +162,26 @@ TEST_F(HashTest, Test_hash_hincr) {
     }
 
     s = client->del(key);
-    s = client->hincr(key, field, 1, &ret);
     s = client->hincr(key, field, MAX_INT64, &ret);
+    s = client->hincr(key, field, 1, &ret);
     ASSERT_TRUE(s.error());
     s = client->hget(key, field, &getVal);
-    ASSERT_EQ(1, atoi(getVal.data()));
+    ASSERT_EQ(i64toa(MAX_INT64), getVal);
 
     s = client->del(key);
-    s = client->hincr(key, field, -1, &ret);
     s = client->hincr(key, field, MIN_INT64, &ret);
+    s = client->hincr(key, field, -1, &ret);
     ASSERT_TRUE(s.error());
     s = client->hget(key, field, &getVal);
-    ASSERT_EQ(-1, atoi(getVal.data()));
+    ASSERT_EQ(i64toa(MIN_INT64), getVal);
     s = client->hdel(key, field);
 }
 
 TEST_F(HashTest, Test_hash_hgetall) {
 #define NotFoundHgetall s = client->hgetall(key, &list);\
-    EXPECT_TRUE(s.not_found())<<"this key should be not found!"<<endl;\
-    ASSERT_EQ(0, list.size());
+    ASSERT_EQ(0, list.size())<<"get list should be empty!"<<endl;
+
+    // EXPECT_TRUE(s.not_found())<<"this key should be not found!"<<endl;
 
     key = GetRandomKey_(); 
     val = GetRandomVal_(); 
@@ -237,7 +238,9 @@ TEST_F(HashTest, Test_hash_hsize) {
 
 TEST_F(HashTest, Test_hash_hclear) {
 #define OKHclear(num) s = client->hclear(key, &ret);\
-    ASSERT_EQ(ret , num)<<"fail to hclear key!"<<key<<endl;
+    ASSERT_EQ(ret , num)<<"fail to hclear key!"<<key<<endl;\
+    s = client->hsize(key, &ret);\
+    ASSERT_EQ(ret, 0)<<"key is not null!"<<key<<endl;
 
     // Some special keys
     for(vector<string>::iterator it = Keys.begin(); it != Keys.end(); it++)
@@ -266,15 +269,23 @@ TEST_F(HashTest, Test_hash_hclear) {
 
 TEST_F(HashTest, Test_hash_hkeys) {
     key = GetRandomKey_();
-    s = client->hkeys(key, "", "", 2, &list);
-    ASSERT_TRUE(s.ok() && list.size() <= 2);
+    s = client->hkeys(key, "", "", 5, &list);
+    ASSERT_TRUE(s.ok() && list.size() == 0);
     list.clear();
     client->hset(key, "000000001","");
     client->hset(key, "000000002","");
-    s = client->hkeys(key, "000000000", "000000002", 2, &list);
+    client->hset(key, "000000003","");
+    s = client->hkeys(key, "000000000", "000000002", 5, &list);
     ASSERT_TRUE(s.ok() && list.size() == 2);
     ASSERT_EQ("000000001", list[0]);
     ASSERT_EQ("000000002", list[1]);
+    list.clear();
+    s = client->hkeys(key, "000000000", "000000003", 5, &list);
+    ASSERT_TRUE(s.ok() && list.size() == 3);
+    ASSERT_EQ("000000003", list[2]);
+    list.clear();
+    s = client->hkeys(key, "000000000", "000000003", 2, &list);
+    ASSERT_TRUE(s.ok() && list.size() == 2);
     s = client->hclear(key);
 }
 

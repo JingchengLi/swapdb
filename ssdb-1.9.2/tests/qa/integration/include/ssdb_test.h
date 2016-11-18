@@ -4,6 +4,7 @@
 #include <sys/time.h>
 #include <unistd.h>
 #include <sstream>
+#include <math.h>
 #include "SSDB_client.h"
 
 #include "gtest/gtest.h"
@@ -19,8 +20,14 @@
 #define MAX_INT64 ~(MIN_INT64)
 using namespace std;
 
-
 inline string itoa(int32_t num)
+{
+	stringstream strm;
+	strm << num;
+	return strm.str();
+}
+
+inline string i64toa(int64_t num)
 {
 	stringstream strm;
 	strm << num;
@@ -78,24 +85,17 @@ public:
 		return (random()%(Max+1-Min))+Min;
 	}
 
-	// int64_t GetRandomInt64_(int64_t Min = MIN_INT64, int64_t Max = MAX_INT64-1) {
-		// assert(Max >= Min);
-		// struct timeval currentTime;
-		// gettimeofday(&currentTime, NULL);
-		// srand(currentTime.tv_usec);
-		// return (random()%(Max+1-Min))+Min;
-	// }
-
 	int64_t GetRandomInt64_() {
-        int64_t randowmInt64 = 0;
+        int64_t randomInt64 = 0;
 		struct timeval currentTime;
-        for(int count = 0; count < 64; count++)
+        int bits = rand()%64;
+        for(int count = 0; count < bits; count++)
         {
             gettimeofday(&currentTime, NULL);
             srand(currentTime.tv_usec);
-            randowmInt64 = ( randowmInt64<<1 ) | ( rand()&1 );
+            randomInt64 = ( randomInt64<<1 ) | ( rand()&1 );
         }
-		return randowmInt64;
+		return randomInt64;
 	}
 
 	uint64_t GetRandomUInt64_(uint64_t Min, uint64_t Max) {
@@ -106,8 +106,17 @@ public:
 		return (random()%(Max+1-Min))+Min;
 	}
 
-	double GetRandomFloat_() {
-		return (double)GetRandomInt64_();
+	double GetRandomDouble_() {
+		/* int base_precision = 1000000;
+		int64_t res_int = GetRandomInt64_();
+		return res_int*1.0/base_precision; */
+		struct timeval currentTime;
+		gettimeofday(&currentTime, NULL);
+		srand(currentTime.tv_usec);
+        int eNum = rand()%600 - 300;
+        float base = rand()*1.0/rand();
+        double randomDouble = base*pow(10, eNum);
+        return randomDouble; 
 	}
 	
 	inline unsigned int GetRandomSeq_()

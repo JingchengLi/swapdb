@@ -25,8 +25,8 @@ TEST_F(KVTest, Test_kv_set) {
     s = client->get(key, &getVal);\
     ASSERT_TRUE(s.ok()&&(val == getVal))<<"fail to get key val!"<<endl;
 
-// #define FalseSet s = client->set(key, val);\
-    // ASSERT_TRUE(s.error())<<"this key should set fail!"<<endl;
+/* #define FalseSet s = client->set(key, val);\
+    ASSERT_TRUE(s.error())<<"this key should set fail!"<<endl; */
  
     //Some special keys
     for(vector<string>::iterator it = Keys.begin(); it != Keys.end(); it++)
@@ -53,7 +53,10 @@ TEST_F(KVTest, Test_kv_set) {
     //other types key, kv can set other types
     s = client->del(key);
     field = GetRandomField_();
-    s = client->hset(field, key, val);
+    s = client->hset(key, field, val);
+    OKSet
+    s = client->del(key);
+    s = client->zset(key, field, 1.0);
     OKSet
     s = client->del(key);
 
@@ -181,18 +184,18 @@ TEST_F(KVTest, Test_kv_incr) {
         OKIncr
     }
     s = client->del(key);
-    s = client->incr(key, 1, &ret);
     s = client->incr(key, MAX_INT64, &ret);
+    s = client->incr(key, 1, &ret);
     ASSERT_TRUE(s.error());
     s = client->get(key, &getVal);
-    ASSERT_EQ(1, atoi(getVal.data()));
+    ASSERT_EQ(i64toa(MAX_INT64), getVal);
 
     s = client->del(key);
-    s = client->incr(key, -1, &ret);
     s = client->incr(key, MIN_INT64, &ret);
+    s = client->incr(key, -1, &ret);
     ASSERT_TRUE(s.error());
     s = client->get(key, &getVal);
-    ASSERT_EQ(-1, atoi(getVal.data()));
+    ASSERT_EQ(i64toa(MIN_INT64), getVal);
     s = client->del(key);
 }
 
