@@ -4,15 +4,6 @@
 #include "ssdb_test.h"
 using namespace std;
 
-string enKeys []= {
-        "", "0", "1", "10", "123", "4321", "1234567890",
-        "a", "ab", "cba", "abcdefghijklmnopqrstuvwxyz",
-        "A", "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
-        "a0b1", "A0aB9", "~!@#$%^&*()",
-        "-`_+=|';:.,/?<>'`", "0{a}1", "00{aa}2{55}",
-        "99{{1111}lll", "key_normal_{214}_gsdg"
-    };
-
 class EncodeTest : public SSDBTest
 {
 };
@@ -28,7 +19,7 @@ inline uint64_t encodeScore(const double score) {
 }
 
 void compare_encode_meta_key(const string & key, char* expectStr){
-    string meta_key = encode_meta_key(key);
+    string meta_key = encode_meta_key(Bytes(key.data(), key.size()));
     uint16_t slot = (uint16_t)keyHashSlot(key.data(), (int)key.size());
     uint8_t* pslot = (uint8_t*)&slot;
     expectStr[0] = 'M';
@@ -38,8 +29,8 @@ void compare_encode_meta_key(const string & key, char* expectStr){
     EXPECT_EQ(0, meta_key.compare(0, key.size()+3, expectStr, key.size()+3));
 }
 
-void compare_encode_key_internal(string(*func)(const string & , const string& , uint16_t),const string & key, const string& field, uint16_t version, char* expectStr){
-    string key_internal = (*func)(key, field, version);
+void compare_encode_key_internal(string(*func)(const Bytes & , const Bytes & , uint16_t),const string & key, const string& field, uint16_t version, char* expectStr){
+    string key_internal = (*func)(Bytes(key.data(), key.size()), Bytes(field.data(), field.size()), version);
     expectStr[0] = 'S';
     uint16_t keylen = key.size(); 
     uint8_t* pkeylen = (uint8_t*)&keylen;
@@ -57,10 +48,10 @@ TEST_F(EncodeTest, Test_encode_meta_key) {
     char* space = new char[maxKeyLen_+3];
 
     //Some special keys
-    uint16_t keysNum = sizeof(enKeys)/sizeof(string);
+    uint16_t keysNum = sizeof(Keys)/sizeof(string);
 
     for(int n = 0; n < keysNum; n++)
-        compare_encode_meta_key(enKeys[n], space);
+        compare_encode_meta_key(Keys[n], space);
 
     //Some random keys
     keysNum = 500;
@@ -92,17 +83,17 @@ TEST_F(EncodeTest, Test_encode_hash_key) {
     }
 
     //Some special keys
-    keysNum = sizeof(enKeys)/sizeof(string);
+    keysNum = sizeof(Keys)/sizeof(string);
 
     for(int n = 0; n < keysNum; n++)
-        compare_encode_key_internal(encode_hash_key, enKeys[n], field, version, space);
+        compare_encode_key_internal(encode_hash_key, Keys[n], field, version, space);
 
     //MaxLength key
     compare_encode_key_internal(encode_hash_key, GetRandomBytes_(maxKeyLen_), field, version, space);
 
     delete space;
 }
-
+/* 
 TEST_F(EncodeTest, Test_encode_set_key) {
     char* space = new char[maxFieldLen_+maxKeyLen_+5];
     string key, field;
@@ -119,16 +110,16 @@ TEST_F(EncodeTest, Test_encode_set_key) {
     }
 
     //Some special keys
-    keysNum = sizeof(enKeys)/sizeof(string);
+    keysNum = sizeof(Keys)/sizeof(string);
 
     for(int n = 0; n < keysNum; n++)
-        compare_encode_key_internal(encode_set_key, enKeys[n], field, version, space);
+        compare_encode_key_internal(encode_set_key, Keys[n], field, version, space);
 
     //MaxLength key
     compare_encode_key_internal(encode_set_key, GetRandomBytes_(maxKeyLen_), field, version, space);
 
     delete space;
-}
+} */
 
 TEST_F(EncodeTest, Test_encode_zset_key) {
     char* space = new char[maxFieldLen_+maxKeyLen_+5];
@@ -146,10 +137,10 @@ TEST_F(EncodeTest, Test_encode_zset_key) {
     }
 
     //Some special keys
-    keysNum = sizeof(enKeys)/sizeof(string);
+    keysNum = sizeof(Keys)/sizeof(string);
 
     for(int n = 0; n < keysNum; n++)
-        compare_encode_key_internal(encode_zset_key, enKeys[n], field, version, space);
+        compare_encode_key_internal(encode_zset_key, Keys[n], field, version, space);
 
     //MaxLength key
     compare_encode_key_internal(encode_zset_key, GetRandomBytes_(maxKeyLen_), field, version, space);
@@ -159,7 +150,7 @@ TEST_F(EncodeTest, Test_encode_zset_key) {
 
 void compare_encode_zscore_key(const string & key, const string& member, double score, uint16_t version, char* expectStr){
     string key_zscore = encode_zscore_key(key, member, score, version);
-    expectStr[0] = 'S';
+    expectStr[0] = 'z';
     uint16_t keylen = key.size(); 
     uint8_t* pkeylen = (uint8_t*)&keylen;
     expectStr[1] = pkeylen[1];
@@ -191,17 +182,16 @@ TEST_F(EncodeTest, Test_encode_zscore_key) {
     {
         key = GetRandomKey_(); 
         member = GetRandomField_();
-        score = n^0x1?(double)GetRandomUInt64_(0, MAX_UINT64-1)\
-                :-(double)GetRandomUInt64_(0, MAX_UINT64-1);
+        score = GetRandomDouble_();
         version = GetRandomVer_();
         compare_encode_zscore_key( key, member, score, version, space);
     }
 
     //Some special keys
-    keysNum = sizeof(enKeys)/sizeof(string);
+    keysNum = sizeof(Keys)/sizeof(string);
 
     for(int n = 0; n < keysNum; n++)
-        compare_encode_zscore_key(enKeys[n], member, score, version, space);
+        compare_encode_zscore_key(Keys[n], member, score, version, space);
 
     //MaxLength key
     compare_encode_zscore_key(GetRandomBytes_(maxKeyLen_), member, score, version, space);
@@ -246,10 +236,10 @@ TEST_F(EncodeTest, Test_encode_list_key) {
     }
 
     //Some special keys
-    keysNum = sizeof(enKeys)/sizeof(string);
+    keysNum = sizeof(Keys)/sizeof(string);
 
     for(int n = 0; n < keysNum; n++)
-        compare_encode_list_key(enKeys[n], seq, version, space);
+        compare_encode_list_key(Keys[n], seq, version, space);
 
     //MaxLength key, max sequence
     compare_encode_list_key(GetRandomBytes_(maxKeyLen_), MAX_UINT64, version, space);
@@ -423,8 +413,8 @@ TEST_F(EncodeTest, Test_encode_list_meta_val) {
     delete space;
 }
 
-void compare_encode_delete_key(const string & key, uint16_t version, char* expectStr){
-    string delete_key = encode_delete_key(key, version);
+void compare_encode_delete_key(const string & key, char key_type, uint16_t version, char* expectStr){
+    string delete_key = encode_delete_key(key, key_type, version);
     uint16_t keylen = key.size(); 
     uint16_t slot = (uint16_t)keyHashSlot(key.data(), keylen);
     uint8_t* pslot = (uint8_t*)&slot;
@@ -438,7 +428,8 @@ void compare_encode_delete_key(const string & key, uint16_t version, char* expec
     uint8_t* pversion = (uint8_t*)&version;
     expectStr[keylen+5] = pversion[1];
     expectStr[keylen+6] = pversion[0];
-    EXPECT_EQ(0, delete_key.compare(0, keylen+7, expectStr, keylen+7));
+    expectStr[keylen+7] = key_type;
+    EXPECT_EQ(0, delete_key.compare(0, keylen+8, expectStr, keylen+8));
 }
 
 TEST_F(EncodeTest, Test_encode_delete_key) {
@@ -446,12 +437,12 @@ TEST_F(EncodeTest, Test_encode_delete_key) {
     uint16_t version;
 
     //Some special keys
-    uint16_t keysNum = sizeof(enKeys)/sizeof(string);
+    uint16_t keysNum = sizeof(Keys)/sizeof(string);
 
     for(int n = 0; n < keysNum; n++)
     {
         version = GetRandomVer_();
-        compare_encode_delete_key(enKeys[n], version,  space);
+        compare_encode_delete_key(Keys[n], KeyTypes[n%sizeof(KeyTypes)], version,  space);
     }
 
     //Some random keys
@@ -459,11 +450,11 @@ TEST_F(EncodeTest, Test_encode_delete_key) {
     for(int n = 0; n < keysNum; n++)
     {
         string key = GetRandomKey_(); 
-        compare_encode_delete_key(key, version, space);
+        compare_encode_delete_key(key, KeyTypes[n%sizeof(KeyTypes)], version, space);
     }
 
     //MaxLength key
-    compare_encode_delete_key(GetRandomBytes_(maxKeyLen_), version, space);
+    compare_encode_delete_key(GetRandomBytes_(maxKeyLen_), KeyTypes[0], version, space);
 
     delete space;
 }
