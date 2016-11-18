@@ -79,7 +79,14 @@ int proc_qpush_front(NetworkServer *net, Link *link, const Request &req, Respons
 }
 
 int proc_qpush_back(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	return proc_qpush_func(net, link, req, resp, QBACK);
+//	return proc_qpush_func(net, link, req, resp, QBACK);
+    CHECK_NUM_PARAMS(3);
+    SSDBServer *serv = (SSDBServer *)net->data;
+
+    uint64_t len;
+    int ret = serv->ssdb->RPush(req[1], req[2], &len);
+    resp->reply_int(ret, len);
+    return 0;
 }
 
 int proc_qpush(NetworkServer *net, Link *link, const Request &req, Response *resp){
@@ -139,7 +146,14 @@ int proc_qpop_front(NetworkServer *net, Link *link, const Request &req, Response
 }
 
 int proc_qpop_back(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	return proc_qpop_func(net, link, req, resp, QBACK);
+//	return proc_qpop_func(net, link, req, resp, QBACK);
+    CHECK_NUM_PARAMS(2);
+    SSDBServer *serv = (SSDBServer *)net->data;
+
+    std::string val;
+    int ret = serv->ssdb->RPop(req[1], &val);
+    resp->reply_get(ret, &val);
+    return 0;
 }
 
 int proc_qpop(NetworkServer *net, Link *link, const Request &req, Response *resp){
@@ -244,7 +258,7 @@ int proc_qslice(NetworkServer *net, Link *link, const Request &req, Response *re
 	int64_t begin = req[2].Int64();
 	int64_t end = req[3].Int64();
 	std::vector<std::string> list;
-	int ret = serv->ssdb->qslice(req[1], begin, end, &list);
+	int ret = serv->ssdb->lrange(req[1], begin, end, &list);
 	resp->reply_list(ret, list);
 	return 0;
 }
@@ -285,7 +299,7 @@ int proc_qset(NetworkServer *net, Link *link, const Request &req, Response *resp
 	const Bytes &name = req[1];
 	int64_t index = req[2].Int64();
 	const Bytes &item = req[3];
-	int ret = serv->ssdb->qset(name, index, item);
+	int ret = serv->ssdb->LSet(name, index, item);
 	if(ret == -1 || ret == 0){
 		resp->push_back("error");
 		resp->push_back("index out of range");
