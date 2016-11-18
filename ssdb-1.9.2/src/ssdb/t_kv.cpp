@@ -140,7 +140,7 @@ int SSDBImpl::del(const Bytes &key, char log_type){
     } else if (key_type == "set"){
         //todo
     } else if (key_type == "zset"){
-        //todo
+        ret = zclear(key);
     } else if (key_type == "list"){
         //todo
     }
@@ -308,7 +308,7 @@ int SSDBImpl::DelKeyByType(const Bytes &key, const std::string &type){
 	} else if ("set" == type){
 //		s = SDelKeyNoLock(key, &res);
 	} else if ("zset" == type){
-//		s = ZDelKeyNoLock(key, &res);
+		ZDelKeyNoLock(key);
 	}
 
 	return 0;

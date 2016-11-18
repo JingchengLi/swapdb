@@ -125,7 +125,7 @@ public:
     void    PushFirstListItem(const Bytes &key, const Bytes &val, const std::string &meta_key, uint16_t version);
 
 	/* zset */
-
+	virtual int64_t zclear(const Bytes &name);
 	virtual int zset(const Bytes &name, const Bytes &key, const Bytes &score, char log_type=BinlogType::SYNC);
     virtual int zsetNoLock(const Bytes &name, const Bytes &key, const Bytes &score, char log_type=BinlogType::SYNC);
 	virtual int zdel(const Bytes &name, const Bytes &key, char log_type=BinlogType::SYNC);
@@ -158,8 +158,9 @@ public:
 	virtual int64_t zfix(const Bytes &name);
 
 	virtual int GetZSetMetaVal(const std::string &meta_key, ZSetMetaVal &zv);
-	
-	virtual int64_t qsize(const Bytes &name);
+    virtual int ZDelKeyNoLock(const Bytes &name, char log_type=BinlogType::SYNC);
+
+    virtual int64_t qsize(const Bytes &name);
 	// @return 0: empty queue, 1: item peeked, -1: error
 	virtual int qfront(const Bytes &name, std::string *item);
 	// @return 0: empty queue, 1: item peeked, -1: error

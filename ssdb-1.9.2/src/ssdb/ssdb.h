@@ -85,7 +85,7 @@ public:
 	virtual int LPush(const Bytes &key, const Bytes &val, uint64_t *llen) = 0;
 
 	/* zset */
-
+    virtual int64_t zclear(const Bytes &name) = 0;
 	virtual int zset(const Bytes &name, const Bytes &key, const Bytes &score, char log_type=BinlogType::SYNC) = 0;
 	virtual int zsetNoLock(const Bytes &name, const Bytes &key, const Bytes &score, char log_type=BinlogType::SYNC) = 0;
 	virtual int zdel(const Bytes &name, const Bytes &key, char log_type=BinlogType::SYNC) = 0;
@@ -114,7 +114,8 @@ public:
 	virtual int zrlist(const Bytes &name_s, const Bytes &name_e, uint64_t limit,
 			std::vector<std::string> *list) = 0;
 	virtual int64_t zfix(const Bytes &name) = 0;
-	
+
+
 	virtual int64_t qsize(const Bytes &name) = 0;
 	// @return 0: empty queue, 1: item peeked, -1: error
 	virtual int qfront(const Bytes &name, std::string *item) = 0;

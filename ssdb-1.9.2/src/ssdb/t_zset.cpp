@@ -14,8 +14,68 @@ static int zdel_one(SSDBImpl *ssdb, const Bytes &name, const Bytes &key, char lo
 
 static int incr_zsize(SSDBImpl *ssdb, const Bytes &name, int64_t incr);
 
+static ZIterator *ziterator(
+        SSDBImpl *ssdb,
+        const Bytes &name, const Bytes &key_start,
+        const Bytes &score_start, const Bytes &score_end,
+        uint64_t limit, Iterator::Direction direction, uint16_t version);
+
 void zset_internal(const SSDBImpl *ssdb, const Bytes &name, const Bytes &key, const Bytes &score, char log_type,
                    uint16_t cur_version);
+
+
+
+int64_t SSDBImpl::zclear(const Bytes &name){
+    Transaction trans(binlogs);
+
+    int num = ZDelKeyNoLock(name);
+
+    if (num > 0){
+        leveldb::Status s = binlogs->commit();
+        if (!s.ok()){
+            return -1;
+        }
+    }
+
+    return num;
+}
+
+
+int SSDBImpl::ZDelKeyNoLock(const Bytes &name, char log_type) {
+    ZSetMetaVal zv;
+    std::string meta_key = encode_meta_key(name);
+    int ret = GetZSetMetaVal(meta_key, zv);
+    if (ret != 1){
+        return ret;
+    }
+
+    if (zv.length > MAX_NUM_DELETE){
+        std::string del_key = encode_delete_key(name.String(), DataType::HSIZE, zv.version);
+        std::string meta_val = encode_hash_meta_val(zv.length, zv.version, KEY_DELETE_MASK);
+        binlogs->Put(del_key, "");
+        binlogs->Put(meta_key, meta_val);
+        return zv.length;
+    }
+
+    std::unique_ptr<ZIterator> it(ziterator(this, name, "", "", "", INT_MAX, Iterator::FORWARD, zv.version));
+    int num = 0;
+    while (it->next()) {
+        ret = zdel_one(this, name, it->key, log_type);
+        if (-1 == ret){
+            return -1;
+        } else if (ret > 0){
+            num++;
+        }
+    }
+
+    if (num > 0){
+        if(incr_zsize(this, name, -num) == -1){
+            return -1;
+        }
+    }
+
+    return num;
+}
 
 /**
  * @return -1: error, 0: item updated, 1: new item inserted
