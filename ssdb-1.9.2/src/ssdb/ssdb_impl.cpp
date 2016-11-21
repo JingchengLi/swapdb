@@ -378,7 +378,7 @@ void SSDBImpl::stop() {
 void SSDBImpl::load_delete_keys_from_db(int num) {
     std::string start;
     start.append(1, 'D');
-    Iterator* it = iterator(start, "", num);
+    auto it = std::unique_ptr<Iterator>(this->iterator(start, "", num));
     while (it->next()){
         if (it->key().String()[0] != KEY_DELETE_MASK){
             break;
