@@ -516,7 +516,6 @@ static int zdel_one(SSDBImpl *ssdb, const Bytes &name, const Bytes &key, char lo
             std::string old_zset_key = encode_zset_key(name, key, zv.version);
 
             ssdb->binlogs->Delete(old_score_key);
-            ssdb->binlogs->add_log(log_type, BinlogCommand::ZDEL, old_score_key);
             ssdb->binlogs->Delete(old_zset_key);
             ssdb->binlogs->add_log(log_type, BinlogCommand::ZDEL, old_zset_key);
 
