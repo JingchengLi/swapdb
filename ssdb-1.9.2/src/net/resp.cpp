@@ -19,13 +19,13 @@ void Response::add(int s){
 }
 
 void Response::add(int64_t s){
-	char buf[20];
+	char buf[22] = {0};
 	sprintf(buf, "%" PRId64 "", s);
 	resp.push_back(buf);
 }
 
 void Response::add(uint64_t s){
-	char buf[20];
+	char buf[22] = {0};
 	sprintf(buf, "%" PRIu64 "", s);
 	resp.push_back(buf);
 }
