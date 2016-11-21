@@ -29,7 +29,7 @@ int proc_multi_zexists(NetworkServer *net, Link *link, const Request &req, Respo
 	double val = 0;
 	for(Request::const_iterator it=req.begin()+2; it!=req.end(); it++){
 		const Bytes &key = *it;
-		int64_t ret = serv->ssdb->zget(name, key, &val);
+		int ret = serv->ssdb->zget(name, key, &val);
 		resp->push_back(key.String());
 		if(ret > 0){
 			resp->push_back("1");
@@ -147,7 +147,11 @@ int proc_zget(NetworkServer *net, Link *link, const Request &req, Response *resp
 
 	double score = 0;
 	int ret = serv->ssdb->zget(req[1], req[2], &score);
-	resp->reply_double(ret, score);
+	if(ret == 0){
+		resp->add("not_found");
+	}else{
+		resp->reply_double(ret, score);
+	}
 	return 0;
 }
 
