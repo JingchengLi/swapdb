@@ -71,14 +71,14 @@ int SSDBImpl::incr_ssize(const Bytes &key, int64_t incr){
         return ret;
     } else if (ret == 0 && sv.del == KEY_DELETE_MASK){
         if (incr > 0){
-            std::string size_val = encode_hash_meta_val((uint64_t)incr, (uint16_t)(sv.version+1));
+            std::string size_val = encode_set_meta_val((uint64_t)incr, (uint16_t)(sv.version+1));
             binlogs->Put(meta_key, size_val);
         } else{
             return -1;
         }
     } else if (ret == 0){
         if (incr > 0){
-            std::string size_val = encode_hash_meta_val((uint64_t)incr);
+            std::string size_val = encode_set_meta_val((uint64_t)incr);
             binlogs->Put(meta_key, size_val);
         } else{
             return -1;
@@ -97,7 +97,7 @@ int SSDBImpl::incr_ssize(const Bytes &key, int64_t incr){
         if (len == 0){
             binlogs->Delete(meta_key);
         } else{
-            std::string size_val = encode_hash_meta_val(len, sv.version);
+            std::string size_val = encode_set_meta_val(len, sv.version);
             binlogs->Put(meta_key, size_val);
         }
     }

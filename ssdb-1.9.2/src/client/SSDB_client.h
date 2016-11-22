@@ -177,6 +177,10 @@ public:
 	virtual Status multi_hdel(const std::string &name, const std::vector<std::string> &keys) = 0;
 	/// @}
 
+	/// @name set methods
+	/// @{
+	virtual Status sadd(const std::string &name, const std::string &key) = 0;
+	/// @}
 
 	/// @name Zset methods
 	/// @{

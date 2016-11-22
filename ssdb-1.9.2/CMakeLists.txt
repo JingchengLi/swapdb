@@ -86,6 +86,7 @@ set_target_properties(libssdb-static PROPERTIES
 # libssdb-client.a
 
 SET( CLIENT_OBJS
+src/client/hello-ssdb.cpp
 src/client/SSDB_impl.cpp
 src/client/../util/bytes.cpp
 src/client/../net/link.cpp
@@ -166,6 +167,7 @@ src/ssdb-server.cpp
 src/client/SSDB_impl.cpp
 src/proc_kv.cpp
 src/proc_hash.cpp
+src/proc_set.cpp
 src/proc_zset.cpp
 src/proc_queue.cpp
 src/backend_dump.cpp
@@ -180,3 +182,5 @@ src/cluster_migrate.cpp
 
 ADD_EXECUTABLE(ssdb-server ${SRC_OBJS})                                                                                                                                             
 TARGET_LINK_LIBRARIES(ssdb-server libssdb-static libutil-static libnet-static libcodec-static rocksdb gtest gflags snappy jemalloc pthread rt z bz2)
+
+ADD_EXECUTABLE(hello-ssdb ${CLIENT_OBJS})

@@ -428,6 +428,14 @@ Status ClientImpl::multi_hdel(const std::string &name, const std::vector<std::st
 	return s;
 }
 
+/******************** KV *************************/
+Status ClientImpl::sadd(const std::string &name, const std::string &key) {
+		const std::vector<std::string> *resp;
+		resp = this->request("sadd", name, key);
+		Status s(resp);
+		return s;
+	}
+
 /******************** zset *************************/
 
 

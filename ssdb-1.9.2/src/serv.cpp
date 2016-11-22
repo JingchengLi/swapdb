@@ -58,6 +58,8 @@ DEF_PROC(multi_hget);
 DEF_PROC(multi_hset);
 DEF_PROC(multi_hdel);
 
+DEF_PROC(sadd);
+
 DEF_PROC(zrank);
 DEF_PROC(zrrank);
 DEF_PROC(zrange);
@@ -181,6 +183,8 @@ void SSDBServer::reg_procs(NetworkServer *net){
 	REG_PROC(multi_hget, "rt");
 	REG_PROC(multi_hset, "wt");
 	REG_PROC(multi_hdel, "wt");
+
+	REG_PROC(sadd, "wt");
 
 	// because zrank may be extremly slow, execute in a seperate thread
 	REG_PROC(zrank, "rt");
