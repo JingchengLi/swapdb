@@ -430,11 +430,17 @@ Status ClientImpl::multi_hdel(const std::string &name, const std::vector<std::st
 
 /******************** KV *************************/
 Status ClientImpl::sadd(const std::string &name, const std::string &key) {
-		const std::vector<std::string> *resp;
-		resp = this->request("sadd", name, key);
-		Status s(resp);
-		return s;
-	}
+	const std::vector<std::string> *resp;
+	resp = this->request("sadd", name, key);
+	Status s(resp);
+	return s;
+}
+
+Status ClientImpl::scard(const std::string &name, int64_t *ret) {
+    const std::vector<std::string> *resp;
+    resp = this->request("scard", name);
+    return _read_int64(resp, ret);
+}
 
 /******************** zset *************************/
 
