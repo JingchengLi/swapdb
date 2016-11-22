@@ -42,4 +42,4 @@ src/util/test_sorted_set
 CMakeCache.txt
 CMakeFiles/
 cmake_install.cmake
-
+hello-ssdb

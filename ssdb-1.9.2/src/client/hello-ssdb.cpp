@@ -18,6 +18,13 @@ int main(int argc, char **argv){
 	std::string val;
 	std::vector<std::string> vals;
 
+	s = client->sadd("key", "abcd1234");
+	if (s.ok()){
+		printf("sadd key abcd1234\n");
+	} else{
+		printf("sadd error!\n");
+	}
+
 	// set and get
 	s = client->set("k", "hello ssdb!");
 	if(s.ok()){
