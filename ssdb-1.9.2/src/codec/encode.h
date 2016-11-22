@@ -12,7 +12,7 @@ string encode_meta_key(const Bytes& key);
 
 string encode_hash_key(const Bytes& key, const Bytes& field, uint16_t version = 0);
 
-string encode_set_key(const string& key, const string& member, uint16_t version);
+string encode_set_key(const Bytes& key, const Bytes& member, uint16_t version = 0);
 
 string encode_zset_key(const Bytes& key, const Bytes& member, uint16_t version = 0);
 

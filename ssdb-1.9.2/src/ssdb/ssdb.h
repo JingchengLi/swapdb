@@ -88,6 +88,9 @@ public:
 	virtual int LSet(const Bytes &key, const int64_t index, const Bytes &val) = 0;
 	virtual int lrange(const Bytes &key, int64_t begin, int64_t end, std::vector<std::string> *list) = 0;
 
+	/* set */
+	virtual int sadd(const Bytes &key, const Bytes &member, char log_type=BinlogType::SYNC) = 0;
+
 	/* zset */
     virtual int64_t zclear(const Bytes &name) = 0;
 	virtual int zset(const Bytes &name, const Bytes &key, const Bytes &score, char log_type=BinlogType::SYNC) = 0;
