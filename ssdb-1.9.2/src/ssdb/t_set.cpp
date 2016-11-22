@@ -63,6 +63,24 @@ int SSDBImpl::sadd_one(const Bytes &key, const Bytes &member, char log_type) {
     return ret;
 }
 
+int SSDBImpl::srem_one(const Bytes &key, const Bytes &member, char log_type) {
+    SetMetaVal sv;
+    std::string meta_key = encode_meta_key(key.String());
+    int ret = GetSetMetaVal(meta_key, sv);
+    if (ret != 1){
+        return ret;
+    }
+    std::string hkey = encode_set_key(key, member, sv.version);
+    ret = GetSetItemValInternal(hkey);
+    if (ret != 1){
+        return ret;
+    }
+    binlogs->Delete(hkey);
+//    binlogs->add_log(log_type, BinlogCommand::HDEL, hkey);
+
+    return 1;
+}
+
 int SSDBImpl::incr_ssize(const Bytes &key, int64_t incr){
     SetMetaVal sv;
     std::string meta_key = encode_meta_key(key.String());
@@ -112,6 +130,24 @@ int SSDBImpl::sadd(const Bytes &key, const Bytes &member, char log_type){
     if (ret >= 0){
         if(ret > 0){
             if(incr_ssize(key, ret) == -1){
+                return -1;
+            }
+        }
+        leveldb::Status s = binlogs->commit();
+        if(!s.ok()){
+            return -1;
+        }
+    }
+    return ret;
+}
+
+int SSDBImpl::srem(const Bytes &key, const Bytes &member, char log_type) {
+    Transaction trans(binlogs);
+
+    int ret = srem_one(key, member, log_type);
+    if(ret >= 0){
+        if(ret > 0){
+            if(incr_ssize(key, -ret) == -1){
                 return -1;
             }
         }

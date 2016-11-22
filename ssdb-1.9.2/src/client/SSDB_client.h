@@ -180,6 +180,7 @@ public:
 	/// @name set methods
 	/// @{
 	virtual Status sadd(const std::string &name, const std::string &key) = 0;
+    virtual Status srem(const std::string &name, const std::string &key) = 0;
     virtual Status scard(const std::string &name, int64_t *ret) = 0;
 	/// @}
 

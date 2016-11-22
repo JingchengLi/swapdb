@@ -90,6 +90,7 @@ public:
 
 	/* set */
 	virtual int sadd(const Bytes &key, const Bytes &member, char log_type=BinlogType::SYNC) = 0;
+	virtual int srem(const Bytes &key, const Bytes &member, char log_type=BinlogType::SYNC) = 0;
     virtual int scard(const Bytes &key, uint64_t *llen) = 0;
 
 	/* zset */

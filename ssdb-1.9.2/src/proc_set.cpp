@@ -15,6 +15,17 @@ int proc_sadd(NetworkServer *net, Link *link, const Request &req, Response *resp
     return 0;
 }
 
+int proc_srem(NetworkServer *net, Link *link, const Request &req, Response *resp){
+    CHECK_NUM_PARAMS(3);
+    SSDBServer *serv = (SSDBServer *)net->data;
+
+    const Bytes &name = req[1];
+    const Bytes &key = req[2];
+    int ret = serv->ssdb->srem(name, key);
+    resp->reply_bool(ret);
+    return 0;
+}
+
 int proc_scard(NetworkServer *net, Link *link, const Request &req, Response *resp){
     SSDBServer *serv = (SSDBServer *)net->data;
     CHECK_NUM_PARAMS(2);

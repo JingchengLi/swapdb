@@ -80,6 +80,7 @@ static RedisCommand_raw cmds_raw[] = {
 	{STRATEGY_AUTO, "hincrby",	"hincr",		REPLY_INT},
 
 	{STRATEGY_AUTO, "sadd",		"sadd",			REPLY_INT},
+	{STRATEGY_AUTO, "srem",		"srem",			REPLY_INT},
 	{STRATEGY_AUTO, "scard",	"scard",		REPLY_INT},
 
 	{STRATEGY_AUTO, "zcard",	"zsize",		REPLY_INT},
