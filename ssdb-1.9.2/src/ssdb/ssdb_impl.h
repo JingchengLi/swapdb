@@ -132,6 +132,7 @@ public:
 
     /* set */
     virtual int sadd(const Bytes &key, const Bytes &member, char log_type=BinlogType::SYNC);
+	virtual int srem(const Bytes &key, const Bytes &member, char log_type=BinlogType::SYNC);
 	virtual int scard(const Bytes &key, uint64_t *llen);
 
 	/* zset */
@@ -209,6 +210,7 @@ private:
     int GetSetItemValInternal(const std::string &item_key);
     int sadd_one(const Bytes &key, const Bytes &member, char log_type);
     int incr_ssize(const Bytes &key, int64_t incr);
+	int srem_one(const Bytes &key, const Bytes &member, char log_type);
 
 private:
 	//    pthread_mutex_t mutex_bgtask_;
