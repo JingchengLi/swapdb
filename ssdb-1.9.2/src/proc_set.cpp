@@ -14,3 +14,13 @@ int proc_sadd(NetworkServer *net, Link *link, const Request &req, Response *resp
     resp->reply_bool(ret);
     return 0;
 }
+
+int proc_scard(NetworkServer *net, Link *link, const Request &req, Response *resp){
+    SSDBServer *serv = (SSDBServer *)net->data;
+    CHECK_NUM_PARAMS(2);
+
+    uint64_t len;
+    int64_t ret = serv->ssdb->scard(req[1], &len);
+    resp->reply_int(ret, len);
+    return 0;
+}

@@ -122,3 +122,14 @@ int SSDBImpl::sadd(const Bytes &key, const Bytes &member, char log_type){
     }
     return ret;
 }
+
+int SSDBImpl::scard(const Bytes &key, uint64_t *llen) {
+    *llen = 0;
+    SetMetaVal sv;
+    std::string meta_key = encode_meta_key(key);
+    int s = GetSetMetaVal(meta_key, sv);
+    if (1 == s){
+        *llen = sv.length;
+    }
+    return s;
+}

@@ -68,6 +68,7 @@ public:
 	virtual Status multi_hdel(const std::string &name, const std::vector<std::string> &keys);
 
 	virtual Status sadd(const std::string &name, const std::string &key);
+    virtual Status scard(const std::string &name, int64_t *ret);
 
 	virtual Status zget(const std::string &name, const std::string &key, double *ret);
 	virtual Status zset(const std::string &name, const std::string &key, double score);
