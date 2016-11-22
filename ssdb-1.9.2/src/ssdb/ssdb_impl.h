@@ -130,6 +130,9 @@ public:
 	int 	DoRPop(ListMetaVal &meta_val, const Bytes &key, std::string &meta_key, std::string *val);
 	int 	DoRPush(ListMetaVal &meta_val, const Bytes &key, const Bytes &val, std::string &meta_key);
 
+    /* set */
+    virtual int sadd(const Bytes &key, const Bytes &member, char log_type=BinlogType::SYNC);
+
 	/* zset */
 	virtual int64_t zclear(const Bytes &name);
 	virtual int zset(const Bytes &name, const Bytes &key, const Bytes &score, char log_type=BinlogType::SYNC);
@@ -200,6 +203,11 @@ private:
     HIterator* hscan_internal(const Bytes &name, const Bytes &start, const Bytes &end, uint16_t version, uint64_t limit);
     HIterator* hrscan_internal(const Bytes &name, const Bytes &start, const Bytes &end, uint16_t version, uint64_t limit);
 	int HDelKeyNoLock(const Bytes &name, char log_type=BinlogType::SYNC);
+
+    int GetSetMetaVal(const std::string &meta_key, SetMetaVal &sv);
+    int GetSetItemValInternal(const std::string &item_key);
+    int sadd_one(const Bytes &key, const Bytes &member, char log_type);
+    int incr_ssize(const Bytes &key, int64_t incr);
 
 private:
 	//    pthread_mutex_t mutex_bgtask_;

@@ -1,0 +1,124 @@
+//
+// Created by a1 on 16-11-21.
+//
+#include "ssdb_impl.h"
+
+int SSDBImpl::GetSetMetaVal(const std::string &meta_key, SetMetaVal &sv){
+    std::string meta_val;
+    leveldb::Status s = ldb->Get(leveldb::ReadOptions(), meta_key, &meta_val);
+    if (s.IsNotFound()){
+        return 0;
+    } else if (!s.ok() && !s.IsNotFound()){
+        return -1;
+    } else{
+        int ret = sv.DecodeMetaVal(meta_val);
+        if (ret == -1 || sv.type != DataType::SSIZE){
+            return -1;
+        } else if (sv.del == KEY_DELETE_MASK){
+            return 0;
+        }
+    }
+    return 1;
+}
+
+int SSDBImpl::GetSetItemValInternal(const std::string &item_key){
+    std::string val;
+    leveldb::Status s = ldb->Get(leveldb::ReadOptions(), item_key, &val);
+    if (s.IsNotFound()){
+        return 0;
+    } else if (!s.ok() && !s.IsNotFound()){
+        return -1;
+    }
+    return 1;
+}
+
+int SSDBImpl::sadd_one(const Bytes &key, const Bytes &member, char log_type) {
+    int ret = 0;
+    std::string dbval;
+    SetMetaVal sv;
+    std::string meta_key = encode_meta_key(key.String());
+    ret = GetSetMetaVal(meta_key, sv);
+    if (ret == -1){
+        return -1;
+    } else if (ret == 0 && sv.del == KEY_DELETE_MASK){
+        std::string hkey = encode_set_key(key, member, (uint16_t)(sv.version+1));
+        binlogs->Put(hkey, slice(""));
+        ret = 1;
+    } else if (ret == 0){
+        std::string hkey = encode_set_key(key, member);
+        binlogs->Put(hkey, slice(""));
+        ret = 1;
+    } else{
+        std::string item_key = encode_set_key(key, member, sv.version);
+        ret = GetSetItemValInternal(item_key);
+        if (ret == -1){
+            return -1;
+        } else if (ret == 1){
+            ret = 0;
+        } else{
+            binlogs->Put(item_key, slice(""));
+            ret = 1;
+        }
+    }
+    return ret;
+}
+
+int SSDBImpl::incr_ssize(const Bytes &key, int64_t incr){
+    SetMetaVal sv;
+    std::string meta_key = encode_meta_key(key.String());
+    int ret = GetSetMetaVal(meta_key, sv);
+    if (ret == -1){
+        return ret;
+    } else if (ret == 0 && sv.del == KEY_DELETE_MASK){
+        if (incr > 0){
+            std::string size_val = encode_hash_meta_val((uint64_t)incr, (uint16_t)(sv.version+1));
+            binlogs->Put(meta_key, size_val);
+        } else{
+            return -1;
+        }
+    } else if (ret == 0){
+        if (incr > 0){
+            std::string size_val = encode_hash_meta_val((uint64_t)incr);
+            binlogs->Put(meta_key, size_val);
+        } else{
+            return -1;
+        }
+    } else{
+        uint64_t len = sv.length;
+        if (incr > 0) {
+            len += incr;
+        } else if (incr < 0) {
+            uint64_t u64 = static_cast<uint64_t>(-incr);
+            if (len < u64) {
+                return -1;
+            }
+            len = len - u64;
+        }
+        if (len == 0){
+            binlogs->Delete(meta_key);
+        } else{
+            std::string size_val = encode_hash_meta_val(len, sv.version);
+            binlogs->Put(meta_key, size_val);
+        }
+    }
+
+    return 0;
+}
+
+int SSDBImpl::sadd(const Bytes &key, const Bytes &member, char log_type){
+    Transaction trans(binlogs);
+
+    int ret = sadd_one(key, member, log_type);
+    if (ret >= 0){
+        if(ret > 0){
+            if(incr_ssize(key, ret) == -1){
+                return -1;
+            }
+        }
+        leveldb::Status s = binlogs->commit();
+        if(!s.ok()){
+            return -1;
+        }
+    }
+    return ret;
+}

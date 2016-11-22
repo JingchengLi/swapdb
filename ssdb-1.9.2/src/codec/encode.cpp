@@ -41,8 +41,8 @@ string encode_hash_key(const Bytes& key, const Bytes& field, uint16_t version){
     return encode_key_internal(key.String(), field.String(), version);
 }
 
-string encode_set_key(const string& key, const string& member, uint16_t version){
-    return encode_key_internal(key, member, version);
+string encode_set_key(const Bytes& key, const Bytes& member, uint16_t version){
+    return encode_key_internal(key.String(), member.String(), version);
 }
 
 string encode_zset_key(const Bytes& key, const Bytes& member, uint16_t version){
