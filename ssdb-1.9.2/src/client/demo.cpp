@@ -197,35 +197,38 @@ int main(int argc, char **argv){
         std::vector<std::string> list;
         int64_t test_score = 100;
         int64_t score;
+        double score_new;
         s = client->zset(zset, key, test_score);
         assert(s.ok());
 
-        s = client->zget(zset, key, &score);
+        s = client->zget(zset, key, &score_new);
         assert(s.ok() && (score == test_score));
         printf("%s = %d\n", key.c_str(), (int)score);
 
         s = client->zdel(zset, key);
         assert(s.ok());
 
-        s = client->zget(zset, key, &score);
+        s = client->zget(zset, key, &score_new);
         assert(s.not_found());
 
         int64_t ret;
+        double ret_new;
         ret = -1;
         s = client->zsize(zset, &ret);
         assert(s.ok() && (ret != -1));
-        s = client->zincr(zset, key, 3, &ret);
+        s = client->zincr(zset, key, 3, &ret_new);
         assert(s.ok() && (ret == 3));
-        s = client->zincr(zset, key, -1, &ret);
+        s = client->zincr(zset, key, -1, &ret_new);
         assert(s.ok() && (ret == 2));
 
         client->zset(zset, "a", -1);
         client->zset(zset, "b", 3);
         client->zset(zset, "c", 4);
         int64_t score_max = 90;
+        double score_max_new = 90;
 
         list.clear();
-        s = client->zkeys(zset, "", NULL, &score_max, 2, &list);
+        s = client->zkeys(zset, "", NULL, &score_max_new, 2, &list);
         assert(s.ok() && list.size() <= 2);
 
         list.clear();
