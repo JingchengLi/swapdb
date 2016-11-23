@@ -136,6 +136,7 @@ public:
 	virtual int scard(const Bytes &key, uint64_t *llen);
     virtual int sismember(const Bytes &key, const Bytes &member);
     virtual int smembers(const Bytes &key, std::vector<std::string> &members);
+    virtual int sunion(const std::vector<Bytes> &keys, std::set<std::string>& members);
 
 	/* zset */
 	virtual int64_t zclear(const Bytes &name);
