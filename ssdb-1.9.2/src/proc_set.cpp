@@ -61,6 +61,19 @@ int proc_sismember(NetworkServer *net, Link *link, const Request &req, Response 
 }
 
 int proc_smembers(NetworkServer *net, Link *link, const Request &req, Response *resp){
+    CHECK_NUM_PARAMS(2);
+    SSDBServer *serv = (SSDBServer *)net->data;
+    std::vector<std::string> members;
+    int ret = serv->ssdb->smembers(req[1], members);
+    if (ret == -1){
+        resp->resp.push_back("error");
+    } else if (ret == 0){
+        resp->resp.push_back("not_found");
+    }
+    std::vector<std::string>::iterator it = members.begin();
+    for (;  it != members.end(); ++it) {
+        resp->push_back(*it);
+    }
     return 0;
 }
 

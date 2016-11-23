@@ -123,6 +123,18 @@ int SSDBImpl::incr_ssize(const Bytes &key, int64_t incr){
     return 0;
 }
 
+SIterator* SSDBImpl::sscan_internal(const Bytes &name, const Bytes &start, const Bytes &end, uint16_t version,
+                                    uint64_t limit) {
+    std::string key_start, key_end;
+
+    key_start = encode_set_key(name, start, version);
+    if(!end.empty()){
+        key_end = encode_set_key(name, end, version);
+    }
+
+    return new SIterator(this->iterator(key_start, key_end, limit), name, version);
+}
+
 int SSDBImpl::sadd(const Bytes &key, const Bytes &member, char log_type){
     Transaction trans(binlogs);
 
@@ -178,5 +190,25 @@ int SSDBImpl::sismember(const Bytes &key, const Bytes &member) {
         std::string hkey = encode_set_key(key, member, sv.version);
         s = GetSetItemValInternal(hkey);
     }
+    return s;
+}
+
+int SSDBImpl::smembers(const Bytes &key, std::vector<std::string> &members) {
+    members.clear();
+    SetMetaVal sv;
+
+    std::string meta_key = encode_meta_key(key);
+    int s = GetSetMetaVal(meta_key, sv);
+    if (s != 1){
+        return s;
+    }
+
+    SIterator* it = sscan_internal(key, "", "", sv.version, -1);
+    while (it->next()){
+        members.push_back(it->key);
+    }
+
+    delete it;
+    it = NULL;
     return s;
 }

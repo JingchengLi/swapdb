@@ -135,6 +135,7 @@ public:
 	virtual int srem(const Bytes &key, const Bytes &member, char log_type=BinlogType::SYNC);
 	virtual int scard(const Bytes &key, uint64_t *llen);
     virtual int sismember(const Bytes &key, const Bytes &member);
+    virtual int smembers(const Bytes &key, std::vector<std::string> &members);
 
 	/* zset */
 	virtual int64_t zclear(const Bytes &name);
@@ -212,6 +213,7 @@ private:
     int sadd_one(const Bytes &key, const Bytes &member, char log_type);
     int incr_ssize(const Bytes &key, int64_t incr);
 	int srem_one(const Bytes &key, const Bytes &member, char log_type);
+    SIterator* sscan_internal(const Bytes &name, const Bytes &start, const Bytes &end, uint16_t version, uint64_t limit);
 
 private:
 	//    pthread_mutex_t mutex_bgtask_;
