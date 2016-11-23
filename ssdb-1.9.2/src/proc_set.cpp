@@ -35,3 +35,51 @@ int proc_scard(NetworkServer *net, Link *link, const Request &req, Response *res
     resp->reply_int(ret, len);
     return 0;
 }
+
+int proc_sdiff(NetworkServer *net, Link *link, const Request &req, Response *resp){
+    return 0;
+}
+
+int proc_sdiffstore(NetworkServer *net, Link *link, const Request &req, Response *resp){
+    return 0;
+}
+
+int proc_sinter(NetworkServer *net, Link *link, const Request &req, Response *resp){
+    return 0;
+}
+
+int proc_sinterstore(NetworkServer *net, Link *link, const Request &req, Response *resp){
+    return 0;
+}
+
+int proc_sismember(NetworkServer *net, Link *link, const Request &req, Response *resp){
+    return 0;
+}
+
+int proc_smembers(NetworkServer *net, Link *link, const Request &req, Response *resp){
+    return 0;
+}
+
+int proc_smove(NetworkServer *net, Link *link, const Request &req, Response *resp){
+    return 0;
+}
+
+int proc_spop(NetworkServer *net, Link *link, const Request &req, Response *resp){
+    return 0;
+}
+
+int proc_srandmember(NetworkServer *net, Link *link, const Request &req, Response *resp){
+    return 0;
+}
+
+int proc_sunion(NetworkServer *net, Link *link, const Request &req, Response *resp){
+    return 0;
+}
+
+int proc_sunionstore(NetworkServer *net, Link *link, const Request &req, Response *resp){
+    return 0;
+}
+
+int proc_sscan(NetworkServer *net, Link *link, const Request &req, Response *resp){
+    return 0;
+}
