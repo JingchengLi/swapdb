@@ -169,3 +169,14 @@ int SSDBImpl::scard(const Bytes &key, uint64_t *llen) {
     }
     return s;
 }
+
+int SSDBImpl::sismember(const Bytes &key, const Bytes &member) {
+    SetMetaVal sv;
+    std::string meta_key = encode_meta_key(key);
+    int s = GetSetMetaVal(meta_key, sv);
+    if (1 == s){
+        std::string hkey = encode_set_key(key, member, sv.version);
+        s = GetSetItemValInternal(hkey);
+    }
+    return s;
+}

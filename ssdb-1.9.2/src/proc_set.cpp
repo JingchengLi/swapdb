@@ -53,6 +53,10 @@ int proc_sinterstore(NetworkServer *net, Link *link, const Request &req, Respons
 }
 
 int proc_sismember(NetworkServer *net, Link *link, const Request &req, Response *resp){
+    CHECK_NUM_PARAMS(3);
+    SSDBServer *serv = (SSDBServer *)net->data;
+    int ret = serv->ssdb->sismember(req[1], req[2]);
+    resp->reply_bool(ret);
     return 0;
 }
 

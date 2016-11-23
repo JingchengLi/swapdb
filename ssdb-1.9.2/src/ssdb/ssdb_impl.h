@@ -134,6 +134,7 @@ public:
     virtual int sadd(const Bytes &key, const Bytes &member, char log_type=BinlogType::SYNC);
 	virtual int srem(const Bytes &key, const Bytes &member, char log_type=BinlogType::SYNC);
 	virtual int scard(const Bytes &key, uint64_t *llen);
+    virtual int sismember(const Bytes &key, const Bytes &member);
 
 	/* zset */
 	virtual int64_t zclear(const Bytes &name);
