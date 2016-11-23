@@ -212,3 +212,27 @@ int SSDBImpl::smembers(const Bytes &key, std::vector<std::string> &members) {
     it = NULL;
     return s;
 }
+
+int SSDBImpl::sunion(const std::vector<Bytes> &keys, std::set<std::string> &members) {
+    members.clear();
+    int size = (int)keys.size();
+    for (int i = 1; i < size; ++i) {
+        SetMetaVal sv;
+        std::string meta_key = encode_meta_key(keys[i]);
+        int s = GetSetMetaVal(meta_key, sv);
+        if (s == -1){
+            members.clear();
+            return -1;
+        } else if (s == 0){
+            continue;
+        } else{
+            SIterator* it = sscan_internal(keys[i], "", "", sv.version, -1);
+            while (it->next()){
+                members.insert(it->key);
+            }
+            delete it;
+            it = NULL;
+        }
+    }
+    return 1;
+}

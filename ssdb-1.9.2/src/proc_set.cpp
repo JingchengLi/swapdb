@@ -69,11 +69,13 @@ int proc_smembers(NetworkServer *net, Link *link, const Request &req, Response *
         resp->resp.push_back("error");
     } else if (ret == 0){
         resp->resp.push_back("not_found");
+    } else{
+        std::vector<std::string>::iterator it = members.begin();
+        for (;  it != members.end(); ++it) {
+            resp->push_back(*it);
+        }
     }
-    std::vector<std::string>::iterator it = members.begin();
-    for (;  it != members.end(); ++it) {
-        resp->push_back(*it);
-    }
+
     return 0;
 }
 
@@ -90,6 +92,20 @@ int proc_srandmember(NetworkServer *net, Link *link, const Request &req, Respons
 }
 
 int proc_sunion(NetworkServer *net, Link *link, const Request &req, Response *resp){
+    CHECK_NUM_PARAMS(2);
+    SSDBServer *serv = (SSDBServer *)net->data;
+    std::set<std::string> members;
+
+    int ret = serv->ssdb->sunion(req, members);
+    if (ret == -1){
+        resp->resp.push_back("error");
+    } else{
+        std::set<std::string>::iterator it = members.begin();
+        for (; it != members.end(); ++it) {
+            resp->push_back(*it);
+        }
+    }
+
     return 0;
 }
 
