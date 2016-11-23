@@ -61,6 +61,18 @@ DEF_PROC(multi_hdel);
 DEF_PROC(sadd);
 DEF_PROC(srem);
 DEF_PROC(scard);
+DEF_PROC(sdiff);
+DEF_PROC(sdiffstore);
+DEF_PROC(sinter);
+DEF_PROC(sinterstore);
+DEF_PROC(sismember);
+DEF_PROC(smembers);
+DEF_PROC(smove);
+DEF_PROC(spop);
+DEF_PROC(srandmember);
+DEF_PROC(sunion);
+DEF_PROC(sunionstore);
+DEF_PROC(sscan);
 
 DEF_PROC(zrank);
 DEF_PROC(zrrank);
@@ -189,6 +201,18 @@ void SSDBServer::reg_procs(NetworkServer *net){
 	REG_PROC(sadd, "wt");
     REG_PROC(srem, "wt");
 	REG_PROC(scard, "rt");
+    REG_PROC(sdiff, "rt");
+    REG_PROC(sdiffstore, "wt");
+    REG_PROC(sinter, "rt");
+    REG_PROC(sinterstore, "wt");
+    REG_PROC(sismember, "rt");
+    REG_PROC(smembers, "rt");
+    REG_PROC(smove, "wt");
+    REG_PROC(spop, "wt");
+    REG_PROC(srandmember, "rt");
+    REG_PROC(sunion, "rt");
+    REG_PROC(sunionstore, "wt");
+    REG_PROC(sscan, "rt");
 
 	// because zrank may be extremly slow, execute in a seperate thread
 	REG_PROC(zrank, "rt");
