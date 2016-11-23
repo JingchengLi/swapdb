@@ -449,6 +449,19 @@ Status ClientImpl::scard(const std::string &name, int64_t *ret) {
     return _read_int64(resp, ret);
 }
 
+Status ClientImpl::sismember(const std::string &name, const std::string &key) {
+    const std::vector<std::string> *resp;
+    resp = this->request("sismember", name), key;
+    Status s(resp);
+    return s;
+}
+
+Status ClientImpl::smembers(const std::string &name, std::vector<std::string> *ret) {
+	const std::vector<std::string> *resp;
+	resp = this->request("smembers", name);
+	return _read_list(resp, ret);
+}
+
 /******************** zset *************************/
 
 
