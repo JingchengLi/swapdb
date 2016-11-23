@@ -164,6 +164,36 @@ bool HIterator::next(){
 	return false;
 }
 
+/* SET */
+SIterator::SIterator(Iterator *it, const Bytes &name, uint16_t version) {
+	this->it = it;
+	this->name.assign(name.data(), name.size());
+	this->version = version;
+}
+
+SIterator::~SIterator() {
+	delete it;
+	it = NULL;
+}
+
+bool SIterator::next() {
+	while (it->next()){
+		Bytes ks = it->key();
+
+		SetItemKey sk;
+		if (sk.DecodeItemKey(ks.String()) == -1){
+			continue;
+		}
+		if(sk.key != this->name || sk.version != this->version){
+			return false;
+		}
+		this->key = sk.field;
+
+		return true;
+	}
+	return false;
+}
+
 /* ZSET */
 
 // todo r2m adaptation

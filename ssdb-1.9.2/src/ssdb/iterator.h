@@ -76,6 +76,21 @@ private:
 };
 
 
+class SIterator{
+public:
+	std::string name;
+	std::string key;
+	uint16_t 	version;
+
+	SIterator(Iterator *it, const Bytes &name, uint16_t version = 0);
+	~SIterator();
+	bool next();
+
+private:
+	Iterator	*it;
+};
+
+
 // todo r2m adaptation
 class ZIterator{
 public:
