@@ -279,7 +279,9 @@ int SSDBImpl::RPush(const Bytes &key, const Bytes &val, uint64_t *llen) {
     ListMetaVal meta_val;
     std::string meta_key = encode_meta_key(key);
     int ret = GetListMetaVal(meta_key, meta_val);
-    if (1 == ret) {
+    if (-1 == ret){
+        return -1;
+    } else if (1 == ret) {
         old_len = meta_val.length;
         ret = DoRPush(meta_val, key, val, meta_key);
         if (-1 == ret){
