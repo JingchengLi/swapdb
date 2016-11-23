@@ -1,7 +1,7 @@
 include ../build_config.mk
 
 OBJS = proc_kv.o proc_hash.o proc_zset.o proc_queue.o \
-	backend_dump.o backend_sync.o slave.o \
+	proc_set.o backend_dump.o backend_sync.o slave.o \
 	serv.o proc_cluster.o cluster.o cluster_store.o cluster_migrate.o
 LIBS = ./ssdb/libssdb.a ./util/libutil.a ./net/libnet.a ./codec/libcodec.a
 EXES = ../ssdb-server
@@ -38,6 +38,8 @@ proc_zset.o: serv.h proc_zset.cpp
 	${CXX} ${CFLAGS} -c proc_zset.cpp
 proc_queue.o: serv.h proc_queue.cpp
 	${CXX} ${CFLAGS} -c proc_queue.cpp
+proc_set.o: serv.h proc_set.cpp
+	${CXX} ${CFLAGS} -c proc_set.cpp
 
 serv.o: serv.h serv.cpp
 	${CXX} ${CFLAGS} -c serv.cpp
