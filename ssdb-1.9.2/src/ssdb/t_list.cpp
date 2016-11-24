@@ -352,69 +352,48 @@ static int64_t GetRealIndex(const ListMetaVal &meta_val, const int64_t index) {
     return real_index;
 }
 
-int SSDBImpl::lrange(const Bytes &key, int64_t begin, int64_t end, std::vector<std::string> *list){
+int SSDBImpl::lrange(const Bytes &key, int64_t start, int64_t end, std::vector<std::string> *list){
     Transaction trans(binlogs);
-
-    int64_t real_begin, real_end;
-    uint64_t begin_seq, end_seq;
 
     ListMetaVal meta_val;
     std::string meta_key = encode_meta_key(key);
-    const rocksdb::Snapshot* ss = ldb->GetSnapshot();
-    rocksdb::ReadOptions rop = rocksdb::ReadOptions();
-    rop.snapshot = ss;
     int ret = GetListMetaVal(meta_key, meta_val);
-    if (1 == ret) {
-        real_begin = GetRealIndex(meta_val, begin);
-        real_end = GetRealIndex(meta_val, end);
+    if (ret != 1){
+        return ret;
+    }
+    int64_t llen = (int64_t)meta_val.length;
+    if (start < 0) start = llen+start;
+    if (end < 0) end = llen+end;
+    if (start < 0) start = 0;
 
-        begin_seq = getSeqByIndex(real_begin, meta_val);
-        end_seq = getSeqByIndex(real_end, meta_val);
+    /* Invariant: start >= 0, so this test will be true when end < 0.
+     * The range is empty when start > end or start >= length. */
+    if (start > end || start >= llen) {
+        return -1;
+    }
+    if (end >= llen) end = llen-1;
+    int64_t rangelen = (end-start)+1;
 
-        if (meta_val.left_seq > meta_val.right_seq) {
-            if (begin_seq >= meta_val.left_seq && begin_seq <= UINT64_MAX) {
-                if (end_seq >= meta_val.left_seq && end_seq <= UINT64_MAX) {
-                    if (begin_seq > end_seq) {
-                        goto LRANGE_DONE;
-                    }
-                }
-            } else {
-                if (end_seq >= meta_val.left_seq && end_seq <= UINT64_MAX) {
-                    goto LRANGE_DONE;
-                } else if (begin_seq > end_seq) {
-                    goto LRANGE_DONE;
-                }
-            }
-        } else {
-            if (begin_seq > end_seq) {
-                goto LRANGE_DONE;
-            }
+    uint64_t begin_seq = getSeqByIndex(start, meta_val);
+//  uint64_t end_seq = getSeqByIndex(end, meta_val);
+    uint64_t cur_seq = begin_seq;
+
+    while (rangelen--){
+        std::string val;
+        std::string item_key = encode_list_key(key, cur_seq, meta_val.version);
+        ret = GetListItemVal(item_key, &val);
+        if (1 != ret){
+            list->clear();
+            return -1;
         }
+        list->push_back(val);
 
-        uint64_t cur_seq = begin_seq;
-        int64_t start_index = 1;
-        while (1) {
-            std::string val;
-            std::string item_key = encode_list_key(key, cur_seq, meta_val.version);
-            ret = GetListItemVal(item_key, &val);
-            if (1 != ret){
-                goto LRANGE_DONE;
-            }
-
-            list->push_back(val);
-
-            if (cur_seq == end_seq || INT64_MAX == start_index)
-                break;
-
-            if (UINT64_MAX == cur_seq) {
-                cur_seq = 0;
-            } else {
-                cur_seq++;
-            }
-            start_index++;
+        if (UINT64_MAX == cur_seq) {
+            cur_seq = 0;
+        } else {
+            cur_seq++;
         }
     }
-    LRANGE_DONE:
-    ldb->ReleaseSnapshot(ss);
+
     return ret;
 }
