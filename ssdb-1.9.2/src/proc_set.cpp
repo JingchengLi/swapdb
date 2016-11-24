@@ -24,8 +24,11 @@ int proc_srem(NetworkServer *net, Link *link, const Request &req, Response *resp
 
     const Bytes &name = req[1];
     const Bytes &key = req[2];
-    int ret = serv->ssdb->srem(name, key);
-    resp->reply_bool(ret);
+//    int ret = serv->ssdb->srem(name, key);
+//    resp->reply_bool(ret);
+    int64_t num = 0;
+    int ret = serv->ssdb->multi_srem(name, req, &num);
+    resp->reply_int(ret, num);
     return 0;
 }
 
@@ -73,6 +76,7 @@ int proc_smembers(NetworkServer *net, Link *link, const Request &req, Response *
     } else if (ret == 0){
         resp->resp.push_back("not_found");
     } else{
+        resp->resp.push_back("ok");
         std::vector<std::string>::iterator it = members.begin();
         for (;  it != members.end(); ++it) {
             resp->push_back(*it);
