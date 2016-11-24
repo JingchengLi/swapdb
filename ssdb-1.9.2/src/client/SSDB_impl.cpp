@@ -464,8 +464,14 @@ Status ClientImpl::smembers(const std::string &name, std::vector<std::string> *r
 
 Status ClientImpl::sunion(const std::vector<std::string> &names, std::vector<std::string> *ret) {
 	const std::vector<std::string> *resp;
-	resp = this->request(names);
+	resp = this->request("sunion", names);
 	return _read_list(resp, ret);
+}
+
+Status ClientImpl::sunionstore(const std::vector<std::string> &names, int64_t *ret) {
+	const std::vector<std::string> *resp;
+	resp = this->request("sunionstore", names);
+	return _read_int64(resp, ret);
 }
 
 /******************** zset *************************/

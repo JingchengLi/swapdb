@@ -139,6 +139,7 @@ public:
     virtual int sismember(const Bytes &key, const Bytes &member);
     virtual int smembers(const Bytes &key, std::vector<std::string> &members);
     virtual int sunion(const std::vector<Bytes> &keys, std::set<std::string>& members);
+    virtual int sunionstore(const Bytes &destination, const std::vector<Bytes> &keys, int64_t *num, char log_type=BinlogType::SYNC);
 
 	/* zset */
 	virtual int64_t zclear(const Bytes &name);
@@ -217,6 +218,7 @@ private:
     int incr_ssize(const Bytes &key, int64_t incr);
 	int srem_one(const Bytes &key, const Bytes &member, char log_type);
     SIterator* sscan_internal(const Bytes &name, const Bytes &start, const Bytes &end, uint16_t version, uint64_t limit);
+    int sunion_internal(const std::vector<Bytes> &keys, int offset, std::set<std::string>& members);
 
 private:
 	//    pthread_mutex_t mutex_bgtask_;

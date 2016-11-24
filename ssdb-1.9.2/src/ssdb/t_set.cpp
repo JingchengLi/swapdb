@@ -301,10 +301,10 @@ int SSDBImpl::smembers(const Bytes &key, std::vector<std::string> &members) {
     return s;
 }
 
-int SSDBImpl::sunion(const std::vector<Bytes> &keys, std::set<std::string> &members) {
+int SSDBImpl::sunion_internal(const std::vector<Bytes> &keys, int offset, std::set<std::string> &members) {
     members.clear();
     int size = (int)keys.size();
-    for (int i = 1; i < size; ++i) {
+    for (int i = offset; i < size; ++i) {
         SetMetaVal sv;
         std::string meta_key = encode_meta_key(keys[i]);
         int s = GetSetMetaVal(meta_key, sv);
@@ -322,5 +322,73 @@ int SSDBImpl::sunion(const std::vector<Bytes> &keys, std::set<std::string> &memb
             it = NULL;
         }
     }
+    return 1;
+}
+
+int SSDBImpl::sunion(const std::vector<Bytes> &keys, std::set<std::string> &members) {
+    Transaction trans(binlogs);
+
+    return sunion_internal(keys, 1, members);
+}
+
+int SSDBImpl::sunionstore(const Bytes &destination, const std::vector<Bytes> &keys, int64_t *num, char log_type) {
+    Transaction trans(binlogs);
+
+    std::set<std::string> members;
+    int ret = sunion_internal(keys, 2, members);
+    if (ret == -1){
+        return -1;
+    }
+
+    std::string key_type;
+    ret = type(destination, &key_type);
+    if (ret  == -1){
+        return -1;
+    } else if (ret == 1){
+        DelKeyByType(destination, key_type);
+    }
+
+    *num = members.size();
+    std::set<std::string>::iterator it = members.begin();
+    std::string val;
+    std::string meta_key = encode_meta_key(destination);
+    leveldb::Status s = ldb->Get(leveldb::ReadOptions(), meta_key, &val);
+    if(s.IsNotFound()){
+        for (; it != members.end(); ++it) {
+            std::string hkey = encode_set_key(destination, *it);
+            binlogs->Put(hkey, slice(""));
+        }
+        std::string size_val = encode_set_meta_val((uint64_t)(*num));
+        binlogs->Put(meta_key, size_val);
+    } else if(s.ok()){
+        if (val[0] == DataType::SSIZE){
+            SetMetaVal sv;
+            if (sv.DecodeMetaVal(val) == -1){
+                return -1;
+            }
+            for (; it != members.end(); ++it) {
+                std::string hkey = encode_set_key(destination, *it, (uint16_t)(sv.version+1));
+                binlogs->Put(hkey, slice(""));
+            }
+            std::string size_val = encode_set_meta_val((uint64_t)(*num), (uint16_t)(sv.version+1));
+            binlogs->Put(meta_key, size_val);
+        } else{
+            for (; it != members.end(); ++it) {
+                std::string hkey = encode_set_key(destination, *it);
+                binlogs->Put(hkey, slice(""));
+            }
+            std::string size_val = encode_set_meta_val((uint64_t)(*num));
+            binlogs->Put(meta_key, size_val);
+        }
+    } else if(!s.ok()){
+        log_error("get error: %s", s.ToString().c_str());
+        return -1;
+    }
+
+    s = binlogs->commit();
+    if(!s.ok()){
+        return -1;
+    }
+
     return 1;
 }

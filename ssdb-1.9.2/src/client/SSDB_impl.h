@@ -73,6 +73,7 @@ public:
 	virtual Status smembers(const std::string &name, std::vector<std::string> *ret);
     virtual Status sismember(const std::string &name, const std::string &key);
 	virtual Status sunion(const std::vector<std::string> &names, std::vector<std::string> *ret);
+	virtual Status sunionstore(const std::vector<std::string> &names, int64_t *ret);
 
 	virtual Status zget(const std::string &name, const std::string &key, double *ret);
 	virtual Status zset(const std::string &name, const std::string &key, double score);
