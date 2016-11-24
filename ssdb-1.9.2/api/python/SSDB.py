@@ -283,7 +283,7 @@ class SSDB(object):
 		# {{{ switch: cmd
 		_continue_1 = False
 		while True:
-			if False or ((cmd) == 'ping') or ((cmd) == 'set') or ((cmd) == 'del') or ((cmd) == 'qset') or ((cmd) == 'zset') or ((cmd) == 'hset') or ((cmd) == 'qpush') or ((cmd) == 'qpush_front') or ((cmd) == 'qpush_back') or ((cmd) == 'zdel') or ((cmd) == 'hdel') or ((cmd) == 'multi_set') or ((cmd) == 'multi_del') or ((cmd) == 'multi_hset') or ((cmd) == 'multi_hdel') or ((cmd) == 'multi_zset') or ((cmd) == 'multi_zdel'):
+			if False or ((cmd) == 'ping') or ((cmd) == 'set') or ((cmd) == 'del') or ((cmd) == 'qset') or ((cmd) == 'zset') or ((cmd) == 'hset') or ((cmd) == 'qpush') or ((cmd) == 'qpush_front') or ((cmd) == 'qpush_back') or ((cmd) == 'zdel') or ((cmd) == 'hdel') or ((cmd) == 'multi_set') or ((cmd) == 'multi_del') or ((cmd) == 'multi_hset') or ((cmd) == 'multi_hdel') or ((cmd) == 'multi_zset') or ((cmd) == 'multi_zdel') or ((cmd) == 'sadd') or ((cmd) == 'srem'):
 				pass
 
 				if len(resp)>1:
@@ -313,7 +313,7 @@ class SSDB(object):
 					pass
 					return ret.list_resp(resp)
 				break
-			if False or ((cmd) == 'dbsize') or ((cmd) == 'getbit') or ((cmd) == 'setbit') or ((cmd) == 'countbit') or ((cmd) == 'bitcount') or ((cmd) == 'strlen') or ((cmd) == 'ttl') or ((cmd) == 'expire') or ((cmd) == 'setnx') or ((cmd) == 'incr') or ((cmd) == 'decr') or ((cmd) == 'zdecr') or ((cmd) == 'hincr') or ((cmd) == 'hdecr') or ((cmd) == 'hsize') or ((cmd) == 'zsize') or ((cmd) == 'qsize') or ((cmd) == 'zrank') or ((cmd) == 'zrrank') or ((cmd) == 'zcount') or ((cmd) == 'zremrangebyrank') or ((cmd) == 'zremrangebyscore') or ((cmd) == 'hclear') or ((cmd) == 'zclear') or ((cmd) == 'qclear') or ((cmd) == 'qpush') or ((cmd) == 'qpush_front') or ((cmd) == 'qpush_back') or ((cmd) == 'qtrim_front') or ((cmd) == 'qtrim_back'):
+			if False or ((cmd) == 'dbsize') or ((cmd) == 'getbit') or ((cmd) == 'setbit') or ((cmd) == 'countbit') or ((cmd) == 'bitcount') or ((cmd) == 'strlen') or ((cmd) == 'ttl') or ((cmd) == 'expire') or ((cmd) == 'setnx') or ((cmd) == 'incr') or ((cmd) == 'decr') or ((cmd) == 'zdecr') or ((cmd) == 'hincr') or ((cmd) == 'hdecr') or ((cmd) == 'hsize') or ((cmd) == 'zsize') or ((cmd) == 'qsize') or ((cmd) == 'scard') or ((cmd) == 'zrank') or ((cmd) == 'zrrank') or ((cmd) == 'zcount') or ((cmd) == 'zremrangebyrank') or ((cmd) == 'zremrangebyscore') or ((cmd) == 'hclear') or ((cmd) == 'zclear') or ((cmd) == 'qclear') or ((cmd) == 'qpush') or ((cmd) == 'qpush_front') or ((cmd) == 'qpush_back') or ((cmd) == 'qtrim_front') or ((cmd) == 'qtrim_back'):
 				pass
 				return ret.int_resp(resp)
 				break
@@ -321,7 +321,7 @@ class SSDB(object):
 				pass
 				return ret.float_resp(resp)
 				break
-			if False or ((cmd) == 'keys') or ((cmd) == 'rkeys') or ((cmd) == 'zkeys') or ((cmd) == 'zrkeys') or ((cmd) == 'hkeys') or ((cmd) == 'hrkeys') or ((cmd) == 'list') or ((cmd) == 'hlist') or ((cmd) == 'hrlist') or ((cmd) == 'zlist') or ((cmd) == 'zrlist'):
+			if False or ((cmd) == 'keys') or ((cmd) == 'rkeys') or ((cmd) == 'zkeys') or ((cmd) == 'zrkeys') or ((cmd) == 'hkeys') or ((cmd) == 'hrkeys') or ((cmd) == 'list') or ((cmd) == 'hlist') or ((cmd) == 'hrlist') or ((cmd) == 'zlist') or ((cmd) == 'zrlist') or ((cmd) == 'smembers') or ((cmd) == 'sunion'):
 				pass
 				return ret.list_resp(resp)
 				break
@@ -333,7 +333,7 @@ class SSDB(object):
 				pass
 				return ret.double_map_resp(resp)
 				break
-			if False or ((cmd) == 'auth') or ((cmd) == 'exists') or ((cmd) == 'hexists') or ((cmd) == 'zexists'):
+			if False or ((cmd) == 'auth') or ((cmd) == 'exists') or ((cmd) == 'hexists') or ((cmd) == 'zexists') or ((cmd) == 'sismember'):
 				pass
 				return ret.int_resp(resp)
 				break
