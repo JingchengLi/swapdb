@@ -77,6 +77,7 @@ SET( SSDB_OBJS
     ${BUILD_PATH}/src/ssdb/binlog.cpp
     ${BUILD_PATH}/src/ssdb/ttl.cpp
     ${BUILD_PATH}/src/ssdb/t_list.cpp
+    ${BUILD_PATH}/src/ssdb/t_set.cpp
 )
 
 ADD_LIBRARY(libssdb-static STATIC ${SSDB_OBJS})                                                                                                                                                  
@@ -186,6 +187,7 @@ SET( SRC_OBJS
     ${BUILD_PATH}/src/proc_hash.cpp
     ${BUILD_PATH}/src/proc_zset.cpp
     ${BUILD_PATH}/src/proc_queue.cpp
+    ${BUILD_PATH}/src/proc_set.cpp
     ${BUILD_PATH}/src/backend_dump.cpp
     ${BUILD_PATH}/src/backend_sync.cpp
     ${BUILD_PATH}/src/slave.cpp
@@ -197,4 +199,4 @@ SET( SRC_OBJS
 )
 
 ADD_EXECUTABLE(ssdb-server ${SRC_OBJS})                                                                                                                                             
-TARGET_LINK_LIBRARIES(ssdb-server libssdb-static libutil-static libnet-static snappy bz2 z jemalloc pthread rt gtest gflags libcodec-static) 
+TARGET_LINK_LIBRARIES(ssdb-server libssdb-static libutil-static libnet-static snappy bz2 z jemalloc pthread rt rocksdb gtest gflags libcodec-static) 

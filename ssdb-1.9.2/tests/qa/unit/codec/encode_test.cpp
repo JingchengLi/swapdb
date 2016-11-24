@@ -93,13 +93,13 @@ TEST_F(EncodeTest, Test_encode_hash_key) {
 
     delete space;
 }
-/* 
+
 TEST_F(EncodeTest, Test_encode_set_key) {
     char* space = new char[maxFieldLen_+maxKeyLen_+5];
     string key, field;
     uint16_t version;
 
-    //Some random keys
+    // Some random keys
     uint16_t keysNum = 100;
     for(int n = 0; n < keysNum; n++)
     {
@@ -109,17 +109,17 @@ TEST_F(EncodeTest, Test_encode_set_key) {
         compare_encode_key_internal(encode_set_key, key, field, version, space);
     }
 
-    //Some special keys
+    // Some special keys
     keysNum = sizeof(Keys)/sizeof(string);
 
     for(int n = 0; n < keysNum; n++)
         compare_encode_key_internal(encode_set_key, Keys[n], field, version, space);
 
-    //MaxLength key
+    // MaxLength key
     compare_encode_key_internal(encode_set_key, GetRandomBytes_(maxKeyLen_), field, version, space);
 
     delete space;
-} */
+} 
 
 TEST_F(EncodeTest, Test_encode_zset_key) {
     char* space = new char[maxFieldLen_+maxKeyLen_+5];
@@ -361,6 +361,7 @@ TEST_F(EncodeTest, Test_encode_zset_meta_val) {
 
     delete space;
 }
+
 void compare_encode_list_meta_val(uint64_t length, uint64_t left, uint64_t right, uint16_t version, char del, char* expectStr){
     string val_list = encode_list_meta_val(length, left, right, version, del);
     uint8_t* pversion = (uint8_t*)&version;
