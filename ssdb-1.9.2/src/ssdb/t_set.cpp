@@ -204,6 +204,43 @@ int SSDBImpl::multi_sadd(const Bytes &key, const std::vector<Bytes> &members, in
     return ret;
 }
 
+int SSDBImpl::multi_srem(const Bytes &key, const std::vector<Bytes> &members, int64_t *num, char log_type) {
+    Transaction trans(binlogs);
+
+    int ret = 0;
+    *num = 0;
+    SetMetaVal sv;
+    std::string meta_key = encode_meta_key(key.String());
+    ret = GetSetMetaVal(meta_key, sv);
+    if (ret != 1){
+        return ret;
+    }
+
+    for (int i = 2; i < members.size(); ++i){
+        const Bytes& member= members[i];
+        std::string hkey = encode_set_key(key, member, sv.version);
+        int s = GetSetItemValInternal(hkey);
+        if (s == 1){
+            *num += 1;
+            binlogs->Delete(hkey);
+        } else if (s == -1){
+            return -1;
+        }
+    }
+
+    if (*num > 0){
+        if(incr_ssize(key, (-1)*(*num)) == -1){
+            return -1;
+        }
+    }
+    leveldb::Status s = binlogs->commit();
+    if(!s.ok()){
+        return -1;
+    }
+
+    return ret;
+}
+
 int SSDBImpl::srem(const Bytes &key, const Bytes &member, char log_type) {
     Transaction trans(binlogs);
 
