@@ -72,7 +72,8 @@ public:
 	int64_t GetRandomInt64_() {
         int64_t randomInt64 = 0;
 		struct timeval currentTime;
-        for(int count = 0; count < 64; count++)
+        int bits = rand()%64;
+        for(int count = 0; count < bits; count++)
         {
             gettimeofday(&currentTime, NULL);
             srand(currentTime.tv_usec);
@@ -90,9 +91,14 @@ public:
 	}
 	
 	double GetRandomDouble_() {
-		int base_precision = 1000000;
-		int64_t res_int = GetRandomInt64_();
-		return res_int*1.0/base_precision;
+		struct timeval currentTime;
+		gettimeofday(&currentTime, NULL);
+		srand(currentTime.tv_usec);
+		//Currently zset score range is -1e13 to 1e13
+		int eNum = rand()%24 - 12;
+		float base = rand()*1.0/rand();
+		double randomDouble = base*pow(10, eNum);
+		return randomDouble; 
 	}
 	
 	inline unsigned int GetRandomSeq_()
