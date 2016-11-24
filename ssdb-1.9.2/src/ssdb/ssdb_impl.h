@@ -132,6 +132,7 @@ public:
 
     /* set */
     virtual int sadd(const Bytes &key, const Bytes &member, char log_type=BinlogType::SYNC);
+    virtual int multi_sadd(const Bytes &key, const std::vector<Bytes> &members, int64_t *num, char log_type=BinlogType::SYNC);
 	virtual int srem(const Bytes &key, const Bytes &member, char log_type=BinlogType::SYNC);
 	virtual int scard(const Bytes &key, uint64_t *llen);
     virtual int sismember(const Bytes &key, const Bytes &member);

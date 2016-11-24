@@ -153,6 +153,57 @@ int SSDBImpl::sadd(const Bytes &key, const Bytes &member, char log_type){
     return ret;
 }
 
+int SSDBImpl::multi_sadd(const Bytes &key, const std::vector<Bytes> &members, int64_t *num, char log_type) {
+    Transaction trans(binlogs);
+
+    int ret = 0;
+    SetMetaVal sv;
+    std::string meta_key = encode_meta_key(key.String());
+    ret = GetSetMetaVal(meta_key, sv);
+    if (ret == -1){
+        return -1;
+    }
+
+    *num = 0;
+    for (int i = 2; i < members.size(); ++i) {
+        const Bytes& member= members[i];
+        int change = 0;
+        if (ret == 0 && sv.del == KEY_DELETE_MASK){
+            std::string hkey = encode_set_key(key, member, (uint16_t)(sv.version+1));
+            binlogs->Put(hkey, slice(""));
+            change = 1;
+        } else if (ret == 0){
+            std::string hkey = encode_set_key(key, member);
+            binlogs->Put(hkey, slice(""));
+            change = 1;
+        } else{
+            std::string item_key = encode_set_key(key, member, sv.version);
+            int s = GetSetItemValInternal(item_key);
+            if (s == -1){
+                return -1;
+            } else if (s == 1){
+                change = 0;
+            } else{
+                binlogs->Put(item_key, slice(""));
+                change = 1;
+            }
+        }
+        *num += change;
+    }
+
+    if (*num > 0){
+        if(incr_ssize(key, *num) == -1){
+            return -1;
+        }
+    }
+    leveldb::Status s = binlogs->commit();
+    if(!s.ok()){
+        return -1;
+    }
+
+    return ret;
+}
+
 int SSDBImpl::srem(const Bytes &key, const Bytes &member, char log_type) {
     Transaction trans(binlogs);
 
