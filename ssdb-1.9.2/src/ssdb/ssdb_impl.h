@@ -122,7 +122,7 @@ public:
 	virtual int RPop(const Bytes &key, std::string *val);
 	virtual int RPush(const Bytes &key, const Bytes &val, uint64_t *llen);
 	virtual int LSet(const Bytes &key, const int64_t index, const Bytes &val);
-	virtual int lrange(const Bytes &key, int64_t begin, int64_t end, std::vector<std::string> *list);
+	virtual int lrange(const Bytes &key, int64_t start, int64_t end, std::vector<std::string> *list);
     int     GetListMetaVal(const std::string& meta_key, ListMetaVal& lv);
     int     GetListItemVal(const std::string& item_key, std::string* val);
     int     DoLPush(ListMetaVal &meta_val, const Bytes &key, const Bytes &val, std::string &meta_key);
