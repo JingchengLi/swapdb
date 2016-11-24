@@ -185,6 +185,7 @@ public:
 	virtual Status smembers(const std::string &name, std::vector<std::string> *ret) = 0;
     virtual Status sismember(const std::string &name, const std::string &key) = 0;
 	virtual Status sunion(const std::vector<std::string> &names, std::vector<std::string> *ret) = 0;
+	virtual Status sunionstore(const std::vector<std::string> &names, int64_t *ret) = 0;
 	/// @}
 
 	/// @name Zset methods
