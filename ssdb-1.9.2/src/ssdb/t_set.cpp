@@ -392,3 +392,50 @@ int SSDBImpl::sunionstore(const Bytes &destination, const std::vector<Bytes> &ke
 
     return 1;
 }
+
+int64_t SSDBImpl::SDelKeyNoLock(const Bytes &name, char log_type) {
+    SetMetaVal sv;
+    std::string meta_key = encode_meta_key(name);
+    int s = GetSetMetaVal(meta_key, sv);
+    if (s != 1){
+        return s;
+    }
+
+    if (sv.length > MAX_NUM_DELETE){
+        std::string del_key = encode_delete_key(name, DataType::SSIZE, sv.version);
+        std::string meta_val = encode_set_meta_val(sv.length, sv.version, KEY_DELETE_MASK);
+        binlogs->Put(del_key, "");
+        binlogs->Put(meta_key, meta_val);
+        return (int64_t)sv.length;
+    }
+
+    SIterator *it = this->sscan_internal(name, "", "", sv.version, -1);
+    int num = 0;
+    while (it->next()){
+        std::string hkey = encode_set_key(name, it->key, sv.version);
+        binlogs->Delete(hkey);
+        num++;
+    }
+    if (num > 0){
+        if(incr_ssize(name, -num) == -1){
+            return -1;
+        }
+    }
+
+    return num;
+}
+
+int64_t SSDBImpl::sclear(const Bytes &name) {
+    Transaction trans(binlogs);
+
+    int64_t num = SDelKeyNoLock(name);
+
+    if (num > 0){
+        leveldb::Status s = binlogs->commit();
+        if (!s.ok()){
+            return -1;
+        }
+    }
+
+    return num;
+}

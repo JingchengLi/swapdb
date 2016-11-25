@@ -128,34 +128,34 @@ int SSDBImpl::getset(const Bytes &key, std::string *val, const Bytes &newval, ch
 
 
 int SSDBImpl::del(const Bytes &key, char log_type){
+    Transaction trans(binlogs);
+
     std::string key_type;
     int ret = type(key, &key_type);
     if (ret != 1){
         return ret;
     }
+    int64_t num = 0;
     if (key_type == "string"){
-        ret = KDel(key);
+        num = KDelNoLock(key);
     } else if (key_type == "hash"){
-        ret = hclear(key);
+        num = HDelKeyNoLock(key);
     } else if (key_type == "set"){
-        //todo
+        num = SDelKeyNoLock(key);
     } else if (key_type == "zset"){
-        ret = zclear(key);
+        num = ZDelKeyNoLock(key);
     } else if (key_type == "list"){
         //todo
     }
 
-/*	Transaction trans(binlogs);
+    if (num > 0){
+        leveldb::Status s = binlogs->commit();
+        if(!s.ok()){
+            log_error("set error: %s", s.ToString().c_str());
+            return -1;
+        }
+    }
 
-// todo r2m adaptation
-	std::string buf = encode_kv_key(key);
-	binlogs->Delete(buf);
-	binlogs->add_log(log_type, BinlogCommand::KDEL, buf);
-	leveldb::Status s = binlogs->commit();
-	if(!s.ok()){
-		log_error("del error: %s", s.ToString().c_str());
-		return -1;
-	}*/
 	return 1;
 }
 
@@ -317,9 +317,10 @@ int SSDBImpl::DelKeyByType(const Bytes &key, const std::string &type){
 int SSDBImpl::KDel(const Bytes &key, char log_type){
     Transaction trans(binlogs);
 
-    std::string buf = encode_meta_key(key.String());
-    binlogs->Delete(buf);
-    binlogs->add_log(log_type, BinlogCommand::KDEL, buf);
+    int num = KDelNoLock(key);
+    if (num != 1){
+        return num;
+    }
 
     leveldb::Status s = binlogs->commit();
     if(!s.ok()){
@@ -331,9 +332,21 @@ int SSDBImpl::KDel(const Bytes &key, char log_type){
 
 int SSDBImpl::KDelNoLock(const Bytes &key, char log_type){
 	std::string buf = encode_meta_key(key.String());
+    std::string en_val;
+    leveldb::Status s = ldb->Get(leveldb::ReadOptions(), buf, &en_val);
+    if(s.IsNotFound()){
+        return 0;
+    } else if(!s.ok()){
+        log_error("get error: %s", s.ToString().c_str());
+        return -1;
+    } else{
+        if (en_val[0] != DataType::KV){
+            return 0;
+        }
+    }
 	binlogs->Delete(buf);
 	binlogs->add_log(log_type, BinlogCommand::KDEL, buf);
-	return 0;
+	return 1;
 }
 
 /*
