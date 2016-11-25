@@ -18,9 +18,10 @@ class ListTest : public SSDBTest
         int64_t ret;
 };
 
-TEST_F(ListTest, Test_list_qpush_front) {
+TEST_F(ListTest, Test_list_lpush) {
 #define OKQpush_front(n) s = client->qpush_front(key, list, &ret);\
     ASSERT_TRUE(s.ok())<<"fail to qpush_front key!"<<endl;\
+    ASSERT_EQ(n, ret)<<"ret should equal to qsize:"<<key<<endl;\
     s = client->qsize(key, &ret);\
     ASSERT_EQ(n, ret)<<"qsize get not equal:"<<key<<endl;
 
@@ -36,8 +37,8 @@ TEST_F(ListTest, Test_list_qpush_front) {
         client->qpush_front(key, val+"0", &ret);
         client->qpush_front(key, val, &ret);
         getList.clear();
-        s = client->qpop_front(key, 1, &getList);
-        ASSERT_EQ(val, getList[0].data())<<"val should be pop up:"<<key<<endl;
+        s = client->qpop_front(key, &getVal);
+        ASSERT_EQ(val, getVal)<<"val should be pop up:"<<key<<endl;
         s = client->qclear(key);
     }
 
@@ -92,7 +93,7 @@ TEST_F(ListTest, Test_list_qpush_front) {
     s = client->del(key);
 }
 
-TEST_F(ListTest, Test_list_qpush_back) {
+TEST_F(ListTest, Test_list_rpush) {
 #define OKQpush_back(n) s = client->qpush_back(key, list, &ret);\
     ASSERT_TRUE(s.ok())<<"fail to qpush_back key!"<<endl;\
     s = client->qsize(key, &ret);\
@@ -110,8 +111,8 @@ TEST_F(ListTest, Test_list_qpush_back) {
         client->qpush_back(key, val+"0", &ret);
         client->qpush_back(key, val, &ret);
         getList.clear();
-        s = client->qpop_back(key, 1, &getList);
-        ASSERT_EQ(val, getList[0])<<"val should be pop up"<<endl;
+        s = client->qpop_back(key, &getVal);
+        ASSERT_EQ(val, getVal)<<"val should be pop up"<<endl;
         s = client->qclear(key);
     } 
 
@@ -166,13 +167,12 @@ TEST_F(ListTest, Test_list_qpush_back) {
     s = client->del(key);
 }
 
-TEST_F(ListTest, Test_list_qpop_front) {
-#define OKQpop_front(n) getList.clear();\
-    s = client->qpop_front(key, n, &getList);\
+TEST_F(ListTest, Test_list_lpop) {
+#define OKQpop_front(val) s = client->qpop_front(key, &getVal);\
     ASSERT_TRUE(s.ok())<<"fail to qpop_front key!"<<endl;\
-    ASSERT_EQ(n, getList.size())<<"qpop size get not equal:"<<key<<endl;
+    ASSERT_EQ(val, getVal)<<"qpop val get not equal:"<<key<<endl;
 
-#define FalseQpop_front(n) s = client->qpop_front(key, n, &getList);\
+#define FalseQpop_front s = client->qpop_front(key, &getVal);\
     ASSERT_TRUE(s.not_found())<<"this key should qpop_front fail!"<<endl;
 
     // Some special keys
@@ -184,8 +184,8 @@ TEST_F(ListTest, Test_list_qpop_front) {
         list.push_back(val);
         s = client->del(key);
         s = client->qpush_front(key, list, &ret);
-        OKQpop_front(1)
-        FalseQpop_front(1)
+        OKQpop_front(val)
+        FalseQpop_front
     } 
 
     // Some random keys
@@ -197,26 +197,19 @@ TEST_F(ListTest, Test_list_qpop_front) {
     {
         s = client->qpush_back(key, val+itoa(n), &ret);
     }
-    OKQpop_front(keysNum/2)
-    for(int n = 0; n < keysNum/2; n++)
-    {
-        ASSERT_EQ(val+itoa(n), getList[n]);
-    }
 
-    OKQpop_front(( keysNum+1 )/2)
-    for(int n = keysNum/2; n < keysNum; n++)
+    for(int n = 0; n < keysNum; n++)
     {
-        ASSERT_EQ(val+itoa(n), getList[n]);
+        OKQpop_front(val+itoa(n))
     }
 }
 
-TEST_F(ListTest, Test_list_qpop_back) {
-#define OKQpop_back(n) getList.clear();\
-    s = client->qpop_back(key, n, &getList);\
+TEST_F(ListTest, Test_list_rpop) {
+#define OKQpop_back(val) s = client->qpop_back(key, &getVal);\
     ASSERT_TRUE(s.ok())<<"fail to qpop_back key!"<<endl;\
-    ASSERT_EQ(n, getList.size())<<"qpop size get not equal:"<<key<<endl;
+    ASSERT_EQ(val, getVal)<<"qpop val get not equal:"<<key<<endl;
 
-#define FalseQpop_back(n) s = client->qpop_back(key, n, &getList);\
+#define FalseQpop_back s = client->qpop_back(key, &getVal);\
     ASSERT_TRUE(s.not_found())<<"this key should qpop_back fail!"<<endl;
 
     // Some special keys
@@ -228,8 +221,8 @@ TEST_F(ListTest, Test_list_qpop_back) {
         list.push_back(val);
         s = client->del(key);
         s = client->qpush_back(key, list, &ret);
-        OKQpop_back(1)
-        FalseQpop_back(1)
+        OKQpop_back(val)
+        FalseQpop_back
     } 
 
     // Some random keys
@@ -241,20 +234,14 @@ TEST_F(ListTest, Test_list_qpop_back) {
     {
         s = client->qpush_front(key, val+itoa(n), &ret);
     }
-    OKQpop_back(keysNum/2)
-    for(int n = 0; n < keysNum/2; n++)
-    {
-        ASSERT_EQ(val+itoa(n), getList[n]);
-    }
 
-    OKQpop_back(( keysNum+1 )/2)
-    for(int n = keysNum/2; n < keysNum; n++)
+    for(int n = 0; n < keysNum; n++)
     {
-        ASSERT_EQ(val+itoa(n), getList[n]);
+        OKQpop_back(val+itoa(n))
     }
 }
 
-TEST_F(ListTest, Test_list_qsize) {
+TEST_F(ListTest, Test_list_llen) {
 #define OKQsize(num) s = client->qsize(key, &ret);\
     ASSERT_EQ(ret, num)<<"fail to qsize key!"<<key<<endl;\
     ASSERT_TRUE(s.ok())<<"qsize key not ok!"<<endl;
@@ -295,7 +282,7 @@ TEST_F(ListTest, Test_list_qsize) {
     s = client->qclear(key);
 }
 
-TEST_F(ListTest, Test_list_qslice) {
+TEST_F(ListTest, Test_list_lrange) {
 
     // Some random keys
     keysNum = 30;
@@ -352,7 +339,7 @@ TEST_F(ListTest, Test_list_qslice) {
 
     getList.clear();
     s = client->qslice(key, -keysNum-1, -keysNum, &getList);
-    ASSERT_EQ(0, getList.size());
+    ASSERT_EQ(1, getList.size());
 
     getList.clear();
     s = client->qslice(key, -keysNum-10, -keysNum-1, &getList);

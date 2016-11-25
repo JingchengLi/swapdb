@@ -13,7 +13,7 @@ class ZsetTest : public SSDBTest
     public:
         ssdb::Status s;
         std::vector<std::string> list;
-        std::map<std::string, std::string> kvs;
+        std::map<std::string, double> items;
         std::vector<std::string> keys;
         string key, field;
         double score, getScore;
@@ -21,7 +21,7 @@ class ZsetTest : public SSDBTest
         int64_t ret;
 };
 
-TEST_F(ZsetTest, Test_zset_zset) {
+TEST_F(ZsetTest, Test_zset_zadd) {
 #define OKZset  s = client->zset(key, field, score);\
     ASSERT_TRUE(s.ok())<<"fail to zset key!"<<key<<field<<endl;\
     s = client->zget(key, field, &getScore);\
@@ -63,6 +63,7 @@ TEST_F(ZsetTest, Test_zset_zset) {
     ASSERT_EQ(keysNum, ret);
     s = client->zclear(key);
 
+
     // other types key
     s = client->del(key);
     field = GetRandomField_();
@@ -71,7 +72,7 @@ TEST_F(ZsetTest, Test_zset_zset) {
     s = client->del(key); 
 }
 
-TEST_F(ZsetTest, Test_zset_zget) {
+TEST_F(ZsetTest, Test_zset_zscore) {
 #define NotFoundZget s = client->zget(key, field, &getScore);\
     ASSERT_TRUE(s.not_found())<<"this key should be not found!"<<endl;
 
@@ -96,14 +97,12 @@ TEST_F(ZsetTest, Test_zset_zget) {
     s = client->zclear(key); 
 }
 
-TEST_F(ZsetTest, Test_zset_zdel) {
+TEST_F(ZsetTest, Test_zset_zrem) {
 #define OKZdel s = client->zdel(key, field);\
     ASSERT_TRUE(s.ok())<<"fail to delete key!"<<endl;\
     s = client->zget(key, field, &getScore);\
     ASSERT_TRUE(s.not_found())<<"this key should be deleted!"<<endl;
 
-#define NotFoundHdel s = client->zdel(key, field);\
-    ASSERT_TRUE(s.not_found())<<"this key should be not found!"<<endl;
     //Some special keys
     for(vector<string>::iterator it = Keys.begin(); it != Keys.end(); it++)
     {
@@ -112,7 +111,6 @@ TEST_F(ZsetTest, Test_zset_zdel) {
         field = GetRandomField_();
         s = client->zset(key, field, score);
         OKZdel
-        NotFoundHdel
     }
 
     keysNum = 100;
@@ -122,11 +120,10 @@ TEST_F(ZsetTest, Test_zset_zdel) {
         field = field+itoa(n);
         s = client->zset(key, field, score);
         OKZdel
-        NotFoundHdel
     }
 }
 
-TEST_F(ZsetTest, Test_zset_zincr) {
+TEST_F(ZsetTest, Test_zset_zincrby) {
 #define OKZincr incr = GetRandomDouble_();\
     s = client->del(key);\
     s = client->zincr(key, field, incr, &ret);\
@@ -176,7 +173,7 @@ TEST_F(ZsetTest, Test_zset_zincr) {
     s = client->zdel(key, field);
 }
 
-TEST_F(ZsetTest, Test_zset_zsize) {
+TEST_F(ZsetTest, Test_zset_zcard) {
 #define OKZsize(num) s = client->zsize(key, &ret);\
     ASSERT_EQ(ret, num)<<"fail to zsize key!"<<key<<endl;\
     ASSERT_TRUE(s.ok())<<"hsize key not ok!"<<endl;
@@ -289,7 +286,7 @@ TEST_F(ZsetTest, Test_zset_zrange) {
     s = client->zclear(key);
 }
 
-TEST_F(ZsetTest, Test_zset_zrrange) {
+TEST_F(ZsetTest, Test_zset_zrevrange) {
     key = "key";//GetRandomKey_();
     field = "field";//GetRandomField_();
     s = client->del(key);
@@ -334,7 +331,7 @@ TEST_F(ZsetTest, Test_zset_zrank) {
     client->zclear(key);
 }
 
-TEST_F(ZsetTest, Test_zset_zrrank) {
+TEST_F(ZsetTest, Test_zset_zrevrank) {
     key = "key";//GetRandomKey_();
     field = "field";//GetRandomField_();
     score = GetRandomDouble_();
@@ -354,163 +351,40 @@ TEST_F(ZsetTest, Test_zset_zrrank) {
     client->zclear(key);
 }
 
-/* 
-TEST_F(ZsetTest, Test_zset_hscan) {
-    key = GetRandomKey_();
-    s = client->zscan(key, "", "", 2, &list);
-    ASSERT_TRUE(s.ok() && list.size() <= 4);
-    list.clear();
-    client->del("key");
-    client->zset("key", "00000000f1","v1");
-    client->zset("key", "00000000f2","v2");
-    s = client->zscan("key", "00000000f0", "00000000f2", 2, &list);
-    ASSERT_TRUE(s.ok() && list.size() == 4);
-    ASSERT_EQ("00000000f1", list[0]);
-    ASSERT_EQ("v1", list[1]);
-    ASSERT_EQ("00000000f2", list[2]);
-    ASSERT_EQ("v2", list[3]);
-    list.clear();
-    s = client->zscan("key", "00000000f2", "00000000f0", 2, &list);
-    ASSERT_EQ(0, list.size());
-    s = client->zclear(key);
-}
+TEST_F(ZsetTest, Test_zset_multi_zadd_zdel) {
 
-TEST_F(ZsetTest, Test_zset_hrscan) {
-    key = GetRandomKey_();
-    s = client->zrscan(key, "", "", 2, &list);
-    ASSERT_TRUE(s.ok() && list.size() <= 4);
-    list.clear();
-    client->del("key");
-    client->zset("key", "00000000f1","v1");
-    client->zset("key", "00000000f2","v2");
-    s = client->zrscan("key", "00000000f3", "00000000f1", 2, &list);
-    ASSERT_TRUE(s.ok() && list.size() == 4);
-    ASSERT_EQ("00000000f2", list[0]);
-    ASSERT_EQ("v2", list[1]);
-    ASSERT_EQ("00000000f1", list[2]);
-    ASSERT_EQ("v1", list[3]);
-    list.clear();
-    s = client->zrscan("key", "00000000f1", "00000000f3", 2, &list);
-    ASSERT_EQ(0, list.size());
-    s = client->zclear(key);
-}
-
-TEST_F(ZsetTest, Test_zset_multi_hset_hget_hdel) {
-    string key, field1, field2, field3, score1, score2, score3;
-
+    //multi fields zadd
     key = GetRandomKey_(); 
-    field1 = GetRandomField_();
-    field2 = field1+'2';
-    field3 = field1+'3';
-    score1 = GetRandomDouble_();
-    score2 = score1+'2';
-    score3 = score1+'3';
-    kvs.clear();
-    keys.clear();
-    list.clear();
-    kvs.insert(std::make_pair(field1, score1));
-    kvs.insert(std::make_pair(field2, score2));
-    keys.push_back(field1);
-    keys.push_back(field2);
-    keys.push_back(field3);
-
-    //all keys not exist
-    s = client->multi_hdel(key, keys);
-    ASSERT_TRUE(s.ok());
-    s = client->multi_hget(key, keys, &list);
-    ASSERT_EQ(0, list.size());
-    s = client->multi_hset(key, kvs);
-    ASSERT_TRUE(s.ok());
-    s = client->multi_hget(key, keys, &list);
-    ASSERT_EQ(4, list.size());
-    ASSERT_EQ(field1, list[0]);
-    ASSERT_EQ(score1, list[1]);
-    ASSERT_EQ(field2, list[2]);
-    ASSERT_EQ(score2, list[3]);
-    kvs.insert(std::make_pair(field3, score3));
-
-    //one key not exist, two keys exist
-    s = client->multi_hset(key, kvs);
-    ASSERT_TRUE(s.ok());
-    list.clear();
-    s = client->multi_hget(key, keys, &list);
-    ASSERT_EQ(6, list.size());
-    kvs.clear();
-    score1 = score1+'1';
-    score2 = score2+'2';
-    score3 = score3+'3';
-    kvs.insert(std::make_pair(field1, score1));
-    kvs.insert(std::make_pair(field2, score2));
-    kvs.insert(std::make_pair(field3, score3));
-
-    //all keys exist, update their scores
-    s = client->multi_hset(key, kvs);
-    ASSERT_TRUE(s.ok());
-    list.clear();
-    s = client->multi_hget(key, keys, &list);
-    ASSERT_EQ(6, list.size());
-    ASSERT_EQ(field1, list[0]);
-    ASSERT_EQ(score1, list[1]);
-    ASSERT_EQ(field2, list[2]);
-    ASSERT_EQ(score2, list[3]);
-    ASSERT_EQ(field3, list[4]);
-    ASSERT_EQ(score3, list[5]);
-    s = client->multi_hdel(key, keys);
-    ASSERT_TRUE(s.ok());
-    list.clear();
-    s = client->multi_hget(key, keys, &list);
-    ASSERT_EQ(0, list.size());
-    kvs.clear();
-    list.clear();
-    keys.clear();
-
-    int fieldNum = 10;
-    for(int n = 0; n < fieldNum; n++)
-    {
-        kvs.insert(std::make_pair(field1 + itoa(n), score1 + itoa(n)));
-        keys.push_back(field1 + itoa(n));
-    }
-    s = client->multi_hset(key, kvs);
-    ASSERT_TRUE(s.ok());
-    s = client->multi_hget(key, keys, &list);
-    ASSERT_EQ(fieldNum*2, list.size());
-
-    for(int n = 0; n < fieldNum; n++)
-    {
-        ASSERT_EQ(field1 + itoa(n), list[n*2]);
-        ASSERT_EQ(score1 + itoa(n), list[n*2+1]);
-    }
-
-    s = client->multi_hdel(key, keys);
-    ASSERT_TRUE(s.ok());
-    list.clear();
-    s = client->multi_hget(key, keys, &list);
-    ASSERT_EQ(0, list.size());
-}
-TEST_F(ZsetTest, Test_zset_hgetall) {
-#define NotFoundHgetall s = client->zgetall(key, &list);\
-    EXPECT_TRUE(s.not_found())<<"this key should be not found!"<<endl;\
-    ASSERT_EQ(0, list.size());
-
-    key = GetRandomKey_(); 
-    score = GetRandomDouble_(); 
     field = GetRandomField_();
-    s = client->zclear(key);
-    NotFoundHgetall
-    keysNum = 10;
-    for(int n = 0; n < keysNum; n++)
-    {
-        field = field+itoa(n);
-        score = score+itoa(n);
-		kvs.insert(std::make_pair(field, score));
-        s = client->zset(key, field, score);
+    score = GetRandomDouble_(); 
+    items.clear();
+    keys.clear();
+    int counts = 10;
+    for(int n = 0;n < counts; n++){
+        items.insert(std::make_pair(field+itoa(n),score+n));
+        keys.push_back(field+itoa(n));
     }
-    s = client->zgetall(key, &list);
-    for(int n = 0; n < keysNum; n += 2)
-    {
-        EXPECT_EQ(kvs[list[n]], list[n+1]);
+    s = client->zset(key, items, &ret);
+    ASSERT_TRUE(s.ok());
+    ASSERT_EQ(counts, ret);
+    for(int n = 0;n < counts; n++){
+        client->zget(key, field+itoa(n), &getScore);
+        ASSERT_NEAR(score+n, getScore, eps);
     }
-    s = client->zclear(key);
-}
+    s = client->zset(key, items, &ret);
+    ASSERT_EQ(0, ret);
 
-*/
+    items.clear();
+    keys.clear();
+    for(int n = 0;n < counts; n+=2){
+        items.insert(std::make_pair(field+itoa(n),score+n));
+        keys.push_back(field+itoa(n));
+    }
+    s = client->zdel(key, keys, &ret);
+    ASSERT_TRUE(s.ok());
+    ASSERT_EQ(counts/2, ret);
+    s = client->zsize(key, &ret);
+    ASSERT_EQ(counts/2, ret);
+    s = client->zdel(key, keys, &ret);
+    ASSERT_EQ(0, ret);
+}
