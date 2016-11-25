@@ -8,7 +8,7 @@ found in the LICENSE file.
 #include "t_zset.h"
 
 
-static int zset_one(SSDBImpl *ssdb, const Bytes &name, const Bytes &key, const Bytes &score, char log_type);
+static int zset_one(SSDBImpl *ssdb, const Bytes &name, const Bytes &key, double score, char log_type);
 
 static int zdel_one(SSDBImpl *ssdb, const Bytes &name, const Bytes &key, char log_type);
 
@@ -20,19 +20,18 @@ static ZIterator *ziterator(
         const Bytes &score_start, const Bytes &score_end,
         uint64_t limit, Iterator::Direction direction, uint16_t version);
 
-void zset_internal(const SSDBImpl *ssdb, const Bytes &name, const Bytes &key, const Bytes &score, char log_type,
+void zset_internal(const SSDBImpl *ssdb, const Bytes &name, const Bytes &key, double new_score, char log_type,
                    uint16_t cur_version);
 
 
-
-int64_t SSDBImpl::zclear(const Bytes &name){
+int64_t SSDBImpl::zclear(const Bytes &name) {
     Transaction trans(binlogs);
 
     int num = ZDelKeyNoLock(name);
 
-    if (num > 0){
+    if (num > 0) {
         leveldb::Status s = binlogs->commit();
-        if (!s.ok()){
+        if (!s.ok()) {
             return -1;
         }
     }
@@ -45,11 +44,11 @@ int SSDBImpl::ZDelKeyNoLock(const Bytes &name, char log_type) {
     ZSetMetaVal zv;
     std::string meta_key = encode_meta_key(name);
     int ret = GetZSetMetaVal(meta_key, zv);
-    if (ret != 1){
+    if (ret != 1) {
         return ret;
     }
 
-    if (zv.length > MAX_NUM_DELETE){
+    if (zv.length > MAX_NUM_DELETE) {
         std::string del_key = encode_delete_key(name.String(), DataType::HSIZE, zv.version);
         std::string meta_val = encode_hash_meta_val(zv.length, zv.version, KEY_DELETE_MASK);
         binlogs->Put(del_key, "");
@@ -61,15 +60,15 @@ int SSDBImpl::ZDelKeyNoLock(const Bytes &name, char log_type) {
     int num = 0;
     while (it->next()) {
         ret = zdel_one(this, name, it->key, log_type);
-        if (-1 == ret){
+        if (-1 == ret) {
             return -1;
-        } else if (ret > 0){
+        } else if (ret > 0) {
             num++;
         }
     }
 
-    if (num > 0){
-        if(incr_zsize(this, name, -num) == -1){
+    if (num > 0) {
+        if (incr_zsize(this, name, -num) == -1) {
             return -1;
         }
     }
@@ -83,7 +82,13 @@ int SSDBImpl::ZDelKeyNoLock(const Bytes &name, char log_type) {
 int SSDBImpl::zset(const Bytes &name, const Bytes &key, const Bytes &score, char log_type) {
     Transaction trans(binlogs);
 
-    int ret = zset_one(this, name, key, score, log_type);
+    double new_score = score.Double();
+
+    if (new_score > ZSET_SCORE_MAX || new_score < ZSET_SCORE_MIN) {
+        return -1;
+    }
+
+    int ret = zset_one(this, name, key, new_score, log_type);
     if (ret >= 0) {
         if (ret > 0) {
             if (incr_zsize(this, name, ret) == -1) {
@@ -101,7 +106,8 @@ int SSDBImpl::zset(const Bytes &name, const Bytes &key, const Bytes &score, char
     return ret;
 }
 
-int SSDBImpl::zsetNoLock(const Bytes &name, const Bytes &key, const Bytes &score, char log_type) {
+int SSDBImpl::zsetNoLock(const Bytes &name, const Bytes &key, double score, char log_type) {
+    //TODO check score
     int ret = zset_one(this, name, key, score, log_type);
     if (ret >= 0) {
         if (ret > 0) {
@@ -134,7 +140,7 @@ int SSDBImpl::zdel(const Bytes &name, const Bytes &key, char log_type) {
 
 int SSDBImpl::zincr(const Bytes &name, const Bytes &key, double by, double *new_val, char log_type) {
     Transaction trans(binlogs);
-//TODO here
+
     double old_score = 0;
     int ret = this->zget(name, key, &old_score);
 
@@ -146,7 +152,11 @@ int SSDBImpl::zincr(const Bytes &name, const Bytes &key, double by, double *new_
         *new_val = old_score + by;
     }
 
-    ret = zset_one(this, name, key, str(*new_val), log_type);
+    if (*new_val > ZSET_SCORE_MAX || *new_val < ZSET_SCORE_MIN) {
+        return -1;
+    }
+
+    ret = zset_one(this, name, key, *new_val, log_type);
     if (ret == -1) {
         return -1;
     }
@@ -391,7 +401,7 @@ static void get_znames(Iterator *it, std::vector<std::string> *list) {
         //dump(ks.data(), ks.size());
 
         ZScoreItemKey zk;
-        if(zk.DecodeItemKey(ks.String()) == -1){
+        if (zk.DecodeItemKey(ks.String()) == -1) {
             continue;
         }
         list->push_back(str(zk.score));
@@ -434,7 +444,7 @@ int SSDBImpl::zrlist(const Bytes &name_s, const Bytes &name_e, uint64_t limit,
 }
 
 // returns the number of newly added items
-static int zset_one(SSDBImpl *ssdb, const Bytes &name, const Bytes &key, const Bytes &score, char log_type) {
+static int zset_one(SSDBImpl *ssdb, const Bytes &name, const Bytes &key, double score, char log_type) {
     ZSetMetaVal zv;
     std::string meta_key = encode_meta_key(name);
     int ret = ssdb->GetZSetMetaVal(meta_key, zv);
@@ -448,7 +458,6 @@ static int zset_one(SSDBImpl *ssdb, const Bytes &name, const Bytes &key, const B
         zset_internal(ssdb, name, key, score, log_type, 0);
         ret = 1;
     } else {
-        double new_score = score.Double();
         double old_score = 0;
 
         int found = ssdb->zget(name, key, &old_score);
@@ -460,7 +469,7 @@ static int zset_one(SSDBImpl *ssdb, const Bytes &name, const Bytes &key, const B
             zset_internal(ssdb, name, key, score, log_type, zv.version);
 
         } else if (found == 1) {
-            if (fabs(old_score - new_score) < eps) {
+            if (fabs(old_score - score) < eps) {
                 //same
             } else {
                 string old_score_key = encode_zscore_key(name, key, old_score, zv.version);
@@ -479,11 +488,10 @@ static int zset_one(SSDBImpl *ssdb, const Bytes &name, const Bytes &key, const B
     return ret;
 }
 
-void zset_internal(const SSDBImpl *ssdb, const Bytes &name, const Bytes &key, const Bytes &score, char log_type,
+void zset_internal(const SSDBImpl *ssdb, const Bytes &name, const Bytes &key, double new_score, char log_type,
                    uint16_t cur_version) {
     string zkey = encode_zset_key(name, key, cur_version);
 
-    double new_score = score.Double();
     string buf;
     buf.append((char *) (&new_score), sizeof(double));
 
