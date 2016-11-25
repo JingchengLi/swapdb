@@ -85,7 +85,7 @@ public:
 	virtual int LPop(const Bytes &key, std::string *val) = 0;
 	virtual int LPush(const Bytes &key, const std::vector<Bytes> &val, int offset, uint64_t *llen) = 0;
 	virtual int RPop(const Bytes &key, std::string *val) = 0;
-	virtual int RPush(const Bytes &key, const Bytes &val, uint64_t *llen) = 0;
+	virtual int RPush(const Bytes &key, const std::vector<Bytes> &val, int offset, uint64_t *llen) = 0;
 	virtual int LSet(const Bytes &key, const int64_t index, const Bytes &val) = 0;
 	virtual int lrange(const Bytes &key, int64_t start, int64_t end, std::vector<std::string> *list) = 0;
 

@@ -324,32 +324,73 @@ int SSDBImpl::DoRPush(ListMetaVal &meta_val, const Bytes &key, const Bytes &val,
     return 1;
 }
 
-int SSDBImpl::RPush(const Bytes &key, const Bytes &val, uint64_t *llen) {
+int SSDBImpl::DoRPush(const Bytes &key, const std::vector<Bytes> &val, int offset, std::string &meta_key,
+                      ListMetaVal &meta_val) {
+    int size = (int)val.size();
+    int num  = size - offset;
+    if (num <= 0){
+        return 0;
+    }
+    uint64_t right_seq = meta_val.right_seq;
+    if (meta_val.length < UINT64_MAX - num){
+        meta_val.length += num;
+    } else {
+        log_fatal("list reach the max length.");
+        return -1;
+    }
+
+    for (int i = offset; i < size; ++i) {
+        if (right_seq < UINT64_MAX){
+            right_seq += 1;
+        } else{
+            right_seq = 0;
+        }
+        std::string item_key = encode_list_key(key, right_seq, meta_val.version);
+        binlogs->Put(item_key, val[i].String());
+    }
+
+    meta_val.right_seq = right_seq;
+    std::string new_meta_val = EncodeValueListMeta(meta_val);
+    binlogs->Put(meta_key, new_meta_val);
+
+    return num;
+}
+
+int SSDBImpl::RPush(const Bytes &key, const std::vector<Bytes> &val, int offset, uint64_t *llen) {
     Transaction trans(binlogs);
 
-    uint64_t old_len = 0;
+    *llen = 0;
     ListMetaVal meta_val;
     std::string meta_key = encode_meta_key(key);
     int ret = GetListMetaVal(meta_key, meta_val);
     if (-1 == ret){
         return -1;
     } else if (1 == ret) {
-        old_len = meta_val.length;
-        ret = DoRPush(meta_val, key, val, meta_key);
-        if (-1 == ret){
-            return -1;
-        }
+        *llen = meta_val.length;
     }  else if (0 == ret && meta_val.del == KEY_DELETE_MASK) {
-        PushFirstListItem(key, val, meta_key, (uint16_t)(meta_val.version+1));
+        meta_val.left_seq = 0;
+        meta_val.right_seq = UINT64_MAX;
+        meta_val.length = 0;
+        meta_val.del = KEY_ENABLED_MASK;
+        meta_val.version = (uint16_t)(meta_val.version+1);
     } else if(0 == ret){
-        PushFirstListItem(key, val, meta_key, 0);
+        meta_val.left_seq = 0;
+        meta_val.right_seq = UINT64_MAX;
+        meta_val.length = 0;
+        meta_val.del = KEY_ENABLED_MASK;
+        meta_val.version = 0;
+    }
+
+    ret = DoRPush(key, val, offset, meta_key, meta_val);
+    if (ret <= 0){
+        return ret;
     }
 
     leveldb::Status s = binlogs->commit();
     if(!s.ok()){
         return -1;
     }
-    *llen = old_len + 1;
+    *llen = meta_val.length;
     return 1;
 }
 
