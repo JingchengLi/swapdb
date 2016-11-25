@@ -113,7 +113,7 @@ public:
 		struct timeval currentTime;
 		gettimeofday(&currentTime, NULL);
 		srand(currentTime.tv_usec);
-        int eNum = rand()%600 - 300;
+        int eNum = rand()%24 - 12;
         float base = rand()*1.0/rand();
         double randomDouble = base*pow(10, eNum);
         return randomDouble; 
@@ -159,13 +159,13 @@ protected:
 	static const uint64_t minSeq = 0;
 	static const unsigned int maxVersion = 65535;
 	static const unsigned int minVersion = 0;
-	static const unsigned int maxKeyLen_ = 65535;
+	static const unsigned int maxKeyLen_ = 1000;//65535;
 	static const unsigned int minKeyLen_ = 1;
-	static const unsigned int maxMemberLen_ = 1024000;
+	static const unsigned int maxMemberLen_ = 1024;
 	static const unsigned int minMemberLen_ = 0;
-	static const unsigned int maxFieldLen_ = 1024000;
+	static const unsigned int maxFieldLen_ = 1024;
 	static const unsigned int minFieldLen_ = 0;
-	static const unsigned int maxValLen_ = 1024000;
+	static const unsigned int maxValLen_ = 1024;
 	static const unsigned int minValLen_ = 1;
 	static const unsigned int charsSetLen_ = 62;
     std::vector<std::string> Keys;
