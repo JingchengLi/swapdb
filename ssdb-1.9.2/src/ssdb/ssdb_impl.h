@@ -118,7 +118,7 @@ public:
     virtual int LIndex(const Bytes &key, const int64_t index, std::string *val);
     virtual int LLen(const Bytes &key, uint64_t *llen);
     virtual int LPop(const Bytes &key, std::string *val);
-    virtual int LPush(const Bytes &key, const Bytes &val, uint64_t *llen);
+    virtual int LPush(const Bytes &key, const std::vector<Bytes> &val, int offset, uint64_t *llen);
 	virtual int RPop(const Bytes &key, std::string *val);
 	virtual int RPush(const Bytes &key, const Bytes &val, uint64_t *llen);
 	virtual int LSet(const Bytes &key, const int64_t index, const Bytes &val);
@@ -126,6 +126,8 @@ public:
     int     GetListMetaVal(const std::string& meta_key, ListMetaVal& lv);
     int     GetListItemVal(const std::string& item_key, std::string* val);
     int     DoLPush(ListMetaVal &meta_val, const Bytes &key, const Bytes &val, std::string &meta_key);
+    int     DoLPush(ListMetaVal &meta_val, const Bytes &key, const std::vector<Bytes> &val, int offset, std::string &meta_key);
+    int     DoFirstLPush(const Bytes &key, const std::vector<Bytes> &val, int offset, const std::string &meta_key, uint16_t version);
     void    PushFirstListItem(const Bytes &key, const Bytes &val, const std::string &meta_key, uint16_t version);
 	int 	DoRPop(ListMetaVal &meta_val, const Bytes &key, std::string &meta_key, std::string *val);
 	int 	DoRPush(ListMetaVal &meta_val, const Bytes &key, const Bytes &val, std::string &meta_key);
