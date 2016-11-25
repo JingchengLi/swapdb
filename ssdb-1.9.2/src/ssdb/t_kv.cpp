@@ -78,17 +78,18 @@ int SSDBImpl::multi_set(const std::vector<Bytes> &kvs, int offset, char log_type
 int SSDBImpl::multi_del(const std::vector<Bytes> &keys, int offset, char log_type){ //注：redis中不支持该接口
 	Transaction trans(binlogs);
 
+    int num = 0;
 	std::vector<Bytes>::const_iterator it;
 	it = keys.begin() + offset;
 	for(; it != keys.end(); it++){
 		const Bytes &key = *it;
-// todo r2m adaptation
         std::string key_type;
         int ret = type(key, &key_type);
         if (ret == -1){
             return -1;
         } else if(ret == 1){
             DelKeyByType(key, key_type);
+            num++;
         }
 	}
 	leveldb::Status s = binlogs->commit();
@@ -96,7 +97,7 @@ int SSDBImpl::multi_del(const std::vector<Bytes> &keys, int offset, char log_typ
 		log_error("multi_del error: %s", s.ToString().c_str());
 		return -1;
 	}
-	return keys.size() - offset;
+	return num;
 }
 
 int SSDBImpl::set(const Bytes &key, const Bytes &val, char log_type){
@@ -306,7 +307,7 @@ int SSDBImpl::DelKeyByType(const Bytes &key, const std::string &type){
 	} else if ("list" == type){
 //		s = LDelKeyNoLock(key, &res);
 	} else if ("set" == type){
-//		s = SDelKeyNoLock(key, &res);
+		SDelKeyNoLock(key);
 	} else if ("zset" == type){
 		ZDelKeyNoLock(key);
 	}
