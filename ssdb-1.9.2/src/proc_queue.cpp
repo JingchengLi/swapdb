@@ -84,7 +84,7 @@ int proc_qpush_back(NetworkServer *net, Link *link, const Request &req, Response
     SSDBServer *serv = (SSDBServer *)net->data;
 
     uint64_t len;
-    int ret = serv->ssdb->RPush(req[1], req[2], &len);
+    int ret = serv->ssdb->RPush(req[1], req, 2, &len);
     resp->reply_int(ret, len);
     return 0;
 }
