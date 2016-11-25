@@ -98,6 +98,7 @@ public:
 	virtual int sismember(const Bytes &key, const Bytes &member) = 0;
 	virtual int smembers(const Bytes &key, std::vector<std::string> &members) = 0;
 	virtual int sunion(const std::vector<Bytes> &keys, std::set<std::string>& members) = 0;
+	virtual int64_t sclear(const Bytes &name) = 0;
 
 	/* zset */
     virtual int64_t zclear(const Bytes &name) = 0;
