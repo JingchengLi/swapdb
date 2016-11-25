@@ -85,7 +85,7 @@ int ExpirationHandler::set_ttl_internal(const Bytes &key, int64_t ttl_ms){
 		return -1;
 	}
 
-	int ret = ssdb->zsetNoLock(this->list_name, key, Bytes(data, size));
+	int ret = ssdb->zsetNoLock(this->list_name, key, Bytes(data, size).Double());
 	if(ret == -1){
 		return -1;
 	}

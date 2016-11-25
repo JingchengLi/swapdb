@@ -102,7 +102,7 @@ public:
 	/* zset */
     virtual int64_t zclear(const Bytes &name) = 0;
 	virtual int zset(const Bytes &name, const Bytes &key, const Bytes &score, char log_type=BinlogType::SYNC) = 0;
-	virtual int zsetNoLock(const Bytes &name, const Bytes &key, const Bytes &score, char log_type=BinlogType::SYNC) = 0;
+	virtual int zsetNoLock(const Bytes &name, const Bytes &key, double score, char log_type=BinlogType::SYNC) = 0;
 	virtual int zdel(const Bytes &name, const Bytes &key, char log_type=BinlogType::SYNC) = 0;
 	// -1: error, 1: ok, 0: value is not an integer or out of range
 	virtual int zincr(const Bytes &name, const Bytes &key, double by, double *new_val, char log_type=BinlogType::SYNC) = 0;
