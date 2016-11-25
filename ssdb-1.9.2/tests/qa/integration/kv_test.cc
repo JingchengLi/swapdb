@@ -17,6 +17,7 @@ class KVTest : public SSDBTest
         std::map<std::string, std::string> kvs;
         string key, val, getVal, field;
         uint32_t keysNum;
+        int64_t ret;
 };
 
 TEST_F(KVTest, Test_kv_set) {
@@ -69,7 +70,7 @@ TEST_F(KVTest, Test_kv_set) {
     FalseSet */
 }
 
-TEST_F(KVTest, Test_kv_setx) {
+TEST_F(KVTest, Test_kv_setex) {
     uint8_t ttl;
 #define OKSetx s = client->setx(key, val, ttl);\
     ASSERT_TRUE(s.ok())<<"fail to set key!"<<endl;\
@@ -116,6 +117,7 @@ TEST_F(KVTest, Test_kv_get) {
 }
 
 TEST_F(KVTest, Test_kv_del) {
+//redis del == ssdb multi_del
 #define OKDel s = client->del(key);\
     ASSERT_TRUE(s.ok())<<"fail to delete key!"<<endl;\
     s = client->get(key, &getVal);\
@@ -152,7 +154,7 @@ TEST_F(KVTest, Test_kv_del) {
     NotFoundDel
 }
 
-TEST_F(KVTest, Test_kv_incr) {
+TEST_F(KVTest, Test_kv_incrby) {
 #define OKIncr incr = GetRandomInt64_();\
     s = client->del(key);\
     s = client->incr(key, incr, &ret);\
@@ -199,7 +201,7 @@ TEST_F(KVTest, Test_kv_incr) {
     s = client->del(key);
 }
 
-TEST_F(KVTest, Test_kv_keys) {
+TEST_F(KVTest, DISABLED_Test_kv_keys) {
     s = client->keys("", "", 2, &list);
     ASSERT_TRUE(s.ok() && list.size() <= 2);
     list.clear();
@@ -213,7 +215,7 @@ TEST_F(KVTest, Test_kv_keys) {
     client->del("000000002");
 }
 
-TEST_F(KVTest, Test_kv_scan) {
+TEST_F(KVTest, DISABLED_Test_kv_scan) {
     s = client->scan("", "", 2, &list);
     ASSERT_TRUE(s.ok() && list.size() <= 4);
     list.clear();
@@ -233,7 +235,7 @@ TEST_F(KVTest, Test_kv_scan) {
     client->del("00000000k2");
 }
 
-TEST_F(KVTest, Test_kv_rscan) {
+TEST_F(KVTest, DISABLED_Test_kv_rscan) {
     s = client->rscan("", "", 2, &list);
     ASSERT_TRUE(s.ok() && list.size() <= 4);
     list.clear();
@@ -252,7 +254,8 @@ TEST_F(KVTest, Test_kv_rscan) {
     client->del("00000000k2");
 }
 
-TEST_F(KVTest, Test_kv_multi_set_get_del) {
+TEST_F(KVTest, Test_kv_mset_mget_del) {
+//redis mset/mget/del
     string key1, key2, val1, val2, key3, val3;
 
     for(vector<string>::iterator it = Keys.begin(); it != Keys.end(); it++)
@@ -273,8 +276,9 @@ TEST_F(KVTest, Test_kv_multi_set_get_del) {
         keys.push_back(key3);
 
         //all keys not exist
-        s = client->multi_del(keys);
+        s = client->multi_del(keys, &ret);
         ASSERT_TRUE(s.ok());
+        ASSERT_EQ(0, ret);
         s = client->multi_get(keys, &list);
         ASSERT_EQ(0, list.size());
         s = client->multi_set(kvs);
@@ -313,12 +317,31 @@ TEST_F(KVTest, Test_kv_multi_set_get_del) {
         ASSERT_EQ(val2, list[3]);
         ASSERT_EQ(key3, list[4]);
         ASSERT_EQ(val3, list[5]);
-        s = client->multi_del(keys);
+        s = client->multi_del(keys, &ret);
         ASSERT_TRUE(s.ok());
+        ASSERT_EQ(3, ret);
         list.clear();
         s = client->multi_get(keys, &list);
         ASSERT_EQ(0, list.size());
     }
+
+    //Del all types key at one time
+    keys.clear();
+    keys.push_back("KVKey");
+    client->set("KVKey", "KVVal");
+    keys.push_back("HashKey");
+    client->hset("HashKey", "field", "HashVal");
+    keys.push_back("ListKey");
+    client->qpush_front("ListKey", "ListVal");
+    keys.push_back("SetKey");
+    client->sadd("SetKey", "SetVal");
+    keys.push_back("ZsetKey");
+    client->zset("ZsetKey", "ZsetVal", 1.0);
+    client->multi_del(keys, &ret);
+    ASSERT_EQ(5, ret);
+    client->multi_del(keys, &ret);
+    ASSERT_EQ(0, ret);
+
 }
 
 TEST_F(KVTest, Test_kv_setnx) {

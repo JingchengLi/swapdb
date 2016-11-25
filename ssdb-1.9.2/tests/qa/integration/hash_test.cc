@@ -113,7 +113,7 @@ TEST_F(HashTest, Test_hash_hdel) {
         field = GetRandomField_();
         s = client->hset(key, field, val);
         OKHdel
-        NotFoundHdel
+        // NotFoundHdel
     }
 
     keysNum = 100;
@@ -123,11 +123,11 @@ TEST_F(HashTest, Test_hash_hdel) {
         field = field+itoa(n);
         s = client->hset(key, field, val);
         OKHdel
-        NotFoundHdel
+        // NotFoundHdel
     }
 }
 
-TEST_F(HashTest, Test_hash_hincr) {
+TEST_F(HashTest, Test_hash_hincrby) {
 #define OKHincr incr = GetRandomInt64_();\
     s = client->del(key);\
     s = client->hincr(key, field, incr, &ret);\
@@ -329,7 +329,8 @@ TEST_F(HashTest, Test_hash_hrscan) {
     s = client->hclear(key);
 }
 
-TEST_F(HashTest, Test_hash_multi_hset_hget_hdel) {
+TEST_F(HashTest, Test_hash_hmset_hmget_hdel) {
+//Redis hmset/hmget/hdel
     string key, field1, field2, field3, val1, val2, val3;
 
     key = GetRandomKey_(); 
@@ -349,8 +350,9 @@ TEST_F(HashTest, Test_hash_multi_hset_hget_hdel) {
     keys.push_back(field3);
 
     //all keys not exist
-    s = client->multi_hdel(key, keys);
+    s = client->multi_hdel(key, keys, &ret);
     ASSERT_TRUE(s.ok());
+    ASSERT_EQ(0, ret);
     s = client->multi_hget(key, keys, &list);
     ASSERT_EQ(0, list.size());
     s = client->multi_hset(key, kvs);
@@ -389,8 +391,9 @@ TEST_F(HashTest, Test_hash_multi_hset_hget_hdel) {
     ASSERT_EQ(val2, list[3]);
     ASSERT_EQ(field3, list[4]);
     ASSERT_EQ(val3, list[5]);
-    s = client->multi_hdel(key, keys);
+    s = client->multi_hdel(key, keys, &ret);
     ASSERT_TRUE(s.ok());
+    ASSERT_EQ(3, ret);
     list.clear();
     s = client->multi_hget(key, keys, &list);
     ASSERT_EQ(0, list.size());
@@ -415,8 +418,9 @@ TEST_F(HashTest, Test_hash_multi_hset_hget_hdel) {
         ASSERT_EQ(val1 + itoa(n), list[n*2+1]);
     }
 
-    s = client->multi_hdel(key, keys);
+    s = client->multi_hdel(key, keys, &ret);
     ASSERT_TRUE(s.ok());
+    ASSERT_EQ(fieldNum, ret);
     list.clear();
     s = client->multi_hget(key, keys, &list);
     ASSERT_EQ(0, list.size());
