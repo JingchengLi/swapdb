@@ -71,9 +71,9 @@ int proc_qpush_front(NetworkServer *net, Link *link, const Request &req, Respons
 	SSDBServer *serv = (SSDBServer *)net->data;
 
 	const Bytes &name = req[1];
-	const Bytes &val = req[2];
+//	const Bytes &val = req[2];
 	uint64_t len;
-	int ret = serv->ssdb->LPush(name, val, &len);
+	int ret = serv->ssdb->LPush(name, req, 2, &len);
 	resp->reply_int(ret, len);
 	return 0;
 }
