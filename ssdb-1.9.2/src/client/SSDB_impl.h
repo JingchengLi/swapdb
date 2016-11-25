@@ -47,7 +47,7 @@ public:
 		uint64_t limit, std::vector<std::string> *ret);
 	virtual Status multi_get(const std::vector<std::string> &keys, std::vector<std::string> *ret);
 	virtual Status multi_set(const std::map<std::string, std::string> &kvs);
-	virtual Status multi_del(const std::vector<std::string> &keys);
+	virtual Status multi_del(const std::vector<std::string> &keys, int64_t *ret_size=NULL);
 	
 	virtual Status hget(const std::string &name, const std::string &key, std::string *val);
 	virtual Status hset(const std::string &name, const std::string &key, const std::string &val);
@@ -65,18 +65,22 @@ public:
 	virtual Status multi_hget(const std::string &name, const std::vector<std::string> &keys,
 		std::vector<std::string> *ret);
 	virtual Status multi_hset(const std::string &name, const std::map<std::string, std::string> &kvs);
-	virtual Status multi_hdel(const std::string &name, const std::vector<std::string> &keys);
+	virtual Status multi_hdel(const std::string &name, const std::vector<std::string> &keys, int64_t *ret_size=NULL);
 
-	virtual Status sadd(const std::string &name, const std::string &key);
-    virtual Status srem(const std::string &name, const std::string &key);
-    virtual Status scard(const std::string &name, int64_t *ret);
+	virtual Status sadd(const std::string &name, const std::vector<std::string> &items, int64_t *ret_size=NULL);
+	virtual Status sadd(const std::string &name, const std::string &item, int64_t *ret_size=NULL);
+	virtual Status srem(const std::string &name, const std::vector<std::string> &items, int64_t *ret_size=NULL);
+	virtual Status srem(const std::string &name, const std::string &item, int64_t *ret_size=NULL);
+	virtual Status scard(const std::string &name, int64_t *ret);
 	virtual Status smembers(const std::string &name, std::vector<std::string> *ret);
-    virtual Status sismember(const std::string &name, const std::string &key);
+	virtual Status sismember(const std::string &name, const std::string &key, int64_t *ret);
 	virtual Status sunion(const std::vector<std::string> &names, std::vector<std::string> *ret);
 	virtual Status sunionstore(const std::vector<std::string> &names, int64_t *ret);
 
 	virtual Status zget(const std::string &name, const std::string &key, double *ret);
+	virtual Status zset(const std::string &name, const std::map<std::string, double> &items, int64_t *ret_size=NULL);
 	virtual Status zset(const std::string &name, const std::string &key, double score);
+	virtual Status zdel(const std::string &name, const std::vector<std::string> &items, int64_t *ret_size=NULL);
 	virtual Status zdel(const std::string &name, const std::string &key);
 	virtual Status zincr(const std::string &name, const std::string &key, double incrby, double *ret);
 	virtual Status zsize(const std::string &name, int64_t *ret);
@@ -111,6 +115,8 @@ public:
 	virtual Status qpush_back(const std::string &name, const std::string &item, int64_t *ret_size=NULL);
 	virtual Status qpop(const std::string &name, std::string *item);
 	virtual Status qpop(const std::string &name, int64_t limit, std::vector<std::string> *ret);
+	virtual Status qpop_front(const std::string &name, std::string *val);
+	virtual Status qpop_back(const std::string &name, std::string *val);
 	virtual Status qpop_front(const std::string &name, int64_t limit, std::vector<std::string> *ret);
 	virtual Status qpop_back(const std::string &name, int64_t limit, std::vector<std::string> *ret);
 	virtual Status qslice(const std::string &name, int64_t begin, int64_t end, std::vector<std::string> *ret);
