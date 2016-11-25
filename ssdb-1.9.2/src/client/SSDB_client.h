@@ -126,7 +126,7 @@ public:
 	 */
 	virtual Status multi_get(const std::vector<std::string> &keys, std::vector<std::string> *vals) = 0;
 	virtual Status multi_set(const std::map<std::string, std::string> &kvs) = 0;
-	virtual Status multi_del(const std::vector<std::string> &keys) = 0;
+	virtual Status multi_del(const std::vector<std::string> &keys, int64_t *ret_size=NULL) = 0;
 	/// @}
 
 
@@ -174,16 +174,18 @@ public:
 	virtual Status multi_hget(const std::string &name, const std::vector<std::string> &keys,
 		std::vector<std::string> *ret) = 0;
 	virtual Status multi_hset(const std::string &name, const std::map<std::string, std::string> &kvs) = 0;
-	virtual Status multi_hdel(const std::string &name, const std::vector<std::string> &keys) = 0;
+	virtual Status multi_hdel(const std::string &name, const std::vector<std::string> &keys, int64_t *ret_size=NULL) = 0;
 	/// @}
 
 	/// @name set methods
 	/// @{
-	virtual Status sadd(const std::string &name, const std::string &key) = 0;
-    virtual Status srem(const std::string &name, const std::string &key) = 0;
-    virtual Status scard(const std::string &name, int64_t *ret) = 0;
+	virtual Status sadd(const std::string &name, const std::vector<std::string> &items, int64_t *ret_size=NULL) = 0;
+	virtual Status sadd(const std::string &name, const std::string &item, int64_t *ret_size=NULL) = 0;
+	virtual Status srem(const std::string &name, const std::vector<std::string> &items, int64_t *ret_size=NULL) = 0;
+	virtual Status srem(const std::string &name, const std::string &item, int64_t *ret_size=NULL) = 0;
+	virtual Status scard(const std::string &name, int64_t *ret) = 0;
 	virtual Status smembers(const std::string &name, std::vector<std::string> *ret) = 0;
-    virtual Status sismember(const std::string &name, const std::string &key) = 0;
+	virtual Status sismember(const std::string &name, const std::string &key, int64_t *ret) = 0;
 	virtual Status sunion(const std::vector<std::string> &names, std::vector<std::string> *ret) = 0;
 	virtual Status sunionstore(const std::vector<std::string> &names, int64_t *ret) = 0;
 	/// @}
@@ -191,7 +193,9 @@ public:
 	/// @name Zset methods
 	/// @{
 	virtual Status zget(const std::string &name, const std::string &key, double *ret) = 0;
+	virtual Status zset(const std::string &name, const std::map<std::string, double> &items, int64_t *ret_size=NULL) = 0;
 	virtual Status zset(const std::string &name, const std::string &key, double score) = 0;
+	virtual Status zdel(const std::string &name, const std::vector<std::string> &items, int64_t *ret_size=NULL) = 0;
 	virtual Status zdel(const std::string &name, const std::string &key) = 0;
 	virtual Status zincr(const std::string &name, const std::string &key, double incrby, double *ret) = 0;
 	virtual Status zsize(const std::string &name, int64_t *ret) = 0;
@@ -250,6 +254,8 @@ public:
 	virtual Status multi_zdel(const std::string &name, const std::vector<std::string> &keys) = 0;
 	/// @}
 
+	/// @name List methods
+	/// @{
 	virtual Status qpush(const std::string &name, const std::string &item, int64_t *ret_size=NULL) = 0;
 	virtual Status qpush(const std::string &name, const std::vector<std::string> &items, int64_t *ret_size=NULL) = 0;
 	virtual Status qpush_front(const std::string &name, const std::vector<std::string> &items, int64_t *ret_size=NULL) = 0;
@@ -258,12 +264,15 @@ public:
 	virtual Status qpush_back(const std::string &name, const std::string &item, int64_t *ret_size=NULL) = 0;
 	virtual Status qpop(const std::string &name, std::string *ret) = 0;
 	virtual Status qpop(const std::string &name, int64_t limit, std::vector<std::string> *ret) = 0;
+	virtual Status qpop_front(const std::string &name, std::string *val) = 0;
+	virtual Status qpop_back(const std::string &name, std::string *val) = 0;
 	virtual Status qpop_front(const std::string &name, int64_t limit, std::vector<std::string> *ret) = 0;
 	virtual Status qpop_back(const std::string &name, int64_t limit, std::vector<std::string> *ret) = 0;
 	virtual Status qslice(const std::string &name, int64_t begin, int64_t end, std::vector<std::string> *ret) = 0;
 	virtual Status qrange(const std::string &name, int64_t begin, int64_t limit, std::vector<std::string> *ret) = 0;
 	virtual Status qclear(const std::string &name, int64_t *ret=NULL) = 0;
 	virtual Status qsize(const std::string &name, int64_t *ret=NULL) = 0;
+	/// @}
 private:
 	// No copying allowed
 	Client(const Client&);

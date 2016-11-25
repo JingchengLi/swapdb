@@ -1,6 +1,8 @@
 #include "SSDB_impl.h"
 #include "util/strings.h"
 #include <signal.h>
+#include <iostream>
+using namespace std;
 
 namespace ssdb{
 
@@ -312,10 +314,17 @@ Status ClientImpl::multi_set(const std::map<std::string, std::string> &kvs){
 	return s;
 }
 
-Status ClientImpl::multi_del(const std::vector<std::string> &keys){
+Status ClientImpl::multi_del(const std::vector<std::string> &keys, int64_t *ret_size){
 	const std::vector<std::string> *resp;
 	resp = this->request("multi_del", keys);
 	Status s(resp);
+	if(ret_size != NULL && s.ok()){
+		if(resp->size() > 1){
+			*ret_size = str_to_int64(resp->at(1));
+		}else{
+			return Status("error");
+		}
+	}
 	return s;
 }
 
@@ -421,25 +430,74 @@ Status ClientImpl::multi_hset(const std::string &name, const std::map<std::strin
 	return s;
 }
 
-Status ClientImpl::multi_hdel(const std::string &name, const std::vector<std::string> &keys){
+Status ClientImpl::multi_hdel(const std::string &name, const std::vector<std::string> &keys, int64_t *ret_size){
 	const std::vector<std::string> *resp;
 	resp = this->request("multi_hdel", name, keys);
 	Status s(resp);
+	if(ret_size != NULL && s.ok()){
+		if(resp->size() > 1){
+			*ret_size = str_to_int64(resp->at(1));
+		}else{
+			return Status("error");
+		}
+	}
 	return s;
 }
 
 /******************** set *************************/
-Status ClientImpl::sadd(const std::string &name, const std::string &key) {
+Status ClientImpl::sadd(const std::string &name, const std::vector<std::string> &items, int64_t *ret_size){
 	const std::vector<std::string> *resp;
-	resp = this->request("sadd", name, key);
+	resp = this->request("sadd", name, items);
 	Status s(resp);
+	if(ret_size != NULL && s.ok()){
+		if(resp->size() > 1){
+			*ret_size = str_to_int64(resp->at(1));
+		}else{
+			return Status("error");
+		}
+	}
 	return s;
 }
 
-Status ClientImpl::srem(const std::string &name, const std::string &key) {
+Status ClientImpl::sadd(const std::string &name, const std::string &item, int64_t *ret_size){
 	const std::vector<std::string> *resp;
-	resp = this->request("srem", name, key);
+	resp = this->request("sadd", name, item);
 	Status s(resp);
+	if(ret_size != NULL && s.ok()){
+		if(resp->size() > 1){
+			*ret_size = str_to_int64(resp->at(1));
+		}else{
+			return Status("error");
+		}
+	}
+	return s;
+}
+
+Status ClientImpl::srem(const std::string &name, const std::string &item, int64_t *ret_size){
+	const std::vector<std::string> *resp;
+	resp = this->request("srem", name, item);
+	Status s(resp);
+	if(ret_size != NULL && s.ok()){
+		if(resp->size() > 1){
+			*ret_size = str_to_int64(resp->at(1));
+		}else{
+			return Status("error");
+		}
+	}
+	return s;
+}
+
+Status ClientImpl::srem(const std::string &name, const std::vector<std::string> &items, int64_t *ret_size){
+	const std::vector<std::string> *resp;
+	resp = this->request("srem", name, items);
+	Status s(resp);
+	if(ret_size != NULL && s.ok()){
+		if(resp->size() > 1){
+			*ret_size = str_to_int64(resp->at(1));
+		}else{
+			return Status("error");
+		}
+	}
 	return s;
 }
 
@@ -449,11 +507,10 @@ Status ClientImpl::scard(const std::string &name, int64_t *ret) {
     return _read_int64(resp, ret);
 }
 
-Status ClientImpl::sismember(const std::string &name, const std::string &key) {
+Status ClientImpl::sismember(const std::string &name, const std::string &key, int64_t *ret) {
     const std::vector<std::string> *resp;
     resp = this->request("sismember", name, key);
-    Status s(resp);
-    return s;
+    return _read_int64(resp, ret);
 }
 
 Status ClientImpl::smembers(const std::string &name, std::vector<std::string> *ret) {
@@ -484,18 +541,53 @@ Status ClientImpl::zget(const std::string &name, const std::string &key, double 
 	return _read_double(resp, ret);
 }
 
+Status ClientImpl::zset(const std::string &name, const std::map<std::string, double> &items, int64_t *ret_size){
+	const std::vector<std::string> *resp;
+	std::vector<std::string> list;
+	for(std::map<std::string, double>::const_iterator it = items.begin();
+		it != items.end(); ++it)
+	{
+		list.push_back(it->first);
+		list.push_back(str(it->second));
+	}
+	resp = this->request("multi_zset", name, list);
+	Status s(resp);
+	if(ret_size != NULL && s.ok()){
+		if(resp->size() > 1){
+			*ret_size = str_to_int64(resp->at(1));
+		}else{
+			return Status("error");
+		}
+	}
+	return s;
+}
+
 Status ClientImpl::zset(const std::string &name, const std::string &key, double score){
 	std::string s_score = str(score);
 	const std::vector<std::string> *resp;
-	resp = this->request("zset", name, key, s_score);
+	resp = this->request("multi_zset", name, key, s_score);
 	Status s(resp);
 	return s;
 }
 
 Status ClientImpl::zdel(const std::string &name, const std::string &key){
 	const std::vector<std::string> *resp;
-	resp = this->request("zdel", name, key);
+	resp = this->request("multi_zdel", name, key);
 	Status s(resp);
+	return s;
+}
+
+Status ClientImpl::zdel(const std::string &name, const std::vector<std::string> &items, int64_t *ret_size){
+	const std::vector<std::string> *resp;
+	resp = this->request("multi_zdel", name, items);
+	Status s(resp);
+	if(ret_size != NULL && s.ok()){
+		if(resp->size() > 1){
+			*ret_size = str_to_int64(resp->at(1));
+		}else{
+			return Status("error");
+		}
+	}
 	return s;
 }
 
@@ -712,6 +804,12 @@ Status ClientImpl::qpop(const std::string &name, int64_t limit, std::vector<std:
 	return _read_list(resp, ret);
 }
 
+Status ClientImpl::qpop_front(const std::string &name, std::string *item){
+	const std::vector<std::string> *resp;
+	resp = this->request("qpop_front", name);
+	return _read_str(resp, item);
+}
+
 Status ClientImpl::qpop_front(const std::string &name, int64_t limit, std::vector<std::string> *ret){
 	const std::vector<std::string> *resp;
 	resp = this->request("qpop_front", name, str(limit));
@@ -722,6 +820,12 @@ Status ClientImpl::qpop_back(const std::string &name, int64_t limit, std::vector
 	const std::vector<std::string> *resp;
 	resp = this->request("qpop_back", name, str(limit));
 	return _read_list(resp, ret);
+}
+
+Status ClientImpl::qpop_back(const std::string &name, std::string *item){
+	const std::vector<std::string> *resp;
+	resp = this->request("qpop_back", name);
+	return _read_str(resp, item);
 }
 
 Status ClientImpl::qslice(const std::string &name,
