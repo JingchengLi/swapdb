@@ -146,7 +146,7 @@ int SSDBImpl::del(const Bytes &key, char log_type){
     } else if (key_type == "zset"){
         num = ZDelKeyNoLock(key);
     } else if (key_type == "list"){
-        //todo
+        num = LDelKeyNoLock(key);
     }
 
     if (num > 0){
@@ -155,9 +155,11 @@ int SSDBImpl::del(const Bytes &key, char log_type){
             log_error("set error: %s", s.ToString().c_str());
             return -1;
         }
-    }
+    } else if (num == -1){
+		return -1;
+	}
 
-	return 1;
+	return num;
 }
 
 int SSDBImpl::incr(const Bytes &key, int64_t by, int64_t *new_val, char log_type){

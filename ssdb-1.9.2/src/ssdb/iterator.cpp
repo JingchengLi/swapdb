@@ -241,3 +241,32 @@ bool ZIterator::next(){
 	}
 	return false;
 }
+
+LIterator::LIterator(Iterator *it, const Bytes &name, uint16_t version) {
+	this->it = it;
+	this->name.assign(name.data(), name.size());
+	this->version = version;
+}
+
+LIterator::~LIterator() {
+	delete it;
+	it = NULL;
+}
+
+bool LIterator::next() {
+	while (it->next()){
+		Bytes ks = it->key();
+
+		ListItemKey sk;
+		if (sk.DecodeItemKey(ks.String()) == -1){
+			continue;
+		}
+		if(sk.key != this->name || sk.version != this->version){
+			return false;
+		}
+		this->seq = sk.seq;
+
+		return true;
+	}
+	return false;
+}
