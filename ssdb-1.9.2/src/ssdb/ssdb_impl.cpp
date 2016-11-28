@@ -127,9 +127,9 @@ Iterator* SSDBImpl::iterator(const std::string &start, const std::string &end, u
 	iterate_options.fill_cache = false;
 	it = ldb->NewIterator(iterate_options);
 	it->Seek(start);
-	if(it->Valid() && it->key() == start){
-		it->Next();
-	}
+//	if(it->Valid() && it->key() == start){
+//		it->Next();
+//	}
 	return new Iterator(it, end, limit);
 }
 

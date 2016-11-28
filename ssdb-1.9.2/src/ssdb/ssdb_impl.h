@@ -132,6 +132,7 @@ public:
 	int 	DoRPop(ListMetaVal &meta_val, const Bytes &key, std::string &meta_key, std::string *val);
 	int 	DoRPush(ListMetaVal &meta_val, const Bytes &key, const Bytes &val, std::string &meta_key);
     int     DoRPush(const Bytes &key, const std::vector<Bytes> &val, int offset, std::string &meta_key, ListMetaVal &meta_val);
+    int64_t LDelKeyNoLock(const Bytes &name, char log_type=BinlogType::SYNC);
 
     /* set */
     virtual int sadd(const Bytes &key, const Bytes &member, char log_type=BinlogType::SYNC);

@@ -108,5 +108,18 @@ private:
 	Iterator *it;
 };
 
+class LIterator{
+public:
+	std::string name;
+	uint64_t    seq;
+	uint16_t 	version;
+
+	LIterator(Iterator *it, const Bytes &name, uint16_t version = 0);
+	~LIterator();
+	bool next();
+
+private:
+	Iterator	*it;
+};
 
 #endif

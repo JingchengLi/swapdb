@@ -490,3 +490,38 @@ int SSDBImpl::lrange(const Bytes &key, int64_t start, int64_t end, std::vector<s
 
     return ret;
 }
+
+int64_t SSDBImpl::LDelKeyNoLock(const Bytes &name, char log_type) {
+    ListMetaVal lv;
+    std::string meta_key = encode_meta_key(name);
+    int ret = GetListMetaVal(meta_key, lv);
+    if (ret != 1){
+        return ret;
+    }
+
+    if (lv.length > MAX_NUM_DELETE){
+        std::string del_key = encode_delete_key(name, DataType::HSIZE, lv.version);
+        std::string meta_val = encode_list_meta_val(lv.length, lv.version, KEY_DELETE_MASK);
+        binlogs->Put(del_key, "");
+        binlogs->Put(meta_key, meta_val);
+        return lv.length;
+    }
+
+    std::string key_start = encode_list_key(name, 0, lv.version);
+    LIterator *it = new LIterator(this->iterator(key_start, "", -1), name, lv.version);
+    int num = 0;
+    while (it->next()){
+        std::string item_key = encode_list_key(it->name, it->seq, it->version);
+        binlogs->Delete(item_key);
+        num++;
+    }
+    delete it;
+    it = NULL;
+
+    if (num == lv.length){
+        binlogs->Delete(meta_key);
+    } else{
+        return -1;
+    }
+    return num;
+}
