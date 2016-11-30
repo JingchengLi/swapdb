@@ -20,10 +20,10 @@ found in the LICENSE file.
 #include "ssdb.h"
 #include "binlog.h"
 #include "iterator.h"
-#include "t_kv.h"
+//#include "t_kv.h"
 //#include "t_hash.h"
-#include "t_zset.h"
-#include "t_queue.h"
+//#include "t_zset.h"
+//#include "t_queue.h"
 #include "ssdb/ttl.h"
 #include "codec/decode.h"
 #include "codec/encode.h"
@@ -238,7 +238,7 @@ private:
 	void stop();
     void load_delete_keys_from_db(int num);
     void delete_key_loop(const std::string& del_key);
-    int  delete_meta_key(const DeleteKey& dk);
+    int  delete_meta_key(const DeleteKey& dk, leveldb::WriteBatch& batch);
 	void runBGTask();
 	static void* thread_func(void *arg);
 };
