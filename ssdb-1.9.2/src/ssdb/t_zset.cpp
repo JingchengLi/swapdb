@@ -195,10 +195,12 @@ int SSDBImpl::GetZSetMetaVal(const std::string &meta_key, ZSetMetaVal &zv) {
         return -1;
     } else {
         int ret = zv.DecodeMetaVal(meta_val);
-        if (ret == -1 || zv.type != DataType::ZSIZE) {
+        if (ret == -1) {
             return -1;
         } else if (zv.del == KEY_DELETE_MASK) {
             return 0;
+        } else if (zv.type != DataType::ZSIZE){
+            return -1;
         }
     }
     return 1;

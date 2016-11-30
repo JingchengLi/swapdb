@@ -16,6 +16,8 @@ int SSDBImpl::GetListMetaVal(const std::string &meta_key, ListMetaVal &lv) {
             return -1;
         } else if (lv.del == KEY_DELETE_MASK){
             return 0;
+        } else if (lv.type != DataType::LSZIE){
+            return -1;
         }
     }
     return 1;
