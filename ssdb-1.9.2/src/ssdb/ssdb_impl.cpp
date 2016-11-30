@@ -387,7 +387,7 @@ void SSDBImpl::load_delete_keys_from_db(int num) {
     }
 }
 
-int SSDBImpl::delete_meta_key(const DeleteKey& dk) {
+int SSDBImpl::delete_meta_key(const DeleteKey& dk, leveldb::WriteBatch& batch) {
     std::string meta_key = encode_meta_key(dk.key);
     std::string meta_val;
     leveldb::Status s = ldb->Get(leveldb::ReadOptions(), meta_key, &meta_val);
@@ -410,14 +410,14 @@ int SSDBImpl::delete_meta_key(const DeleteKey& dk) {
         char del = meta_val[3];
 
         if (type == dk.key_type && del == KEY_DELETE_MASK && version == dk.version){
-            binlogs->Delete(meta_key);
+            batch.Delete(meta_key);
         }
     }
     return 0;
 }
 
 void SSDBImpl::delete_key_loop(const std::string &del_key) {
-    Transaction trans(binlogs);
+//    Transaction trans(binlogs);
 
     DeleteKey dk;
     if(dk.DecodeDeleteKey(del_key) == -1){
@@ -425,9 +425,10 @@ void SSDBImpl::delete_key_loop(const std::string &del_key) {
         return;
     }
 
-    char log_type=BinlogType::SYNC;
+//    char log_type=BinlogType::SYNC;
     std::string start = encode_hash_key(dk.key, "", dk.version);
     Iterator* it = iterator(start, "", -1);
+	leveldb::WriteBatch batch;
     while (it->next()){
         ItemKey ik;
         std::string item_key = it->key().String();
@@ -436,18 +437,17 @@ void SSDBImpl::delete_key_loop(const std::string &del_key) {
             return;
         }
         if (ik.key == dk.key && ik.version == dk.version){
-            binlogs->Delete(item_key);
-            binlogs->add_log(log_type, BinlogCommand::HDEL, item_key);
+			batch.Delete(item_key);
         }
     }
-    binlogs->Delete(del_key);
-
-    if (delete_meta_key(dk) == -1){
+	batch.Delete(del_key);
+    if (delete_meta_key(dk, batch) == -1){
         log_fatal("delete meta key error!");
         return;
     }
 
-    leveldb::Status s = binlogs->commit();
+	leveldb::WriteOptions write_opts;
+	leveldb::Status s = ldb->Write(write_opts, &batch);
     if (!s.ok()){
         log_fatal("SSDBImpl::delKey Backend Task error!");
         return ;
@@ -462,13 +462,11 @@ void SSDBImpl::runBGTask() {
             if (tasks_.empty()){
                 mutex_bgtask_.unlock();
                 usleep(1000 * 1000);
-            } else{
-                mutex_bgtask_.unlock();
+				continue;
             }
         }
 
         std::string del_key;
-        mutex_bgtask_.lock();
         if (!tasks_.empty()){
             del_key = tasks_.front();
             tasks_.pop();

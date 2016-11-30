@@ -6,7 +6,7 @@ found in the LICENSE file.
 #include "net/fde.h"
 #include "util/log.h"
 #include "slave.h"
-#include "ssdb/t_hash.h"
+//#include "ssdb/t_hash.h"
 #include "include.h"
 
 Slave::Slave(SSDB *ssdb, SSDB *meta, const char *ip, int port, bool is_mirror){
@@ -377,9 +377,11 @@ int Slave::proc_sync(const Binlog &log, const std::vector<Bytes> &req){
 					break;
 				}
 				std::string key;
-				if(decode_kv_key(log.key(), &key) == -1){
+				MetaKey mk;
+				if (mk.DecodeMetaKey(log.key().String()) == -1){
 					break;
 				}
+				key = mk.key;
 				log_trace("set %s", hexmem(key.data(), key.size()).c_str());
 				if(ssdb->set(key, req[1], log_type) == -1){
 					return -1;
@@ -389,9 +391,11 @@ int Slave::proc_sync(const Binlog &log, const std::vector<Bytes> &req){
 		case BinlogCommand::KDEL:
 			{
 				std::string key;
-				if(decode_kv_key(log.key(), &key) == -1){
+				MetaKey mk;
+				if (mk.DecodeMetaKey(log.key().String()) == -1){
 					break;
 				}
+				key = mk.key;
 				log_trace("del %s", hexmem(key.data(), key.size()).c_str());
 				if(ssdb->del(key, log_type) == -1){
 					return -1;
@@ -404,9 +408,12 @@ int Slave::proc_sync(const Binlog &log, const std::vector<Bytes> &req){
 					break;
 				}
 				std::string name, key;
-				if(decode_hash_key(log.key(), &name, &key) == -1){
+				HashItemKey hk;
+				if (hk.DecodeItemKey(log.key().String()) == -1){
 					break;
 				}
+				name= hk.key;
+				key = hk.field;
 				log_trace("hset %s %s",
 					hexmem(name.data(), name.size()).c_str(),
 					hexmem(key.data(), key.size()).c_str());
@@ -418,9 +425,12 @@ int Slave::proc_sync(const Binlog &log, const std::vector<Bytes> &req){
 		case BinlogCommand::HDEL:
 			{
 				std::string name, key;
-				if(decode_hash_key(log.key(), &name, &key) == -1){
+				HashItemKey hk;
+				if (hk.DecodeItemKey(log.key().String()) == -1){
 					break;
 				}
+				name= hk.key;
+				key = hk.field;
 				log_trace("hdel %s %s",
 					hexmem(name.data(), name.size()).c_str(),
 					hexmem(key.data(), key.size()).c_str());
@@ -435,9 +445,13 @@ int Slave::proc_sync(const Binlog &log, const std::vector<Bytes> &req){
 					break;
 				}
 				std::string name, key;
-				if(decode_zset_key(log.key(), &name, &key) == -1){
+				ZScoreItemKey zk;
+				if (zk.DecodeItemKey(log.key().String()) == -1){
 					break;
 				}
+//				if(decode_zset_key(log.key(), &name, &key) == -1){
+//					break;
+//				}
 				log_trace("zset %s %s",
 					hexmem(name.data(), name.size()).c_str(),
 					hexmem(key.data(), key.size()).c_str());
@@ -449,9 +463,9 @@ int Slave::proc_sync(const Binlog &log, const std::vector<Bytes> &req){
 		case BinlogCommand::ZDEL:
 			{
 				std::string name, key;
-				if(decode_zset_key(log.key(), &name, &key) == -1){
-					break;
-				}
+//				if(decode_zset_key(log.key(), &name, &key) == -1){
+//					break;
+//				}
 				log_trace("zdel %s %s",
 					hexmem(name.data(), name.size()).c_str(),
 					hexmem(key.data(), key.size()).c_str());
@@ -469,12 +483,13 @@ int Slave::proc_sync(const Binlog &log, const std::vector<Bytes> &req){
 				}
 				std::string name;
 				uint64_t seq;
-				if(decode_qitem_key(log.key(), &name, &seq) == -1){
+				ListItemKey lk;
+				if (lk.DecodeItemKey(log.key().String()) == -1){
 					break;
 				}
-				if(seq < QITEM_MIN_SEQ || seq > QITEM_MAX_SEQ){
-					break;
-				}
+				name = lk.key;
+				seq  = lk.seq;
+
 				int ret;
 				if(log.cmd() == BinlogCommand::QSET){
 					log_trace("qset %s %" PRIu64 "", hexmem(name.data(), name.size()).c_str(), seq);
