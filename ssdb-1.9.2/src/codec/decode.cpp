@@ -131,6 +131,8 @@ int MetaVal::DecodeMetaVal(const string &str) {
     del = str[3];
     if((del != KEY_DELETE_MASK) && (del != KEY_ENABLED_MASK)){
         return -1;
+    } else if (del == KEY_DELETE_MASK){
+        return 0;
     }
 
     if (decoder.read_uint64(&length) == -1){
@@ -160,6 +162,8 @@ int ListMetaVal::DecodeMetaVal(const string &str) {
     del = str[3];
     if((del != KEY_DELETE_MASK) && (del != KEY_ENABLED_MASK)){
         return -1;
+    } else if (del == KEY_DELETE_MASK){
+        return 0;
     }
 
     if (decoder.read_uint64(&length) == -1){
