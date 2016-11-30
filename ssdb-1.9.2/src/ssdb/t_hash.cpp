@@ -284,10 +284,12 @@ int SSDBImpl::GetHashMetaVal(const std::string &meta_key, HashMetaVal &hv){
 		return -1;
 	} else{
 		int ret = hv.DecodeMetaVal(meta_val);
-		if (ret == -1 || hv.type != DataType::HSIZE){
+		if (ret == -1){
 			return -1;
 		} else if (hv.del == KEY_DELETE_MASK){
 			return 0;
+		} else if (hv.type != DataType::HSIZE){
+			return -1;
 		}
 	}
 	return 1;

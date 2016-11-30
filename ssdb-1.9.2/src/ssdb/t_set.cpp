@@ -12,10 +12,12 @@ int SSDBImpl::GetSetMetaVal(const std::string &meta_key, SetMetaVal &sv){
         return -1;
     } else{
         int ret = sv.DecodeMetaVal(meta_val);
-        if (ret == -1 || sv.type != DataType::SSIZE){
+        if (ret == -1){
             return -1;
         } else if (sv.del == KEY_DELETE_MASK){
             return 0;
+        } else if (sv.type != DataType::SSIZE){
+            return -1;
         }
     }
     return 1;

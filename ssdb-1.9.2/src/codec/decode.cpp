@@ -106,9 +106,7 @@ int KvMetaVal::DecodeMetaVal(const string &str) {
     if(decoder.skip(1) == -1){
         return -1;
     }
-    if ((type = str[0]) != DataType::KV){
-        return -1;
-    }
+    type = str[0];
 
     decoder.read_data(&value);
     return 0;
@@ -120,9 +118,6 @@ int MetaVal::DecodeMetaVal(const string &str) {
         return -1;
     }
     type = str[0];
-    if ((type != DataType::HSIZE) && (type != DataType::SSIZE) && (type != DataType::ZSIZE)){
-        return -1;
-    }
 
     if (decoder.read_uint16(&version) == -1){
         return -1;
@@ -151,9 +146,7 @@ int ListMetaVal::DecodeMetaVal(const string &str) {
     if(decoder.skip(1) == -1){
         return -1;
     }
-    if ((type = str[0]) != DataType::LSZIE){
-        return -1;
-    }
+    type = str[0];
 
     if (decoder.read_uint16(&version) == -1){
         return -1;

@@ -209,7 +209,7 @@ int SSDBImpl::get(const Bytes &key, std::string *val){
 		return -1;
 	}
     KvMetaVal kv;
-    if (kv.DecodeMetaVal(en_val) == -1){
+    if (kv.DecodeMetaVal(en_val) == -1 || kv.type != DataType::KV){
         return -1;
     } else{
         *val = kv.value;
