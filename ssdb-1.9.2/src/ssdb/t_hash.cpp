@@ -3,11 +3,7 @@ Copyright (c) 2012-2014 The SSDB Authors. All rights reserved.
 Use of this source code is governed by a BSD-style license that can be
 found in the LICENSE file.
 */
-// todo r2m adaptation : remove this
-//#include "t_hash.h"
 #include "ssdb_impl.h"
-#include "../codec/encode.h"
-#include "../codec/decode.h"
 
 static int hset_one(SSDBImpl *ssdb, const Bytes &name, const Bytes &key, const Bytes &val, char log_type);
 static int hdel_one(SSDBImpl *ssdb, const Bytes &name, const Bytes &key, char log_type);

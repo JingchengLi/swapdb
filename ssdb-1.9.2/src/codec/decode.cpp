@@ -108,6 +108,25 @@ int KvMetaVal::DecodeMetaVal(const string &str) {
     }
     type = str[0];
 
+    if (decoder.read_uint16(&version) == -1){
+        return -1;
+    } else{
+        version = be16toh(version);
+    }
+
+    if(decoder.skip(1) == -1){
+        return -1;
+    }
+    del = str[3];
+    if((del != KEY_DELETE_MASK) && (del != KEY_ENABLED_MASK)){
+        return -1;
+    } else if (del == KEY_DELETE_MASK){
+        return 0;
+    }
+    if (type != DataType::KV){
+        return -1;
+    }
+
     decoder.read_data(&value);
     return 0;
 }

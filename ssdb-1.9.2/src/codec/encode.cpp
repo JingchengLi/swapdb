@@ -98,9 +98,15 @@ string encode_list_key(const Bytes& key, uint64_t seq, uint16_t version){
     return buf;
 }
 
-string encode_kv_val(const string& val){
+string encode_kv_val(const string& val, uint16_t version, char del){
     string buf;
     buf.append(1, DataType::KV);
+
+    version = htobe16(version);
+    buf.append((char *)&version, sizeof(uint16_t));
+
+    buf.append(1, del);
+
     buf.append(val);
     return buf;
 }
