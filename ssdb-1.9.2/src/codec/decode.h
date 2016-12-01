@@ -53,6 +53,8 @@ public:
 
 public:
     char        type;
+    char        del;
+    uint16_t    version;
     string      value;
 };
 

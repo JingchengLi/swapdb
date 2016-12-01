@@ -438,6 +438,8 @@ void SSDBImpl::delete_key_loop(const std::string &del_key) {
         }
         if (ik.key == dk.key && ik.version == dk.version){
 			batch.Delete(item_key);
+        } else{
+            break;
         }
     }
 	batch.Delete(del_key);

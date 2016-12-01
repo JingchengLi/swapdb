@@ -212,6 +212,7 @@ private:
     int KDel(const Bytes &key, char log_type=BinlogType::SYNC);
 	int KDelNoLock(const Bytes &key, char log_type=BinlogType::SYNC);
 	int DelKeyByType(const Bytes &key, const std::string &type);
+    int GetKvMetaVal(const std::string &meta_key, KvMetaVal &kv);
 
     HIterator* hscan_internal(const Bytes &name, const Bytes &start, const Bytes &end, uint16_t version, uint64_t limit);
     HIterator* hrscan_internal(const Bytes &name, const Bytes &start, const Bytes &end, uint16_t version, uint64_t limit);

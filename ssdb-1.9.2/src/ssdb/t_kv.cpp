@@ -3,47 +3,57 @@ Copyright (c) 2012-2014 The SSDB Authors. All rights reserved.
 Use of this source code is governed by a BSD-style license that can be
 found in the LICENSE file.
 */
-// todo r2m adaptation : remove this
-#include "t_kv.h"
-#include "codec/encode.h"
-#include "codec/decode.h"
+#include "ssdb_impl.h"
+
+int SSDBImpl::GetKvMetaVal(const std::string &meta_key, KvMetaVal &kv) {
+	std::string meta_val;
+	leveldb::Status s = ldb->Get(leveldb::ReadOptions(), meta_key, &meta_val);
+	if (s.IsNotFound()){
+		return 0;
+	} else if (!s.ok()){
+		return -1;
+	} else{
+		int ret = kv.DecodeMetaVal(meta_val);
+		if (ret < 0){
+			return ret;
+		} else if(kv.del == KEY_DELETE_MASK){
+			return 0;
+		}
+	}
+	return 1;
+}
 
 int SSDBImpl::SetGeneric(const std::string &key, const std::string &val, int flags, const int64_t expire, char log_type){
 	if (expire < 0){
 		return -1;
 	}
 
-	Transaction trans(binlogs);
-
-    std::string key_type;
-    if (type(key, &key_type) == -1){
-        return -1;
-    }
-
-    if ((flags & OBJ_SET_NX) && (key_type != "none")){
-        return -1;
-    } else if ((flags & OBJ_SET_XX) && (key_type == "none")){
-        return -1;
-    }
-
-	if (key_type != "none"){
-		DelKeyByType(key, key_type);
-	}
-
-	if (expire > 0){
-        expiration->set_ttl_internal(key, expire);
-	}
-
 	std::string meta_key = encode_meta_key(key);
-	std::string meta_val = encode_kv_val(val);
+	std::string meta_val;
+	KvMetaVal kv;
+	int ret = GetKvMetaVal(meta_key, kv);
+	if (ret < 0){
+		return ret;
+	} else if(ret == 0){
+		if (flags & OBJ_SET_XX){
+			return -1;
+		}
+		if (kv.del == KEY_DELETE_MASK){
+			meta_val = encode_kv_val(val, (uint16_t)(kv.version+1));
+		} else{
+			meta_val = encode_kv_val(val);
+		}
+	} else{
+		if (flags & OBJ_SET_NX){
+			return -1;
+		}
+		meta_val = encode_kv_val(val, kv.version);
+	}
+
 	binlogs->Put(meta_key, meta_val);
 	binlogs->add_log(log_type, BinlogCommand::KSET, meta_key);
-	leveldb::Status s = binlogs->commit();
-	if (!s.ok()){
-        //todo 时间戳排序回滚fast_keys first_timeout
-		return -1;
-	}
-    return 0;
+
+    return 1;
 }
 
 int SSDBImpl::multi_set(const std::vector<Bytes> &kvs, int offset, char log_type){
@@ -53,19 +63,11 @@ int SSDBImpl::multi_set(const std::vector<Bytes> &kvs, int offset, char log_type
 	it = kvs.begin() + offset;
 	for(; it != kvs.end(); it += 2){
 		const Bytes &key = *it;
-        std::string key_type;
-        int ret = type(key, &key_type);
-        if (ret == -1){
-            return  -1;
-        } else if (ret == 1){
-            DelKeyByType(key, key_type);
-        }
-
 		const Bytes &val = *(it + 1);
-		std::string buf = encode_meta_key(key.String());
-        std::string meta_val = encode_kv_val(val.String());
-		binlogs->Put(buf, meta_val);
-		binlogs->add_log(log_type, BinlogCommand::KSET, buf);
+		int ret = SetGeneric(key.String(), val.String(), OBJ_SET_NO_FLAGS, 0);
+		if (ret < 0){
+			return ret;
+		}
 	}
 	leveldb::Status s = binlogs->commit();
 	if(!s.ok()){
@@ -83,42 +85,90 @@ int SSDBImpl::multi_del(const std::vector<Bytes> &keys, int offset, char log_typ
 	it = keys.begin() + offset;
 	for(; it != keys.end(); it++){
 		const Bytes &key = *it;
-        std::string key_type;
-        int ret = type(key, &key_type);
-        if (ret == -1){
-            return -1;
-        } else if(ret == 1){
-            DelKeyByType(key, key_type);
-            num++;
-        }
+		std::string meta_key = encode_meta_key(key);
+		std::string meta_val;
+		leveldb::Status s = ldb->Get(leveldb::ReadOptions(), meta_key, &meta_val);
+		if (s.IsNotFound()){
+			continue;
+		} else if (!s.ok()){
+			return -1;
+		} else{
+			if (meta_val.size() >= 4 ){
+				if (meta_val[3] == KEY_ENABLED_MASK){
+					meta_val[3] = KEY_DELETE_MASK;
+					uint16_t version = *(uint16_t *)(meta_val.c_str()+1);
+					version = be16toh(version);
+					std::string del_key = encode_delete_key(key, meta_val[0], version);
+					binlogs->Put(meta_key, meta_val);
+					binlogs->Put(del_key, "");
+					num++;
+				} else{
+					continue;
+				}
+			} else{
+				return -1;
+			}
+		}
 	}
-	leveldb::Status s = binlogs->commit();
-	if(!s.ok()){
-		log_error("multi_del error: %s", s.ToString().c_str());
-		return -1;
+	if (num > 0){
+		leveldb::Status s = binlogs->commit();
+		if(!s.ok()){
+			log_error("multi_del error: %s", s.ToString().c_str());
+			return -1;
+		}
 	}
 	return num;
 }
 
 int SSDBImpl::set(const Bytes &key, const Bytes &val, char log_type){
-    return SetGeneric(key.String(), val.String(), OBJ_SET_NO_FLAGS, 0);
+	Transaction trans(binlogs);
+
+    int ret = SetGeneric(key.String(), val.String(), OBJ_SET_NO_FLAGS, 0);
+	if (ret < 0){
+		return ret;
+	}
+	leveldb::Status s = binlogs->commit();
+	if (!s.ok()){
+		return -1;
+	}
+	return 1;
 }
 
 int SSDBImpl::setnx(const Bytes &key, const Bytes &val, char log_type){
-    return SetGeneric(key.String(), val.String(), OBJ_SET_NX, 0);
+	Transaction trans(binlogs);
+
+	int ret = SetGeneric(key.String(), val.String(), OBJ_SET_NX, 0);
+	if (ret < 0){
+		return ret;
+	}
+	leveldb::Status s = binlogs->commit();
+	if (!s.ok()){
+		return -1;
+	}
+	return 1;
 }
 
 int SSDBImpl::getset(const Bytes &key, std::string *val, const Bytes &newval, char log_type){
     Transaction trans(binlogs);
-    int ret = get(key, val);
-    if ( ret == -1){
-        return -1;
-    }
 
-	std::string buf = encode_meta_key(key.String());
-    std::string meta_val = encode_kv_val(newval.String());
-	binlogs->Put(buf, meta_val);
-	binlogs->add_log(log_type, BinlogCommand::KSET, buf);
+	std::string meta_key = encode_meta_key(key);
+	std::string meta_val;
+	KvMetaVal kv;
+	int ret = GetKvMetaVal(meta_key, kv);
+	if (ret < 0){
+		return ret;
+	} else if(ret == 0){
+		if (kv.del == KEY_DELETE_MASK){
+			meta_val = encode_kv_val(newval.String(), (uint16_t)(kv.version+1));
+		} else{
+			meta_val = encode_kv_val(newval.String());
+		}
+	} else{
+		meta_val = encode_kv_val(newval.String(), kv.version);
+		*val = kv.value;
+	}
+	binlogs->Put(meta_key, meta_val);
+	binlogs->add_log(log_type, BinlogCommand::KSET, meta_key);
 	leveldb::Status s = binlogs->commit();
 	if(!s.ok()){
 		log_error("set error: %s", s.ToString().c_str());
@@ -131,47 +181,57 @@ int SSDBImpl::getset(const Bytes &key, std::string *val, const Bytes &newval, ch
 int SSDBImpl::del(const Bytes &key, char log_type){
     Transaction trans(binlogs);
 
-    std::string key_type;
-    int ret = type(key, &key_type);
-    if (ret != 1){
-        return ret;
-    }
-    int64_t num = 0;
-    if (key_type == "string"){
-        num = KDelNoLock(key);
-    } else if (key_type == "hash"){
-        num = HDelKeyNoLock(key);
-    } else if (key_type == "set"){
-        num = SDelKeyNoLock(key);
-    } else if (key_type == "zset"){
-        num = ZDelKeyNoLock(key);
-    } else if (key_type == "list"){
-        num = LDelKeyNoLock(key);
-    }
-
-    if (num > 0){
-        leveldb::Status s = binlogs->commit();
-        if(!s.ok()){
-            log_error("set error: %s", s.ToString().c_str());
-            return -1;
-        }
-    } else if (num == -1){
+	std::string meta_key = encode_meta_key(key);
+	std::string meta_val;
+	leveldb::Status s = ldb->Get(leveldb::ReadOptions(), meta_key, &meta_val);
+	if (s.IsNotFound()){
+		return 0;
+	} else if (!s.ok()){
 		return -1;
+	} else{
+		if (meta_val.size() >= 4 ){
+			if (meta_val[3] == KEY_ENABLED_MASK){
+				meta_val[3] = KEY_DELETE_MASK;
+				uint16_t version = *(uint16_t *)(meta_val.c_str()+1);
+				version = be16toh(version);
+				std::string del_key = encode_delete_key(key, meta_val[0], version);
+				binlogs->Put(meta_key, meta_val);
+				binlogs->Put(del_key, "");
+			} else{
+				return 0;
+			}
+		} else{
+			return -1;
+		}
 	}
 
-	return num;
+    s = binlogs->commit();
+    if(!s.ok()){
+        log_error("set error: %s", s.ToString().c_str());
+        return -1;
+    }
+
+	return 1;
 }
 
 int SSDBImpl::incr(const Bytes &key, int64_t by, int64_t *new_val, char log_type){
 	Transaction trans(binlogs);
 
 	std::string old;
-	int ret = this->get(key, &old);
+	uint16_t version = 0;
+	std::string meta_key = encode_meta_key(key);
+	KvMetaVal kv;
+	int ret = GetKvMetaVal(meta_key, kv);
 	if(ret == -1){
 		return -1;
 	}else if(ret == 0){
 		*new_val = by;
+		if (kv.del == KEY_DELETE_MASK){
+			version = (uint16_t)(kv.version + 1);
+		}
 	}else{
+		old = kv.value;
+		version = kv.version;
         int64_t oldvalue = str_to_int64(old);
         if(errno != 0){
             return 0;
@@ -184,7 +244,7 @@ int SSDBImpl::incr(const Bytes &key, int64_t by, int64_t *new_val, char log_type
 	}
 
 	std::string buf = encode_meta_key(key.String());
-    std::string meta_val = encode_kv_val(str(*new_val));
+    std::string meta_val = encode_kv_val(str(*new_val), version);
 	binlogs->Put(buf, meta_val);
 	binlogs->add_log(log_type, BinlogCommand::KSET, buf);
 
@@ -197,29 +257,21 @@ int SSDBImpl::incr(const Bytes &key, int64_t by, int64_t *new_val, char log_type
 }
 
 int SSDBImpl::get(const Bytes &key, std::string *val){
-	std::string buf = encode_meta_key(key.String());
-    std::string en_val;
+	std::string meta_key = encode_meta_key(key);
+	KvMetaVal kv;
+	int ret = GetKvMetaVal(meta_key, kv);
+	if (ret <= 0){
+		return ret;
+	} else{
+		*val = kv.value;
+	}
 
-	leveldb::Status s = ldb->Get(leveldb::ReadOptions(), buf, &en_val);
-	if(s.IsNotFound()){
-		return 0;
-	}
-	if(!s.ok()){
-		log_error("get error: %s", s.ToString().c_str());
-		return -1;
-	}
-    KvMetaVal kv;
-    if (kv.DecodeMetaVal(en_val) == -1 || kv.type != DataType::KV){
-        return -1;
-    } else{
-        *val = kv.value;
-    }
 	return 1;
 }
 
 // todo r2m adaptation
 KIterator* SSDBImpl::scan(const Bytes &start, const Bytes &end, uint64_t limit){    //不支持kv scan，redis也不支持
-	std::string key_start, key_end;
+/*	std::string key_start, key_end;
 	key_start = encode_kv_key(start);
 	if(end.empty()){
 		key_end = "";
@@ -229,12 +281,13 @@ KIterator* SSDBImpl::scan(const Bytes &start, const Bytes &end, uint64_t limit){
 	//dump(key_start.data(), key_start.size(), "scan.start");
 	//dump(key_end.data(), key_end.size(), "scan.end");
 
-	return new KIterator(this->iterator(key_start, key_end, limit));
+	return new KIterator(this->iterator(key_start, key_end, limit));*/
+	return NULL;
 }
 
 // todo r2m adaptation
 KIterator* SSDBImpl::rscan(const Bytes &start, const Bytes &end, uint64_t limit){   //不支持kv scan，redis也不支持
-	std::string key_start, key_end;
+	/*std::string key_start, key_end;
 
 	key_start = encode_kv_key(start);
 	if(start.empty()){
@@ -246,16 +299,27 @@ KIterator* SSDBImpl::rscan(const Bytes &start, const Bytes &end, uint64_t limit)
 	//dump(key_start.data(), key_start.size(), "scan.start");
 	//dump(key_end.data(), key_end.size(), "scan.end");
 
-	return new KIterator(this->rev_iterator(key_start, key_end, limit));
+	return new KIterator(this->rev_iterator(key_start, key_end, limit));*/
+	return NULL;
 }
 
 int SSDBImpl::setbit(const Bytes &key, int bitoffset, int on, char log_type){
 	Transaction trans(binlogs);
 	
 	std::string val;
-	int ret = this->get(key, &val);
+	uint16_t version = 0;
+	std::string meta_key = encode_meta_key(key);
+	KvMetaVal kv;
+	int ret = GetKvMetaVal(meta_key, kv);
 	if(ret == -1){
 		return -1;
+	}else if(ret == 0){
+		if (kv.del == KEY_DELETE_MASK){
+			version = (uint16_t)(kv.version + 1);
+		}
+	}else{
+		version = kv.version;
+		val = kv.value;
 	}
 
     int len = bitoffset >> 3;
@@ -271,7 +335,7 @@ int SSDBImpl::setbit(const Bytes &key, int bitoffset, int on, char log_type){
 	}
 
 	std::string buf = encode_meta_key(key.String());
-    std::string meta_val = encode_kv_val(val);
+    std::string meta_val = encode_kv_val(val, version);
 	binlogs->Put(buf, meta_val);
 	binlogs->add_log(log_type, BinlogCommand::KSET, buf);
 	leveldb::Status s = binlogs->commit();
@@ -285,7 +349,7 @@ int SSDBImpl::setbit(const Bytes &key, int bitoffset, int on, char log_type){
 int SSDBImpl::getbit(const Bytes &key, int bitoffset){
 	std::string val;
 	int ret = this->get(key, &val);
-	if(ret == -1){
+	if(ret <= 0){
 		return -1;
 	}
 
