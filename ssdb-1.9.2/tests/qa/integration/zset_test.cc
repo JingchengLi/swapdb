@@ -15,7 +15,7 @@ class ZsetTest : public SSDBTest
         std::vector<std::string> list;
         std::map<std::string, double> items;
         std::vector<std::string> keys;
-        string key, field;
+        string key, field, val;
         double score, getScore;
         uint16_t keysNum;
         int64_t ret;
@@ -65,11 +65,24 @@ TEST_F(ZsetTest, Test_zset_zadd) {
 
 
     // other types key
-    s = client->del(key);
     field = GetRandomField_();
-    s = client->set(key, "score");
+    val = GetRandomVal_();
+
+    client->del(key);
+    s = client->set(key, val);
     FalseZset
-    s = client->del(key); 
+
+    client->del(key); 
+    s = client->hset(key, field, val);
+    FalseZset
+
+    client->del(key); 
+    client->qpush_front(key, val);
+    FalseZset
+
+    client->del(key); 
+    client->sadd(key, val);
+    FalseZset
 }
 
 TEST_F(ZsetTest, Test_zset_zscore) {

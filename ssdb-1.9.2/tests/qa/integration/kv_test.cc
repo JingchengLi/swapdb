@@ -26,8 +26,8 @@ TEST_F(KVTest, Test_kv_set) {
     s = client->get(key, &getVal);\
     ASSERT_TRUE(s.ok()&&(val == getVal))<<"fail to get key val!"<<endl;
 
-/* #define FalseSet s = client->set(key, val);\
-    ASSERT_TRUE(s.error())<<"this key should set fail!"<<endl; */
+#define FalseSet s = client->set(key, val);\
+    ASSERT_TRUE(s.error())<<"this key should set fail!"<<endl; 
  
     //Some special keys
     for(vector<string>::iterator it = Keys.begin(); it != Keys.end(); it++)
@@ -51,15 +51,24 @@ TEST_F(KVTest, Test_kv_set) {
         s = client->del(key);
     }
 
-    //other types key, kv can set other types
-    s = client->del(key);
+    //other types key, kv can not set other types
     field = GetRandomField_();
-    s = client->hset(key, field, val);
-    OKSet
-    s = client->del(key);
-    s = client->zset(key, field, 1.0);
-    OKSet
-    s = client->del(key);
+
+    client->del(key);
+    client->hset(key, field, val);
+    FalseSet
+
+    client->del(key);
+    client->zset(key, field, 1.0);
+    FalseSet
+
+    client->del(key);
+    client->qpush_front(key, val);
+    FalseSet
+
+    client->del(key);
+    client->sadd(key, val);
+    FalseSet
 
     //MaxLength key
     key = GetRandomBytes_(maxKeyLen_);

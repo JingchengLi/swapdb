@@ -14,7 +14,7 @@ class SetTest : public SSDBTest
     public:
         ssdb::Status s;
         std::vector<std::string> list, getList, comList;
-        string key, val, getVal;
+        string key, field, val, getVal;
         uint16_t keysNum, totalNum, addNum;
         int64_t ret;
 };
@@ -77,10 +77,24 @@ TEST_F(SetTest, Test_set_sadd) {
     client->del(key);
 
     //other types key
-    s = client->del(key);
+    field = GetRandomField_();
+    val = GetRandomVal_();
+
+    client->del(key);
     s = client->set(key, val);
     FalseSadd
-    s = client->del(key);
+
+    client->del(key); 
+    s = client->hset(key, field, val);
+    FalseSadd
+
+    client->del(key); 
+    client->qpush_front(key, val);
+    FalseSadd
+
+    client->del(key); 
+    client->zset(key, field, 1.0);
+    FalseSadd
 }
 
 TEST_F(SetTest, Test_set_srem) {

@@ -13,7 +13,7 @@ class ListTest : public SSDBTest
     public:
         ssdb::Status s;
         std::vector<std::string> list, getList, comList;
-        string key, val, getVal;
+        string key, field, val, getVal;
         uint16_t keysNum;
         int64_t ret;
 };
@@ -87,10 +87,24 @@ TEST_F(ListTest, Test_list_lpush) {
     }
 
     //other types key
-    s = client->del(key);
+    field = GetRandomField_();
+    val = GetRandomVal_();
+
+    client->del(key);
     s = client->set(key, val);
     FalseQpush_front
-    s = client->del(key);
+
+    client->del(key); 
+    client->sadd(key, val);
+    FalseQpush_front
+
+    client->del(key); 
+    client->hset(key, field, val);
+    FalseQpush_front
+
+    client->del(key); 
+    client->zset(key, field, 1.0);
+    FalseQpush_front
 }
 
 TEST_F(ListTest, Test_list_rpush) {

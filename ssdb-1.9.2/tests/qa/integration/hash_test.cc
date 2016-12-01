@@ -18,10 +18,6 @@ class HashTest : public SSDBTest
         string key, val, getVal, field;
         uint16_t keysNum;
         int64_t ret;
-
-    private:
-        string ip;
-        int port;
 };
 
 TEST_F(HashTest, Test_hash_hset) {
@@ -65,11 +61,24 @@ TEST_F(HashTest, Test_hash_hset) {
     s = client->hclear(key);
 
     //other types key
-    s = client->del(key);
     field = GetRandomField_();
+    val = GetRandomVal_();
+
+    client->del(key);
     s = client->set(key, val);
     FalseHset
-    s = client->del(key);
+
+    client->del(key); 
+    client->sadd(key, val);
+    FalseHset
+
+    client->del(key); 
+    client->qpush_front(key, val);
+    FalseHset
+
+    client->del(key); 
+    client->zset(key, field, 1.0);
+    FalseHset
 }
 
 TEST_F(HashTest, Test_hash_hget) {
