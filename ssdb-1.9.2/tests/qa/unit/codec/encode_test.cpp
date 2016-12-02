@@ -247,27 +247,37 @@ TEST_F(EncodeTest, Test_encode_list_key) {
     delete space;
 }
 
-void compare_encode_kv_val(const string& val, char* expectStr){
-    string val_kv = encode_kv_val(val);
-
+void compare_encode_kv_val(const string& val, uint16_t version, char del, char* expectStr){
+    string val_kv = encode_kv_val(val, version, del);
+    uint8_t* pversion = (uint8_t*)&version;
     expectStr[0] = 'k';
-    memcpy(expectStr+1, val.data(), val.size());
-    EXPECT_EQ(0, val_kv.compare(0, 1+val.size(), expectStr, 1+val.size()));
+    expectStr[1] = pversion[1];
+    expectStr[2] = pversion[0];
+    expectStr[3] = del;
+
+    memcpy(expectStr+4, val.data(), val.size());
+    EXPECT_EQ(0, val_kv.compare(0, 4+val.size(), expectStr, 4+val.size()));
 }
 
 TEST_F(EncodeTest, Test_encode_kv_val) {
     char* space = new char[1+maxValLen_];
     string val;
+    uint16_t version;
+    char del;
 
     int valsNum = 100;
     for(int n = 0; n < valsNum; n++)
     {
         val = GetRandomVal_();
-        compare_encode_kv_val(val, space);
+        version = GetRandomVer_();
+
+        del = (n&0x1) == 0?'D':'E';
+
+        compare_encode_kv_val(val, version, del, space);
     }
 
     //MaxLength val
-    compare_encode_kv_val(GetRandomBytes_(maxValLen_), space);
+    compare_encode_kv_val(GetRandomBytes_(maxValLen_), version, del, space);
 
     delete space;
 }
@@ -298,10 +308,7 @@ TEST_F(EncodeTest, Test_encode_hash_meta_val) {
         elNum = GetRandomUInt64_(0, MAX_UINT64-1);
         version = GetRandomVer_();
 
-        if(0 ==  ( n^0x1 ))
-            del = 'N';
-        else
-            del = 'E';
+        del = (n&0x1) == 0?'D':'E';
 
         compare_encode_meta_val_internal(encode_hash_meta_val, 'H', elNum, version, del,  space);
     }
@@ -323,10 +330,7 @@ TEST_F(EncodeTest, Test_encode_set_meta_val) {
         elNum = GetRandomUInt64_(0, MAX_UINT64-1);
         version = GetRandomVer_();
 
-        if(0 ==  ( n^0x1 ))
-            del = 'N';
-        else
-            del = 'E';
+        del = (n&0x1) == 0?'D':'E';
 
         compare_encode_meta_val_internal(encode_set_meta_val, 'S', elNum, version, del,  space);
     }
@@ -348,10 +352,7 @@ TEST_F(EncodeTest, Test_encode_zset_meta_val) {
         elNum = GetRandomUInt64_(0, MAX_UINT64-1);
         version = GetRandomVer_();
 
-        if(0 ==  ( n^0x1 ))
-            del = 'N';
-        else
-            del = 'E';
+        del = (n&0x1) == 0?'D':'E';
 
         compare_encode_meta_val_internal(encode_zset_meta_val, 'Z', elNum, version, del,  space);
     }
@@ -400,10 +401,7 @@ TEST_F(EncodeTest, Test_encode_list_meta_val) {
         right = GetRandomUInt64_(0, MAX_UINT64-1);
         version = GetRandomVer_();
 
-        if(0 ==  ( n^0x1 ))
-            del = 'N';
-        else
-            del = 'E';
+        del = (n&0x1) == 0?'D':'E';
 
         compare_encode_list_meta_val(elNum, left, right, version, del,  space);
     }

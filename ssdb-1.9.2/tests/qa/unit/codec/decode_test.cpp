@@ -186,30 +186,37 @@ TEST_F(DecodeTest, Test_List_DecodeItemKey) {
         EXPECT_EQ(-1, listitemkey.DecodeItemKey(dummyItemKey[n]));
 } 
 
-void compare_KvMetaVal(const string & val){
+void compare_KvMetaVal(const string & val, uint16_t version, char del){
     string meta_val;
-    meta_val = encode_kv_val(val);
+    meta_val = encode_kv_val(val, version, del);
 
     KvMetaVal metaval;
 
     EXPECT_EQ(metaval.DecodeMetaVal(meta_val), 0);
     EXPECT_EQ('k', metaval.type);
-    EXPECT_EQ(0, val.compare(metaval.value));
+    EXPECT_EQ(version, metaval.version);
+    EXPECT_EQ(del, metaval.del);
+    if(del == 'E')
+        EXPECT_EQ(0, val.compare(metaval.value));
 }
 
 TEST_F(DecodeTest, Test_Kv_DecodeMetaVal) {
     string val; 
+    char del;
+    uint16_t version;
 
     for(int n = 0; n < 100; n++)
     {
         val = GetRandomVal_();
-        compare_KvMetaVal(val);
+        del = (n&0x1) == 0?'D':'E';
+        version = GetRandomVer_();
+        compare_KvMetaVal(val, version, del);
     }
 
-    compare_KvMetaVal("");
+    compare_KvMetaVal("", 0, 'D');
     //
     // error return
-    string dummyMetaVal [] = {"","Xval"};
+    string dummyMetaVal [] = {"","k1", "X00", "X00Eval","k00Xval"};
     KvMetaVal metaval;
     for(int n = 0; n < sizeof(dummyMetaVal)/sizeof(string); n++)
         EXPECT_EQ(-1, metaval.DecodeMetaVal(dummyMetaVal[n]));
@@ -238,8 +245,9 @@ void compare_MetaVal(uint64_t length, uint16_t version, char del){
     EXPECT_EQ(metaval.DecodeMetaVal(meta_val), 0);
     EXPECT_EQ(del, metaval.del);
     EXPECT_EQ(type, metaval.type);
-    EXPECT_EQ(length, metaval.length);
     EXPECT_EQ(version, metaval.version);
+    if(del == 'E')
+        EXPECT_EQ(length, metaval.length);
 }
 
 TEST_F(DecodeTest, Test_DecodeMetaVal) {
@@ -249,17 +257,17 @@ TEST_F(DecodeTest, Test_DecodeMetaVal) {
 
     for(int n = 0; n < 100; n++)
     {
-        del = rand()%2 == 0?'D':'E';
+        del = (n&0x1) == 0?'D':'E';
         version = GetRandomVer_();
         length = GetRandomUInt64_(0, MAX_UINT64-1);
         compare_MetaVal(length, version, del);
     }
 
     // error return
-    string dummyMetaVal [] = {"", "S1", "Z11", "X11N00010000", "H11X00010000", "H11D01"};
+    string dummyMetaVal [] = {"", "S1", "Z11", "X11E00010000", "H11X00010000", "H11E01"};
     MetaVal metaval;
     for(int n = 0; n < sizeof(dummyMetaVal)/sizeof(string); n++)
-        EXPECT_EQ(-1, metaval.DecodeMetaVal(dummyMetaVal[n]));
+        EXPECT_EQ(-1, metaval.DecodeMetaVal(dummyMetaVal[n]))<<dummyMetaVal[n];
 } 
 
 
@@ -272,10 +280,13 @@ void compare_List_MetaVal(uint64_t length, uint64_t left_seq, uint64_t right_seq
     EXPECT_EQ(metaval.DecodeMetaVal(meta_val), 0);
     EXPECT_EQ(del, metaval.del);
     EXPECT_EQ('L', metaval.type);
-    EXPECT_EQ(length, metaval.length);
-    EXPECT_EQ(left_seq, metaval.left_seq);
-    EXPECT_EQ(right_seq, metaval.right_seq);
     EXPECT_EQ(version, metaval.version);
+    if(del == 'E')
+    {
+        EXPECT_EQ(length, metaval.length);
+        EXPECT_EQ(left_seq, metaval.left_seq);
+        EXPECT_EQ(right_seq, metaval.right_seq);
+    }
 }
 
 TEST_F(DecodeTest, Test_List_DecodeMetaVal) {
@@ -294,11 +305,11 @@ TEST_F(DecodeTest, Test_List_DecodeMetaVal) {
     }
 
     // error return
-    string dummyMetaVal [] = {"", "L1", "L11", "X11N000100002222222233333333", "L11X000100002222222233333333", "L11E00010", \
+    string dummyMetaVal [] = {"", "L1", "L11", "X11E000100002222222233333333", "L11X000100002222222233333333", "L11E00010", \
         "L11E000100002222222", "L11E00010000222222223333333"};
     ListMetaVal metaval;
     for(int n = 0; n < sizeof(dummyMetaVal)/sizeof(string); n++)
-        EXPECT_EQ(-1, metaval.DecodeMetaVal(dummyMetaVal[n]));
+        EXPECT_EQ(-1, metaval.DecodeMetaVal(dummyMetaVal[n]))<<dummyMetaVal[n];
 } 
 
 void compare_DeleteKey(const string &key, char key_type, uint16_t version){
