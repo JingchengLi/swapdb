@@ -153,6 +153,9 @@ int MetaVal::DecodeMetaVal(const string &str) {
     } else if (del == KEY_DELETE_MASK){
         return 0;
     }
+    if ((type != DataType::HSIZE) && (type != DataType::SSIZE) && (type != DataType::ZSIZE)){
+        return -1;
+    }
 
     if (decoder.read_uint64(&length) == -1){
         return -1;
@@ -183,6 +186,9 @@ int ListMetaVal::DecodeMetaVal(const string &str) {
         return -1;
     } else if (del == KEY_DELETE_MASK){
         return 0;
+    }
+    if (type != DataType::LSZIE){
+        return -1;
     }
 
     if (decoder.read_uint64(&length) == -1){
