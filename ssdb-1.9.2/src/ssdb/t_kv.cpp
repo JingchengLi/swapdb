@@ -177,35 +177,43 @@ int SSDBImpl::getset(const Bytes &key, std::string *val, const Bytes &newval, ch
 	return ret;
 }
 
+int SSDBImpl::del_key_internal(const Bytes &key, char log_type) {
+    std::string meta_key = encode_meta_key(key);
+    std::string meta_val;
+    leveldb::Status s = ldb->Get(leveldb::ReadOptions(), meta_key, &meta_val);
+    if (s.IsNotFound()){
+        return 0;
+    } else if (!s.ok()){
+        return -1;
+    } else{
+        if (meta_val.size() >= 4 ){
+            if (meta_val[3] == KEY_ENABLED_MASK){
+                meta_val[3] = KEY_DELETE_MASK;
+                uint16_t version = *(uint16_t *)(meta_val.c_str()+1);
+                version = be16toh(version);
+                std::string del_key = encode_delete_key(key, meta_val[0], version);
+                binlogs->Put(meta_key, meta_val);
+                binlogs->Put(del_key, "");
+            } else if (meta_val[3] == KEY_DELETE_MASK){
+                return 0;
+            } else{
+                return -1;
+            }
+        } else{
+            return -1;
+        }
+    }
+}
 
 int SSDBImpl::del(const Bytes &key, char log_type){
     Transaction trans(binlogs);
 
-	std::string meta_key = encode_meta_key(key);
-	std::string meta_val;
-	leveldb::Status s = ldb->Get(leveldb::ReadOptions(), meta_key, &meta_val);
-	if (s.IsNotFound()){
-		return 0;
-	} else if (!s.ok()){
-		return -1;
-	} else{
-		if (meta_val.size() >= 4 ){
-			if (meta_val[3] == KEY_ENABLED_MASK){
-				meta_val[3] = KEY_DELETE_MASK;
-				uint16_t version = *(uint16_t *)(meta_val.c_str()+1);
-				version = be16toh(version);
-				std::string del_key = encode_delete_key(key, meta_val[0], version);
-				binlogs->Put(meta_key, meta_val);
-				binlogs->Put(del_key, "");
-			} else{
-				return 0;
-			}
-		} else{
-			return -1;
-		}
-	}
+	int ret = del_key_internal(key, log_type);
+    if (ret <= 0){
+        return ret;
+    }
 
-    s = binlogs->commit();
+    leveldb::Status s = binlogs->commit();
     if(!s.ok()){
         log_error("set error: %s", s.ToString().c_str());
         return -1;
