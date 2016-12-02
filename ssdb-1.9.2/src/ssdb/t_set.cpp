@@ -342,12 +342,9 @@ int SSDBImpl::sunionstore(const Bytes &destination, const std::vector<Bytes> &ke
         return -1;
     }
 
-    std::string key_type;
-    ret = type(destination, &key_type);
-    if (ret  == -1){
-        return -1;
-    } else if (ret == 1){
-        DelKeyByType(destination, key_type);
+    ret = del_key_internal(destination, log_type);
+    if (ret < 0){
+        return ret;
     }
 
     *num = members.size();
