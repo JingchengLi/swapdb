@@ -150,7 +150,7 @@ int proc_multi_set(NetworkServer *net, Link *link, const Request &req, Response 
 		resp->push_back("client_error");
 	}else{
 		int ret = serv->ssdb->multi_set(req, 1);
-		resp->reply_int(0, ret);
+		resp->reply_int(ret, ret);
 	}
 	return 0;
 }
@@ -247,13 +247,14 @@ int proc_keys(NetworkServer *net, Link *link, const Request &req, Response *resp
 
 	uint64_t limit = req[3].Uint64();
 	KIterator *it = serv->ssdb->scan(req[1], req[2], limit);
-	it->return_val(false);
-
-	resp->push_back("ok");
-	while(it->next()){
-		resp->push_back(it->key);
-	}
-	delete it;
+    resp->push_back("ok");
+	if (it != NULL){
+        it->return_val(false);
+        while(it->next()){
+            resp->push_back(it->key);
+        }
+        delete it;
+    }
 	return 0;
 }
 
@@ -263,13 +264,14 @@ int proc_rkeys(NetworkServer *net, Link *link, const Request &req, Response *res
 
 	uint64_t limit = req[3].Uint64();
 	KIterator *it = serv->ssdb->rscan(req[1], req[2], limit);
-	it->return_val(false);
-
-	resp->push_back("ok");
-	while(it->next()){
-		resp->push_back(it->key);
-	}
-	delete it;
+    resp->push_back("ok");
+	if (it != NULL){
+        it->return_val(false);
+        while(it->next()){
+            resp->push_back(it->key);
+        }
+        delete it;
+    }
 	return 0;
 }
 
