@@ -427,14 +427,14 @@ void SSDBImpl::delete_key_loop(const std::string &del_key) {
 
 //    char log_type=BinlogType::SYNC;
     std::string start = encode_hash_key(dk.key, "", dk.version);
-    Iterator* it = iterator(start, "", -1);
+    auto it = std::unique_ptr<Iterator>(this->iterator(start, "", -1));
 	leveldb::WriteBatch batch;
     while (it->next()){
         ItemKey ik;
         std::string item_key = it->key().String();
         if (ik.DecodeItemKey(item_key) == -1){
             log_fatal("decode delete key error!");
-            return;
+            break;
         }
         if (ik.key == dk.key && ik.version == dk.version){
 			batch.Delete(item_key);
