@@ -350,7 +350,7 @@ int SSDBImpl::getbit(const Bytes &key, int bitoffset){
 	std::string val;
 	int ret = this->get(key, &val);
 	if(ret <= 0){
-		return -1;
+		return ret;
 	}
 
     int len = bitoffset >> 3;
