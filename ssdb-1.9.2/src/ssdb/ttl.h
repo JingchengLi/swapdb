@@ -32,7 +32,7 @@ public:
 private:
 	SSDB *ssdb;
 	volatile bool thread_quit;
-	std::string list_name;
+//	std::string list_name;
 	int64_t first_timeout;
 	SortedSet fast_keys;
 

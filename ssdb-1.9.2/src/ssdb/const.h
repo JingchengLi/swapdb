@@ -17,11 +17,13 @@ public:
 	static const char HSIZE		= 'H';
 	static const char ZSET		= 's'; // key => score
 	static const char ZSCORE	= 'z'; // key|score => ""
+	static const char ESCORE	= 'T';
 	static const char ZSIZE		= 'Z';
 	static const char SSIZE		= 'S';
 	static const char LSIZE		= 'L';
 	static const char QUEUE		= 'q';
 	static const char QSIZE		= 'Q';
+	static const char META		= 'M';
 	static const char MIN_PREFIX = HASH;
 	static const char MAX_PREFIX = ZSET;
 };

@@ -137,8 +137,8 @@ MIterator::~MIterator(){
 bool MIterator::next(){
 	while(it->next()){
 		Bytes ks = it->key();
-		if (ks.data()[0] != 'M') {
-			continue;
+		if (ks.data()[0] != DataType::META) {
+			return false;
 		}
 
 		MetaKey mk;
@@ -297,6 +297,51 @@ bool LIterator::next() {
 		this->seq = sk.seq;
 
 		return true;
+	}
+	return false;
+}
+
+
+
+EIterator::EIterator(Iterator *it){
+	this->it = it;
+}
+
+EIterator::~EIterator(){
+	delete it;
+}
+
+bool EIterator::skip(uint64_t offset){
+	while(offset-- > 0){
+		if(this->next() == false){
+			return false;
+		}
+	}
+	return true;
+}
+
+bool EIterator::next(){
+	while(it->next()){
+		Bytes ks = it->key();
+		//Bytes vs = it->val();
+//		dump(ks.data(), ks.size(), "z.next");
+//		dump(vs.data(), vs.size(), "z.next");
+
+		if (ks.size() < 1 || ks.data()[0] != DataType::ESCORE) {
+			return false;
+		}
+
+		EScoreItemKey ek;
+		if(ek.DecodeItemKey(ks.String()) == -1){
+			continue;
+		}
+
+		this->key = ek.field;
+		this->score = ek.score;
+
+//		this->key = zk.field;
+		return true;
+
 	}
 	return false;
 }

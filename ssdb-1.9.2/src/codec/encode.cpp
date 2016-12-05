@@ -10,7 +10,7 @@ static uint64_t encodeScore(const double score);
 string encode_meta_key(const Bytes& key){
     string buf;
 
-    buf.append(1, 'M');
+    buf.append(1, DataType::META);
     uint16_t slot = (uint16_t)keyHashSlot(key.data(), key.size());
     slot = htobe16(slot);
     buf.append((char *)&slot, sizeof(uint16_t));
@@ -49,6 +49,13 @@ string encode_zset_key(const Bytes& key, const Bytes& member, uint16_t version){
     return encode_key_internal('S', key.String(), member.String(), version);
 }
 
+string encode_eset_key(const Bytes& member){
+    string buf;
+    buf.append(1, 'E');
+    buf.append(member.data(), member.size());
+    return buf;
+}
+
 static uint64_t encodeScore(const double score) {
     int64_t iscore;
     if (score < 0) {
@@ -75,6 +82,17 @@ string encode_zscore_key(const Bytes& key, const Bytes& member, double score, ui
     new_score = htobe64(new_score);
     buf.append((char *)&new_score, sizeof(uint64_t));
 
+    buf.append(member.data(), member.size());
+
+    return buf;
+}
+
+string encode_escore_key(const Bytes& member, uint64_t score){
+    score = htobe64(score);
+
+    string buf;
+    buf.append(1, DataType::ESCORE);
+    buf.append((char *)&score, sizeof(uint64_t));
     buf.append(member.data(), member.size());
 
     return buf;

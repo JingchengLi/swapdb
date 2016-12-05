@@ -135,4 +135,18 @@ private:
 	Iterator	*it;
 };
 
+
+
+class EIterator{
+public:
+	std::string key;
+	int64_t      score;
+
+	EIterator(Iterator *it);
+	~EIterator();
+	bool skip(uint64_t offset);
+	bool next();
+private:
+	Iterator *it;
+};
 #endif
