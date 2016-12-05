@@ -410,6 +410,7 @@ static void get_znames(Iterator *it, std::vector<std::string> *list) {
     }
 }
 
+//TODO unsupported . due to M+slot+key  . slot in meta key
 int SSDBImpl::zlist(const Bytes &name_s, const Bytes &name_e, uint64_t limit,
                     std::vector<std::string> *list) {
     std::string start;
