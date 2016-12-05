@@ -58,6 +58,19 @@ private:
 };
 
 
+class MIterator{
+public:
+	char dataType;
+	std::string key;
+
+	MIterator(Iterator *it);
+	~MIterator();
+	bool next();
+private:
+	Iterator *it;
+};
+
+
 // todo r2m adaptation
 class HIterator{
 public:

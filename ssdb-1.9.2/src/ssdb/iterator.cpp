@@ -123,6 +123,36 @@ bool KIterator::next(){
 	}
 	return  false;
 }
+/* KV */
+
+// todo r2m adaptation
+MIterator::MIterator(Iterator *it){
+	this->it = it;
+}
+
+MIterator::~MIterator(){
+	delete it;
+}
+
+bool MIterator::next(){
+	while(it->next()){
+		Bytes ks = it->key();
+		if (ks.data()[0] != 'M') {
+			continue;
+		}
+
+		MetaKey mk;
+		if (mk.DecodeMetaKey(it->key().String()) == -1){
+			continue;
+		}
+		key = mk.key;
+
+		Bytes vs = it->val();
+		this->dataType = vs.data()[0];
+		return true;
+	}
+	return false;
+}
 
 /* HASH */
 
@@ -207,7 +237,7 @@ ZIterator::ZIterator(Iterator *it, const Bytes &name, uint16_t version){
 ZIterator::~ZIterator(){
 	delete it;
 }
-		
+
 bool ZIterator::skip(uint64_t offset){
 	while(offset-- > 0){
 		if(this->next() == false){

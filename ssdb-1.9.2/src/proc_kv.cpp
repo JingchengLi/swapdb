@@ -203,7 +203,7 @@ int proc_del(NetworkServer *net, Link *link, const Request &req, Response *resp)
 		resp->push_back("0");
 	} else{
 		serv->expiration->del_ttl(req[1]);
-			
+
 		resp->push_back("ok");
 		resp->push_back(str(ret));
 	}
@@ -244,17 +244,27 @@ int proc_rscan(NetworkServer *net, Link *link, const Request &req, Response *res
 int proc_keys(NetworkServer *net, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(4);
-
+//
 	uint64_t limit = req[3].Uint64();
-	KIterator *it = serv->ssdb->scan(req[1], req[2], limit);
+//	KIterator *it = serv->ssdb->scan(req[1], req[2], limit);
+//    resp->push_back("ok");
+//	if (it != NULL){
+//        it->return_val(false);
+//        while(it->next()){
+//            resp->push_back(it->key);
+//        }
+//        delete it;
+//    }
+
+    //TODO range
+
+	Iterator *it = serv->ssdb->iterator("", "", limit);
+	MIterator* mit = new MIterator(it);
     resp->push_back("ok");
-	if (it != NULL){
-        it->return_val(false);
-        while(it->next()){
-            resp->push_back(it->key);
-        }
-        delete it;
+    while(mit->next()){
+        resp->push_back(mit->key);
     }
+	delete mit;
 	return 0;
 }
 
