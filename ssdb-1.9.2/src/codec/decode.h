@@ -44,6 +44,14 @@ public:
     uint64_t    seq;
 };
 
+class EScoreItemKey : public ItemKey{
+public:
+    virtual int DecodeItemKey(const string& str);
+
+public:
+    int64_t     score;
+};
+
 /*
  * decode meta value class
  */

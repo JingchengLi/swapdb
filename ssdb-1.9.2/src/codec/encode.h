@@ -16,7 +16,11 @@ string encode_set_key(const Bytes& key, const Bytes& member, uint16_t version = 
 
 string encode_zset_key(const Bytes& key, const Bytes& member, uint16_t version = 0);
 
+string encode_eset_key(const Bytes& member);
+
 string encode_zscore_key(const Bytes& key, const Bytes& member, double score, uint16_t version = 0);
+
+string encode_escore_key(const Bytes& member, uint64_t score);
 
 string encode_list_key(const Bytes& key, uint64_t seq, uint16_t version = 0);
 

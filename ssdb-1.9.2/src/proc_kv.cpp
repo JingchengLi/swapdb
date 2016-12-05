@@ -257,8 +257,10 @@ int proc_keys(NetworkServer *net, Link *link, const Request &req, Response *resp
 //    }
 
     //TODO range
+	std::string start;
+	start.append(1, DataType::META);
 
-	Iterator *it = serv->ssdb->iterator("", "", limit);
+	Iterator *it = serv->ssdb->iterator(start, "", limit);
 	MIterator* mit = new MIterator(it);
     resp->push_back("ok");
     while(mit->next()){

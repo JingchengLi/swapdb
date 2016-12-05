@@ -204,6 +204,14 @@ public:
 	virtual int qset(const Bytes &name, int64_t index, const Bytes &item, char log_type=BinlogType::SYNC);
 	virtual int qset_by_seq(const Bytes &name, uint64_t seq, const Bytes &item, char log_type=BinlogType::SYNC);
 
+
+	/* eset */
+	virtual int eset(const Bytes &key, int64_t ts, char log_type=BinlogType::SYNC);
+	virtual int esetNoLock(const Bytes &key, int64_t ts, char log_type=BinlogType::SYNC);
+	virtual int edel(const Bytes &key, char log_type=BinlogType::SYNC);
+	virtual int eget(const Bytes &key, int64_t *ts);
+
+
 private:
 	int64_t _qpush(const Bytes &name, const Bytes &item, uint64_t front_or_back_seq, char log_type=BinlogType::SYNC);
 	int _qpop(const Bytes &name, std::string *item, uint64_t front_or_back_seq, char log_type=BinlogType::SYNC);

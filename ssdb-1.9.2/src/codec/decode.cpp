@@ -11,7 +11,7 @@ int MetaKey::DecodeMetaKey(const string &str) {
     if(decoder.skip(1) == -1){
         return -1;
     }
-    if (str[0] != 'M'){
+    if (str[0] != DataType::META){
         return -1;
     }
     if (decoder.read_uint16(&slot) == -1){
@@ -97,6 +97,30 @@ int ListItemKey::DecodeItemKey(const string &str) {
     }
     return 0;
 }
+
+int EScoreItemKey::DecodeItemKey(const string &str) {
+
+    Decoder decoder(str.data(), str.size());
+    if(decoder.skip(1) == -1){
+        return -1;
+    }
+    if (str[0] != DataType::ESCORE){
+        return -1;
+    }
+
+    uint64_t tscore = 0;
+    if (decoder.read_uint64(&tscore) == -1){
+        return -1;
+    } else{
+        tscore = be64toh(tscore);
+        score = (int64_t) tscore;
+    }
+
+    decoder.read_data(&field);
+
+    return 0;
+}
+
 
 /*
  * decode meta value class
