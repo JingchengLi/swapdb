@@ -3,7 +3,7 @@
 //
 #include "encode.h"
 
-static string encode_key_internal(const string& key, const string& field, uint16_t version);
+static string encode_key_internal(char type, const string& key, const string& field, uint16_t version);
 static string encode_meta_val_internal(const char type, uint64_t length, uint16_t version, char del);
 static uint64_t encodeScore(const double score);
 
@@ -20,10 +20,10 @@ string encode_meta_key(const Bytes& key){
     return buf;
 }
 
-static string encode_key_internal(const string& key, const string& field, uint16_t version){
+static string encode_key_internal(char type, const string& key, const string& field, uint16_t version){
     string buf;
 
-    buf.append(1, 'S');
+    buf.append(1, type);
 
     uint16_t len = htobe16((uint16_t)key.size());
     buf.append((char *)&len, sizeof(uint16_t));
@@ -38,15 +38,15 @@ static string encode_key_internal(const string& key, const string& field, uint16
 }
 
 string encode_hash_key(const Bytes& key, const Bytes& field, uint16_t version){
-    return encode_key_internal(key.String(), field.String(), version);
+    return encode_key_internal('S', key.String(), field.String(), version);
 }
 
 string encode_set_key(const Bytes& key, const Bytes& member, uint16_t version){
-    return encode_key_internal(key.String(), member.String(), version);
+    return encode_key_internal('S', key.String(), member.String(), version);
 }
 
 string encode_zset_key(const Bytes& key, const Bytes& member, uint16_t version){
-    return encode_key_internal(key.String(), member.String(), version);
+    return encode_key_internal('S', key.String(), member.String(), version);
 }
 
 static uint64_t encodeScore(const double score) {
