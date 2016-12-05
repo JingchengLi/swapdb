@@ -471,7 +471,7 @@ int SSDBImpl::type(const Bytes &key, std::string *type){
 			*type = "zset";
             ret = 1;
 		}
-	} else if (val[0] == DataType::LSZIE){
+	} else if (val[0] == DataType::LSIZE){
 		ListMetaVal ls;
 		if (ls.DecodeMetaVal(val) == -1){
 			return -1;

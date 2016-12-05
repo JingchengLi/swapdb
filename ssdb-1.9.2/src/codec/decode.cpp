@@ -187,7 +187,7 @@ int ListMetaVal::DecodeMetaVal(const string &str) {
     } else if (del == KEY_DELETE_MASK){
         return 0;
     }
-    if (type != DataType::LSZIE){
+    if (type != DataType::LSIZE){
         return -1;
     }
 

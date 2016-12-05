@@ -141,7 +141,7 @@ string encode_zset_meta_val(uint64_t length, uint16_t version, char del){
 string encode_list_meta_val(uint64_t length, uint64_t left, uint64_t right, uint16_t version, char del){
     string buf;
 
-    buf.append(1, DataType::LSZIE);
+    buf.append(1, DataType::LSIZE);
     version = htobe16(version);
     buf.append((char *)&version, sizeof(uint16_t));
 
