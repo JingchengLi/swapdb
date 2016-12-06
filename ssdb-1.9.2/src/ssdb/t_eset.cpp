@@ -70,7 +70,7 @@ static int edel_one(SSDBImpl *ssdb, const Bytes &key, char log_type) {
 
         ssdb->binlogs->Delete(old_score_key);
         ssdb->binlogs->Delete(old_eset_key);
-        ssdb->binlogs->add_log(log_type, BinlogCommand::ZDEL, old_eset_key);
+        ssdb->binlogs->add_log(log_type, BinlogCommand::EDEL, old_eset_key);
     }
 
     return 1;
@@ -105,7 +105,7 @@ void eset_internal(const SSDBImpl *ssdb, const Bytes &key, int64_t ts, char log_
 
     ssdb->binlogs->Put(ekey, buf);
     ssdb->binlogs->Put(score_key, "");
-    ssdb->binlogs->add_log(log_type, BinlogCommand::ZSET, ekey);
+    ssdb->binlogs->add_log(log_type, BinlogCommand::ESET, ekey);
 }
 
 

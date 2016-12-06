@@ -104,6 +104,9 @@ std::string Binlog::dumps() const{
 		case BinlogCommand::ZSET:
 			str.append("zset ");
 			break;
+		case BinlogCommand::ESET:
+			str.append("eset ");
+			break;
 		case BinlogCommand::ZDEL:
 			str.append("zdel ");
 			break;
