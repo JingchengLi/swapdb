@@ -101,7 +101,7 @@ string encode_escore_key(const Bytes& member, uint64_t score){
 string encode_list_key(const Bytes& key, uint64_t seq, uint16_t version){
     string buf;
 
-    buf.append(1, 'S');
+    buf.append(1, DataType::ITEM);
 
     uint16_t len = htobe16((uint16_t)key.size());
     buf.append((char *)&len, sizeof(uint16_t));
