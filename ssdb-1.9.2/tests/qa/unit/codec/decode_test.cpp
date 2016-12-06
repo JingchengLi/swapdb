@@ -314,7 +314,7 @@ TEST_F(DecodeTest, Test_List_DecodeMetaVal) {
 
 void compare_DeleteKey(const string &key, char key_type, uint16_t version){
     string delete_key;
-    delete_key = encode_delete_key(key, key_type, version);
+    delete_key = encode_delete_key(key, version);
 
     uint16_t slot = (uint16_t)keyHashSlot(key.data(), (int)key.size());
     DeleteKey deletekey;
@@ -324,7 +324,6 @@ void compare_DeleteKey(const string &key, char key_type, uint16_t version){
     EXPECT_EQ(version, deletekey.version);
     EXPECT_EQ(0, key.compare(deletekey.key));
     EXPECT_EQ(slot, deletekey.slot);
-    EXPECT_EQ(key_type, deletekey.key_type);
 }
 
 TEST_F(DecodeTest, Test_DeleteKey) {
