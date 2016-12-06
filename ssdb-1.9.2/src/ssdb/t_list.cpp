@@ -114,7 +114,7 @@ int SSDBImpl::LPop(const Bytes &key, std::string *val) {
 
                 if (0 == len) {
                     binlogs->Delete(first_item_key);
-                    std::string del_key = encode_delete_key(key, DataType::LSIZE, meta_val.version);
+                    std::string del_key = encode_delete_key(key, meta_val.version);
                     std::string size_val = encode_list_meta_val(meta_val.length, 0, 0, meta_val.version, KEY_DELETE_MASK);
                     binlogs->Put(meta_key, size_val);
                     binlogs->Put(del_key, "");
@@ -292,7 +292,7 @@ int SSDBImpl::DoRPop(ListMetaVal &meta_val, const Bytes &key, std::string &meta_
         if (0 == len) {
             binlogs->Delete(last_item_key);
 //            binlogs->Delete(meta_key);
-            std::string del_key = encode_delete_key(key, DataType::LSIZE, meta_val.version);
+            std::string del_key = encode_delete_key(key, meta_val.version);
             std::string size_val = encode_list_meta_val(meta_val.length, 0, 0, meta_val.version, KEY_DELETE_MASK);
             binlogs->Put(meta_key, size_val);
             binlogs->Put(del_key, "");
@@ -437,24 +437,6 @@ int SSDBImpl::LSet(const Bytes &key, const int64_t index, const Bytes &val) {
     return ret;
 }
 
-static int64_t GetRealIndex(const ListMetaVal &meta_val, const int64_t index) {
-    int64_t real_index, max_negative_index, max_index;
-    if (meta_val.length < UINT64_MAX/2) {
-        max_negative_index = - meta_val.length;
-        max_index = meta_val.length - 1;
-    } else {
-        max_negative_index = INT64_MIN;
-        max_index = INT64_MAX;
-    }
-    real_index = index;
-    if (index < max_negative_index) {
-        real_index = max_negative_index;
-    } else if (index > max_index) {
-        real_index = max_index;
-    }
-    return real_index;
-}
-
 int SSDBImpl::lrange(const Bytes &key, int64_t start, int64_t end, std::vector<std::string> *list){
     Transaction trans(binlogs);
 
@@ -510,7 +492,7 @@ int64_t SSDBImpl::LDelKeyNoLock(const Bytes &name, char log_type) {
     }
 
     if (lv.length > MAX_NUM_DELETE){
-        std::string del_key = encode_delete_key(name, DataType::LSIZE, lv.version);
+        std::string del_key = encode_delete_key(name, lv.version);
         std::string meta_val = encode_list_meta_val(lv.length, lv.version, KEY_DELETE_MASK);
         binlogs->Put(del_key, "");
         binlogs->Put(meta_key, meta_val);

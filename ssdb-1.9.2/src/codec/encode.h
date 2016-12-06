@@ -41,6 +41,6 @@ string encode_list_meta_val(uint64_t length, uint64_t left, uint64_t right, uint
 /*
  * delete key
  */
-string encode_delete_key(const Bytes& key, char key_type, uint16_t version = 0);
+string encode_delete_key(const Bytes& key, uint16_t version = 0);
 
 #endif //SSDB_ENCODE_H

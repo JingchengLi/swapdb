@@ -107,7 +107,7 @@ int SSDBImpl::HDelKeyNoLock(const Bytes &name, char log_type){
     }
 
     if (hv.length > MAX_NUM_DELETE){
-        std::string del_key = encode_delete_key(name.String(), DataType::HSIZE, hv.version);
+        std::string del_key = encode_delete_key(name.String(), hv.version);
         std::string meta_val = encode_hash_meta_val(hv.length, hv.version, KEY_DELETE_MASK);
         binlogs->Put(del_key, "");
         binlogs->Put(meta_key, meta_val);
@@ -392,7 +392,7 @@ static int incr_hsize(SSDBImpl *ssdb, const Bytes &name, int64_t incr){
 			len = len - u64;
 		}
 		if (len == 0){
-			std::string del_key = encode_delete_key(name.String(), DataType::HSIZE, hv.version);
+			std::string del_key = encode_delete_key(name.String(), hv.version);
 			std::string meta_val = encode_hash_meta_val(hv.length, hv.version, KEY_DELETE_MASK);
 			ssdb->binlogs->Put(del_key, "");
 			ssdb->binlogs->Put(size_key, meta_val);

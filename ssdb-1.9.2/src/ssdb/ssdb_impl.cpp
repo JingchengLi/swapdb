@@ -398,7 +398,6 @@ int SSDBImpl::delete_meta_key(const DeleteKey& dk, leveldb::WriteBatch& batch) {
         if(decoder.skip(1) == -1){
             return -1;
         }
-        char type = meta_val[0];
 
         uint16_t version = 0;
         if (decoder.read_uint16(&version) == -1){
@@ -409,7 +408,7 @@ int SSDBImpl::delete_meta_key(const DeleteKey& dk, leveldb::WriteBatch& batch) {
 
         char del = meta_val[3];
 
-        if (type == dk.key_type && del == KEY_DELETE_MASK && version == dk.version){
+        if (del == KEY_DELETE_MASK && version == dk.version){
             batch.Delete(meta_key);
         }
     }
