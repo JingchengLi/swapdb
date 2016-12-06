@@ -594,16 +594,24 @@ static int incr_zsize(SSDBImpl *ssdb, const Bytes &name, int64_t incr) {
 
 int64_t SSDBImpl::zfix(const Bytes &name) {
     Transaction trans(binlogs);
+
+    ZSetMetaVal zv;
+    std::string meta_key = encode_meta_key(name);
+    int ret = GetZSetMetaVal(meta_key, zv);
+    if (ret != 1) {
+        return ret;
+    }
+
     std::string it_start, it_end;
     Iterator *it;
     leveldb::Status s;
     int64_t size = 0;
     int64_t old_size;
 
-    it_start = encode_zscore_key(name, "", ZSET_SCORE_MIN);
-    it_end = encode_zscore_key(name, "", ZSET_SCORE_MAX);
+    it_start = encode_zscore_key(name, "", ZSET_SCORE_MIN, zv.version);
+    it_end = encode_zscore_key(name, "", ZSET_SCORE_MAX, zv.version);
     it = this->iterator(it_start, it_end, UINT64_MAX);
-    size = 0;
+
     while (it->next()) {
         Bytes ks = it->key();
         //Bytes vs = it->val();
@@ -612,17 +620,24 @@ int64_t SSDBImpl::zfix(const Bytes &name) {
         if (ks.data()[0] != DataType::ZSCORE) {
             break;
         }
-        std::string name2, key, score;
-        if (decode_zscore_key(ks, &name2, &key, &score) == -1) {
+//        std::string name2, key, score;
+//        if (decode_zscore_key(ks, &name2, &key, &score) == -1) {
+//            size = -1;
+//            break;
+//        }
+        ZScoreItemKey zk;
+        if(zk.DecodeItemKey(ks.String()) == -1){
             size = -1;
             break;
         }
-        if (name != name2) {
+
+        if (name != zk.key) {
             break;
         }
         size++;
 
-        std::string buf = encode_zset_key(name, key);
+
+        std::string buf = encode_zset_key(name, zk.field, zv.version);
         std::string score2;
         s = ldb->Get(leveldb::ReadOptions(), buf, &score2);
         if (!s.ok() && !s.IsNotFound()) {
@@ -630,13 +645,21 @@ int64_t SSDBImpl::zfix(const Bytes &name) {
             size = -1;
             break;
         }
-        if (s.IsNotFound() || score != score2) {
+
+        double score = *((double *) (score2.data()));
+
+        if (s.IsNotFound() || score != zk.score) {
+
             log_info("fix incorrect zset item, name: %s, key: %s, score: %s",
                      hexmem(name.data(), name.size()).c_str(),
-                     hexmem(key.data(), key.size()).c_str(),
-                     hexmem(score.data(), score.size()).c_str()
+                     hexmem(zk.field.data(), zk.field.size()).c_str(),
+                     hexmem(score2.data(), score2.size()).c_str()
             );
-            s = ldb->Put(leveldb::WriteOptions(), buf, score);
+
+            string score_buf;
+            score_buf.append((char *) (&zk.score), sizeof(double));
+
+            s = ldb->Put(leveldb::WriteOptions(), buf, score_buf);
             if (!s.ok()) {
                 log_error("db error! %s", s.ToString().c_str());
                 size = -1;
@@ -659,19 +682,22 @@ int64_t SSDBImpl::zfix(const Bytes &name) {
                          " => %"
                          PRId64,
                  hexmem(name.data(), name.size()).c_str(), old_size, size);
-        std::string size_key = encode_zsize_key(name);
+
+         zv.length = static_cast<uint64_t>(size);
+        std::string size_val = encode_zset_meta_val(zv.length,zv.version);
+
         if (size == 0) {
-            s = ldb->Delete(leveldb::WriteOptions(), size_key);
+//            s = ldb->Delete(leveldb::WriteOptions(), size_key);
         } else {
-            s = ldb->Put(leveldb::WriteOptions(), size_key, leveldb::Slice((char *) &size, sizeof(int64_t)));
+            s = ldb->Put(leveldb::WriteOptions(), meta_key, size_val);
         }
     }
 
     //////////////////////////////////////////
 
-    it_start = encode_zset_key(name, "");
-    it_end = encode_zset_key(name.String(), "");
-    it = this->iterator(it_start, it_end, UINT64_MAX);
+    it_start = encode_zset_key(name, "", zv.version); //bug here
+    it_end = encode_zset_key(name, "", zv.version);
+    it = this->iterator(it_start, "", UINT64_MAX);
     size = 0;
     while (it->next()) {
         Bytes ks = it->key();
@@ -681,19 +707,24 @@ int64_t SSDBImpl::zfix(const Bytes &name) {
         if (ks.data()[0] != DataType::ZSET) {
             break;
         }
-        std::string name2, key;
-        if (decode_zset_key(ks, &name2, &key) == -1) {
+
+        ZSetItemKey zk;
+        zk.DecodeItemKey(ks.String());
+
+        if (zk.DecodeItemKey(ks.String()) == -1){
             size = -1;
             break;
         }
-        if (name != name2) {
+
+        if (name != zk.key) {
             break;
         }
-        size++;
-        Bytes score = it->val();
 
+        size++;
+
+        Bytes score = it->val();
         double d_score = *((double *) score.String().data());
-        std::string buf = encode_zscore_key(name, key, d_score);
+        std::string buf = encode_zscore_key(name, zk.field, d_score);
         std::string score2;
         s = ldb->Get(leveldb::ReadOptions(), buf, &score2);
         if (!s.ok() && !s.IsNotFound()) {
@@ -704,7 +735,7 @@ int64_t SSDBImpl::zfix(const Bytes &name) {
         if (s.IsNotFound()) {
             log_info("fix incorrect zset score, name: %s, key: %s, score: %s",
                      hexmem(name.data(), name.size()).c_str(),
-                     hexmem(key.data(), key.size()).c_str(),
+                     hexmem(zk.field.data(), zk.field.size()).c_str(),
                      hexmem(score.data(), score.size()).c_str()
             );
             s = ldb->Put(leveldb::WriteOptions(), buf, "");
@@ -730,11 +761,13 @@ int64_t SSDBImpl::zfix(const Bytes &name) {
                          " => %"
                          PRId64,
                  hexmem(name.data(), name.size()).c_str(), old_size, size);
-        std::string size_key = encode_zsize_key(name);
+        zv.length = static_cast<uint64_t>(size);
+        std::string size_val = encode_zset_meta_val(zv.length,zv.version);
+
         if (size == 0) {
-            s = ldb->Delete(leveldb::WriteOptions(), size_key);
+//            s = ldb->Delete(leveldb::WriteOptions(), meta_key);
         } else {
-            s = ldb->Put(leveldb::WriteOptions(), size_key, leveldb::Slice((char *) &size, sizeof(int64_t)));
+            s = ldb->Put(leveldb::WriteOptions(), meta_key, size_val);
         }
     }
 

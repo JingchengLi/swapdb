@@ -38,20 +38,20 @@ static string encode_key_internal(char type, const string& key, const string& fi
 }
 
 string encode_hash_key(const Bytes& key, const Bytes& field, uint16_t version){
-    return encode_key_internal('S', key.String(), field.String(), version);
+    return encode_key_internal(DataType::ITEM, key.String(), field.String(), version);
 }
 
 string encode_set_key(const Bytes& key, const Bytes& member, uint16_t version){
-    return encode_key_internal('S', key.String(), member.String(), version);
+    return encode_key_internal(DataType::ITEM, key.String(), member.String(), version);
 }
 
 string encode_zset_key(const Bytes& key, const Bytes& member, uint16_t version){
-    return encode_key_internal('S', key.String(), member.String(), version);
+    return encode_key_internal(DataType::ITEM, key.String(), member.String(), version);
 }
 
 string encode_eset_key(const Bytes& member){
     string buf;
-    buf.append(1, 'E');
+    buf.append(1, DataType::EKEY);
     buf.append(member.data(), member.size());
     return buf;
 }
