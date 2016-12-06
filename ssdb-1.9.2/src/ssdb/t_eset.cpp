@@ -4,8 +4,7 @@
 
 #include "ssdb_impl.h"
 
-static void eset_internal(const SSDBImpl *ssdb, const Bytes &key, int64_t new_score, char log_type,
-                          uint16_t cur_version);
+static void eset_internal(const SSDBImpl *ssdb, const Bytes &key, int64_t ts, char log_type);
 
 static int edel_one(SSDBImpl *ssdb, const Bytes &key, char log_type);
 
