@@ -12,18 +12,24 @@ static const int SSDB_KEY_LEN_MAX		= 255;
 class DataType{
 public:
 	static const char SYNCLOG	= 1;
+
+	static const char META		= 'M'; // meta key
 	static const char KV		= 'k';
-	static const char HASH		= 'h'; // hashmap(sorted by key)
-	static const char HSIZE		= 'H';
-	static const char ZSET		= 's'; // key => score
-	static const char ZSCORE	= 'z'; // key|score => ""
-	static const char ESCORE	= 'T';
-	static const char ZSIZE		= 'Z';
-	static const char SSIZE		= 'S';
-	static const char LSIZE		= 'L';
-	static const char QUEUE		= 'q';
-	static const char QSIZE		= 'Q';
-	static const char META		= 'M';
+	static const char HASH		= 'h'; // TODO CHAECK AND DELETE ! hashmap(sorted by key)
+	static const char HSIZE		= 'H'; // meta value hash
+	static const char ZSIZE		= 'Z'; // meta value zset
+	static const char SSIZE		= 'S'; // meta value set
+	static const char LSIZE		= 'L'; // meta value list
+
+	static const char ITEM		= 'S'; // meta value set
+
+	static const char ZSET		= 's'; // TODO CHAECK AND DELETE !   key => score
+	static const char ZSCORE	= 'z'; // TODO CHAECK AND DELETE !   key|score => ""
+
+	static const char ESCORE	= 'T'; // expire key
+	static const char EKEY   	= 'E'; // expire timestamp key
+	static const char QUEUE		= 'q'; // TODO CHAECK AND DELETE !
+	static const char QSIZE		= 'Q'; // TODO CHAECK AND DELETE !
 	static const char MIN_PREFIX = HASH;
 	static const char MAX_PREFIX = ZSET;
 };
