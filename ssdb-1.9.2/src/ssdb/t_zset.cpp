@@ -245,9 +245,9 @@ static ZIterator *ziterator(
             start = encode_zscore_key(name, key_start, score_start.Double(), version);
         }
         if (score_end.empty()) {
-            end = encode_zscore_key(name, "\xff", ZSET_SCORE_MAX, version);
+            end = encode_zscore_key(name, "", ZSET_SCORE_MAX, version);
         } else {
-            end = encode_zscore_key(name, "\xff", score_end.Double(), version);
+            end = encode_zscore_key(name, "", score_end.Double(), version);
         }
         return new ZIterator(ssdb->iterator(start, end, limit), name, version);
     } else {
@@ -256,7 +256,7 @@ static ZIterator *ziterator(
             start = encode_zscore_key(name, key_start, ZSET_SCORE_MAX, version);
         } else {
             if (key_start.empty()) {
-                start = encode_zscore_key(name, "\xff", score_start.Double(), version);
+                start = encode_zscore_key(name, "", score_start.Double(), version);
             } else {
                 start = encode_zscore_key(name, key_start, score_start.Double(), version);
             }
@@ -590,7 +590,7 @@ int64_t SSDBImpl::zfix(const Bytes &name) {
     int64_t old_size;
 
     it_start = encode_zscore_key(name, "", ZSET_SCORE_MIN);
-    it_end = encode_zscore_key(name, "\xff", ZSET_SCORE_MAX);
+    it_end = encode_zscore_key(name, "", ZSET_SCORE_MAX);
     it = this->iterator(it_start, it_end, UINT64_MAX);
     size = 0;
     while (it->next()) {
@@ -659,7 +659,7 @@ int64_t SSDBImpl::zfix(const Bytes &name) {
     //////////////////////////////////////////
 
     it_start = encode_zset_key(name, "");
-    it_end = encode_zset_key(name.String() + "\xff", "");
+    it_end = encode_zset_key(name.String(), "");
     it = this->iterator(it_start, it_end, UINT64_MAX);
     size = 0;
     while (it->next()) {
