@@ -324,7 +324,7 @@ int BackendSync::Client::copy(){
 			cmd = BinlogCommand::HSET;
 		}else if(data_type == DataType::ZSET){
 			cmd = BinlogCommand::ZSET;
-		}else if(data_type == DataType::QUEUE){
+		}else if(data_type == DataType::QUEUE){ //TODO Timestamp
 			cmd = BinlogCommand::QPUSH_BACK;
 		}else{
 			continue;
@@ -417,6 +417,7 @@ int BackendSync::Client::sync(BinlogQueue *logs){
 		case BinlogCommand::KSET:
 		case BinlogCommand::HSET:
 		case BinlogCommand::ZSET:
+		case BinlogCommand::ESET:
 		case BinlogCommand::QSET:
 		case BinlogCommand::QPUSH_BACK:
 		case BinlogCommand::QPUSH_FRONT:
@@ -434,6 +435,7 @@ int BackendSync::Client::sync(BinlogQueue *logs){
 		case BinlogCommand::KDEL:
 		case BinlogCommand::HDEL:
 		case BinlogCommand::ZDEL:
+		case BinlogCommand::EDEL:
 		case BinlogCommand::QPOP_BACK:
 		case BinlogCommand::QPOP_FRONT:
 			log_trace("fd: %d, %s", link->fd(), log.dumps().c_str());

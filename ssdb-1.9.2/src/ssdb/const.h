@@ -58,7 +58,9 @@ public:
 	static const char QPOP_BACK		= 12;
 	static const char QPOP_FRONT	= 13;
 	static const char QSET			= 14;
-	
+	static const char ESET  		= 15;
+	static const char EDEL  		= 16;
+
 	static const char BEGIN  = 7;
 	static const char END    = 8;
 };

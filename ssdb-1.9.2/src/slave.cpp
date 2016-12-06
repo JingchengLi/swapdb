@@ -439,6 +439,7 @@ int Slave::proc_sync(const Binlog &log, const std::vector<Bytes> &req){
 				}
 			}
 			break;
+		case BinlogCommand::ESET:
 		case BinlogCommand::ZSET:
 			{
 				if(req.size() != 2){
@@ -460,6 +461,7 @@ int Slave::proc_sync(const Binlog &log, const std::vector<Bytes> &req){
 				}
 			}
 			break;
+		case BinlogCommand::EDEL:
 		case BinlogCommand::ZDEL:
 			{
 				std::string name, key;
