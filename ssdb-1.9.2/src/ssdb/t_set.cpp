@@ -43,7 +43,13 @@ int SSDBImpl::sadd_one(const Bytes &key, const Bytes &member, char log_type) {
     if (ret == -1){
         return -1;
     } else if (ret == 0 && sv.del == KEY_DELETE_MASK){
-        std::string hkey = encode_set_key(key, member, (uint16_t)(sv.version+1));
+        uint16_t version;
+        if (sv.version == UINT16_MAX){
+            version = 0;
+        } else{
+            version = (uint16_t)(sv.version+1);
+        }
+        std::string hkey = encode_set_key(key, member, version);
         binlogs->Put(hkey, slice(""));
         ret = 1;
     } else if (ret == 0){
@@ -91,7 +97,13 @@ int SSDBImpl::incr_ssize(const Bytes &key, int64_t incr){
         return ret;
     } else if (ret == 0 && sv.del == KEY_DELETE_MASK){
         if (incr > 0){
-            std::string size_val = encode_set_meta_val((uint64_t)incr, (uint16_t)(sv.version+1));
+            uint16_t version;
+            if (sv.version == UINT16_MAX){
+                version = 0;
+            } else{
+                version = (uint16_t)(sv.version+1);
+            }
+            std::string size_val = encode_set_meta_val((uint64_t)incr, version);
             binlogs->Put(meta_key, size_val);
         } else{
             return -1;
@@ -174,7 +186,13 @@ int SSDBImpl::multi_sadd(const Bytes &key, const std::vector<Bytes> &members, in
         const Bytes& member= members[i];
         int change = 0;
         if (ret == 0 && sv.del == KEY_DELETE_MASK){
-            std::string hkey = encode_set_key(key, member, (uint16_t)(sv.version+1));
+            uint16_t version;
+            if (sv.version == UINT16_MAX){
+                version = 0;
+            } else{
+                version = (uint16_t)(sv.version+1);
+            }
+            std::string hkey = encode_set_key(key, member, version);
             binlogs->Put(hkey, slice(""));
             change = 1;
         } else if (ret == 0){
@@ -363,25 +381,19 @@ int SSDBImpl::sunionstore(const Bytes &destination, const std::vector<Bytes> &ke
         std::string size_val = encode_set_meta_val((uint64_t)(*num));
         binlogs->Put(meta_key, size_val);
     } else if(s.ok()){
-        if (val[0] == DataType::SSIZE){
-            SetMetaVal sv;
-            if (sv.DecodeMetaVal(val) == -1){
-                return -1;
-            }
-            for (; it != members.end(); ++it) {
-                std::string hkey = encode_set_key(destination, *it, (uint16_t)(sv.version+1));
-                binlogs->Put(hkey, slice(""));
-            }
-            std::string size_val = encode_set_meta_val((uint64_t)(*num), (uint16_t)(sv.version+1));
-            binlogs->Put(meta_key, size_val);
+        uint16_t version = *(uint16_t *)(val.c_str()+1);
+        version = be16toh(version);
+        if (version == UINT16_MAX){
+            version = 0;
         } else{
-            for (; it != members.end(); ++it) {
-                std::string hkey = encode_set_key(destination, *it);
-                binlogs->Put(hkey, slice(""));
-            }
-            std::string size_val = encode_set_meta_val((uint64_t)(*num));
-            binlogs->Put(meta_key, size_val);
+            version += 1;
         }
+        for (; it != members.end(); ++it) {
+            std::string hkey = encode_set_key(destination, *it, version);
+            binlogs->Put(hkey, slice(""));
+        }
+        std::string size_val = encode_set_meta_val((uint64_t)(*num), version);
+        binlogs->Put(meta_key, size_val);
     } else if(!s.ok()){
         log_error("get error: %s", s.ToString().c_str());
         return -1;

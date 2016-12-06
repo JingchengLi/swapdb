@@ -311,7 +311,13 @@ static int hset_one(SSDBImpl *ssdb, const Bytes &name, const Bytes &key, const B
 	if (ret == -1){
 		return -1;
 	} else if (ret == 0 && hv.del == KEY_DELETE_MASK){
-		std::string hkey = encode_hash_key(name, key, (uint16_t)(hv.version+1));
+        uint16_t version;
+        if (hv.version == UINT16_MAX){
+            version = 0;
+        } else{
+            version = (uint16_t)(hv.version+1);
+        }
+		std::string hkey = encode_hash_key(name, key, version);
 		ssdb->binlogs->Put(hkey, slice(val));
 		ssdb->binlogs->add_log(log_type, BinlogCommand::HSET, hkey);
 		ret = 1;
@@ -368,7 +374,13 @@ static int incr_hsize(SSDBImpl *ssdb, const Bytes &name, int64_t incr){
 		return ret;
 	} else if (ret == 0 && hv.del == KEY_DELETE_MASK){
 		if (incr > 0){
-			std::string size_val = encode_hash_meta_val((uint64_t)incr, (uint16_t)(hv.version+1));
+            uint16_t version;
+            if (hv.version == UINT16_MAX){
+                version = 0;
+            } else{
+                version = (uint16_t)(hv.version+1);
+            }
+			std::string size_val = encode_hash_meta_val((uint64_t)incr, version);
 			ssdb->binlogs->Put(size_key, size_val);
 		} else{
 			return -1;

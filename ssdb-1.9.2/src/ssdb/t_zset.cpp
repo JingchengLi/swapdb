@@ -454,7 +454,12 @@ static int zset_one(SSDBImpl *ssdb, const Bytes &name, const Bytes &key, double 
     if (ret == -1) {
         return -1;
     } else if (ret == 0 && zv.del == KEY_DELETE_MASK) {
-        uint16_t cur_version = (uint16_t) (zv.version + 1);
+        uint16_t cur_version;
+        if (zv.version == UINT16_MAX){
+            cur_version = 0;
+        } else{
+            cur_version = (uint16_t) (zv.version + 1);
+        }
         zset_internal(ssdb, name, key, score, log_type, cur_version);
         ret = 1;
     } else if (ret == 0) {
@@ -544,7 +549,13 @@ static int incr_zsize(SSDBImpl *ssdb, const Bytes &name, int64_t incr) {
         return ret;
     } else if (ret == 0 && zv.del == KEY_DELETE_MASK) {
         if (incr > 0) {
-            std::string size_val = encode_zset_meta_val((uint64_t) incr, (uint16_t) (zv.version + 1));
+            uint16_t version;
+            if (zv.version == UINT16_MAX){
+                version = 0;
+            } else{
+                version = (uint16_t) (zv.version + 1);
+            }
+            std::string size_val = encode_zset_meta_val((uint64_t) incr, version);
             ssdb->binlogs->Put(size_key, size_val);
         } else {
             return -1;

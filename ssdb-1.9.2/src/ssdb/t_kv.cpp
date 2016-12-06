@@ -39,7 +39,13 @@ int SSDBImpl::SetGeneric(const std::string &key, const std::string &val, int fla
 			return -1;
 		}
 		if (kv.del == KEY_DELETE_MASK){
-			meta_val = encode_kv_val(val, (uint16_t)(kv.version+1));
+			uint16_t version;
+			if (kv.version == UINT16_MAX){
+				version = 0;
+			} else{
+				version = (uint16_t)(kv.version+1);
+			}
+			meta_val = encode_kv_val(val, version);
 		} else{
 			meta_val = encode_kv_val(val);
 		}
@@ -159,7 +165,13 @@ int SSDBImpl::getset(const Bytes &key, std::string *val, const Bytes &newval, ch
 		return ret;
 	} else if(ret == 0){
 		if (kv.del == KEY_DELETE_MASK){
-			meta_val = encode_kv_val(newval.String(), (uint16_t)(kv.version+1));
+			uint16_t version;
+			if (kv.version == UINT16_MAX){
+				version = 0;
+			} else{
+				version = (uint16_t)(kv.version+1);
+			}
+			meta_val = encode_kv_val(newval.String(), version);
 		} else{
 			meta_val = encode_kv_val(newval.String());
 		}
@@ -236,7 +248,11 @@ int SSDBImpl::incr(const Bytes &key, int64_t by, int64_t *new_val, char log_type
 	}else if(ret == 0){
 		*new_val = by;
 		if (kv.del == KEY_DELETE_MASK){
-			version = (uint16_t)(kv.version + 1);
+			if (kv.version == UINT16_MAX){
+				version = 0;
+			} else{
+				version = (uint16_t)(kv.version+1);
+			}
 		}
 	}else{
 		old = kv.value;
@@ -324,7 +340,11 @@ int SSDBImpl::setbit(const Bytes &key, int bitoffset, int on, char log_type){
 		return -1;
 	}else if(ret == 0){
 		if (kv.del == KEY_DELETE_MASK){
-			version = (uint16_t)(kv.version + 1);
+			if (kv.version == UINT16_MAX){
+				version = 0;
+			} else{
+				version = (uint16_t)(kv.version+1);
+			}
 		}
 	}else{
 		version = kv.version;
