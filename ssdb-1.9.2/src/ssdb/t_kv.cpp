@@ -98,7 +98,7 @@ int SSDBImpl::multi_del(const std::vector<Bytes> &keys, int offset, char log_typ
 					meta_val[3] = KEY_DELETE_MASK;
 					uint16_t version = *(uint16_t *)(meta_val.c_str()+1);
 					version = be16toh(version);
-					std::string del_key = encode_delete_key(key, meta_val[0], version);
+					std::string del_key = encode_delete_key(key, version);
 					binlogs->Put(meta_key, meta_val);
 					binlogs->Put(del_key, "");
 					num++;
@@ -191,7 +191,7 @@ int SSDBImpl::del_key_internal(const Bytes &key, char log_type) {
                 meta_val[3] = KEY_DELETE_MASK;
                 uint16_t version = *(uint16_t *)(meta_val.c_str()+1);
                 version = be16toh(version);
-                std::string del_key = encode_delete_key(key, meta_val[0], version);
+                std::string del_key = encode_delete_key(key, version);
                 binlogs->Put(meta_key, meta_val);
                 binlogs->Put(del_key, "");
             } else if (meta_val[3] == KEY_DELETE_MASK){
@@ -203,6 +203,7 @@ int SSDBImpl::del_key_internal(const Bytes &key, char log_type) {
             return -1;
         }
     }
+	return 1;
 }
 
 int SSDBImpl::del(const Bytes &key, char log_type){

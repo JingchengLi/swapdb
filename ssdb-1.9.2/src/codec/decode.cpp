@@ -258,12 +258,6 @@ int DeleteKey::DecodeDeleteKey(const string &str) {
     } else{
         version = be16toh(version);
     }
-    std::string tmp;
-    decoder.read_data(&tmp);
-    if (tmp.size() == 1){
-        key_type = tmp[0];
-    } else{
-        return -1;
-    }
+
     return 0;
 }

@@ -115,7 +115,7 @@ int SSDBImpl::incr_ssize(const Bytes &key, int64_t incr){
             len = len - u64;
         }
         if (len == 0){
-            std::string del_key = encode_delete_key(key, DataType::SSIZE, sv.version);
+            std::string del_key = encode_delete_key(key, sv.version);
             std::string meta_val = encode_set_meta_val(sv.length, sv.version, KEY_DELETE_MASK);
             binlogs->Put(del_key, "");
             binlogs->Put(meta_key, meta_val);
@@ -404,7 +404,7 @@ int64_t SSDBImpl::SDelKeyNoLock(const Bytes &name, char log_type) {
     }
 
     if (sv.length > MAX_NUM_DELETE){
-        std::string del_key = encode_delete_key(name, DataType::SSIZE, sv.version);
+        std::string del_key = encode_delete_key(name, sv.version);
         std::string meta_val = encode_set_meta_val(sv.length, sv.version, KEY_DELETE_MASK);
         binlogs->Put(del_key, "");
         binlogs->Put(meta_key, meta_val);
