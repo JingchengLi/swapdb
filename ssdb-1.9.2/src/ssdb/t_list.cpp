@@ -240,7 +240,13 @@ int SSDBImpl::LPush(const Bytes &key, const std::vector<Bytes> &val, int offset,
             return -1;
         }
     } else if (0 == ret && meta_val.del == KEY_DELETE_MASK) {
-        ret = DoFirstLPush(key, val, offset, meta_key, (uint16_t)(meta_val.version+1));
+        uint16_t version;
+        if (meta_val.version == UINT16_MAX){
+            version = 0;
+        } else{
+            version = (uint16_t)(meta_val.version+1);
+        }
+        ret = DoFirstLPush(key, val, offset, meta_key, version);
     } else if(0 == ret){
         ret = DoFirstLPush(key, val, offset, meta_key, 0);
     }
@@ -382,7 +388,11 @@ int SSDBImpl::RPush(const Bytes &key, const std::vector<Bytes> &val, int offset,
         meta_val.right_seq = UINT64_MAX;
         meta_val.length = 0;
         meta_val.del = KEY_ENABLED_MASK;
-        meta_val.version = (uint16_t)(meta_val.version+1);
+        if (meta_val.version == UINT16_MAX){
+            meta_val.version = 0;
+        } else{
+            meta_val.version = (uint16_t)(meta_val.version+1);
+        }
     } else if(0 == ret){
         meta_val.left_seq = 0;
         meta_val.right_seq = UINT64_MAX;
