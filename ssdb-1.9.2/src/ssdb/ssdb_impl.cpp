@@ -416,7 +416,7 @@ int SSDBImpl::delete_meta_key(const DeleteKey& dk, leveldb::WriteBatch& batch) {
 }
 
 void SSDBImpl::delete_key_loop(const std::string &del_key) {
-//    Transaction trans(binlogs);
+    Transaction trans(binlogs);
 
     DeleteKey dk;
     if(dk.DecodeDeleteKey(del_key) == -1){
