@@ -413,7 +413,7 @@ TEST_F(EncodeTest, Test_encode_list_meta_val) {
 }
 
 void compare_encode_delete_key(const string & key, char key_type, uint16_t version, char* expectStr){
-    string delete_key = encode_delete_key(key, key_type, version);
+    string delete_key = encode_delete_key(key, version);
     uint16_t keylen = key.size(); 
     uint16_t slot = (uint16_t)keyHashSlot(key.data(), keylen);
     uint8_t* pslot = (uint8_t*)&slot;
@@ -427,8 +427,7 @@ void compare_encode_delete_key(const string & key, char key_type, uint16_t versi
     uint8_t* pversion = (uint8_t*)&version;
     expectStr[keylen+5] = pversion[1];
     expectStr[keylen+6] = pversion[0];
-    expectStr[keylen+7] = key_type;
-    EXPECT_EQ(0, delete_key.compare(0, keylen+8, expectStr, keylen+8));
+    EXPECT_EQ(0, delete_key.compare(0, keylen+7, expectStr, keylen+7));
 }
 
 TEST_F(EncodeTest, Test_encode_delete_key) {
