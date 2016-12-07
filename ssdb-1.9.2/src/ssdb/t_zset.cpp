@@ -48,13 +48,13 @@ int SSDBImpl::ZDelKeyNoLock(const Bytes &name, char log_type) {
         return ret;
     }
 
-    if (zv.length > MAX_NUM_DELETE) {
-        std::string del_key = encode_delete_key(name.String(), zv.version);
-        std::string meta_val = encode_hash_meta_val(zv.length, zv.version, KEY_DELETE_MASK);
-        binlogs->Put(del_key, "");
-        binlogs->Put(meta_key, meta_val);
-        return zv.length;
-    }
+//    if (zv.length > MAX_NUM_DELETE) {
+//        std::string del_key = encode_delete_key(name.String(), zv.version);
+//        std::string meta_val = encode_zset_meta_val(zv.length, zv.version, KEY_DELETE_MASK);
+//        binlogs->Put(del_key, "");
+//        binlogs->Put(meta_key, meta_val);
+//        return zv.length;
+//    }
 
     std::unique_ptr<ZIterator> it(ziterator(this, name, "", "", "", INT_MAX, Iterator::FORWARD, zv.version));
     int num = 0;
@@ -580,7 +580,7 @@ static int incr_zsize(SSDBImpl *ssdb, const Bytes &name, int64_t incr) {
         }
         if (len == 0) {
             std::string del_key = encode_delete_key(name.String(), zv.version);
-            std::string meta_val = encode_hash_meta_val(zv.length, zv.version, KEY_DELETE_MASK);
+            std::string meta_val = encode_zset_meta_val(zv.length, zv.version, KEY_DELETE_MASK);
             ssdb->binlogs->Put(del_key, "");
             ssdb->binlogs->Put(size_key, meta_val);
         } else {

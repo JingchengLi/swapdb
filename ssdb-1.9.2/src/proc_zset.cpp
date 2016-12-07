@@ -227,29 +227,15 @@ int proc_zclear(NetworkServer *net, Link *link, const Request &req, Response *re
 	CHECK_NUM_PARAMS(2);
 
 	const Bytes &name = req[1];
-	int64_t count = 0;
-	std::string key_start, score_start;
-	while(1){
-		ZIterator *it = serv->ssdb->zscan(name, key_start, score_start, "", 1000);
-		int num = 0;
-		while(it->next()){
-			key_start = it->key;
-			score_start = it->score;
-			int ret = serv->ssdb->zdel(name, key_start);
-			if(ret == -1){
-				resp->push_back("error");
-				delete it;
-				return 0;
-			}
-			num ++;
-		};
-		delete it;
 
-		if(num == 0){
-			break;
-		}
-		count += num;
-	}
+	int64_t count = serv->ssdb->ZDelKeyNoLock(name);
+    if (count > 0) {
+        leveldb::Status s =  serv->ssdb->binlogs->commit();
+        if (!s.ok()) {
+            count = -1;
+        }
+    }
+
 	resp->reply_int(0, count);
 
 	return 0;
