@@ -443,6 +443,34 @@ int Slave::proc_sync(const Binlog &log, const std::vector<Bytes> &req){
 				}
 			}
 			break;
+        case BinlogCommand::SSET:
+            {
+                SetItemKey sk;
+                if (sk.DecodeItemKey(log.key().String()) == -1){
+                    return -1;
+                }
+                log_trace("sadd %s %s",
+                          hexmem(sk.key.c_str(), sk.key.size()).c_str(),
+                          hexmem(sk.field.c_str(), sk.field.size()).c_str());
+                if (ssdb->sadd(sk.key, sk.field, log_type) == -1){
+                    return -1;
+                }
+            }
+            break;
+        case BinlogCommand::SDEL:
+            {
+                SetItemKey sk;
+                if (sk.DecodeItemKey(log.key().String()) == -1){
+                    return -1;
+                }
+                log_trace("srem %s %s",
+                          hexmem(sk.key.c_str(), sk.key.size()).c_str(),
+                          hexmem(sk.field.c_str(), sk.field.size()).c_str());
+                if (ssdb->srem(sk.key, sk.field, log_type) == -1){
+                    return -1;
+                }
+            }
+            break;
 		case BinlogCommand::ESET:
 		case BinlogCommand::ZSET:
 			{

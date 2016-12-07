@@ -51,10 +51,12 @@ int SSDBImpl::sadd_one(const Bytes &key, const Bytes &member, char log_type) {
         }
         std::string hkey = encode_set_key(key, member, version);
         binlogs->Put(hkey, slice(""));
+        binlogs->add_log(log_type, BinlogCommand::SSET, hkey);
         ret = 1;
     } else if (ret == 0){
         std::string hkey = encode_set_key(key, member);
         binlogs->Put(hkey, slice(""));
+        binlogs->add_log(log_type, BinlogCommand::SSET, hkey);
         ret = 1;
     } else{
         std::string item_key = encode_set_key(key, member, sv.version);
@@ -65,6 +67,7 @@ int SSDBImpl::sadd_one(const Bytes &key, const Bytes &member, char log_type) {
             ret = 0;
         } else{
             binlogs->Put(item_key, slice(""));
+            binlogs->add_log(log_type, BinlogCommand::SSET, item_key);
             ret = 1;
         }
     }
@@ -84,7 +87,7 @@ int SSDBImpl::srem_one(const Bytes &key, const Bytes &member, char log_type) {
         return ret;
     }
     binlogs->Delete(hkey);
-//    binlogs->add_log(log_type, BinlogCommand::HDEL, hkey);
+    binlogs->add_log(log_type, BinlogCommand::SDEL, hkey);
 
     return 1;
 }
@@ -194,10 +197,12 @@ int SSDBImpl::multi_sadd(const Bytes &key, const std::vector<Bytes> &members, in
             }
             std::string hkey = encode_set_key(key, member, version);
             binlogs->Put(hkey, slice(""));
+            binlogs->add_log(log_type, BinlogCommand::SSET, hkey);
             change = 1;
         } else if (ret == 0){
             std::string hkey = encode_set_key(key, member);
             binlogs->Put(hkey, slice(""));
+            binlogs->add_log(log_type, BinlogCommand::SSET, hkey);
             change = 1;
         } else{
             std::string item_key = encode_set_key(key, member, sv.version);
@@ -208,6 +213,7 @@ int SSDBImpl::multi_sadd(const Bytes &key, const std::vector<Bytes> &members, in
                 change = 0;
             } else{
                 binlogs->Put(item_key, slice(""));
+                binlogs->add_log(log_type, BinlogCommand::SSET, item_key);
                 change = 1;
             }
         }
@@ -246,6 +252,7 @@ int SSDBImpl::multi_srem(const Bytes &key, const std::vector<Bytes> &members, in
         if (s == 1){
             *num += 1;
             binlogs->Delete(hkey);
+            binlogs->add_log(log_type, BinlogCommand::SDEL, hkey);
         } else if (s == -1){
             return -1;
         }
