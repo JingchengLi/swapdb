@@ -416,6 +416,7 @@ int BackendSync::Client::sync(BinlogQueue *logs){
 	switch(log.cmd()){
 		case BinlogCommand::KSET:
 		case BinlogCommand::HSET:
+		case BinlogCommand::SSET:
 		case BinlogCommand::ZSET:
 		case BinlogCommand::ESET:
 		case BinlogCommand::QSET:
@@ -434,6 +435,7 @@ int BackendSync::Client::sync(BinlogQueue *logs){
 			break;
 		case BinlogCommand::KDEL:
 		case BinlogCommand::HDEL:
+		case BinlogCommand::SDEL:
 		case BinlogCommand::ZDEL:
 		case BinlogCommand::EDEL:
 		case BinlogCommand::QPOP_BACK:

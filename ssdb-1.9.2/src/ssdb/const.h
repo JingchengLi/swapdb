@@ -52,6 +52,8 @@ public:
 	static const char HDEL  = 4;
 	static const char ZSET  = 5;
 	static const char ZDEL  = 6;
+	static const char SSET  = 7;
+	static const char SDEL  = 8;
 
 	static const char QPUSH_BACK	= 10;
 	static const char QPUSH_FRONT	= 11;
