@@ -57,12 +57,19 @@ int SSDBImpl::edel_one(BinlogQueue *binlogs, const Bytes &key, char log_type) {
 
     int64_t old_ts = 0;
 
-    std::string old_score_key = encode_escore_key(key, static_cast<uint64_t>(old_ts));
-    std::string old_eset_key = encode_eset_key(key);
+    int found = eget(key, &old_ts);
+    if (found == -1) {
+        return -1;
+    } else if (found == 0) {
+        return 0;
+    } else {
+        std::string old_score_key = encode_escore_key(key, static_cast<uint64_t>(old_ts));
+        std::string old_eset_key = encode_eset_key(key);
 
-    binlogs->Delete(old_score_key);
-    binlogs->Delete(old_eset_key);
-    binlogs->add_log(log_type, BinlogCommand::EDEL, old_eset_key);
+        binlogs->Delete(old_score_key);
+        binlogs->Delete(old_eset_key);
+        binlogs->add_log(log_type, BinlogCommand::EDEL, old_eset_key);
+    }
 
     return 1;
 }
