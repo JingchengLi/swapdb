@@ -438,6 +438,7 @@ int BackendSync::Client::sync(BinlogQueue *logs){
 		case BinlogCommand::SDEL:
 		case BinlogCommand::ZDEL:
 		case BinlogCommand::EDEL:
+        case BinlogCommand::DEL_KEY:
 		case BinlogCommand::QPOP_BACK:
 		case BinlogCommand::QPOP_FRONT:
 			log_trace("fd: %d, %s", link->fd(), log.dumps().c_str());

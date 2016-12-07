@@ -558,6 +558,19 @@ int Slave::proc_sync(const Binlog &log, const std::vector<Bytes> &req){
 				}
 			}
 			break;
+        case BinlogCommand::DEL_KEY:
+            {
+                MetaKey mk;
+                if (mk.DecodeMetaKey(log.key().String()) == -1){
+                    break;
+                }
+                std::string key = mk.key;
+                log_trace("del %s", hexmem(key.data(), key.size()).c_str());
+                if(ssdb->del(key, log_type) == -1){
+                    return -1;
+                }
+            }
+            break;
 		default:
 			log_error("unknown binlog, type=%d, cmd=%d", log.type(), log.cmd());
 			break;
