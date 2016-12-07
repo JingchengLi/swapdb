@@ -152,7 +152,7 @@ void ExpirationHandler::expire_loop() {
         if (score <= time_ms()) {
             log_debug("expired %s", key.c_str());
             ssdb->del(key);
-            ssdb->edel(key);
+//            ssdb->edel(key); //moved to ssdb->del(key)
             this->fast_keys.pop_front();
         }
     }
