@@ -206,6 +206,7 @@ int SSDBImpl::del_key_internal(const Bytes &key, char log_type) {
                 std::string del_key = encode_delete_key(key, version);
                 binlogs->Put(meta_key, meta_val);
                 binlogs->Put(del_key, "");
+                this->edel_one(binlogs, key,log_type); //del expire ET key
             } else if (meta_val[3] == KEY_DELETE_MASK){
                 return 0;
             } else{
