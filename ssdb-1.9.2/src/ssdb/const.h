@@ -30,6 +30,9 @@ public:
 	static const char EKEY   	= 'E'; // expire timestamp key
 	static const char QUEUE		= 'q'; // TODO CHAECK AND DELETE !
 	static const char QSIZE		= 'Q'; // TODO CHAECK AND DELETE !
+
+	static const char DELETE	= 'D';
+
 	static const char MIN_PREFIX = HASH;
 	static const char MAX_PREFIX = ZSET;
 };
