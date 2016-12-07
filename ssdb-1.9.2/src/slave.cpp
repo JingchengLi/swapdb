@@ -379,11 +379,15 @@ int Slave::proc_sync(const Binlog &log, const std::vector<Bytes> &req){
 				std::string key;
 				MetaKey mk;
 				if (mk.DecodeMetaKey(log.key().String()) == -1){
-					break;
+                    return -1;
 				}
 				key = mk.key;
 				log_trace("set %s", hexmem(key.data(), key.size()).c_str());
-				if(ssdb->set(key, req[1], log_type) == -1){
+				KvMetaVal kv;
+				if (kv.DecodeMetaVal(req[1].String()) == -1){
+					return -1;
+				}
+				if(ssdb->set(key, kv.value, log_type) == -1){
 					return -1;
 				}
 			}
