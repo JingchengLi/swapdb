@@ -290,7 +290,7 @@ int BackendSync::Client::copy(){
 		if(this->last_key.empty()){
 			key.push_back(DataType::MIN_PREFIX);
 		}
-		this->iter = backend->ssdb->iterator(key, "", -1);
+		this->iter = backend->ssdb->iterator(key, "", -1);  //TODO use snapshot
 		log_info("iterator created, last_key: '%s'", hexmem(last_key.data(), last_key.size()).c_str());
 	}
 	int ret = 0;

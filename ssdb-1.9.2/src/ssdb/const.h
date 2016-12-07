@@ -36,11 +36,11 @@ public:
 
 class BinlogType{
 public:
-	static const char NOOP		= 0;
-	static const char SYNC		= 1;
-	static const char MIRROR	= 2;
-	static const char COPY		= 3;
-	static const char CTRL		= 4;
+	static const char NOOP		= 0; //
+	static const char SYNC		= 1; //命令同步
+	static const char MIRROR	= 2; //镜像复制-主从
+	static const char COPY		= 3; //全量拷贝-多主
+	static const char CTRL		= 4; //控制命令: OUT_OF_SYNC
 };
 
 class BinlogCommand{
