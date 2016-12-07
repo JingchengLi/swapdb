@@ -377,7 +377,7 @@ void SSDBImpl::stop() {
 
 void SSDBImpl::load_delete_keys_from_db(int num) {
     std::string start;
-    start.append(1, 'D');
+    start.append(1, DataType::DELETE);
     auto it = std::unique_ptr<Iterator>(this->iterator(start, "", num));
     while (it->next()){
         if (it->key().String()[0] != KEY_DELETE_MASK){
@@ -432,7 +432,7 @@ void SSDBImpl::delete_key_loop(const std::string &del_key) {
         ItemKey ik;
         std::string item_key = it->key().String();
         if (ik.DecodeItemKey(item_key) == -1){
-            log_fatal("decode delete key error!");
+            log_fatal("decode delete key error! %s" , hexmem(item_key.data(), item_key.size()).c_str());
             break;
         }
         if (ik.key == dk.key && ik.version == dk.version){

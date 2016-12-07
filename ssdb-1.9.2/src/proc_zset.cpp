@@ -198,11 +198,15 @@ int proc_zrange(NetworkServer *net, Link *link, const Request &req, Response *re
 	uint64_t limit = req[3].Uint64();
 	ZIterator *it = serv->ssdb->zrange(req[1], offset, limit);
 	resp->push_back("ok");
-	while(it->next()){
-		resp->push_back(it->key);
-		resp->push_back(str(it->score));
-	}
-	delete it;
+
+    if(it != nullptr) {
+        while(it->next()){
+            resp->push_back(it->key);
+            resp->push_back(str(it->score));
+        }
+        delete it;
+    }
+
 	return 0;
 }
 
@@ -214,12 +218,15 @@ int proc_zrrange(NetworkServer *net, Link *link, const Request &req, Response *r
 	uint64_t limit = req[3].Uint64();
 	ZIterator *it = serv->ssdb->zrrange(req[1], offset, limit);
 	resp->push_back("ok");
-	while(it->next()){
-		resp->push_back(it->key);
-		resp->push_back(str(it->score));
-	}
-	delete it;
-	return 0;
+    if(it != nullptr) {
+        while(it->next()){
+            resp->push_back(it->key);
+            resp->push_back(str(it->score));
+        }
+        delete it;
+    }
+
+    return 0;
 }
 
 int proc_zclear(NetworkServer *net, Link *link, const Request &req, Response *resp){
@@ -425,17 +432,18 @@ int proc_zremrangebyrank(NetworkServer *net, Link *link, const Request &req, Res
 	uint64_t end = req[3].Uint64();
 	ZIterator *it = serv->ssdb->zrange(req[1], start, end - start + 1);
 	int64_t count = 0;
-	while(it->next()){
-		count ++;
-		int ret = serv->ssdb->zdel(req[1], it->key);
-		if(ret == -1){
-			resp->push_back("error");
-			delete it;
-			return 0;
-		}
-	}
-	delete it;
-
+    if(it != nullptr) {
+        while (it->next()) {
+            count++;
+            int ret = serv->ssdb->zdel(req[1], it->key);
+            if (ret == -1) {
+                resp->push_back("error");
+                delete it;
+                return 0;
+            }
+        }
+        delete it;
+    }
 	resp->reply_int(0, count);
 	return 0;
 }

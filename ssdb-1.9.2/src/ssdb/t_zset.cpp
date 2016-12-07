@@ -325,6 +325,8 @@ ZIterator *SSDBImpl::zrange(const Bytes &name, uint64_t offset, uint64_t limit) 
     int res = GetZSetMetaVal(meta_key, zv);
     if (res == 1) {
         version = zv.version;
+    } else {
+        return nullptr;
     }
 
     if (offset + limit > limit) {
@@ -342,6 +344,8 @@ ZIterator *SSDBImpl::zrrange(const Bytes &name, uint64_t offset, uint64_t limit)
     int res = GetZSetMetaVal(meta_key, zv);
     if (res == 1) {
         version = zv.version;
+    } else {
+        return nullptr;
     }
 
     if (offset + limit > limit) {
