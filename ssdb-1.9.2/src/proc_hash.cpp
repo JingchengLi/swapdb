@@ -119,6 +119,7 @@ int proc_multi_hget(NetworkServer *net, Link *link, const Request &req, Response
 			resp->push_back(key.String());
 			resp->push_back(val);
 		} else if(ret < 0){
+            resp->resp.clear();
 			resp->push_back("error");
 			break;
 		}
