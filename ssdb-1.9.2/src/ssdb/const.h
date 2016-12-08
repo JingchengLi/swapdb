@@ -24,7 +24,7 @@ public:
 	static const char ITEM		= 'S'; // meta value set
 
 	static const char ZSET		= 's'; // TODO CHAECK AND DELETE !   key => score
-	static const char ZSCORE	= 'z'; // TODO CHAECK AND DELETE !   key|score => ""
+	static const char ZSCORE	= 'z';
 
 	static const char ESCORE	= 'T'; // expire key
 	static const char EKEY   	= 'E'; // expire timestamp key
