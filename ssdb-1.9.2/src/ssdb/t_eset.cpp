@@ -41,7 +41,7 @@ int SSDBImpl::esetNoLock(const Bytes &key, int64_t ts, char log_type) {
 int SSDBImpl::edel(const Bytes &key, char log_type) {
     Transaction trans(binlogs);
 
-    int ret = edel_one(binlogs, key, log_type);
+    int ret = edel_one(key, log_type);
     if (ret >= 0) {
         leveldb::Status s = binlogs->commit();
         if (!s.ok()) {
@@ -53,7 +53,7 @@ int SSDBImpl::edel(const Bytes &key, char log_type) {
     return ret;
 }
 
-int SSDBImpl::edel_one(BinlogQueue *binlogs, const Bytes &key, char log_type) {
+int SSDBImpl::edel_one(const Bytes &key, char log_type) {
 
     int64_t old_ts = 0;
 
@@ -66,9 +66,9 @@ int SSDBImpl::edel_one(BinlogQueue *binlogs, const Bytes &key, char log_type) {
         std::string old_score_key = encode_escore_key(key, static_cast<uint64_t>(old_ts));
         std::string old_eset_key = encode_eset_key(key);
 
-        binlogs->Delete(old_score_key);
-        binlogs->Delete(old_eset_key);
-        binlogs->add_log(log_type, BinlogCommand::EDEL, old_eset_key);
+        this->binlogs->Delete(old_score_key);
+        this->binlogs->Delete(old_eset_key);
+        this->binlogs->add_log(log_type, BinlogCommand::EDEL, old_eset_key);
     }
 
     return 1;

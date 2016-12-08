@@ -210,7 +210,7 @@ public:
 	virtual int esetNoLock(const Bytes &key, int64_t ts, char log_type=BinlogType::SYNC);
 	virtual int edel(const Bytes &key, char log_type=BinlogType::SYNC);
 	virtual int eget(const Bytes &key, int64_t *ts);
-	virtual int edel_one(BinlogQueue *binlogs, const Bytes &key, char log_type=BinlogType::SYNC);
+	virtual int edel_one(const Bytes &key, char log_type=BinlogType::SYNC);
 
 
 private:
