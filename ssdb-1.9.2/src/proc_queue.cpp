@@ -286,6 +286,10 @@ int proc_qget(NetworkServer *net, Link *link, const Request &req, Response *resp
 	CHECK_NUM_PARAMS(3);
 
 	int64_t index = req[2].Int64();
+	if (errno == EINVAL){
+		resp->push_back("error");
+		return 0;
+	}
 	std::string item;
 	int ret = serv->ssdb->LIndex(req[1], index, &item);
 	resp->reply_get(ret, &item);
