@@ -71,6 +71,8 @@ typedef long long mstime_t; /* millisecond time type. */
 #include "endianconv.h"
 #include "crc64.h"
 
+#include "hiredis.h"
+
 /* Error codes */
 #define C_OK                    0
 #define C_ERR                   -1
@@ -117,6 +119,7 @@ typedef long long mstime_t; /* millisecond time type. */
 #define CONFIG_DEFAULT_UNIX_SOCKET_PERM 0
 #define CONFIG_DEFAULT_TCP_KEEPALIVE 300
 #define CONFIG_DEFAULT_PROTECTED_MODE 1
+#define CONFIG_DEFAULT_JDJR_MODE 0
 #define CONFIG_DEFAULT_LOGFILE ""
 #define CONFIG_DEFAULT_SYSLOG_ENABLED 0
 #define CONFIG_DEFAULT_STOP_WRITES_ON_BGSAVE_ERROR 1
@@ -202,6 +205,10 @@ typedef long long mstime_t; /* millisecond time type. */
 #define CMD_MODULE_GETKEYS (1<<14)  /* Use the modules getkeys interface. */
 #define CMD_MODULE_NO_CLUSTER (1<<15) /* Deny on Redis Cluster. */
 
+#define CMD_QUERY_SSDB (1<<20)      /* querying SSDB flag. */
+#define CMD_WRITE_SSDB (1<<21)      /* writing SSDB flag. */
+#define CMD_JDJR_MODE (1<<22)       /* "J" flag */
+
 /* AOF states */
 #define AOF_OFF 0             /* AOF is off */
 #define AOF_ON 1              /* AOF is on */
@@ -240,6 +247,7 @@ typedef long long mstime_t; /* millisecond time type. */
 #define CLIENT_LUA_DEBUG_SYNC (1<<26)  /* EVAL debugging without fork() */
 #define CLIENT_MODULE (1<<27) /* Non connected client used by some module. */
 
+#define CLIENT_HANDLE_SSDB_AE (1<<30)
 /* Client block type (btype field in client structure)
  * if CLIENT_BLOCKED flag is set. */
 #define BLOCKED_NONE 0    /* Not blocked, no CLIENT_BLOCKED flag set. */
@@ -655,7 +663,7 @@ typedef struct client {
     robj *name;             /* As set by CLIENT SETNAME. */
     sds querybuf;           /* Buffer we use to accumulate client queries. */
     size_t querybuf_peak;   /* Recent (100ms or more) peak of querybuf size. */
-    int argc;               /* Num of arguments of current command. */
+    int argc, lastargc;     /* Num of arguments of current/last command. */
     robj **argv;            /* Arguments of current command. */
     struct redisCommand *cmd, *lastcmd;  /* Last command executed. */
     int reqtype;            /* Request protocol type: PROTO_REQ_* */
@@ -698,6 +706,9 @@ typedef struct client {
     /* Response buffer */
     int bufpos;
     char buf[PROTO_REPLY_CHUNK_BYTES];
+
+    char *cmdsds;           /* Record the current cmd in sds format, used by jdjr-mode. */
+    redisContext *context;  /* Used by redis client in jdjr-mode. */
 } client;
 
 struct saveparam {
@@ -872,10 +883,12 @@ struct redisServer {
     char *bindaddr[CONFIG_BINDADDR_MAX]; /* Addresses we should bind to */
     int bindaddr_count;         /* Number of addresses in server.bindaddr[] */
     char *unixsocket;           /* UNIX socket path */
+    char *ssdb_server_unixsocket; /* UNIX socket path for connecting to ssdb. */
     mode_t unixsocketperm;      /* UNIX socket permission */
     int ipfd[CONFIG_BINDADDR_MAX]; /* TCP socket file descriptors */
     int ipfd_count;             /* Used slots in ipfd[] */
     int sofd;                   /* Unix socket file descriptor */
+    int ssdb_client_sofd;       /* Unix socket file descriptor used for ssdb. */
     int cfd[CONFIG_BINDADDR_MAX];/* Cluster bus listening socket */
     int cfd_count;              /* Used slots in cfd[] */
     list *clients;              /* List of active clients */
@@ -889,6 +902,7 @@ struct redisServer {
     dict *migrate_cached_sockets;/* MIGRATE cached sockets */
     uint64_t next_client_id;    /* Next client unique ID. Incremental. */
     int protected_mode;         /* Don't accept external connections. */
+    int jdjr_mode;              /* Tag for using jdjr customized mode. */
     /* RDB / AOF loading information */
     int loading;                /* We are loading data from disk if true */
     off_t loading_total_bytes;
@@ -1288,6 +1302,7 @@ void processInputBuffer(client *c);
 void acceptHandler(aeEventLoop *el, int fd, void *privdata, int mask);
 void acceptTcpHandler(aeEventLoop *el, int fd, void *privdata, int mask);
 void acceptUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask);
+void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *private, int mask);
 void readQueryFromClient(aeEventLoop *el, int fd, void *privdata, int mask);
 void addReplyString(client *c, const char *s, size_t len);
 void addReplyBulk(client *c, robj *obj);
@@ -1329,6 +1344,7 @@ int clientsArePaused(void);
 int processEventsWhileBlocked(void);
 int handleClientsWithPendingWrites(void);
 int clientHasPendingReplies(client *c);
+int sendCommandToSSDB(client *c);
 void unlinkClient(client *c);
 int writeToClient(int fd, client *c, int handler_installed);
 

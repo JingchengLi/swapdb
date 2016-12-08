@@ -124,47 +124,47 @@ struct redisServer server; /* server global state */
  */
 struct redisCommand redisCommandTable[] = {
     {"module",moduleCommand,-2,"as",0,NULL,1,1,1,0,0},
-    {"get",getCommand,2,"rF",0,NULL,1,1,1,0,0},
-    {"set",setCommand,-3,"wm",0,NULL,1,1,1,0,0},
-    {"setnx",setnxCommand,3,"wmF",0,NULL,1,1,1,0,0},
-    {"setex",setexCommand,4,"wm",0,NULL,1,1,1,0,0},
+    {"get",getCommand,2,"rFJ",0,NULL,1,1,1,0,0},
+    {"set",setCommand,-3,"wmJ",0,NULL,1,1,1,0,0},
+    {"setnx",setnxCommand,3,"wmFJ",0,NULL,1,1,1,0,0},
+    {"setex",setexCommand,4,"wmJ",0,NULL,1,1,1,0,0},
     {"psetex",psetexCommand,4,"wm",0,NULL,1,1,1,0,0},
     {"append",appendCommand,3,"wm",0,NULL,1,1,1,0,0},
     {"strlen",strlenCommand,2,"rF",0,NULL,1,1,1,0,0},
-    {"del",delCommand,-2,"w",0,NULL,1,-1,1,0,0},
+    {"del",delCommand,-2,"wJ",0,NULL,1,-1,1,0,0},
     {"unlink",unlinkCommand,-2,"wF",0,NULL,1,-1,1,0,0},
     {"exists",existsCommand,-2,"rF",0,NULL,1,-1,1,0,0},
-    {"setbit",setbitCommand,4,"wm",0,NULL,1,1,1,0,0},
-    {"getbit",getbitCommand,3,"rF",0,NULL,1,1,1,0,0},
+    {"setbit",setbitCommand,4,"wmJ",0,NULL,1,1,1,0,0},
+    {"getbit",getbitCommand,3,"rFJ",0,NULL,1,1,1,0,0},
     {"bitfield",bitfieldCommand,-2,"wm",0,NULL,1,1,1,0,0},
     {"setrange",setrangeCommand,4,"wm",0,NULL,1,1,1,0,0},
     {"getrange",getrangeCommand,4,"r",0,NULL,1,1,1,0,0},
     {"substr",getrangeCommand,4,"r",0,NULL,1,1,1,0,0},
     {"incr",incrCommand,2,"wmF",0,NULL,1,1,1,0,0},
     {"decr",decrCommand,2,"wmF",0,NULL,1,1,1,0,0},
-    {"mget",mgetCommand,-2,"r",0,NULL,1,-1,1,0,0},
-    {"rpush",rpushCommand,-3,"wmF",0,NULL,1,1,1,0,0},
-    {"lpush",lpushCommand,-3,"wmF",0,NULL,1,1,1,0,0},
+    {"mget",mgetCommand,-2,"rJ",0,NULL,1,-1,1,0,0},
+    {"rpush",rpushCommand,-3,"wmFJ",0,NULL,1,1,1,0,0},
+    {"lpush",lpushCommand,-3,"wmFJ",0,NULL,1,1,1,0,0},
     {"rpushx",rpushxCommand,-3,"wmF",0,NULL,1,1,1,0,0},
     {"lpushx",lpushxCommand,-3,"wmF",0,NULL,1,1,1,0,0},
     {"linsert",linsertCommand,5,"wm",0,NULL,1,1,1,0,0},
-    {"rpop",rpopCommand,2,"wF",0,NULL,1,1,1,0,0},
-    {"lpop",lpopCommand,2,"wF",0,NULL,1,1,1,0,0},
+    {"rpop",rpopCommand,2,"wFJ",0,NULL,1,1,1,0,0},
+    {"lpop",lpopCommand,2,"wFJ",0,NULL,1,1,1,0,0},
     {"brpop",brpopCommand,-3,"ws",0,NULL,1,1,1,0,0},
     {"brpoplpush",brpoplpushCommand,4,"wms",0,NULL,1,2,1,0,0},
     {"blpop",blpopCommand,-3,"ws",0,NULL,1,-2,1,0,0},
-    {"llen",llenCommand,2,"rF",0,NULL,1,1,1,0,0},
+    {"llen",llenCommand,2,"rFJ",0,NULL,1,1,1,0,0},
     {"lindex",lindexCommand,3,"r",0,NULL,1,1,1,0,0},
     {"lset",lsetCommand,4,"wm",0,NULL,1,1,1,0,0},
-    {"lrange",lrangeCommand,4,"r",0,NULL,1,1,1,0,0},
+    {"lrange",lrangeCommand,4,"rJ",0,NULL,1,1,1,0,0},
     {"ltrim",ltrimCommand,4,"w",0,NULL,1,1,1,0,0},
     {"lrem",lremCommand,4,"w",0,NULL,1,1,1,0,0},
     {"rpoplpush",rpoplpushCommand,3,"wm",0,NULL,1,2,1,0,0},
-    {"sadd",saddCommand,-3,"wmF",0,NULL,1,1,1,0,0},
-    {"srem",sremCommand,-3,"wF",0,NULL,1,1,1,0,0},
+    {"sadd",saddCommand,-3,"wmFJ",0,NULL,1,1,1,0,0},
+    {"srem",sremCommand,-3,"wFJ",0,NULL,1,1,1,0,0},
     {"smove",smoveCommand,4,"wF",0,NULL,1,2,1,0,0},
-    {"sismember",sismemberCommand,3,"rF",0,NULL,1,1,1,0,0},
-    {"scard",scardCommand,2,"rF",0,NULL,1,1,1,0,0},
+    {"sismember",sismemberCommand,3,"rFJ",0,NULL,1,1,1,0,0},
+    {"scard",scardCommand,2,"rFJ",0,NULL,1,1,1,0,0},
     {"spop",spopCommand,-2,"wRF",0,NULL,1,1,1,0,0},
     {"srandmember",srandmemberCommand,-2,"rR",0,NULL,1,1,1,0,0},
     {"sinter",sinterCommand,-2,"rS",0,NULL,1,-1,1,0,0},
@@ -173,49 +173,49 @@ struct redisCommand redisCommandTable[] = {
     {"sunionstore",sunionstoreCommand,-3,"wm",0,NULL,1,-1,1,0,0},
     {"sdiff",sdiffCommand,-2,"rS",0,NULL,1,-1,1,0,0},
     {"sdiffstore",sdiffstoreCommand,-3,"wm",0,NULL,1,-1,1,0,0},
-    {"smembers",sinterCommand,2,"rS",0,NULL,1,1,1,0,0},
+    {"smembers",sinterCommand,2,"rSJ",0,NULL,1,1,1,0,0},
     {"sscan",sscanCommand,-3,"rR",0,NULL,1,1,1,0,0},
-    {"zadd",zaddCommand,-4,"wmF",0,NULL,1,1,1,0,0},
-    {"zincrby",zincrbyCommand,4,"wmF",0,NULL,1,1,1,0,0},
-    {"zrem",zremCommand,-3,"wF",0,NULL,1,1,1,0,0},
+    {"zadd",zaddCommand,-4,"wmFJ",0,NULL,1,1,1,0,0},
+    {"zincrby",zincrbyCommand,4,"wmFJ",0,NULL,1,1,1,0,0},
+    {"zrem",zremCommand,-3,"wFJ",0,NULL,1,1,1,0,0},
     {"zremrangebyscore",zremrangebyscoreCommand,4,"w",0,NULL,1,1,1,0,0},
     {"zremrangebyrank",zremrangebyrankCommand,4,"w",0,NULL,1,1,1,0,0},
     {"zremrangebylex",zremrangebylexCommand,4,"w",0,NULL,1,1,1,0,0},
     {"zunionstore",zunionstoreCommand,-4,"wm",0,zunionInterGetKeys,0,0,0,0,0},
     {"zinterstore",zinterstoreCommand,-4,"wm",0,zunionInterGetKeys,0,0,0,0,0},
-    {"zrange",zrangeCommand,-4,"r",0,NULL,1,1,1,0,0},
+    {"zrange",zrangeCommand,-4,"rJ",0,NULL,1,1,1,0,0},
     {"zrangebyscore",zrangebyscoreCommand,-4,"r",0,NULL,1,1,1,0,0},
     {"zrevrangebyscore",zrevrangebyscoreCommand,-4,"r",0,NULL,1,1,1,0,0},
     {"zrangebylex",zrangebylexCommand,-4,"r",0,NULL,1,1,1,0,0},
     {"zrevrangebylex",zrevrangebylexCommand,-4,"r",0,NULL,1,1,1,0,0},
     {"zcount",zcountCommand,4,"rF",0,NULL,1,1,1,0,0},
     {"zlexcount",zlexcountCommand,4,"rF",0,NULL,1,1,1,0,0},
-    {"zrevrange",zrevrangeCommand,-4,"r",0,NULL,1,1,1,0,0},
-    {"zcard",zcardCommand,2,"rF",0,NULL,1,1,1,0,0},
-    {"zscore",zscoreCommand,3,"rF",0,NULL,1,1,1,0,0},
-    {"zrank",zrankCommand,3,"rF",0,NULL,1,1,1,0,0},
-    {"zrevrank",zrevrankCommand,3,"rF",0,NULL,1,1,1,0,0},
+    {"zrevrange",zrevrangeCommand,-4,"rJ",0,NULL,1,1,1,0,0},
+    {"zcard",zcardCommand,2,"rFJ",0,NULL,1,1,1,0,0},
+    {"zscore",zscoreCommand,3,"rFJ",0,NULL,1,1,1,0,0},
+    {"zrank",zrankCommand,3,"rFJ",0,NULL,1,1,1,0,0},
+    {"zrevrank",zrevrankCommand,3,"rFJ",0,NULL,1,1,1,0,0},
     {"zscan",zscanCommand,-3,"rR",0,NULL,1,1,1,0,0},
-    {"hset",hsetCommand,4,"wmF",0,NULL,1,1,1,0,0},
+    {"hset",hsetCommand,4,"wmFJ",0,NULL,1,1,1,0,0},
     {"hsetnx",hsetnxCommand,4,"wmF",0,NULL,1,1,1,0,0},
-    {"hget",hgetCommand,3,"rF",0,NULL,1,1,1,0,0},
-    {"hmset",hmsetCommand,-4,"wm",0,NULL,1,1,1,0,0},
-    {"hmget",hmgetCommand,-3,"r",0,NULL,1,1,1,0,0},
-    {"hincrby",hincrbyCommand,4,"wmF",0,NULL,1,1,1,0,0},
+    {"hget",hgetCommand,3,"rFJ",0,NULL,1,1,1,0,0},
+    {"hmset",hmsetCommand,-4,"wmJ",0,NULL,1,1,1,0,0},
+    {"hmget",hmgetCommand,-3,"rJ",0,NULL,1,1,1,0,0},
+    {"hincrby",hincrbyCommand,4,"wmFJ",0,NULL,1,1,1,0,0},
     {"hincrbyfloat",hincrbyfloatCommand,4,"wmF",0,NULL,1,1,1,0,0},
-    {"hdel",hdelCommand,-3,"wF",0,NULL,1,1,1,0,0},
-    {"hlen",hlenCommand,2,"rF",0,NULL,1,1,1,0,0},
+    {"hdel",hdelCommand,-3,"wFJ",0,NULL,1,1,1,0,0},
+    {"hlen",hlenCommand,2,"rFJ",0,NULL,1,1,1,0,0},
     {"hstrlen",hstrlenCommand,3,"rF",0,NULL,1,1,1,0,0},
-    {"hkeys",hkeysCommand,2,"rS",0,NULL,1,1,1,0,0},
+    {"hkeys",hkeysCommand,2,"rSJ",0,NULL,1,1,1,0,0},
     {"hvals",hvalsCommand,2,"rS",0,NULL,1,1,1,0,0},
-    {"hgetall",hgetallCommand,2,"r",0,NULL,1,1,1,0,0},
+    {"hgetall",hgetallCommand,2,"rJ",0,NULL,1,1,1,0,0},
     {"hexists",hexistsCommand,3,"rF",0,NULL,1,1,1,0,0},
     {"hscan",hscanCommand,-3,"rR",0,NULL,1,1,1,0,0},
-    {"incrby",incrbyCommand,3,"wmF",0,NULL,1,1,1,0,0},
+    {"incrby",incrbyCommand,3,"wmFJ",0,NULL,1,1,1,0,0},
     {"decrby",decrbyCommand,3,"wmF",0,NULL,1,1,1,0,0},
     {"incrbyfloat",incrbyfloatCommand,3,"wmF",0,NULL,1,1,1,0,0},
-    {"getset",getsetCommand,3,"wm",0,NULL,1,1,1,0,0},
-    {"mset",msetCommand,-3,"wm",0,NULL,1,-1,2,0,0},
+    {"getset",getsetCommand,3,"wmJ",0,NULL,1,1,1,0,0},
+    {"mset",msetCommand,-3,"wmJ",0,NULL,1,-1,2,0,0},
     {"msetnx",msetnxCommand,-3,"wm",0,NULL,1,-1,2,0,0},
     {"randomkey",randomkeyCommand,1,"rR",0,NULL,0,0,0,0,0},
     {"select",selectCommand,2,"lF",0,NULL,0,0,0,0,0},
@@ -1320,10 +1320,13 @@ void initServerConfig(void) {
     server.tcp_backlog = CONFIG_DEFAULT_TCP_BACKLOG;
     server.bindaddr_count = 0;
     server.unixsocket = NULL;
+    server.ssdb_server_unixsocket = NULL;
     server.unixsocketperm = CONFIG_DEFAULT_UNIX_SOCKET_PERM;
     server.ipfd_count = 0;
     server.sofd = -1;
+    server.ssdb_client_sofd = -1;
     server.protected_mode = CONFIG_DEFAULT_PROTECTED_MODE;
+    server.jdjr_mode = CONFIG_DEFAULT_JDJR_MODE;
     server.dbnum = CONFIG_DEFAULT_DBNUM;
     server.verbosity = CONFIG_DEFAULT_VERBOSITY;
     server.maxidletime = CONFIG_DEFAULT_CLIENT_TIMEOUT;
@@ -1778,8 +1781,21 @@ void initServer(void) {
         anetNonBlock(NULL,server.sofd);
     }
 
+    /* Connecting to SSDB unix socket. Check if SSDB server is ready. */
+    if (server.jdjr_mode && server.ssdb_server_unixsocket != NULL) {
+        server.ssdb_client_sofd = anetUnixNonBlockConnect(
+             server.neterr, server.ssdb_server_unixsocket);
+        if (server.ssdb_client_sofd == ANET_ERR) {
+             serverLog(LL_WARNING, "Connectiong to SSDB Unix socket: %s",
+                       server.neterr);
+             exit(1);
+        } else
+             serverLog(LL_NOTICE, "Connectiong to SSDB Unix socket succeeded.");
+    }
+
     /* Abort if there are no listening sockets at all. */
-    if (server.ipfd_count == 0 && server.sofd < 0) {
+    if (server.ipfd_count == 0 && server.sofd < 0
+        && server.ssdb_client_sofd < 0) {
         serverLog(LL_WARNING, "Configured to not listen anywhere, exiting.");
         exit(1);
     }
@@ -1904,6 +1920,7 @@ void populateCommandTable(void) {
             case 'M': c->flags |= CMD_SKIP_MONITOR; break;
             case 'k': c->flags |= CMD_ASKING; break;
             case 'F': c->flags |= CMD_FAST; break;
+            case 'J': c->flags |= CMD_JDJR_MODE; break;
             default: serverPanic("Unsupported command flag"); break;
             }
             f++;
@@ -2127,7 +2144,13 @@ void call(client *c, int flags) {
     /* Call the command. */
     dirty = server.dirty;
     start = ustime();
+
+    if (server.jdjr_mode
+        && c->cmd->flags & CMD_JDJR_MODE)
+        sendCommandToSSDB(c);
+
     c->cmd->proc(c);
+
     duration = ustime()-start;
     dirty = server.dirty-dirty;
     if (dirty < 0) dirty = 0;
@@ -2243,6 +2266,7 @@ int processCommand(client *c) {
     /* Now lookup the command and check ASAP about trivial error conditions
      * such as wrong arity, bad command name and so forth. */
     c->cmd = c->lastcmd = lookupCommand(c->argv[0]->ptr);
+    c->lastargc = c->argc;
     if (!c->cmd) {
         flagTransaction(c);
         addReplyErrorFormat(c,"unknown command '%s'",
@@ -2424,6 +2448,7 @@ void closeListeningSockets(int unlink_unix_socket) {
 
     for (j = 0; j < server.ipfd_count; j++) close(server.ipfd[j]);
     if (server.sofd != -1) close(server.sofd);
+    if (server.ssdb_client_sofd != -1) close(server.ssdb_client_sofd);
     if (server.cluster_enabled)
         for (j = 0; j < server.cfd_count; j++) close(server.cfd[j]);
     if (unlink_unix_socket && server.unixsocket) {

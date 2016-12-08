@@ -216,6 +216,10 @@ void loadServerConfigFromString(char *config) {
             if ((server.protected_mode = yesnotoi(argv[1])) == -1) {
                 err = "argument must be 'yes' or 'no'"; goto loaderr;
             }
+        } else if (!strcasecmp(argv[0],"jdjr-mode") && argc == 2) {
+            if ((server.jdjr_mode = yesnotoi(argv[1])) == -1) {
+                err = "argument must be 'yes' or 'no'"; goto loaderr;
+            }
         } else if (!strcasecmp(argv[0],"port") && argc == 2) {
             server.port = atoi(argv[1]);
             if (server.port < 0 || server.port > 65535) {
@@ -237,6 +241,8 @@ void loadServerConfigFromString(char *config) {
             server.bindaddr_count = addresses;
         } else if (!strcasecmp(argv[0],"unixsocket") && argc == 2) {
             server.unixsocket = zstrdup(argv[1]);
+        } else if (!strcasecmp(argv[0], "ssdb_server_unixsocket") && argc == 2) {
+            server.ssdb_server_unixsocket = zstrdup(argv[1]);
         } else if (!strcasecmp(argv[0],"unixsocketperm") && argc == 2) {
             errno = 0;
             server.unixsocketperm = (mode_t)strtol(argv[1], NULL, 8);
@@ -970,6 +976,8 @@ void configSetCommand(client *c) {
     } config_set_bool_field(
       "protected-mode",server.protected_mode) {
     } config_set_bool_field(
+        "jdjr-mode",server.jdjr_mode) {
+    } config_set_bool_field(
       "stop-writes-on-bgsave-error",server.stop_writes_on_bgsave_err) {
     } config_set_bool_field(
       "lazyfree-lazy-eviction",server.lazyfree_lazy_eviction) {
@@ -1154,6 +1162,7 @@ void configGetCommand(client *c) {
     config_get_string_field("masterauth",server.masterauth);
     config_get_string_field("cluster-announce-ip",server.cluster_announce_ip);
     config_get_string_field("unixsocket",server.unixsocket);
+    config_get_string_field("ssdb_server_unixsocket",server.ssdb_server_unixsocket);
     config_get_string_field("logfile",server.logfile);
     config_get_string_field("pidfile",server.pidfile);
     config_get_string_field("slave-announce-ip",server.slave_announce_ip);
@@ -1227,6 +1236,7 @@ void configGetCommand(client *c) {
     config_get_bool_field("rdbchecksum", server.rdb_checksum);
     config_get_bool_field("activerehashing", server.activerehashing);
     config_get_bool_field("protected-mode", server.protected_mode);
+    config_get_bool_field("jdjr-mode", server.jdjr_mode);
     config_get_bool_field("repl-disable-tcp-nodelay",
             server.repl_disable_tcp_nodelay);
     config_get_bool_field("repl-diskless-sync",
@@ -1889,6 +1899,7 @@ int rewriteConfig(char *path) {
     rewriteConfigNumericalOption(state,"tcp-backlog",server.tcp_backlog,CONFIG_DEFAULT_TCP_BACKLOG);
     rewriteConfigBindOption(state);
     rewriteConfigStringOption(state,"unixsocket",server.unixsocket,NULL);
+    rewriteConfigStringOption(state,"ssdb_server_unixsocket",server.ssdb_server_unixsocket,NULL);
     rewriteConfigOctalOption(state,"unixsocketperm",server.unixsocketperm,CONFIG_DEFAULT_UNIX_SOCKET_PERM);
     rewriteConfigNumericalOption(state,"timeout",server.maxidletime,CONFIG_DEFAULT_CLIENT_TIMEOUT);
     rewriteConfigNumericalOption(state,"tcp-keepalive",server.tcpkeepalive,CONFIG_DEFAULT_TCP_KEEPALIVE);
@@ -1953,6 +1964,7 @@ int rewriteConfig(char *path) {
     rewriteConfigNumericalOption(state,"hll-sparse-max-bytes",server.hll_sparse_max_bytes,CONFIG_DEFAULT_HLL_SPARSE_MAX_BYTES);
     rewriteConfigYesNoOption(state,"activerehashing",server.activerehashing,CONFIG_DEFAULT_ACTIVE_REHASHING);
     rewriteConfigYesNoOption(state,"protected-mode",server.protected_mode,CONFIG_DEFAULT_PROTECTED_MODE);
+    rewriteConfigYesNoOption(state,"jdjr-mode",server.jdjr_mode,CONFIG_DEFAULT_JDJR_MODE);
     rewriteConfigClientoutputbufferlimitOption(state);
     rewriteConfigNumericalOption(state,"hz",server.hz,CONFIG_DEFAULT_HZ);
     rewriteConfigYesNoOption(state,"aof-rewrite-incremental-fsync",server.aof_rewrite_incremental_fsync,CONFIG_DEFAULT_AOF_REWRITE_INCREMENTAL_FSYNC);

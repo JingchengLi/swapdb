@@ -132,6 +132,8 @@ client *createClient(int fd) {
     listSetMatchMethod(c->pubsub_patterns,listMatchObjects);
     if (fd != -1) listAddNodeTail(server.clients,c);
     initClientMultiState(c);
+    c->cmdsds = NULL;
+    c->context = NULL;
     return c;
 }
 
@@ -158,6 +160,8 @@ client *createClient(int fd) {
  * data to the clients output buffers. If the function returns C_ERR no
  * data should be appended to the output buffers. */
 int prepareClientToWrite(client *c) {
+    if (server.jdjr_mode && !c->flags & CLIENT_HANDLE_SSDB_AE)
+        return C_ERR;
     /* If it's the Lua client we always return ok without installing any
      * handler since there is no socket at all. */
     if (c->flags & (CLIENT_LUA|CLIENT_MODULE)) return C_OK;
@@ -597,6 +601,74 @@ int clientHasPendingReplies(client *c) {
     return c->bufpos || listLength(c->reply);
 }
 
+/* Connecting to SSDB unix socket. */
+static void nonBlockConnectToSsdbServer(client *c) {
+    redisContext *context = NULL;
+    if (server.ssdb_server_unixsocket != NULL) {
+        context = redisConnectUnixNonBlock(server.ssdb_server_unixsocket);
+
+        if (context->err) {
+            serverLog(LL_VERBOSE, "Could not connect to SSDB server.");
+            goto cleanup;
+        } else
+            c->context = context;
+
+        anetKeepAlive(NULL, c->context->fd, server.tcpkeepalive);
+
+        aeDeleteFileEvent(server.el, c->context->fd, AE_READABLE);
+
+        if (aeCreateFileEvent(server.el, c->context->fd,
+                              AE_READABLE, ssdbClientUnixHandler, c) == AE_ERR)
+            serverLog(LL_VERBOSE, "Unrecoverable error creating ssdbFd file event.");
+        else
+            serverLog(LL_DEBUG, "rfd:%d connectiong to SSDB Unix socket succeeded: sfd:%d",
+                      c->fd, c->context->fd);
+
+        return;
+    }
+
+cleanup:
+    if (context) redisFree(context);
+    freeClient(c);
+}
+
+/* TODO: Implement sendCommandToSSDB. Querying SSDB server if querying redis fails. */
+int sendCommandToSSDB(client *c) {
+    int nwritten;
+
+     if (!c->cmdsds) {
+          serverLog(LL_VERBOSE, "Expecting c->cmdsds not NULL.");
+          return C_ERR;
+     }
+
+     if (!c->context || c->context->fd <= 0) {
+          serverLog(LL_VERBOSE, "redisContext error.");
+          return C_ERR;
+     }
+
+     while (sdslen(c->cmdsds) > 0) {
+          nwritten = write(c->context->fd, c->cmdsds, sdslen(c->cmdsds));
+          if (nwritten == -1) {
+               if (errno == EAGAIN || errno == EINTR) {
+                    /* Try again later. */
+               } else {
+                    serverLog(LL_VERBOSE,
+                              "Error writing to SSDB server: %s", strerror(errno));
+                    return C_ERR;
+               }
+          } else if (nwritten > 0) {
+                    if (nwritten == (signed)sdslen(c->cmdsds)) {
+                         sdsfree(c->cmdsds);
+                         c->cmdsds = sdsempty();
+                    } else {
+                         sdsrange(c->cmdsds, nwritten, -1);
+                    }
+               }
+          }
+
+     return C_OK;
+}
+
 #define MAX_ACCEPTS_PER_CALL 1000
 static void acceptCommonHandler(int fd, int flags, char *ip) {
     client *c;
@@ -666,6 +738,8 @@ static void acceptCommonHandler(int fd, int flags, char *ip) {
 
     server.stat_numconnections++;
     c->flags |= flags;
+
+    if (server.jdjr_mode) nonBlockConnectToSsdbServer(c);
 }
 
 void acceptTcpHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
@@ -705,6 +779,41 @@ void acceptUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
         serverLog(LL_VERBOSE,"Accepted connection to %s", server.unixsocket);
         acceptCommonHandler(cfd,CLIENT_UNIX_SOCKET,NULL);
     }
+}
+
+/* TODO: Implement ssdbClientUnixHandler. Only handle AE_READABLE. */
+void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
+    UNUSED(el);
+    UNUSED(mask);
+    UNUSED(fd);
+
+    client * c = (client *)privdata;
+    void *aux = NULL;
+    redisReply *reply = NULL;
+    robj *key = NULL;
+
+    serverAssert(c->context);
+
+    redisReader *r = c->context->reader;
+
+    c->flags |= CLIENT_HANDLE_SSDB_AE;
+
+    /* TODO: Using async read. */
+    /* TODO: Considering redis pipeline. */
+    do {
+        if (redisBufferRead(c->context) == REDIS_OK)
+            addReplyString(c, r->buf + r->pos, r->len - r->pos);
+        else
+            goto cleanup;
+
+        if (redisGetReplyFromReader(c->context, &aux) == REDIS_ERR)
+            goto cleanup;
+    } while (aux == NULL);
+
+cleanup:
+    reply = (redisReply *)aux;
+    freeReplyObject(reply);
+    c->flags &= ~CLIENT_HANDLE_SSDB_AE;
 }
 
 static void freeClientArgv(client *c) {
@@ -851,6 +960,11 @@ void freeClient(client *c) {
         serverAssert(ln != NULL);
         listDelNode(server.clients_to_close,ln);
     }
+
+    /* Free redisContext. */
+    if (server.jdjr_mode && c->context) redisFree(c->context);
+    /* Free cmdsds. */
+    if (server.jdjr_mode && c->cmdsds) sdsfree(c->cmdsds);
 
     /* Release other dynamically allocated client structure fields,
      * and finally release the client structure itself. */
@@ -1246,6 +1360,9 @@ int processMultibulkBuffer(client *c) {
             c->multibulklen--;
         }
     }
+
+    /* Save current cmd in sds format. */
+    if (server.jdjr_mode && pos) c->cmdsds = sdsnewlen(c->querybuf, pos);
 
     /* Trim to pos */
     if (pos) sdsrange(c->querybuf,pos,-1);
