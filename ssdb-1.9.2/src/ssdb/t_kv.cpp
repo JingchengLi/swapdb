@@ -58,6 +58,7 @@ int SSDBImpl::SetGeneric(const std::string &key, const std::string &val, int fla
 
 	binlogs->Put(meta_key, meta_val);
 	binlogs->add_log(log_type, BinlogCommand::KSET, meta_key);
+	this->edel_one(key, log_type);
 
     return 1;
 }
