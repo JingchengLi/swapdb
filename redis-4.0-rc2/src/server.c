@@ -2146,7 +2146,8 @@ void call(client *c, int flags) {
     start = ustime();
 
     if (server.jdjr_mode
-        && c->cmd->flags & CMD_JDJR_MODE)
+        && c->cmd->flags & CMD_JDJR_MODE
+        && c->cmd->flags & CMD_WRITE)
         sendCommandToSSDB(c);
 
     c->cmd->proc(c);

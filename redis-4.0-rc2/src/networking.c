@@ -160,8 +160,12 @@ client *createClient(int fd) {
  * data to the clients output buffers. If the function returns C_ERR no
  * data should be appended to the output buffers. */
 int prepareClientToWrite(client *c) {
-    if (server.jdjr_mode && !c->flags & CLIENT_HANDLE_SSDB_AE)
+    if (server.jdjr_mode && c->cmd
+        && c->cmd->flags & CMD_JDJR_MODE
+        && c->cmd->flags & CMD_WRITE
+        && !(c->flags & CLIENT_HANDLE_SSDB_AE))
         return C_ERR;
+
     /* If it's the Lua client we always return ok without installing any
      * handler since there is no socket at all. */
     if (c->flags & (CLIENT_LUA|CLIENT_MODULE)) return C_OK;
@@ -796,24 +800,29 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
 
     redisReader *r = c->context->reader;
 
-    c->flags |= CLIENT_HANDLE_SSDB_AE;
+    if (c->lastcmd->flags & CMD_WRITE)
+        c->flags |= CLIENT_HANDLE_SSDB_AE;
 
     /* TODO: Using async read. */
     /* TODO: Considering redis pipeline. */
     do {
-        if (redisBufferRead(c->context) == REDIS_OK)
+        if ((c->lastcmd->flags & CMD_WRITE)
+            && redisBufferRead(c->context) == REDIS_OK)
             addReplyString(c, r->buf + r->pos, r->len - r->pos);
         else
             goto cleanup;
 
-        if (redisGetReplyFromReader(c->context, &aux) == REDIS_ERR)
+        if ((c->lastcmd->flags & CMD_WRITE)
+            && redisBufferRead(c->context) == REDIS_OK
+            && redisGetReplyFromReader(c->context, &aux) == REDIS_ERR)
             goto cleanup;
     } while (aux == NULL);
 
 cleanup:
     reply = (redisReply *)aux;
-    freeReplyObject(reply);
-    c->flags &= ~CLIENT_HANDLE_SSDB_AE;
+    if (reply) freeReplyObject(reply);
+    if (c->lastcmd->flags & CMD_WRITE)
+        c->flags &= ~CLIENT_HANDLE_SSDB_AE;
 }
 
 static void freeClientArgv(client *c) {
