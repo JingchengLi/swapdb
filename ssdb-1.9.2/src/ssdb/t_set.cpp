@@ -134,6 +134,7 @@ int SSDBImpl::incr_ssize(const Bytes &key, int64_t incr){
             std::string meta_val = encode_set_meta_val(sv.length, sv.version, KEY_DELETE_MASK);
             binlogs->Put(del_key, "");
             binlogs->Put(meta_key, meta_val);
+            this->edel_one(key); //del expire ET key
         } else{
             std::string size_val = encode_set_meta_val(len, sv.version);
             binlogs->Put(meta_key, size_val);

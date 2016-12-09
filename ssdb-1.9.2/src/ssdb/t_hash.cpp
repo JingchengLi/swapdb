@@ -408,6 +408,7 @@ static int incr_hsize(SSDBImpl *ssdb, const Bytes &name, int64_t incr){
 			std::string meta_val = encode_hash_meta_val(hv.length, hv.version, KEY_DELETE_MASK);
 			ssdb->binlogs->Put(del_key, "");
 			ssdb->binlogs->Put(size_key, meta_val);
+			ssdb->edel_one(name); //del expire ET key
 		} else{
 			std::string size_val = encode_hash_meta_val(len, hv.version);
 			ssdb->binlogs->Put(size_key, size_val);

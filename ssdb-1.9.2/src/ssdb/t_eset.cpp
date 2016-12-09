@@ -12,31 +12,18 @@ static int eset_one(SSDBImpl *ssdb, const Bytes &key, int64_t ts, char log_type)
 int SSDBImpl::eset(const Bytes &key, int64_t ts, char log_type) {
     Transaction trans(binlogs);
 
-    std::string meta_key = encode_meta_key(key);
-    std::string meta_val;
-    leveldb::Status s = ldb->Get(leveldb::ReadOptions(), meta_key, &meta_val);
-    if (s.IsNotFound()){
-        return 0;
-    } else if (!s.ok()){
-        return -1;
-    } else{
-        if (meta_val.size() >= 4 ){
-            if (meta_val[3] == KEY_DELETE_MASK){
-                return 0;
-            }
-        } else{
-            return -1;
-        }
+    int ret = check_meta_key(key);
+    if (ret <= 0){
+        return ret;
     }
 
-    int ret = eset_one(this, key, ts, log_type);
+    ret = eset_one(this, key, ts, log_type);
     if (ret >= 0) {
         leveldb::Status s = binlogs->commit();
         if (!s.ok()) {
             log_error("eset error: %s", s.ToString().c_str());
             return -1;
         }
-        ret = 1;
     }
 
     return ret;
@@ -95,11 +82,6 @@ int SSDBImpl::edel_one(const Bytes &key, char log_type) {
 int SSDBImpl::eget(const Bytes &key, int64_t *ts) {
     *ts = 0;
 
-    int ret = check_meta_key(key);
-    if (ret <= 0){
-        return -2;
-    }
-
     std::string str_score;
     std::string dbkey = encode_eset_key(key);
     leveldb::Status s = ldb->Get(leveldb::ReadOptions(), dbkey, &str_score);
@@ -132,7 +114,7 @@ void eset_internal(const SSDBImpl *ssdb, const Bytes &key, int64_t ts, char log_
 
 int eset_one(SSDBImpl *ssdb, const Bytes &key, int64_t ts, char log_type) {
 
-    int ret = 0;
+    int ret = 1;
 
     int64_t old_ts = 0;
 
@@ -152,12 +134,10 @@ int eset_one(SSDBImpl *ssdb, const Bytes &key, int64_t ts, char log_type) {
             ssdb->binlogs->Delete(old_score_key);
             eset_internal(ssdb, key, ts, log_type);
         }
-        return 0;
     } else {
         //error
         return -1;
     }
-
 
     return ret;
 

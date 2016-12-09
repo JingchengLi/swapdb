@@ -160,7 +160,7 @@ public:
 	virtual int esetNoLock(const Bytes &key, int64_t ts, char log_type=BinlogType::SYNC) = 0;
 	virtual int edel(const Bytes &key, char log_type=BinlogType::SYNC) = 0;
 	virtual int eget(const Bytes &key, int64_t *ts) = 0;
-
+    virtual int check_meta_key(const Bytes &key) = 0;
 
 };
 

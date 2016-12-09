@@ -118,6 +118,7 @@ int SSDBImpl::LPop(const Bytes &key, std::string *val) {
                     std::string size_val = encode_list_meta_val(meta_val.length, 0, 0, meta_val.version, KEY_DELETE_MASK);
                     binlogs->Put(meta_key, size_val);
                     binlogs->Put(del_key, "");
+                    this->edel_one(key); //del expire ET key
                 } else {
                     meta_val.length = len;
                     meta_val.left_seq = left_seq;
@@ -302,6 +303,7 @@ int SSDBImpl::DoRPop(ListMetaVal &meta_val, const Bytes &key, std::string &meta_
             std::string size_val = encode_list_meta_val(meta_val.length, 0, 0, meta_val.version, KEY_DELETE_MASK);
             binlogs->Put(meta_key, size_val);
             binlogs->Put(del_key, "");
+            this->edel_one(key); //del expire ET key
         } else {
             meta_val.length = len;
             meta_val.right_seq = right_seq;
