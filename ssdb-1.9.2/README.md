@@ -158,3 +158,7 @@ SSDB is licensed under [New BSD License](http://opensource.org/licenses/BSD-3-Cl
 
 * 刘建辉, liujianhui@gongchang.com
 * wendal(陈镇铖), wendal1985@gmail.com, http://wendal.net 
+
+
+## ROCKSDB
+using -D ROCKSDB=ON 
