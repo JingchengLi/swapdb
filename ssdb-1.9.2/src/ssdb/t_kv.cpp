@@ -180,6 +180,7 @@ int SSDBImpl::getset(const Bytes &key, std::string *val, const Bytes &newval, ch
 	} else{
 		meta_val = encode_kv_val(newval.String(), kv.version);
 		*val = kv.value;
+        this->edel_one(key, log_type); //del expire ET key
 	}
 	binlogs->Put(meta_key, meta_val);
 	binlogs->add_log(log_type, BinlogCommand::KSET, meta_key);

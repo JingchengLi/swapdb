@@ -238,6 +238,8 @@ private:
     int sunion_internal(const std::vector<Bytes> &keys, int offset, std::set<std::string>& members);
 	int64_t SDelKeyNoLock(const Bytes &name, char log_type=BinlogType::SYNC);
 
+    int check_meta_key(const Bytes &key);
+
 private:
 	//    pthread_mutex_t mutex_bgtask_;
 	Mutex mutex_bgtask_;
