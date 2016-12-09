@@ -108,9 +108,9 @@ TEST_F(HashTest, Test_hash_hget) {
 
 TEST_F(HashTest, Test_hash_hdel) {
 #define OKHdel s = client->hdel(key, field);\
-    ASSERT_TRUE(s.ok())<<"fail to delete key!"<<endl;\
+    ASSERT_TRUE(s.ok())<<"fail to delete key!"<<key<<endl;\
     s = client->hget(key, field, &getVal);\
-    ASSERT_TRUE(s.not_found())<<"this key should be deleted!"<<endl;
+    ASSERT_TRUE(s.not_found())<<"this key should be deleted!"<<key<<endl;
 
 #define NotFoundHdel s = client->hdel(key, field);\
     ASSERT_TRUE(s.not_found())<<"this key should be not found!"<<endl;
@@ -118,6 +118,7 @@ TEST_F(HashTest, Test_hash_hdel) {
     for(vector<string>::iterator it = Keys.begin(); it != Keys.end(); it++)
     {
         key = *it;
+        client->del(key);
         val = GetRandomVal_(); 
         field = GetRandomField_();
         s = client->hset(key, field, val);
@@ -149,6 +150,9 @@ TEST_F(HashTest, Test_hash_hincrby) {
     s = client->hget(key, field, &getVal);\
     ASSERT_EQ(to_string(incr+n), getVal);\
     s = client->hdel(key, field);
+
+#define FalseHincr s = client->hincr(key, field, 1, &ret);\
+    ASSERT_TRUE(s.error())<<"this key should hincr fail!"<<endl;
 
     int64_t incr, ret, n = 0;
     //Some special keys
@@ -184,6 +188,51 @@ TEST_F(HashTest, Test_hash_hincrby) {
     s = client->hget(key, field, &getVal);
     ASSERT_EQ(i64toa(MIN_INT64), getVal);
     s = client->hdel(key, field);
+
+    //other types key
+    field = GetRandomField_();
+    val = GetRandomVal_();
+
+    client->del(key);
+    s = client->set(key, val);
+    FalseHincr
+
+    client->del(key); 
+    client->sadd(key, val);
+    FalseHincr
+
+    client->del(key); 
+    client->qpush_front(key, val);
+    FalseHincr
+
+    client->del(key); 
+    client->zset(key, field, 1.0);
+    FalseHincr
+}
+
+TEST_F(HashTest, Test_hash_hdecrby) {
+#define OKHdecr decr = GetRandomInt64_();\
+    s = client->del(key);\
+    s = client->hdecr(key, field, decr, &ret);\
+    ASSERT_TRUE(s.ok());\
+    s = client->hget(key, field, &getVal);\
+    ASSERT_EQ(to_string(-1*decr), getVal);\
+    \
+    s = client->hdecr(key, field, n, &ret);\
+    ASSERT_TRUE(s.ok());\
+    s = client->hget(key, field, &getVal);\
+    ASSERT_EQ(to_string(-1*(decr+n)), getVal);\
+    s = client->hdel(key, field);
+
+    int64_t decr, ret, n = 0;
+    //Some special keys
+    for(vector<string>::iterator it = Keys.begin(); it != Keys.end(); it++)
+    {
+        n++;
+        key = *it;
+        field = GetRandomField_();
+        OKHdecr
+    }
 }
 
 TEST_F(HashTest, Test_hash_hgetall) {
@@ -315,7 +364,9 @@ TEST_F(HashTest, Test_hash_hscan) {
     list.clear();
     s = client->hscan("key", "00000000f2", "00000000f0", 2, &list);
     ASSERT_EQ(0, list.size());
-    s = client->hclear(key);
+    s = client->del("key");
+    s = client->hscan("key", "00000000f0", "00000000f2", 2, &list);
+    ASSERT_EQ(0, list.size());
 }
 
 TEST_F(HashTest, Test_hash_hrscan) {
@@ -335,7 +386,9 @@ TEST_F(HashTest, Test_hash_hrscan) {
     list.clear();
     s = client->hrscan("key", "00000000f1", "00000000f3", 2, &list);
     ASSERT_EQ(0, list.size());
-    s = client->hclear(key);
+    s = client->del("key");
+    s = client->hrscan("key", "00000000f3", "00000000f1", 2, &list);
+    ASSERT_EQ(0, list.size());
 }
 
 TEST_F(HashTest, Test_hash_hmset_hmget_hdel) {
@@ -433,4 +486,13 @@ TEST_F(HashTest, Test_hash_hmset_hmget_hdel) {
     list.clear();
     s = client->multi_hget(key, keys, &list);
     ASSERT_EQ(0, list.size());
+
+    client->sadd(key, "val");
+    s = client->multi_hdel(key, keys, &ret);
+    ASSERT_TRUE(s.error());
+    s = client->multi_hget(key, keys, &list);
+    ASSERT_TRUE(s.error());
+    s = client->multi_hset(key, kvs);
+    ASSERT_TRUE(s.error());
+    client->del(key);
 }

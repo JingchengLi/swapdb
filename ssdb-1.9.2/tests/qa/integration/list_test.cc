@@ -1,3 +1,4 @@
+//qclear not work
 #include <stdio.h>
 #include <stdlib.h>
 #include <string>
@@ -39,7 +40,7 @@ TEST_F(ListTest, Test_list_lpush) {
         getList.clear();
         s = client->qpop_front(key, &getVal);
         ASSERT_EQ(val, getVal)<<"val should be pop up:"<<key<<endl;
-        s = client->qclear(key);
+        s = client->del(key);
     }
 
     // Some random keys
@@ -127,7 +128,7 @@ TEST_F(ListTest, Test_list_rpush) {
         getList.clear();
         s = client->qpop_back(key, &getVal);
         ASSERT_EQ(val, getVal)<<"val should be pop up"<<endl;
-        s = client->qclear(key);
+        s = client->del(key);
     } 
 
     // Some random keys
@@ -271,7 +272,7 @@ TEST_F(ListTest, Test_list_llen) {
         OKQsize(0)
         s = client->qpush_back(key, list, &ret);
         OKQsize(1)
-        s = client->qclear(key);
+        s = client->del(key);
     }
 
     key = GetRandomKey_(); 
@@ -293,7 +294,47 @@ TEST_F(ListTest, Test_list_llen) {
         OKQsize(10-n-1)
     }
 
-    s = client->qclear(key);
+    s = client->del(key);
+}
+
+TEST_F(ListTest, Test_list_lindex) {
+#define OKQget(index, v) s = client->qget(key, index, &getVal);\
+    ASSERT_EQ(v, getVal)<<"fail to qget key!"<<key<<endl;\
+    ASSERT_TRUE(s.ok())<<"qget key not ok!"<<endl;
+
+#define NotFoundQget(index) s = client->qget(key, index, &getVal);\
+    ASSERT_TRUE(s.not_found())<<"qget key should be not_found!"<<endl;
+
+    key = GetRandomKey_(); 
+    val = GetRandomVal_(); 
+
+    list.clear();
+    s = client->del(key);
+    keysNum = 100;
+    for(int n = 0; n < keysNum; n++)
+    {
+        s = client->qpush_back(key, val+itoa(n), &ret);
+    }
+
+    for(int n = 0; n < keysNum; n++)
+    {
+        OKQget(n, val+itoa(n))
+    }
+
+    for(int n = 0; n < keysNum; n++)
+    {
+        OKQget(-n-1, val+itoa(keysNum-n-1))
+    }
+
+    NotFoundQget(keysNum)
+    NotFoundQget(-keysNum-1)
+
+    s = client->del(key);
+
+    for(int n = 0; n < keysNum; n++)
+    {
+        NotFoundQget(n)
+    }
 }
 
 TEST_F(ListTest, Test_list_lrange) {
@@ -378,5 +419,5 @@ TEST_F(ListTest, Test_list_lrange) {
     s = client->qslice(key, -keysNum/2-1, 1, &getList);
     ASSERT_EQ(0, getList.size());
 
-    client->qclear(key);
+    client->del(key);
 }

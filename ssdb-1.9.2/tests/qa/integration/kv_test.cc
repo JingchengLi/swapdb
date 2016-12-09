@@ -18,13 +18,14 @@ class KVTest : public SSDBTest
         string key, val, getVal, field;
         uint32_t keysNum;
         int64_t ret;
+        static const int MAX_PACKET_SIZE = 128 * 1024 *1024;
 };
 
 TEST_F(KVTest, Test_kv_set) {
 #define OKSet s = client->set(key, val);\
-    ASSERT_TRUE(s.ok())<<"fail to set key!"<<endl;\
+    ASSERT_TRUE(s.ok())<<"fail to set key!"<<key<<endl;\
     s = client->get(key, &getVal);\
-    ASSERT_TRUE(s.ok()&&(val == getVal))<<"fail to get key val!"<<endl;
+    ASSERT_TRUE(s.ok()&&(val == getVal))<<"fail to get key val!"<<key<<endl;
 
 #define FalseSet s = client->set(key, val);\
     ASSERT_TRUE(s.error())<<"this key should set fail!"<<endl; 
@@ -34,21 +35,23 @@ TEST_F(KVTest, Test_kv_set) {
     {
         key = *it;
         val = GetRandomVal_(); 
+        client->del(key);
         OKSet
-        //set exsit key
+        // set exsit key
         val = GetRandomVal_(); 
         OKSet
         s = client->del(key);
-    }
+    } 
 
     //Some random keys
     keysNum = 100;
     val = ""; 
     for(int n = 0; n < keysNum; n++)
     {
-        key = GetRandomKey_(); 
+        key = "key"+itoa(n);//GetRandomKey_(); 
+        client->del(key);
         OKSet
-        s = client->del(key);
+        client->del(key);
     }
 
     //other types key, kv can not set other types
@@ -80,6 +83,7 @@ TEST_F(KVTest, Test_kv_set) {
 }
 
 TEST_F(KVTest, Test_kv_setex) {
+//currently setx not process expire time <=0, so disable this case.
     uint8_t ttl;
 #define OKSetx s = client->setx(key, val, ttl);\
     ASSERT_TRUE(s.ok())<<"fail to set key!"<<endl;\
@@ -90,15 +94,48 @@ TEST_F(KVTest, Test_kv_setex) {
     s = client->get(key, &getVal);\
     ASSERT_TRUE(s.not_found())<<"this key should be not found!"<<endl;
 
+#define FalseSetx s = client->setx(key, val, ttl);\
+    ASSERT_TRUE(s.error())<<"should fail to set key!"<<endl;
+
     key = GetRandomBytes_(200); 
     val = GetRandomVal_(); 
     ttl = 2;
     OKSetx
 
     s = client->set(key, val);
-    //set exsit key
+    // set exsit key
     val = GetRandomVal_(); 
     OKSetx
+
+    //other types key, kv can not setex other types
+    field = GetRandomField_();
+
+    client->del(key);
+    client->hset(key, field, val);
+    FalseSetx
+
+    client->del(key);
+    client->zset(key, field, 1.0);
+    FalseSetx
+
+    client->del(key);
+    client->qpush_front(key, val);
+    FalseSetx
+
+    client->del(key);
+    client->sadd(key, val);
+    FalseSetx
+
+    ttl = -1;
+    FalseSetx
+
+    ttl = -1;
+    s = client->set(key, val);
+    FalseSetx
+
+    ttl = 0;
+    FalseSetx
+
 }
 
 TEST_F(KVTest, Test_kv_get) {
@@ -177,6 +214,9 @@ TEST_F(KVTest, Test_kv_incrby) {
     ASSERT_EQ(to_string(incr+n), getVal);\
     s = client->del(key);
 
+#define FalseIncr s = client->incr(key, 1, &ret);\
+    ASSERT_TRUE(s.error())<<"this key should incr error!"<<endl;
+
     int64_t incr, ret, n = 0;
     //Some special keys
     for(vector<string>::iterator it = Keys.begin(); it != Keys.end(); it++)
@@ -208,6 +248,49 @@ TEST_F(KVTest, Test_kv_incrby) {
     s = client->get(key, &getVal);
     ASSERT_EQ(i64toa(MIN_INT64), getVal);
     s = client->del(key);
+
+    //other types key, kv can not incr other types
+    field = GetRandomField_();
+
+    client->del(key);
+    client->hset(key, field, val);
+    FalseIncr
+
+    client->del(key);
+    client->zset(key, field, 1.0);
+    FalseIncr
+
+    client->del(key);
+    client->qpush_front(key, val);
+    FalseIncr
+
+    client->del(key);
+    client->sadd(key, val);
+    FalseIncr
+}
+
+TEST_F(KVTest, Test_kv_decrby) {
+#define OKdecr decr = GetRandomInt64_();\
+    s = client->del(key);\
+    s = client->decr(key, decr, &ret);\
+    EXPECT_EQ(s.code(),"ok");\
+    s = client->get(key, &getVal);\
+    ASSERT_EQ(to_string(-1*decr), getVal);\
+    \
+    s = client->decr(key, n, &ret);\
+    ASSERT_TRUE(s.ok());\
+    s = client->get(key, &getVal);\
+    ASSERT_EQ(to_string(-1*(decr+n)), getVal);\
+    s = client->del(key);
+
+    int64_t decr, ret, n = 0;
+    //Some special keys
+    for(vector<string>::iterator it = Keys.begin(); it != Keys.end(); it++)
+    {
+        n++;
+        key = *it;
+        OKdecr
+    }
 }
 
 TEST_F(KVTest, DISABLED_Test_kv_keys) {
@@ -287,7 +370,6 @@ TEST_F(KVTest, Test_kv_mset_mget_del) {
         //all keys not exist
         s = client->multi_del(keys, &ret);
         ASSERT_TRUE(s.ok());
-        ASSERT_EQ(0, ret);
         s = client->multi_get(keys, &list);
         ASSERT_EQ(0, list.size());
         s = client->multi_set(kvs);
@@ -332,6 +414,32 @@ TEST_F(KVTest, Test_kv_mset_mget_del) {
         list.clear();
         s = client->multi_get(keys, &list);
         ASSERT_EQ(0, list.size());
+
+        //Should set error when there is some key can not be set
+        for( int n = 0; n< 4; n++ ){
+
+            client->del(key2);
+            switch(n){
+                case 0:
+                    client->hset(key2, "field", val2);
+                    break;
+                case 1:
+                    client->qpush_front(key2, val2);
+                    break;
+                case 2:
+                    client->sadd(key2, val2);
+                    break;
+                case 3:
+                    client->zset(key2, "field", 1.0);
+                    break;
+            }
+
+            s = client->multi_set(kvs);
+            EXPECT_EQ("error", s.code())<<n;
+            list.clear();
+            s = client->multi_get(keys, &list);
+            ASSERT_EQ(0, list.size());
+        }
     }
 
     //Del all types key at one time
@@ -371,7 +479,7 @@ TEST_F(KVTest, Test_kv_setnx) {
 TEST_F(KVTest, Test_kv_setbit_getbit) {
     key = "kbit";
     val = "valbit";
-    int bitoffset = GetRandomUint_(0, 65535*8);
+    int bitoffset = GetRandomUint_(0, MAX_PACKET_SIZE*8);
     // int bitoffset = GetRandomUint_(0, MAX_UINT32-1);
     int64_t getBit;
     s = client->del(key);
@@ -394,7 +502,25 @@ TEST_F(KVTest, Test_kv_setbit_getbit) {
     s = client->setbit(key, 3, 1);
     s = client->get(key, &getVal);
     ASSERT_EQ("0", getVal);
+    s = client->getbit(key, 9, &getBit);
+    ASSERT_TRUE(s.ok());
+    ASSERT_EQ(0, getBit);
     s = client->del(key);
+
+    //other types key, kv can not set other types
+    field = GetRandomField_();
+
+    client->del(key);
+    client->hset(key, field, val);
+    s = client->setbit(key, 1, 1);
+    ASSERT_TRUE(s.error())<<"this key should set fail!"<<endl; 
+    client->del(key);
+
+    //offset exceed range [0,MAX_PACKET_SIZE]
+    s = client->setbit(key, -1, 1);
+    ASSERT_NE("ok",s.code())<<"this key should set fail!"<<endl; 
+    s = client->setbit(key, MAX_PACKET_SIZE*8+1, 1);
+    ASSERT_NE("ok",s.code())<<"this key should set fail!"<<endl; 
 }
 
 TEST_F(KVTest, Test_kv_getset) {
@@ -413,4 +539,13 @@ TEST_F(KVTest, Test_kv_getset) {
     s = client->get(key, &getVal);
     ASSERT_EQ(val2, getVal);
     s = client->del(key);
+
+    //other types key, kv can not set other types
+    field = GetRandomField_();
+
+    client->del(key);
+    client->hset(key, field, val);
+    s = client->getset(key, val+"null", &getVal);\
+    ASSERT_TRUE(s.error())<<"this key should set fail!"<<endl; 
+    client->del(key);
 }

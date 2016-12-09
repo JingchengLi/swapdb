@@ -40,7 +40,7 @@ public:
 	SSDBTest()
 	{
         Keys = {
-            "", "0", "1", "10", "123", "4321", "1234567890",
+            "", "0", "1", "10", "123", "4321", "1234567890"
             "a", "ab", "cba", "abcdefghijklmnopqrstuvwxyz",
             "A", "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
             "a0b1", "A0aB9", "~!@#$%^&*()",
@@ -170,7 +170,6 @@ protected:
 	static const unsigned int charsSetLen_ = 62;
     std::vector<std::string> Keys;
     ssdb::Client *client;
-private:
     string ip;
     int port;
 };
