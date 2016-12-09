@@ -17,7 +17,6 @@ INCLUDE_DIRECTORIES(
         "deps/hiredis"
         "deps/linenoise"
         "deps/lua/src"
-        #"deps/geohash-int"
 )
 
 LINK_DIRECTORIES(
@@ -25,12 +24,7 @@ LINK_DIRECTORIES(
         "deps/hiredis"       #hiredis
         "deps/linenoise"
         "deps/lua/src"       #lua
-        #"deps/geohash-int"
 )
-
-
-#ADD_LIBRARY(geohash-int deps/geohash-int)
-#SET_TARGET_PROPERTIES(geohash-int PROPERTIES LINKER_LANGUAGE C)
 
 ADD_LIBRARY(jemalloc deps/jemalloc/src)
 SET_TARGET_PROPERTIES(jemalloc PROPERTIES LINKER_LANGUAGE C OUTPUT_NAME jemalloc)
@@ -120,17 +114,9 @@ SET(redis-cli_files
 ADD_EXECUTABLE(redis-cli ${redis-cli_files})
 TARGET_LINK_LIBRARIES(redis-cli hiredis-static m)
 
-
-#SET(redis-check-aof_files src/redis-check-aof.c)
-#ADD_EXECUTABLE(redis-check-aof ${redis-check-aof_files})
-
 SET(redis-server_files
         src/adlist.c
         src/ae.c
-        #src/ae_epoll.c
-        #src/ae_evport.c
-        #src/ae_kqueue.c
-        #src/ae_select.c
         src/anet.c
         src/aof.c
         src/bio.c
@@ -192,7 +178,4 @@ SET(redis-server_files
         src/zmalloc.c
         )
 ADD_EXECUTABLE(redis-server ${redis-server_files})
-#TARGET_LINK_LIBRARIES(redis-server libgeohash-int libhiredis_static libjemalloc liblua_static m pthread)
 TARGET_LINK_LIBRARIES(redis-server hiredis-static jemalloc lua-static m pthread)
-
-#ADD_EXECUTABLE(redis-check-dump ${redis-server_files})
