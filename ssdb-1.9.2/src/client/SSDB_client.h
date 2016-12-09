@@ -87,6 +87,8 @@ public:
 	virtual Status dbsize(int64_t *ret) = 0;
 	virtual Status get_kv_range(std::string *start, std::string *end) = 0;
 	virtual Status set_kv_range(const std::string &start, const std::string &end) = 0;
+	virtual Status ttl(const std::string &name, int64_t *ret) = 0;
+	virtual Status expire(const std::string &key, int64_t ttl, int64_t *ret) = 0;
 
 	/// @name KV methods
 	/// @{
@@ -102,6 +104,7 @@ public:
 	virtual Status setx(const std::string &key, const std::string &val, int ttl) = 0;
 	virtual Status del(const std::string &key) = 0;
 	virtual Status incr(const std::string &key, int64_t incrby, int64_t *ret) = 0;
+	virtual Status decr(const std::string &key, int64_t incrby, int64_t *ret) = 0;
 	/**
 	 * @param key_start Empty string means no limit.
 	 * @param key_end Empty string means no limit.
@@ -136,6 +139,7 @@ public:
 	virtual Status hset(const std::string &name, const std::string &key, const std::string &val) = 0;
 	virtual Status hdel(const std::string &name, const std::string &key) = 0;
 	virtual Status hincr(const std::string &name, const std::string &key, int64_t incrby, int64_t *ret) = 0;
+	virtual Status hdecr(const std::string &name, const std::string &key, int64_t incrby, int64_t *ret) = 0;
 	virtual Status hsize(const std::string &name, int64_t *ret) = 0;
 	/**
 	 * Delete all of the keys in a hashmap, return the number of keys deleted.
@@ -196,8 +200,9 @@ public:
 	virtual Status zset(const std::string &name, const std::map<std::string, double> &items, int64_t *ret_size=NULL) = 0;
 	virtual Status zset(const std::string &name, const std::string &key, double score) = 0;
 	virtual Status zdel(const std::string &name, const std::vector<std::string> &items, int64_t *ret_size=NULL) = 0;
-	virtual Status zdel(const std::string &name, const std::string &key) = 0;
+	virtual Status zdel(const std::string &name, const std::string &key, int64_t *ret_size=NULL) = 0;
 	virtual Status zincr(const std::string &name, const std::string &key, double incrby, double *ret) = 0;
+	virtual Status zdecr(const std::string &name, const std::string &key, double incrby, double *ret) = 0;
 	virtual Status zsize(const std::string &name, int64_t *ret) = 0;
 	/**
 	 * Delete all of the keys in a zset, return the number of keys deleted.
@@ -272,6 +277,7 @@ public:
 	virtual Status qrange(const std::string &name, int64_t begin, int64_t limit, std::vector<std::string> *ret) = 0;
 	virtual Status qclear(const std::string &name, int64_t *ret=NULL) = 0;
 	virtual Status qsize(const std::string &name, int64_t *ret=NULL) = 0;
+	virtual Status qget(const std::string &name, int64_t index, std::string *val) = 0;
 	/// @}
 private:
 	// No copying allowed

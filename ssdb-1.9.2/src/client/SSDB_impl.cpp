@@ -205,6 +205,18 @@ Status ClientImpl::set_kv_range(const std::string &start, const std::string &end
 	return s;
 }
 
+Status ClientImpl::ttl(const std::string &name, int64_t *ret){
+	const std::vector<std::string> *resp;
+	resp = this->request("ttl", name);
+	return _read_int64(resp, ret);
+}
+
+Status ClientImpl::expire(const std::string &key, int64_t ttl, int64_t *ret){
+	std::string s_ttl = str(ttl);
+	const std::vector<std::string> *resp;
+	resp = this->request("expire", key, s_ttl);
+	return _read_int64(resp, ret);
+}
 /******************** KV *************************/
 
 Status ClientImpl::get(const std::string &key, std::string *val){
@@ -264,6 +276,13 @@ Status ClientImpl::incr(const std::string &key, int64_t incrby, int64_t *ret){
 	std::string s_incrby = str(incrby);
 	const std::vector<std::string> *resp;
 	resp = this->request("incr", key, s_incrby);
+	return _read_int64(resp, ret);
+}
+
+Status ClientImpl::decr(const std::string &key, int64_t incrby, int64_t *ret){
+	std::string s_incrby = str(incrby);
+	const std::vector<std::string> *resp;
+	resp = this->request("decr", key, s_incrby);
 	return _read_int64(resp, ret);
 }
 
@@ -356,6 +375,13 @@ Status ClientImpl::hincr(const std::string &name, const std::string &key, int64_
 	std::string s_incrby = str(incrby);
 	const std::vector<std::string> *resp;
 	resp = this->request("hincr", name, key, s_incrby);
+	return _read_int64(resp, ret);
+}
+
+Status ClientImpl::hdecr(const std::string &name, const std::string &key, int64_t incrby, int64_t *ret){
+	std::string s_incrby = str(incrby);
+	const std::vector<std::string> *resp;
+	resp = this->request("hdecr", name, key, s_incrby);
 	return _read_int64(resp, ret);
 }
 
@@ -570,10 +596,17 @@ Status ClientImpl::zset(const std::string &name, const std::string &key, double 
 	return s;
 }
 
-Status ClientImpl::zdel(const std::string &name, const std::string &key){
+Status ClientImpl::zdel(const std::string &name, const std::string &key, int64_t *ret_size){
 	const std::vector<std::string> *resp;
 	resp = this->request("multi_zdel", name, key);
 	Status s(resp);
+	if(ret_size != NULL && s.ok()){
+		if(resp->size() > 1){
+			*ret_size = str_to_int64(resp->at(1));
+		}else{
+			return Status("error");
+		}
+	}
 	return s;
 }
 
@@ -595,6 +628,13 @@ Status ClientImpl::zincr(const std::string &name, const std::string &key, double
 	std::string s_incrby = str(incrby);
 	const std::vector<std::string> *resp;
 	resp = this->request("zincr", name, key, s_incrby);
+	return _read_double(resp, ret);
+}
+
+Status ClientImpl::zdecr(const std::string &name, const std::string &key, double incrby, double *ret){
+	std::string s_incrby = str(incrby);
+	const std::vector<std::string> *resp;
+	resp = this->request("zdecr", name, key, s_incrby);
 	return _read_double(resp, ret);
 }
 
@@ -857,6 +897,13 @@ Status ClientImpl::qsize(const std::string &name, int64_t *ret){
 	const std::vector<std::string> *resp;
 	resp = this->request("qsize", name);
 	return _read_int64(resp, ret);
+}
+
+Status ClientImpl::qget(const std::string &name, int64_t index, std::string *val){
+	std::string s_index = str(index);
+	const std::vector<std::string> *resp;
+	resp = this->request("qget", name, s_index);
+	return _read_str(resp, val);
 }
 
 }; // namespace ssdb
