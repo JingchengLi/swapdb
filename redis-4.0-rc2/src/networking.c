@@ -160,12 +160,6 @@ client *createClient(int fd) {
  * data to the clients output buffers. If the function returns C_ERR no
  * data should be appended to the output buffers. */
 int prepareClientToWrite(client *c) {
-    if (server.jdjr_mode && c->cmd
-        && c->cmd->flags & CMD_JDJR_MODE
-        && c->cmd->flags & CMD_WRITE
-        && !(c->flags & CLIENT_HANDLE_SSDB_AE))
-        return C_ERR;
-
     /* If it's the Lua client we always return ok without installing any
      * handler since there is no socket at all. */
     if (c->flags & (CLIENT_LUA|CLIENT_MODULE)) return C_OK;
@@ -651,15 +645,15 @@ int sendCommandToSSDB(client *c) {
      }
 
      while (sdslen(c->cmdsds) > 0) {
-          nwritten = write(c->context->fd, c->cmdsds, sdslen(c->cmdsds));
-          if (nwritten == -1) {
-               if (errno == EAGAIN || errno == EINTR) {
-                    /* Try again later. */
-               } else {
-                    serverLog(LL_VERBOSE,
-                              "Error writing to SSDB server: %s", strerror(errno));
-                    return C_ERR;
-               }
+         nwritten = write(c->context->fd, c->cmdsds, sdslen(c->cmdsds));
+         if (nwritten == -1) {
+             if (errno == EAGAIN || errno == EINTR) {
+                 /* Try again later. */
+             } else {
+                 serverLog(LL_VERBOSE,
+                           "Error writing to SSDB server: %s", strerror(errno));
+                 return C_ERR;
+             }
           } else if (nwritten > 0) {
                     if (nwritten == (signed)sdslen(c->cmdsds)) {
                          sdsfree(c->cmdsds);
@@ -796,7 +790,8 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
     redisReply *reply = NULL;
     robj *key = NULL;
 
-    serverAssert(c->context);
+    if (!c || !c->lastcmd || !c->context)
+        return;
 
     redisReader *r = c->context->reader;
 
@@ -808,7 +803,13 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
     do {
         if ((c->lastcmd->flags & CMD_WRITE)
             && redisBufferRead(c->context) == REDIS_OK)
-            addReplyString(c, r->buf + r->pos, r->len - r->pos);
+            /* TODO: using the reply form SSDB. */
+            /* addReplyString(c, r->buf + r->pos, r->len - r->pos); */
+            ;
+        /* else if ((c->lastcmd->flags & CMD_READONLY) */
+        /*           && redisBufferRead(c->context) == REDIS_OK) */
+        /*     /\* TODO: using the reply form SSDB. *\/ */
+        /*     ; */
         else
             goto cleanup;
 
@@ -1422,7 +1423,7 @@ void processInputBuffer(client *c) {
             resetClient(c);
         } else {
             /* Only reset the client when the command was executed. */
-            if (processCommand(c) == C_OK)
+           if (processCommand(c) == C_OK)
                 resetClient(c);
             /* freeMemoryIfNeeded may flush slave output buffers. This may result
              * into a slave, that may be the active client, to be freed. */

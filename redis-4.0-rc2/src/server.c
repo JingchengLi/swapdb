@@ -2144,12 +2144,6 @@ void call(client *c, int flags) {
     /* Call the command. */
     dirty = server.dirty;
     start = ustime();
-
-    if (server.jdjr_mode
-        && c->cmd->flags & CMD_JDJR_MODE
-        && c->cmd->flags & CMD_WRITE)
-        sendCommandToSSDB(c);
-
     c->cmd->proc(c);
 
     duration = ustime()-start;
@@ -2268,6 +2262,7 @@ int processCommand(client *c) {
      * such as wrong arity, bad command name and so forth. */
     c->cmd = c->lastcmd = lookupCommand(c->argv[0]->ptr);
     c->lastargc = c->argc;
+
     if (!c->cmd) {
         flagTransaction(c);
         addReplyErrorFormat(c,"unknown command '%s'",
@@ -2423,6 +2418,13 @@ int processCommand(client *c) {
         addReply(c, shared.slowscripterr);
         return C_OK;
     }
+
+    if (server.jdjr_mode
+        && c->cmd
+        && !(c->flags & CLIENT_MULTI)
+        && c->cmd->flags & CMD_JDJR_MODE
+        && c->cmd->flags & CMD_WRITE)
+        sendCommandToSSDB(c);
 
     /* Exec the command */
     if (c->flags & CLIENT_MULTI &&
