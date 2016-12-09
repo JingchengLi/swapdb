@@ -7,10 +7,15 @@ found in the LICENSE file.
 #define SSDB_IMPL_H_
 
 #ifdef USE_LEVELDB
+#define SSDB_ENGINE "leveldb"
+
 #include "leveldb/db.h"
 #include "leveldb/slice.h"
 #include <memory>
+
 #else
+#define SSDB_ENGINE "rocksdb"
+
 #include "rocksdb/db.h"
 #include "rocksdb/slice.h"
 #define leveldb rocksdb

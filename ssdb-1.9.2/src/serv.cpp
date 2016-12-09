@@ -527,6 +527,8 @@ int proc_info(NetworkServer *net, Link *link, const Request &req, Response *resp
 	resp->push_back("ssdb-server");
 	resp->push_back("version");
 	resp->push_back(SSDB_VERSION);
+	resp->push_back("engine");
+	resp->push_back(SSDB_ENGINE);
 	{
 		resp->push_back("links");
 		resp->add(net->link_count);
