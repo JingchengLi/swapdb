@@ -12,6 +12,23 @@ static int eset_one(SSDBImpl *ssdb, const Bytes &key, int64_t ts, char log_type)
 int SSDBImpl::eset(const Bytes &key, int64_t ts, char log_type) {
     Transaction trans(binlogs);
 
+    std::string meta_key = encode_meta_key(key);
+    std::string meta_val;
+    leveldb::Status s = ldb->Get(leveldb::ReadOptions(), meta_key, &meta_val);
+    if (s.IsNotFound()){
+        return 0;
+    } else if (!s.ok()){
+        return -1;
+    } else{
+        if (meta_val.size() >= 4 ){
+            if (meta_val[3] == KEY_DELETE_MASK){
+                return 0;
+            }
+        } else{
+            return -1;
+        }
+    }
+
     int ret = eset_one(this, key, ts, log_type);
     if (ret >= 0) {
         leveldb::Status s = binlogs->commit();
@@ -19,6 +36,7 @@ int SSDBImpl::eset(const Bytes &key, int64_t ts, char log_type) {
             log_error("eset error: %s", s.ToString().c_str());
             return -1;
         }
+        ret = 1;
     }
 
     return ret;

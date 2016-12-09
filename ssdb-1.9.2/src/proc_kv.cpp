@@ -95,19 +95,16 @@ int proc_expire(NetworkServer *net, Link *link, const Request &req, Response *re
 
 	Locking l(&serv->expiration->mutex);
 	std::string val;
-	int ret = serv->ssdb->get(req[1], &val);
+	int ret = serv->expiration->set_ttl(req[1], req[2].Int());
 	if(ret == 1){
-		ret = serv->expiration->set_ttl(req[1], req[2].Int());
-		if(ret != -1){
-			resp->push_back("ok");
-			resp->push_back("1");
-		}else{
-			resp->push_back("error");
-		}
-		return 0;
+		resp->push_back("ok");
+		resp->push_back("1");
+	} else if (ret == 0){
+		resp->push_back("ok");
+		resp->push_back("0");
+	} else{
+		resp->push_back("error");
 	}
-	resp->push_back("ok");
-	resp->push_back("0");
 	return 0;
 }
 

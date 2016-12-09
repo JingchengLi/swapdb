@@ -50,8 +50,8 @@ int ExpirationHandler::set_ttl(const Bytes &key, int64_t ttl) {
     int64_t expired = time_ms() + ttl * 1000;
 
     int ret = ssdb->eset(key, expired);
-    if (ret == -1) {
-        return -1;
+    if (ret <= 0) {
+        return ret;
     }
     if (expired < first_timeout) {
         first_timeout = expired;
@@ -67,7 +67,7 @@ int ExpirationHandler::set_ttl(const Bytes &key, int64_t ttl) {
         //log_debug("don't put in fast_keys");
     }
 
-    return 0;
+    return 1;
 }
 
 int ExpirationHandler::set_ttl_internal(const Bytes &key, int64_t ttl_ms) {
