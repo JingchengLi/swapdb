@@ -199,15 +199,16 @@ TEST_F(SetTest, Test_set_smembers) {
     for(vector<string>::iterator it = Keys.begin(); it != Keys.end(); it++)
     {
         key = *it;
-        val = GetRandomVal_();
-        client->del(key);
+        val = "val";//GetRandomVal_();
+        s = client->del(key);
+
         client->sadd(key, val);
         getList.clear();
         s = client->smembers(key, &getList);
         ASSERT_TRUE(s.ok());
         list.clear();
         list.push_back(val);
-        ASSERT_EQ(list, getList)<<"set members fail"<<endl;
+        ASSERT_EQ(list, getList)<<"set members fail"<<*it<<endl;
         client->srem(key, val);
     } 
 
@@ -226,6 +227,15 @@ TEST_F(SetTest, Test_set_smembers) {
     sort(getList.begin(), getList.end());
     ASSERT_TRUE(s.ok());
     ASSERT_EQ(list, getList)<<"set members fail"<<endl;
+
+    client->del(key);
+
+    s = client->smembers(key, &getList);
+    ASSERT_TRUE(s.not_found());
+
+    client->zset(key, val, 1.0);
+    s = client->smembers(key, &getList);
+    ASSERT_TRUE(s.error());
 
     client->del(key);
 }

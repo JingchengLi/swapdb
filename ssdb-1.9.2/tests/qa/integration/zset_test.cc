@@ -19,11 +19,15 @@ class ZsetTest : public SSDBTest
         double score, getScore;
         uint16_t keysNum;
         int64_t ret;
+        //Currently support range
+        const int64_t ZSET_SCORE_MAX = 10000000000000LL;               //10,000,000,000,000 ( *10,000 for Shift  )
+        const int64_t ZSET_SCORE_MIN = -ZSET_SCORE_MAX;
+
 };
 
 TEST_F(ZsetTest, Test_zset_zadd) {
 #define OKZset  s = client->zset(key, field, score);\
-    ASSERT_TRUE(s.ok())<<"fail to zset key!"<<key<<field<<endl;\
+    ASSERT_TRUE(s.ok())<<"fail to zset key!"<<key<<s.code()<<endl;\
     s = client->zget(key, field, &getScore);\
     ASSERT_TRUE(s.ok())<<"fail to zget key score!"<<endl;\
     ASSERT_NEAR(score, getScore, eps);
@@ -44,15 +48,41 @@ TEST_F(ZsetTest, Test_zset_zadd) {
         field = GetRandomField_();
         score = GetRandomDouble_(); 
         OKZset
+
+        score = GetRandomDouble_(); 
+//same key field set cannot add, just change score.
+        OKZset
+        client->zsize(key, &ret);
+        ASSERT_EQ(2, ret)<<"fail to zsize key!"<<key<<endl;
+
         s = client->zdel(key, field); 
+        client->del(key);
     } 
+
+    key = GetRandomKey_(); 
+    field = GetRandomField_();
+    score = ZSET_SCORE_MAX;
+    
+    OKZset
+
+    score = ZSET_SCORE_MIN;
+    
+    OKZset
+
+    score = ZSET_SCORE_MAX+1;
+
+    FalseZset
+
+    score = ZSET_SCORE_MIN-1;
+
+    FalseZset
 
     // Some random keys
     keysNum = 100;
     key = GetRandomKey_(); 
     field = GetRandomField_();
     score = GetRandomDouble_(); 
-    s = client->zclear(key);
+    s = client->del(key);
     for(int n = 0; n < keysNum; n++)
     {
         field = field+itoa(n);
@@ -61,7 +91,7 @@ TEST_F(ZsetTest, Test_zset_zadd) {
     }
     s = client->zsize(key, &ret);
     ASSERT_EQ(keysNum, ret);
-    s = client->zclear(key);
+    s = client->del(key);
 
 
     // other types key
@@ -107,15 +137,21 @@ TEST_F(ZsetTest, Test_zset_zscore) {
     }
     field = field+itoa(keysNum);
     NotFoundZget
-    s = client->zclear(key); 
+    s = client->del(key); 
 }
 
 TEST_F(ZsetTest, Test_zset_zrem) {
-#define OKZdel s = client->zdel(key, field);\
+#define OKZdel s = client->zdel(key, field, &ret);\
     ASSERT_TRUE(s.ok())<<"fail to delete key!"<<endl;\
+    ASSERT_EQ(1, ret)<<"should delete one"<<endl;\
     s = client->zget(key, field, &getScore);\
     ASSERT_TRUE(s.not_found())<<"this key should be deleted!"<<endl;
 
+#define FalseZdel s = client->zdel(key, field);\
+    ASSERT_TRUE(s.error())<<"this key should zdel fail!"<<endl;
+
+#define NotFoundZdel s = client->zdel(key, field, &ret);\
+    ASSERT_EQ(0, ret)<<"should delete null"<<endl;
     //Some special keys
     for(vector<string>::iterator it = Keys.begin(); it != Keys.end(); it++)
     {
@@ -134,6 +170,12 @@ TEST_F(ZsetTest, Test_zset_zrem) {
         s = client->zset(key, field, score);
         OKZdel
     }
+    
+    client->del(key);
+    NotFoundZdel
+    client->sadd(key, "val");
+    FalseZdel
+    client->del(key);
 }
 
 TEST_F(ZsetTest, Test_zset_zincrby) {
@@ -149,6 +191,9 @@ TEST_F(ZsetTest, Test_zset_zincrby) {
     s = client->zget(key, field, &getScore);\
     ASSERT_NEAR(incr+n, getScore, eps);\
     s = client->zdel(key, field);
+
+#define FalseZincr s = client->zincr(key, field, 1, &ret);\
+    ASSERT_TRUE(s.error())<<"this key should zincr fail!"<<endl;
 
     double incr, ret, n = 0;
     //Some special keys
@@ -170,6 +215,26 @@ TEST_F(ZsetTest, Test_zset_zincrby) {
         OKZincr
     }
 
+    // other types key
+    field = GetRandomField_();
+    val = GetRandomVal_();
+
+    client->del(key);
+    s = client->set(key, val);
+    FalseZincr
+
+    client->del(key); 
+    s = client->hset(key, field, val);
+    FalseZincr
+
+    client->del(key); 
+    client->qpush_front(key, val);
+    FalseZincr
+
+    client->del(key); 
+    client->sadd(key, val);
+    FalseZincr
+
     s = client->del(key);
     s = client->zincr(key, field, DBL_MAX, &ret);
     s = client->zincr(key, field, 1, &ret);
@@ -184,6 +249,31 @@ TEST_F(ZsetTest, Test_zset_zincrby) {
     s = client->zget(key, field, &getScore);
     ASSERT_NEAR(-DBL_MAX, getScore, eps);
     s = client->zdel(key, field);
+}
+
+TEST_F(ZsetTest, Test_zset_zdecrby) {
+#define OKZdecr decr = GetRandomDouble_();\
+    s = client->del(key);\
+    s = client->zdecr(key, field, decr, &ret);\
+    ASSERT_TRUE(s.ok());\
+    s = client->zget(key, field, &getScore);\
+    ASSERT_NEAR(-1*decr, getScore, eps);\
+    \
+    s = client->zdecr(key, field, n, &ret);\
+    ASSERT_TRUE(s.ok());\
+    s = client->zget(key, field, &getScore);\
+    ASSERT_NEAR(-1*(decr+n), getScore, eps);\
+    s = client->zdel(key, field);
+
+    double decr, ret, n = 0;
+    //Some special keys
+    for(vector<string>::iterator it = Keys.begin(); it != Keys.end(); it++)
+    {
+        n++;
+        key = *it;
+        field = GetRandomField_();
+        OKZdecr
+    }
 }
 
 TEST_F(ZsetTest, Test_zset_zcard) {
@@ -215,14 +305,15 @@ TEST_F(ZsetTest, Test_zset_zcard) {
         client->zset(key, field, score);
         OKZsize(n+1)
     }
-    s = client->zclear(key);
+    s = client->del(key);
 }
 
 TEST_F(ZsetTest, Test_zset_zclear) {
+//not use this command, use del instead
 #define OKZclear(num) s = client->zclear(key, &ret);\
-    ASSERT_EQ(ret, num)<<"fail to zclear key!"<<key<<endl;\
+    ASSERT_EQ(num, ret)<<"fail to zclear key!"<<key<<endl;\
     s = client->zsize(key, &ret);\
-    ASSERT_EQ(ret, 0)<<"key is not null!"<<key<<endl;
+    ASSERT_EQ(0, ret)<<"key is not null!"<<key<<endl;
 
     // Some special keys
     for(vector<string>::iterator it = Keys.begin(); it != Keys.end(); it++)
@@ -249,7 +340,7 @@ TEST_F(ZsetTest, Test_zset_zclear) {
     OKZclear(10)
 }
 
-TEST_F(ZsetTest, Test_zset_zkeys) {
+TEST_F(ZsetTest,  Test_zset_zkeys) {
     key = GetRandomKey_();
     client->del(key);
     score = 2.0;
@@ -260,7 +351,8 @@ TEST_F(ZsetTest, Test_zset_zkeys) {
     client->zset(key, "field2", 2);
     client->zset(key, "field3", 3);
     s = client->zkeys(key, "", NULL, &score, 5, &list);
-    ASSERT_TRUE(s.ok() && list.size() == 2);
+    ASSERT_EQ("ok", s.code());
+    ASSERT_EQ(2, list.size());
     ASSERT_EQ("field1", list[0]);
     ASSERT_EQ("field2", list[1]);
     score = 3.0;
@@ -271,7 +363,7 @@ TEST_F(ZsetTest, Test_zset_zkeys) {
     list.clear();
     s = client->zkeys(key, "", NULL, &score, 2, &list);
     ASSERT_TRUE(s.ok() && list.size() == 2);
-    s = client->zclear(key);
+    s = client->del(key);
 }
 
 TEST_F(ZsetTest, Test_zset_zrange) {
@@ -296,15 +388,29 @@ TEST_F(ZsetTest, Test_zset_zrange) {
     ASSERT_EQ(6, list.size());
     ASSERT_EQ(field + '0', list[0]);
     ASSERT_NEAR(-2.5, atof(list[1].data()), eps);
-    s = client->zclear(key);
+    s = client->del(key);
+    list.clear();
+    s = client->zrange(key, 0, 3, &list);
+    ASSERT_TRUE(s.ok() && list.size() == 0);
+
+    //del should clear zset types
+    client->zset(key, field + '1', -2.4);
+    client->zset(key, field + '0', -2.5);
+    client->zset(key, field + '2', 0);
+    client->zset(key, field + '3', 1);
+    s = client->del(key);
+    list.clear();
+    s = client->zrange(key, 0, 3, &list);
+    ASSERT_TRUE(s.ok() && list.size() == 0);
 }
 
 TEST_F(ZsetTest, Test_zset_zrevrange) {
-    key = "key";//GetRandomKey_();
-    field = "field";//GetRandomField_();
+    key = GetRandomKey_();
+    field = GetRandomField_();
     s = client->del(key);
     s = client->zrrange(key, 1, 2, &list);
-    ASSERT_TRUE(s.ok() && list.size() == 0);
+    ASSERT_TRUE(s.ok());
+    ASSERT_EQ(0, list.size());
     list.clear();
     client->zset(key, field + '1', -2.4);
     client->zset(key, field + '0', -2.5);
@@ -321,7 +427,20 @@ TEST_F(ZsetTest, Test_zset_zrevrange) {
     ASSERT_EQ(6, list.size());
     ASSERT_EQ(field + '3', list[0]);
     ASSERT_NEAR(1, atof(list[1].data()), eps);
-    s = client->zclear(key);
+    s = client->del(key);
+    list.clear();
+    s = client->zrrange(key, 0, 3, &list);
+    ASSERT_TRUE(s.ok() && list.size() == 0);
+
+    //del should clear zset types
+    client->zset(key, field + '1', -2.4);
+    client->zset(key, field + '0', -2.5);
+    client->zset(key, field + '2', 0);
+    client->zset(key, field + '3', 1);
+    s = client->del(key);
+    list.clear();
+    s = client->zrrange(key, 0, 3, &list);
+    ASSERT_TRUE(s.ok() && list.size() == 0);
 }
 
 TEST_F(ZsetTest, Test_zset_zrank) {
@@ -341,14 +460,19 @@ TEST_F(ZsetTest, Test_zset_zrank) {
         s = client->zrank(key, field + itoa(n), &ret);
         ASSERT_EQ(n, ret);
     }
-    client->zclear(key);
+    client->del(key);
+
+    client->set(key, "val");
+    s = client->zrank(key, field, &ret);
+    ASSERT_TRUE(s.error());
+    client->del(key);
 }
 
 TEST_F(ZsetTest, Test_zset_zrevrank) {
-    key = "key";//GetRandomKey_();
-    field = "field";//GetRandomField_();
+    key = GetRandomKey_();
+    field = GetRandomField_();
     score = GetRandomDouble_();
-    s = client->del(key);
+    client->del(key);
     int count = 20;
 
     for(int n = 0; n < count; n++)
@@ -361,7 +485,11 @@ TEST_F(ZsetTest, Test_zset_zrevrank) {
         s = client->zrrank(key, field + itoa(n), &ret);
         ASSERT_EQ(count-n-1, ret);
     }
-    client->zclear(key);
+    client->del(key);
+    client->set(key, "val");
+    s = client->zrrank(key, field, &ret);
+    ASSERT_TRUE(s.error());
+    client->del(key);
 }
 
 TEST_F(ZsetTest, Test_zset_multi_zadd_zdel) {
@@ -381,7 +509,8 @@ TEST_F(ZsetTest, Test_zset_multi_zadd_zdel) {
     ASSERT_TRUE(s.ok());
     ASSERT_EQ(counts, ret);
     for(int n = 0;n < counts; n++){
-        client->zget(key, field+itoa(n), &getScore);
+        s = client->zget(key, field+itoa(n), &getScore);
+        ASSERT_EQ("ok", s.code());
         ASSERT_NEAR(score+n, getScore, eps);
     }
     s = client->zset(key, items, &ret);
