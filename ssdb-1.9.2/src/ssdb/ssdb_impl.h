@@ -212,6 +212,7 @@ public:
 	virtual int edel(const Bytes &key, char log_type=BinlogType::SYNC);
 	virtual int eget(const Bytes &key, int64_t *ts);
 	virtual int edel_one(const Bytes &key, char log_type=BinlogType::SYNC);
+    virtual int check_meta_key(const Bytes &key);
 
 
 private:
@@ -237,8 +238,6 @@ private:
     SIterator* sscan_internal(const Bytes &name, const Bytes &start, const Bytes &end, uint16_t version, uint64_t limit);
     int sunion_internal(const std::vector<Bytes> &keys, int offset, std::set<std::string>& members);
 	int64_t SDelKeyNoLock(const Bytes &name, char log_type=BinlogType::SYNC);
-
-    int check_meta_key(const Bytes &key);
 
 private:
 	//    pthread_mutex_t mutex_bgtask_;

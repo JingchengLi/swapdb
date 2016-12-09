@@ -106,11 +106,13 @@ int ExpirationHandler::del_ttl(const Bytes &key) {
 
 int64_t ExpirationHandler::get_ttl(const Bytes &key) {
     int64_t ex = 0;
-    int ret = ssdb->eget(key, &ex);
+    int ret = ssdb->check_meta_key(key);
+    if (ret <= 0){
+        return -2;
+    }
+    ret = ssdb->eget(key, &ex);
     if ( ret == 1) {
         return (ex - time_ms()) / 1000;
-    } else if (ret == -2){
-        return -2;
     }
     return -1;
 }
