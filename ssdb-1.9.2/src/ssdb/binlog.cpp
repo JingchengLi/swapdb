@@ -232,7 +232,7 @@ void BinlogQueue::rollback(){
 }
 
 leveldb::Status BinlogQueue::commit(){
-	if (batch.Count() > 0){
+//	if (batch.Count() > 0){
 		leveldb::WriteOptions write_opts;
 
 		leveldb::Status s = db->Write(write_opts, &batch);
@@ -241,8 +241,8 @@ leveldb::Status BinlogQueue::commit(){
 			tran_seq = 0;
 		}
 		return s;
-	}
-	return leveldb::Status::OK();
+//	}
+//	return leveldb::Status::OK();
 }
 
 void BinlogQueue::add_log(char type, char cmd, const leveldb::Slice &key){

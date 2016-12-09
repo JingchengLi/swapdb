@@ -9,6 +9,7 @@ found in the LICENSE file.
 #ifdef USE_LEVELDB
 #include "leveldb/db.h"
 #include "leveldb/slice.h"
+#include <memory>
 #else
 #include "rocksdb/db.h"
 #include "rocksdb/slice.h"
