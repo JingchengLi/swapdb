@@ -5,6 +5,11 @@ SET(LEVELDB_PATH=${CMAKE_CURRENT_SOURCE_DIR}/deps/leveldb-1.18)
 SET(JEMALLOC_PATH=${CMAKE_CURRENT_SOURCE_DIR}/deps/jemalloc-4.1.0)
 SET(SNAPPY_PATH=${CMAKE_CURRENT_SOURCE_DIR}/deps/snappy-1.1.0)
 
+execute_process(COMMAND                                                                                                                                                                        
+    "./build.sh"
+    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+)
+
 INCLUDE_DIRECTORIES(
     ${CMAKE_CURRENT_SOURCE_DIR}/deps/leveldb-1.18/include
     ${CMAKE_CURRENT_SOURCE_DIR}/deps/leveldb-1.18/include/leveldb
@@ -182,6 +187,7 @@ src/cluster_migrate.cpp
 )
 
 ADD_EXECUTABLE(ssdb-server ${SRC_OBJS})                                                                                                                                             
-TARGET_LINK_LIBRARIES(ssdb-server libssdb-static libutil-static libnet-static libcodec-static leveldb gtest gflags snappy jemalloc pthread rt z bz2)
+#TARGET_LINK_LIBRARIES(ssdb-server libssdb-static libutil-static libnet-static libcodec-static leveldb gtest gflags snappy jemalloc pthread rt z bz2)
+TARGET_LINK_LIBRARIES(ssdb-server libssdb-static libutil-static libnet-static libcodec-static leveldb gflags snappy jemalloc pthread rt z bz2)
 
 ADD_EXECUTABLE(hello-ssdb ${CLIENT_OBJS})
