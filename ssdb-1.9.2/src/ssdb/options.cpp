@@ -29,6 +29,8 @@ void Options::load(const Config &conf){
 	write_buffer_size = (size_t)conf.get_num("leveldb.write_buffer_size");
 	compression = conf.get_str("leveldb.compression");
 #else
+	cache_size = (size_t)conf.get_num("rocksdb.cache_size");
+	block_size = (size_t)conf.get_num("rocksdb.block_size");
 	max_open_files = (size_t)conf.get_num("rocksdb.max_open_files");
 	write_buffer_size = (size_t)conf.get_num("rocksdb.write_buffer_size");
 	compression = conf.get_str("rocksdb.compression");
@@ -50,14 +52,12 @@ void Options::load(const Config &conf){
 		binlog_capacity = LOG_QUEUE_SIZE;
 	}
 
-#ifdef USE_LEVELDB
 	if(cache_size <= 0){
 		cache_size = 16;
 	}
 	if(block_size <= 0){
 		block_size = 16;
 	}
-#endif
 	if(write_buffer_size <= 0){
 		write_buffer_size = 16;
 	}

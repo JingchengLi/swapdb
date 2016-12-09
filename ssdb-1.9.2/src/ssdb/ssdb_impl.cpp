@@ -14,6 +14,8 @@ found in the LICENSE file.
 #include "rocksdb/iterator.h"
 #include "rocksdb/cache.h"
 #include "rocksdb/filter_policy.h"
+#include "rocksdb/table.h"
+
 #define leveldb rocksdb
 #endif
 
@@ -43,6 +45,7 @@ SSDBImpl::~SSDBImpl(){
 	Locking l(&this->mutex_bgtask_);
 	this->stop();
 #ifdef USE_LEVELDB
+    //auto memory man in rocks
 	if(options.block_cache){
 		delete options.block_cache;
 	}
@@ -61,6 +64,13 @@ SSDB* SSDB::open(const Options &opt, const std::string &dir){
 	ssdb->options.block_cache = leveldb::NewLRUCache(opt.cache_size * 1048576);
 	ssdb->options.block_size = opt.block_size * 1024;
 	ssdb->options.compaction_speed = opt.compaction_speed;
+#else
+	rocksdb::BlockBasedTableOptions op;
+    op.filter_policy = std::shared_ptr<const leveldb::FilterPolicy>(leveldb::NewBloomFilterPolicy(10));
+    op.block_cache = leveldb::NewLRUCache(opt.cache_size * 1048576);
+	op.block_size = opt.block_size * 1024;
+
+	ssdb->options.table_factory = std::shared_ptr<leveldb::TableFactory>(rocksdb::NewBlockBasedTableFactory(op));
 #endif
 	ssdb->options.write_buffer_size = opt.write_buffer_size * 1024 * 1024;
 	if(opt.compression == "yes"){

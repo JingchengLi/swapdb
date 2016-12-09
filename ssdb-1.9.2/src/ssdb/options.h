@@ -41,7 +41,11 @@ struct Options {
     int max_background_flushes;
     int max_background_compactions;
 
-    //=========begin
+	size_t cache_size;
+	size_t block_size;
+
+
+	//=========begin
     // for ssdb
     void load(const Config &conf);
     bool binlog;
