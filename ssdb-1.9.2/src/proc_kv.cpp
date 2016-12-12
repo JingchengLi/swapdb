@@ -216,8 +216,8 @@ int proc_scan(NetworkServer *net, Link *link, const Request &req, Response *resp
 	Iterator *it = serv->ssdb->iterator("", "", -1);
 	resp->push_back("ok");
 	while(it->next()){
-		resp->push_back(it->key().String());
-		resp->push_back(it->val().String());
+		resp->push_back(hexmem(it->key().data(),it->key().size()));
+		resp->push_back(hexmem(it->val().data(),it->val().size()));
 	}
 	delete it;
 	return 0;
