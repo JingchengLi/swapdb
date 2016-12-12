@@ -49,17 +49,6 @@ string encode_zset_key(const Bytes& key, const Bytes& member, uint16_t version){
     return encode_key_internal(DataType::ITEM, key.String(), member.String(), version);
 }
 
-string encode_zset_score_prefix(const Bytes& key, uint16_t version){
-    return encode_key_internal(DataType::ZSCORE, key.String(), "", version);
-}
-
-string encode_eset_key(const Bytes& member){
-    string buf;
-    buf.append(1, DataType::EKEY);
-    buf.append(member.data(), member.size());
-    return buf;
-}
-
 static uint64_t encodeScore(const double score) {
     int64_t iscore;
     if (score < 0) {
@@ -70,7 +59,7 @@ static uint64_t encodeScore(const double score) {
     return (uint64_t)(iscore);
 }
 
-string encode_zscore_key(const Bytes& key, const Bytes& field, double score, uint16_t version){
+string encode_zscore_key(const Bytes& key, const Bytes& member, double score, uint16_t version){
     string buf;
 
     buf.append(1, DataType::ZSCORE);
@@ -86,7 +75,7 @@ string encode_zscore_key(const Bytes& key, const Bytes& field, double score, uin
     new_score = htobe64(new_score);
     buf.append((char *)&new_score, sizeof(uint64_t));
 
-    buf.append(field.data(), field.size());
+    buf.append(member.data(), member.size());
 
     return buf;
 }

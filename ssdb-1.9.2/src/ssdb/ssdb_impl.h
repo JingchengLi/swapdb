@@ -30,9 +30,10 @@ found in the LICENSE file.
 //#include "t_hash.h"
 //#include "t_zset.h"
 //#include "t_queue.h"
-#include "ssdb/ttl.h"
-#include "codec/decode.h"
-#include "codec/encode.h"
+#include "ttl.h"
+#include "../codec/decode.h"
+#include "../codec/encode.h"
+
 
 #include <queue>
 #include <atomic>

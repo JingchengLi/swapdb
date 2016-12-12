@@ -108,8 +108,7 @@ int SSDBImpl::multi_del(const std::vector<Bytes> &keys, int offset, char log_typ
 					std::string del_key = encode_delete_key(key, version);
 					binlogs->Put(meta_key, meta_val);
 					binlogs->Put(del_key, "");
-					binlogs->add_log(log_type, BinlogCommand::DEL_KEY, meta_key);
-					this->edel_one(key, log_type); //del expire ET key
+                    this->edel_one(key, log_type); //del expire ET key
                     num++;
 				} else{
 					continue;
