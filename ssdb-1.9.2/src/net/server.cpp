@@ -375,13 +375,23 @@ int NetworkServer::proc_result(ProcJob *job, ready_list_t *ready_list){
 		job->cmd->time_wait += job->time_wait;
 		job->cmd->time_proc += job->time_proc;
 	}
-	delete job;
-	
+
 	if(result == PROC_ERROR){
-		log_info("fd: %d, proc error, delete link", link->fd());
+
+		std::string error_cmd;
+		for(Request::const_iterator it=job->req->begin(); it!=job->req->end(); it++){
+			const Bytes &key = *it;
+			error_cmd.append(hexmem(key.data(),key.size()));
+			error_cmd.append(" ");
+		}
+
+		log_info("fd: %d, proc error, delete link, cmd : %s", link->fd(), error_cmd.c_str());
+		delete job;
 		goto proc_err;
 	}
-	
+
+	delete job;
+
 	if(!link->output->empty()){
 		int len = link->write();
 		//log_debug("write: %d", len);
