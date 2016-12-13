@@ -47,6 +47,11 @@ void ExpirationHandler::stop() {
 }
 
 int ExpirationHandler::set_ttl(const Bytes &key, int64_t ttl) {
+    if (ttl <= 0){
+        int r = ssdb->del(key);
+        return r;
+    }
+
     int64_t expired = time_ms() + ttl * 1000;
 
     int ret = ssdb->eset(key, expired);
