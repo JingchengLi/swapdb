@@ -781,6 +781,7 @@ void acceptUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
 
 /* TODO: Implement ssdbClientUnixHandler. Only handle AE_READABLE. */
 void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
+    return;
     UNUSED(el);
     UNUSED(mask);
     UNUSED(fd);
@@ -1371,9 +1372,6 @@ int processMultibulkBuffer(client *c) {
         }
     }
 
-    /* Save current cmd in sds format. */
-    if (server.jdjr_mode && pos) c->cmdsds = sdsnewlen(c->querybuf, pos);
-
     /* Trim to pos */
     if (pos) sdsrange(c->querybuf,pos,-1);
 
@@ -1423,8 +1421,17 @@ void processInputBuffer(client *c) {
             resetClient(c);
         } else {
             /* Only reset the client when the command was executed. */
-           if (processCommand(c) == C_OK)
+            if (processCommand(c) == C_OK) {
+                if (server.jdjr_mode
+                    && c->cmd
+                    && !(c->flags & CLIENT_MULTI)
+                    && c->cmd->flags & CMD_JDJR_MODE
+                    && c->cmd->flags & CMD_WRITE)
+                    sendCommandToSSDB(c);
+
                 resetClient(c);
+            }
+
             /* freeMemoryIfNeeded may flush slave output buffers. This may result
              * into a slave, that may be the active client, to be freed. */
             if (server.current_client == NULL) break;
@@ -1459,6 +1466,7 @@ void readQueryFromClient(aeEventLoop *el, int fd, void *privdata, int mask) {
     if (c->querybuf_peak < qblen) c->querybuf_peak = qblen;
     c->querybuf = sdsMakeRoomFor(c->querybuf, readlen);
     nread = read(fd, c->querybuf+qblen, readlen);
+
     if (nread == -1) {
         if (errno == EAGAIN) {
             return;
@@ -1471,6 +1479,13 @@ void readQueryFromClient(aeEventLoop *el, int fd, void *privdata, int mask) {
         serverLog(LL_VERBOSE, "Client closed connection");
         freeClient(c);
         return;
+    }
+
+    if (server.jdjr_mode) {
+        if (c->cmdsds == NULL)
+            c->cmdsds = sdsempty();
+
+        c->cmdsds = sdscatlen(c->cmdsds, c->querybuf + qblen, nread);
     }
 
     sdsIncrLen(c->querybuf,nread);

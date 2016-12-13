@@ -2419,13 +2419,6 @@ int processCommand(client *c) {
         return C_OK;
     }
 
-    if (server.jdjr_mode
-        && c->cmd
-        && !(c->flags & CLIENT_MULTI)
-        && c->cmd->flags & CMD_JDJR_MODE
-        && c->cmd->flags & CMD_WRITE)
-        sendCommandToSSDB(c);
-
     /* Exec the command */
     if (c->flags & CLIENT_MULTI &&
         c->cmd->proc != execCommand && c->cmd->proc != discardCommand &&
