@@ -378,14 +378,21 @@ int NetworkServer::proc_result(ProcJob *job, ready_list_t *ready_list){
 
 	if(result == PROC_ERROR){
 
-		std::string error_cmd;
+		std::string error_cmd = "cmd: ";
 		for(Request::const_iterator it=job->req->begin(); it!=job->req->end(); it++){
 			const Bytes &key = *it;
 			error_cmd.append(hexmem(key.data(),key.size()));
 			error_cmd.append(" ");
 		}
 
-		log_info("fd: %d, proc error, delete link, cmd : %s", link->fd(), error_cmd.c_str());
+		error_cmd.append(" resp: ");
+		for(std::vector<std::string>::iterator it=job->resp.resp.begin(); it!=job->resp.resp.end(); it++){
+			std::string res = *it;
+ 			error_cmd.append(hexmem(res.data(),res.size()));
+			error_cmd.append(" ");
+		}
+
+		log_info("fd: %d, proc error, delete link, %s", link->fd(), error_cmd.c_str());
 		delete job;
 		goto proc_err;
 	}
@@ -514,6 +521,7 @@ int NetworkServer::proc(ProcJob *job){
 	}while(0);
 	
 	if(job->link->send(job->resp.resp) == -1){
+		log_debug("job->link->send error");
 		job->result = PROC_ERROR;
 	}
 	return job->result;

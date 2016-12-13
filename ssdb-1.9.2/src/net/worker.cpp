@@ -26,10 +26,12 @@ int ProcWorker::proc(ProcJob *job){
 	job->time_proc = 1000 * (millitime() - job->stime) - job->time_wait;
 
 	if(job->link->send(job->resp.resp) == -1){
+		log_debug("job->link->send error");
 		job->result = PROC_ERROR;
 	}else{
 		int len = job->link->write();
 		if(len < 0){
+			log_debug("job->link->write error");
 			job->result = PROC_ERROR;
 		}
 	}
