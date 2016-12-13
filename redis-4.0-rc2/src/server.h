@@ -1690,9 +1690,9 @@ int removeExpire(redisDb *db, robj *key);
 void propagateExpire(redisDb *db, robj *key, int lazy);
 int expireIfNeeded(redisDb *db, robj *key);
 long long getExpire(redisDb *db, robj *key);
-void setExpire(redisDb *db, robj *key, long long when);
 void setTransferringDB(redisDb *db, robj *key);
 long long getTransferringDB(robj *key);
+void setExpire(client *c, redisDb *db, robj *key, long long when);
 robj *lookupKey(redisDb *db, robj *key, int flags);
 robj *lookupKeyRead(redisDb *db, robj *key);
 robj *lookupKeyWrite(redisDb *db, robj *key);
@@ -1777,6 +1777,9 @@ void disconnectAllBlockedClients(void);
 void activeExpireCycle(int type);
 /* expire.c -- Handling of evicting keys to SSDB. */
 int epilogOfEvictingToSSDB(robj *keyobj);
+void expireSlaveKeys(void);
+void rememberSlaveKeyWithExpire(redisDb *db, robj *key);
+void flushSlaveKeysWithExpireList(void);
 
 /* evict.c -- maxmemory handling and LRU eviction. */
 void evictionPoolAlloc(void);
