@@ -439,6 +439,9 @@ void SSDBImpl::delete_key_loop(const std::string &del_key) {
     std::string start = encode_hash_key(dk.key, "", dk.version);
     std::string z_start = encode_zset_score_prefix(dk.key, dk.version);
 
+
+	PTS(a)
+
     auto it = std::unique_ptr<Iterator>(this->iterator(start, "", -1));
 	leveldb::WriteBatch batch;
     while (it->next()){
@@ -478,6 +481,8 @@ void SSDBImpl::delete_key_loop(const std::string &del_key) {
             break;
         }
     }
+
+	PTE(a);
 
 	batch.Delete(del_key);
     if (delete_meta_key(dk, batch) == -1){
