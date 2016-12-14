@@ -4,6 +4,7 @@ Use of this source code is governed by a BSD-style license that can be
 found in the LICENSE file.
 */
 #include "ssdb_impl.h"
+#include "../util/PTimer.h"
 #ifdef USE_LEVELDB
 #include "leveldb/env.h"
 #include "leveldb/iterator.h"
@@ -195,8 +196,8 @@ int SSDBImpl::raw_get(const Bytes &key, std::string *val){
 
 uint64_t SSDBImpl::size(){
 	// todo r2m adaptation
-	std::string s = "M";
-	std::string e(1, 'M' + 1);
+    std::string s = "A";
+    std::string e(1, 'z' + 1);
 	leveldb::Range ranges[1];
 	ranges[0] = leveldb::Range(s, e);
 	uint64_t sizes[1];
