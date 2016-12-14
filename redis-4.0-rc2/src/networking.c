@@ -613,8 +613,6 @@ static void nonBlockConnectToSsdbServer(client *c) {
 
         anetKeepAlive(NULL, c->context->fd, server.tcpkeepalive);
 
-        aeDeleteFileEvent(server.el, c->context->fd, AE_READABLE);
-
         if (aeCreateFileEvent(server.el, c->context->fd,
                               AE_READABLE, ssdbClientUnixHandler, c) == AE_ERR)
             serverLog(LL_VERBOSE, "Unrecoverable error creating ssdbFd file event.");
@@ -868,6 +866,16 @@ void unlinkClient(client *c) {
         aeDeleteFileEvent(server.el,c->fd,AE_WRITABLE);
         close(c->fd);
         c->fd = -1;
+    }
+
+
+    /* Unlink resources used in connecting to SSDB. */
+    if (server.jdjr_mode
+        && c->context && c->context->fd != -1) {
+        aeDeleteFileEvent(server.el, c->context->fd, AE_READABLE);
+        aeDeleteFileEvent(server.el, c->context->fd, AE_WRITABLE);
+        close(c->context->fd);
+        c->context->fd = -1;
     }
 
     /* Remove from the list of pending writes if needed. */
