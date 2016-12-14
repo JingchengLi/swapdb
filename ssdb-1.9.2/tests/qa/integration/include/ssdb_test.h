@@ -20,6 +20,11 @@
 #define MAX_INT64 ~(MIN_INT64)
 using namespace std;
 
+#ifdef ROBUST
+#define multi 1024
+#else
+#define multi 1
+#endif
 inline string itoa(int32_t num)
 {
 	stringstream strm;
@@ -159,13 +164,13 @@ protected:
 	static const uint64_t minSeq = 0;
 	static const unsigned int maxVersion = 65535;
 	static const unsigned int minVersion = 0;
-	static const unsigned int maxKeyLen_ = 1000;//65535;
+	static const unsigned int maxKeyLen_ = 65535;
 	static const unsigned int minKeyLen_ = 1;
-	static const unsigned int maxMemberLen_ = 1024;
+	static const unsigned int maxMemberLen_ = 1024*multi;
 	static const unsigned int minMemberLen_ = 0;
-	static const unsigned int maxFieldLen_ = 1024;
+	static const unsigned int maxFieldLen_ = 1024*multi;
 	static const unsigned int minFieldLen_ = 0;
-	static const unsigned int maxValLen_ = 1024;
+	static const unsigned int maxValLen_ = 1024*multi;
 	static const unsigned int minValLen_ = 1;
 	static const unsigned int charsSetLen_ = 62;
     std::vector<std::string> Keys;
