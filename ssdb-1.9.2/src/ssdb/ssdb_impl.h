@@ -22,6 +22,7 @@ found in the LICENSE file.
 #endif
 #include "../util/log.h"
 #include "../util/config.h"
+#include "../util/PTimer.h"
 
 #include "ssdb.h"
 #include "binlog.h"
