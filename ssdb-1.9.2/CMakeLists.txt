@@ -30,7 +30,7 @@ LINK_DIRECTORIES(
 IF(GCOV)
     ADD_DEFINITIONS("-fprofile-arcs -ftest-coverage")
     SET(CMAKE_EXE_LINKER_FLAGS "-fprofile-arcs -ftest-coverage")  
-    SET(CMAKE_CXX_FLAGS "-DNDEBUG -D__STDC_FORMAT_MACROS -Wall -O2 -Wno-sign-compare -std=c++11")
+    SET(CMAKE_CXX_FLAGS "-DNDEBUG -D__STDC_FORMAT_MACROS -Wall -O0 -Wno-sign-compare -std=c++11")
 ELSE()
     SET(CMAKE_CXX_FLAGS "-DNDEBUG -D__STDC_FORMAT_MACROS -Wall -O2 -Wno-sign-compare -std=c++11")
 ENDIF()
@@ -43,7 +43,7 @@ IF(ROCKSDB)
     LINK_DIRECTORIES(
             ${CMAKE_CURRENT_SOURCE_DIR}/deps/rocksdb-4.11.2/
     )
-    SET(CMAKE_CXX_FLAGS "-DNDEBUG -D__STDC_FORMAT_MACROS -Wall -O0 -Wno-sign-compare -std=c++11")
+    SET(CMAKE_CXX_FLAGS "-DNDEBUG -D__STDC_FORMAT_MACROS -Wall -O2 -Wno-sign-compare -std=c++11")
     ADD_LIBRARY(librocksdb-static deps/rocksdb-4.11.2)
     TARGET_LINK_LIBRARIES ( librocksdb-static snappy gtest gflags )
     SET_TARGET_PROPERTIES(librocksdb-static PROPERTIES
