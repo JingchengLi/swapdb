@@ -199,7 +199,7 @@ TEST_F(SetTest, Test_set_smembers) {
     for(vector<string>::iterator it = Keys.begin(); it != Keys.end(); it++)
     {
         key = *it;
-        val = "val";//GetRandomVal_();
+        val = GetRandomVal_();
         s = client->del(key);
 
         client->sadd(key, val);

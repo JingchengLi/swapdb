@@ -25,6 +25,10 @@ ELSE()
     SET(CMAKE_CXX_FLAGS "-DNDEBUG -D__STDC_FORMAT_MACROS -Wall -O2 -Wno-sign-compare -std=c++11")
 ENDIF()
 
+IF(ROBUST)
+    ADD_DEFINITIONS(-DROBUST)
+ENDIF()
+
 # src/client
 # libssdb-client.a
 

@@ -12,7 +12,7 @@ const bool LDEBUG = false;
 
 using namespace std;
 
-class DISABLED_RobustTest : public SSDBTest
+class RobustTest : public SSDBTest
 {
     public:
         ssdb::Status s;
@@ -32,10 +32,10 @@ class DISABLED_RobustTest : public SSDBTest
 
 };
 
-void* DISABLED_RobustTest::mset_thread_func(void *arg) {
+void* RobustTest::mset_thread_func(void *arg) {
     if(LDEBUG)
         cout<<"mset_thread_func start!"<<endl; 
-    DISABLED_RobustTest* robustTest = (DISABLED_RobustTest*)arg;
+    RobustTest* robustTest = (RobustTest*)arg;
     ssdb::Client *tmpclient = ssdb::Client::connect(robustTest->ip.data(), robustTest->port);
     if(tmpclient == NULL)
     {
@@ -54,10 +54,10 @@ void* DISABLED_RobustTest::mset_thread_func(void *arg) {
     return (void *)NULL;
 }
 
-void* DISABLED_RobustTest::mget_thread_func(void *arg) {
+void* RobustTest::mget_thread_func(void *arg) {
     if(LDEBUG)
         cout<<"mget_thread_func start!"<<endl; 
-    DISABLED_RobustTest* robustTest = (DISABLED_RobustTest*)arg;
+    RobustTest* robustTest = (RobustTest*)arg;
     ssdb::Client *tmpclient = ssdb::Client::connect(robustTest->ip.data(), robustTest->port);
     if(tmpclient == NULL)
     {
@@ -85,7 +85,7 @@ void* DISABLED_RobustTest::mget_thread_func(void *arg) {
     return (void *)NULL;
 }
 
-TEST_F(DISABLED_RobustTest, Test_bigkey_hash_del) {
+TEST_F(RobustTest, Test_bigkey_hash_del) {
 #define HsetBigKey(num) for(int n = 0; n < num; n++)\
     {\
         client->hset(key, field+itoa(n), val+itoa(n));\
@@ -94,7 +94,7 @@ TEST_F(DISABLED_RobustTest, Test_bigkey_hash_del) {
 
     key = "hash_key";
     field = "field";
-    val = "val";
+    val = GetRandomBytes_(1*1024);
     s = client->del(key);
     for(int count = 0; count < 1; count++){
         keysNum = BIG_KEY_NUM + count;
@@ -142,7 +142,7 @@ TEST_F(DISABLED_RobustTest, Test_bigkey_hash_del) {
     }
 }
 
-TEST_F(DISABLED_RobustTest, Test_mset_mget_mthreads) {
+TEST_F(RobustTest, Test_mset_mget_mthreads) {
     key = "key";
     val = "val";
     keysNum = 10000;
@@ -191,7 +191,7 @@ TEST_F(DISABLED_RobustTest, Test_mset_mget_mthreads) {
     ASSERT_EQ(keysNum, list.size()/2)<<"Set fail at last:"<<list.size()/2<<endl;
 }
 
-TEST_F(DISABLED_RobustTest, Test_del_mset_mget_repeat) {
+TEST_F(RobustTest, Test_del_mset_mget_repeat) {
 //(123186 ms)
 //(181424 ms)
     key = "mkey";
@@ -223,7 +223,7 @@ TEST_F(DISABLED_RobustTest, Test_del_mset_mget_repeat) {
     ASSERT_EQ(keysNum, list.size()/2)<<"Set fail at last:"<<list.size()/2<<endl;
 }
 
-TEST_F(DISABLED_RobustTest, Test_multi_bigkey_del) {
+TEST_F(RobustTest, Test_multi_bigkey_del) {
 //This case need check cpu usage for the background delete thread.
 //(60512 ms)
     val = "val";
@@ -271,7 +271,7 @@ TEST_F(DISABLED_RobustTest, Test_multi_bigkey_del) {
 }
 
 
-TEST_F(DISABLED_RobustTest, Test_zset_del_zclear_block) {
+TEST_F(RobustTest, Test_zset_del_zclear_block) {
 //Issue:For zset key, del and then zclear will block forever.
     key = "key";
     field = "field";
@@ -283,17 +283,17 @@ TEST_F(DISABLED_RobustTest, Test_zset_del_zclear_block) {
     ASSERT_EQ(ret, 0)<<"fail to zclear key!"<<key<<endl;
 }
 
-TEST_F(DISABLED_RobustTest, Test_zset_del_set_rank_repeat) {
+TEST_F(RobustTest, Test_zset_del_set_rank_repeat) {
 //Issue:For repeat del and zset, same members can be set.
-//./integ-test --gtest_filter=*rank_repeat  --gtest_shuffle --gtest_break_on_failure --gtest_repeat=20 --gtest_also_run_disabled_tests
+//./integ-test --gtest_filter=*rank_repeat  --gtest_shuffle --gtest_break_on_failure --gtest_repeat=20 
     key = "key";
     field = "field";
     score = GetRandomDouble_();
     client->del(key);
-    for(int repeat = 0; repeat < 10000; repeat++)
+    for(int repeat = 0; repeat < 1000; repeat++)
     {
         client->del(key);
-        int count = 2;
+        int count = 10;
 
         for(int n = 0; n < count; n++)
         {
@@ -304,6 +304,8 @@ TEST_F(DISABLED_RobustTest, Test_zset_del_set_rank_repeat) {
         {
             s = client->zrrank(key, field + itoa(n), &ret);
             ASSERT_EQ(count-n-1, ret);
+            s = client->zrank(key, field + itoa(n), &ret);
+            ASSERT_EQ(n, ret);
         }
         client->del(key);
     }
