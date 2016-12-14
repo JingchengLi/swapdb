@@ -434,6 +434,7 @@ void SSDBImpl::delete_key_loop(const std::string &del_key) {
         return;
     }
 
+    log_info("deleting key %s v %d " , hexmem(dk.key.data(),dk.key.length()).c_str() , dk.version);
 //    char log_type=BinlogType::SYNC;
     std::string start = encode_hash_key(dk.key, "", dk.version);
     auto it = std::unique_ptr<Iterator>(this->iterator(start, "", -1));
@@ -451,6 +452,27 @@ void SSDBImpl::delete_key_loop(const std::string &del_key) {
             break;
         }
     }
+
+	//clean z*
+	auto zit = std::unique_ptr<Iterator>(this->iterator(z_start, "", -1));
+    while (zit->next()){
+		if (zit->key().empty() || zit->key().data()[0] != DataType::ZSCORE){
+			break;
+		}
+
+		ZScoreItemKey zk;
+		std::string item_key = zit->key().String();
+        if (zk.DecodeItemKey(item_key) == -1){
+            log_fatal("decode delete key error! %s" , hexmem(item_key.data(), item_key.size()).c_str());
+            break;
+        }
+        if (zk.key == dk.key && zk.version == dk.version){
+			batch.Delete(item_key);
+        } else{
+            break;
+        }
+    }
+
 	batch.Delete(del_key);
     if (delete_meta_key(dk, batch) == -1){
         log_fatal("delete meta key error!");
