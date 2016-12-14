@@ -434,6 +434,7 @@ void SSDBImpl::delete_key_loop(const std::string &del_key) {
         return;
     }
 
+    log_info("deleting key %s v %d " , hexmem(dk.key.data(),dk.key.length()).c_str() , dk.version);
 //    char log_type=BinlogType::SYNC;
     std::string start = encode_hash_key(dk.key, "", dk.version);
     std::string z_start = encode_zset_score_prefix(dk.key, dk.version);
@@ -461,7 +462,7 @@ void SSDBImpl::delete_key_loop(const std::string &del_key) {
 	//clean z*
 	auto zit = std::unique_ptr<Iterator>(this->iterator(z_start, "", -1));
     while (zit->next()){
-		if (it->key().empty() || it->key().data()[0] != DataType::ZSCORE){
+		if (zit->key().empty() || zit->key().data()[0] != DataType::ZSCORE){
 			break;
 		}
 
