@@ -25,8 +25,8 @@ public:
 	virtual int flushdb() = 0;
 
 	// return (start, end], not include start
-	virtual Iterator* iterator(const std::string &start, const std::string &end, uint64_t limit) = 0;
-	virtual Iterator* rev_iterator(const std::string &start, const std::string &end, uint64_t limit) = 0;
+	virtual Iterator* iterator(const std::string &start, const std::string &end, uint64_t limit, bool use_snapshot = false) = 0;
+	virtual Iterator* rev_iterator(const std::string &start, const std::string &end, uint64_t limit, bool use_snapshot = false) = 0;
 
 	//void flushdb();
 	virtual uint64_t size() = 0;

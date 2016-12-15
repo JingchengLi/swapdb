@@ -132,22 +132,28 @@ int SSDBImpl::flushdb(){
 	return ret;
 }
 
-Iterator* SSDBImpl::iterator(const std::string &start, const std::string &end, uint64_t limit){
+Iterator* SSDBImpl::iterator(const std::string &start, const std::string &end, uint64_t limit, bool use_snapshot){
 	leveldb::Iterator *it;
 	leveldb::ReadOptions iterate_options;
 	iterate_options.fill_cache = false;
+	if (use_snapshot) {
+		iterate_options.snapshot = ldb->GetSnapshot();
+	}
 	it = ldb->NewIterator(iterate_options);
 	it->Seek(start);
 //	if(it->Valid() && it->key() == start){
 //		it->Next();
 //	}
-	return new Iterator(it, end, limit);
+	return new Iterator(it, end, limit, Iterator::FORWARD, iterate_options.snapshot);
 }
 
-Iterator* SSDBImpl::rev_iterator(const std::string &start, const std::string &end, uint64_t limit){
+Iterator* SSDBImpl::rev_iterator(const std::string &start, const std::string &end, uint64_t limit, bool use_snapshot){
 	leveldb::Iterator *it;
 	leveldb::ReadOptions iterate_options;
 	iterate_options.fill_cache = false;
+	if (use_snapshot) {
+		iterate_options.snapshot = ldb->GetSnapshot();
+	}
 	it = ldb->NewIterator(iterate_options);
 	it->Seek(start);
 	if(!it->Valid()){
@@ -155,8 +161,15 @@ Iterator* SSDBImpl::rev_iterator(const std::string &start, const std::string &en
 	}else{
 		it->Prev();
 	}
-	return new Iterator(it, end, limit, Iterator::BACKWARD);
+	return new Iterator(it, end, limit, Iterator::BACKWARD, iterate_options.snapshot);
 }
+
+void SSDBImpl::ReleaseSnapshot(const leveldb::Snapshot* snapshot) {
+	if (snapshot != nullptr) {
+		ldb->ReleaseSnapshot(snapshot);
+	}
+}
+
 
 /* raw operates */
 

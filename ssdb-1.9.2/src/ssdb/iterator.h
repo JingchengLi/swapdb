@@ -11,8 +11,12 @@ found in the LICENSE file.
 #include "../util/bytes.h"
 
 #ifdef USE_LEVELDB
+#include <leveldb/snapshot.h>
+
 namespace leveldb{
 #else
+#include <rocksdb/snapshot.h>
+
 #define leveldb rocksdb
 namespace rocksdb{
 #endif
@@ -27,12 +31,16 @@ public:
 	Iterator(leveldb::Iterator *it,
 			const std::string &end,
 			uint64_t limit,
-			Direction direction=Iterator::FORWARD);
+			Direction direction=Iterator::FORWARD,
+			const leveldb::Snapshot *snapshot=nullptr
+	);
 	~Iterator();
 	bool skip(uint64_t offset);
 	bool next();
 	Bytes key();
 	Bytes val();
+
+	const leveldb::Snapshot *snapshot;
 private:
 	leveldb::Iterator *it;
 	std::string end;
