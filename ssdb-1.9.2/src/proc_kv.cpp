@@ -60,6 +60,12 @@ int proc_setx(NetworkServer *net, Link *link, const Request &req, Response *resp
 	CHECK_NUM_PARAMS(4);
 	CHECK_KV_KEY_RANGE(1);
 
+	int64_t ttl = req[3].Int64();
+	if (errno == EINVAL || ttl <= 0){
+		resp->push_back("error");
+		return 0;
+	}
+
 	Locking l(&serv->expiration->mutex);
 	int ret;
 	ret = serv->ssdb->set(req[1], req[2]);
@@ -67,7 +73,7 @@ int proc_setx(NetworkServer *net, Link *link, const Request &req, Response *resp
 		resp->push_back("error");
 		return 0;
 	}
-	ret = serv->expiration->set_ttl(req[1], req[3].Int());
+	ret = serv->expiration->set_ttl(req[1], ttl);
 	if(ret == -1){
 		resp->push_back("error");
 	}else{
@@ -93,9 +99,15 @@ int proc_expire(NetworkServer *net, Link *link, const Request &req, Response *re
 	CHECK_NUM_PARAMS(3);
 	CHECK_KV_KEY_RANGE(1);
 
+	int64_t ttl = req[3].Int64();
+	if (errno == EINVAL){
+		resp->push_back("error");
+		return 0;
+	}
+
 	Locking l(&serv->expiration->mutex);
 	std::string val;
-	int ret = serv->expiration->set_ttl(req[1], req[2].Int());
+	int ret = serv->expiration->set_ttl(req[1], ttl);
 	if(ret == 1){
 		resp->push_back("ok");
 		resp->push_back("1");
