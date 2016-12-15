@@ -72,6 +72,7 @@ TEST_F(KVTest, Test_kv_set) {
     client->del(key);
     client->sadd(key, val);
     FalseSet
+    s = client->del(key);
 
     //MaxLength key
     key = GetRandomBytes_(maxKeyLen_);
@@ -95,7 +96,7 @@ TEST_F(KVTest, Test_kv_setex) {
     ASSERT_TRUE(s.not_found())<<"this key should be not found!"<<endl;
 
 #define FalseSetx s = client->setx(key, val, ttl);\
-    ASSERT_TRUE(s.error())<<"should fail to set key!"<<endl;
+    EXPECT_TRUE(s.error())<<"should fail to set key!"<<endl;
 
     key = GetRandomBytes_(200); 
     val = GetRandomVal_(); 
@@ -125,6 +126,7 @@ TEST_F(KVTest, Test_kv_setex) {
     client->del(key);
     client->sadd(key, val);
     FalseSetx
+    client->del(key);
 
     ttl = -1;
     FalseSetx
@@ -224,6 +226,7 @@ TEST_F(KVTest, Test_kv_incrby) {
         n++;
         key = *it;
         OKIncr
+        client->del(key);
     }
 
     //Some random keys
@@ -233,6 +236,8 @@ TEST_F(KVTest, Test_kv_incrby) {
     {
         key = GetRandomKey_(); 
         OKIncr
+        client->del(key);
+
     }
     s = client->del(key);
     s = client->incr(key, MAX_INT64, &ret);
@@ -267,6 +272,7 @@ TEST_F(KVTest, Test_kv_incrby) {
     client->del(key);
     client->sadd(key, val);
     FalseIncr
+    client->del(key);
 }
 
 TEST_F(KVTest, Test_kv_decrby) {
@@ -439,6 +445,7 @@ TEST_F(KVTest, Test_kv_mset_mget_del) {
             list.clear();
             s = client->multi_get(keys, &list);
             ASSERT_EQ(0, list.size());
+            client->del(key2);
         }
     }
 

@@ -15,7 +15,7 @@ class ZsetTest : public SSDBTest
         std::vector<std::string> list;
         std::map<std::string, double> items;
         std::vector<std::string> keys;
-        string key, field, val;
+        string key, field, val, getVal;
         double score, getScore;
         uint16_t keysNum;
         int64_t ret;
@@ -76,6 +76,7 @@ TEST_F(ZsetTest, Test_zset_zadd) {
     score = ZSET_SCORE_MIN-1;
 
     FalseZset
+    client->del(key);
 
     // Some random keys
     keysNum = 100;
@@ -113,6 +114,7 @@ TEST_F(ZsetTest, Test_zset_zadd) {
     client->del(key); 
     client->sadd(key, val);
     FalseZset
+    client->del(key); 
 }
 
 TEST_F(ZsetTest, Test_zset_zscore) {
@@ -193,7 +195,7 @@ TEST_F(ZsetTest, Test_zset_zincrby) {
     s = client->zdel(key, field);
 
 #define FalseZincr s = client->zincr(key, field, 1, &ret);\
-    ASSERT_TRUE(s.error())<<"this key should zincr fail!"<<endl;
+    EXPECT_TRUE(s.error())<<"this key should zincr fail!"<<endl;
 
     double incr, ret, n = 0;
     //Some special keys
@@ -238,16 +240,16 @@ TEST_F(ZsetTest, Test_zset_zincrby) {
     s = client->del(key);
     s = client->zincr(key, field, DBL_MAX, &ret);
     s = client->zincr(key, field, 1, &ret);
-    ASSERT_TRUE(s.error())<<"Exceed DBL_MAX!";
+    EXPECT_TRUE(s.error())<<"Exceed DBL_MAX!";
     s = client->zget(key, field, &getScore);
-    ASSERT_NEAR(DBL_MAX, getScore, eps);
+    EXPECT_NEAR(DBL_MAX, getScore, eps);
 
     s = client->del(key);
     s = client->zincr(key, field, -DBL_MAX, &ret);
     s = client->zincr(key, field, -1, &ret);
-    ASSERT_TRUE(s.error())<<"Exceed -DBL_MAX!";
+    EXPECT_TRUE(s.error())<<"Exceed -DBL_MAX!";
     s = client->zget(key, field, &getScore);
-    ASSERT_NEAR(-DBL_MAX, getScore, eps);
+    EXPECT_NEAR(-DBL_MAX, getScore, eps);
     s = client->zdel(key, field);
 }
 
@@ -273,6 +275,7 @@ TEST_F(ZsetTest, Test_zset_zdecrby) {
         key = *it;
         field = GetRandomField_();
         OKZdecr
+        client->del(key);
     }
 }
 
@@ -345,24 +348,28 @@ TEST_F(ZsetTest,  Test_zset_zkeys) {
     client->del(key);
     score = 2.0;
     s = client->zkeys(key, "", NULL, &score, 5, &list);
-    ASSERT_TRUE(s.ok() && list.size() == 0);
+    EXPECT_TRUE(s.ok() && list.size() == 0);
     list.clear();
     client->zset(key, "field1", -1);
     client->zset(key, "field2", 2);
     client->zset(key, "field3", 3);
     s = client->zkeys(key, "", NULL, &score, 5, &list);
-    ASSERT_EQ("ok", s.code());
-    ASSERT_EQ(2, list.size());
-    ASSERT_EQ("field1", list[0]);
-    ASSERT_EQ("field2", list[1]);
+    EXPECT_EQ("ok", s.code());
+    EXPECT_EQ(2, list.size());
+    if(list.size() == 2)
+    {
+        EXPECT_EQ("field1", list[0]);
+        EXPECT_EQ("field2", list[1]);
+    }
     score = 3.0;
     list.clear();
     s = client->zkeys(key, "", NULL, &score, 5, &list);
-    ASSERT_TRUE(s.ok() && list.size() == 3);
-    ASSERT_EQ("field3", list[2]);
+    EXPECT_TRUE(s.ok() && list.size() == 3);
+    if(list.size() == 3)
+        EXPECT_EQ("field3", list[2]);
     list.clear();
     s = client->zkeys(key, "", NULL, &score, 2, &list);
-    ASSERT_TRUE(s.ok() && list.size() == 2);
+    EXPECT_TRUE(s.ok() && list.size() == 2);
     s = client->del(key);
 }
 
@@ -500,6 +507,7 @@ TEST_F(ZsetTest, Test_zset_multi_zadd_zdel) {
     score = GetRandomDouble_(); 
     items.clear();
     keys.clear();
+    client->del(key);
     int counts = 10;
     for(int n = 0;n < counts; n++){
         items.insert(std::make_pair(field+itoa(n),score+n));
@@ -529,4 +537,13 @@ TEST_F(ZsetTest, Test_zset_multi_zadd_zdel) {
     ASSERT_EQ(counts/2, ret);
     s = client->zdel(key, keys, &ret);
     ASSERT_EQ(0, ret);
+    keys.clear();
+    for(int n = 1;n < counts; n+=2){
+        items.insert(std::make_pair(field+itoa(n),score+n));
+        keys.push_back(field+itoa(n));
+    }
+    s = client->zdel(key, keys, &ret);
+    ASSERT_EQ(counts/2, ret);
+    s = client->get(key, &getVal);
+    ASSERT_TRUE(s.not_found());
 }

@@ -95,6 +95,7 @@ TEST_F(SetTest, Test_set_sadd) {
     client->del(key); 
     client->zset(key, field, 1.0);
     FalseSadd
+    client->del(key);
 }
 
 TEST_F(SetTest, Test_set_srem) {
