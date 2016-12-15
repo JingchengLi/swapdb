@@ -63,8 +63,9 @@ public:
 	virtual int flushdb();
 
 	// return (start, end], not include start
-	virtual Iterator* iterator(const std::string &start, const std::string &end, uint64_t limit);
-	virtual Iterator* rev_iterator(const std::string &start, const std::string &end, uint64_t limit);
+	virtual Iterator* iterator(const std::string &start, const std::string &end, uint64_t limit, bool use_snapshot = false);
+	virtual Iterator* rev_iterator(const std::string &start, const std::string &end, uint64_t limit, bool use_snapshot = false);
+	virtual void ReleaseSnapshot(const leveldb::Snapshot* snapshot);
 
 	//void flushdb();
 	virtual uint64_t size();

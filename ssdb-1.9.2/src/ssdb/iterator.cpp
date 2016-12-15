@@ -21,13 +21,15 @@ found in the LICENSE file.
 Iterator::Iterator(leveldb::Iterator *it,
 		const std::string &end,
 		uint64_t limit,
-		Direction direction)
+		Direction direction,
+		const leveldb::Snapshot *snapshot)
 {
 	this->it = it;
 	this->end = end;
 	this->limit = limit;
 	this->is_first = true;
 	this->direction = direction;
+	this->snapshot = snapshot;
 }
 
 Iterator::~Iterator(){
