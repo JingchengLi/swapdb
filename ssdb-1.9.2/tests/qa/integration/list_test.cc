@@ -47,7 +47,7 @@ TEST_F(ListTest, Test_list_lpush) {
     keysNum = 30;
     key = GetRandomKey_(); 
     val = GetRandomVal_();
-    s = client->del(key);
+    client->del(key);
     list.clear(); 
     for(int n = 0; n < keysNum; n++)
     {
@@ -60,6 +60,7 @@ TEST_F(ListTest, Test_list_lpush) {
     std::vector<string>::iterator getit = getList.begin();
     for(int n = 0; getit != getList.end(); getit++, n++)
         ASSERT_EQ(val+itoa(keysNum-n-1), *getit)<<"list not equal:"<<endl;
+    client->del(key);
 
     key = GetRandomKey_(); 
     val = GetRandomVal_();
@@ -106,6 +107,8 @@ TEST_F(ListTest, Test_list_lpush) {
     client->del(key); 
     client->zset(key, field, 1.0);
     FalseQpush_front
+
+    client->del(key);
 }
 
 TEST_F(ListTest, Test_list_rpush) {
@@ -148,6 +151,7 @@ TEST_F(ListTest, Test_list_rpush) {
     std::vector<string>::iterator getit = getList.begin();
     for(int n = 0; getit != getList.end(); getit++, n++)
         ASSERT_EQ(val+itoa(n), *getit)<<"list not equal:"<<endl;
+    client->del(key);
 
     key = GetRandomKey_(); 
     val = GetRandomVal_();

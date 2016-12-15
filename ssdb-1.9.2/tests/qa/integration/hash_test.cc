@@ -79,6 +79,7 @@ TEST_F(HashTest, Test_hash_hset) {
     client->del(key); 
     client->zset(key, field, 1.0);
     FalseHset
+    client->del(key); 
 }
 
 TEST_F(HashTest, Test_hash_hget) {
@@ -162,6 +163,7 @@ TEST_F(HashTest, Test_hash_hincrby) {
         key = *it;
         field = GetRandomField_();
         OKHincr
+        client->del(key); 
     }
 
     //Some random keys
@@ -172,6 +174,7 @@ TEST_F(HashTest, Test_hash_hincrby) {
         key = GetRandomKey_(); 
         field = GetRandomField_();
         OKHincr
+        client->del(key); 
     }
 
     s = client->del(key);
@@ -208,6 +211,7 @@ TEST_F(HashTest, Test_hash_hincrby) {
     client->del(key); 
     client->zset(key, field, 1.0);
     FalseHincr
+    client->del(key); 
 }
 
 TEST_F(HashTest, Test_hash_hdecrby) {
@@ -232,6 +236,7 @@ TEST_F(HashTest, Test_hash_hdecrby) {
         key = *it;
         field = GetRandomField_();
         OKHdecr
+        client->del(key); 
     }
 }
 
