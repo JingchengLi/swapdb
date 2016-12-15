@@ -312,7 +312,7 @@ TEST_F(DecodeTest, Test_List_DecodeMetaVal) {
         EXPECT_EQ(-1, metaval.DecodeMetaVal(dummyMetaVal[n]))<<dummyMetaVal[n];
 } 
 
-void compare_DeleteKey(const string &key, char key_type, uint16_t version){
+void compare_DeleteKey(const string &key, uint16_t version){
     string delete_key;
     delete_key = encode_delete_key(key, version);
 
@@ -329,7 +329,6 @@ void compare_DeleteKey(const string &key, char key_type, uint16_t version){
 TEST_F(DecodeTest, Test_DeleteKey) {
     uint16_t version;
     string key;
-    char key_type;
 
     //Some random keys
     uint16_t keysNum = 100;
@@ -337,21 +336,20 @@ TEST_F(DecodeTest, Test_DeleteKey) {
     {
         key = GetRandomKey_(); 
         version = GetRandomVer_();
-        key_type = KeyTypes[n%sizeof(KeyTypes)];
-        compare_DeleteKey(key, key_type, version);
+        compare_DeleteKey(key, version);
     }
 
     //Some special keys
     keysNum = sizeof(Keys)/sizeof(string);
 
     for(int n = 0; n < keysNum; n++)
-        compare_DeleteKey(Keys[n], key_type, version);
+        compare_DeleteKey(Keys[n], version);
 
     //MaxLength key
-    compare_DeleteKey(GetRandomBytes_(maxKeyLen_), key_type, version);
+    compare_DeleteKey(GetRandomBytes_(maxKeyLen_), version);
 
     //error return
-    string true_key = encode_delete_key(key, key_type, version);
+    string true_key = encode_delete_key(key, version);
     string dummyDelKey [] = {"", "X11", "D1", "D111111"};
     DeleteKey deletekey;
     for(int n = 0; n < sizeof(dummyDelKey)/sizeof(string); n++)
