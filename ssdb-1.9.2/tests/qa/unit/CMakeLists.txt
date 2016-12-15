@@ -28,6 +28,7 @@ LINK_DIRECTORIES(
     ${BUILD_PATH}/src/util
     ${BUILD_PATH}/src/net
     ${BUILD_PATH}/src/codec
+    ${BUILD_PATH}/../../gflags-master/lib
     )
 add_subdirectory(${BUILD_PATH}/tests/gtest_1.7.0 gtest)
 ADD_DEFINITIONS(-DGTESTING)
@@ -78,6 +79,7 @@ SET( SSDB_OBJS
     ${BUILD_PATH}/src/ssdb/ttl.cpp
     ${BUILD_PATH}/src/ssdb/t_list.cpp
     ${BUILD_PATH}/src/ssdb/t_set.cpp
+    ${BUILD_PATH}/src/ssdb/t_eset.cpp
 )
 
 ADD_LIBRARY(libssdb-static STATIC ${SSDB_OBJS})                                                                                                                                                  
@@ -199,4 +201,4 @@ SET( SRC_OBJS
 )
 
 ADD_EXECUTABLE(ssdb-server ${SRC_OBJS})                                                                                                                                             
-TARGET_LINK_LIBRARIES(ssdb-server libssdb-static libutil-static libnet-static snappy bz2 z jemalloc pthread rt rocksdb gtest gflags libcodec-static) 
+TARGET_LINK_LIBRARIES(ssdb-server snappy libssdb-static libutil-static libnet-static bz2 z jemalloc pthread rt rocksdb gtest gflags libcodec-static) 
