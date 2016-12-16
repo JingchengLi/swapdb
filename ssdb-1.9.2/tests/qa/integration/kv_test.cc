@@ -85,7 +85,7 @@ TEST_F(KVTest, Test_kv_set) {
 
 TEST_F(KVTest, Test_kv_setex) {
 //currently setx not process expire time <=0, so disable this case.
-    uint8_t ttl;
+    int64_t ttl;
 #define OKSetx s = client->setx(key, val, ttl);\
     ASSERT_TRUE(s.ok())<<"fail to set key!"<<endl;\
     sleep(ttl-1);\
