@@ -18,7 +18,7 @@ class KeysTest : public SSDBTest
         string key, val, getVal, field;
         uint32_t keysNum;
         int64_t ret, score;
-        uint8_t ttl;
+        int64_t ttl;
 };
 
 #define OKExpire s = client->expire(key, ttl, &ret);\
