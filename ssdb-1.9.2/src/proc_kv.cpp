@@ -99,7 +99,7 @@ int proc_expire(NetworkServer *net, Link *link, const Request &req, Response *re
 	CHECK_NUM_PARAMS(3);
 	CHECK_KV_KEY_RANGE(1);
 
-	int64_t ttl = req[3].Int64();
+	int64_t ttl = req[2].Int64();
 	if (errno == EINVAL){
 		resp->push_back("error");
 		return 0;
