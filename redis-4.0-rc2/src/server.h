@@ -707,7 +707,6 @@ typedef struct client {
     int bufpos;
     char buf[PROTO_REPLY_CHUNK_BYTES];
 
-    char *cmdsds;           /* Record the current cmd in sds format, used by jdjr-mode. */
     redisContext *context;  /* Used by redis client in jdjr-mode. */
 } client;
 

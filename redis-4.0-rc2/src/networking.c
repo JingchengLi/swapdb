@@ -132,7 +132,6 @@ client *createClient(int fd) {
     listSetMatchMethod(c->pubsub_patterns,listMatchObjects);
     if (fd != -1) listAddNodeTail(server.clients,c);
     initClientMultiState(c);
-    c->cmdsds = NULL;
     c->context = NULL;
     return c;
 }
@@ -630,34 +629,62 @@ cleanup:
 
 /* TODO: Implement sendCommandToSSDB. Querying SSDB server if querying redis fails. */
 int sendCommandToSSDB(client *c) {
-    int nwritten;
+    char *cmd = NULL;
+    sds finalcmd = NULL;
+    char **argv;
+    int i, len, nwritten;
+    struct redisCommand *cmdinfo = NULL;
 
-     if (!c->cmdsds) {
-          serverLog(LL_VERBOSE, "Expecting c->cmdsds not NULL.");
+    cmdinfo = lookupCommand(c->argv[0]->ptr);
+    if (!cmdinfo
+        || !(cmdinfo->flags & CMD_JDJR_MODE)
+        || !(cmdinfo->flags & CMD_READONLY)
+        /* TODO: support multi and pipeline. */
+        || (c->flags & CLIENT_MULTI))
+        return C_ERR;
+
+    if (!c->context || c->context->fd <= 0) {
+        serverLog(LL_VERBOSE, "redisContext error.");
+        return C_ERR;
+    }
+
+    argv = malloc(sizeof(char *) * c->argc);
+
+    for (i = 0; i < c->argc; i ++)
+        argv[i] = (char*)c->argv[i]->ptr;
+
+    len = redisFormatCommandArgv(&cmd, c->argc, argv, NULL);
+    free(argv);
+
+    if (len == -1) {
+        serverLog(LL_WARNING, "Out of Memory for redisFormatCommandArgv.");
+        return C_ERR;
+    }
+
+    finalcmd = sdsnewlen(cmd, len);
+    free(cmd);
+
+     if (!finalcmd) {
+          serverLog(LL_VERBOSE, "Expecting finalcmd not NULL.");
           return C_ERR;
      }
 
-     if (!c->context || c->context->fd <= 0) {
-          serverLog(LL_VERBOSE, "redisContext error.");
-          return C_ERR;
-     }
-
-     while (sdslen(c->cmdsds) > 0) {
-         nwritten = write(c->context->fd, c->cmdsds, sdslen(c->cmdsds));
+     while (finalcmd && sdslen(finalcmd) > 0) {
+         nwritten = write(c->context->fd, finalcmd, sdslen(finalcmd));
          if (nwritten == -1) {
              if (errno == EAGAIN || errno == EINTR) {
                  /* Try again later. */
              } else {
-                 serverLog(LL_VERBOSE,
+                 serverLog(LL_WARNING,
                            "Error writing to SSDB server: %s", strerror(errno));
                  return C_ERR;
              }
           } else if (nwritten > 0) {
-                    if (nwritten == (signed)sdslen(c->cmdsds)) {
-                         sdsfree(c->cmdsds);
-                         c->cmdsds = sdsempty();
+                    if (nwritten == (signed)sdslen(finalcmd)) {
+                         sdsfree(finalcmd);
+                         finalcmd = NULL;
                     } else {
-                         sdsrange(c->cmdsds, nwritten, -1);
+                         sdsrange(finalcmd, nwritten, -1);
                     }
                }
           }
@@ -779,7 +806,6 @@ void acceptUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
 
 /* TODO: Implement ssdbClientUnixHandler. Only handle AE_READABLE. */
 void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
-    return;
     UNUSED(el);
     UNUSED(mask);
     UNUSED(fd);
@@ -794,35 +820,21 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
 
     redisReader *r = c->context->reader;
 
-    if (c->lastcmd->flags & CMD_WRITE)
-        c->flags |= CLIENT_HANDLE_SSDB_AE;
-
-    /* TODO: Using async read. */
     /* TODO: Considering redis pipeline. */
     do {
-        if ((c->lastcmd->flags & CMD_WRITE)
-            && redisBufferRead(c->context) == REDIS_OK)
-            /* TODO: using the reply form SSDB. */
-            /* addReplyString(c, r->buf + r->pos, r->len - r->pos); */
-            ;
+        int oldlen = r->len;
+        if (redisBufferRead(c->context) == REDIS_OK)
+            addReplyString(c, r->buf + oldlen, r->len - oldlen);
         /* else if ((c->lastcmd->flags & CMD_READONLY) */
         /*           && redisBufferRead(c->context) == REDIS_OK) */
         /*     /\* TODO: using the reply form SSDB. *\/ */
         /*     ; */
-        else
-            goto cleanup;
-
-        if ((c->lastcmd->flags & CMD_WRITE)
-            && redisBufferRead(c->context) == REDIS_OK
-            && redisGetReplyFromReader(c->context, &aux) == REDIS_ERR)
-            goto cleanup;
+        if (redisGetReplyFromReader(c->context, &aux) == REDIS_ERR)
+            break;
     } while (aux == NULL);
 
-cleanup:
     reply = (redisReply *)aux;
     if (reply) freeReplyObject(reply);
-    if (c->lastcmd->flags & CMD_WRITE)
-        c->flags &= ~CLIENT_HANDLE_SSDB_AE;
 }
 
 static void freeClientArgv(client *c) {
@@ -982,8 +994,6 @@ void freeClient(client *c) {
 
     /* Free redisContext. */
     if (server.jdjr_mode && c->context) redisFree(c->context);
-    /* Free cmdsds. */
-    if (server.jdjr_mode && c->cmdsds) sdsfree(c->cmdsds);
 
     /* Release other dynamically allocated client structure fields,
      * and finally release the client structure itself. */
@@ -1429,16 +1439,13 @@ void processInputBuffer(client *c) {
             resetClient(c);
         } else {
             /* Only reset the client when the command was executed. */
-            if (processCommand(c) == C_OK) {
-                if (server.jdjr_mode
-                    && c->cmd
-                    && !(c->flags & CLIENT_MULTI)
-                    && c->cmd->flags & CMD_JDJR_MODE
-                    && c->cmd->flags & CMD_WRITE)
-                    sendCommandToSSDB(c);
-
+            if (server.jdjr_mode
+                && c->argc > 1
+                && !dictFind(c->db->dict, c->argv[1]->ptr)
+                && sendCommandToSSDB(c) == C_OK)
                 resetClient(c);
-            }
+            else if (processCommand(c) == C_OK)
+                resetClient(c);
 
             /* freeMemoryIfNeeded may flush slave output buffers. This may result
              * into a slave, that may be the active client, to be freed. */
@@ -1487,13 +1494,6 @@ void readQueryFromClient(aeEventLoop *el, int fd, void *privdata, int mask) {
         serverLog(LL_VERBOSE, "Client closed connection");
         freeClient(c);
         return;
-    }
-
-    if (server.jdjr_mode) {
-        if (c->cmdsds == NULL)
-            c->cmdsds = sdsempty();
-
-        c->cmdsds = sdscatlen(c->cmdsds, c->querybuf + qblen, nread);
     }
 
     sdsIncrLen(c->querybuf,nread);
