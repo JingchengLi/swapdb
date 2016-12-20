@@ -626,7 +626,6 @@ static void nonBlockConnectToSsdbServer(client *c) {
 int sendCommandToSSDB(client *c) {
     char *cmd = NULL;
     sds finalcmd = NULL;
-    char **argv;
     int i, len, nwritten;
     struct redisCommand *cmdinfo = NULL;
 
@@ -643,13 +642,13 @@ int sendCommandToSSDB(client *c) {
         return C_ERR;
     }
 
-    argv = malloc(sizeof(char *) * c->argc);
+    const char **argv = zmalloc(sizeof(char *) * c->argc);
 
     for (i = 0; i < c->argc; i ++)
         argv[i] = (char*)c->argv[i]->ptr;
 
     len = redisFormatCommandArgv(&cmd, c->argc, argv, NULL);
-    free(argv);
+    zfree(argv);
 
     if (len == -1) {
         serverLog(LL_WARNING, "Out of Memory for redisFormatCommandArgv.");
@@ -657,7 +656,8 @@ int sendCommandToSSDB(client *c) {
     }
 
     finalcmd = sdsnewlen(cmd, len);
-    free(cmd);
+
+    zfree(cmd);
 
      if (!finalcmd) {
           serverLog(LL_VERBOSE, "Expecting finalcmd not NULL.");
@@ -808,7 +808,6 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
     client * c = (client *)privdata;
     void *aux = NULL;
     redisReply *reply = NULL;
-    robj *key = NULL;
 
     if (!c || !c->lastcmd || !c->context)
         return;
