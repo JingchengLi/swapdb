@@ -11,7 +11,7 @@ found in the LICENSE file.
 #include "../util/bytes.h"
 
 #ifdef USE_LEVELDB
-#include <leveldb/snapshot.h>
+#include <leveldb/db.h>
 
 namespace leveldb{
 #else
