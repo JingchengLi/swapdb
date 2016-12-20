@@ -139,12 +139,6 @@ DEF_PROC(ignore_key_range);
 DEF_PROC(get_kv_range);
 DEF_PROC(set_kv_range);
 
-DEF_PROC(cluster_add_kv_node);
-DEF_PROC(cluster_del_kv_node);
-DEF_PROC(cluster_kv_node_list);
-DEF_PROC(cluster_set_kv_range);
-DEF_PROC(cluster_set_kv_status);
-DEF_PROC(cluster_migrate_kv_data);
 
 
 #define REG_PROC(c, f)     net->proc_map.set_proc(#c, f, proc_##c)
@@ -278,17 +272,6 @@ void SSDBServer::reg_procs(NetworkServer *net){
 	// writer thread(for performance reason); we don't want to block writes
 	REG_PROC(compact, "rt");
 
-	REG_PROC(ignore_key_range, "r");
-	REG_PROC(get_key_range, "r");
-	REG_PROC(get_kv_range, "r");
-	REG_PROC(set_kv_range, "r");
-
-	REG_PROC(cluster_add_kv_node, "r");
-	REG_PROC(cluster_del_kv_node, "r");
-	REG_PROC(cluster_kv_node_list, "r");
-	REG_PROC(cluster_set_kv_range, "r");
-	REG_PROC(cluster_set_kv_status, "r");
-	REG_PROC(cluster_migrate_kv_data, "r");
 }
 
 
@@ -305,11 +288,7 @@ SSDBServer::SSDBServer(SSDB *ssdb, SSDB *meta, const Config &conf, NetworkServer
 	backend_sync = new BackendSync(this->ssdb, sync_speed);
 	expiration = new ExpirationHandler(this->ssdb);
 	
-	cluster = new Cluster(this->ssdb);
-	if(cluster->init() == -1){
-		log_fatal("cluster init failed!");
-		exit(1);
-	}
+
 
 	{ // slaves
 		const Config *repl_conf = conf.get("replication");
@@ -351,16 +330,7 @@ SSDBServer::SSDBServer(SSDB *ssdb, SSDB *meta, const Config &conf, NetworkServer
 		}
 	}
 
-	// load kv_range
-	int ret = this->get_kv_range(&this->kv_range_s, &this->kv_range_e);
-	if(ret == -1){
-		log_fatal("load key_range failed!");
-		exit(1);
-	}
-	log_info("key_range.kv: \"%s\", \"%s\"",
-		str_escape(this->kv_range_s).c_str(),
-		str_escape(this->kv_range_e).c_str()
-		);
+
 }
 
 SSDBServer::~SSDBServer(){
@@ -374,50 +344,8 @@ SSDBServer::~SSDBServer(){
 	delete backend_dump;
 	delete backend_sync;
 	delete expiration;
-	delete cluster;
 
 	log_debug("SSDBServer finalized");
-}
-
-int SSDBServer::set_kv_range(const std::string &start, const std::string &end){
-	if(meta->hset("key_range", "kv_s", start) == -1){
-		return -1;
-	}
-	if(meta->hset("key_range", "kv_e", end) == -1){
-		return -1;
-	}
-
-	kv_range_s = start;
-	kv_range_e = end;
-	return 0;
-}
-
-int SSDBServer::get_kv_range(std::string *start, std::string *end){
-	if(meta->hget("key_range", "kv_s", start) == -1){
-		return -1;
-	}
-	if(meta->hget("key_range", "kv_e", end) == -1){
-		return -1;
-	}
-	return 0;
-}
-
-bool SSDBServer::in_kv_range(const Bytes &key){
-	if((this->kv_range_s.size() && this->kv_range_s >= key)
-		|| (this->kv_range_e.size() && this->kv_range_e < key))
-	{
-		return false;
-	}
-	return true;
-}
-
-bool SSDBServer::in_kv_range(const std::string &key){
-	if((this->kv_range_s.size() && this->kv_range_s >= key)
-		|| (this->kv_range_e.size() && this->kv_range_e < key))
-	{
-		return false;
-	}
-	return true;
 }
 
 /*********************/
@@ -457,53 +385,6 @@ int proc_compact(NetworkServer *net, Link *link, const Request &req, Response *r
 	SSDBServer *serv = (SSDBServer *)net->data;
 	serv->ssdb->compact();
 	resp->push_back("ok");
-	return 0;
-}
-
-int proc_ignore_key_range(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	link->ignore_key_range = true;
-	resp->push_back("ok");
-	return 0;
-}
-
-// get kv_range, hash_range, zset_range, list_range
-int proc_get_key_range(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
-	std::string s, e;
-	int ret = serv->get_kv_range(&s, &e);
-	if(ret == -1){
-		resp->push_back("error");
-	}else{
-		resp->push_back("ok");
-		resp->push_back(s);
-		resp->push_back(e);
-		// TODO: hash_range, zset_range, list_range
-	}
-	return 0;
-}
-
-int proc_get_kv_range(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
-	std::string s, e;
-	int ret = serv->get_kv_range(&s, &e);
-	if(ret == -1){
-		resp->push_back("error");
-	}else{
-		resp->push_back("ok");
-		resp->push_back(s);
-		resp->push_back(e);
-	}
-	return 0;
-}
-
-int proc_set_kv_range(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
-	if(req.size() != 3){
-		resp->push_back("client_error");
-	}else{
-		serv->set_kv_range(req[1].String(), req[2].String());
-		resp->push_back("ok");
-	}
 	return 0;
 }
 
@@ -573,33 +454,6 @@ int proc_info(NetworkServer *net, Link *link, const Request &req, Response *resp
 			resp->push_back(s);
 		}
 	}
-	{
-		std::string val;
-		std::string s, e;
-		serv->get_kv_range(&s, &e);
-		char buf[512];
-		{
-			snprintf(buf, sizeof(buf), "    kv  : \"%s\" - \"%s\"",
-				str_escape(s).c_str(),
-				str_escape(e).c_str()
-				);
-			val.append(buf);
-		}
-		{
-			snprintf(buf, sizeof(buf), "\n    hash: \"\" - \"\"");
-			val.append(buf);
-		}
-		{
-			snprintf(buf, sizeof(buf), "\n    zset: \"\" - \"\"");
-			val.append(buf);
-		}
-		{
-			snprintf(buf, sizeof(buf), "\n    list: \"\" - \"\"");
-			val.append(buf);
-		}
-		resp->push_back("serv_key_range");
-		resp->push_back(val);
-	}
 
 	if(req.size() == 1 || req[1] == "range"){
 		std::string val;
@@ -663,3 +517,5 @@ int proc_info(NetworkServer *net, Link *link, const Request &req, Response *resp
 	
 	return 0;
 }
+
+

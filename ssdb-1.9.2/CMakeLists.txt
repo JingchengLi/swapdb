@@ -207,10 +207,6 @@ src/backend_dump.cpp
 src/backend_sync.cpp
 src/slave.cpp
 src/serv.cpp
-src/proc_cluster.cpp
-src/cluster.cpp
-src/cluster_store.cpp
-src/cluster_migrate.cpp
 )
 
 ADD_EXECUTABLE(ssdb-server ${SRC_OBJS})                                                                                                                                             

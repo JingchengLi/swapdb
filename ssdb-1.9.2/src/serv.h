@@ -16,15 +16,11 @@ found in the LICENSE file.
 #include "backend_sync.h"
 #include "slave.h"
 #include "net/server.h"
-#include "cluster.h"
 
 class SSDBServer
 {
 private:
 	void reg_procs(NetworkServer *net);
-	
-	std::string kv_range_s;
-	std::string kv_range_e;
 	
 	SSDB *meta;
 
@@ -34,26 +30,12 @@ public:
 	BackendSync *backend_sync;
 	ExpirationHandler *expiration;
 	std::vector<Slave *> slaves;
-	Cluster *cluster;
 
 	SSDBServer(SSDB *ssdb, SSDB *meta, const Config &conf, NetworkServer *net);
 	~SSDBServer();
 
-	int set_kv_range(const std::string &s, const std::string &e);
-	int get_kv_range(std::string *s, std::string *e);
-	bool in_kv_range(const std::string &key);
-	bool in_kv_range(const Bytes &key);
 };
 
-
-#define CHECK_KV_KEY_RANGE(n) do{ \
-		if(!link->ignore_key_range && req.size() > n){ \
-			if(!serv->in_kv_range(req[n])){ \
-				resp->push_back("out_of_range"); \
-				return 0; \
-			} \
-		} \
-	}while(0)
 
 #define CHECK_NUM_PARAMS(n) do{ \
 		if(req.size() < n){ \
