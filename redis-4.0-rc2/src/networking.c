@@ -606,7 +606,8 @@ static void nonBlockConnectToSsdbServer(client *c) {
 
         if (context->err) {
             serverLog(LL_VERBOSE, "Could not connect to SSDB server.");
-            goto cleanup;
+            redisFree(context);
+            return;
         } else
             c->context = context;
 
@@ -618,13 +619,7 @@ static void nonBlockConnectToSsdbServer(client *c) {
         else
             serverLog(LL_DEBUG, "rfd:%d connectiong to SSDB Unix socket succeeded: sfd:%d",
                       c->fd, c->context->fd);
-
-        return;
     }
-
-cleanup:
-    if (context) redisFree(context);
-    freeClient(c);
 }
 
 /* TODO: Implement sendCommandToSSDB. Querying SSDB server if querying redis fails. */
