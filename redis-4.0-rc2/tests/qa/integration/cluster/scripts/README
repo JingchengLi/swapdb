@@ -1,0 +1,17 @@
+# These shell scripts for auto test cluster deployed in different machines.
+# benchCluster.sh benchmark for cluster
+# sh benchCluster.sh -h 127.0.0.1 -p 5000
+# runjar.sh run jar client to dump data into cluster and run checkLog.sh
+# sh runjar.sh
+# checkLog.sh verify the set and get is the same by jar client.
+# sh checkLog.sh or called by runjar.sh
+# dumpdata.sh run redis-cli to append list value, verify lpush
+# sh dumpdata.sh
+# failover.sh run failover during the dumping data and verify the data no lose
+# sh failover.sh
+# failover_time.sh collect the failover time
+# sh failover_time.sh
+# MSconsist.sh check slave and master is consistent
+# sh MSconsist.sh -h 127.0.0.1 -p 5000
+# SendtoMaster.sh send command to all the masters in the cluster 
+# sh SendtoMaster.sh -h 127.0.0.1 -p 5000 dbsize

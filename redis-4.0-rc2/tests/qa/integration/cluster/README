@@ -1,0 +1,32 @@
+00-base.tcl
+01-faildet.tcl: 当从节点down后,主节点down则没有failover发生.
+02-failover.tcl: 主节点down, failover
+03-failover-loop.tcl: 循环,随机kill 节点, 测试写入数据是否能正常读取.
+04-resharding.tcl
+05-slave-selection.tcl: 与master节点数据最一致的从节点会成为master的从节点.
+06-slave-stop-cond.tcl: 阻止主节点接收新从节点的设置,从节点无法failover
+07-replica-migration.tcl: 
+1. 当某master的slaves都down,而其他master有不止一个,将迁移slave到该master.
+2. 主节点down,从节点failover,且从其他富余获得slave.
+08-update-msg.tcl:其他节点会发送UPDATE信息更新节点的配置
+09-pubsub.tcl
+10-manual-failover.tcl
+11-manual-takeover.tcl
+12-replica-migration-2.tcl: 测试当master未分配slots, 其slaves将迁移,分配slots后,重新拥有slave (最少一个)
+13-JD-failover.tcl
+14-JD-manual-failover-1.tcl
+15-JD-manual-failover-2.tcl
+16-JD-normal-failover-all-1.tcl
+17-JD-normal-failover-all-2.tcl
+18-JD-down-failover-all-1.tcl
+19-JD-down-failover-all-2.tcl
+
+test "The first master has actually two slaves" {
+    assert {[llength [lindex [R 0 role] 2]] == 2}
+}
+
+test {Slaves of #0 are instance #5 and #10 as expected} {
+    set port0 [get_instance_attrib redis 0 port]
+    assert {[lindex [R 5 role] 2] == $port0}
+    assert {[lindex [R 10 role] 2] == $port0}
+}
