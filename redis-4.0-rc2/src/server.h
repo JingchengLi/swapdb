@@ -205,8 +205,6 @@ typedef long long mstime_t; /* millisecond time type. */
 #define CMD_MODULE_GETKEYS (1<<14)  /* Use the modules getkeys interface. */
 #define CMD_MODULE_NO_CLUSTER (1<<15) /* Deny on Redis Cluster. */
 
-#define CMD_QUERY_SSDB (1<<20)      /* querying SSDB flag. */
-#define CMD_WRITE_SSDB (1<<21)      /* writing SSDB flag. */
 #define CMD_JDJR_MODE (1<<22)       /* "J" flag */
 
 /* AOF states */

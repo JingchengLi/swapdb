@@ -820,10 +820,7 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
         int oldlen = r->len;
         if (redisBufferRead(c->context) == REDIS_OK)
             addReplyString(c, r->buf + oldlen, r->len - oldlen);
-        /* else if ((c->lastcmd->flags & CMD_READONLY) */
-        /*           && redisBufferRead(c->context) == REDIS_OK) */
-        /*     /\* TODO: using the reply form SSDB. *\/ */
-        /*     ; */
+
         if (redisGetReplyFromReader(c->context, &aux) == REDIS_ERR)
             break;
     } while (aux == NULL);
