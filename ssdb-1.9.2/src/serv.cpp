@@ -125,7 +125,7 @@ DEF_PROC(qrange);
 DEF_PROC(qget);
 DEF_PROC(qset);
 
-DEF_PROC(dump);
+DEF_PROC(dump2);
 DEF_PROC(sync140);
 DEF_PROC(info);
 DEF_PROC(version);
@@ -269,7 +269,7 @@ void SSDBServer::reg_procs(NetworkServer *net){
 	REG_PROC(clear_binlog, "wt");
 	REG_PROC(flushdb, "wt");
 
-	REG_PROC(dump, "b");
+	REG_PROC(dump2, "b");
 	REG_PROC(sync140, "b");
 	REG_PROC(info, "r");
 	REG_PROC(version, "r");
@@ -441,7 +441,7 @@ int proc_flushdb(NetworkServer *net, Link *link, const Request &req, Response *r
 	return 0;
 }
 
-int proc_dump(NetworkServer *net, Link *link, const Request &req, Response *resp){
+int proc_dump2(NetworkServer *net, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *)net->data;
 	serv->backend_dump->proc(link);
 	return PROC_BACKEND;
