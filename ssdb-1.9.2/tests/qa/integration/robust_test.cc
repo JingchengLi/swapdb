@@ -6,6 +6,7 @@
 #include "SSDB_client.h"
 #include "gtest/gtest.h"
 #include "ssdb_test.h"
+#include <time.h>
 
 //log info when set true
 const bool LDEBUG = false;
@@ -286,7 +287,7 @@ TEST_F(RobustTest, Test_zset_del_zclear_block) {
 TEST_F(RobustTest, Test_zset_del_set_rank_repeat) {
 //Issue:For repeat del and zset, same members can be set.
 //./integ-test --gtest_filter=*rank_repeat  --gtest_shuffle --gtest_break_on_failure --gtest_repeat=20 
-    key = "xxxxxx";
+    key = "zkey";
     field = "field";
     score = GetRandomDouble_();
     client->del(key);
@@ -309,4 +310,63 @@ TEST_F(RobustTest, Test_zset_del_set_rank_repeat) {
         }
         client->del(key);
     }
+}
+
+TEST_F(RobustTest, DISABLED_Test_zset_rrank_time_compare) {
+//Issue:For zrrank slow, compare zrank to zrrank, run this case repeat make the zrrank slower.
+//Disable this case for it's storage engine's issue
+    time_t cur_seconds, pre_seconds;
+    int count = 10;
+
+    key = "zrank";
+    field = "field";
+    score = GetRandomDouble_();
+
+    client->del(key);
+
+    for(int n = 0; n < 10; n++)
+    {
+        client->zset(key, field + itoa(n), score + n);
+    }
+
+    key = "zkey";
+    field = "field";
+    score = GetRandomDouble_();
+
+    client->del(key);
+
+    for(int n = 0; n < 10; n++)
+    {
+        client->zset(key, field + itoa(n), score + n);
+    }
+
+    cur_seconds = time((time_t*)NULL);
+    for(int repeat = 0; repeat < 1000; repeat++)
+    {
+
+        for(int n = 0; n < count; n++)
+        {
+            s = client->zrank(key, field + itoa(n), &ret);
+            ASSERT_EQ(n, ret);
+        }
+    }
+    pre_seconds = cur_seconds;
+    cur_seconds = time((time_t*)NULL);
+    cout<<"zrank cost total time is:"<<cur_seconds-pre_seconds<<"(secs)"<<endl;
+
+    for(int repeat = 0; repeat < 1000; repeat++)
+    {
+        int count = 10;
+
+        for(int n = 0; n < count; n++)
+        {
+            s = client->zrrank(key, field + itoa(n), &ret);
+            ASSERT_EQ(count-n-1, ret);
+        }
+    }
+    pre_seconds = cur_seconds;
+    cur_seconds = time((time_t*)NULL);
+    cout<<"zrrank cost total time is:"<<cur_seconds-pre_seconds<<"(secs)"<<endl;
+    client->del(key);
+    client->del("zrank");
 }
