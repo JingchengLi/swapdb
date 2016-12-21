@@ -185,9 +185,15 @@ int SSDBImpl::multi_sadd(const Bytes &key, const std::vector<Bytes> &members, in
         return -1;
     }
 
+    std::set<Bytes> mem_set;
+    for (int j = 2; j < members.size(); ++j) {
+        mem_set.insert(members[j]);
+    }
+
     *num = 0;
-    for (int i = 2; i < members.size(); ++i) {
-        const Bytes& member= members[i];
+    std::set<Bytes>::iterator it = mem_set.begin();
+    for (; it != mem_set.end(); ++it) {
+        const Bytes& member= *it;
         int change = 0;
         if (ret == 0 && sv.del == KEY_DELETE_MASK){
             uint16_t version;
