@@ -8,7 +8,7 @@
 
 /* The current RDB version. When the format changes in a way that is no longer
  * backward compatible this number gets incremented. */
-#define RDB_VERSION 7
+#define RDB_VERSION 8
 
 /* Defines related to the dump file format. To store 32 bits lengths for short
  * keys requires a lot of space, so we check the most significant 2 bits of
@@ -25,9 +25,10 @@
  * values, will fit inside. */
 #define RDB_6BITLEN 0
 #define RDB_14BITLEN 1
-#define RDB_32BITLEN 2
+#define RDB_32BITLEN 0x80
+#define RDB_64BITLEN 0x81
 #define RDB_ENCVAL 3
-#define RDB_LENERR UINT_MAX
+#define RDB_LENERR UINT64_MAX
 
 /* When a length of a string object stored on disk has the first two bits
  * set, the remaining two bits specify a special encoding for the object
@@ -44,6 +45,9 @@
 #define RDB_TYPE_SET    2
 #define RDB_TYPE_ZSET   3
 #define RDB_TYPE_HASH   4
+#define RDB_TYPE_ZSET_2 5 /* ZSET version 2 with doubles stored in binary. */
+#define RDB_TYPE_MODULE 6
+
 /* NOTE: WHEN ADDING NEW RDB TYPE, UPDATE rdbIsObjectType() BELOW */
 
 /* Object types for encoded objects. */
@@ -66,5 +70,14 @@
 #define RDB_OPCODE_SELECTDB   254
 #define RDB_OPCODE_EOF        255
 
+
+
+const int hash_max_ziplist_entries = 512;
+const int hash_max_ziplist_value= 64;
+
+const int set_max_intset_entries = 512;
+
+const int zset_max_ziplist_entries =128;
+const int zset_max_ziplist_value= 64;
 
 #endif //SSDB_RDB_H

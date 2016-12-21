@@ -82,6 +82,7 @@ public:
 
 	/* 	General	*/
 	virtual int type(const Bytes &key, std::string *type);
+	virtual int dump(const Bytes &key, std::string *res);
 
 	/* key value */
 
@@ -262,5 +263,8 @@ private:
 	void runBGTask();
 	static void* thread_func(void *arg);
 };
+
+uint64_t getSeqByIndex(int64_t index, const ListMetaVal &meta_val);
+
 
 #endif

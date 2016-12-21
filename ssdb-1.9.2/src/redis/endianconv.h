@@ -33,7 +33,6 @@
 #ifndef __ENDIANCONV_H
 #define __ENDIANCONV_H
 
-#include "config.h"
 #include <stdint.h>
 
 void memrev16(void *p);

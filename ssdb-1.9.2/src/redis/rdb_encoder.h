@@ -7,9 +7,13 @@
 
 #include <sstream>
 #include <string>
+#include <netinet/in.h>
 #include "rdb.h"
-#include "crc64.h"
 #include "endianconv.h"
+
+extern "C" {
+#include "crc64.h"
+};
 
 class RdbEncoder {
 public:
@@ -18,25 +22,31 @@ public:
     }
 
 
-    void encodeType(unsigned char type) {
-        w.append((const char *) type, 1);
+    void write(const char *s, size_t n) {
+        w.append(s, n);
     }
 
-    void encodeFooter() {
-
-        unsigned char buf[2];
-        buf[0] = RDB_VERSION & 0xff;
-        buf[1] = (RDB_VERSION >> 8) & 0xff;
-
-        w.append((const char *) buf, 2);
-
-        uint64_t crc;
-        crc = crc64(0, (unsigned char *) w.data(), w.length());
-        memrev64ifbe(&crc);
-
-        w.append((const char *) crc, 8);
+    int writeRaw(void *p, size_t n) {
+        w.append((const char *) p, n);
+        return 0;
     }
 
+    int saveLen(uint32_t len);
+
+    int encodeString(const std::string &string);
+
+    int saveRawString(const std::string &string);
+
+    int saveDoubleValue(double value);
+
+    int encodeIntString(const std::string &string);
+
+    void saveType(unsigned char type);
+
+    void encodeFooter();
+
+
+    std::string toString() const;
 
 private:
     std::string w;

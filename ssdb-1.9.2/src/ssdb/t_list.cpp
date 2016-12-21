@@ -37,7 +37,7 @@ static std::string EncodeValueListMeta(const ListMetaVal &meta_val) {
     return encode_list_meta_val(meta_val.length, meta_val.left_seq, meta_val.right_seq, meta_val.version, meta_val.del);
 }
 
-static uint64_t getSeqByIndex(int64_t index, const ListMetaVal &meta_val) {
+uint64_t getSeqByIndex(int64_t index, const ListMetaVal &meta_val) {
     uint64_t seq;
     if (meta_val.left_seq > meta_val.right_seq) {
         if (index >= 0) {

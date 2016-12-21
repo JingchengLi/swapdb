@@ -43,7 +43,7 @@ IF(ROCKSDB)
     LINK_DIRECTORIES(
             ${CMAKE_CURRENT_SOURCE_DIR}/deps/rocksdb-4.11.2/
     )
-    SET(CMAKE_CXX_FLAGS "-DNDEBUG -D__STDC_FORMAT_MACROS -Wall -O2 -Wno-sign-compare -std=c++11")
+    SET(CMAKE_CXX_FLAGS "-DNDEBUG -D__STDC_FORMAT_MACROS -Wall -O0 -Wno-sign-compare -std=c++11")
     ADD_LIBRARY(librocksdb-static deps/rocksdb-4.11.2)
     TARGET_LINK_LIBRARIES ( librocksdb-static snappy gtest gflags )
     SET_TARGET_PROPERTIES(librocksdb-static PROPERTIES
@@ -57,7 +57,7 @@ ELSE()
     LINK_DIRECTORIES(
             ${CMAKE_CURRENT_SOURCE_DIR}/deps/leveldb-1.18/
     )
-    SET(CMAKE_CXX_FLAGS "-DNDEBUG -DUSE_LEVELDB -D__STDC_FORMAT_MACROS -Wall -O2 -Wno-sign-compare -std=c++11")
+    SET(CMAKE_CXX_FLAGS "-DNDEBUG -DUSE_LEVELDB -D__STDC_FORMAT_MACROS -Wall -O0 -Wno-sign-compare -std=c++11")
     ADD_LIBRARY(libleveldb-static deps/leveldb-1.18)
     SET_TARGET_PROPERTIES(libleveldb-static PROPERTIES
             LINKER_LANGUAGE CXX
@@ -216,13 +216,15 @@ src/slave.cpp
 src/serv.cpp
 )
 
-ADD_EXECUTABLE(ssdb-server ${SRC_OBJS})                                                                                                                                             
+ADD_EXECUTABLE(ssdb-server ${SRC_OBJS} ${RDB_OBJS})
 #TARGET_LINK_LIBRARIES(ssdb-server libssdb-static libutil-static libnet-static libcodec-static leveldb gtest gflags snappy jemalloc pthread rt z bz2)
 
+TARGET_LINK_LIBRARIES(ssdb-server libssdb-static libutil-static libnet-static libcodec-static gflags snappy jemalloc pthread rt z bz2)
+
 IF(ROCKSDB)
-    TARGET_LINK_LIBRARIES(ssdb-server libssdb-static libutil-static libnet-static libcodec-static rocksdb gflags snappy jemalloc pthread rt z bz2)
+    TARGET_LINK_LIBRARIES(rocksdb)
 ELSE()
-    TARGET_LINK_LIBRARIES(ssdb-server libssdb-static libutil-static libnet-static libcodec-static leveldb gflags snappy jemalloc pthread rt z bz2)
+    TARGET_LINK_LIBRARIES(leveldb)
 ENDIF()
 
-ADD_EXECUTABLE(hello-ssdb ${CLIENT_OBJS} ${RDB_OBJS})
+ADD_EXECUTABLE(hello-ssdb ${CLIENT_OBJS})

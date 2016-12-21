@@ -3,6 +3,7 @@ Copyright (c) 2012-2014 The SSDB Authors. All rights reserved.
 Use of this source code is governed by a BSD-style license that can be
 found in the LICENSE file.
 */
+#include <redis/rdb_encoder.h>
 #include "ssdb_impl.h"
 
 int SSDBImpl::GetKvMetaVal(const std::string &meta_key, KvMetaVal &kv) {
@@ -510,6 +511,151 @@ int SSDBImpl::type(const Bytes &key, std::string *type){
 	} else{
 		return -1;
 	}
+
+	return ret;
+}
+
+template <typename T>
+int checkKey(T &mv, const std::string &val) {
+
+	if (mv.DecodeMetaVal(val) == -1){
+		return -1;
+	}
+
+	if (mv.del != KEY_ENABLED_MASK){
+		return 0;
+	}
+
+	return 1;
+}
+
+int SSDBImpl::dump(const Bytes &key, std::string *res) {
+	*res = "none";
+
+	int ret = 0;
+	std::string val;
+	std::string meta_key = encode_meta_key(key.String());
+	leveldb::Status s = ldb->Get(leveldb::ReadOptions(), meta_key, &val);
+	if(s.IsNotFound()){
+		return 0;
+	}
+	if(!s.ok()){
+		log_error("get error: %s", s.ToString().c_str());
+		return -1;
+	}
+
+
+	RdbEncoder rdbEncoder;
+
+	switch (val[0])
+	{
+		case DataType::KV:{
+
+			KvMetaVal kv;
+			ret = checkKey(kv, val);
+			if (ret != 1) {
+				return ret;
+			}
+
+			rdbEncoder.saveType(RDB_TYPE_STRING);
+			rdbEncoder.encodeString(kv.value);
+			break;
+		}
+		case DataType::HSIZE:{
+			HashMetaVal hv;
+			ret = checkKey(hv, val);
+			if (ret != 1) {
+				return ret;
+			}
+
+            rdbEncoder.saveType(RDB_TYPE_HASH);
+            rdbEncoder.saveLen(hv.length);
+
+            auto it = std::unique_ptr<HIterator>(this->hscan(key, "", "" , -1));
+
+             while(it->next()){
+                 rdbEncoder.saveRawString(it->key);
+                 rdbEncoder.saveRawString(it->val);
+             }
+
+			break;
+		}
+		case DataType::SSIZE:{
+			SetMetaVal sv;
+			ret = checkKey(sv, val);
+			if (ret != 1) {
+				return ret;
+			}
+
+            rdbEncoder.saveType(RDB_TYPE_SET);
+            rdbEncoder.saveLen(sv.length);
+
+            auto it = std::unique_ptr<SIterator>(this->sscan_internal(key, "", "" , sv.version, -1));
+
+            while(it->next()){
+                rdbEncoder.saveRawString(it->key);
+            }
+
+			break;
+		}
+		case DataType::ZSIZE:{
+			ZSetMetaVal zv;
+			ret = checkKey(zv, val);
+			if (ret != 1) {
+				return ret;
+
+			}
+
+            rdbEncoder.saveType(RDB_TYPE_ZSET);
+            rdbEncoder.saveLen(zv.length);
+
+            auto it = std::unique_ptr<ZIterator>(this->zscan(key, "", "" , "", -1));
+
+            while(it->next()){
+                rdbEncoder.saveRawString(it->key);
+				rdbEncoder.saveDoubleValue(it->score);
+            }
+
+			break;
+		}
+		case DataType::LSIZE:{
+			ListMetaVal lv;
+			ret = checkKey(lv, val);
+			if (ret != 1) {
+				return ret;
+			}
+            rdbEncoder.saveType(RDB_TYPE_LIST);
+            rdbEncoder.saveLen(lv.length);
+
+            int64_t rangelen = (int64_t)lv.length;
+            uint64_t begin_seq = getSeqByIndex(0, lv);
+            uint64_t cur_seq = begin_seq;
+
+            while (rangelen--){
+                std::string item_key = encode_list_key(key, cur_seq, lv.version);
+
+                std::string item_val;
+                ret = GetListItemVal(item_key, &item_val);
+                if (1 != ret){
+                    return -1;
+                }
+                rdbEncoder.saveRawString(item_val);
+
+                if (UINT64_MAX == cur_seq) {
+                    cur_seq = 0;
+                } else {
+                    cur_seq++;
+                }
+            }
+
+			break;
+		}
+		default:
+			return -1;
+	}
+
+	rdbEncoder.encodeFooter();
+	*res = rdbEncoder.toString();
 
 	return ret;
 }

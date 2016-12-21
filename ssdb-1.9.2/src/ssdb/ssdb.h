@@ -43,6 +43,7 @@ public:
 
 	/* 	General	*/
 	virtual int type(const Bytes &key, std::string *type) = 0;
+	virtual int dump(const Bytes &key, std::string *res) = 0;
 
 	/* key value */
 
