@@ -440,8 +440,6 @@ int SSDBImpl::delete_meta_key(const DeleteKey& dk, leveldb::WriteBatch& batch) {
 }
 
 void SSDBImpl::delete_key_loop(const std::string &del_key) {
-    Transaction trans(binlogs);
-
     DeleteKey dk;
     if(dk.DecodeDeleteKey(del_key) == -1){
         log_fatal("delete key error!");
@@ -499,6 +497,7 @@ void SSDBImpl::delete_key_loop(const std::string &del_key) {
 	PTE(a);
 
 	batch.Delete(del_key);
+    Transaction trans(binlogs);
     if (delete_meta_key(dk, batch) == -1){
         log_fatal("delete meta key error!");
         return;
