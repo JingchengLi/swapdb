@@ -20,41 +20,40 @@ void RdbEncoder::encodeFooter() {
     w.append((char *) &crc, 8);
 }
 
-int RdbEncoder::saveLen(uint32_t len) {
+int RdbEncoder::rdbSaveLen(uint64_t len) {
     unsigned char buf[2];
     size_t nwritten;
 
     if (len < (1 << 6)) {
         /* Save a 6 bit len */
         buf[0] = (len & 0xFF) | (RDB_6BITLEN << 6);
-        if (writeRaw(buf, 1) == -1) return -1;
+        if (rdbWriteRaw(buf, 1) == -1) return -1;
         nwritten = 1;
     } else if (len < (1 << 14)) {
         /* Save a 14 bit len */
         buf[0] = ((len >> 8) & 0xFF) | (RDB_14BITLEN << 6);
         buf[1] = len & 0xFF;
-        if (writeRaw(buf, 2) == -1) return -1;
+        if (rdbWriteRaw(buf, 2) == -1) return -1;
         nwritten = 2;
     } else if (len <= UINT32_MAX) {
         /* Save a 32 bit len */
         buf[0] = RDB_32BITLEN;
-        if (writeRaw(buf, 1) == -1) return -1;
+        if (rdbWriteRaw(buf, 1) == -1) return -1;
         uint32_t len32 = htonl(len);
-        if (writeRaw(&len32, 4) == -1) return -1;
+        if (rdbWriteRaw(&len32, 4) == -1) return -1;
         nwritten = 1 + 4;
     } else {
         /* Save a 64 bit len */
         buf[0] = RDB_64BITLEN;
-        if (writeRaw(buf, 1) == -1) return -1;
+        if (rdbWriteRaw(buf, 1) == -1) return -1;
         len = htonu64(len);
-        if (writeRaw(&len, 8) == -1) return -1;
+        if (rdbWriteRaw(&len, 8) == -1) return -1;
         nwritten = 1 + 8;
     }
-
-    return 1;
+    return nwritten;
 }
 
-void RdbEncoder::saveType(unsigned char type) {
+void RdbEncoder::rdbSaveType(unsigned char type) {
     w.append(1, type);
 }
 
@@ -63,36 +62,30 @@ std::string RdbEncoder::toString() const {
 }
 
 int RdbEncoder::encodeString(const std::string &string) {
-    int ret = encodeIntString(string);
-    if (ret == -1) {
-        return ret;
+    size_t len = string.length();
+    if (len <= 11) {
+        int enclen;
+        unsigned char buf[5];
+        if ((enclen = rdbTryIntegerEncoding(string, buf)) > 0) {
+            if (rdbWriteRaw(buf, enclen) == -1) return -1;
+            return enclen;
+        }
     }
 
-    if (ret == 1) {
-        return ret;
-    }
 
-    saveLen(string.length());
-    writeRaw((void *) string.data(), string.length());
+    rdbSaveLen(string.length());
+    rdbWriteRaw((void *) string.data(), string.length());
 
-    ret = 1;
-    return ret;
+    return string.length();
 }
 
-
-int RdbEncoder::encodeIntString(const std::string &string) {
-
-    //TODO
-
-    return 0;
-}
 
 int RdbEncoder::saveRawString(const std::string &string) {
 
-    saveLen(string.length());
-    writeRaw((void *) string.data(), string.length());
+    rdbSaveLen(string.length());
+    rdbWriteRaw((void *) string.data(), string.length());
 
-    return 1;
+    return string.length();
 }
 
 
@@ -124,12 +117,22 @@ int RdbEncoder::saveDoubleValue(double val) {
             ll2string((char*)buf+1,sizeof(buf)-1,(long long)val);
         else
 #endif
-        snprintf((char*)buf+1,sizeof(buf)-1,"%.17g",val);
-        buf[0] = std::strlen((char*)buf+1);
-        len = buf[0]+1;
+        snprintf((char *) buf + 1, sizeof(buf) - 1, "%.17g", val);
+        buf[0] = std::strlen((char *) buf + 1);
+        len = buf[0] + 1;
     }
 
     w.append((char *) &buf, len);
 
     return 1;
+}
+
+int RdbEncoder::rdbSaveBinaryDoubleValue(double val) {
+    memrev64ifbe(&val);
+    return rdbWriteRaw(&val, sizeof(val));
+}
+
+int RdbEncoder::rdbSaveBinaryFloatValue(float val) {
+    memrev32ifbe(&val);
+    return rdbWriteRaw(&val, sizeof(val));
 }

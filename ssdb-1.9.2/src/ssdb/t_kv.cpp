@@ -4,6 +4,7 @@ Use of this source code is governed by a BSD-style license that can be
 found in the LICENSE file.
 */
 #include <redis/rdb_encoder.h>
+#include <redis/rdb_decoder.h>
 #include "ssdb_impl.h"
 
 int SSDBImpl::GetKvMetaVal(const std::string &meta_key, KvMetaVal &kv) {
@@ -337,7 +338,7 @@ KIterator* SSDBImpl::rscan(const Bytes &start, const Bytes &end, uint64_t limit)
 
 int SSDBImpl::setbit(const Bytes &key, int bitoffset, int on, char log_type){
 	Transaction trans(binlogs);
-	
+
 	std::string val;
 	uint16_t version = 0;
 	std::string meta_key = encode_meta_key(key);
@@ -557,7 +558,7 @@ int SSDBImpl::dump(const Bytes &key, std::string *res) {
 				return ret;
 			}
 
-			rdbEncoder.saveType(RDB_TYPE_STRING);
+            rdbEncoder.rdbSaveType(RDB_TYPE_STRING);
 			rdbEncoder.encodeString(kv.value);
 			break;
 		}
@@ -568,8 +569,8 @@ int SSDBImpl::dump(const Bytes &key, std::string *res) {
 				return ret;
 			}
 
-            rdbEncoder.saveType(RDB_TYPE_HASH);
-            rdbEncoder.saveLen(hv.length);
+            rdbEncoder.rdbSaveType(RDB_TYPE_HASH);
+            rdbEncoder.rdbSaveLen(hv.length);
 
             auto it = std::unique_ptr<HIterator>(this->hscan(key, "", "" , -1));
 
@@ -587,8 +588,8 @@ int SSDBImpl::dump(const Bytes &key, std::string *res) {
 				return ret;
 			}
 
-            rdbEncoder.saveType(RDB_TYPE_SET);
-            rdbEncoder.saveLen(sv.length);
+            rdbEncoder.rdbSaveType(RDB_TYPE_SET);
+            rdbEncoder.rdbSaveLen(sv.length);
 
             auto it = std::unique_ptr<SIterator>(this->sscan_internal(key, "", "" , sv.version, -1));
 
@@ -606,8 +607,8 @@ int SSDBImpl::dump(const Bytes &key, std::string *res) {
 
 			}
 
-            rdbEncoder.saveType(RDB_TYPE_ZSET);
-            rdbEncoder.saveLen(zv.length);
+            rdbEncoder.rdbSaveType(RDB_TYPE_ZSET);
+            rdbEncoder.rdbSaveLen(zv.length);
 
             auto it = std::unique_ptr<ZIterator>(this->zscan(key, "", "" , "", -1));
 
@@ -624,8 +625,8 @@ int SSDBImpl::dump(const Bytes &key, std::string *res) {
 			if (ret != 1) {
 				return ret;
 			}
-            rdbEncoder.saveType(RDB_TYPE_LIST);
-            rdbEncoder.saveLen(lv.length);
+            rdbEncoder.rdbSaveType(RDB_TYPE_LIST);
+            rdbEncoder.rdbSaveLen(lv.length);
 
             int64_t rangelen = (int64_t)lv.length;
             uint64_t begin_seq = getSeqByIndex(0, lv);
@@ -658,4 +659,51 @@ int SSDBImpl::dump(const Bytes &key, std::string *res) {
 	*res = rdbEncoder.toString();
 
 	return ret;
+}
+
+
+int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, bool replace, std::string *res) {
+    *res = "none";
+
+    int ret = 1;
+    std::string val;
+    std::string meta_key = encode_meta_key(key.String());
+    leveldb::Status s = ldb->Get(leveldb::ReadOptions(), meta_key, &val);
+    if(!s.ok() && !s.IsNotFound()){
+        return -1;
+    }
+
+    if(s.ok()) {
+        if (!replace) {
+            //TODO ERR
+            return -1;
+        }
+
+        del_key_internal(key, 'z'); //TODO  log type
+    }
+
+    string a(data.data(),data.size());
+
+    RdbDecoder rdbDecoder(a);
+
+    bool ok = rdbDecoder.verifyDumpPayload();
+    if (!ok) {
+        return -1;
+    }
+
+    int type = rdbDecoder.rdbLoadObjectType();
+    switch (type)
+    {
+        case RDB_TYPE_STRING:{
+
+
+            break;
+        }
+        default:
+            return -1;
+    }
+
+    *res = a;
+
+    return ret;
 }

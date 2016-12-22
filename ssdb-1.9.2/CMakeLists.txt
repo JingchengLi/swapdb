@@ -196,6 +196,7 @@ set_target_properties(libutil-shared PROPERTIES
 # src
 
 SET( RDB_OBJS
+src/redis/endianconv.c
 src/redis/crc64.c
 src/redis/rdb.cpp
 src/redis/rdb_encoder.cpp

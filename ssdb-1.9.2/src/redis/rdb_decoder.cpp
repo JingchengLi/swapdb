@@ -3,3 +3,5 @@
 //
 
 #include "rdb_decoder.h"
+
+RdbDecoder::RdbDecoder(const std::string &raw) : raw(raw) {}

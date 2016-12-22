@@ -126,7 +126,6 @@ DEF_PROC(qget);
 DEF_PROC(qset);
 
 DEF_PROC(dump2);
-DEF_PROC(dump);
 DEF_PROC(sync140);
 DEF_PROC(info);
 DEF_PROC(version);
@@ -135,10 +134,8 @@ DEF_PROC(compact);
 DEF_PROC(clear_binlog);
 DEF_PROC(flushdb);
 
-DEF_PROC(get_key_range);
-DEF_PROC(ignore_key_range);
-DEF_PROC(get_kv_range);
-DEF_PROC(set_kv_range);
+DEF_PROC(dump);
+DEF_PROC(restore);
 
 
 
@@ -262,6 +259,7 @@ void SSDBServer::reg_procs(NetworkServer *net){
 	REG_PROC(qset, "wt");
 
 	REG_PROC(dump, "wt"); //auctual read but ...
+	REG_PROC(restore, "wt");
 
 
 	REG_PROC(clear_binlog, "wt");
@@ -377,6 +375,17 @@ int proc_dump2(NetworkServer *net, Link *link, const Request &req, Response *res
 	SSDBServer *serv = (SSDBServer *)net->data;
 	serv->backend_dump->proc(link);
 	return PROC_BACKEND;
+}
+
+int proc_restore(NetworkServer *net, Link *link, const Request &req, Response *resp){
+    SSDBServer *serv = (SSDBServer *)net->data;
+    CHECK_NUM_PARAMS(4);
+
+    std::string val;
+    int ret = serv->ssdb->restore(req[1], req[2], req[3], true, &val);
+
+    resp->reply_get(ret, &val);
+    return 0;
 }
 
 int proc_dump(NetworkServer *net, Link *link, const Request &req, Response *resp){
