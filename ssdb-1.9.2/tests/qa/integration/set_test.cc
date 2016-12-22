@@ -35,6 +35,15 @@ TEST_F(SetTest, Test_set_sadd) {
         key = *it;
         val = GetRandomVal_();
         client->del(key);
+        //Add this for same keys should not add duplicated.
+        list.clear();
+        list.push_back(val);
+        list.push_back(val);
+        list.push_back(val+"0");
+        OKSadd(2, 2, list)
+
+        client->del(key);
+        list.clear();
         OKSadd(1, 1, val)
         OKSadd(2, 1, val+"0")
         OKSadd(2, 0, val)

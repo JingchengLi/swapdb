@@ -78,7 +78,11 @@ TEST_F(ListTest, Test_list_lpush) {
         list.push_back(val+itoa(n)); 
         comList.push_back(val+itoa(n));
     }
-    OKQpush_front(keysNum*2);
+    //Same members push at one time
+    list.push_back(val+itoa(keysNum*2-1)); 
+    comList.push_back(val+itoa(keysNum*2-1));
+
+    OKQpush_front(keysNum*2+1);
     std::vector<string>::reverse_iterator qit = comList.rbegin();
     getList.clear();
     s = client->qslice(key, 0, -1, &getList);
@@ -169,7 +173,11 @@ TEST_F(ListTest, Test_list_rpush) {
         list.push_back(val+itoa(n)); 
         comList.push_back(val+itoa(n));
     }
-    OKQpush_back(keysNum*2);
+    //Same members push at one time
+    list.push_back(val+itoa(keysNum*2-1)); 
+    comList.push_back(val+itoa(keysNum*2-1));
+
+    OKQpush_back(keysNum*2+1);
     std::vector<string>::iterator qit = comList.begin();
     getList.clear();
     s = client->qslice(key, 0, -1, &getList);
