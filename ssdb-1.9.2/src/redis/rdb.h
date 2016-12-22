@@ -71,6 +71,14 @@
 #define RDB_OPCODE_EOF        255
 
 
+/* rdbLoad...() functions flags. */
+#define RDB_LOAD_NONE   0
+#define RDB_LOAD_ENC    (1<<0)
+#define RDB_LOAD_PLAIN  (1<<1)
+#define RDB_LOAD_SDS    (1<<2)
+
+#define RDB_SAVE_NONE 0
+#define RDB_SAVE_AOF_PREAMBLE (1<<0)
 
 const int hash_max_ziplist_entries = 512;
 const int hash_max_ziplist_value= 64;

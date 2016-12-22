@@ -696,6 +696,15 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
     {
         case RDB_TYPE_STRING:{
 
+            int ret = 0;
+			string r = rdbDecoder.rdbGenericLoadStringObject(&ret);
+            if (ret != 0) {
+                return ret;
+            }
+
+            log_info("%s", hexmem(r.data(),r.length()).c_str());
+
+            set(key, r, 'z');//TODO  log type
 
             break;
         }
@@ -703,7 +712,7 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
             return -1;
     }
 
-    *res = a;
+    *res = "OK";
 
     return ret;
 }
