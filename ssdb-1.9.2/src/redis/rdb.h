@@ -80,4 +80,6 @@ const int set_max_intset_entries = 512;
 const int zset_max_ziplist_entries =128;
 const int zset_max_ziplist_value= 64;
 
+const bool rdb_compression = true;
+
 #endif //SSDB_RDB_H

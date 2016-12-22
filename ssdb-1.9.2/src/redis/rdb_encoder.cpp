@@ -61,7 +61,7 @@ std::string RdbEncoder::toString() const {
     return w;
 }
 
-int RdbEncoder::encodeString(const std::string &string) {
+int RdbEncoder::rdbSaveRawString(const std::string &string) {
     size_t len = string.length();
     if (len <= 11) {
         int enclen;
@@ -72,6 +72,14 @@ int RdbEncoder::encodeString(const std::string &string) {
         }
     }
 
+    /* Try LZF compression - under 20 bytes it's unable to compress even
+    * aaaaaaaaaaaaaaaaaa so skip it */
+    if (rdb_compression && len > 20) {
+        int64_t n = rdbSaveLzfStringObject(string);
+        if (n == -1) return -1;
+        if (n > 0) return n;
+        /* Return value of 0 means data can't be compressed, save the old way */
+    }
 
     rdbSaveLen(string.length());
     rdbWriteRaw((void *) string.data(), string.length());
@@ -135,4 +143,39 @@ int RdbEncoder::rdbSaveBinaryDoubleValue(double val) {
 int RdbEncoder::rdbSaveBinaryFloatValue(float val) {
     memrev32ifbe(&val);
     return rdbWriteRaw(&val, sizeof(val));
+}
+
+int RdbEncoder::rdbEncodeInteger(long long value, unsigned char *enc) {
+    if (value >= -(1<<7) && value <= (1<<7)-1) {
+        enc[0] = (RDB_ENCVAL<<6)|RDB_ENC_INT8;
+        enc[1] = value&0xFF;
+        return 2;
+    } else if (value >= -(1<<15) && value <= (1<<15)-1) {
+        enc[0] = (RDB_ENCVAL<<6)|RDB_ENC_INT16;
+        enc[1] = value&0xFF;
+        enc[2] = (value>>8)&0xFF;
+        return 3;
+    } else if (value >= -((long long)1<<31) && value <= ((long long)1<<31)-1) {
+        enc[0] = (RDB_ENCVAL<<6)|RDB_ENC_INT32;
+        enc[1] = value&0xFF;
+        enc[2] = (value>>8)&0xFF;
+        enc[3] = (value>>16)&0xFF;
+        enc[4] = (value>>24)&0xFF;
+        return 5;
+    } else {
+        return 0;
+    }
+}
+
+int RdbEncoder::rdbTryIntegerEncoding(const std::string &string, unsigned char *enc) {
+    int64_t value = str_to_int64(string);
+    if (errno != 0) {
+        return 0;
+    }
+
+    std::string newValue = str(value);
+
+    if (newValue.length() != string.length() || newValue != string) return 0;
+
+    return rdbEncodeInteger(value, enc);
 }

@@ -559,7 +559,7 @@ int SSDBImpl::dump(const Bytes &key, std::string *res) {
 			}
 
             rdbEncoder.rdbSaveType(RDB_TYPE_STRING);
-			rdbEncoder.encodeString(kv.value);
+			rdbEncoder.rdbSaveRawString(kv.value);
 			break;
 		}
 		case DataType::HSIZE:{

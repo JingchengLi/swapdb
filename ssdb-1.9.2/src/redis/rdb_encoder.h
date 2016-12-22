@@ -12,6 +12,7 @@
 #include "rdb.h"
 
 extern "C" {
+#include "lzf.h"
 #include "crc64.h"
 #include "endianconv.h"
 };
@@ -34,7 +35,52 @@ public:
 
     int rdbSaveLen(uint64_t len);
 
-    int encodeString(const std::string &string);
+    int rdbSaveRawString(const std::string &string);
+
+    ssize_t rdbSaveLzfBlob(void *data, size_t compress_len, size_t original_len) {
+        unsigned char byte;
+        ssize_t n, nwritten = 0;
+
+        /* Data compressed! Let's save it on disk */
+        byte = (RDB_ENCVAL << 6) | RDB_ENC_LZF;
+        if ((n = rdbWriteRaw(&byte, 1)) == -1) goto writeerr;
+        nwritten += n;
+
+        if ((n = rdbSaveLen(compress_len)) == -1) goto writeerr;
+        nwritten += n;
+
+        if ((n = rdbSaveLen(original_len)) == -1) goto writeerr;
+        nwritten += n;
+
+        if ((n = rdbWriteRaw(data, compress_len)) == -1) goto writeerr;
+        nwritten += n;
+
+        return nwritten;
+
+        writeerr:
+        return -1;
+    }
+
+    int64_t rdbSaveLzfStringObject(const std::string &string) {
+        size_t len = string.length();
+        size_t comprlen, outlen;
+        void *out;
+
+        /* We require at least four bytes compression for this to be worth it */
+        if (len <= 4) return 0;
+        outlen = len - 4;
+        if ((out = malloc(outlen + 1)) == NULL) return 0;
+        comprlen = lzf_compress(string.data(), len, out, outlen);
+        if (comprlen == 0) {
+            free(out);
+            return 0;
+        }
+
+        ssize_t nwritten = rdbSaveLzfBlob(out, comprlen, len);
+        free(out);
+        return nwritten;
+    }
+
 
     int saveRawString(const std::string &string);
 
@@ -42,45 +88,13 @@ public:
 
     void rdbSaveType(unsigned char type);
 
-
     int rdbSaveBinaryDoubleValue(double val);
 
     int rdbSaveBinaryFloatValue(float val);
 
-    int rdbTryIntegerEncoding(const std::string &string, unsigned char *enc) {
-        int64_t value = str_to_int64(string);
-        if (errno != 0) {
-            return 0;
-        }
+    int rdbTryIntegerEncoding(const std::string &string, unsigned char *enc);
 
-        std::string newValue = str(value);
-
-        if (newValue.length() != string.length() || newValue != string) return 0;
-
-        return rdbEncodeInteger(value, enc);
-    }
-
-    int rdbEncodeInteger(long long value, unsigned char *enc) {
-        if (value >= -(1<<7) && value <= (1<<7)-1) {
-            enc[0] = (RDB_ENCVAL<<6)|RDB_ENC_INT8;
-            enc[1] = value&0xFF;
-            return 2;
-        } else if (value >= -(1<<15) && value <= (1<<15)-1) {
-            enc[0] = (RDB_ENCVAL<<6)|RDB_ENC_INT16;
-            enc[1] = value&0xFF;
-            enc[2] = (value>>8)&0xFF;
-            return 3;
-        } else if (value >= -((long long)1<<31) && value <= ((long long)1<<31)-1) {
-            enc[0] = (RDB_ENCVAL<<6)|RDB_ENC_INT32;
-            enc[1] = value&0xFF;
-            enc[2] = (value>>8)&0xFF;
-            enc[3] = (value>>16)&0xFF;
-            enc[4] = (value>>24)&0xFF;
-            return 5;
-        } else {
-            return 0;
-        }
-    }
+    int rdbEncodeInteger(long long value, unsigned char *enc);
 
     void encodeFooter();
 
