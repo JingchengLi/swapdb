@@ -712,13 +712,19 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
             uint64_t list_len = rdbDecoder.rdbLoadLen(NULL);
 
             int ret = 0;
+
+            //TODO vector Bytes
             while (list_len--) {
-                string r = rdbDecoder.rdbGenericLoadStringObject(&ret);
+                std::vector<Bytes> val;
+                std::string r = rdbDecoder.rdbGenericLoadStringObject(&ret);
                 if (ret != 0) {
                     return ret;
                 }
-//                qpush_front(key, r, 'z');//TODO  log type
+                val.push_back(Bytes(r));
+                uint64_t len;
+                LPush(key, val, 0, &len);//TODO  log type
             }
+
 
             break;
         }
