@@ -691,6 +691,9 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
         return -1;
     }
 
+    uint64_t len = 0;
+    unsigned int i;
+
     int type = rdbDecoder.rdbLoadObjectType();
     switch (type) {
         case RDB_TYPE_STRING: {
@@ -709,12 +712,12 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
         }
 
         case RDB_TYPE_LIST: {
-            uint64_t list_len = rdbDecoder.rdbLoadLen(NULL);
+            uint64_t len = rdbDecoder.rdbLoadLen(NULL);
 
             int ret = 0;
 
             //TODO vector Bytes
-            while (list_len--) {
+            while (len--) {
                 std::vector<Bytes> val;
                 std::string r = rdbDecoder.rdbGenericLoadStringObject(&ret);
                 if (ret != 0) {
@@ -730,7 +733,19 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
         }
 
         case RDB_TYPE_SET: {
+            int ret = 0;
 
+            if ((len = rdbDecoder.rdbLoadLen(NULL)) == RDB_LENERR) return -1;
+
+            for (i = 0; i < len; i++) {
+                //shit
+                std::string r = rdbDecoder.rdbGenericLoadStringObject(&ret);
+                if (ret != 0) {
+                    return ret;
+                }
+
+                sadd(key, r, 'z');//TODO  log type
+            }
 
             break;
         }
