@@ -179,3 +179,47 @@ int RdbEncoder::rdbTryIntegerEncoding(const std::string &string, unsigned char *
 
     return rdbEncodeInteger(value, enc);
 }
+
+int64_t RdbEncoder::rdbSaveLzfStringObject(const std::string &string) {
+    size_t len = string.length();
+    size_t comprlen, outlen;
+    void *out;
+
+    /* We require at least four bytes compression for this to be worth it */
+    if (len <= 4) return 0;
+    outlen = len - 4;
+    if ((out = malloc(outlen + 1)) == NULL) return 0;
+    comprlen = lzf_compress(string.data(), len, out, outlen);
+    if (comprlen == 0) {
+        free(out);
+        return 0;
+    }
+
+    int64_t nwritten = rdbSaveLzfBlob(out, comprlen, len);
+    free(out);
+    return nwritten;
+}
+
+int64_t RdbEncoder::rdbSaveLzfBlob(void *data, size_t compress_len, size_t original_len) {
+    unsigned char byte;
+    int64_t n, nwritten = 0;
+
+    /* Data compressed! Let's save it on disk */
+    byte = (RDB_ENCVAL << 6) | RDB_ENC_LZF;
+    if ((n = rdbWriteRaw(&byte, 1)) == -1) goto writeerr;
+    nwritten += n;
+
+    if ((n = rdbSaveLen(compress_len)) == -1) goto writeerr;
+    nwritten += n;
+
+    if ((n = rdbSaveLen(original_len)) == -1) goto writeerr;
+    nwritten += n;
+
+    if ((n = rdbWriteRaw(data, compress_len)) == -1) goto writeerr;
+    nwritten += n;
+
+    return nwritten;
+
+    writeerr:
+    return -1;
+}
