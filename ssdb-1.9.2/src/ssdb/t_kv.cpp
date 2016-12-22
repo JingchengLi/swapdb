@@ -709,7 +709,16 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
         }
 
         case RDB_TYPE_LIST: {
+            uint64_t list_len = rdbDecoder.rdbLoadLen(NULL);
 
+            int ret = 0;
+            while (list_len--) {
+                string r = rdbDecoder.rdbGenericLoadStringObject(&ret);
+                if (ret != 0) {
+                    return ret;
+                }
+//                qpush_front(key, r, 'z');//TODO  log type
+            }
 
             break;
         }
