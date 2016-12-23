@@ -665,7 +665,7 @@ int SSDBImpl::dump(const Bytes &key, std::string *res) {
 int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, bool replace, std::string *res) {
     *res = "none";
 
-    int ret = 1;
+    int ret = 0;
     std::string val;
     std::string meta_key = encode_meta_key(key.String());
     leveldb::Status s = ldb->Get(leveldb::ReadOptions(), meta_key, &val);
@@ -694,11 +694,10 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
     uint64_t len = 0;
     unsigned int i;
 
-    int type = rdbDecoder.rdbLoadObjectType();
-    switch (type) {
+    int rdbtype = rdbDecoder.rdbLoadObjectType();
+    switch (rdbtype) {
         case RDB_TYPE_STRING: {
 
-            int ret = 0;
             string r = rdbDecoder.rdbGenericLoadStringObject(&ret);
             if (ret != 0) {
                 return ret;
@@ -712,9 +711,8 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
         }
 
         case RDB_TYPE_LIST: {
-            uint64_t len = rdbDecoder.rdbLoadLen(NULL);
 
-            int ret = 0;
+            if ((len = rdbDecoder.rdbLoadLen(NULL)) == RDB_LENERR) return -1;
 
             //TODO vector Bytes
             while (len--) {
@@ -733,7 +731,6 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
         }
 
         case RDB_TYPE_SET: {
-            int ret = 0;
 
             if ((len = rdbDecoder.rdbLoadLen(NULL)) == RDB_LENERR) return -1;
 
@@ -753,6 +750,26 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
         case RDB_TYPE_ZSET_2:
         case RDB_TYPE_ZSET: {
 
+            if ((len = rdbDecoder.rdbLoadLen(NULL)) == RDB_LENERR) return -1;
+
+            while (len--) {
+
+                std::string r = rdbDecoder.rdbGenericLoadStringObject(&ret);
+                if (ret != 0) {
+                    return ret;
+                }
+
+                double score;
+
+                if (rdbtype == RDB_TYPE_ZSET_2) {
+                    if (rdbDecoder.rdbLoadBinaryDoubleValue(&score) == -1) return -1;
+                } else {
+                    if (rdbDecoder.rdbLoadDoubleValue(&score) == -1) return -1;
+                }
+
+                //todo score....
+                zset(key, r, str(score), 'z');//TODO  log type
+            }
 
             break;
         }
