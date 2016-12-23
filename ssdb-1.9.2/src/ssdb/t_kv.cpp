@@ -695,6 +695,10 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
     unsigned int i;
 
     int rdbtype = rdbDecoder.rdbLoadObjectType();
+
+    log_info("rdb type:%d", rdbtype);
+
+
     switch (rdbtype) {
         case RDB_TYPE_STRING: {
 
@@ -703,7 +707,6 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
                 return ret;
             }
 
-            log_info("%s", hexmem(r.data(), r.length()).c_str());
 
             set(key, r, 'z');//TODO  log type
 
@@ -776,12 +779,42 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
 
         case RDB_TYPE_HASH: {
 
+            if ((len = rdbDecoder.rdbLoadLen(NULL)) == RDB_LENERR) return -1;
+            while (len--) {
+
+                std::string field = rdbDecoder.rdbGenericLoadStringObject(&ret);
+                if (ret != 0) {
+                    return ret;
+                }
+
+                std::string value = rdbDecoder.rdbGenericLoadStringObject(&ret);
+                if (ret != 0) {
+                    return ret;
+                }
+
+                hset(key, field, value, 'z');//TODO  log type
+            }
 
             break;
         }
 
         case RDB_TYPE_LIST_QUICKLIST: {
 
+            if ((len = rdbDecoder.rdbLoadLen(NULL)) == RDB_LENERR) return -1;
+
+            while (len--) {
+
+                std::string zipListStr = rdbDecoder.rdbGenericLoadStringObject(&ret);
+                if (ret != 0) {
+                    return ret;
+                }
+
+                log_info(" zipListStr %s", hexmem(zipListStr.data(),zipListStr.size()).c_str());
+
+
+
+
+            }
 
             break;
         }
@@ -791,6 +824,9 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
         case RDB_TYPE_SET_INTSET:
         case RDB_TYPE_ZSET_ZIPLIST:
         case RDB_TYPE_HASH_ZIPLIST: {
+
+
+
 
 
             break;
