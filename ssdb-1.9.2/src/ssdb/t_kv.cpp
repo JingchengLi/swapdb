@@ -852,8 +852,13 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
         case RDB_TYPE_SET_INTSET:
         case RDB_TYPE_ZSET_ZIPLIST:
         case RDB_TYPE_HASH_ZIPLIST: {
-            std::string zipListStr = rdbDecoder.rdbGenericLoadStringObject(&ret);
 
+            std::string zipListStr = rdbDecoder.rdbGenericLoadStringObject(&ret);
+            if (ret != 0) {
+                return ret;
+            }
+
+            log_info(" zipListStr %s", hexmem(zipListStr.data(),zipListStr.size()).c_str());
 
 
 
