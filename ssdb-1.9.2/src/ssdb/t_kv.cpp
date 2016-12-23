@@ -853,8 +853,9 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
             return -1;
             break;
         }
-        case RDB_TYPE_LIST_ZIPLIST:
         case RDB_TYPE_SET_INTSET:
+
+        case RDB_TYPE_LIST_ZIPLIST:
         case RDB_TYPE_ZSET_ZIPLIST:
         case RDB_TYPE_HASH_ZIPLIST: {
 
