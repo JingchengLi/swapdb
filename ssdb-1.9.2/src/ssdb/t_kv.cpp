@@ -6,6 +6,7 @@ found in the LICENSE file.
 #include <redis/rdb_encoder.h>
 #include <redis/rdb_decoder.h>
 #include "ssdb_impl.h"
+
 extern "C" {
 #include "redis/ziplist.h"
 };
@@ -812,7 +813,7 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
                     return ret;
                 }
 
-                log_info(" zipListStr %s", hexmem(zipListStr.data(),zipListStr.size()).c_str());
+                log_info(" zipListStr %s", hexmem(zipListStr.data(), zipListStr.size()).c_str());
 
                 unsigned char *value;
                 unsigned int sz;
@@ -825,13 +826,17 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
                     if (!value) {
                         /* Write the longval as a string so we can re-add it */
                         //TODO check str with ll2string in redis
-                        std::string t =str((int64_t)longval);
+                        std::string t = str((int64_t) longval);
                         sz = t.length();
-                        value = (unsigned char *)t.data();
-                        log_info(" zip item %s", hexmem(value,sz).c_str());
+                        value = (unsigned char *) t.data();
+                        log_info(" zip item %s", hexmem(value, sz).c_str());
 
                         //todo lpush here
+                    } else {
+                        log_info(" zip item %s", hexmem(value, sz).c_str());
+
                     }
+
 
                     p = ziplistNext(zl, p);
                 }
@@ -842,7 +847,7 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
             break;
         }
 
-        case RDB_TYPE_HASH_ZIPMAP:{
+        case RDB_TYPE_HASH_ZIPMAP: {
             /* Convert to ziplist encoded hash. This must be deprecated
                  * when loading dumps created by Redis 2.4 gets deprecated. */
             return -1;
@@ -858,9 +863,34 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
                 return ret;
             }
 
-            log_info(" zipListStr %s", hexmem(zipListStr.data(),zipListStr.size()).c_str());
+            log_info(" zipListStr %s", hexmem(zipListStr.data(), zipListStr.size()).c_str());
 
 
+            unsigned char *value;
+            unsigned int sz;
+            long long longval;
+
+            unsigned char *zl = (unsigned char *) zipListStr.data();
+
+            unsigned char *p = ziplistIndex(zl, 0);
+            while (ziplistGet(p, &value, &sz, &longval)) {
+                if (!value) {
+                    /* Write the longval as a string so we can re-add it */
+                    //TODO check str with ll2string in redis
+                    std::string t = str((int64_t) longval);
+                    sz = t.length();
+                    value = (unsigned char *) t.data();
+                    log_info(" zip item %s", hexmem(value, sz).c_str());
+
+                    //todo lpush here
+                } else {
+                    log_info(" zip item %s", hexmem(value, sz).c_str());
+
+                }
+
+
+                p = ziplistNext(zl, p);
+            }
 
 
             break;
@@ -868,7 +898,7 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
 //        case RDB_TYPE_MODULE: break;
 
         default:
-            rdbExitReportCorruptRDB("Unknown RDB encoding type %d",rdbtype);
+            rdbExitReportCorruptRDB("Unknown RDB encoding type %d", rdbtype);
             return -1;
     }
 
