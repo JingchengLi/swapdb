@@ -824,6 +824,7 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
                 while (ziplistGet(p, &value, &sz, &longval)) {
                     if (!value) {
                         /* Write the longval as a string so we can re-add it */
+                        //TODO check str with ll2string in redis
                         std::string t =str((int64_t)longval);
                         sz = t.length();
                         value = (unsigned char *)t.data();
