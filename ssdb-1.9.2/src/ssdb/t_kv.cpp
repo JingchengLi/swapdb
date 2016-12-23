@@ -842,11 +842,17 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
             break;
         }
 
-        case RDB_TYPE_HASH_ZIPMAP:
+        case RDB_TYPE_HASH_ZIPMAP:{
+            /* Convert to ziplist encoded hash. This must be deprecated
+                 * when loading dumps created by Redis 2.4 gets deprecated. */
+            return -1;
+            break;
+        }
         case RDB_TYPE_LIST_ZIPLIST:
         case RDB_TYPE_SET_INTSET:
         case RDB_TYPE_ZSET_ZIPLIST:
         case RDB_TYPE_HASH_ZIPLIST: {
+            std::string zipListStr = rdbDecoder.rdbGenericLoadStringObject(&ret);
 
 
 
@@ -857,6 +863,7 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
 //        case RDB_TYPE_MODULE: break;
 
         default:
+            rdbExitReportCorruptRDB("Unknown RDB encoding type %d",rdbtype);
             return -1;
     }
 
