@@ -6,6 +6,9 @@ found in the LICENSE file.
 #include <redis/rdb_encoder.h>
 #include <redis/rdb_decoder.h>
 #include "ssdb_impl.h"
+extern "C" {
+#include "redis/ziplist.h"
+};
 
 int SSDBImpl::GetKvMetaVal(const std::string &meta_key, KvMetaVal &kv) {
     std::string meta_val;
@@ -811,7 +814,26 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
 
                 log_info(" zipListStr %s", hexmem(zipListStr.data(),zipListStr.size()).c_str());
 
+                unsigned char *value;
+                unsigned int sz;
+                long long longval;
 
+                unsigned char *zl = (unsigned char *) zipListStr.data();
+
+                unsigned char *p = ziplistIndex(zl, 0);
+                while (ziplistGet(p, &value, &sz, &longval)) {
+                    if (!value) {
+                        /* Write the longval as a string so we can re-add it */
+                        std::string t =str((int64_t)longval);
+                        sz = t.length();
+                        value = (unsigned char *)t.data();
+                        log_info(" zip item %s", hexmem(value,sz).c_str());
+
+                        //todo lpush here
+                    }
+
+                    p = ziplistNext(zl, p);
+                }
 
 
             }
