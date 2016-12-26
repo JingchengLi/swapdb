@@ -714,8 +714,7 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
 
     if (s.ok()) {
 
-        log_info("del %s", hexmem(meta_val.data(),meta_val.size()).c_str());
-
+//        log_info("del %s", hexmem(meta_val.data(),meta_val.size()).c_str());
 
         if(meta_val.size()<4) {
             return -1;
