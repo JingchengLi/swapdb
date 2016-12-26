@@ -467,6 +467,33 @@ int freeMemoryIfNeeded(void) {
         if (bestkey) {
             db = server.db+bestdbid;
             robj *keyobj = createStringObject(bestkey,sdslen(bestkey));
+
+            /* Transfer the selected key to EVICTED_DATA_DBID. */
+            if (server.jdjr_mode) {
+                incrRefCount(keyobj);
+
+                redisDb *evicteddb = server.db + EVICTED_DATA_DBID;
+                long long expiretime = getExpire(db, keyobj);
+
+                setKey(evicteddb, keyobj, shared.space);
+                server.dirty ++;
+                if (expiretime) setExpire(evicteddb, keyobj, expiretime);
+                notifyKeyspaceEvent(NOTIFY_STRING,"set",keyobj,evicteddb->id);
+                if (expiretime) notifyKeyspaceEvent(NOTIFY_GENERIC,
+                                                    "expire",keyobj,evicteddb->id);
+
+                sds cmdname = sdsnew("set");
+                robj *setcmd = createObject(OBJ_STRING, (void *)cmdname);
+                robj *argv[3] = {setcmd, keyobj, shared.space};
+
+                propagate(lookupCommand(cmdname), EVICTED_DATA_DBID, argv, 3,
+                          PROPAGATE_AOF | PROPAGATE_REPL);
+
+                decrRefCount(setcmd);
+
+                serverLog(LL_DEBUG, "Evicting key: %s to SSDB.", (char *)(keyobj->ptr));
+            }
+
             propagateExpire(db,keyobj,server.lazyfree_lazy_eviction);
             /* We compute the amount of memory freed by db*Delete() alone.
              * It is possible that actually the memory needed to propagate
