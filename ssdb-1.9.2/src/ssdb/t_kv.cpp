@@ -706,31 +706,36 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
 
     int ret = 0;
     std::string meta_val;
-    std::string meta_key = encode_meta_key(key.String());
-    leveldb::Status s = ldb->Get(leveldb::ReadOptions(), meta_key, &meta_val);
-    if (!s.ok() && !s.IsNotFound()) {
-        return -1;
+    leveldb::Status s;
+
+    {
+        Transaction trans(binlogs);
+        std::string meta_key = encode_meta_key(key.String());
+        s = ldb->Get(leveldb::ReadOptions(), meta_key, &meta_val);
+        if (!s.ok() && !s.IsNotFound()) {
+            return -1;
+        }
+
     }
 
     if (s.ok()) {
 
-//        log_info("del %s", hexmem(meta_val.data(),meta_val.size()).c_str());
+        log_debug("del %s", hexmem(meta_val.data(),meta_val.size()).c_str());
 
         if(meta_val.size()<4) {
             return -1;
         }
         
         char del = meta_val[3];
-        if(del == KEY_ENABLED_MASK ){
+        if(del == KEY_ENABLED_MASK){
             if (!replace) {
                 return -1;
             }
 
             Transaction trans(binlogs);
-            del_key_internal(key, 'z'); 
+            del_key_internal(key, 'z');
             binlogs->commit();
 
-            return -1;
         } else if (del == KEY_DELETE_MASK){
             //nothing
         } else {
