@@ -98,10 +98,18 @@ void emptyDbAsync(redisDb *db) {
  * and scheduiling the old for lazy freeing. */
 void slotToKeyFlushAsync(void) {
     zskiplist *oldsl = server.cluster->slots_to_keys;
+    zskiplist *oldsl_ssdb = server.cluster->slots_to_ssdb_keys;
+    unsigned long length = oldsl->length;
     server.cluster->slots_to_keys = zslCreate();
-    atomicIncr(lazyfree_objects,oldsl->length,
-        lazyfree_objects_mutex);
+
+    if (server.jdjr_mode) {
+        server.cluster->slots_to_ssdb_keys = zslCreate();
+        length += oldsl_ssdb->length;
+    }
+    atomicIncr(lazyfree_objects,length,lazyfree_objects_mutex);
     bioCreateBackgroundJob(BIO_LAZY_FREE,NULL,NULL,oldsl);
+    if (server.jdjr_mode)
+        bioCreateBackgroundJob(BIO_LAZY_FREE,NULL,NULL,oldsl_ssdb);
 }
 
 /* Release objects from the lazyfree thread. It's just decrRefCount()

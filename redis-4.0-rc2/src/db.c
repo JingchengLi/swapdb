@@ -1298,14 +1298,30 @@ void slotToKeyAdd(robj *key) {
     zslInsert(server.cluster->slots_to_keys,hashslot,sdskey);
 }
 
+void slotToSSDBKeyAdd(robj *key) {
+    unsigned int hashslot = keyHashSlot(key->ptr,sdslen(key->ptr));
+
+    sds sdskey = sdsdup(key->ptr);
+    zslInsert(server.cluster->slots_to_ssdb_keys,hashslot,sdskey);
+}
+
 void slotToKeyDel(robj *key) {
     unsigned int hashslot = keyHashSlot(key->ptr,sdslen(key->ptr));
     zslDelete(server.cluster->slots_to_keys,hashslot,key->ptr,NULL);
 }
 
+void slotToSSDBKeyDel(robj *key) {
+    unsigned int hashslot = keyHashSlot(key->ptr,sdslen(key->ptr));
+    zslDelete(server.cluster->slots_to_ssdb_keys,hashslot,key->ptr,NULL);
+}
+
 void slotToKeyFlush(void) {
     zslFree(server.cluster->slots_to_keys);
     server.cluster->slots_to_keys = zslCreate();
+    if (server.jdjr_mode) {
+        zslFree(server.cluster->slots_to_ssdb_keys);
+        server.cluster->slots_to_ssdb_keys = zslCreate();
+    }
 }
 
 /* Pupulate the specified array of objects with keys in the specified slot.
@@ -1323,6 +1339,13 @@ unsigned int getKeysInSlot(unsigned int hashslot, robj **keys, unsigned int coun
     while(n && n->score == hashslot && count--) {
         keys[j++] = createStringObject(n->ele,sdslen(n->ele));
         n = n->level[0].forward;
+    }
+    if (server.jdjr_mode) {
+        n = zslFirstInRange(server.cluster->slots_to_ssdb_keys, &range);
+        while(n && n->score == hashslot && count--) {
+            keys[j++] = createStringObject(n->ele,sdslen(n->ele));
+            n = n->level[0].forward;
+        }
     }
     return j;
 }
@@ -1346,14 +1369,24 @@ unsigned int delKeysInSlot(unsigned int hashslot) {
         decrRefCount(key);
         j++;
     }
+    if (server.jdjr_mode) {
+        n = zslFirstInRange(server.cluster->slots_to_ssdb_keys, &range);
+        while(n && n->score == hashslot) {
+            sds sdskey = n->ele;
+            robj *key = createStringObject(sdskey,sdslen(sdskey));
+            n = n->level[0].forward; /* Go to the next item before freeing it. */
+            dbDelete(&server.db[EVICTED_DATA_DBID],key);
+            decrRefCount(key);
+            j++;
+        }
+    }
     return j;
 }
 
-unsigned int countKeysInSlot(unsigned int hashslot) {
-    zskiplist *zsl = server.cluster->slots_to_keys;
+static unsigned int countKeysInSlotHelper(zskiplist *zsl, unsigned int hashslot) {
     zskiplistNode *zn;
     zrangespec range;
-    int rank, count = 0;
+    unsigned int rank, count = 0;
 
     range.min = range.max = hashslot;
     range.minex = range.maxex = 0;
@@ -1374,6 +1407,14 @@ unsigned int countKeysInSlot(unsigned int hashslot) {
             rank = zslGetRank(zsl, zn->score, zn->ele);
             count -= (zsl->length - rank);
         }
+    }
+    return count;
+}
+
+unsigned int countKeysInSlot(unsigned int hashslot) {
+    unsigned int count = countKeysInSlotHelper(server.cluster->slots_to_keys, hashslot);
+    if (server.jdjr_mode) {
+        count += countKeysInSlotHelper(server.cluster->slots_to_ssdb_keys, hashslot);
     }
     return count;
 }
