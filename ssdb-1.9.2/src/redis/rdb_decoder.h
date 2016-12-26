@@ -17,10 +17,9 @@ extern "C" {
 #include "lzf.h"
 #include "crc64.h"
 #include "endianconv.h"
+#include "util.h"
 };
 
-//TODO rdbExitReportCorruptRDB
-#define rdbExitReportCorruptRDB(...) exit(-1)
 
 class RdbDecoder {
 private:

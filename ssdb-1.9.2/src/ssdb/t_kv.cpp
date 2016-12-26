@@ -10,6 +10,7 @@ found in the LICENSE file.
 extern "C" {
 #include "redis/ziplist.h"
 #include "redis/intset.h"
+#include "redis/util.h"
 };
 
 static bool getNextString(unsigned char *zl, unsigned char **p, std::string &ret_res);
@@ -939,7 +940,7 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
 //        case RDB_TYPE_MODULE: break;
 
         default:
-            rdbExitReportCorruptRDB("Unknown RDB encoding type %d", rdbtype);
+            log_error("Unknown RDB encoding type %d", rdbtype);
             return -1;
     }
 
