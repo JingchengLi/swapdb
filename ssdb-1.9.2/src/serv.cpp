@@ -386,12 +386,36 @@ int proc_dump2(NetworkServer *net, Link *link, const Request &req, Response *res
 	return PROC_BACKEND;
 }
 
+
 int proc_restore(NetworkServer *net, Link *link, const Request &req, Response *resp){
     SSDBServer *serv = (SSDBServer *)net->data;
     CHECK_NUM_PARAMS(4);
 
-    std::string val;
-    int ret = serv->ssdb->restore(req[1], req[2], req[3], true, &val);
+	int64_t ttl = req[2].Int64();
+	if (errno == EINVAL || ttl < 0){
+		resp->push_back("error");
+		return 0;
+	}
+
+    bool replace = false;
+    if (req.size()>4) {
+        std::string q4 = req[4].String();
+        strtoupper(&q4);
+        if (q4 == "REPLACE") {
+            replace = true;
+        } else {
+            resp->push_back("error");
+            return 0;
+        }
+    }
+
+	std::string val;
+    int ret = serv->ssdb->restore(req[1], req[2], req[3], replace, &val);
+
+	if (ret > 0 && ttl > 0) {
+		Locking l(&serv->expiration->mutex);
+		ret = serv->expiration->set_ttl(req[1], ttl);
+	}
 
     resp->reply_get(ret, &val);
     return 0;
