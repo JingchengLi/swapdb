@@ -724,18 +724,22 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
 
             if ((len = rdbDecoder.rdbLoadLen(NULL)) == RDB_LENERR) return -1;
 
-            //TODO vector Bytes
+            std::vector<std::string> t_res;
+            std::vector<Bytes> val;
+            t_res.reserve(len);
+            val.reserve(len);
+
             while (len--) {
-                std::vector<Bytes> val;
-                std::string r = rdbDecoder.rdbGenericLoadStringObject(&ret);
+                 std::string r = rdbDecoder.rdbGenericLoadStringObject(&ret);
                 if (ret != 0) {
                     return ret;
                 }
-                val.push_back(Bytes(r));
-                uint64_t len;
-                RPush(key, val, 0, &len);//TODO  log type
+                t_res.push_back(r);
+                val.push_back(Bytes(t_res.back()));
             }
 
+            uint64_t len;
+            RPush(key, val, 0, &len);//TODO  log type
 
             break;
         }
@@ -890,11 +894,16 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
 
                 if (rdbtype == RDB_TYPE_LIST_ZIPLIST) {
 
+                    std::vector<Bytes> val;
+                    val.push_back(Bytes(t_item));
+                    uint64_t len;
+                    RPush(key, val, 0, &len);//TODO  log type
+
                 } else if (rdbtype == RDB_TYPE_ZSET_ZIPLIST) {
                     std::string value;
                     if(getNextString(zl, &p, value)) {
                         log_info(" score : %s", hexmem(value.data(), value.length()).c_str());
-
+                        zset(key, t_item, value, 'z');//TODO  log type
 
                     } else {
                         log_error("value not found ");
@@ -905,6 +914,8 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
                     std::string value;
                     if(getNextString(zl, &p, value)) {
                         log_info(" value : %s", hexmem(value.data(), value.length()).c_str());
+
+                        hset(key, t_item, value, 'z');//TODO  log type
 
                     } else {
                         log_error("value not found ");
