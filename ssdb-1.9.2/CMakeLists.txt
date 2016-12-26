@@ -224,12 +224,11 @@ src/serv.cpp
 ADD_EXECUTABLE(ssdb-server ${SRC_OBJS} ${RDB_OBJS})
 #TARGET_LINK_LIBRARIES(ssdb-server libssdb-static libutil-static libnet-static libcodec-static leveldb gtest gflags snappy jemalloc pthread rt z bz2)
 
-TARGET_LINK_LIBRARIES(ssdb-server libssdb-static libutil-static libnet-static libcodec-static gflags snappy jemalloc pthread rt z bz2)
 
 IF(ROCKSDB)
-    TARGET_LINK_LIBRARIES(rocksdb)
+    TARGET_LINK_LIBRARIES(ssdb-server rocksdb libssdb-static libutil-static libnet-static libcodec-static gflags snappy jemalloc pthread rt z bz2)
 ELSE()
-    TARGET_LINK_LIBRARIES(leveldb)
+    TARGET_LINK_LIBRARIES(ssdb-server leveldb libssdb-static libutil-static libnet-static libcodec-static gflags snappy jemalloc pthread rt z bz2)
 ENDIF()
 
 ADD_EXECUTABLE(hello-ssdb ${CLIENT_OBJS})
