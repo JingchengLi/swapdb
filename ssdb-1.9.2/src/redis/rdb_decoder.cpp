@@ -158,15 +158,15 @@ bool RdbDecoder::verifyDumpPayload() {
     uint64_t crc;
 
     /* At least 2 bytes of RDB version and 8 of CRC64 should be present. */
-    if (raw.length() < 10) return false;
-    footer = raw.data() + (raw.length() - 10);
+    if (remain_size < 10) return false;
+    footer = p + (remain_size - 10);
 
     /* Verify RDB version */
     rdbver = (footer[1] << 8) | footer[0];
     if (rdbver > RDB_VERSION) return false;
 
     /* Verify CRC64 */
-    crc = crc64(0, (const unsigned char *) raw.data(), raw.length() - 8);
+    crc = crc64(0, (const unsigned char *) p, remain_size - 8);
     memrev64ifbe(&crc);
 
     remain_size = remain_size - 10;

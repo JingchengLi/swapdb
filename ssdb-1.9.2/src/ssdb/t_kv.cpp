@@ -673,9 +673,9 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
     *res = "none";
 
     int ret = 0;
-    std::string val;
+    std::string meta_val;
     std::string meta_key = encode_meta_key(key.String());
-    leveldb::Status s = ldb->Get(leveldb::ReadOptions(), meta_key, &val);
+    leveldb::Status s = ldb->Get(leveldb::ReadOptions(), meta_key, &meta_val);
     if (!s.ok() && !s.IsNotFound()) {
         return -1;
     }
@@ -689,9 +689,8 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
         del_key_internal(key, 'z'); //TODO  log type
     }
 
-    string a(data.data(), data.size());
 
-    RdbDecoder rdbDecoder(a);
+    RdbDecoder rdbDecoder(data.data(), data.size());
 
     bool ok = rdbDecoder.verifyDumpPayload();
     if (!ok) {
@@ -830,6 +829,11 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
                 while (getNextString(zl, &p, t_item)) {
                     log_info(" item : %s", hexmem(t_item.data(), t_item.length()).c_str());
 
+                    std::vector<Bytes> val;
+                    val.push_back(Bytes(t_item));
+                    uint64_t len_t;
+                    RPush(key, val, 0, &len_t);//TODO  log type
+
                 }
 
 
@@ -896,8 +900,8 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
 
                     std::vector<Bytes> val;
                     val.push_back(Bytes(t_item));
-                    uint64_t len;
-                    RPush(key, val, 0, &len);//TODO  log type
+                    uint64_t len_t;
+                    RPush(key, val, 0, &len_t);//TODO  log type
 
                 } else if (rdbtype == RDB_TYPE_ZSET_ZIPLIST) {
                     std::string value;

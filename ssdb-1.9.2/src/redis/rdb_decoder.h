@@ -28,7 +28,6 @@ private:
     const char *p;  //pointer to current first char
     size_t remain_size;       // string remain len
 
-    std::string raw;
     char type;
 
     RdbDecoder() {};
@@ -37,9 +36,9 @@ public:
     virtual ~RdbDecoder() {
     }
 
-    RdbDecoder(const std::string &raw) : raw(raw) {
-        p = raw.data();
-        remain_size = raw.length();
+    RdbDecoder(const char *str, size_t size) {
+        p = str;
+        remain_size = size;
     }
 
     bool verifyDumpPayload();
