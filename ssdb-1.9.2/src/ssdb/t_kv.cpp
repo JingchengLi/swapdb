@@ -673,6 +673,7 @@ int SSDBImpl::dump(const Bytes &key, std::string *res) {
 int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, bool replace, std::string *res) {
     *res = "none";
 
+
     int ret = 0;
     std::string meta_val;
     std::string meta_key = encode_meta_key(key.String());
@@ -687,9 +688,11 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
             return -1;
         }
 
+        Transaction trans(binlogs);
         del_key_internal(key, 'z'); //TODO  log type
-    }
+        binlogs->commit();
 
+    }
 
     RdbDecoder rdbDecoder(data.data(), data.size());
 
@@ -738,8 +741,8 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
                 val.push_back(Bytes(t_res.back()));
             }
 
-            uint64_t len;
-            RPush(key, val, 0, &len);//TODO  log type
+            uint64_t len_t;
+            RPush(key, val, 0, &len_t);//TODO  log type
 
             break;
         }
@@ -813,6 +816,11 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
 
             if ((len = rdbDecoder.rdbLoadLen(NULL)) == RDB_LENERR) return -1;
 
+            std::vector<std::string> t_res;
+            std::vector<Bytes> val;
+            t_res.reserve(len);
+            val.reserve(len);
+
             while (len--) {
 
                 std::string zipListStr = rdbDecoder.rdbGenericLoadStringObject(&ret);
@@ -823,22 +831,19 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
                 log_info(" zipListStr %s", hexmem(zipListStr.data(), zipListStr.size()).c_str());
 
                 unsigned char *zl = (unsigned char *) zipListStr.data();
-
                 unsigned char *p = ziplistIndex(zl, 0);
 
                 std::string t_item;
                 while (getNextString(zl, &p, t_item)) {
                     log_info(" item : %s", hexmem(t_item.data(), t_item.length()).c_str());
 
-                    std::vector<Bytes> val;
-                    val.push_back(Bytes(t_item));
-                    uint64_t len_t;
-                    RPush(key, val, 0, &len_t);//TODO  log type
-
+                    t_res.push_back(t_item);
+                    val.push_back(Bytes(t_res.back()));
                 }
-
-
             }
+
+            uint64_t len_t;
+            RPush(key, val, 0, &len_t);//TODO  log type
 
             break;
         }
