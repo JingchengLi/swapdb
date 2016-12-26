@@ -497,7 +497,7 @@ void SSDBImpl::delete_key_loop(const std::string &del_key) {
 	PTE(a);
 
 	batch.Delete(del_key);
-    Transaction trans(binlogs);
+    RecordLock l(&mutex_record_, del_key);
     if (delete_meta_key(dk, batch) == -1){
         log_fatal("delete meta key error!");
         return;
