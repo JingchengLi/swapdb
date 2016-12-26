@@ -10,7 +10,6 @@ found in the LICENSE file.
 extern "C" {
 #include "redis/ziplist.h"
 #include "redis/intset.h"
-#include "redis/util.h"
 };
 
 static bool getNextString(unsigned char *zl, unsigned char **p, std::string &ret_res);
