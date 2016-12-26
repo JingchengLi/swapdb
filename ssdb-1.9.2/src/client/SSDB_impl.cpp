@@ -180,6 +180,21 @@ const std::vector<std::string>* ClientImpl::request(const std::string &cmd, cons
 }
 
 /******************** misc *************************/
+Status ClientImpl::dump(const std::string &key, std::string *val){
+	const std::vector<std::string> *resp;
+	resp = this->request("dump", key);
+	return _read_str(resp, val);
+}
+
+Status ClientImpl::restore(const std::string &key, int64_t ttl, const std::string &data, const std::string &replace, std::string *val){
+	std::string s_ttl = str(ttl);
+	const std::vector<std::string> *resp;
+    if(replace.empty())
+        resp = this->request("restore", key, s_ttl, data);
+    else
+        resp = this->request("restore", key, s_ttl, data, replace);
+	return _read_str(resp, val);
+}
 
 Status ClientImpl::dbsize(int64_t *ret){
 	const std::vector<std::string> *resp;

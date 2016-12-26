@@ -89,6 +89,8 @@ public:
 	virtual Status set_kv_range(const std::string &start, const std::string &end) = 0;
 	virtual Status ttl(const std::string &name, int64_t *ret) = 0;
 	virtual Status expire(const std::string &key, int64_t ttl, int64_t *ret) = 0;
+    virtual Status dump(const std::string &key, std::string *val) = 0;
+    virtual Status restore(const std::string &key, int64_t ttl, const std::string &data, const std::string &replace, std::string *val) = 0;
 
 	/// @name KV methods
 	/// @{
