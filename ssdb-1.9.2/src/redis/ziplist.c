@@ -108,11 +108,8 @@
 #include <limits.h>
 #include "ziplist.h"
 #include "endianconv.h"
+#include "zmalloc.h"
 
-#define assert(_e) ((_e)?(void)0 : (exit(1)))
-#define zmalloc(t) ((malloc(t)))
-#define zrealloc(p,t) ((realloc(p,t)))
-#define zfree(ptr) if (ptr == NULL) return; free(*ptr);ptr=NULL;
 
 
 #define ZIP_END 255

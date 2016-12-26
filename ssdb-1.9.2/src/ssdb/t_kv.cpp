@@ -3,13 +3,16 @@ Copyright (c) 2012-2014 The SSDB Authors. All rights reserved.
 Use of this source code is governed by a BSD-style license that can be
 found in the LICENSE file.
 */
-#include <redis/rdb_encoder.h>
-#include <redis/rdb_decoder.h>
 #include "ssdb_impl.h"
+#include "redis/rdb_encoder.h"
+#include "redis/rdb_decoder.h"
 
 extern "C" {
 #include "redis/ziplist.h"
+#include "redis/intset.h"
 };
+
+static bool getNextString(unsigned char *zl, unsigned char **p, std::string &ret_res);
 
 int SSDBImpl::GetKvMetaVal(const std::string &meta_key, KvMetaVal &kv) {
     std::string meta_val;
@@ -730,7 +733,7 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
                 }
                 val.push_back(Bytes(r));
                 uint64_t len;
-                LPush(key, val, 0, &len);//TODO  log type
+                RPush(key, val, 0, &len);//TODO  log type
             }
 
 
@@ -815,30 +818,14 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
 
                 log_info(" zipListStr %s", hexmem(zipListStr.data(), zipListStr.size()).c_str());
 
-                unsigned char *value;
-                unsigned int sz;
-                long long longval;
-
                 unsigned char *zl = (unsigned char *) zipListStr.data();
 
                 unsigned char *p = ziplistIndex(zl, 0);
-                while (ziplistGet(p, &value, &sz, &longval)) {
-                    if (!value) {
-                        /* Write the longval as a string so we can re-add it */
-                        //TODO check str with ll2string in redis
-                        std::string t = str((int64_t) longval);
-                        sz = t.length();
-                        value = (unsigned char *) t.data();
-                        log_info(" zip item %s", hexmem(value, sz).c_str());
 
-                        //todo lpush here
-                    } else {
-                        log_info(" zip item %s", hexmem(value, sz).c_str());
+                std::string t_item;
+                while (getNextString(zl, &p, t_item)) {
+                    log_info(" item : %s", hexmem(t_item.data(), t_item.length()).c_str());
 
-                    }
-
-
-                    p = ziplistNext(zl, p);
                 }
 
 
@@ -853,8 +840,36 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
             return -1;
             break;
         }
-        case RDB_TYPE_SET_INTSET:
+        case RDB_TYPE_SET_INTSET:{
 
+
+            std::string insetStr = rdbDecoder.rdbGenericLoadStringObject(&ret);
+            if (ret != 0) {
+                return ret;
+            }
+
+            const intset *set = (const intset *)insetStr.data();
+            len = intsetLen(set);
+
+            log_info(" inset %d %s", len, hexmem(insetStr.data(), insetStr.size()).c_str());
+
+            for (uint32_t j = 0; j < len; ++j) {
+                int64_t t_value;
+                if (intsetGet((intset *) set, j , &t_value) == 1) {
+
+                    log_info("%d : %d", j , t_value);
+
+                    sadd(key, str(t_value), 'z');//TODO  log type
+
+                } else {
+                    return -1;
+                }
+
+            }
+
+            break;
+
+        }
         case RDB_TYPE_LIST_ZIPLIST:
         case RDB_TYPE_ZSET_ZIPLIST:
         case RDB_TYPE_HASH_ZIPLIST: {
@@ -866,31 +881,41 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
 
             log_info(" zipListStr %s", hexmem(zipListStr.data(), zipListStr.size()).c_str());
 
-
-            unsigned char *value;
-            unsigned int sz;
-            long long longval;
-
             unsigned char *zl = (unsigned char *) zipListStr.data();
-
             unsigned char *p = ziplistIndex(zl, 0);
-            while (ziplistGet(p, &value, &sz, &longval)) {
-                if (!value) {
-                    /* Write the longval as a string so we can re-add it */
-                    //TODO check str with ll2string in redis
-                    std::string t = str((int64_t) longval);
-                    sz = t.length();
-                    value = (unsigned char *) t.data();
-                    log_info(" zip item %s", hexmem(value, sz).c_str());
 
-                    //todo lpush here
+            std::string t_item;
+            while (getNextString(zl, &p, t_item)) {
+                log_info(" item : %s", hexmem(t_item.data(), t_item.length()).c_str());
+
+                if (rdbtype == RDB_TYPE_LIST_ZIPLIST) {
+
+                } else if (rdbtype == RDB_TYPE_ZSET_ZIPLIST) {
+                    std::string value;
+                    if(getNextString(zl, &p, value)) {
+                        log_info(" score : %s", hexmem(value.data(), value.length()).c_str());
+
+
+                    } else {
+                        log_error("value not found ");
+                        return -1;
+                    }
+
+                } else if (rdbtype == RDB_TYPE_HASH_ZIPLIST) {
+                    std::string value;
+                    if(getNextString(zl, &p, value)) {
+                        log_info(" value : %s", hexmem(value.data(), value.length()).c_str());
+
+                    } else {
+                        log_error("value not found ");
+                        return -1;
+                    }
+
                 } else {
-                    log_info(" zip item %s", hexmem(value, sz).c_str());
-
+                    log_error("???");
+                    return -1;
                 }
 
-
-                p = ziplistNext(zl, p);
             }
 
 
@@ -904,6 +929,31 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
     }
 
     *res = "OK";
-
+    ret = 1;
     return ret;
+}
+
+
+
+bool getNextString(unsigned char *zl, unsigned char **p, std::string &ret_res) {
+
+    unsigned char *value;
+    unsigned int sz;
+    long long longval;
+
+    if (ziplistGet(*p, &value, &sz, &longval)) {
+        if (!value) {
+            /* Write the longval as a string so we can re-add it */
+            //TODO check str with ll2string in redis
+            ret_res = str((int64_t) longval);
+        } else {
+            ret_res = std::string((char *)value,sz );
+        }
+
+        *p = ziplistNext(zl, *p);
+        return true;
+    }
+
+    return false;
+
 }

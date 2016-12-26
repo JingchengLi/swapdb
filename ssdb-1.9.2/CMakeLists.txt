@@ -197,6 +197,7 @@ set_target_properties(libutil-shared PROPERTIES
 
 SET( RDB_OBJS
 src/redis/ziplist.c
+src/redis/intset.c
 src/redis/lzf_c.c
 src/redis/lzf_d.c
 src/redis/endianconv.c
