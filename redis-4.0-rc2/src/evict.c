@@ -331,6 +331,89 @@ unsigned long LFUDecrAndReturn(robj *o) {
     return counter;
 }
 
+void evictingDataToSSDB(robj *keyobj, redisDb *db) {
+    char llbuf[32] = {0};
+    redisDb *evicteddb = server.db + EVICTED_DATA_DBID;
+    long long expiretime = getExpire(db, keyobj);
+    robj *llbufobj, *setcmd, *o, *dumpobj;;
+    sds cmdname;
+    long long now = mstime();
+    rio payload;
+
+    /* Only transfer effective data. */
+    if (expiretime > 0 && now > expiretime)
+        return;
+
+    incrRefCount(keyobj);
+
+    /* Record the evicted keys in an extra redis db. */
+    setKey(evicteddb, keyobj, shared.space);
+    server.dirty ++;
+
+    notifyKeyspaceEvent(NOTIFY_STRING,"set",keyobj,evicteddb->id);
+
+    /* Append set operation to aof. */
+    cmdname = sdsnew("set");
+    setcmd = createObject(OBJ_STRING, (void *)cmdname);
+    robj *setargv[3] = {setcmd, keyobj, shared.space};
+
+    propagate(lookupCommand(cmdname), EVICTED_DATA_DBID, setargv, 3,
+              PROPAGATE_AOF | PROPAGATE_REPL);
+    decrRefCount(setcmd);
+
+    /* Record the expire info. */
+    if (expiretime > 0) {
+        setExpire(evicteddb, keyobj, expiretime);
+        ll2string(llbuf, sizeof(llbuf), expiretime);
+        notifyKeyspaceEvent(NOTIFY_GENERIC,
+                            "expire", keyobj, evicteddb->id);
+    } else
+        ll2string(llbuf, sizeof(llbuf), 0);
+
+    llbufobj = createObject(OBJ_STRING, (void *)(sdsnew(llbuf)));
+
+    /* Append expire operation to aof if necessary. */
+    if (expiretime > 0) {
+        sds cmdname = sdsnew("expire");
+        robj *expirecmd = createObject(OBJ_STRING, (void *)cmdname);
+        robj *expireArgv[3] = {expirecmd, keyobj, llbufobj};
+
+        propagate(lookupCommand(cmdname), EVICTED_DATA_DBID, expireArgv, 3,
+                  PROPAGATE_AOF | PROPAGATE_REPL);
+
+        decrRefCount(expirecmd);
+        serverLog(LL_DEBUG, "Appending expire operation to aof.");
+    }
+
+
+    /* It's OK for the side effect of lookupKeyRead. */
+    o = lookupKeyRead(db, keyobj);
+    serverAssert(o);
+    createDumpPayload(&payload, o);
+    dumpobj = createObject(OBJ_STRING, payload.io.buffer.ptr);
+
+    /* TODO: optimize the frequently called zmalloc. */
+    server.ssdb_client->argc = 5;
+    server.ssdb_client->argv = zmalloc(sizeof(robj *) * server.ssdb_client->argc);
+    server.ssdb_client->argv[0] = createObject(OBJ_STRING, (void *)(sdsnew("restore")));
+    server.ssdb_client->argv[1] = keyobj;
+    server.ssdb_client->argv[2] = llbufobj;
+    server.ssdb_client->argv[3] = dumpobj;
+    server.ssdb_client->argv[4] = createObject(OBJ_STRING, (void *)(sdsnew("replace")));
+
+    if (sendCommandToSSDB(server.ssdb_client) != C_OK)
+        serverLog(LL_WARNING, "sendCommandToSSDB: server.ssdb_client failed.");
+    else
+        serverLog(LL_DEBUG, "Evicting key: %s to SSDB.", (char *)(keyobj->ptr));
+
+    zfree(server.ssdb_client->argv);
+    decrRefCount(server.ssdb_client->argv[0]);
+    decrRefCount(server.ssdb_client->argv[2]);
+    decrRefCount(server.ssdb_client->argv[3]);
+    decrRefCount(server.ssdb_client->argv[4]);
+}
+
+
 /* ----------------------------------------------------------------------------
  * The external API for eviction: freeMemroyIfNeeded() is called by the
  * server when there is data to add in order to make space if needed.
@@ -469,30 +552,7 @@ int freeMemoryIfNeeded(void) {
             robj *keyobj = createStringObject(bestkey,sdslen(bestkey));
 
             /* Transfer the selected key to EVICTED_DATA_DBID. */
-            if (server.jdjr_mode) {
-                incrRefCount(keyobj);
-
-                redisDb *evicteddb = server.db + EVICTED_DATA_DBID;
-                long long expiretime = getExpire(db, keyobj);
-
-                setKey(evicteddb, keyobj, shared.space);
-                server.dirty ++;
-                if (expiretime) setExpire(evicteddb, keyobj, expiretime);
-                notifyKeyspaceEvent(NOTIFY_STRING,"set",keyobj,evicteddb->id);
-                if (expiretime) notifyKeyspaceEvent(NOTIFY_GENERIC,
-                                                    "expire",keyobj,evicteddb->id);
-
-                sds cmdname = sdsnew("set");
-                robj *setcmd = createObject(OBJ_STRING, (void *)cmdname);
-                robj *argv[3] = {setcmd, keyobj, shared.space};
-
-                propagate(lookupCommand(cmdname), EVICTED_DATA_DBID, argv, 3,
-                          PROPAGATE_AOF | PROPAGATE_REPL);
-
-                decrRefCount(setcmd);
-
-                serverLog(LL_DEBUG, "Evicting key: %s to SSDB.", (char *)(keyobj->ptr));
-            }
+            if (server.jdjr_mode) evictingDataToSSDB(keyobj, db);
 
             propagateExpire(db,keyobj,server.lazyfree_lazy_eviction);
             /* We compute the amount of memory freed by db*Delete() alone.

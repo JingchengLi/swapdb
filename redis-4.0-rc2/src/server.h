@@ -885,7 +885,7 @@ struct redisServer {
     int ipfd[CONFIG_BINDADDR_MAX]; /* TCP socket file descriptors */
     int ipfd_count;             /* Used slots in ipfd[] */
     int sofd;                   /* Unix socket file descriptor */
-    int ssdb_client_sofd;       /* Unix socket file descriptor used for ssdb. */
+    client *ssdb_client;        /* client for ssdb_client_sofd. */
     int cfd[CONFIG_BINDADDR_MAX];/* Cluster bus listening socket */
     int cfd_count;              /* Used slots in cfd[] */
     list *clients;              /* List of active clients */
@@ -1593,6 +1593,7 @@ struct redisMemOverhead *getMemoryOverheadData(void);
 void freeMemoryOverheadData(struct redisMemOverhead *mh);
 
 #define EVICTED_DATA_DBID (server.dbnum)
+#define EVICTED_DATA_DB (server.db + server.dbnum)
 
 #define RESTART_SERVER_NONE 0
 #define RESTART_SERVER_GRACEFULLY (1<<0)     /* Do proper shutdown. */

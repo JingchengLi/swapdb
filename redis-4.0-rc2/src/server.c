@@ -267,7 +267,7 @@ struct redisCommand redisCommandTable[] = {
     {"watch",watchCommand,-2,"sF",0,NULL,1,-1,1,0,0},
     {"unwatch",unwatchCommand,1,"sF",0,NULL,0,0,0,0,0},
     {"cluster",clusterCommand,-2,"a",0,NULL,0,0,0,0,0},
-    {"restore",restoreCommand,-4,"wm",0,NULL,1,1,1,0,0},
+    {"restore",restoreCommand,-4,"wmJ",0,NULL,1,1,1,0,0},
     {"restore-asking",restoreCommand,-4,"wmk",0,NULL,1,1,1,0,0},
     {"migrate",migrateCommand,-6,"w",0,migrateGetKeys,0,0,0,0,0},
     {"asking",askingCommand,1,"F",0,NULL,0,0,0,0,0},
@@ -1324,7 +1324,7 @@ void initServerConfig(void) {
     server.unixsocketperm = CONFIG_DEFAULT_UNIX_SOCKET_PERM;
     server.ipfd_count = 0;
     server.sofd = -1;
-    server.ssdb_client_sofd = -1;
+    server.ssdb_client = NULL;
     server.protected_mode = CONFIG_DEFAULT_PROTECTED_MODE;
     server.jdjr_mode = CONFIG_DEFAULT_JDJR_MODE;
     server.dbnum = CONFIG_DEFAULT_DBNUM;
@@ -1782,21 +1782,13 @@ void initServer(void) {
         anetNonBlock(NULL,server.sofd);
     }
 
-    /* Connecting to SSDB unix socket. Check if SSDB server is ready. */
-    if (server.jdjr_mode && server.ssdb_server_unixsocket != NULL) {
-        server.ssdb_client_sofd = anetUnixNonBlockConnect(
-             server.neterr, server.ssdb_server_unixsocket);
-        if (server.ssdb_client_sofd == ANET_ERR) {
-             serverLog(LL_WARNING, "Connectiong to SSDB Unix socket: %s",
-                       server.neterr);
-             exit(1);
-        } else
-             serverLog(LL_NOTICE, "Connectiong to SSDB Unix socket succeeded.");
-    }
+    /* Connecting to SSDB unix socket, create a client for evciting data to SSDB,
+       and check if SSDB server is ready. */
+    if (server.jdjr_mode && createClientForEvicting() != C_OK)
+        exit(1);
 
     /* Abort if there are no listening sockets at all. */
-    if (server.ipfd_count == 0 && server.sofd < 0
-        && server.ssdb_client_sofd < 0) {
+    if (server.ipfd_count == 0 && server.sofd < 0) {
         serverLog(LL_WARNING, "Configured to not listen anywhere, exiting.");
         exit(1);
     }
@@ -2445,7 +2437,6 @@ void closeListeningSockets(int unlink_unix_socket) {
 
     for (j = 0; j < server.ipfd_count; j++) close(server.ipfd[j]);
     if (server.sofd != -1) close(server.sofd);
-    if (server.ssdb_client_sofd != -1) close(server.ssdb_client_sofd);
     if (server.cluster_enabled)
         for (j = 0; j < server.cfd_count; j++) close(server.cfd[j]);
     if (unlink_unix_socket && server.unixsocket) {

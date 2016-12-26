@@ -599,7 +599,7 @@ int clientHasPendingReplies(client *c) {
 }
 
 /* Connecting to SSDB unix socket. */
-static void nonBlockConnectToSsdbServer(client *c) {
+static int nonBlockConnectToSsdbServer(client *c) {
     redisContext *context = NULL;
     if (server.ssdb_server_unixsocket != NULL) {
         context = redisConnectUnixNonBlock(server.ssdb_server_unixsocket);
@@ -607,7 +607,7 @@ static void nonBlockConnectToSsdbServer(client *c) {
         if (context->err) {
             serverLog(LL_VERBOSE, "Could not connect to SSDB server.");
             redisFree(context);
-            return;
+            return C_ERR;
         } else
             c->context = context;
 
@@ -617,9 +617,13 @@ static void nonBlockConnectToSsdbServer(client *c) {
                               AE_READABLE, ssdbClientUnixHandler, c) == AE_ERR)
             serverLog(LL_VERBOSE, "Unrecoverable error creating ssdbFd file event.");
         else
-            serverLog(LL_DEBUG, "rfd:%d connectiong to SSDB Unix socket succeeded: sfd:%d",
+            serverLog(LL_DEBUG, "rfd:%d connecting to SSDB Unix socket succeeded: sfd:%d",
                       c->fd, c->context->fd);
+
+        return C_OK;
     }
+
+    return C_ERR;
 }
 
 /* TODO: Implement sendCommandToSSDB. Querying SSDB server if querying redis fails. */
@@ -632,7 +636,6 @@ int sendCommandToSSDB(client *c) {
     cmdinfo = lookupCommand(c->argv[0]->ptr);
     if (!cmdinfo
         || !(cmdinfo->flags & CMD_JDJR_MODE)
-        || !(cmdinfo->flags & CMD_READONLY)
         /* TODO: support multi and pipeline. */
         || (c->flags & CLIENT_MULTI))
         return C_ERR;
@@ -657,7 +660,7 @@ int sendCommandToSSDB(client *c) {
 
     finalcmd = sdsnewlen(cmd, len);
 
-    zfree(cmd);
+    free(cmd);
 
      if (!finalcmd) {
           serverLog(LL_VERBOSE, "Expecting finalcmd not NULL.");
@@ -808,8 +811,12 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
     client * c = (client *)privdata;
     void *aux = NULL;
     redisReply *reply = NULL;
+    int ssdb_client_fd = -1;
 
-    if (!c || !c->lastcmd || !c->context)
+    if (server.ssdb_client) ssdb_client_fd = server.ssdb_client->fd;
+
+    if (!c || !c->context
+        || (!c->lastcmd && fd != ssdb_client_fd))
         return;
 
     redisReader *r = c->context->reader;
@@ -817,7 +824,8 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
     /* TODO: Considering redis pipeline. */
     do {
         int oldlen = r->len;
-        if (redisBufferRead(c->context) == REDIS_OK)
+        if (redisBufferRead(c->context) == REDIS_OK
+            && fd != ssdb_client_fd)
             addReplyString(c, r->buf + oldlen, r->len - oldlen);
 
         if (redisGetReplyFromReader(c->context, &aux) == REDIS_ERR)
@@ -825,7 +833,29 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
     } while (aux == NULL);
 
     reply = (redisReply *)aux;
+    if (reply->type == REDIS_REPLY_ERROR)
+        serverLog(LL_WARNING, "Reply from SSDB is ERROR.");
+
     if (reply) freeReplyObject(reply);
+}
+
+/* Create a client for evciting data to SSDB. */
+int createClientForEvicting() {
+    if (server.ssdb_client && server.ssdb_client->fd != -1)
+        unlinkClient(server.ssdb_client);
+
+    server.ssdb_client = createClient(-1);
+    if (!server.ssdb_client) {
+        serverLog(LL_WARNING, "Error creating new client.");
+        return C_ERR;
+    }
+
+    if (nonBlockConnectToSsdbServer(server.ssdb_client) == C_OK) {
+        server.ssdb_client->fd = server.ssdb_client->context->fd;
+        listAddNodeTail(server.clients, server.ssdb_client);
+    }
+
+    return C_OK;
 }
 
 static void freeClientArgv(client *c) {
@@ -1433,6 +1463,7 @@ void processInputBuffer(client *c) {
             if (server.jdjr_mode
                 && c->argc > 1
                 && !dictFind(c->db->dict, c->argv[1]->ptr)
+                && dictFind(EVICTED_DATA_DB->dict, c->argv[1]->ptr)
                 && sendCommandToSSDB(c) == C_OK)
                 resetClient(c);
             else if (processCommand(c) == C_OK)
