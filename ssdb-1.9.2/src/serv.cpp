@@ -136,6 +136,7 @@ DEF_PROC(flushdb);
 
 DEF_PROC(dump);
 DEF_PROC(restore);
+DEF_PROC(select);
 
 
 
@@ -260,6 +261,7 @@ void SSDBServer::reg_procs(NetworkServer *net){
 
 	REG_PROC(dump, "wt"); //auctual read but ...
 	REG_PROC(restore, "wt");
+	REG_PROC(select, "rt");
 
 
 	REG_PROC(clear_binlog, "wt");
@@ -367,6 +369,13 @@ int proc_flushdb(NetworkServer *net, Link *link, const Request &req, Response *r
 		return 0;
 	}
 	serv->ssdb->flushdb();
+	resp->push_back("ok");
+	return 0;
+}
+
+int proc_select(NetworkServer *net, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *)net->data;
+
 	resp->push_back("ok");
 	return 0;
 }
