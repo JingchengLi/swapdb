@@ -5,24 +5,25 @@ found in the LICENSE file.
 */
 #include "ssdb_impl.h"
 
-static int hset_one(SSDBImpl *ssdb, const Bytes &name, const Bytes &key, const Bytes &val, char log_type);
-static int hdel_one(SSDBImpl *ssdb, const Bytes &name, const Bytes &key, char log_type);
-static int incr_hsize(SSDBImpl *ssdb, const Bytes &name, int64_t incr);
+static int hset_one(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &name, const Bytes &key, const Bytes &val);
+static int hdel_one(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &name, const Bytes &key);
+static int incr_hsize(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &name, int64_t incr);
 
 /**
  * @return -1: error, 0: item updated, 1: new item inserted
  */
 int SSDBImpl::hset(const Bytes &name, const Bytes &key, const Bytes &val, char log_type){
-	Transaction trans(binlogs);
+	RecordLock l(&mutex_record_, name.String());
+	leveldb::WriteBatch batch;
 
-	int ret = hset_one(this, name, key, val, log_type);
+	int ret = hset_one(this, batch, name, key, val);
 	if(ret >= 0){
 		if(ret > 0){
-			if(incr_hsize(this, name, ret) == -1){
+			if(incr_hsize(this, batch, name, ret) == -1){
 				return -1;
 			}
 		}
-		leveldb::Status s = binlogs->commit();
+		leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
 		if(!s.ok()){
 			return -1;
 		}
@@ -31,16 +32,17 @@ int SSDBImpl::hset(const Bytes &name, const Bytes &key, const Bytes &val, char l
 }
 
 int SSDBImpl::hdel(const Bytes &name, const Bytes &key, char log_type){
-	Transaction trans(binlogs);
+	RecordLock l(&mutex_record_, name.String());
+	leveldb::WriteBatch batch;
 
-	int ret = hdel_one(this, name, key, log_type);
+	int ret = hdel_one(this, batch, name, key);
 	if(ret >= 0){
 		if(ret > 0){
-			if(incr_hsize(this, name, -ret) == -1){
+			if(incr_hsize(this, batch, name, -ret) == -1){
 				return -1;
 			}
 		}
-		leveldb::Status s = binlogs->commit();
+		leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
 		if(!s.ok()){
 			return -1;
 		}
@@ -49,7 +51,8 @@ int SSDBImpl::hdel(const Bytes &name, const Bytes &key, char log_type){
 }
 
 int SSDBImpl::hincr(const Bytes &name, const Bytes &key, int64_t by, int64_t *new_val, char log_type){
-	Transaction trans(binlogs);
+	RecordLock l(&mutex_record_, name.String());
+	leveldb::WriteBatch batch;
 
 	std::string old;
 	int ret = this->hget(name, key, &old);
@@ -69,17 +72,17 @@ int SSDBImpl::hincr(const Bytes &name, const Bytes &key, int64_t by, int64_t *ne
         *new_val = oldvalue + by;
 	}
 
-	ret = hset_one(this, name, key, str(*new_val), log_type);
+	ret = hset_one(this, batch, name, key, str(*new_val));
 	if(ret == -1){
 		return -1;
 	}
 	if(ret >= 0){
 		if(ret > 0){
-			if(incr_hsize(this, name, ret) == -1){
+			if(incr_hsize(this, batch, name, ret) == -1){
 				return -1;
 			}
 		}
-		leveldb::Status s = binlogs->commit();
+		leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
 		if(!s.ok()){
 			return -1;
 		}
@@ -98,7 +101,7 @@ int64_t SSDBImpl::hsize(const Bytes &name){
 	}
 }
 
-int SSDBImpl::HDelKeyNoLock(const Bytes &name, char log_type){
+int SSDBImpl::HDelKeyNoLock(leveldb::WriteBatch &batch, const Bytes &name){
     HashMetaVal hv;
     std::string meta_key = encode_meta_key(name);
     int ret = GetHashMetaVal(meta_key, hv);
@@ -117,7 +120,7 @@ int SSDBImpl::HDelKeyNoLock(const Bytes &name, char log_type){
     HIterator *it = this->hscan_internal(name, "", "", hv.version, -1);
     int num = 0;
     while(it->next()){
-        ret = hdel_one(this, name, it->key, log_type);
+        ret = hdel_one(this, batch, name, it->key);
         if (-1 == ret){
             return -1;
         } else if (ret > 0){
@@ -125,7 +128,7 @@ int SSDBImpl::HDelKeyNoLock(const Bytes &name, char log_type){
         }
     }
     if (num > 0){
-        if(incr_hsize(this, name, -num) == -1){
+        if(incr_hsize(this, batch, name, -num) == -1){
             return -1;
         }
     }
@@ -134,12 +137,13 @@ int SSDBImpl::HDelKeyNoLock(const Bytes &name, char log_type){
 }
 
 int64_t SSDBImpl::hclear(const Bytes &name){
-    Transaction trans(binlogs);
+	RecordLock l(&mutex_record_, name.String());
+	leveldb::WriteBatch batch;
 
-    int num = HDelKeyNoLock(name);
+    int num = HDelKeyNoLock(batch, name);
 
     if (num > 0){
-        leveldb::Status s = binlogs->commit();
+		leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
         if (!s.ok()){
             return -1;
         }
@@ -302,7 +306,7 @@ int SSDBImpl::GetHashItemValInternal(const std::string &item_key, std::string *v
 }
 
 // returns the number of newly added items
-static int hset_one(SSDBImpl *ssdb, const Bytes &name, const Bytes &key, const Bytes &val, char log_type){
+static int hset_one(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &name, const Bytes &key, const Bytes &val){
 	int ret = 0;
 	std::string dbval;
 	HashMetaVal hv;
@@ -318,13 +322,11 @@ static int hset_one(SSDBImpl *ssdb, const Bytes &name, const Bytes &key, const B
             version = (uint16_t)(hv.version+1);
         }
 		std::string hkey = encode_hash_key(name, key, version);
-		ssdb->binlogs->Put(hkey, slice(val));
-		ssdb->binlogs->add_log(log_type, BinlogCommand::HSET, hkey);
+		batch.Put(hkey, slice(val));
 		ret = 1;
 	} else if (ret == 0){
 		std::string hkey = encode_hash_key(name, key);
-		ssdb->binlogs->Put(hkey, slice(val));
-		ssdb->binlogs->add_log(log_type, BinlogCommand::HSET, hkey);
+		batch.Put(hkey, slice(val));
 		ret = 1;
 	} else{
 		std::string item_key = encode_hash_key(name, key, hv.version);
@@ -332,13 +334,11 @@ static int hset_one(SSDBImpl *ssdb, const Bytes &name, const Bytes &key, const B
 		if (ret == -1){
 			return -1;
 		} else if (ret == 0){
-			ssdb->binlogs->Put(item_key, slice(val));
-			ssdb->binlogs->add_log(log_type, BinlogCommand::HSET, item_key);
+			batch.Put(item_key, slice(val));
 			ret = 1;
 		} else{
 			if(dbval != val){
-				ssdb->binlogs->Put(item_key, slice(val));
-				ssdb->binlogs->add_log(log_type, BinlogCommand::HSET, item_key);
+				batch.Put(item_key, slice(val));
 			}
 			ret = 0;
 		}
@@ -346,7 +346,7 @@ static int hset_one(SSDBImpl *ssdb, const Bytes &name, const Bytes &key, const B
 	return ret;
 }
 
-static int hdel_one(SSDBImpl *ssdb, const Bytes &name, const Bytes &key, char log_type){
+static int hdel_one(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &name, const Bytes &key){
 	int ret = 0;
 	std::string dbval;
 	HashMetaVal hv;
@@ -360,13 +360,12 @@ static int hdel_one(SSDBImpl *ssdb, const Bytes &name, const Bytes &key, char lo
 	if (ret != 1){
 		return ret;
 	}
-	ssdb->binlogs->Delete(hkey);
-	ssdb->binlogs->add_log(log_type, BinlogCommand::HDEL, hkey);
+	batch.Delete(hkey);
 	
 	return 1;
 }
 
-static int incr_hsize(SSDBImpl *ssdb, const Bytes &name, int64_t incr){
+static int incr_hsize(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &name, int64_t incr){
 	HashMetaVal hv;
 	std::string size_key = encode_meta_key(name);
 	int ret = ssdb->GetHashMetaVal(size_key, hv);
@@ -381,14 +380,14 @@ static int incr_hsize(SSDBImpl *ssdb, const Bytes &name, int64_t incr){
                 version = (uint16_t)(hv.version+1);
             }
 			std::string size_val = encode_hash_meta_val((uint64_t)incr, version);
-			ssdb->binlogs->Put(size_key, size_val);
+			batch.Put(size_key, size_val);
 		} else{
 			return -1;
 		}
 	} else if (ret == 0){
 		if (incr > 0){
 			std::string size_val = encode_hash_meta_val((uint64_t)incr);
-			ssdb->binlogs->Put(size_key, size_val);
+			batch.Put(size_key, size_val);
 		} else{
 			return -1;
 		}
@@ -406,12 +405,12 @@ static int incr_hsize(SSDBImpl *ssdb, const Bytes &name, int64_t incr){
 		if (len == 0){
 			std::string del_key = encode_delete_key(name.String(), hv.version);
 			std::string meta_val = encode_hash_meta_val(hv.length, hv.version, KEY_DELETE_MASK);
-			ssdb->binlogs->Put(del_key, "");
-			ssdb->binlogs->Put(size_key, meta_val);
-			ssdb->edel_one(name); //del expire ET key
+			batch.Put(del_key, "");
+			batch.Put(size_key, meta_val);
+			ssdb->edel_one(batch, name); //del expire ET key
 		} else{
 			std::string size_val = encode_hash_meta_val(len, hv.version);
-			ssdb->binlogs->Put(size_key, size_val);
+			batch.Put(size_key, size_val);
 		}
 	}
 

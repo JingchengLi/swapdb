@@ -34,7 +34,7 @@ int SSDBImpl::GetSetItemValInternal(const std::string &item_key){
     return 1;
 }
 
-int SSDBImpl::sadd_one(const Bytes &key, const Bytes &member, char log_type) {
+int SSDBImpl::sadd_one(leveldb::WriteBatch &batch, const Bytes &key, const Bytes &member) {
     int ret = 0;
     std::string dbval;
     SetMetaVal sv;
@@ -50,13 +50,11 @@ int SSDBImpl::sadd_one(const Bytes &key, const Bytes &member, char log_type) {
             version = (uint16_t)(sv.version+1);
         }
         std::string hkey = encode_set_key(key, member, version);
-        binlogs->Put(hkey, slice(""));
-        binlogs->add_log(log_type, BinlogCommand::SSET, hkey);
+        batch.Put(hkey, slice(""));
         ret = 1;
     } else if (ret == 0){
         std::string hkey = encode_set_key(key, member);
-        binlogs->Put(hkey, slice(""));
-        binlogs->add_log(log_type, BinlogCommand::SSET, hkey);
+        batch.Put(hkey, slice(""));
         ret = 1;
     } else{
         std::string item_key = encode_set_key(key, member, sv.version);
@@ -66,15 +64,14 @@ int SSDBImpl::sadd_one(const Bytes &key, const Bytes &member, char log_type) {
         } else if (ret == 1){
             ret = 0;
         } else{
-            binlogs->Put(item_key, slice(""));
-            binlogs->add_log(log_type, BinlogCommand::SSET, item_key);
+            batch.Put(item_key, slice(""));
             ret = 1;
         }
     }
     return ret;
 }
 
-int SSDBImpl::srem_one(const Bytes &key, const Bytes &member, char log_type) {
+int SSDBImpl::srem_one(leveldb::WriteBatch &batch, const Bytes &key, const Bytes &member) {
     SetMetaVal sv;
     std::string meta_key = encode_meta_key(key.String());
     int ret = GetSetMetaVal(meta_key, sv);
@@ -86,13 +83,12 @@ int SSDBImpl::srem_one(const Bytes &key, const Bytes &member, char log_type) {
     if (ret != 1){
         return ret;
     }
-    binlogs->Delete(hkey);
-    binlogs->add_log(log_type, BinlogCommand::SDEL, hkey);
+    batch.Delete(hkey);
 
     return 1;
 }
 
-int SSDBImpl::incr_ssize(const Bytes &key, int64_t incr){
+int SSDBImpl::incr_ssize(leveldb::WriteBatch &batch, const Bytes &key, int64_t incr){
     SetMetaVal sv;
     std::string meta_key = encode_meta_key(key.String());
     int ret = GetSetMetaVal(meta_key, sv);
@@ -107,14 +103,14 @@ int SSDBImpl::incr_ssize(const Bytes &key, int64_t incr){
                 version = (uint16_t)(sv.version+1);
             }
             std::string size_val = encode_set_meta_val((uint64_t)incr, version);
-            binlogs->Put(meta_key, size_val);
+            batch.Put(meta_key, size_val);
         } else{
             return -1;
         }
     } else if (ret == 0){
         if (incr > 0){
             std::string size_val = encode_set_meta_val((uint64_t)incr);
-            binlogs->Put(meta_key, size_val);
+            batch.Put(meta_key, size_val);
         } else{
             return -1;
         }
@@ -132,12 +128,12 @@ int SSDBImpl::incr_ssize(const Bytes &key, int64_t incr){
         if (len == 0){
             std::string del_key = encode_delete_key(key, sv.version);
             std::string meta_val = encode_set_meta_val(sv.length, sv.version, KEY_DELETE_MASK);
-            binlogs->Put(del_key, "");
-            binlogs->Put(meta_key, meta_val);
-            this->edel_one(key); //del expire ET key
+            batch.Put(del_key, "");
+            batch.Put(meta_key, meta_val);
+            this->edel_one(batch, key); //del expire ET key
         } else{
             std::string size_val = encode_set_meta_val(len, sv.version);
-            binlogs->Put(meta_key, size_val);
+            batch.Put(meta_key, size_val);
         }
     }
 
@@ -157,16 +153,17 @@ SIterator* SSDBImpl::sscan_internal(const Bytes &name, const Bytes &start, const
 }
 
 int SSDBImpl::sadd(const Bytes &key, const Bytes &member, char log_type){
-    Transaction trans(binlogs);
+    RecordLock l(&mutex_record_, key.String());
+    leveldb::WriteBatch batch;
 
-    int ret = sadd_one(key, member, log_type);
+    int ret = sadd_one(batch, key, member);
     if (ret >= 0){
         if(ret > 0){
-            if(incr_ssize(key, ret) == -1){
+            if(incr_ssize(batch, key, ret) == -1){
                 return -1;
             }
         }
-        leveldb::Status s = binlogs->commit();
+        leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
         if(!s.ok()){
             return -1;
         }
@@ -175,7 +172,8 @@ int SSDBImpl::sadd(const Bytes &key, const Bytes &member, char log_type){
 }
 
 int SSDBImpl::multi_sadd(const Bytes &key, const std::vector<Bytes> &members, int64_t *num, char log_type) {
-    Transaction trans(binlogs);
+    RecordLock l(&mutex_record_, key.String());
+    leveldb::WriteBatch batch;
 
     int ret = 0;
     SetMetaVal sv;
@@ -203,13 +201,11 @@ int SSDBImpl::multi_sadd(const Bytes &key, const std::vector<Bytes> &members, in
                 version = (uint16_t)(sv.version+1);
             }
             std::string hkey = encode_set_key(key, member, version);
-            binlogs->Put(hkey, slice(""));
-            binlogs->add_log(log_type, BinlogCommand::SSET, hkey);
+            batch.Put(hkey, slice(""));
             change = 1;
         } else if (ret == 0){
             std::string hkey = encode_set_key(key, member);
-            binlogs->Put(hkey, slice(""));
-            binlogs->add_log(log_type, BinlogCommand::SSET, hkey);
+            batch.Put(hkey, slice(""));
             change = 1;
         } else{
             std::string item_key = encode_set_key(key, member, sv.version);
@@ -219,8 +215,7 @@ int SSDBImpl::multi_sadd(const Bytes &key, const std::vector<Bytes> &members, in
             } else if (s == 1){
                 change = 0;
             } else{
-                binlogs->Put(item_key, slice(""));
-                binlogs->add_log(log_type, BinlogCommand::SSET, item_key);
+                batch.Put(item_key, slice(""));
                 change = 1;
             }
         }
@@ -228,11 +223,11 @@ int SSDBImpl::multi_sadd(const Bytes &key, const std::vector<Bytes> &members, in
     }
 
     if (*num > 0){
-        if(incr_ssize(key, *num) == -1){
+        if(incr_ssize(batch, key, *num) == -1){
             return -1;
         }
     }
-    leveldb::Status s = binlogs->commit();
+    leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
     if(!s.ok()){
         return -1;
     }
@@ -241,7 +236,8 @@ int SSDBImpl::multi_sadd(const Bytes &key, const std::vector<Bytes> &members, in
 }
 
 int SSDBImpl::multi_srem(const Bytes &key, const std::vector<Bytes> &members, int64_t *num, char log_type) {
-    Transaction trans(binlogs);
+    RecordLock l(&mutex_record_, key.String());
+    leveldb::WriteBatch batch;
 
     int ret = 0;
     *num = 0;
@@ -258,19 +254,18 @@ int SSDBImpl::multi_srem(const Bytes &key, const std::vector<Bytes> &members, in
         int s = GetSetItemValInternal(hkey);
         if (s == 1){
             *num += 1;
-            binlogs->Delete(hkey);
-            binlogs->add_log(log_type, BinlogCommand::SDEL, hkey);
+            batch.Delete(hkey);
         } else if (s == -1){
             return -1;
         }
     }
 
     if (*num > 0){
-        if(incr_ssize(key, (-1)*(*num)) == -1){
+        if(incr_ssize(batch, key, (-1)*(*num)) == -1){
             return -1;
         }
     }
-    leveldb::Status s = binlogs->commit();
+    leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
     if(!s.ok()){
         return -1;
     }
@@ -279,16 +274,17 @@ int SSDBImpl::multi_srem(const Bytes &key, const std::vector<Bytes> &members, in
 }
 
 int SSDBImpl::srem(const Bytes &key, const Bytes &member, char log_type) {
-    Transaction trans(binlogs);
+    RecordLock l(&mutex_record_, key.String());
+    leveldb::WriteBatch batch;
 
-    int ret = srem_one(key, member, log_type);
+    int ret = srem_one(batch, key, member);
     if(ret >= 0){
         if(ret > 0){
-            if(incr_ssize(key, -ret) == -1){
+            if(incr_ssize(batch, key, -ret) == -1){
                 return -1;
             }
         }
-        leveldb::Status s = binlogs->commit();
+        leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
         if(!s.ok()){
             return -1;
         }
@@ -363,13 +359,14 @@ int SSDBImpl::sunion_internal(const std::vector<Bytes> &keys, int offset, std::s
 }
 
 int SSDBImpl::sunion(const std::vector<Bytes> &keys, std::set<std::string> &members) {
-    Transaction trans(binlogs);
+    Transaction trans(binlogs);//TODO
 
     return sunion_internal(keys, 1, members);
 }
 
 int SSDBImpl::sunionstore(const Bytes &destination, const std::vector<Bytes> &keys, int64_t *num, char log_type) {
-    Transaction trans(binlogs);
+//    RecordLock l(&mutex_record_, key.String());//TODO
+    leveldb::WriteBatch batch;
 
     std::set<std::string> members;
     int ret = sunion_internal(keys, 2, members);
@@ -377,7 +374,7 @@ int SSDBImpl::sunionstore(const Bytes &destination, const std::vector<Bytes> &ke
         return -1;
     }
 
-    ret = del_key_internal(destination, log_type);
+    ret = del_key_internal(batch, destination);
     if (ret < 0){
         return ret;
     }
@@ -390,10 +387,10 @@ int SSDBImpl::sunionstore(const Bytes &destination, const std::vector<Bytes> &ke
     if(s.IsNotFound()){
         for (; it != members.end(); ++it) {
             std::string hkey = encode_set_key(destination, *it);
-            binlogs->Put(hkey, slice(""));
+            batch.Put(hkey, slice(""));
         }
         std::string size_val = encode_set_meta_val((uint64_t)(*num));
-        binlogs->Put(meta_key, size_val);
+        batch.Put(meta_key, size_val);
     } else if(s.ok()){
         uint16_t version = *(uint16_t *)(val.c_str()+1);
         version = be16toh(version);
@@ -404,16 +401,16 @@ int SSDBImpl::sunionstore(const Bytes &destination, const std::vector<Bytes> &ke
         }
         for (; it != members.end(); ++it) {
             std::string hkey = encode_set_key(destination, *it, version);
-            binlogs->Put(hkey, slice(""));
+            batch.Put(hkey, slice(""));
         }
         std::string size_val = encode_set_meta_val((uint64_t)(*num), version);
-        binlogs->Put(meta_key, size_val);
+        batch.Put(meta_key, size_val);
     } else if(!s.ok()){
         log_error("get error: %s", s.ToString().c_str());
         return -1;
     }
 
-    s = binlogs->commit();
+    s = ldb->Write(leveldb::WriteOptions(), &(batch));
     if(!s.ok()){
         return -1;
     }
@@ -421,7 +418,7 @@ int SSDBImpl::sunionstore(const Bytes &destination, const std::vector<Bytes> &ke
     return 1;
 }
 
-int64_t SSDBImpl::SDelKeyNoLock(const Bytes &name, char log_type) {
+int64_t SSDBImpl::SDelKeyNoLock(leveldb::WriteBatch &batch, const Bytes &name) {
     SetMetaVal sv;
     std::string meta_key = encode_meta_key(name);
     int s = GetSetMetaVal(meta_key, sv);
@@ -432,8 +429,8 @@ int64_t SSDBImpl::SDelKeyNoLock(const Bytes &name, char log_type) {
     if (sv.length > MAX_NUM_DELETE){
         std::string del_key = encode_delete_key(name, sv.version);
         std::string meta_val = encode_set_meta_val(sv.length, sv.version, KEY_DELETE_MASK);
-        binlogs->Put(del_key, "");
-        binlogs->Put(meta_key, meta_val);
+        batch.Put(del_key, "");
+        batch.Put(meta_key, meta_val);
         return (int64_t)sv.length;
     }
 
@@ -441,11 +438,11 @@ int64_t SSDBImpl::SDelKeyNoLock(const Bytes &name, char log_type) {
     int num = 0;
     while (it->next()){
         std::string hkey = encode_set_key(name, it->key, sv.version);
-        binlogs->Delete(hkey);
+        batch.Delete(hkey);
         num++;
     }
     if (num > 0){
-        if(incr_ssize(name, -num) == -1){
+        if(incr_ssize(batch, name, -num) == -1){
             return -1;
         }
     }
@@ -454,12 +451,13 @@ int64_t SSDBImpl::SDelKeyNoLock(const Bytes &name, char log_type) {
 }
 
 int64_t SSDBImpl::sclear(const Bytes &name) {
-    Transaction trans(binlogs);
+    RecordLock l(&mutex_record_, name.String());
+    leveldb::WriteBatch batch;
 
-    int64_t num = SDelKeyNoLock(name);
+    int64_t num = SDelKeyNoLock(batch, name);
 
     if (num > 0){
-        leveldb::Status s = binlogs->commit();
+        leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
         if (!s.ok()){
             return -1;
         }

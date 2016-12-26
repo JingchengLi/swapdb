@@ -135,14 +135,14 @@ public:
 	virtual int lrange(const Bytes &key, int64_t start, int64_t end, std::vector<std::string> *list);
     int     GetListMetaVal(const std::string& meta_key, ListMetaVal& lv);
     int     GetListItemVal(const std::string& item_key, std::string* val);
-    int     DoLPush(ListMetaVal &meta_val, const Bytes &key, const Bytes &val, std::string &meta_key);
-    int     DoLPush(ListMetaVal &meta_val, const Bytes &key, const std::vector<Bytes> &val, int offset, std::string &meta_key);
-    int     DoFirstLPush(const Bytes &key, const std::vector<Bytes> &val, int offset, const std::string &meta_key, uint16_t version);
-    void    PushFirstListItem(const Bytes &key, const Bytes &val, const std::string &meta_key, uint16_t version);
-	int 	DoRPop(ListMetaVal &meta_val, const Bytes &key, std::string &meta_key, std::string *val);
-	int 	DoRPush(ListMetaVal &meta_val, const Bytes &key, const Bytes &val, std::string &meta_key);
-    int     DoRPush(const Bytes &key, const std::vector<Bytes> &val, int offset, std::string &meta_key, ListMetaVal &meta_val);
-    int64_t LDelKeyNoLock(const Bytes &name, char log_type=BinlogType::SYNC);
+    int     DoLPush(leveldb::WriteBatch &batch, ListMetaVal &meta_val, const Bytes &key, const Bytes &val, std::string &meta_key);
+    int     DoLPush(leveldb::WriteBatch &batch, ListMetaVal &meta_val, const Bytes &key, const std::vector<Bytes> &val, int offset, std::string &meta_key);
+    int     DoFirstLPush(leveldb::WriteBatch &batch, const Bytes &key, const std::vector<Bytes> &val, int offset, const std::string &meta_key, uint16_t version);
+    void    PushFirstListItem(leveldb::WriteBatch &batch, const Bytes &key, const Bytes &val, const std::string &meta_key, uint16_t version);
+	int 	DoRPop(leveldb::WriteBatch &batch, ListMetaVal &meta_val, const Bytes &key, std::string &meta_key, std::string *val);
+	int 	DoRPush(leveldb::WriteBatch &batch, ListMetaVal &meta_val, const Bytes &key, const Bytes &val, std::string &meta_key);
+    int     DoRPush(leveldb::WriteBatch &batch, const Bytes &key, const std::vector<Bytes> &val, int offset, std::string &meta_key, ListMetaVal &meta_val);
+    int64_t LDelKeyNoLock(leveldb::WriteBatch &batch, const Bytes &name, char log_type=BinlogType::SYNC);
 
     /* set */
     virtual int sadd(const Bytes &key, const Bytes &member, char log_type=BinlogType::SYNC);
@@ -159,7 +159,7 @@ public:
 	/* zset */
 	virtual int64_t zclear(const Bytes &name);
 	virtual int zset(const Bytes &name, const Bytes &key, const Bytes &score, char log_type=BinlogType::SYNC);
-    virtual int zsetNoLock(const Bytes &name, const Bytes &key, double score, char log_type=BinlogType::SYNC);
+    virtual int zsetNoLock(leveldb::WriteBatch &batch, const Bytes &name, const Bytes &key, double score);
 	virtual int zdel(const Bytes &name, const Bytes &key, char log_type=BinlogType::SYNC);
 	// -1: error, 1: ok, 0: value is not an integer or out of range
 	virtual int zincr(const Bytes &name, const Bytes &key, double by, double *new_val, char log_type=BinlogType::SYNC);
@@ -190,7 +190,7 @@ public:
 	virtual int64_t zfix(const Bytes &name);
 
 	virtual int GetZSetMetaVal(const std::string &meta_key, ZSetMetaVal &zv);
-    virtual int ZDelKeyNoLock(const Bytes &name, char log_type=BinlogType::SYNC);
+    virtual int ZDelKeyNoLock(leveldb::WriteBatch &batch, const Bytes &name);
 
     virtual int64_t qsize(const Bytes &name);
 	// @return 0: empty queue, 1: item peeked, -1: error
@@ -220,7 +220,7 @@ public:
 	virtual int esetNoLock(const Bytes &key, int64_t ts, char log_type=BinlogType::SYNC);
 	virtual int edel(const Bytes &key, char log_type=BinlogType::SYNC);
 	virtual int eget(const Bytes &key, int64_t *ts);
-	virtual int edel_one(const Bytes &key, char log_type=BinlogType::SYNC);
+	virtual int edel_one(leveldb::WriteBatch &batch, const Bytes &key);
     virtual int check_meta_key(const Bytes &key);
 
 
@@ -228,25 +228,25 @@ private:
 	int64_t _qpush(const Bytes &name, const Bytes &item, uint64_t front_or_back_seq, char log_type=BinlogType::SYNC);
 	int _qpop(const Bytes &name, std::string *item, uint64_t front_or_back_seq, char log_type=BinlogType::SYNC);
 
-	int SetGeneric(const std::string &key, const std::string &val, int flags, const int64_t expire, char log_type=BinlogType::SYNC);
+	int SetGeneric(leveldb::WriteBatch &batch, const std::string &key, const std::string &val, int flags, const int64_t expire);
     int KDel(const Bytes &key, char log_type=BinlogType::SYNC);
-	int KDelNoLock(const Bytes &key, char log_type=BinlogType::SYNC);
-	int DelKeyByType(const Bytes &key, const std::string &type);
+	int KDelNoLock(leveldb::WriteBatch &batch, const Bytes &key);
+	int DelKeyByType(leveldb::WriteBatch &batch, const Bytes &key, const std::string &type);
     int GetKvMetaVal(const std::string &meta_key, KvMetaVal &kv);
-    int del_key_internal(const Bytes &key, char log_type=BinlogType::SYNC);
+    int del_key_internal(leveldb::WriteBatch &batch, const Bytes &key);
 
     HIterator* hscan_internal(const Bytes &name, const Bytes &start, const Bytes &end, uint16_t version, uint64_t limit);
     HIterator* hrscan_internal(const Bytes &name, const Bytes &start, const Bytes &end, uint16_t version, uint64_t limit);
-	int HDelKeyNoLock(const Bytes &name, char log_type=BinlogType::SYNC);
+	int HDelKeyNoLock(leveldb::WriteBatch &batch, const Bytes &name);
 
     int GetSetMetaVal(const std::string &meta_key, SetMetaVal &sv);
     int GetSetItemValInternal(const std::string &item_key);
-    int sadd_one(const Bytes &key, const Bytes &member, char log_type);
-    int incr_ssize(const Bytes &key, int64_t incr);
-	int srem_one(const Bytes &key, const Bytes &member, char log_type);
+    int sadd_one(leveldb::WriteBatch &batch, const Bytes &key, const Bytes &member);
+    int incr_ssize(leveldb::WriteBatch &batch, const Bytes &key, int64_t incr);
+	int srem_one(leveldb::WriteBatch &batch, const Bytes &key, const Bytes &member);
     SIterator* sscan_internal(const Bytes &name, const Bytes &start, const Bytes &end, uint16_t version, uint64_t limit);
     int sunion_internal(const std::vector<Bytes> &keys, int offset, std::set<std::string>& members);
-	int64_t SDelKeyNoLock(const Bytes &name, char log_type=BinlogType::SYNC);
+	int64_t SDelKeyNoLock(leveldb::WriteBatch &batch, const Bytes &name);
 
 private:
 	//    pthread_mutex_t mutex_bgtask_;
@@ -255,6 +255,7 @@ private:
 	pthread_t bg_tid_;
     std::queue<std::string> tasks_;
 	CondVar bg_cv_;
+    RecordMutex mutex_record_;
 
 	void start();
 	void stop();

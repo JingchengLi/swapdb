@@ -235,13 +235,14 @@ int proc_zclear(NetworkServer *net, Link *link, const Request &req, Response *re
 
 	const Bytes &name = req[1];
 
-	int64_t count = serv->ssdb->ZDelKeyNoLock(name);
-    if (count > 0) {
-        leveldb::Status s =  serv->ssdb->binlogs->commit();
-        if (!s.ok()) {
-            count = -1;
-        }
-    }
+//	int64_t count = serv->ssdb->ZDelKeyNoLock(batch, name);
+//    if (count > 0) {
+//        leveldb::Status s =  serv->ssdb->binlogs->commit();
+//        if (!s.ok()) {
+//            count = -1;
+//        }
+//    }
+	int64_t count = serv->ssdb->zclear(name);
 
 	resp->reply_int(0, count);
 

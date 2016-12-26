@@ -44,11 +44,12 @@ int SSDBImpl::esetNoLock(const Bytes &key, int64_t ts, char log_type) {
 
 
 int SSDBImpl::edel(const Bytes &key, char log_type) {
-    Transaction trans(binlogs);
+    RecordLock l(&mutex_record_, key.String());
+    leveldb::WriteBatch batch;
 
-    int ret = edel_one(key, log_type);
+    int ret = edel_one(batch, key);
     if (ret >= 0) {
-        leveldb::Status s = binlogs->commit();
+        leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
         if (!s.ok()) {
             log_error("edel error: %s", s.ToString().c_str());
             return -1;
@@ -58,7 +59,7 @@ int SSDBImpl::edel(const Bytes &key, char log_type) {
     return ret;
 }
 
-int SSDBImpl::edel_one(const Bytes &key, char log_type) {
+int SSDBImpl::edel_one(leveldb::WriteBatch &batch, const Bytes &key) {
 
     int64_t old_ts = 0;
 
@@ -71,9 +72,8 @@ int SSDBImpl::edel_one(const Bytes &key, char log_type) {
         std::string old_score_key = encode_escore_key(key, static_cast<uint64_t>(old_ts));
         std::string old_eset_key = encode_eset_key(key);
 
-        this->binlogs->Delete(old_score_key);
-        this->binlogs->Delete(old_eset_key);
-        this->binlogs->add_log(log_type, BinlogCommand::EDEL, old_eset_key);
+        batch.Delete(old_score_key);
+        batch.Delete(old_eset_key);
     }
 
     return 1;
