@@ -1,6 +1,7 @@
 start_server {tags {"maxmemory"}} {
     test "Without maxmemory small integers are shared" {
         r config set maxmemory 0
+        r config set jdjr-mode no
         r set a 1
         assert {[r object refcount a] > 1}
     }
@@ -8,6 +9,7 @@ start_server {tags {"maxmemory"}} {
     test "With maxmemory and non-LRU policy integers are still shared" {
         r config set maxmemory 1073741824
         r config set maxmemory-policy allkeys-random
+        r config set jdjr-mode no
         r set a 1
         assert {[r object refcount a] > 1}
     }
@@ -15,6 +17,7 @@ start_server {tags {"maxmemory"}} {
     test "With maxmemory and LRU policy integers are not shared" {
         r config set maxmemory 1073741824
         r config set maxmemory-policy allkeys-lru
+        r config set jdjr-mode no
         r set a 1
         r config set maxmemory-policy volatile-lru
         r set b 1
@@ -35,6 +38,7 @@ start_server {tags {"maxmemory"}} {
             set used [s used_memory]
             set limit [expr {$used+100*1024}]
             r config set maxmemory $limit
+            r config set jdjr-mode no
             r config set maxmemory-policy $policy
             # Now add keys until the limit is almost reached.
             set numkeys 0
@@ -67,6 +71,7 @@ start_server {tags {"maxmemory"}} {
             set used [s used_memory]
             set limit [expr {$used+100*1024}]
             r config set maxmemory $limit
+            r config set jdjr-mode no
             r config set maxmemory-policy $policy
             # Now add keys until the limit is almost reached.
             set numkeys 0
@@ -109,6 +114,7 @@ start_server {tags {"maxmemory"}} {
             set used [s used_memory]
             set limit [expr {$used+100*1024}]
             r config set maxmemory $limit
+            r config set jdjr-mode no
             r config set maxmemory-policy $policy
             # Now add keys until the limit is almost reached.
             set numkeys 0
