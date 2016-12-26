@@ -737,7 +737,7 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
 
     int rdbtype = rdbDecoder.rdbLoadObjectType();
 
-    log_info("rdb type:%d", rdbtype);
+    log_info("rdb type : %d", rdbtype);
 
 
     switch (rdbtype) {
@@ -859,14 +859,14 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
                     return ret;
                 }
 
-                log_info(" zipListStr %s", hexmem(zipListStr.data(), zipListStr.size()).c_str());
+                log_debug(" zipListStr %s", hexmem(zipListStr.data(), zipListStr.size()).c_str());
 
                 unsigned char *zl = (unsigned char *) zipListStr.data();
                 unsigned char *p = ziplistIndex(zl, 0);
 
                 std::string t_item;
                 while (getNextString(zl, &p, t_item)) {
-                    log_info(" item : %s", hexmem(t_item.data(), t_item.length()).c_str());
+                    log_debug(" item : %s", hexmem(t_item.data(), t_item.length()).c_str());
 
                     t_res.push_back(t_item);
                     val.push_back(Bytes(t_res.back()));
@@ -896,13 +896,13 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
             const intset *set = (const intset *)insetStr.data();
             len = intsetLen(set);
 
-            log_info(" inset %d %s", len, hexmem(insetStr.data(), insetStr.size()).c_str());
+            log_debug(" inset %d %s", len, hexmem(insetStr.data(), insetStr.size()).c_str());
 
             for (uint32_t j = 0; j < len; ++j) {
                 int64_t t_value;
                 if (intsetGet((intset *) set, j , &t_value) == 1) {
 
-                    log_info("%d : %d", j , t_value);
+                    log_debug("%d : %d", j , t_value);
 
                     sadd(key, str(t_value), 'z');//TODO  log type
 
@@ -924,14 +924,14 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
                 return ret;
             }
 
-            log_info(" zipListStr %s", hexmem(zipListStr.data(), zipListStr.size()).c_str());
+            log_debug(" zipListStr %s", hexmem(zipListStr.data(), zipListStr.size()).c_str());
 
             unsigned char *zl = (unsigned char *) zipListStr.data();
             unsigned char *p = ziplistIndex(zl, 0);
 
             std::string t_item;
             while (getNextString(zl, &p, t_item)) {
-                log_info(" item : %s", hexmem(t_item.data(), t_item.length()).c_str());
+                log_debug(" item : %s", hexmem(t_item.data(), t_item.length()).c_str());
 
                 if (rdbtype == RDB_TYPE_LIST_ZIPLIST) {
 
@@ -943,7 +943,7 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
                 } else if (rdbtype == RDB_TYPE_ZSET_ZIPLIST) {
                     std::string value;
                     if(getNextString(zl, &p, value)) {
-                        log_info(" score : %s", hexmem(value.data(), value.length()).c_str());
+                        log_debug(" score : %s", hexmem(value.data(), value.length()).c_str());
                         zset(key, t_item, value, 'z');//TODO  log type
 
                     } else {
@@ -954,7 +954,7 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
                 } else if (rdbtype == RDB_TYPE_HASH_ZIPLIST) {
                     std::string value;
                     if(getNextString(zl, &p, value)) {
-                        log_info(" value : %s", hexmem(value.data(), value.length()).c_str());
+                        log_debug(" value : %s", hexmem(value.data(), value.length()).c_str());
 
                         hset(key, t_item, value, 'z');//TODO  log type
 
