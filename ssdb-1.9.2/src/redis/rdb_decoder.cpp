@@ -47,6 +47,19 @@ size_t RdbDecoder::rioRead(void *buf, size_t len) {
     }
 
     memcpy((char *) buf, p, len);
+
+    p = p + len;
+    remain_size = remain_size - len;
+    return len;
+}
+
+size_t RdbDecoder::rioReadString(std::string &res, size_t len) {
+    if (len > remain_size) {
+        return 0;
+    }
+
+    res = std::string(p, len);
+
     p = p + len;
     remain_size = remain_size - len;
     return len;
@@ -80,37 +93,30 @@ std::string RdbDecoder::rdbLoadIntegerObject(int enctype, int *ret) {
 
 std::string RdbDecoder::rdbLoadLzfStringObject(int *ret) {
     uint64_t len, clen;
-    unsigned char *c = NULL;
     char *t_val = NULL;
 
     if ((clen = rdbLoadLen(NULL)) == RDB_LENERR) return NULL;
     if ((len = rdbLoadLen(NULL)) == RDB_LENERR) return NULL;
-    if ((c = (unsigned char *) malloc(clen)) == NULL) {
-        free(c);
-        *ret = -1;
-        return "";
-    }
+
 
     /* Allocate our target according to the uncompressed size. */
-    t_val = (char *) malloc(len);
 
     /* Load the compressed representation and uncompress it to target. */
-    if (rioRead(c, clen) == 0) {
-        free(c);
+    std::string tmp_c;
+    if (rioReadString(tmp_c, clen) == 0) {
+        *ret = -1;
+        return "";
+    }
+
+
+    t_val = (char *) malloc(len);
+    if (lzf_decompress(tmp_c.data(), clen, t_val, len) == 0) {
+        log_error("Invalid LZF compressed string %s %s", strerror(errno), hexmem(tmp_c.data(), tmp_c.length()).c_str());
         free(t_val);
         *ret = -1;
         return "";
     }
 
-    if (lzf_decompress(c, clen, t_val, len) == 0) {
-        log_error("Invalid LZF compressed string %s %s", strerror(errno) , hexmem(c,clen).c_str());
-        free(c);
-        free(t_val);
-        *ret = -1;
-        return "";
-    }
-
-    free(c);
     std::string tmp(t_val, len);
     free(t_val);
     *ret = 0;
@@ -130,8 +136,7 @@ std::string RdbDecoder::rdbGenericLoadStringObject(int *ret) {
                 return rdbLoadIntegerObject(len, ret);
             case RDB_ENC_LZF:
                 return rdbLoadLzfStringObject(ret);
-            default:
-                rdbExitReportCorruptRDB("Unknown RDB string encoding type %d", len);
+            default: rdbExitReportCorruptRDB("Unknown RDB string encoding type %d", len);
         }
     }
 
@@ -140,16 +145,17 @@ std::string RdbDecoder::rdbGenericLoadStringObject(int *ret) {
         return "";
     };
 
-    char *buf = (char *) malloc(len);
-    if (len && rioRead(buf, len) == 0) {
+
+
+    std::string tmp;
+    if (len && rioReadString(tmp, len) == 0) {
         *ret = -1;
         return "";
     } else {
-        std::string tmp(buf, len);
-        free(buf);
         *ret = 0;
         return tmp;
-    }
+   }
+
 }
 
 bool RdbDecoder::verifyDumpPayload() {
