@@ -713,14 +713,30 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
     }
 
     if (s.ok()) {
-        if (!replace) {
-            //TODO ERR
+
+        log_info("del %s", hexmem(meta_val.data(),meta_val.size()).c_str());
+
+
+        if(meta_val.size()<4) {
             return -1;
         }
+        
+        char del = meta_val[3];
+        if(del == KEY_ENABLED_MASK ){
+            if (!replace) {
+                return -1;
+            }
 
-        Transaction trans(binlogs);
-        del_key_internal(key, 'z'); //TODO  log type
-        binlogs->commit();
+            Transaction trans(binlogs);
+            del_key_internal(key, 'z'); 
+            binlogs->commit();
+
+            return -1;
+        } else if (del == KEY_DELETE_MASK){
+            //nothing
+        } else {
+            return -1;
+        }
 
     }
 
@@ -748,7 +764,7 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
             }
 
 
-            set(key, r, 'z');//TODO  log type
+            set(key, r, 'z');
 
             break;
         }
@@ -772,7 +788,7 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
             }
 
             uint64_t len_t;
-            RPush(key, val, 0, &len_t);//TODO  log type
+            RPush(key, val, 0, &len_t);
 
             break;
         }
@@ -788,7 +804,7 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
                     return ret;
                 }
 
-                sadd(key, r, 'z');//TODO  log type
+                sadd(key, r, 'z');
             }
 
             break;
@@ -815,7 +831,7 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
                 }
 
                 //todo score....
-                zset(key, r, str(score), 'z');//TODO  log type
+                zset(key, r, str(score), 'z');
             }
 
             break;
@@ -836,7 +852,7 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
                     return ret;
                 }
 
-                hset(key, field, value, 'z');//TODO  log type
+                hset(key, field, value, 'z');
             }
 
             break;
@@ -873,7 +889,7 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
             }
 
             uint64_t len_t;
-            RPush(key, val, 0, &len_t);//TODO  log type
+            RPush(key, val, 0, &len_t);
 
             break;
         }
@@ -903,7 +919,7 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
 
                     log_debug("%d : %d", j , t_value);
 
-                    sadd(key, str(t_value), 'z');//TODO  log type
+                    sadd(key, str(t_value), 'z');
 
                 } else {
                     return -1;
@@ -937,13 +953,13 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
                     std::vector<Bytes> val;
                     val.push_back(Bytes(t_item));
                     uint64_t len_t;
-                    RPush(key, val, 0, &len_t);//TODO  log type
+                    RPush(key, val, 0, &len_t);
 
                 } else if (rdbtype == RDB_TYPE_ZSET_ZIPLIST) {
                     std::string value;
                     if(getNextString(zl, &p, value)) {
                         log_debug(" score : %s", hexmem(value.data(), value.length()).c_str());
-                        zset(key, t_item, value, 'z');//TODO  log type
+                        zset(key, t_item, value, 'z');
 
                     } else {
                         log_error("value not found ");
@@ -955,7 +971,7 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
                     if(getNextString(zl, &p, value)) {
                         log_debug(" value : %s", hexmem(value.data(), value.length()).c_str());
 
-                        hset(key, t_item, value, 'z');//TODO  log type
+                        hset(key, t_item, value, 'z');
 
                     } else {
                         log_error("value not found ");
