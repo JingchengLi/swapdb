@@ -720,8 +720,6 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
 
     if (s.ok()) {
 
-        log_debug("del %s", hexmem(meta_val.data(),meta_val.size()).c_str());
-
         if(meta_val.size()<4) {
             return -1;
         }
@@ -756,8 +754,7 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
 
     int rdbtype = rdbDecoder.rdbLoadObjectType();
 
-    log_info("rdb type : %d", rdbtype);
-
+//    log_info("rdb type : %d", rdbtype);
 
     switch (rdbtype) {
         case RDB_TYPE_STRING: {

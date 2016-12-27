@@ -40,5 +40,5 @@ public:
 #define PTE(name) "";
 #endif
 
-
+// -D PTIMER=ON
 #endif //SSDB_PTIMER_H

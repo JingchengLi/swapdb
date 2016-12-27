@@ -427,6 +427,10 @@ int proc_restore(NetworkServer *net, Link *link, const Request &req, Response *r
 		ret = serv->expiration->set_ttl(req[1], ttl);
 	}
 
+	if (ret < 0) {
+		log_info("%s : %s", hexmem(req[1].data(),req[1].size()).c_str(), hexmem(req[3].data(),req[3].size()).c_str());
+	}
+
     resp->reply_get(ret, &val);
     return 0;
 }
