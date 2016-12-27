@@ -58,6 +58,7 @@ struct evictionPoolEntry {
 };
 
 static struct evictionPoolEntry *EvictionPoolLRU;
+static struct evictionPoolEntry *ColdKeyPool;
 
 unsigned long LFUDecrAndReturn(robj *o);
 
@@ -135,6 +136,124 @@ void evictionPoolAlloc(void) {
         ep[j].dbid = 0;
     }
     EvictionPoolLRU = ep;
+    if (server.jdjr_mode) {
+        ep = zmalloc(sizeof(*ep)*EVPOOL_SIZE);
+        for (j = 0; j < EVPOOL_SIZE; j++) {
+            ep[j].idle = 0;
+            ep[j].key = NULL;
+            ep[j].cached = sdsnewlen(NULL,EVPOOL_CACHED_SDS_SIZE);
+            ep[j].dbid = 0;
+        }
+        ColdKeyPool = ep;
+    }
+}
+
+//todo 添加配置参数
+#define COLD_KEY_LRU_IDLE_VAL (5 * 24 * 60 * 60 * 1000)  // 5 days
+#define COLD_KEY_LFU_VAL (255-LFU_INIT_VAL+1)
+void coldKeyPopulate(int dbid, dict *sampledict, dict *keydict, struct evictionPoolEntry *pool) {
+    int j, k, count;
+    dictEntry *samples[server.maxmemory_samples];
+
+    /* we support cold key transfer to ssdb only if evict algorithm is LRU or LFU */
+    if (!(server.maxmemory_policy & (MAXMEMORY_FLAG_LRU|MAXMEMORY_FLAG_LFU))) {
+        return;
+    }
+    count = dictGetSomeKeys(sampledict,samples,server.maxmemory_samples);
+    for (j = 0; j < count; j++) {
+        unsigned long long idle;
+        sds key;
+        robj *o;
+        dictEntry *de;
+
+        de = samples[j];
+        key = dictGetKey(de);
+
+        /* If the dictionary we are sampling from is not the main
+         * dictionary (but the expires one) we need to lookup the key
+         * again in the key dictionary to obtain the value object. */
+        if (sampledict != keydict) de = dictFind(keydict, key);
+        o = dictGetVal(de);
+
+        /* Calculate the idle time according to the policy. This is called
+         * idle just because the code initially handled LRU, but is in fact
+         * just a score where an higher score means better candidate. */
+        if (server.maxmemory_policy & MAXMEMORY_FLAG_LRU) {
+            idle = estimateObjectIdleTime(o);
+        } else if (server.maxmemory_policy & MAXMEMORY_FLAG_LFU) {
+            /* When we use an LRU policy, we sort the keys by idle time
+             * so that we expire keys starting from greater idle time.
+             * However when the policy is an LFU one, we have a frequency
+             * estimation, and we want to evict keys with lower frequency
+             * first. So inside the pool we put objects using the inverted
+             * frequency subtracting the actual frequency to the maximum
+             * frequency of 255. */
+            idle = 255-LFUDecrAndReturn(o);
+        } else {
+            serverPanic("Unknown eviction policy in coldKeyPopulate()");
+        }
+
+        if ((server.maxmemory_policy & MAXMEMORY_FLAG_LFU) &&
+                (idle >= COLD_KEY_LFU_VAL)) {
+            continue;
+        }
+        if ((server.maxmemory_policy & MAXMEMORY_FLAG_LFU) &&
+                (idle >= COLD_KEY_LRU_IDLE_VAL)) {
+            continue;
+        }
+
+        /* Insert the element inside the pool.
+         * First, find the first empty bucket or the first populated
+         * bucket that has an idle time smaller than our idle time. */
+        k = 0;
+        while (k < EVPOOL_SIZE &&
+               pool[k].key &&
+               pool[k].idle < idle) k++;
+        if (k == 0 && pool[EVPOOL_SIZE-1].key != NULL) {
+            /* Can't insert if the element is < the worst element we have
+             * and there are no empty buckets. */
+            continue;
+        } else if (k < EVPOOL_SIZE && pool[k].key == NULL) {
+            /* Inserting into empty position. No setup needed before insert. */
+        } else {
+            /* Inserting in the middle. Now k points to the first element
+             * greater than the element to insert.  */
+            if (pool[EVPOOL_SIZE-1].key == NULL) {
+                /* Free space on the right? Insert at k shifting
+                 * all the elements from k to end to the right. */
+
+                /* Save SDS before overwriting. */
+                sds cached = pool[EVPOOL_SIZE-1].cached;
+                memmove(pool+k+1,pool+k,
+                    sizeof(pool[0])*(EVPOOL_SIZE-k-1));
+                pool[k].cached = cached;
+            } else {
+                /* No free space on right? Insert at k-1 */
+                k--;
+                /* Shift all elements on the left of k (included) to the
+                 * left, so we discard the element with smaller idle time. */
+                sds cached = pool[0].cached; /* Save SDS before overwriting. */
+                if (pool[0].key != pool[0].cached) sdsfree(pool[0].key);
+                memmove(pool,pool+1,sizeof(pool[0])*k);
+                pool[k].cached = cached;
+            }
+        }
+
+        /* Try to reuse the cached SDS string allocated in the pool entry,
+         * because allocating and deallocating this object is costly
+         * (according to the profiler, not my fantasy. Remember:
+         * premature optimizbla bla bla bla. */
+        int klen = sdslen(key);
+        if (klen > EVPOOL_CACHED_SDS_SIZE) {
+            pool[k].key = sdsdup(key);
+        } else {
+            memcpy(pool[k].cached,key,klen+1);
+            sdssetlen(pool[k].cached,klen);
+            pool[k].key = pool[k].cached;
+        }
+        pool[k].idle = idle;
+        pool[k].dbid = dbid;
+    }
 }
 
 /* This is an helper function for freeMemoryIfNeeded(), it is used in order
@@ -145,7 +264,6 @@ void evictionPoolAlloc(void) {
  * We insert keys on place in ascending order, so keys with the smaller
  * idle time are on the left, and keys with the higher idle time on the
  * right. */
-
 void evictionPoolPopulate(int dbid, dict *sampledict, dict *keydict, struct evictionPoolEntry *pool) {
     int j, k, count;
     dictEntry *samples[server.maxmemory_samples];
@@ -341,52 +459,43 @@ int evictKeysToSSDB(void) {
     dictEntry *de;
     int slaves = listLength(server.slaves);
 
-    latencyStartMonitor(latency);
-    //if (server.maxmemory_policy & (MAXMEMORY_FLAG_LRU|MAXMEMORY_FLAG_LFU) ||
-    //    server.maxmemory_policy == MAXMEMORY_VOLATILE_TTL)
-    {
-        struct evictionPoolEntry *pool = EvictionPoolLRU;
+    //latencyStartMonitor(latency);
+    struct evictionPoolEntry *pool = ColdKeyPool;
 
-        while(bestkey == NULL) {
-            unsigned long total_keys = 0, keys;
+    unsigned long total_keys = 0, keys;
 
-            /* We don't want to make local-db choices when expiring keys,
-             * so to start populate the eviction pool sampling keys from
-             * every DB. */
-            for (i = 0; i < server.dbnum; i++) {
-                db = server.db+i;
-                dict = db->dict;
-                if ((keys = dictSize(dict)) != 0) {
-                    // todo 驱逐key到evictionPool的规则,比如LFU频率<5
-                    evictionPoolPopulate(i, dict, db->dict, pool);
-                    total_keys += keys;
-                }
-            }
-            if (!total_keys) break; /* No keys to evict. */
+    /* We don't want to make local-db choices when expiring keys,
+     * so to start populate the eviction pool sampling keys from
+     * every DB. */
+    for (i = 0; i < server.dbnum; i++) {
+        db = server.db+i;
+        dict = db->dict;
+        if ((keys = dictSize(dict)) != 0) {
+            coldKeyPopulate(i, dict, db->dict, pool);
+            total_keys += keys;
+        }
+    }
+    if (!total_keys) return C_OK; /* No keys to evict. */
 
-            /* Go backward from best to worst element to evict. */
-            for (k = EVPOOL_SIZE-1; k >= 0; k--) {
-                if (pool[k].key == NULL) continue;
-                bestdbid = pool[k].dbid;
+    /* Go backward from best to worst element to evict. */
+    for (k = EVPOOL_SIZE-1; k >= 0; k--) {
+        if (pool[k].key == NULL) continue;
+        bestdbid = pool[k].dbid;
 
-                de = dictFind(server.db[pool[k].dbid].dict,
-                              pool[k].key);
+        de = dictFind(server.db[pool[k].dbid].dict,
+                      pool[k].key);
 
-                /* Remove the entry from the pool. */
-                if (pool[k].key != pool[k].cached)
-                    sdsfree(pool[k].key);
-                pool[k].key = NULL;
-                pool[k].idle = 0;
+        /* Remove the entry from the pool. */
+        if (pool[k].key != pool[k].cached)
+            sdsfree(pool[k].key);
+        pool[k].key = NULL;
+        pool[k].idle = 0;
 
-                /* If the key exists, is our pick. Otherwise it is
-                 * a ghost and we need to try the next element. */
-                if (de) {
-                    bestkey = dictGetKey(de);
-                    break;
-                } else {
-                    /* Ghost... Iterate again. */
-                }
-            }
+        /* If the key exists, is our pick. Otherwise it is
+         * a ghost and we need to try the next element. */
+        if (de) {
+            bestkey = dictGetKey(de);
+            break;
         }
     }
 
@@ -398,30 +507,7 @@ int evictKeysToSSDB(void) {
         //todo dump and restore
 
         /* Transfer the selected key to EVICTED_DATA_DBID. */
-        if (server.jdjr_mode) {
-            incrRefCount(keyobj);
-
-            redisDb *evicteddb = server.db + EVICTED_DATA_DBID;
-            long long expiretime = getExpire(db, keyobj);
-
-            setKey(evicteddb, keyobj, shared.space);
-            server.dirty ++;
-            if (expiretime) setExpire(evicteddb, keyobj, expiretime);
-            notifyKeyspaceEvent(NOTIFY_STRING,"set",keyobj,evicteddb->id);
-            if (expiretime) notifyKeyspaceEvent(NOTIFY_GENERIC,
-                                                "expire",keyobj,evicteddb->id);
-
-            sds cmdname = sdsnew("set");
-            robj *setcmd = createObject(OBJ_STRING, (void *)cmdname);
-            robj *argv[3] = {setcmd, keyobj, shared.space};
-
-            propagate(lookupCommand(cmdname), EVICTED_DATA_DBID, argv, 3,
-                      PROPAGATE_AOF | PROPAGATE_REPL);
-
-            decrRefCount(setcmd);
-
-            serverLog(LL_DEBUG, "Evicting key: %s to SSDB.", (char *)(keyobj->ptr));
-        }
+        if (server.jdjr_mode) evictingDataToSSDB(keyobj, db);
 
         propagateExpire(db,keyobj,server.lazyfree_lazy_eviction);
         /* We compute the amount of memory freed by db*Delete() alone.
@@ -438,11 +524,10 @@ int evictKeysToSSDB(void) {
         else
             dbSyncDelete(db,keyobj);
         latencyEndMonitor(eviction_latency);
-        latencyAddSampleIfNeeded("eviction-del",eviction_latency);
+        latencyAddSampleIfNeeded("coldkey-transfer",eviction_latency);
         latencyRemoveNestedEvent(latency,eviction_latency);
         server.stat_ssdbkeys++;
-        // todo rename event
-        notifyKeyspaceEvent(NOTIFY_EVICTED, "evicted",
+        notifyKeyspaceEvent(NOTIFY_EVICTED, "transfer-to-SSDB",
             keyobj, db->id);
         decrRefCount(keyobj);
 
@@ -453,8 +538,8 @@ int evictKeysToSSDB(void) {
         if (slaves) flushSlavesOutputBuffers();
     }
 
-    latencyEndMonitor(latency);
-    latencyAddSampleIfNeeded("eviction-cycle",latency);
+    //latencyEndMonitor(latency);
+    //latencyAddSampleIfNeeded("eviction-cycle",latency);
     return C_OK;
 }
 
