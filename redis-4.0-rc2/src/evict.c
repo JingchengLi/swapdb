@@ -32,6 +32,7 @@
 
 #include "server.h"
 #include "bio.h"
+#include "cluster.h"
 
 /* ----------------------------------------------------------------------------
  * Data structures

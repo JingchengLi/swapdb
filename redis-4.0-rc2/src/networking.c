@@ -660,6 +660,7 @@ int sendCommandToSSDB(client *c, sds finalcmd) {
         }
 
         finalcmd = sdsnewlen(cmd, len);
+        /* Keep using free according to redisFormatCommandArgv. */
         free(cmd);
     }
 

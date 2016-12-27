@@ -1476,7 +1476,7 @@ int rdbLoadRio(rio *rdb, rdbSaveInfo *rsi) {
             /* SELECTDB: Select the specified database. */
             if ((dbid = rdbLoadLen(rdb,NULL)) == RDB_LENERR)
                 goto eoferr;
-            if (dbid >= (server.jdjr_mode ? server.dbnum + 1 : server.dbnum)) {
+            if (dbid >= (unsigned)(server.jdjr_mode ? server.dbnum + 1 : server.dbnum)) {
                 serverLog(LL_WARNING,
                     "FATAL: Data file was created with a Redis "
                     "server configured to handle more than %d "
