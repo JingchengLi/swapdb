@@ -229,26 +229,6 @@ int proc_zrrange(NetworkServer *net, Link *link, const Request &req, Response *r
     return 0;
 }
 
-int proc_zclear(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
-	CHECK_NUM_PARAMS(2);
-
-	const Bytes &name = req[1];
-
-//	int64_t count = serv->ssdb->ZDelKeyNoLock(batch, name);
-//    if (count > 0) {
-//        leveldb::Status s =  serv->ssdb->binlogs->commit();
-//        if (!s.ok()) {
-//            count = -1;
-//        }
-//    }
-	int64_t count = serv->ssdb->zclear(name);
-
-	resp->reply_int(0, count);
-
-	return 0;
-}
-
 int proc_zscan(NetworkServer *net, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(6);
@@ -309,27 +289,6 @@ int proc_zkeys(NetworkServer *net, Link *link, const Request &req, Response *res
 	return 0;
 }
 
-int proc_zlist(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
-	CHECK_NUM_PARAMS(4);
-
-	uint64_t limit = req[3].Uint64();
-	std::vector<std::string> list;
-	int ret = serv->ssdb->zlist(req[1], req[2], limit, &list);
-	resp->reply_list(ret, list);
-	return 0;
-}
-
-int proc_zrlist(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
-	CHECK_NUM_PARAMS(4);
-
-	uint64_t limit = req[3].Uint64();
-	std::vector<std::string> list;
-	int ret = serv->ssdb->zrlist(req[1], req[2], limit, &list);
-	resp->reply_list(ret, list);
-	return 0;
-}
 
 // dir := +1|-1
 static int _zincr(SSDB *ssdb, const Request &req, Response *resp, int dir){
@@ -446,43 +405,6 @@ int proc_zremrangebyrank(NetworkServer *net, Link *link, const Request &req, Res
         delete it;
     }
 	resp->reply_int(0, count);
-	return 0;
-}
-
-// 因为 writer 线程只有一个, 所以这个操作还是线程安全的
-static inline
-void zpop(ZIterator *it, SSDBServer *serv, const Bytes &name, Response *resp){
-	resp->push_back("ok");
-	while(it->next()){
-		int ret = serv->ssdb->zdel(name, it->key);
-		if(ret == 1){
-			resp->add(it->key);
-			resp->add(it->score);
-		}
-	}
-}
-
-int proc_zpop_front(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
-	CHECK_NUM_PARAMS(3);
-
-	const Bytes &name = req[1];
-	uint64_t limit = req[2].Uint64();
-	ZIterator *it = serv->ssdb->zscan(name, "", "", "", limit);
-	zpop(it, serv, name, resp);
-	delete it;
-	return 0;
-}
-
-int proc_zpop_back(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
-	CHECK_NUM_PARAMS(3);
-
-	const Bytes &name = req[1];
-	uint64_t limit = req[2].Uint64();
-	ZIterator *it = serv->ssdb->zrscan(name, "", "", "", limit);
-	zpop(it, serv, name, resp);
-	delete it;
 	return 0;
 }
 

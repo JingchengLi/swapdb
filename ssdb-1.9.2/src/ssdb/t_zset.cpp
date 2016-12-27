@@ -5,7 +5,7 @@ found in the LICENSE file.
 */
 #include <limits.h>
 #include "../include.h"
-#include "t_zset.h"
+#include "ssdb_impl.h"
 
 
 static int zset_one(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &name, const Bytes &key, double score);
@@ -22,60 +22,6 @@ static ZIterator *ziterator(
 
 void zset_internal(const SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &name, const Bytes &key, double new_score,
                    uint16_t cur_version);
-
-
-int64_t SSDBImpl::zclear(const Bytes &name) {
-    RecordLock l(&mutex_record_, name.String());
-    leveldb::WriteBatch batch;
-
-    int num = ZDelKeyNoLock(batch, name);
-
-    if (num > 0) {
-        leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
-        if (!s.ok()) {
-            return -1;
-        }
-    }
-
-    return num;
-}
-
-
-int SSDBImpl::ZDelKeyNoLock(leveldb::WriteBatch &batch, const Bytes &name) {
-    ZSetMetaVal zv;
-    std::string meta_key = encode_meta_key(name);
-    int ret = GetZSetMetaVal(meta_key, zv);
-    if (ret != 1) {
-        return ret;
-    }
-
-//    if (zv.length > MAX_NUM_DELETE) {
-//        std::string del_key = encode_delete_key(name.String(), zv.version);
-//        std::string meta_val = encode_zset_meta_val(zv.length, zv.version, KEY_DELETE_MASK);
-//        binlogs->Put(del_key, "");
-//        binlogs->Put(meta_key, meta_val);
-//        return zv.length;
-//    }
-
-    std::unique_ptr<ZIterator> it(ziterator(this, name, "", "", "", INT_MAX, Iterator::FORWARD, zv.version));
-    int num = 0;
-    while (it->next()) {
-        ret = zdel_one(this, batch, name, it->key);
-        if (-1 == ret) {
-            return -1;
-        } else if (ret > 0) {
-            num++;
-        }
-    }
-
-    if (num > 0) {
-        if (incr_zsize(this, batch, name, -num) == -1) {
-            return -1;
-        }
-    }
-
-    return num;
-}
 
 /**
  * @return -1: error, 0: item updated, 1: new item inserted
@@ -405,54 +351,6 @@ ZIterator *SSDBImpl::zrscan(const Bytes &name, const Bytes &key,
     return ziterator(this, name, key, score, score_end, limit, Iterator::BACKWARD, version);
 }
 
-static void get_znames(Iterator *it, std::vector<std::string> *list) {
-    while (it->next()) {
-        Bytes ks = it->key();
-        //dump(ks.data(), ks.size());
-
-        ZScoreItemKey zk;
-        if (zk.DecodeItemKey(ks.String()) == -1) {
-            continue;
-        }
-        list->push_back(str(zk.score));
-    }
-}
-
-//TODO unsupported . due to M+slot+key  . slot in meta key
-int SSDBImpl::zlist(const Bytes &name_s, const Bytes &name_e, uint64_t limit,
-                    std::vector<std::string> *list) {
-    std::string start;
-    std::string end;
-
-    start = encode_zsize_key(name_s);
-    if (!name_e.empty()) {
-        end = encode_zsize_key(name_e);
-    }
-
-    Iterator *it = this->iterator(start, end, limit);
-    get_znames(it, list);
-    delete it;
-    return 0;
-}
-
-int SSDBImpl::zrlist(const Bytes &name_s, const Bytes &name_e, uint64_t limit,
-                     std::vector<std::string> *list) {
-    std::string start;
-    std::string end;
-
-    start = encode_zsize_key(name_s);
-    if (name_s.empty()) {
-        start.append(1, 255);
-    }
-    if (!name_e.empty()) {
-        end = encode_zsize_key(name_e);
-    }
-
-    Iterator *it = this->rev_iterator(start, end, limit);
-    get_znames(it, list);
-    delete it;
-    return 0;
-}
 
 // returns the number of newly added items
 static int zset_one(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &name, const Bytes &key, double score) {

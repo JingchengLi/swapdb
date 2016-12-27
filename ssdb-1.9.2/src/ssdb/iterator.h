@@ -50,21 +50,6 @@ private:
 };
 
 
-// todo r2m adaptation
-class KIterator{
-public:
-	std::string key;
-	std::string val;
-
-	KIterator(Iterator *it);
-	~KIterator();
-	void return_val(bool onoff);
-	bool next();
-private:
-	Iterator *it;
-	bool return_val_;
-};
-
 
 class MIterator{
 public:

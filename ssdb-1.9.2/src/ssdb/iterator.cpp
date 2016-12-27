@@ -4,9 +4,6 @@ Use of this source code is governed by a BSD-style license that can be
 found in the LICENSE file.
 */
 #include "iterator.h"
-#include "t_kv.h"
-#include "t_hash.h"
-#include "t_zset.h"
 #include "t_queue.h"
 #include "../util/log.h"
 #include "../util/config.h"
@@ -90,42 +87,6 @@ bool Iterator::next(){
 }
 
 
-/* KV */
-
-// todo r2m adaptation
-KIterator::KIterator(Iterator *it){
-	this->it = it;
-	this->return_val_ = true;
-}
-
-KIterator::~KIterator(){
-	delete it;
-}
-
-void KIterator::return_val(bool onoff){
-	this->return_val_ = onoff;
-}
-
-bool KIterator::next(){
-	while(it->next()){
-		Bytes ks = it->key();
-		Bytes vs = it->val();
-		//dump(ks.data(), ks.size(), "z.next");
-		//dump(vs.data(), vs.size(), "z.next");
-		if(ks.data()[0] != DataType::KV){
-			return false;
-		}
-		if(decode_kv_key(ks, &this->key) == -1){
-			continue;
-		}
-		if(return_val_){
-			this->val.assign(vs.data(), vs.size());
-		}
-		return true;
-	}
-	return  false;
-}
-/* KV */
 
 // todo r2m adaptation
 MIterator::MIterator(Iterator *it){

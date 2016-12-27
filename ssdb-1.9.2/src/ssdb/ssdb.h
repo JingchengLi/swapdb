@@ -32,7 +32,6 @@ public:
 	virtual uint64_t size() = 0;
 	virtual std::vector<std::string> info() = 0;
 	virtual void compact() = 0;
-	virtual int key_range(std::vector<std::string> *keys) = 0;
 
 	/* raw operates */
 
@@ -61,8 +60,6 @@ public:
 	virtual int get(const Bytes &key, std::string *val) = 0;
 	virtual int getset(const Bytes &key, std::string *val, const Bytes &newval, char log_type=BinlogType::SYNC) = 0;
 	// return (start, end]
-	virtual KIterator* scan(const Bytes &start, const Bytes &end, uint64_t limit) = 0;
-	virtual KIterator* rscan(const Bytes &start, const Bytes &end, uint64_t limit) = 0;
 
 	/* hash */
 
@@ -103,7 +100,6 @@ public:
 	virtual int64_t sclear(const Bytes &name) = 0;
 
 	/* zset */
-    virtual int64_t zclear(const Bytes &name) = 0;
 	virtual int zset(const Bytes &name, const Bytes &key, const Bytes &score, char log_type=BinlogType::SYNC) = 0;
 
 	virtual int zdel(const Bytes &name, const Bytes &key, char log_type=BinlogType::SYNC) = 0;
@@ -127,10 +123,7 @@ public:
 			const Bytes &score_start, const Bytes &score_end, uint64_t limit) = 0;
 	virtual ZIterator* zrscan(const Bytes &name, const Bytes &key,
 			const Bytes &score_start, const Bytes &score_end, uint64_t limit) = 0;
-	virtual int zlist(const Bytes &name_s, const Bytes &name_e, uint64_t limit,
-			std::vector<std::string> *list) = 0;
-	virtual int zrlist(const Bytes &name_s, const Bytes &name_e, uint64_t limit,
-			std::vector<std::string> *list) = 0;
+
 	virtual int64_t zfix(const Bytes &name) = 0;
 
 

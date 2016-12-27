@@ -71,8 +71,7 @@ public:
 	virtual uint64_t size();
 	virtual std::vector<std::string> info();
 	virtual void compact();
-	virtual int key_range(std::vector<std::string> *keys);
-	
+
 	/* raw operates */
 
 	// repl: whether to sync this operation to slaves
@@ -100,8 +99,6 @@ public:
 	virtual int get(const Bytes &key, std::string *val);
 	virtual int getset(const Bytes &key, std::string *val, const Bytes &newval, char log_type=BinlogType::SYNC);
 	// return (start, end]
-	virtual KIterator* scan(const Bytes &start, const Bytes &end, uint64_t limit);
-	virtual KIterator* rscan(const Bytes &start, const Bytes &end, uint64_t limit);
 
 	/* hash */
 
@@ -157,7 +154,6 @@ public:
 	virtual int64_t sclear(const Bytes &name);
 
 	/* zset */
-	virtual int64_t zclear(const Bytes &name);
 	virtual int zset(const Bytes &name, const Bytes &key, const Bytes &score, char log_type=BinlogType::SYNC);
     virtual int zsetNoLock(leveldb::WriteBatch &batch, const Bytes &name, const Bytes &key, double score);
 	virtual int zdel(const Bytes &name, const Bytes &key, char log_type=BinlogType::SYNC);
@@ -183,14 +179,10 @@ public:
 			const Bytes &score_start, const Bytes &score_end, uint64_t limit);
 	virtual ZIterator* zrscan(const Bytes &name, const Bytes &key,
 			const Bytes &score_start, const Bytes &score_end, uint64_t limit);
-	virtual int zlist(const Bytes &name_s, const Bytes &name_e, uint64_t limit,
-			std::vector<std::string> *list);
-	virtual int zrlist(const Bytes &name_s, const Bytes &name_e, uint64_t limit,
-			std::vector<std::string> *list);
+
 	virtual int64_t zfix(const Bytes &name);
 
 	virtual int GetZSetMetaVal(const std::string &meta_key, ZSetMetaVal &zv);
-    virtual int ZDelKeyNoLock(leveldb::WriteBatch &batch, const Bytes &name);
 
     virtual int64_t qsize(const Bytes &name);
 	// @return 0: empty queue, 1: item peeked, -1: error
@@ -230,8 +222,7 @@ private:
 
 	int SetGeneric(leveldb::WriteBatch &batch, const std::string &key, const std::string &val, int flags, const int64_t expire);
     int KDel(const Bytes &key, char log_type=BinlogType::SYNC);
-	int KDelNoLock(leveldb::WriteBatch &batch, const Bytes &key);
-	int DelKeyByType(leveldb::WriteBatch &batch, const Bytes &key, const std::string &type);
+	int KDelNoLock(const Bytes &key, char log_type=BinlogType::SYNC);
     int GetKvMetaVal(const std::string &meta_key, KvMetaVal &kv);
     int del_key_internal(leveldb::WriteBatch &batch, const Bytes &key);
 

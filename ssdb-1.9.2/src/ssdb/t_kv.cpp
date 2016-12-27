@@ -340,39 +340,6 @@ int SSDBImpl::get(const Bytes &key, std::string *val) {
     return 1;
 }
 
-// todo r2m adaptation
-KIterator *SSDBImpl::scan(const Bytes &start, const Bytes &end, uint64_t limit) {    //不支持kv scan，redis也不支持
-/*	std::string key_start, key_end;
-	key_start = encode_kv_key(start);
-	if(end.empty()){
-		key_end = "";
-	}else{
-		key_end = encode_kv_key(end);
-	}
-	//dump(key_start.data(), key_start.size(), "scan.start");
-	//dump(key_end.data(), key_end.size(), "scan.end");
-
-	return new KIterator(this->iterator(key_start, key_end, limit));*/
-    return NULL;
-}
-
-// todo r2m adaptation
-KIterator *SSDBImpl::rscan(const Bytes &start, const Bytes &end, uint64_t limit) {   //不支持kv scan，redis也不支持
-    /*std::string key_start, key_end;
-
-    key_start = encode_kv_key(start);
-    if(start.empty()){
-        key_start.append(1, 255);
-    }
-    if(!end.empty()){
-        key_end = encode_kv_key(end);
-    }
-    //dump(key_start.data(), key_start.size(), "scan.start");
-    //dump(key_end.data(), key_end.size(), "scan.end");
-
-    return new KIterator(this->rev_iterator(key_start, key_end, limit));*/
-    return NULL;
-}
 
 int SSDBImpl::setbit(const Bytes &key, int bitoffset, int on, char log_type){
 	RecordLock l(&mutex_record_, key.String());
@@ -435,26 +402,6 @@ int SSDBImpl::getbit(const Bytes &key, int bitoffset) {
         return 0;
     }
     return (val[len] & (1 << bit)) == 0 ? 0 : 1;
-}
-
-/*
- * private API
- */
-int SSDBImpl::DelKeyByType(leveldb::WriteBatch &batch, const Bytes &key, const std::string &type){
-	//todo 内部接口，保证操作的原子性，调用No Commit接口
-	if ("string" == type){
-		KDelNoLock(batch, key);
-	} else if ("hash" == type){
-		HDelKeyNoLock(batch, key);
-	} else if ("list" == type){
-//		s = LDelKeyNoLock(key, &res);
-	} else if ("set" == type){
-		SDelKeyNoLock(batch, key);
-	} else if ("zset" == type){
-		ZDelKeyNoLock(batch, key);
-	}
-
-    return 0;
 }
 
 int SSDBImpl::KDel(const Bytes &key, char log_type){

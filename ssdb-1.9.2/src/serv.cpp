@@ -28,7 +28,6 @@ DEF_PROC(decr);
 DEF_PROC(scan);
 DEF_PROC(rscan);
 DEF_PROC(keys);
-DEF_PROC(rkeys);
 DEF_PROC(exists);
 DEF_PROC(multi_exists);
 DEF_PROC(multi_get);
@@ -84,13 +83,10 @@ DEF_PROC(zset);
 DEF_PROC(zdel);
 DEF_PROC(zincr);
 DEF_PROC(zdecr);
-DEF_PROC(zclear);
 DEF_PROC(zfix);
 DEF_PROC(zscan);
 DEF_PROC(zrscan);
 DEF_PROC(zkeys);
-DEF_PROC(zlist);
-DEF_PROC(zrlist);
 DEF_PROC(zcount);
 DEF_PROC(zsum);
 DEF_PROC(zavg);
@@ -102,8 +98,6 @@ DEF_PROC(multi_zsize);
 DEF_PROC(multi_zget);
 DEF_PROC(multi_zset);
 DEF_PROC(multi_zdel);
-DEF_PROC(zpop_front);
-DEF_PROC(zpop_back);
 	
 DEF_PROC(qsize);
 DEF_PROC(qfront);
@@ -163,7 +157,6 @@ void SSDBServer::reg_procs(NetworkServer *net){
 	REG_PROC(scan, "rt");
 	REG_PROC(rscan, "rt");
 	REG_PROC(keys, "rt");
-	REG_PROC(rkeys, "rt");
 	REG_PROC(exists, "rt");
 	REG_PROC(multi_exists, "rt");
 	REG_PROC(multi_get, "rt");
@@ -220,13 +213,10 @@ void SSDBServer::reg_procs(NetworkServer *net){
 	REG_PROC(zdel, "wt");
 	REG_PROC(zincr, "wt");
 	REG_PROC(zdecr, "wt");
-	REG_PROC(zclear, "wt");
 	REG_PROC(zfix, "wt");
 	REG_PROC(zscan, "rt");
 	REG_PROC(zrscan, "rt");
 	REG_PROC(zkeys, "rt");
-	REG_PROC(zlist, "rt");
-	REG_PROC(zrlist, "rt");
 	REG_PROC(zcount, "rt");
 	REG_PROC(zsum, "rt");
 	REG_PROC(zavg, "rt");
@@ -238,8 +228,6 @@ void SSDBServer::reg_procs(NetworkServer *net){
 	REG_PROC(multi_zget, "rt");
 	REG_PROC(multi_zset, "wt");
 	REG_PROC(multi_zdel, "wt");
-	REG_PROC(zpop_front, "wt");
-	REG_PROC(zpop_back, "wt");
 
 	REG_PROC(qsize, "rt");
 	REG_PROC(qfront, "rt");
@@ -534,41 +522,6 @@ int proc_info(NetworkServer *net, Link *link, const Request &req, Response *resp
 			resp->push_back("replication");
 			resp->push_back(s);
 		}
-	}
-
-	if(req.size() == 1 || req[1] == "range"){
-		std::string val;
-		std::vector<std::string> tmp;
-		int ret = serv->ssdb->key_range(&tmp);
-		if(ret == 0){
-			char buf[512];
-			
-			snprintf(buf, sizeof(buf), "    kv  : \"%s\" - \"%s\"",
-				hexmem(tmp[0].data(), tmp[0].size()).c_str(),
-				hexmem(tmp[1].data(), tmp[1].size()).c_str()
-				);
-			val.append(buf);
-			
-			snprintf(buf, sizeof(buf), "\n    hash: \"%s\" - \"%s\"",
-				hexmem(tmp[2].data(), tmp[2].size()).c_str(),
-				hexmem(tmp[3].data(), tmp[3].size()).c_str()
-				);
-			val.append(buf);
-			
-			snprintf(buf, sizeof(buf), "\n    zset: \"%s\" - \"%s\"",
-				hexmem(tmp[4].data(), tmp[4].size()).c_str(),
-				hexmem(tmp[5].data(), tmp[5].size()).c_str()
-				);
-			val.append(buf);
-			
-			snprintf(buf, sizeof(buf), "\n    list: \"%s\" - \"%s\"",
-				hexmem(tmp[6].data(), tmp[6].size()).c_str(),
-				hexmem(tmp[7].data(), tmp[7].size()).c_str()
-				);
-			val.append(buf);
-		}
-		resp->push_back("data_key_range");
-		resp->push_back(val);
 	}
 
 	// todo check

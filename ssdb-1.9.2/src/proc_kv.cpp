@@ -231,11 +231,11 @@ int proc_rscan(NetworkServer *net, Link *link, const Request &req, Response *res
 	CHECK_NUM_PARAMS(4);
 
 	uint64_t limit = req[3].Uint64();
-	KIterator *it = serv->ssdb->rscan(req[1], req[2], limit);
+	Iterator *it = serv->ssdb->rev_iterator("", "", -1);
 	resp->push_back("ok");
 	while(it->next()){
-		resp->push_back(it->key);
-		resp->push_back(it->val);
+		resp->push_back(hexmem(it->key().data(),it->key().size()));
+		resp->push_back(hexmem(it->val().data(),it->val().size()));
 	}
 	delete it;
 	return 0;
@@ -267,23 +267,6 @@ int proc_keys(NetworkServer *net, Link *link, const Request &req, Response *resp
         resp->push_back(mit->key);
     }
 	delete mit;
-	return 0;
-}
-
-int proc_rkeys(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
-	CHECK_NUM_PARAMS(4);
-
-	uint64_t limit = req[3].Uint64();
-	KIterator *it = serv->ssdb->rscan(req[1], req[2], limit);
-    resp->push_back("ok");
-	if (it != NULL){
-        it->return_val(false);
-        while(it->next()){
-            resp->push_back(it->key);
-        }
-        delete it;
-    }
 	return 0;
 }
 
