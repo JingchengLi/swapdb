@@ -138,6 +138,7 @@ DEF_PROC(dump);
 DEF_PROC(restore);
 DEF_PROC(select);
 DEF_PROC(client);
+DEF_PROC(quit);
 
 
 
@@ -264,6 +265,7 @@ void SSDBServer::reg_procs(NetworkServer *net){
 	REG_PROC(restore, "wt");
 	REG_PROC(select, "rt");
 	REG_PROC(client, "r");
+	REG_PROC(quit, "r");
 
 
 	REG_PROC(clear_binlog, "wt");
@@ -386,6 +388,14 @@ int proc_select(NetworkServer *net, Link *link, const Request &req, Response *re
 int proc_client(NetworkServer *net, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *)net->data;
 
+	resp->push_back("ok");
+	return 0;
+}
+
+
+int proc_quit(NetworkServer *net, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *)net->data;
+	//TODO quit support
 	resp->push_back("ok");
 	return 0;
 }

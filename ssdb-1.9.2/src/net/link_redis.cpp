@@ -51,6 +51,7 @@ static RedisCommand_raw cmds_raw[] = {
 	{STRATEGY_AUTO, "restore",	"restore",  	REPLY_STATUS},
 	{STRATEGY_AUTO, "select",	"select",		REPLY_STATUS},
 	{STRATEGY_AUTO, "client",	"client",		REPLY_STATUS},
+	{STRATEGY_AUTO, "quit",		"quit",			REPLY_STATUS},
 
 	{STRATEGY_AUTO, "get",		"get",			REPLY_BULK},
 	{STRATEGY_AUTO, "getset",	"getset",		REPLY_BULK},
