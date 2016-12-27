@@ -543,6 +543,92 @@ int evictKeysToSSDB(void) {
     return C_OK;
 }
 
+void evictingDataToSSDB(robj *keyobj, redisDb *db) {
+    char llbuf[32] = {0};
+    redisDb *evicteddb = server.db + EVICTED_DATA_DBID;
+    long long expiretime = getExpire(db, keyobj), ttl = 0;
+    robj *llbufobj, *setcmd, *o;
+    sds cmdname;
+    long long now = mstime();
+    rio cmd, payload;
+
+    /* Only transfer effective data. */
+    if (expiretime > 0 && now > expiretime)
+        return;
+
+    if (expiretime != -1) {
+        ttl = expiretime - now;
+        if (ttl < 1) ttl = 1;
+    }
+
+    /* Increase the refcount as keyobj is added to evicteddb. */
+    incrRefCount(keyobj);
+
+    /* Record the evicted keys in an extra redis db. */
+    setKey(evicteddb, keyobj, shared.space);
+    server.dirty ++;
+
+    notifyKeyspaceEvent(NOTIFY_STRING,"set",keyobj,evicteddb->id);
+
+    /* Append set operation to aof. */
+    cmdname = sdsnew("set");
+    setcmd = createObject(OBJ_STRING, (void *)cmdname);
+    robj *setargv[3] = {setcmd, keyobj, shared.space};
+
+    propagate(lookupCommand(cmdname), EVICTED_DATA_DBID, setargv, 3,
+              PROPAGATE_AOF | PROPAGATE_REPL);
+    decrRefCount(setcmd);
+
+    /* Record the expire info. */
+    if (expiretime > 0) {
+        setExpire(evicteddb, keyobj, expiretime);
+        ll2string(llbuf, sizeof(llbuf), expiretime);
+        notifyKeyspaceEvent(NOTIFY_GENERIC,
+                            "expire", keyobj, evicteddb->id);
+    } else
+        ll2string(llbuf, sizeof(llbuf), 0);
+
+    llbufobj = createObject(OBJ_STRING, (void *)(sdsnew(llbuf)));
+
+    /* Append expire operation to aof if necessary. */
+    if (expiretime > 0) {
+        sds cmdname = sdsnew("expire");
+        robj *expirecmd = createObject(OBJ_STRING, (void *)cmdname);
+        robj *expireArgv[3] = {expirecmd, keyobj, llbufobj};
+
+        propagate(lookupCommand(cmdname), EVICTED_DATA_DBID, expireArgv, 3,
+                  PROPAGATE_AOF | PROPAGATE_REPL);
+
+        decrRefCount(expirecmd);
+        serverLog(LL_DEBUG, "Appending expire operation to aof.");
+    }
+
+    rioInitWithBuffer(&cmd,sdsempty());
+    serverAssert(rioWriteBulkCount(&cmd, '*', 5));
+    serverAssert(rioWriteBulkString(&cmd, "RESTORE", 7));
+    serverAssert(sdsEncodedObject(keyobj));
+    serverAssert(rioWriteBulkString(&cmd, keyobj->ptr, sdslen(keyobj->ptr)));
+    serverAssert(rioWriteBulkLongLong(&cmd, ttl));
+
+    /* It's OK for the side effect of lookupKeyRead. */
+    o = lookupKeyRead(db, keyobj);
+    serverAssert(o);
+    createDumpPayload(&payload, o);
+
+    serverAssert(rioWriteBulkString(&cmd, payload.io.buffer.ptr,
+                                    sdslen(payload.io.buffer.ptr)));
+    sdsfree(payload.io.buffer.ptr);
+
+    serverAssert(rioWriteBulkString(&cmd, "REPLACE", 7));
+
+    /* sendCommandToSSDB will free cmd.io.buffer.ptr. */
+    if (sendCommandToSSDB(server.ssdb_client, cmd.io.buffer.ptr) != C_OK)
+        serverLog(LL_WARNING, "sendCommandToSSDB: server.ssdb_client failed.");
+    else
+        serverLog(LL_DEBUG, "Evicting key: %s to SSDB.", (char *)(keyobj->ptr));
+
+}
+
 /* ----------------------------------------------------------------------------
  * The external API for eviction: freeMemroyIfNeeded() is called by the
  * server when there is data to add in order to make space if needed.

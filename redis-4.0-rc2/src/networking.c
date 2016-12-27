@@ -627,40 +627,41 @@ static int nonBlockConnectToSsdbServer(client *c) {
 }
 
 /* TODO: Implement sendCommandToSSDB. Querying SSDB server if querying redis fails. */
-int sendCommandToSSDB(client *c) {
+/* Compose the finalcmd if finalcmd is NULL. */
+int sendCommandToSSDB(client *c, sds finalcmd) {
     char *cmd = NULL;
-    sds finalcmd = NULL;
     int i, len, nwritten;
     struct redisCommand *cmdinfo = NULL;
 
-    cmdinfo = lookupCommand(c->argv[0]->ptr);
-    if (!cmdinfo
-        || !(cmdinfo->flags & CMD_JDJR_MODE)
-        /* TODO: support multi and pipeline. */
-        || (c->flags & CLIENT_MULTI))
-        return C_ERR;
+    if (!finalcmd) {
+        cmdinfo = lookupCommand(c->argv[0]->ptr);
+        if (!cmdinfo
+            || !(cmdinfo->flags & CMD_JDJR_MODE)
+            /* TODO: support multi and pipeline. */
+            || (c->flags & CLIENT_MULTI))
+            return C_ERR;
 
-    if (!c->context || c->context->fd <= 0) {
-        serverLog(LL_VERBOSE, "redisContext error.");
-        return C_ERR;
+        if (!c->context || c->context->fd <= 0) {
+            serverLog(LL_VERBOSE, "redisContext error.");
+            return C_ERR;
+        }
+
+        const char **argv = zmalloc(sizeof(char *) * c->argc);
+
+        for (i = 0; i < c->argc; i ++)
+            argv[i] = (char*)c->argv[i]->ptr;
+
+        len = redisFormatCommandArgv(&cmd, c->argc, argv, NULL);
+        zfree(argv);
+
+        if (len == -1) {
+            serverLog(LL_WARNING, "Out of Memory for redisFormatCommandArgv.");
+            return C_ERR;
+        }
+
+        finalcmd = sdsnewlen(cmd, len);
+        free(cmd);
     }
-
-    const char **argv = zmalloc(sizeof(char *) * c->argc);
-
-    for (i = 0; i < c->argc; i ++)
-        argv[i] = (char*)c->argv[i]->ptr;
-
-    len = redisFormatCommandArgv(&cmd, c->argc, argv, NULL);
-    zfree(argv);
-
-    if (len == -1) {
-        serverLog(LL_WARNING, "Out of Memory for redisFormatCommandArgv.");
-        return C_ERR;
-    }
-
-    finalcmd = sdsnewlen(cmd, len);
-
-    free(cmd);
 
      if (!finalcmd) {
           serverLog(LL_VERBOSE, "Expecting finalcmd not NULL.");
@@ -1465,7 +1466,7 @@ void processInputBuffer(client *c) {
                 && c->argc > 1
                 && !dictFind(c->db->dict, c->argv[1]->ptr)
                 && dictFind(EVICTED_DATA_DB->dict, c->argv[1]->ptr)
-                && sendCommandToSSDB(c) == C_OK)
+                && sendCommandToSSDB(c, NULL) == C_OK)
                 resetClient(c);
             else if (processCommand(c) == C_OK)
                 resetClient(c);

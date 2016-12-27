@@ -1342,7 +1342,7 @@ int clientsArePaused(void);
 int processEventsWhileBlocked(void);
 int handleClientsWithPendingWrites(void);
 int clientHasPendingReplies(client *c);
-int sendCommandToSSDB(client *c);
+int sendCommandToSSDB(client *c, sds finalcmd);
 void unlinkClient(client *c);
 int writeToClient(int fd, client *c, int handler_installed);
 
