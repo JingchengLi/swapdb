@@ -195,11 +195,11 @@ void coldKeyPopulate(int dbid, dict *sampledict, dict *keydict, struct evictionP
         }
 
         if ((server.maxmemory_policy & MAXMEMORY_FLAG_LFU) &&
-                (idle >= COLD_KEY_LFU_VAL)) {
+                (idle < COLD_KEY_LFU_VAL)) {
             continue;
         }
         if ((server.maxmemory_policy & MAXMEMORY_FLAG_LFU) &&
-                (idle >= COLD_KEY_LRU_IDLE_VAL)) {
+                (idle < COLD_KEY_LRU_IDLE_VAL)) {
             continue;
         }
 
