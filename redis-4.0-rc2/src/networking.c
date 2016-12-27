@@ -855,6 +855,7 @@ int createClientForEvicting() {
         listAddNodeTail(server.clients, server.ssdb_client);
     }
 
+    serverLog(LL_NOTICE, "Connecting to SSDB Unix socket succeeded.");
     return C_OK;
 }
 
@@ -1654,6 +1655,10 @@ sds getAllClientsInfoString(void) {
     listRewind(server.clients,&li);
     while ((ln = listNext(&li)) != NULL) {
         client = listNodeValue(ln);
+
+        if (server.jdjr_mode && client == server.ssdb_client)
+            continue;
+
         o = catClientInfoString(o,client);
         o = sdscatlen(o,"\n",1);
     }

@@ -1006,7 +1006,7 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
         run_with_period(5000) {
             serverLog(LL_VERBOSE,
                 "%lu clients connected (%lu slaves), %zu bytes in use",
-                listLength(server.clients)-listLength(server.slaves),
+                listLength(server.clients)-listLength(server.slaves)-(server.jdjr_mode?1:0),
                 listLength(server.slaves),
                 zmalloc_used_memory());
         }
@@ -1784,8 +1784,11 @@ void initServer(void) {
 
     /* Connecting to SSDB unix socket, create a client for evciting data to SSDB,
        and check if SSDB server is ready. */
-    if (server.jdjr_mode && createClientForEvicting() != C_OK)
+    if (server.jdjr_mode && createClientForEvicting() != C_OK) {
+        serverLog(LL_WARNING, "Connecting to SSDB Unix socket failed.");
         exit(1);
+    }
+
 
     /* Abort if there are no listening sockets at all. */
     if (server.ipfd_count == 0 && server.sofd < 0) {
