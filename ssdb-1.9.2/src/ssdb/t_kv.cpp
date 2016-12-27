@@ -677,9 +677,12 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
                 return -1;
             }
 
-            Transaction trans(binlogs);
-            del_key_internal(key, 'z');
-            binlogs->commit();
+            leveldb::WriteBatch batch;
+            del_key_internal(batch, key);
+            s = ldb->Write(leveldb::WriteOptions(), &(batch));
+            if(!s.ok()){
+                return -1;
+            }
 
         } else if (del == KEY_DELETE_MASK){
             //nothing
