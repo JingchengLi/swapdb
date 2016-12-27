@@ -750,7 +750,6 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
     }
 
     uint64_t len = 0;
-    unsigned int i;
 
     int rdbtype = rdbDecoder.rdbLoadObjectType();
 
@@ -797,7 +796,7 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
 
             if ((len = rdbDecoder.rdbLoadLen(NULL)) == RDB_LENERR) return -1;
 
-            for (i = 0; i < len; i++) {
+            while (len--) {
                 //shit
                 std::string r = rdbDecoder.rdbGenericLoadStringObject(&ret);
                 if (ret != 0) {
@@ -830,8 +829,7 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
                     if (rdbDecoder.rdbLoadDoubleValue(&score) == -1) return -1;
                 }
 
-                //todo score....
-                zset(key, r, str(score), 'z');
+                zset(key, r, str(score));
             }
 
             break;
@@ -902,7 +900,6 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
         }
         case RDB_TYPE_SET_INTSET:{
 
-
             std::string insetStr = rdbDecoder.rdbGenericLoadStringObject(&ret);
             if (ret != 0) {
                 return ret;
@@ -911,13 +908,13 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
             const intset *set = (const intset *)insetStr.data();
             len = intsetLen(set);
 
-            log_debug(" inset %d %s", len, hexmem(insetStr.data(), insetStr.size()).c_str());
+//            log_debug(" inset %d %s", len, hexmem(insetStr.data(), insetStr.size()).c_str());
 
             for (uint32_t j = 0; j < len; ++j) {
                 int64_t t_value;
                 if (intsetGet((intset *) set, j , &t_value) == 1) {
 
-                    log_debug("%d : %d", j , t_value);
+//                    log_debug("%d : %d", j , t_value);
 
                     sadd(key, str(t_value), 'z');
 
