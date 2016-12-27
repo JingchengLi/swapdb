@@ -86,28 +86,28 @@ public:
 
 	/* key value */
 
-	virtual int set(const Bytes &key, const Bytes &val, char log_type=BinlogType::SYNC);
-	virtual int setnx(const Bytes &key, const Bytes &val, char log_type=BinlogType::SYNC);
-	virtual int del(const Bytes &key, char log_type=BinlogType::SYNC);
+	virtual int set(const Bytes &key, const Bytes &val);
+	virtual int setnx(const Bytes &key, const Bytes &val);
+	virtual int del(const Bytes &key);
 	// -1: error, 1: ok, 0: value is not an integer or out of range
-	virtual int incr(const Bytes &key, int64_t by, int64_t *new_val, char log_type=BinlogType::SYNC);
-	virtual int multi_set(const std::vector<Bytes> &kvs, int offset=0, char log_type=BinlogType::SYNC);
-	virtual int multi_del(const std::vector<Bytes> &keys, int offset=0, char log_type=BinlogType::SYNC);
-	virtual int setbit(const Bytes &key, int bitoffset, int on, char log_type=BinlogType::SYNC);
+	virtual int incr(const Bytes &key, int64_t by, int64_t *new_val);
+	virtual int multi_set(const std::vector<Bytes> &kvs, int offset=0);
+	virtual int multi_del(const std::vector<Bytes> &keys, int offset=0);
+	virtual int setbit(const Bytes &key, int bitoffset, int on);
 	virtual int getbit(const Bytes &key, int bitoffset);
 	
 	virtual int get(const Bytes &key, std::string *val);
-	virtual int getset(const Bytes &key, std::string *val, const Bytes &newval, char log_type=BinlogType::SYNC);
+	virtual int getset(const Bytes &key, std::string *val, const Bytes &newval);
 	// return (start, end]
 
 	/* hash */
 
-	virtual int hset(const Bytes &name, const Bytes &key, const Bytes &val, char log_type=BinlogType::SYNC);
-	virtual int hdel(const Bytes &name, const Bytes &key, char log_type=BinlogType::SYNC);
+	virtual int hset(const Bytes &name, const Bytes &key, const Bytes &val);
+	virtual int hdel(const Bytes &name, const Bytes &key);
 	// -1: error, 1: ok, 0: value is not an integer or out of range
-	virtual int hincr(const Bytes &name, const Bytes &key, int64_t by, int64_t *new_val, char log_type=BinlogType::SYNC);
-	//int multi_hset(const Bytes &name, const std::vector<Bytes> &kvs, int offset=0, char log_type=BinlogType::SYNC);
-	//int multi_hdel(const Bytes &name, const std::vector<Bytes> &keys, int offset=0, char log_type=BinlogType::SYNC);
+	virtual int hincr(const Bytes &name, const Bytes &key, int64_t by, int64_t *new_val);
+	//int multi_hset(const Bytes &name, const std::vector<Bytes> &kvs, int offset=0);
+	//int multi_hdel(const Bytes &name, const std::vector<Bytes> &keys, int offset=0);
 
 	virtual int64_t hsize(const Bytes &name);
 	virtual int64_t hclear(const Bytes &name);
@@ -139,28 +139,28 @@ public:
 	int 	DoRPop(leveldb::WriteBatch &batch, ListMetaVal &meta_val, const Bytes &key, std::string &meta_key, std::string *val);
 	int 	DoRPush(leveldb::WriteBatch &batch, ListMetaVal &meta_val, const Bytes &key, const Bytes &val, std::string &meta_key);
     int     DoRPush(leveldb::WriteBatch &batch, const Bytes &key, const std::vector<Bytes> &val, int offset, std::string &meta_key, ListMetaVal &meta_val);
-    int64_t LDelKeyNoLock(leveldb::WriteBatch &batch, const Bytes &name, char log_type=BinlogType::SYNC);
+    int64_t LDelKeyNoLock(leveldb::WriteBatch &batch, const Bytes &name);
 
     /* set */
-    virtual int sadd(const Bytes &key, const Bytes &member, char log_type=BinlogType::SYNC);
-    virtual int multi_sadd(const Bytes &key, const std::vector<Bytes> &members, int64_t *num, char log_type=BinlogType::SYNC);
-    virtual int multi_srem(const Bytes &key, const std::vector<Bytes> &members, int64_t *num, char log_type=BinlogType::SYNC);
-	virtual int srem(const Bytes &key, const Bytes &member, char log_type=BinlogType::SYNC);
+    virtual int sadd(const Bytes &key, const Bytes &member);
+    virtual int multi_sadd(const Bytes &key, const std::vector<Bytes> &members, int64_t *num);
+    virtual int multi_srem(const Bytes &key, const std::vector<Bytes> &members, int64_t *num);
+	virtual int srem(const Bytes &key, const Bytes &member);
 	virtual int scard(const Bytes &key, uint64_t *llen);
     virtual int sismember(const Bytes &key, const Bytes &member);
     virtual int smembers(const Bytes &key, std::vector<std::string> &members);
     virtual int sunion(const std::vector<Bytes> &keys, std::set<std::string>& members);
-    virtual int sunionstore(const Bytes &destination, const std::vector<Bytes> &keys, int64_t *num, char log_type=BinlogType::SYNC);
+    virtual int sunionstore(const Bytes &destination, const std::vector<Bytes> &keys, int64_t *num);
 	virtual int64_t sclear(const Bytes &name);
 
 	/* zset */
-	virtual int zset(const Bytes &name, const Bytes &key, const Bytes &score, char log_type=BinlogType::SYNC);
+	virtual int zset(const Bytes &name, const Bytes &key, const Bytes &score);
     virtual int zsetNoLock(leveldb::WriteBatch &batch, const Bytes &name, const Bytes &key, double score);
-	virtual int zdel(const Bytes &name, const Bytes &key, char log_type=BinlogType::SYNC);
+	virtual int zdel(const Bytes &name, const Bytes &key);
 	// -1: error, 1: ok, 0: value is not an integer or out of range
-	virtual int zincr(const Bytes &name, const Bytes &key, double by, double *new_val, char log_type=BinlogType::SYNC);
-	//int multi_zset(const Bytes &name, const std::vector<Bytes> &kvs, int offset=0, char log_type=BinlogType::SYNC);
-	//int multi_zdel(const Bytes &name, const std::vector<Bytes> &keys, int offset=0, char log_type=BinlogType::SYNC);
+	virtual int zincr(const Bytes &name, const Bytes &key, double by, double *new_val);
+	//int multi_zset(const Bytes &name, const std::vector<Bytes> &kvs, int offset=0);
+	//int multi_zdel(const Bytes &name, const std::vector<Bytes> &keys, int offset=0);
 	
 	virtual int64_t zsize(const Bytes &name);
 	/**
@@ -190,11 +190,11 @@ public:
 	// @return 0: empty queue, 1: item peeked, -1: error
 	virtual int qback(const Bytes &name, std::string *item);
 	// @return -1: error, other: the new length of the queue
-	virtual int64_t qpush_front(const Bytes &name, const Bytes &item, char log_type=BinlogType::SYNC);
-	virtual int64_t qpush_back(const Bytes &name, const Bytes &item, char log_type=BinlogType::SYNC);
+	virtual int64_t qpush_front(const Bytes &name, const Bytes &item);
+	virtual int64_t qpush_back(const Bytes &name, const Bytes &item);
 	// @return 0: empty queue, 1: item popped, -1: error
-	virtual int qpop_front(const Bytes &name, std::string *item, char log_type=BinlogType::SYNC);
-	virtual int qpop_back(const Bytes &name, std::string *item, char log_type=BinlogType::SYNC);
+	virtual int qpop_front(const Bytes &name, std::string *item);
+	virtual int qpop_back(const Bytes &name, std::string *item);
 	virtual int qfix(const Bytes &name);
 	virtual int qlist(const Bytes &name_s, const Bytes &name_e, uint64_t limit,
 			std::vector<std::string> *list);
@@ -203,26 +203,26 @@ public:
 	virtual int qslice(const Bytes &name, int64_t offset, int64_t limit,
 			std::vector<std::string> *list);
 	virtual int qget(const Bytes &name, int64_t index, std::string *item);
-	virtual int qset(const Bytes &name, int64_t index, const Bytes &item, char log_type=BinlogType::SYNC);
-	virtual int qset_by_seq(const Bytes &name, uint64_t seq, const Bytes &item, char log_type=BinlogType::SYNC);
+	virtual int qset(const Bytes &name, int64_t index, const Bytes &item);
+	virtual int qset_by_seq(const Bytes &name, uint64_t seq, const Bytes &item);
 
 
 	/* eset */
-	virtual int eset(const Bytes &key, int64_t ts, char log_type=BinlogType::SYNC);
-	virtual int esetNoLock(const Bytes &key, int64_t ts, char log_type=BinlogType::SYNC);
-	virtual int edel(const Bytes &key, char log_type=BinlogType::SYNC);
+	virtual int eset(const Bytes &key, int64_t ts);
+	virtual int esetNoLock(const Bytes &key, int64_t ts);
+	virtual int edel(const Bytes &key);
 	virtual int eget(const Bytes &key, int64_t *ts);
 	virtual int edel_one(leveldb::WriteBatch &batch, const Bytes &key);
     virtual int check_meta_key(const Bytes &key);
 
 
 private:
-	int64_t _qpush(const Bytes &name, const Bytes &item, uint64_t front_or_back_seq, char log_type=BinlogType::SYNC);
-	int _qpop(const Bytes &name, std::string *item, uint64_t front_or_back_seq, char log_type=BinlogType::SYNC);
+	int64_t _qpush(const Bytes &name, const Bytes &item, uint64_t front_or_back_seq);
+	int _qpop(const Bytes &name, std::string *item, uint64_t front_or_back_seq);
 
 	int SetGeneric(leveldb::WriteBatch &batch, const std::string &key, const std::string &val, int flags, const int64_t expire);
-    int KDel(const Bytes &key, char log_type=BinlogType::SYNC);
-	int KDelNoLock(const Bytes &key, char log_type=BinlogType::SYNC);
+    int KDel(const Bytes &key);
+	int KDelNoLock(leveldb::WriteBatch &batch, const Bytes &key);
     int GetKvMetaVal(const std::string &meta_key, KvMetaVal &kv);
     int del_key_internal(leveldb::WriteBatch &batch, const Bytes &key);
 

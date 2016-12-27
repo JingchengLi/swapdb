@@ -123,7 +123,7 @@ int SSDBImpl::qback(const Bytes &name, std::string *item){
 	return ret;
 }
 
-int SSDBImpl::qset_by_seq(const Bytes &name, uint64_t seq, const Bytes &item, char log_type){
+int SSDBImpl::qset_by_seq(const Bytes &name, uint64_t seq, const Bytes &item){
 	Transaction trans(binlogs);
 	uint64_t min_seq, max_seq;
 	int ret;
@@ -148,7 +148,7 @@ int SSDBImpl::qset_by_seq(const Bytes &name, uint64_t seq, const Bytes &item, ch
 
 // todo r2m adaptation
 	std::string buf = encode_qitem_key(name, seq);
-	binlogs->add_log(log_type, BinlogCommand::QSET, buf);
+	binlogs->add_log(BinlogCommand::QSET, buf);
 
 	leveldb::Status s = binlogs->commit();
 	if(!s.ok()){
@@ -159,7 +159,7 @@ int SSDBImpl::qset_by_seq(const Bytes &name, uint64_t seq, const Bytes &item, ch
 }
 
 // return: 0: index out of range, -1: error, 1: ok
-int SSDBImpl::qset(const Bytes &name, int64_t index, const Bytes &item, char log_type){
+int SSDBImpl::qset(const Bytes &name, int64_t index, const Bytes &item){
 	Transaction trans(binlogs);
 	int64_t size = this->qsize(name);
 	if(size == -1){
@@ -194,7 +194,7 @@ int SSDBImpl::qset(const Bytes &name, int64_t index, const Bytes &item, char log
 // todo r2m adaptation
 	//log_info("qset %s %" PRIu64 "", hexmem(name.data(), name.size()).c_str(), seq);
 	std::string buf = encode_qitem_key(name, seq);
-	binlogs->add_log(log_type, BinlogCommand::QSET, buf);
+	binlogs->add_log(BinlogCommand::QSET, buf);
 	
 	leveldb::Status s = binlogs->commit();
 	if(!s.ok()){
@@ -204,7 +204,7 @@ int SSDBImpl::qset(const Bytes &name, int64_t index, const Bytes &item, char log
 	return 1;
 }
 
-int64_t SSDBImpl::_qpush(const Bytes &name, const Bytes &item, uint64_t front_or_back_seq, char log_type){
+int64_t SSDBImpl::_qpush(const Bytes &name, const Bytes &item, uint64_t front_or_back_seq){
 	Transaction trans(binlogs);
 
 	int ret;
@@ -244,9 +244,9 @@ int64_t SSDBImpl::_qpush(const Bytes &name, const Bytes &item, uint64_t front_or
 // todo r2m adaptation
 	std::string buf = encode_qitem_key(name, seq);
 	if(front_or_back_seq == QFRONT_SEQ){
-		binlogs->add_log(log_type, BinlogCommand::QPUSH_FRONT, buf);
+		binlogs->add_log(BinlogCommand::QPUSH_FRONT, buf);
 	}else{
-		binlogs->add_log(log_type, BinlogCommand::QPUSH_BACK, buf);
+		binlogs->add_log(BinlogCommand::QPUSH_BACK, buf);
 	}
 	
 	// update size
@@ -263,15 +263,15 @@ int64_t SSDBImpl::_qpush(const Bytes &name, const Bytes &item, uint64_t front_or
 	return size;
 }
 
-int64_t SSDBImpl::qpush_front(const Bytes &name, const Bytes &item, char log_type){
-	return _qpush(name, item, QFRONT_SEQ, log_type);
+int64_t SSDBImpl::qpush_front(const Bytes &name, const Bytes &item){
+	return _qpush(name, item, QFRONT_SEQ);
 }
 
-int64_t SSDBImpl::qpush_back(const Bytes &name, const Bytes &item, char log_type){
-	return _qpush(name, item, QBACK_SEQ, log_type);
+int64_t SSDBImpl::qpush_back(const Bytes &name, const Bytes &item){
+	return _qpush(name, item, QBACK_SEQ);
 }
 
-int SSDBImpl::_qpop(const Bytes &name, std::string *item, uint64_t front_or_back_seq, char log_type){
+int SSDBImpl::_qpop(const Bytes &name, std::string *item, uint64_t front_or_back_seq){
 	Transaction trans(binlogs);
 	
 	int ret;
@@ -299,9 +299,9 @@ int SSDBImpl::_qpop(const Bytes &name, std::string *item, uint64_t front_or_back
 	}
 
 	if(front_or_back_seq == QFRONT_SEQ){
-		binlogs->add_log(log_type, BinlogCommand::QPOP_FRONT, name.String());
+		binlogs->add_log(BinlogCommand::QPOP_FRONT, name.String());
 	}else{
-		binlogs->add_log(log_type, BinlogCommand::QPOP_BACK, name.String());
+		binlogs->add_log(BinlogCommand::QPOP_BACK, name.String());
 	}
 
 	// update size
@@ -329,12 +329,12 @@ int SSDBImpl::_qpop(const Bytes &name, std::string *item, uint64_t front_or_back
 }
 
 // @return 0: empty queue, 1: item popped, -1: error
-int SSDBImpl::qpop_front(const Bytes &name, std::string *item, char log_type){
-	return _qpop(name, item, QFRONT_SEQ, log_type);
+int SSDBImpl::qpop_front(const Bytes &name, std::string *item){
+	return _qpop(name, item, QFRONT_SEQ);
 }
 
-int SSDBImpl::qpop_back(const Bytes &name, std::string *item, char log_type){
-	return _qpop(name, item, QBACK_SEQ, log_type);
+int SSDBImpl::qpop_back(const Bytes &name, std::string *item){
+	return _qpop(name, item, QBACK_SEQ);
 }
 
 static void get_qnames(Iterator *it, std::vector<std::string> *list){

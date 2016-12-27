@@ -152,7 +152,7 @@ SIterator* SSDBImpl::sscan_internal(const Bytes &name, const Bytes &start, const
     return new SIterator(this->iterator(key_start, key_end, limit), name, version);
 }
 
-int SSDBImpl::sadd(const Bytes &key, const Bytes &member, char log_type){
+int SSDBImpl::sadd(const Bytes &key, const Bytes &member){
     RecordLock l(&mutex_record_, key.String());
     leveldb::WriteBatch batch;
 
@@ -171,7 +171,7 @@ int SSDBImpl::sadd(const Bytes &key, const Bytes &member, char log_type){
     return ret;
 }
 
-int SSDBImpl::multi_sadd(const Bytes &key, const std::vector<Bytes> &members, int64_t *num, char log_type) {
+int SSDBImpl::multi_sadd(const Bytes &key, const std::vector<Bytes> &members, int64_t *num) {
     RecordLock l(&mutex_record_, key.String());
     leveldb::WriteBatch batch;
 
@@ -235,7 +235,7 @@ int SSDBImpl::multi_sadd(const Bytes &key, const std::vector<Bytes> &members, in
     return ret;
 }
 
-int SSDBImpl::multi_srem(const Bytes &key, const std::vector<Bytes> &members, int64_t *num, char log_type) {
+int SSDBImpl::multi_srem(const Bytes &key, const std::vector<Bytes> &members, int64_t *num) {
     RecordLock l(&mutex_record_, key.String());
     leveldb::WriteBatch batch;
 
@@ -273,7 +273,7 @@ int SSDBImpl::multi_srem(const Bytes &key, const std::vector<Bytes> &members, in
     return ret;
 }
 
-int SSDBImpl::srem(const Bytes &key, const Bytes &member, char log_type) {
+int SSDBImpl::srem(const Bytes &key, const Bytes &member) {
     RecordLock l(&mutex_record_, key.String());
     leveldb::WriteBatch batch;
 
@@ -364,7 +364,7 @@ int SSDBImpl::sunion(const std::vector<Bytes> &keys, std::set<std::string> &memb
     return sunion_internal(keys, 1, members);
 }
 
-int SSDBImpl::sunionstore(const Bytes &destination, const std::vector<Bytes> &keys, int64_t *num, char log_type) {
+int SSDBImpl::sunionstore(const Bytes &destination, const std::vector<Bytes> &keys, int64_t *num) {
 //    RecordLock l(&mutex_record_, key.String());//TODO
     leveldb::WriteBatch batch;
 

@@ -71,7 +71,7 @@ int SSDBImpl::SetGeneric(leveldb::WriteBatch &batch, const std::string &key, con
     return 1;
 }
 
-int SSDBImpl::multi_set(const std::vector<Bytes> &kvs, int offset, char log_type){
+int SSDBImpl::multi_set(const std::vector<Bytes> &kvs, int offset){
 	leveldb::WriteBatch batch;
 	std::vector<Bytes> lock_key;
 	std::vector<Bytes>::const_iterator iter;
@@ -108,7 +108,7 @@ return_err:
 	return rval;
 }
 
-int SSDBImpl::multi_del(const std::vector<Bytes> &keys, int offset, char log_type){ //注：redis中不支持该接口
+int SSDBImpl::multi_del(const std::vector<Bytes> &keys, int offset){ //注：redis中不支持该接口
 	leveldb::WriteBatch batch;
 	std::vector<Bytes> lock_key;
 	std::vector<Bytes>::const_iterator iter;
@@ -166,7 +166,7 @@ return_err:
 	return num;
 }
 
-int SSDBImpl::set(const Bytes &key, const Bytes &val, char log_type){
+int SSDBImpl::set(const Bytes &key, const Bytes &val){
 	RecordLock l(&mutex_record_, key.String());
 	leveldb::WriteBatch batch;
 
@@ -181,7 +181,7 @@ int SSDBImpl::set(const Bytes &key, const Bytes &val, char log_type){
 	return 1;
 }
 
-int SSDBImpl::setnx(const Bytes &key, const Bytes &val, char log_type){
+int SSDBImpl::setnx(const Bytes &key, const Bytes &val){
 	RecordLock l(&mutex_record_, key.String());
 	leveldb::WriteBatch batch;
 
@@ -196,7 +196,7 @@ int SSDBImpl::setnx(const Bytes &key, const Bytes &val, char log_type){
 	return 1;
 }
 
-int SSDBImpl::getset(const Bytes &key, std::string *val, const Bytes &newval, char log_type){
+int SSDBImpl::getset(const Bytes &key, std::string *val, const Bytes &newval){
 	RecordLock l(&mutex_record_, key.String());
 	leveldb::WriteBatch batch;
 
@@ -263,7 +263,7 @@ int SSDBImpl::del_key_internal(leveldb::WriteBatch &batch, const Bytes &key) {
     return 1;
 }
 
-int SSDBImpl::del(const Bytes &key, char log_type){
+int SSDBImpl::del(const Bytes &key){
 	RecordLock l(&mutex_record_, key.String());
 	leveldb::WriteBatch batch;
 
@@ -281,7 +281,7 @@ int SSDBImpl::del(const Bytes &key, char log_type){
     return 1;
 }
 
-int SSDBImpl::incr(const Bytes &key, int64_t by, int64_t *new_val, char log_type){
+int SSDBImpl::incr(const Bytes &key, int64_t by, int64_t *new_val){
 	RecordLock l(&mutex_record_, key.String());
 	leveldb::WriteBatch batch;
 
@@ -341,7 +341,7 @@ int SSDBImpl::get(const Bytes &key, std::string *val) {
 }
 
 
-int SSDBImpl::setbit(const Bytes &key, int bitoffset, int on, char log_type){
+int SSDBImpl::setbit(const Bytes &key, int bitoffset, int on){
 	RecordLock l(&mutex_record_, key.String());
 	leveldb::WriteBatch batch;
 	
@@ -404,7 +404,8 @@ int SSDBImpl::getbit(const Bytes &key, int bitoffset) {
     return (val[len] & (1 << bit)) == 0 ? 0 : 1;
 }
 
-int SSDBImpl::KDel(const Bytes &key, char log_type){
+
+int SSDBImpl::KDel(const Bytes &key){
 	RecordLock l(&mutex_record_, key.String());
 	leveldb::WriteBatch batch;
 
@@ -713,7 +714,7 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
                 return ret;
             }
 
-            set(key, r, 'z');
+            set(key, r);
 
             break;
         }
@@ -756,7 +757,7 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
                     return ret;
                 }
 
-                sadd(key, r, 'z');
+                sadd(key, r);
             }
 
             break;
@@ -803,7 +804,7 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
                     return ret;
                 }
 
-                hset(key, field, value, 'z');
+                hset(key, field, value);
             }
 
             break;
@@ -872,7 +873,7 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
 
 //                    log_debug("%d : %d", j , t_value);
 
-                    sadd(key, str(t_value), 'z');
+                    sadd(key, str(t_value));
 
                 } else {
                     return -1;
@@ -912,7 +913,7 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
                     std::string value;
                     if(getNextString(zl, &p, value)) {
 //                        log_debug(" score : %s", hexmem(value.data(), value.length()).c_str());
-                        zset(key, t_item, value, 'z');
+                        zset(key, t_item, value);
 
                     } else {
                         log_error("value not found ");
@@ -923,7 +924,7 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
                     std::string value;
                     if(getNextString(zl, &p, value)) {
 //                        log_debug(" value : %s", hexmem(value.data(), value.length()).c_str());
-                        hset(key, t_item, value, 'z');
+                        hset(key, t_item, value);
 
                     } else {
                         log_error("value not found ");

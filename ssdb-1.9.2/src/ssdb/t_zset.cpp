@@ -26,7 +26,7 @@ void zset_internal(const SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes
 /**
  * @return -1: error, 0: item updated, 1: new item inserted
  */
-int SSDBImpl::zset(const Bytes &name, const Bytes &key, const Bytes &score, char log_type) {
+int SSDBImpl::zset(const Bytes &name, const Bytes &key, const Bytes &score) {
     RecordLock l(&mutex_record_, name.String());
     leveldb::WriteBatch batch;
 
@@ -67,7 +67,7 @@ int SSDBImpl::zsetNoLock(leveldb::WriteBatch &batch, const Bytes &name, const By
     return ret;
 }
 
-int SSDBImpl::zdel(const Bytes &name, const Bytes &key, char log_type) {
+int SSDBImpl::zdel(const Bytes &name, const Bytes &key) {
     RecordLock l(&mutex_record_, name.String());
     leveldb::WriteBatch batch;
 
@@ -87,7 +87,7 @@ int SSDBImpl::zdel(const Bytes &name, const Bytes &key, char log_type) {
     return ret;
 }
 
-int SSDBImpl::zincr(const Bytes &name, const Bytes &key, double by, double *new_val, char log_type) {
+int SSDBImpl::zincr(const Bytes &name, const Bytes &key, double by, double *new_val) {
     RecordLock l(&mutex_record_, name.String());
     leveldb::WriteBatch batch;
 

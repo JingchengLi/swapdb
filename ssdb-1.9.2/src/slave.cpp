@@ -387,7 +387,7 @@ int Slave::proc_sync(const Binlog &log, const std::vector<Bytes> &req){
 				if (kv.DecodeMetaVal(req[1].String()) == -1){
 					return -1;
 				}
-				if(ssdb->set(key, kv.value, log_type) == -1){
+				if(ssdb->set(key, kv.value) == -1){
 					return -1;
 				}
 			}
@@ -401,7 +401,7 @@ int Slave::proc_sync(const Binlog &log, const std::vector<Bytes> &req){
 				}
 				key = mk.key;
 				log_trace("del %s", hexmem(key.data(), key.size()).c_str());
-				if(ssdb->del(key, log_type) == -1){
+				if(ssdb->del(key) == -1){
 					return -1;
 				}
 			}
@@ -421,7 +421,7 @@ int Slave::proc_sync(const Binlog &log, const std::vector<Bytes> &req){
 				log_trace("hset %s %s",
 					hexmem(name.data(), name.size()).c_str(),
 					hexmem(key.data(), key.size()).c_str());
-				if(ssdb->hset(name, key, req[1], log_type) == -1){
+				if(ssdb->hset(name, key, req[1]) == -1){
 					return -1;
 				}
 			}
@@ -438,7 +438,7 @@ int Slave::proc_sync(const Binlog &log, const std::vector<Bytes> &req){
 				log_trace("hdel %s %s",
 					hexmem(name.data(), name.size()).c_str(),
 					hexmem(key.data(), key.size()).c_str());
-				if(ssdb->hdel(name, key, log_type) == -1){
+				if(ssdb->hdel(name, key) == -1){
 					return -1;
 				}
 			}
@@ -452,7 +452,7 @@ int Slave::proc_sync(const Binlog &log, const std::vector<Bytes> &req){
                 log_trace("sadd %s %s",
                           hexmem(sk.key.c_str(), sk.key.size()).c_str(),
                           hexmem(sk.field.c_str(), sk.field.size()).c_str());
-                if (ssdb->sadd(sk.key, sk.field, log_type) == -1){
+                if (ssdb->sadd(sk.key, sk.field) == -1){
                     return -1;
                 }
             }
@@ -466,7 +466,7 @@ int Slave::proc_sync(const Binlog &log, const std::vector<Bytes> &req){
                 log_trace("srem %s %s",
                           hexmem(sk.key.c_str(), sk.key.size()).c_str(),
                           hexmem(sk.field.c_str(), sk.field.size()).c_str());
-                if (ssdb->srem(sk.key, sk.field, log_type) == -1){
+                if (ssdb->srem(sk.key, sk.field) == -1){
                     return -1;
                 }
             }
@@ -488,7 +488,7 @@ int Slave::proc_sync(const Binlog &log, const std::vector<Bytes> &req){
 				log_trace("zset %s %s",
 					hexmem(name.data(), name.size()).c_str(),
 					hexmem(key.data(), key.size()).c_str());
-				if(ssdb->zset(name, key, req[1], log_type) == -1){
+				if(ssdb->zset(name, key, req[1]) == -1){
 					return -1;
 				}
 			}
@@ -503,7 +503,7 @@ int Slave::proc_sync(const Binlog &log, const std::vector<Bytes> &req){
 				log_trace("zdel %s %s",
 					hexmem(name.data(), name.size()).c_str(),
 					hexmem(key.data(), key.size()).c_str());
-				if(ssdb->zdel(name, key, log_type) == -1){
+				if(ssdb->zdel(name, key) == -1){
 					return -1;
 				}
 			}
@@ -527,13 +527,13 @@ int Slave::proc_sync(const Binlog &log, const std::vector<Bytes> &req){
 				int ret;
 				if(log.cmd() == BinlogCommand::QSET){
 					log_trace("qset %s %" PRIu64 "", hexmem(name.data(), name.size()).c_str(), seq);
-					ret = ssdb->qset_by_seq(name, seq, req[1], log_type);
+					ret = ssdb->qset_by_seq(name, seq, req[1]);
 				}else if(log.cmd() == BinlogCommand::QPUSH_BACK){
 					log_trace("qpush_back %s", hexmem(name.data(), name.size()).c_str());
-					ret = ssdb->qpush_back(name, req[1], log_type);
+					ret = ssdb->qpush_back(name, req[1]);
 				}else{
 					log_trace("qpush_front %s", hexmem(name.data(), name.size()).c_str());
-					ret = ssdb->qpush_front(name, req[1], log_type);
+					ret = ssdb->qpush_front(name, req[1]);
 				}
 				if(ret == -1){
 					return -1;
@@ -548,10 +548,10 @@ int Slave::proc_sync(const Binlog &log, const std::vector<Bytes> &req){
 				std::string tmp;
 				if(log.cmd() == BinlogCommand::QPOP_BACK){
 					log_trace("qpop_back %s", hexmem(name.data(), name.size()).c_str());
-					ret = ssdb->qpop_back(name, &tmp, log_type);
+					ret = ssdb->qpop_back(name, &tmp);
 				}else{
 					log_trace("qpop_front %s", hexmem(name.data(), name.size()).c_str());
-					ret = ssdb->qpop_front(name, &tmp, log_type);
+					ret = ssdb->qpop_front(name, &tmp);
 				}
 				if(ret == -1){
 					return -1;
@@ -566,7 +566,7 @@ int Slave::proc_sync(const Binlog &log, const std::vector<Bytes> &req){
                 }
                 std::string key = mk.key;
                 log_trace("del %s", hexmem(key.data(), key.size()).c_str());
-                if(ssdb->del(key, log_type) == -1){
+                if(ssdb->del(key) == -1){
                     return -1;
                 }
             }

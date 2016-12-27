@@ -12,7 +12,7 @@ static int incr_hsize(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &n
 /**
  * @return -1: error, 0: item updated, 1: new item inserted
  */
-int SSDBImpl::hset(const Bytes &name, const Bytes &key, const Bytes &val, char log_type){
+int SSDBImpl::hset(const Bytes &name, const Bytes &key, const Bytes &val){
 	RecordLock l(&mutex_record_, name.String());
 	leveldb::WriteBatch batch;
 
@@ -31,7 +31,7 @@ int SSDBImpl::hset(const Bytes &name, const Bytes &key, const Bytes &val, char l
 	return ret;
 }
 
-int SSDBImpl::hdel(const Bytes &name, const Bytes &key, char log_type){
+int SSDBImpl::hdel(const Bytes &name, const Bytes &key){
 	RecordLock l(&mutex_record_, name.String());
 	leveldb::WriteBatch batch;
 
@@ -50,7 +50,7 @@ int SSDBImpl::hdel(const Bytes &name, const Bytes &key, char log_type){
 	return ret;
 }
 
-int SSDBImpl::hincr(const Bytes &name, const Bytes &key, int64_t by, int64_t *new_val, char log_type){
+int SSDBImpl::hincr(const Bytes &name, const Bytes &key, int64_t by, int64_t *new_val){
 	RecordLock l(&mutex_record_, name.String());
 	leveldb::WriteBatch batch;
 

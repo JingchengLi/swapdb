@@ -12,6 +12,13 @@ found in the LICENSE file.
 
 /* Binlog */
 
+Binlog::Binlog(uint64_t seq, char cmd, const leveldb::Slice &key){
+	buf.append((char *)(&seq), sizeof(uint64_t));
+	buf.push_back(BinlogType::SYNC);
+	buf.push_back(cmd);
+	buf.append(key.data(), key.size());
+}
+
 Binlog::Binlog(uint64_t seq, char type, char cmd, const leveldb::Slice &key){
 	buf.append((char *)(&seq), sizeof(uint64_t));
 	buf.push_back(type);
@@ -245,21 +252,21 @@ leveldb::Status BinlogQueue::commit(){
 //	return leveldb::Status::OK();
 }
 
-void BinlogQueue::add_log(char type, char cmd, const leveldb::Slice &key){
+void BinlogQueue::add_log(char cmd, const leveldb::Slice &key){
 	if(!enabled){
 		return;
 	}
 	tran_seq ++;
-	Binlog log(tran_seq, type, cmd, key);
+	Binlog log(tran_seq, cmd, key);
 	batch.Put(encode_seq_key(tran_seq), log.repr());
 }
 
-void BinlogQueue::add_log(char type, char cmd, const std::string &key){
+void BinlogQueue::add_log(char cmd, const std::string &key){
 	if(!enabled){
 		return;
 	}
 	leveldb::Slice s(key);
-	this->add_log(type, cmd, s);
+	this->add_log(cmd, s);
 }
 
 // leveldb put
@@ -336,7 +343,7 @@ int BinlogQueue::get(uint64_t seq, Binlog *log) const{
 }
 
 int BinlogQueue::update(uint64_t seq, char type, char cmd, const std::string &key){
-	Binlog log(seq, type, cmd, key);
+	Binlog log(seq, cmd, key);
 	leveldb::Status s = db->Put(leveldb::WriteOptions(), encode_seq_key(seq), log.repr());
 	if(s.ok()){
 		return 0;
@@ -423,34 +430,4 @@ void BinlogQueue::clean_obsolete_binlogs(){
 	if(count > 0){
 		log_info("clean_obsolete_binlogs: %" PRIu64, count);
 	}
-}
-
-// TESTING, slow, so not used
-void BinlogQueue::merge(){
-	std::map<std::string, uint64_t> key_map;
-	uint64_t start = min_seq_;
-	uint64_t end = last_seq;
-	int reduce_count = 0;
-	int total = 0;
-	total = end - start + 1;
-	(void)total; // suppresses warning
-	log_trace("merge begin");
-	for(; start <= end; start++){
-		Binlog log;
-		if(this->get(start, &log) == 1){
-			if(log.type() == BinlogType::NOOP){
-				continue;
-			}
-			std::string key = log.key().String();
-			std::map<std::string, uint64_t>::iterator it = key_map.find(key);
-			if(it != key_map.end()){
-				uint64_t seq = it->second;
-				this->update(seq, BinlogType::NOOP, BinlogCommand::NONE, "");
-				//log_trace("merge update %" PRIu64 " to NOOP", seq);
-				reduce_count ++;
-			}
-			key_map[key] = log.seq();
-		}
-	}
-	log_trace("merge reduce %d of %d binlogs", reduce_count, total);
 }

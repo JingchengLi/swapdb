@@ -501,7 +501,7 @@ int SSDBImpl::lrange(const Bytes &key, int64_t start, int64_t end, std::vector<s
     return ret;
 }
 
-int64_t SSDBImpl::LDelKeyNoLock(leveldb::WriteBatch &batch, const Bytes &name, char log_type) {
+int64_t SSDBImpl::LDelKeyNoLock(leveldb::WriteBatch &batch, const Bytes &name) {
     ListMetaVal lv;
     std::string meta_key = encode_meta_key(name);
     int ret = GetListMetaVal(meta_key, lv);

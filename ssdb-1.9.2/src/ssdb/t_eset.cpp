@@ -4,12 +4,12 @@
 
 #include "ssdb_impl.h"
 
-static void eset_internal(const SSDBImpl *ssdb, const Bytes &key, int64_t ts, char log_type);
+static void eset_internal(const SSDBImpl *ssdb, const Bytes &key, int64_t ts);
 
-static int eset_one(SSDBImpl *ssdb, const Bytes &key, int64_t ts, char log_type);
+static int eset_one(SSDBImpl *ssdb, const Bytes &key, int64_t ts);
 
 
-int SSDBImpl::eset(const Bytes &key, int64_t ts, char log_type) {
+int SSDBImpl::eset(const Bytes &key, int64_t ts) {
     Transaction trans(binlogs);
 
     int ret = check_meta_key(key);
@@ -17,7 +17,7 @@ int SSDBImpl::eset(const Bytes &key, int64_t ts, char log_type) {
         return ret;
     }
 
-    ret = eset_one(this, key, ts, log_type);
+    ret = eset_one(this, key, ts);
     if (ret >= 0) {
         leveldb::Status s = binlogs->commit();
         if (!s.ok()) {
@@ -29,8 +29,8 @@ int SSDBImpl::eset(const Bytes &key, int64_t ts, char log_type) {
     return ret;
 }
 
-int SSDBImpl::esetNoLock(const Bytes &key, int64_t ts, char log_type) {
-    int ret = eset_one(this, key, ts, log_type);
+int SSDBImpl::esetNoLock(const Bytes &key, int64_t ts) {
+    int ret = eset_one(this, key, ts);
     if (ret >= 0) {
         leveldb::Status s = binlogs->commit();
         if (!s.ok()) {
@@ -43,7 +43,7 @@ int SSDBImpl::esetNoLock(const Bytes &key, int64_t ts, char log_type) {
 }
 
 
-int SSDBImpl::edel(const Bytes &key, char log_type) {
+int SSDBImpl::edel(const Bytes &key) {
     RecordLock l(&mutex_record_, key.String());
     leveldb::WriteBatch batch;
 
@@ -98,7 +98,7 @@ int SSDBImpl::eget(const Bytes &key, int64_t *ts) {
 }
 
 
-void eset_internal(const SSDBImpl *ssdb, const Bytes &key, int64_t ts, char log_type) {
+void eset_internal(const SSDBImpl *ssdb, const Bytes &key, int64_t ts) {
     string ekey = encode_eset_key(key);
 
     string buf;
@@ -108,11 +108,11 @@ void eset_internal(const SSDBImpl *ssdb, const Bytes &key, int64_t ts, char log_
 
     ssdb->binlogs->Put(ekey, buf);
     ssdb->binlogs->Put(score_key, "");
-    ssdb->binlogs->add_log(log_type, BinlogCommand::ESET, ekey);
+    ssdb->binlogs->add_log(BinlogCommand::ESET, ekey);
 }
 
 
-int eset_one(SSDBImpl *ssdb, const Bytes &key, int64_t ts, char log_type) {
+int eset_one(SSDBImpl *ssdb, const Bytes &key, int64_t ts) {
 
     int ret = 1;
 
@@ -124,7 +124,7 @@ int eset_one(SSDBImpl *ssdb, const Bytes &key, int64_t ts, char log_type) {
     }
 
     if (found == 0) {
-        eset_internal(ssdb, key, ts, log_type);
+        eset_internal(ssdb, key, ts);
 
     } else if (found == 1) {
         if (old_ts == ts) {
@@ -132,7 +132,7 @@ int eset_one(SSDBImpl *ssdb, const Bytes &key, int64_t ts, char log_type) {
         } else {
             string old_score_key = encode_escore_key(key, static_cast<uint64_t>(old_ts));
             ssdb->binlogs->Delete(old_score_key);
-            eset_internal(ssdb, key, ts, log_type);
+            eset_internal(ssdb, key, ts);
         }
     } else {
         //error

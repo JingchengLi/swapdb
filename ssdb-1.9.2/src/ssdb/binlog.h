@@ -31,8 +31,9 @@ private:
 	static const unsigned int HEADER_LEN = sizeof(uint64_t) + 2;
 public:
 	Binlog(){}
+	Binlog(uint64_t seq, char cmd, const leveldb::Slice &key);
 	Binlog(uint64_t seq, char type, char cmd, const leveldb::Slice &key);
-		
+
 	int load(const Bytes &s);
 	int load(const leveldb::Slice &s);
 	int load(const std::string &s);
@@ -85,8 +86,8 @@ public:
 	void Put(const leveldb::Slice& key, const leveldb::Slice& value);
 	// leveldb delete
 	void Delete(const leveldb::Slice& key);
-	void add_log(char type, char cmd, const leveldb::Slice &key);
-	void add_log(char type, char cmd, const std::string &key);
+	void add_log(char cmd, const leveldb::Slice &key);
+	void add_log(char cmd, const std::string &key);
 		
 	int get(uint64_t seq, Binlog *log) const;
 	int update(uint64_t seq, char type, char cmd, const std::string &key);

@@ -47,26 +47,26 @@ public:
 
 	/* key value */
 
-	virtual int set(const Bytes &key, const Bytes &val, char log_type=BinlogType::SYNC) = 0;
-	virtual int setnx(const Bytes &key, const Bytes &val, char log_type=BinlogType::SYNC) = 0;
-	virtual int del(const Bytes &key, char log_type=BinlogType::SYNC) = 0;
+	virtual int set(const Bytes &key, const Bytes &val) = 0;
+	virtual int setnx(const Bytes &key, const Bytes &val) = 0;
+	virtual int del(const Bytes &key) = 0;
 	// -1: error, 1: ok, 0: value is not an integer or out of range
-	virtual int incr(const Bytes &key, int64_t by, int64_t *new_val, char log_type=BinlogType::SYNC) = 0;
-	virtual int multi_set(const std::vector<Bytes> &kvs, int offset=0, char log_type=BinlogType::SYNC) = 0;
-	virtual int multi_del(const std::vector<Bytes> &keys, int offset=0, char log_type=BinlogType::SYNC) = 0;
-	virtual int setbit(const Bytes &key, int bitoffset, int on, char log_type=BinlogType::SYNC) = 0;
+	virtual int incr(const Bytes &key, int64_t by, int64_t *new_val) = 0;
+	virtual int multi_set(const std::vector<Bytes> &kvs, int offset=0) = 0;
+	virtual int multi_del(const std::vector<Bytes> &keys, int offset=0) = 0;
+	virtual int setbit(const Bytes &key, int bitoffset, int on) = 0;
 	virtual int getbit(const Bytes &key, int bitoffset) = 0;
 	
 	virtual int get(const Bytes &key, std::string *val) = 0;
-	virtual int getset(const Bytes &key, std::string *val, const Bytes &newval, char log_type=BinlogType::SYNC) = 0;
+	virtual int getset(const Bytes &key, std::string *val, const Bytes &newval) = 0;
 	// return (start, end]
 
 	/* hash */
 
-	virtual int hset(const Bytes &name, const Bytes &key, const Bytes &val, char log_type=BinlogType::SYNC) = 0;
-	virtual int hdel(const Bytes &name, const Bytes &key, char log_type=BinlogType::SYNC) = 0;
+	virtual int hset(const Bytes &name, const Bytes &key, const Bytes &val) = 0;
+	virtual int hdel(const Bytes &name, const Bytes &key) = 0;
 	// -1: error, 1: ok, 0: value is not an integer or out of range
-	virtual int hincr(const Bytes &name, const Bytes &key, int64_t by, int64_t *new_val, char log_type=BinlogType::SYNC) = 0;
+	virtual int hincr(const Bytes &name, const Bytes &key, int64_t by, int64_t *new_val) = 0;
 
 	virtual int64_t hsize(const Bytes &name) = 0;
 	virtual int64_t hclear(const Bytes &name) = 0;
@@ -89,10 +89,10 @@ public:
 	virtual int lrange(const Bytes &key, int64_t start, int64_t end, std::vector<std::string> *list) = 0;
 
 	/* set */
-	virtual int sadd(const Bytes &key, const Bytes &member, char log_type=BinlogType::SYNC) = 0;
-	virtual int multi_sadd(const Bytes &key, const std::vector<Bytes> &members, int64_t *num, char log_type=BinlogType::SYNC) = 0;
-    virtual int multi_srem(const Bytes &key, const std::vector<Bytes> &members, int64_t *num, char log_type=BinlogType::SYNC) = 0;
-	virtual int srem(const Bytes &key, const Bytes &member, char log_type=BinlogType::SYNC) = 0;
+	virtual int sadd(const Bytes &key, const Bytes &member) = 0;
+	virtual int multi_sadd(const Bytes &key, const std::vector<Bytes> &members, int64_t *num) = 0;
+    virtual int multi_srem(const Bytes &key, const std::vector<Bytes> &members, int64_t *num) = 0;
+	virtual int srem(const Bytes &key, const Bytes &member) = 0;
     virtual int scard(const Bytes &key, uint64_t *llen) = 0;
 	virtual int sismember(const Bytes &key, const Bytes &member) = 0;
 	virtual int smembers(const Bytes &key, std::vector<std::string> &members) = 0;
@@ -100,11 +100,11 @@ public:
 	virtual int64_t sclear(const Bytes &name) = 0;
 
 	/* zset */
-	virtual int zset(const Bytes &name, const Bytes &key, const Bytes &score, char log_type=BinlogType::SYNC) = 0;
+	virtual int zset(const Bytes &name, const Bytes &key, const Bytes &score) = 0;
 
-	virtual int zdel(const Bytes &name, const Bytes &key, char log_type=BinlogType::SYNC) = 0;
+	virtual int zdel(const Bytes &name, const Bytes &key) = 0;
 	// -1: error, 1: ok, 0: value is not an integer or out of range
-	virtual int zincr(const Bytes &name, const Bytes &key, double by, double *new_val, char log_type=BinlogType::SYNC) = 0;
+	virtual int zincr(const Bytes &name, const Bytes &key, double by, double *new_val) = 0;
 	
 	virtual int64_t zsize(const Bytes &name) = 0;
 	/**
@@ -133,11 +133,11 @@ public:
 	// @return 0: empty queue, 1: item peeked, -1: error
 	virtual int qback(const Bytes &name, std::string *item) = 0;
 	// @return -1: error, other: the new length of the queue
-	virtual int64_t qpush_front(const Bytes &name, const Bytes &item, char log_type=BinlogType::SYNC) = 0;
-	virtual int64_t qpush_back(const Bytes &name, const Bytes &item, char log_type=BinlogType::SYNC) = 0;
+	virtual int64_t qpush_front(const Bytes &name, const Bytes &item) = 0;
+	virtual int64_t qpush_back(const Bytes &name, const Bytes &item) = 0;
 	// @return 0: empty queue, 1: item popped, -1: error
-	virtual int qpop_front(const Bytes &name, std::string *item, char log_type=BinlogType::SYNC) = 0;
-	virtual int qpop_back(const Bytes &name, std::string *item, char log_type=BinlogType::SYNC) = 0;
+	virtual int qpop_front(const Bytes &name, std::string *item) = 0;
+	virtual int qpop_back(const Bytes &name, std::string *item) = 0;
 	virtual int qfix(const Bytes &name) = 0;
 	virtual int qlist(const Bytes &name_s, const Bytes &name_e, uint64_t limit,
 			std::vector<std::string> *list) = 0;
@@ -146,14 +146,14 @@ public:
 	virtual int qslice(const Bytes &name, int64_t offset, int64_t limit,
 			std::vector<std::string> *list) = 0;
 	virtual int qget(const Bytes &name, int64_t index, std::string *item) = 0;
-	virtual int qset(const Bytes &name, int64_t index, const Bytes &item, char log_type=BinlogType::SYNC) = 0;
-	virtual int qset_by_seq(const Bytes &name, uint64_t seq, const Bytes &item, char log_type=BinlogType::SYNC) = 0;
+	virtual int qset(const Bytes &name, int64_t index, const Bytes &item) = 0;
+	virtual int qset_by_seq(const Bytes &name, uint64_t seq, const Bytes &item) = 0;
 
 
 	/* eset */
-	virtual int eset(const Bytes &key, int64_t ts, char log_type=BinlogType::SYNC) = 0;
-	virtual int esetNoLock(const Bytes &key, int64_t ts, char log_type=BinlogType::SYNC) = 0;
-	virtual int edel(const Bytes &key, char log_type=BinlogType::SYNC) = 0;
+	virtual int eset(const Bytes &key, int64_t ts) = 0;
+	virtual int esetNoLock(const Bytes &key, int64_t ts) = 0;
+	virtual int edel(const Bytes &key) = 0;
 	virtual int eget(const Bytes &key, int64_t *ts) = 0;
     virtual int check_meta_key(const Bytes &key) = 0;
 
