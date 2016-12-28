@@ -88,7 +88,6 @@ bool Iterator::next(){
 
 
 
-// todo r2m adaptation
 MIterator::MIterator(Iterator *it){
 	this->it = it;
 }
@@ -119,7 +118,6 @@ bool MIterator::next(){
 
 /* HASH */
 
-// todo r2m adaptation
 HIterator::HIterator(Iterator *it, const Bytes &name, uint16_t version){
 	this->it = it;
 	this->name.assign(name.data(), name.size());
@@ -189,7 +187,6 @@ bool SIterator::next() {
 
 /* ZSET */
 
-// todo r2m adaptation
 ZIterator::ZIterator(Iterator *it, const Bytes &name, uint16_t version){
 	this->it = it;
 	this->name.assign(name.data(), name.size());
@@ -235,6 +232,8 @@ bool ZIterator::next(){
 	return false;
 }
 
+
+//TODO impl ?
 LIterator::LIterator(Iterator *it, const Bytes &name, uint16_t version) {
 	this->it = it;
 	this->name.assign(name.data(), name.size());

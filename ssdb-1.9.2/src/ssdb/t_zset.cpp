@@ -67,7 +67,7 @@ int64_t SSDBImpl::zcount(const Bytes &name, const Bytes &score_start, const Byte
 
     SnapshotPtr spl(ldb, snapshot); //auto release
 
-    std::unique_ptr<ZIterator> it(this->zscan_internal(name, "", score_start, score_end, INT_MAX, Iterator::FORWARD, zv.version, snapshot));
+    auto it = std::unique_ptr<ZIterator>(this->zscan_internal(name, "", score_start, score_end, INT_MAX, Iterator::FORWARD, zv.version, snapshot));
     while(it->next()){
         count ++;
     }
@@ -94,7 +94,7 @@ int64_t SSDBImpl::zremrangebyscore(const Bytes &name, const Bytes &score_start, 
 
     SnapshotPtr spl(ldb, snapshot); //auto release
 
-    std::unique_ptr<ZIterator> it(this->zscan_internal(name, "", score_start, score_end, INT_MAX, Iterator::FORWARD, zv.version, snapshot));
+    auto it = std::unique_ptr<ZIterator>(this->zscan_internal(name, "", score_start, score_end, INT_MAX, Iterator::FORWARD, zv.version, snapshot));
 
     while(it->next()){
         count ++;
@@ -290,7 +290,7 @@ int64_t SSDBImpl::zrank(const Bytes &name, const Bytes &key) {
     SnapshotPtr spl(ldb, snapshot); //auto release
 
     bool found = false;
-    std::unique_ptr<ZIterator> it(this->zscan_internal(name, "", "", "", INT_MAX, Iterator::FORWARD, zv.version, snapshot));
+    auto it = std::unique_ptr<ZIterator>(this->zscan_internal(name, "", "", "", INT_MAX, Iterator::FORWARD, zv.version, snapshot));
     uint64_t ret = 0;
     while (true) {
         if (!it->next()) {
@@ -323,7 +323,7 @@ int64_t SSDBImpl::zrrank(const Bytes &name, const Bytes &key) {
 
     SnapshotPtr spl(ldb, snapshot); //auto release
     bool found = false;
-    std::unique_ptr<ZIterator> it(this->zscan_internal(name, "", "", "", INT_MAX, Iterator::BACKWARD, zv.version, snapshot));
+    auto it = std::unique_ptr<ZIterator>(this->zscan_internal(name, "", "", "", INT_MAX, Iterator::BACKWARD, zv.version, snapshot));
     uint64_t ret = 0;
     while (true) {
         if (!it->next()) {

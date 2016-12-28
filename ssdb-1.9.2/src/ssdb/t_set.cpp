@@ -335,7 +335,7 @@ int SSDBImpl::smembers(const Bytes &key, std::vector<std::string> &members) {
 
     SnapshotPtr spl(ldb, snapshot); //auto release
 
-    std::unique_ptr<SIterator> it(sscan_internal(key, "", "", sv.version, -1, snapshot));
+    auto it = std::unique_ptr<SIterator>(sscan_internal(key, "", "", sv.version, -1, snapshot));
     while (it->next()){
         members.push_back(it->key);
     }
@@ -367,7 +367,7 @@ int SSDBImpl::sunion_internal(const std::vector<Bytes> &keys, int offset, std::s
 
         SnapshotPtr spl(ldb, snapshot); //auto release
 
-        std::unique_ptr<SIterator> it(sscan_internal(keys[i], "", "", sv.version, -1, snapshot));
+        auto it = std::unique_ptr<SIterator>(sscan_internal(keys[i], "", "", sv.version, -1, snapshot));
         while (it->next()){
             members.insert(it->key);
         }

@@ -251,13 +251,13 @@ int proc_scan(NetworkServer *net, Link *link, const Request &req, Response *resp
 
 //	uint64_t limit = req[3].Uint64();
 //	KIterator *it = serv->ssdb->scan(req[1], req[2], limit);
-	Iterator *it = serv->ssdb->iterator("", "", -1);
+	auto it = std::unique_ptr<Iterator>(serv->ssdb->iterator("", "", -1));
 	resp->push_back("ok");
 	while(it->next()){
 		resp->push_back(hexmem(it->key().data(),it->key().size()));
 		resp->push_back(hexmem(it->val().data(),it->val().size()));
 	}
-	delete it;
+
 	return 0;
 }
 
@@ -280,13 +280,12 @@ int proc_keys(NetworkServer *net, Link *link, const Request &req, Response *resp
 	std::string start;
 	start.append(1, DataType::META);
 
-	Iterator *it = serv->ssdb->iterator(start, "", limit);
-	MIterator* mit = new MIterator(it);
+	auto mit = std::unique_ptr<MIterator>(new MIterator(serv->ssdb->iterator(start, "", limit)));
     resp->push_back("ok");
     while(mit->next()){
         resp->push_back(mit->key);
     }
-	delete mit;
+
 	return 0;
 }
 

@@ -199,14 +199,13 @@ int proc_zrange(NetworkServer *net, Link *link, const Request &req, Response *re
 
 	const leveldb::Snapshot* snapshot = nullptr;
 
-	ZIterator* it = serv->ssdb->zrange(req[1], offset, limit, &snapshot);
+	auto it = std::unique_ptr<ZIterator>(serv->ssdb->zrange(req[1], offset, limit, &snapshot));
 	resp->push_back("ok");
 
     while(it->next()){
         resp->push_back(it->key);
         resp->push_back(str(it->score));
     }
-    delete it;
 
 	serv->ssdb->ReleaseSnapshot(snapshot);
 
@@ -222,14 +221,13 @@ int proc_zrrange(NetworkServer *net, Link *link, const Request &req, Response *r
 
 	const leveldb::Snapshot* snapshot = nullptr;
 
-	ZIterator *it = serv->ssdb->zrrange(req[1], offset, limit, &snapshot);
+	auto it = std::unique_ptr<ZIterator>(serv->ssdb->zrrange(req[1], offset, limit, &snapshot));
 	resp->push_back("ok");
 
     while(it->next()){
         resp->push_back(it->key);
         resp->push_back(str(it->score));
     }
-    delete it;
 
 	serv->ssdb->ReleaseSnapshot(snapshot);
 
@@ -246,7 +244,7 @@ int proc_zscan(NetworkServer *net, Link *link, const Request &req, Response *res
 		offset = limit;
 		limit = offset + req[6].Uint64();
 	}
-	ZIterator *it = serv->ssdb->zscan(req[1], req[2], req[3], req[4], limit);
+	auto it = std::unique_ptr<ZIterator>(serv->ssdb->zscan(req[1], req[2], req[3], req[4], limit));
 	if(offset > 0){
 		it->skip(offset);
 	}
@@ -255,7 +253,6 @@ int proc_zscan(NetworkServer *net, Link *link, const Request &req, Response *res
 		resp->push_back(it->key);
 		resp->push_back(str(it->score));
 	}
-	delete it;
 	return 0;
 }
 
@@ -264,12 +261,12 @@ int proc_zkeys(NetworkServer *net, Link *link, const Request &req, Response *res
 	CHECK_NUM_PARAMS(6);
 
 	uint64_t limit = req[5].Uint64();
-	ZIterator *it = serv->ssdb->zscan(req[1], req[2], req[3], req[4], limit);
+	auto it = std::unique_ptr<ZIterator>(serv->ssdb->zscan(req[1], req[2], req[3], req[4], limit));
 	resp->push_back("ok");
 	while(it->next()){
 		resp->push_back(it->key);
 	}
-	delete it;
+
 	return 0;
 }
 
@@ -332,23 +329,19 @@ int proc_zremrangebyrank(NetworkServer *net, Link *link, const Request &req, Res
 
 	const leveldb::Snapshot* snapshot = nullptr;
 
-	ZIterator *it = serv->ssdb->zrange(req[1], start, end - start + 1, &snapshot);
+	auto it = std::unique_ptr<ZIterator>(serv->ssdb->zrange(req[1], start, end - start + 1, &snapshot));
 	int64_t count = 0;
     while (it->next()) {
         count++;
         int ret = serv->ssdb->zdel(req[1], it->key);
         if (ret == -1) {
             resp->push_back("error");
-            delete it;
-
 			serv->ssdb->ReleaseSnapshot(snapshot);
 			return 0;
         }
     }
-    delete it;
 
 	serv->ssdb->ReleaseSnapshot(snapshot);
-
 	resp->reply_int(0, count);
 
 	return 0;

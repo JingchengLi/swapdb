@@ -5,6 +5,7 @@ found in the LICENSE file.
 */
 #include <pthread.h>
 #include <time.h>
+#include <memory>
 #include "../include.h"
 #include "../util/log.h"
 #include "ttl.h"
@@ -127,7 +128,7 @@ void ExpirationHandler::load_expiration_keys_from_db(int num) {
     std::string start;
     start.append(1, DataType::ESCORE);
 
-    EIterator *it = new EIterator(ssdb->iterator(start, "", num)); //  +
+    auto it = std::unique_ptr<EIterator>(new EIterator(ssdb->iterator(start, "", num)); //  +
     int n = 0;
     while (it->next()) {
         n++;
@@ -136,7 +137,7 @@ void ExpirationHandler::load_expiration_keys_from_db(int num) {
         int64_t score = it->score;
         fast_keys.add(key, score);
     }
-    delete it;
+
     log_info("load %d keys into fast_keys", n);
 }
 

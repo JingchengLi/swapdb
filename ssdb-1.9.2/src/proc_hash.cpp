@@ -170,13 +170,12 @@ int proc_hgetall(NetworkServer *net, Link *link, const Request &req, Response *r
 
 	const leveldb::Snapshot* snapshot = nullptr;
 
-	HIterator *it = serv->ssdb->hscan(req[1], "", "", -1, &snapshot);
+	auto it = std::unique_ptr<HIterator>(serv->ssdb->hscan(req[1], "", "", -1, &snapshot));
 	resp->push_back("ok");
 	while(it->next()){
 		resp->push_back(it->key);
 		resp->push_back(it->val);
 	}
-	delete it;
 
 	serv->ssdb->ReleaseSnapshot(snapshot);
 
@@ -188,13 +187,14 @@ int proc_hscan(NetworkServer *net, Link *link, const Request &req, Response *res
 	SSDBServer *serv = (SSDBServer *)net->data;
 
 	uint64_t limit = req[4].Uint64();
-	HIterator *it = serv->ssdb->hscan(req[1], req[2], req[3], limit);
+	auto it = std::unique_ptr<HIterator>(serv->ssdb->hscan(req[1], req[2], req[3], limit));
+
 	resp->push_back("ok");
 	while(it->next()){
 		resp->push_back(it->key);
 		resp->push_back(it->val);
 	}
-	delete it;
+
 	return 0;
 }
 
@@ -207,14 +207,13 @@ int proc_hkeys(NetworkServer *net, Link *link, const Request &req, Response *res
 
 	const leveldb::Snapshot* snapshot = nullptr;
 
-	HIterator *it = serv->ssdb->hscan(req[1], req[2], req[3], limit, &snapshot);
+	auto it = std::unique_ptr<HIterator>(serv->ssdb->hscan(req[1], req[2], req[3], limit, &snapshot));
 	it->return_val(false);
 
 	resp->push_back("ok");
 	while(it->next()){
 		resp->push_back(it->key);
 	}
-	delete it;
 
 	serv->ssdb->ReleaseSnapshot(snapshot);
 
@@ -229,13 +228,12 @@ int proc_hvals(NetworkServer *net, Link *link, const Request &req, Response *res
 
 	const leveldb::Snapshot* snapshot = nullptr;
 
-	HIterator *it = serv->ssdb->hscan(req[1], req[2], req[3], limit, &snapshot);
+	auto it = std::unique_ptr<HIterator>(serv->ssdb->hscan(req[1], req[2], req[3], limit, &snapshot));
 
 	resp->push_back("ok");
 	while(it->next()){
 		resp->push_back(it->val);
 	}
-	delete it;
 
 	serv->ssdb->ReleaseSnapshot(snapshot);
 
