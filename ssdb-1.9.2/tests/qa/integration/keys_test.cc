@@ -8,6 +8,10 @@
 #include "ssdb_test.h"
 using namespace std;
 
+#ifndef LONG_LONG_MAX
+    #define LONG_LONG_MAX 0x7fffffffffffffffLL
+#endif
+
 class KeysTest : public SSDBTest
 {
     public:
@@ -18,7 +22,7 @@ class KeysTest : public SSDBTest
         string key, val, getVal, field;
         uint32_t keysNum;
         int64_t ret, score;
-        int64_t ttl;
+        int64_t ttl, pttl;
 };
 
 #define OKExpire s = client->expire(key, ttl, &ret);\
@@ -157,7 +161,19 @@ TEST_F(KeysTest, Test_keys_expire) {
     client->del(key);
     TTL(-2)
 
-    client->del(key);
+    for(int n = 0; n < 2; n++){
+        ttl = n&0x1?LONG_LONG_MAX/1000:LONG_LONG_MAX;
+        client->set(key, "val");
+        client->expire(key, ttl, &ret);
+        getVal.clear();
+        client->get(key, &getVal);
+        EXPECT_EQ("val", getVal)<<"expire ttl "<<ttl<<" should not del key"<<endl;
+        sleep(1);
+        getVal.clear();
+        client->get(key, &getVal);
+        EXPECT_EQ("val", getVal)<<"expire ttl "<<ttl<<" should not del key after 1 sec"<<endl;
+        client->del(key);
+    }
 }
 
 TEST_F(KeysTest, Test_keys_ttl) {
@@ -229,4 +245,101 @@ TEST_F(KeysTest, Test_keys_ttl) {
         ASSERT_TRUE(s.not_found())<<n<<"this key should be not found!"<<s.code()<<endl;
         TTL(-2)
     }
+}
+
+#define OKPexpire s = client->pexpire(key, pttl, &ret);\
+    ASSERT_TRUE(s.ok())<<"fail to pexpire key!"<<endl;\
+    ASSERT_EQ(1, ret);\
+    s = client->pttl(key, &ret);\
+    ASSERT_TRUE((ret > pttl-2000) && ret <= pttl);
+
+//when key does not exist, expire set false
+#define FalsePexpire s = client->pexpire(key, pttl, &ret);\
+    ASSERT_EQ(0, ret);\
+    s = client->get(key, &getVal);\
+    ASSERT_TRUE(s.not_found())<<"this key should be not found!"<<endl;\
+    s = client->pttl(key, &ret);\
+    EXPECT_EQ(-2, ret);
+
+#define PTTL(n) s = client->pttl(key, &ret);\
+    EXPECT_EQ(n, ret)<<"pttl should return "<<n<<" when the key no expire time or no exist!";
+
+#define NEAR_PTTL(n) s = client->pttl(key, &ret);\
+    ASSERT_TRUE((ret > n-2000) && ret <= n)<<"pttl should near key expire time!";
+
+TEST_F(KeysTest, Test_keys_pexpire) {
+
+    key = GetRandomKey_();
+    field = GetRandomField_();
+    val = GetRandomVal_();
+    pttl = 2000;
+
+    FalsePexpire
+
+//kv type
+    client->set(key,val);
+    PTTL(-1)
+    OKPexpire
+
+    sleep(( pttl+1000 )/1000);
+    FalsePexpire
+
+    pttl = 10000;
+    client->setx(key,val, 5);
+    OKPexpire
+
+    client->getset(key, val, &getVal);
+    PTTL(-1)
+    OKPexpire
+
+    client->del(key);
+    PTTL(-2)
+    FalsePexpire
+
+    pttl = LONG_LONG_MAX;
+    client->set(key, "val");
+    client->pexpire(key, pttl, &ret);
+    getVal.clear();
+    client->get(key, &getVal);
+    EXPECT_EQ("val", getVal)<<"pexpire 64bit INT_MAX(9223372036854775807) ttl should not del key"<<endl;
+    sleep(1);
+    getVal.clear();
+    client->get(key, &getVal);
+    EXPECT_EQ("val", getVal)<<"pexpire 64bit INT_MAX(9223372036854775807) ttl should not del key after 1 sec"<<endl;;
+    client->del(key);
+}
+
+TEST_F(KeysTest, Test_keys_pttl) {
+    key = GetRandomKey_();
+    field = GetRandomField_();
+    val = GetRandomVal_();
+    score = GetRandomDouble_();
+    pttl = 1000;
+
+//when pttl exceed, key was deleted.
+        pttl += 1000;
+        client->del(key);
+        PTTL(-2)
+        client->set(key,val);
+        PTTL(-1)
+        client->pexpire(key, pttl, &ret);
+        NEAR_PTTL(pttl)
+        sleep(( pttl-1000 )/1000);
+        s = client->get(key, &getVal);
+        ASSERT_FALSE(s.not_found())<<"this key should be found!"<<endl;
+        sleep(2);
+        s = client->get(key, &getVal);
+        ASSERT_TRUE(s.not_found())<<"this key should be not found!"<<endl;
+        PTTL(-2)
+
+//Pexpire pttl <= 0, then key was deleted
+        pttl += 1000;
+        client->del(key);
+        PTTL(-2)
+        client->set(key,val);
+        client->pexpire(key, -1000, &ret);
+        s = client->get(key, &getVal);
+
+        ASSERT_TRUE(s.not_found())<<"this key should be not found!"<<s.code()<<endl;
+        PTTL(-2)
 }
