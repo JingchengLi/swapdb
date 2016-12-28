@@ -128,7 +128,7 @@ void ExpirationHandler::load_expiration_keys_from_db(int num) {
     std::string start;
     start.append(1, DataType::ESCORE);
 
-    auto it = std::unique_ptr<EIterator>(new EIterator(ssdb->iterator(start, "", num)); //  +
+    auto it = std::unique_ptr<EIterator>(new EIterator(ssdb->iterator(start, "", num))); //  +
     int n = 0;
     while (it->next()) {
         n++;
