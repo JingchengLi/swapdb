@@ -237,6 +237,10 @@ private:
     int sunion_internal(const std::vector<Bytes> &keys, int offset, std::set<std::string>& members);
 	int64_t SDelKeyNoLock(leveldb::WriteBatch &batch, const Bytes &name);
 
+	ZIterator* zscan_internal(const Bytes &name, const Bytes &key_start,
+										const Bytes &score_start, const Bytes &score_end,
+										uint64_t limit, Iterator::Direction direction, uint16_t version,
+										const leveldb::Snapshot *snapshot=nullptr);
 private:
 	//    pthread_mutex_t mutex_bgtask_;
 	Mutex mutex_bgtask_;
@@ -257,5 +261,20 @@ private:
 
 uint64_t getSeqByIndex(int64_t index, const ListMetaVal &meta_val);
 
+
+class SnapshotPtr{
+private:
+
+public:
+	SnapshotPtr(leveldb::DB *ldb, const leveldb::Snapshot *snapshot) : ldb(ldb), snapshot(snapshot) {}
+
+	virtual ~SnapshotPtr() {
+		ldb->ReleaseSnapshot(snapshot);
+	}
+
+	leveldb::DB* ldb;
+	const leveldb::Snapshot* snapshot;
+
+};
 
 #endif

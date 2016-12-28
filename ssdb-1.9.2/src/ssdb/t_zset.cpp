@@ -14,12 +14,6 @@ static int zdel_one(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &nam
 
 static int incr_zsize(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &name, int64_t incr);
 
-static ZIterator *ziterator(
-        SSDBImpl *ssdb,
-        const Bytes &name, const Bytes &key_start,
-        const Bytes &score_start, const Bytes &score_end,
-        uint64_t limit, Iterator::Direction direction, uint16_t version, const leveldb::Snapshot *snapshot=nullptr);
-
 void zset_internal(const SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &name, const Bytes &key, double new_score,
                    uint16_t cur_version);
 
@@ -182,11 +176,10 @@ int SSDBImpl::zget(const Bytes &name, const Bytes &key, double *score) {
     return 1;
 }
 
-static ZIterator *ziterator(
-        SSDBImpl *ssdb,
-        const Bytes &name, const Bytes &key_start,
-        const Bytes &score_start, const Bytes &score_end,
-        uint64_t limit, Iterator::Direction direction, uint16_t version, const leveldb::Snapshot *snapshot) {
+ZIterator* SSDBImpl::zscan_internal(const Bytes &name, const Bytes &key_start,
+                                    const Bytes &score_start, const Bytes &score_end,
+                                    uint64_t limit, Iterator::Direction direction, uint16_t version,
+                                    const leveldb::Snapshot *snapshot) {
     if (direction == Iterator::FORWARD) {
         std::string start, end;
         if (score_start.empty()) {
@@ -199,7 +192,7 @@ static ZIterator *ziterator(
         } else {
             end = encode_zscore_key(name, "", score_end.Double(), version);
         }
-        return new ZIterator(ssdb->iterator(start, end, limit, snapshot), name, version);
+        return new ZIterator(this->iterator(start, end, limit, snapshot), name, version);
     } else {
         std::string start, end;
         if (score_start.empty()) {
@@ -216,7 +209,7 @@ static ZIterator *ziterator(
         } else {
             end = encode_zscore_key(name, "", score_end.Double(), version);
         }
-        return new ZIterator(ssdb->rev_iterator(start, end, limit, snapshot), name, version);
+        return new ZIterator(this->rev_iterator(start, end, limit, snapshot), name, version);
     }
 }
 
@@ -229,10 +222,10 @@ int64_t SSDBImpl::zrank(const Bytes &name, const Bytes &key) {
     }
 
     bool found = false;
-    std::unique_ptr<ZIterator> it(ziterator(this, name, "", "", "", INT_MAX, Iterator::FORWARD, zv.version));
+    std::unique_ptr<ZIterator> it(this->zscan_internal(name, "", "", "", INT_MAX, Iterator::FORWARD, zv.version));
     uint64_t ret = 0;
     while (true) {
-        if (it->next() == false) {
+        if (!it->next()) {
             break;
         }
         if (key == it->key) {
@@ -253,10 +246,10 @@ int64_t SSDBImpl::zrrank(const Bytes &name, const Bytes &key) {
     }
 
     bool found = false;
-    std::unique_ptr<ZIterator> it(ziterator(this, name, "", "", "", INT_MAX, Iterator::BACKWARD, zv.version));
+    std::unique_ptr<ZIterator> it(this->zscan_internal(name, "", "", "", INT_MAX, Iterator::BACKWARD, zv.version));
     uint64_t ret = 0;
     while (true) {
-        if (it->next() == false) {
+        if (!it->next()) {
             break;
         }
         if (key == it->key) {
@@ -282,7 +275,7 @@ ZIterator *SSDBImpl::zrange(const Bytes &name, uint64_t offset, uint64_t limit) 
     if (offset + limit > limit) {
         limit = offset + limit;
     }
-    ZIterator *it = ziterator(this, name, "", "", "", limit, Iterator::FORWARD, version);
+    ZIterator *it = this->zscan_internal("", "", "",  "", limit, Iterator::FORWARD, version);
     it->skip(offset);
     return it;
 }
@@ -301,7 +294,7 @@ ZIterator *SSDBImpl::zrrange(const Bytes &name, uint64_t offset, uint64_t limit)
     if (offset + limit > limit) {
         limit = offset + limit;
     }
-    ZIterator *it = ziterator(this, name, "", "", "", limit, Iterator::BACKWARD, version);
+    ZIterator *it = this->zscan_internal("", "", "", "", limit, Iterator::BACKWARD, version);
     it->skip(offset);
     return it;
 }
@@ -326,7 +319,7 @@ ZIterator *SSDBImpl::zscan(const Bytes &name, const Bytes &key,
     } else {
         score = score_start.String();
     }
-    return ziterator(this, name, key, score, score_end, limit, Iterator::FORWARD, version);
+    return this->zscan_internal(name, key, score, score_end, limit, Iterator::FORWARD, version);
 }
 
 ZIterator *SSDBImpl::zrscan(const Bytes &name, const Bytes &key,
@@ -348,7 +341,7 @@ ZIterator *SSDBImpl::zrscan(const Bytes &name, const Bytes &key,
     } else {
         score = score_start.String();
     }
-    return ziterator(this, name, key, score, score_end, limit, Iterator::BACKWARD, version);
+    return this->zscan_internal(name, key, score, score_end, limit, Iterator::BACKWARD, version);
 }
 
 
