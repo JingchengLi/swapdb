@@ -316,21 +316,30 @@ int SSDBImpl::sismember(const Bytes &key, const Bytes &member) {
 
 int SSDBImpl::smembers(const Bytes &key, std::vector<std::string> &members) {
     members.clear();
-    SetMetaVal sv;
 
-    std::string meta_key = encode_meta_key(key);
-    int s = GetSetMetaVal(meta_key, sv);
-    if (s != 1){
-        return s;
+    const leveldb::Snapshot* snapshot = nullptr;
+    SetMetaVal sv;
+    int s;
+
+    {
+        RecordLock l(&mutex_record_, key.String());
+
+        std::string meta_key = encode_meta_key(key);
+        s = GetSetMetaVal(meta_key, sv);
+        if (s != 1){
+            return s;
+        }
+
+        snapshot = ldb->GetSnapshot();
     }
 
-    SIterator* it = sscan_internal(key, "", "", sv.version, -1);
+    SnapshotPtr spl(ldb, snapshot); //auto release
+
+    std::unique_ptr<SIterator> it(sscan_internal(key, "", "", sv.version, -1, snapshot));
     while (it->next()){
         members.push_back(it->key);
     }
 
-    delete it;
-    it = NULL;
     return s;
 }
 
@@ -338,22 +347,31 @@ int SSDBImpl::sunion_internal(const std::vector<Bytes> &keys, int offset, std::s
     members.clear();
     int size = (int)keys.size();
     for (int i = offset; i < size; ++i) {
+
+        const leveldb::Snapshot* snapshot = nullptr;
         SetMetaVal sv;
-        std::string meta_key = encode_meta_key(keys[i]);
-        int s = GetSetMetaVal(meta_key, sv);
-        if (s == -1){
-            members.clear();
-            return -1;
-        } else if (s == 0){
-            continue;
-        } else{
-            SIterator* it = sscan_internal(keys[i], "", "", sv.version, -1);
-            while (it->next()){
-                members.insert(it->key);
+
+        {
+            RecordLock l(&mutex_record_, keys[i].String());
+            std::string meta_key = encode_meta_key(keys[i]);
+            int s = GetSetMetaVal(meta_key, sv);
+            if (s == -1){
+                members.clear();
+                return -1;
+            } else if (s == 0){
+                continue;
             }
-            delete it;
-            it = NULL;
+
+            snapshot = ldb->GetSnapshot();
         }
+
+        SnapshotPtr spl(ldb, snapshot); //auto release
+
+        std::unique_ptr<SIterator> it(sscan_internal(keys[i], "", "", sv.version, -1, snapshot));
+        while (it->next()){
+            members.insert(it->key);
+        }
+
     }
     return 1;
 }
@@ -416,52 +434,4 @@ int SSDBImpl::sunionstore(const Bytes &destination, const std::vector<Bytes> &ke
     }
 
     return 1;
-}
-
-int64_t SSDBImpl::SDelKeyNoLock(leveldb::WriteBatch &batch, const Bytes &name) {
-    SetMetaVal sv;
-    std::string meta_key = encode_meta_key(name);
-    int s = GetSetMetaVal(meta_key, sv);
-    if (s != 1){
-        return s;
-    }
-
-    if (sv.length > MAX_NUM_DELETE){
-        std::string del_key = encode_delete_key(name, sv.version);
-        std::string meta_val = encode_set_meta_val(sv.length, sv.version, KEY_DELETE_MASK);
-        batch.Put(del_key, "");
-        batch.Put(meta_key, meta_val);
-        return (int64_t)sv.length;
-    }
-
-    SIterator *it = this->sscan_internal(name, "", "", sv.version, -1);
-    int num = 0;
-    while (it->next()){
-        std::string hkey = encode_set_key(name, it->key, sv.version);
-        batch.Delete(hkey);
-        num++;
-    }
-    if (num > 0){
-        if(incr_ssize(batch, name, -num) == -1){
-            return -1;
-        }
-    }
-
-    return num;
-}
-
-int64_t SSDBImpl::sclear(const Bytes &name) {
-    RecordLock l(&mutex_record_, name.String());
-    leveldb::WriteBatch batch;
-
-    int64_t num = SDelKeyNoLock(batch, name);
-
-    if (num > 0){
-        leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
-        if (!s.ok()){
-            return -1;
-        }
-    }
-
-    return num;
 }
