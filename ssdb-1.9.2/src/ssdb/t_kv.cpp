@@ -644,15 +644,20 @@ int SSDBImpl::dump(const Bytes &key, std::string *res) {
             rdbEncoder.rdbSaveType(RDB_TYPE_LIST);
             rdbEncoder.rdbSaveLen(lv.length);
 
+            //readOptions using snapshot
+            leveldb::ReadOptions readOptions = leveldb::ReadOptions();
+            readOptions.fill_cache = false;
+            readOptions.snapshot = snapshot;
+
             int64_t rangelen = (int64_t) lv.length;
             uint64_t begin_seq = getSeqByIndex(0, lv);
             uint64_t cur_seq = begin_seq;
 
             while (rangelen--) {
-                std::string item_key = encode_list_key(key, cur_seq, lv.version);
 
+                std::string item_key = encode_list_key(key, cur_seq, lv.version);
                 std::string item_val;
-                ret = GetListItemVal(item_key, &item_val);
+                ret = GetListItemVal(item_key, &item_val, readOptions);
                 if (1 != ret) {
                     return -1;
                 }

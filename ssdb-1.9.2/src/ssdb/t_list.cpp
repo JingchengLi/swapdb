@@ -23,8 +23,8 @@ int SSDBImpl::GetListMetaVal(const std::string &meta_key, ListMetaVal &lv) {
     return 1;
 }
 
-int SSDBImpl::GetListItemVal(const std::string &item_key, std::string *val) {
-    leveldb::Status s = ldb->Get(leveldb::ReadOptions(), item_key, val);
+int SSDBImpl::GetListItemVal(const std::string &item_key, std::string *val, const leveldb::ReadOptions& options) {
+    leveldb::Status s = ldb->Get(options, item_key, val);
     if (s.IsNotFound()){
         return 0;
     } else if (!s.ok() && !s.IsNotFound()){

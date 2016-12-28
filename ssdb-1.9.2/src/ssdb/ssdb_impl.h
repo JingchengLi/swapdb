@@ -133,7 +133,7 @@ public:
 	virtual int LSet(const Bytes &key, const int64_t index, const Bytes &val);
 	virtual int lrange(const Bytes &key, int64_t start, int64_t end, std::vector<std::string> *list);
     int     GetListMetaVal(const std::string& meta_key, ListMetaVal& lv);
-    int     GetListItemVal(const std::string& item_key, std::string* val);
+    int     GetListItemVal(const std::string& item_key, std::string* val, const leveldb::ReadOptions& options=leveldb::ReadOptions());
     int     DoLPush(leveldb::WriteBatch &batch, ListMetaVal &meta_val, const Bytes &key, const Bytes &val, std::string &meta_key);
     int     DoLPush(leveldb::WriteBatch &batch, ListMetaVal &meta_val, const Bytes &key, const std::vector<Bytes> &val, int offset, std::string &meta_key);
     int     DoFirstLPush(leveldb::WriteBatch &batch, const Bytes &key, const std::vector<Bytes> &val, int offset, const std::string &meta_key, uint16_t version);
