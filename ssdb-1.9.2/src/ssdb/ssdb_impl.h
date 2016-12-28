@@ -269,7 +269,9 @@ public:
 	SnapshotPtr(leveldb::DB *ldb, const leveldb::Snapshot *snapshot) : ldb(ldb), snapshot(snapshot) {}
 
 	virtual ~SnapshotPtr() {
-		ldb->ReleaseSnapshot(snapshot);
+		if (snapshot!=nullptr) {
+			ldb->ReleaseSnapshot(snapshot);
+		}
 	}
 
 	leveldb::DB* ldb;

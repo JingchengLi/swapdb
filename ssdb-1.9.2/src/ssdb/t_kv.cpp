@@ -504,14 +504,10 @@ int SSDBImpl::type(const Bytes &key, std::string *type) {
 }
 
 template<typename T>
-int checkKey(T &mv, const std::string &val) {
+int decodeMetaVal(T &mv, const std::string &val) {
 
     if (mv.DecodeMetaVal(val) == -1) {
         return -1;
-    }
-
-    if (mv.del != KEY_ENABLED_MASK) {
-        return 0;
     }
 
     return 1;
@@ -521,25 +517,58 @@ int SSDBImpl::dump(const Bytes &key, std::string *res) {
     *res = "none";
 
     int ret = 0;
-    std::string val;
-    std::string meta_key = encode_meta_key(key.String());
-    leveldb::Status s = ldb->Get(leveldb::ReadOptions(), meta_key, &val);
-    if (s.IsNotFound()) {
-        return 0;
-    }
-    if (!s.ok()) {
-        log_error("get error: %s", s.ToString().c_str());
-        return -1;
+    std::string meta_val;
+    char dtype;
+
+    const leveldb::Snapshot* snapshot = nullptr;
+
+    {
+        RecordLock l(&mutex_record_, key.String());
+
+        std::string meta_key = encode_meta_key(key.String());
+        leveldb::Status s = ldb->Get(leveldb::ReadOptions(), meta_key, &meta_val);
+        if (s.IsNotFound()) {
+            return 0;
+        }
+        if (!s.ok()) {
+            log_error("get error: %s", s.ToString().c_str());
+            return -1;
+        }
+
+        //decodeMetaVal
+        if(meta_val.size()<4) {
+            //invalid
+            return -1;
+        }
+
+        char del = meta_val[3];
+        if (del == KEY_DELETE_MASK){
+            //deleted
+            return -1;
+        }
+
+        dtype = meta_val[0]; //get snapshot if need
+        switch (dtype) {
+            case DataType::HSIZE:
+            case DataType::SSIZE:
+            case DataType::ZSIZE:
+            case DataType::LSIZE:{
+                snapshot = ldb->GetSnapshot();
+                break;
+            }
+
+            default:break;
+        }
     }
 
+    SnapshotPtr spl(ldb, snapshot); //auto release
 
     RdbEncoder rdbEncoder;
 
-    switch (val[0]) {
+    switch (dtype) {
         case DataType::KV: {
-
             KvMetaVal kv;
-            ret = checkKey(kv, val);
+            ret = decodeMetaVal(kv, meta_val);
             if (ret != 1) {
                 return ret;
             }
@@ -550,7 +579,7 @@ int SSDBImpl::dump(const Bytes &key, std::string *res) {
         }
         case DataType::HSIZE: {
             HashMetaVal hv;
-            ret = checkKey(hv, val);
+            ret = decodeMetaVal(hv, meta_val);
             if (ret != 1) {
                 return ret;
             }
@@ -558,7 +587,7 @@ int SSDBImpl::dump(const Bytes &key, std::string *res) {
             rdbEncoder.rdbSaveType(RDB_TYPE_HASH);
             rdbEncoder.rdbSaveLen(hv.length);
 
-            auto it = std::unique_ptr<HIterator>(this->hscan(key, "", "", -1));
+            auto it = std::unique_ptr<HIterator>(this->hscan_internal(key, "", "", hv.version, -1, snapshot));
 
             while (it->next()) {
                 rdbEncoder.saveRawString(it->key);
@@ -569,7 +598,7 @@ int SSDBImpl::dump(const Bytes &key, std::string *res) {
         }
         case DataType::SSIZE: {
             SetMetaVal sv;
-            ret = checkKey(sv, val);
+            ret = decodeMetaVal(sv, meta_val);
             if (ret != 1) {
                 return ret;
             }
@@ -577,7 +606,7 @@ int SSDBImpl::dump(const Bytes &key, std::string *res) {
             rdbEncoder.rdbSaveType(RDB_TYPE_SET);
             rdbEncoder.rdbSaveLen(sv.length);
 
-            auto it = std::unique_ptr<SIterator>(this->sscan_internal(key, "", "", sv.version, -1));
+            auto it = std::unique_ptr<SIterator>(this->sscan_internal(key, "", "", sv.version, -1, snapshot));
 
             while (it->next()) {
                 rdbEncoder.saveRawString(it->key);
@@ -587,7 +616,7 @@ int SSDBImpl::dump(const Bytes &key, std::string *res) {
         }
         case DataType::ZSIZE: {
             ZSetMetaVal zv;
-            ret = checkKey(zv, val);
+            ret = decodeMetaVal(zv, meta_val);
             if (ret != 1) {
                 return ret;
 
@@ -596,7 +625,7 @@ int SSDBImpl::dump(const Bytes &key, std::string *res) {
             rdbEncoder.rdbSaveType(RDB_TYPE_ZSET);
             rdbEncoder.rdbSaveLen(zv.length);
 
-            auto it = std::unique_ptr<ZIterator>(this->zscan(key, "", "", "", -1));
+            auto it = std::unique_ptr<ZIterator>(this->zscan_internal(key, "", "", "", -1, Iterator::FORWARD, zv.version, snapshot));
 
             while (it->next()) {
                 rdbEncoder.saveRawString(it->key);
@@ -607,10 +636,11 @@ int SSDBImpl::dump(const Bytes &key, std::string *res) {
         }
         case DataType::LSIZE: {
             ListMetaVal lv;
-            ret = checkKey(lv, val);
+            ret = decodeMetaVal(lv, meta_val);
             if (ret != 1) {
                 return ret;
             }
+
             rdbEncoder.rdbSaveType(RDB_TYPE_LIST);
             rdbEncoder.rdbSaveLen(lv.length);
 
