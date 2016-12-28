@@ -326,6 +326,8 @@ static unsigned int zipRawEntryLength(unsigned char *p) {
     return prevlensize + lensize + len;
 }
 
+int string2ll(const char *s, size_t slen, long long *value) ;
+
 /* Check if string pointed to by 'entry' can be encoded as an integer.
  * Stores the integer value in 'v' and its encoding in 'encoding'. */
 static int zipTryEncoding(unsigned char *entry, unsigned int entrylen, long long *v, unsigned char *encoding) {

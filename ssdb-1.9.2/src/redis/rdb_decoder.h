@@ -52,9 +52,9 @@ public:
 
     int rdbLoadLenByRef(int *isencoded, uint64_t *lenptr);
 
-    inline size_t rioRead(void *buf, size_t len);
+    size_t rioRead(void *buf, size_t len);
 
-    inline size_t rioReadString(std::string &res, size_t len);
+    size_t rioReadString(std::string &res, size_t len);
 
     std::string rdbLoadIntegerObject(int enctype, int *ret);
 
