@@ -271,8 +271,8 @@ TEST_F(RobustTest, Test_multi_bigkey_del) {
     ASSERT_TRUE(s.ok())<<"del fail!"<<endl;
 }
 
-
-TEST_F(RobustTest, Test_zset_del_zclear_block) {
+//zclear api disable
+/* TEST_F(RobustTest, Test_zset_del_zclear_block) {
 //Issue:For zset key, del and then zclear will block forever.
     key = "key";
     field = "field";
@@ -282,7 +282,7 @@ TEST_F(RobustTest, Test_zset_del_zclear_block) {
     client->del(key);
     client->zclear(key, &ret);
     ASSERT_EQ(ret, 0)<<"fail to zclear key!"<<key<<endl;
-}
+} */
 
 TEST_F(RobustTest, Test_zset_del_set_rank_repeat) {
 //Issue:For repeat del and zset, same members can be set.

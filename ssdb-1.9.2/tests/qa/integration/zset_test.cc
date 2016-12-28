@@ -311,7 +311,7 @@ TEST_F(ZsetTest, Test_zset_zcard) {
     s = client->del(key);
 }
 
-TEST_F(ZsetTest, Test_zset_zclear) {
+/* TEST_F(ZsetTest, Test_zset_zclear) {
 //not use this command, use del instead
 #define OKZclear(num) s = client->zclear(key, &ret);\
     ASSERT_EQ(num, ret)<<"fail to zclear key!"<<key<<endl;\
@@ -341,9 +341,9 @@ TEST_F(ZsetTest, Test_zset_zclear) {
         client->zset(key, field, score);
     }
     OKZclear(10)
-}
+} */
 
-TEST_F(ZsetTest,  Test_zset_zkeys) {
+TEST_F(ZsetTest,  DISABLED_Test_zset_zkeys) {
     key = GetRandomKey_();
     client->del(key);
     score = 2.0;
