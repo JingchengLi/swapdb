@@ -686,6 +686,7 @@ int SSDBImpl::dump(const Bytes &key, std::string *res) {
 int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, bool replace, std::string *res) {
     *res = "none";
 
+    //TODO LOCK
 
     int ret = 0;
     std::string meta_val;
