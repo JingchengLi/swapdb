@@ -138,6 +138,7 @@ TEST_F(KVTest, Test_kv_setex) {
     ttl = 0;
     FalseSetx
 
+    client->del(key);
 }
 
 TEST_F(KVTest, Test_kv_get) {
