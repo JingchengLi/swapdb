@@ -733,7 +733,7 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
                 if (ret != 0) {
                     return ret;
                 }
-                t_res.push_back(r);
+                t_res.push_back(std::move(r));
             }
 
             for (int i = 0; i < t_res.size(); ++i) {
@@ -835,7 +835,7 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
                 while (getNextString(zl, &p, t_item)) {
 //                    log_debug(" item : %s", hexmem(t_item.data(), t_item.length()).c_str());
 
-                    t_res.push_back(t_item);
+                    t_res.push_back(std::move(t_item));
                 }
             }
 
