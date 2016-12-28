@@ -18,7 +18,7 @@ static ZIterator *ziterator(
         SSDBImpl *ssdb,
         const Bytes &name, const Bytes &key_start,
         const Bytes &score_start, const Bytes &score_end,
-        uint64_t limit, Iterator::Direction direction, uint16_t version);
+        uint64_t limit, Iterator::Direction direction, uint16_t version, const leveldb::Snapshot *snapshot=nullptr);
 
 void zset_internal(const SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &name, const Bytes &key, double new_score,
                    uint16_t cur_version);
@@ -186,7 +186,7 @@ static ZIterator *ziterator(
         SSDBImpl *ssdb,
         const Bytes &name, const Bytes &key_start,
         const Bytes &score_start, const Bytes &score_end,
-        uint64_t limit, Iterator::Direction direction, uint16_t version) {
+        uint64_t limit, Iterator::Direction direction, uint16_t version, const leveldb::Snapshot *snapshot) {
     if (direction == Iterator::FORWARD) {
         std::string start, end;
         if (score_start.empty()) {
@@ -199,7 +199,7 @@ static ZIterator *ziterator(
         } else {
             end = encode_zscore_key(name, "", score_end.Double(), version);
         }
-        return new ZIterator(ssdb->iterator(start, end, limit), name, version);
+        return new ZIterator(ssdb->iterator(start, end, limit, snapshot), name, version);
     } else {
         std::string start, end;
         if (score_start.empty()) {
@@ -216,7 +216,7 @@ static ZIterator *ziterator(
         } else {
             end = encode_zscore_key(name, "", score_end.Double(), version);
         }
-        return new ZIterator(ssdb->rev_iterator(start, end, limit), name, version);
+        return new ZIterator(ssdb->rev_iterator(start, end, limit, snapshot), name, version);
     }
 }
 

@@ -196,28 +196,6 @@ int proc_qtrim_back(NetworkServer *net, Link *link, const Request &req, Response
 	return proc_qtrim_func(net, link, req, resp, QBACK);
 }
 
-int proc_qlist(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
-	CHECK_NUM_PARAMS(4);
-
-	uint64_t limit = req[3].Uint64();
-	std::vector<std::string> list;
-	int ret = serv->ssdb->qlist(req[1], req[2], limit, &list);
-	resp->reply_list(ret, list);
-	return 0;
-}
-
-int proc_qrlist(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
-	CHECK_NUM_PARAMS(4);
-
-	uint64_t limit = req[3].Uint64();
-	std::vector<std::string> list;
-	int ret = serv->ssdb->qrlist(req[1], req[2], limit, &list);
-	resp->reply_list(ret, list);
-	return 0;
-}
-
 int proc_qfix(NetworkServer *net, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(2);

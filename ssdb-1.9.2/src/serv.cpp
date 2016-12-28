@@ -112,8 +112,6 @@ DEF_PROC(qtrim_front);
 DEF_PROC(qtrim_back);
 DEF_PROC(qfix);
 DEF_PROC(qclear);
-DEF_PROC(qlist);
-DEF_PROC(qrlist);
 DEF_PROC(qslice);
 DEF_PROC(qrange);
 DEF_PROC(qget);
@@ -242,8 +240,6 @@ void SSDBServer::reg_procs(NetworkServer *net){
 	REG_PROC(qtrim_back, "wt");
 	REG_PROC(qfix, "wt");
 	REG_PROC(qclear, "wt");
-	REG_PROC(qlist, "rt");
-	REG_PROC(qrlist, "rt");
 	REG_PROC(qslice, "rt");
 	REG_PROC(qrange, "rt");
 	REG_PROC(qget, "rt");

@@ -25,8 +25,8 @@ public:
 	virtual int flushdb() = 0;
 
 	// return (start, end], not include start
-	virtual Iterator* iterator(const std::string &start, const std::string &end, uint64_t limit, bool use_snapshot = false) = 0;
-	virtual Iterator* rev_iterator(const std::string &start, const std::string &end, uint64_t limit, bool use_snapshot = false) = 0;
+	virtual Iterator* iterator(const std::string &start, const std::string &end, uint64_t limit, const leveldb::Snapshot *snapshot=nullptr) = 0;
+	virtual Iterator* rev_iterator(const std::string &start, const std::string &end, uint64_t limit, const leveldb::Snapshot *snapshot=nullptr) = 0;
 
 	//void flushdb();
 	virtual uint64_t size() = 0;
@@ -139,10 +139,7 @@ public:
 	virtual int qpop_front(const Bytes &name, std::string *item) = 0;
 	virtual int qpop_back(const Bytes &name, std::string *item) = 0;
 	virtual int qfix(const Bytes &name) = 0;
-	virtual int qlist(const Bytes &name_s, const Bytes &name_e, uint64_t limit,
-			std::vector<std::string> *list) = 0;
-	virtual int qrlist(const Bytes &name_s, const Bytes &name_e, uint64_t limit,
-			std::vector<std::string> *list) = 0;
+
 	virtual int qslice(const Bytes &name, int64_t offset, int64_t limit,
 			std::vector<std::string> *list) = 0;
 	virtual int qget(const Bytes &name, int64_t index, std::string *item) = 0;

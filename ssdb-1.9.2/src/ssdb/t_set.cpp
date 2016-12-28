@@ -141,7 +141,7 @@ int SSDBImpl::incr_ssize(leveldb::WriteBatch &batch, const Bytes &key, int64_t i
 }
 
 SIterator* SSDBImpl::sscan_internal(const Bytes &name, const Bytes &start, const Bytes &end, uint16_t version,
-                                    uint64_t limit) {
+                                    uint64_t limit, const leveldb::Snapshot *snapshot) {
     std::string key_start, key_end;
 
     key_start = encode_set_key(name, start, version);
@@ -149,7 +149,7 @@ SIterator* SSDBImpl::sscan_internal(const Bytes &name, const Bytes &start, const
         key_end = encode_set_key(name, end, version);
     }
 
-    return new SIterator(this->iterator(key_start, key_end, limit), name, version);
+    return new SIterator(this->iterator(key_start, key_end, limit, snapshot), name, version);
 }
 
 int SSDBImpl::sadd(const Bytes &key, const Bytes &member){

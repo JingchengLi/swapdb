@@ -63,9 +63,11 @@ public:
 	virtual int flushdb();
 
 	// return (start, end], not include start
-	virtual Iterator* iterator(const std::string &start, const std::string &end, uint64_t limit, bool use_snapshot = false);
-	virtual Iterator* rev_iterator(const std::string &start, const std::string &end, uint64_t limit, bool use_snapshot = false);
-	virtual void ReleaseSnapshot(const leveldb::Snapshot* snapshot);
+	virtual Iterator* iterator(const std::string &start, const std::string &end, uint64_t limit,
+							   const leveldb::Snapshot *snapshot=nullptr);
+	virtual Iterator* rev_iterator(const std::string &start, const std::string &end, uint64_t limit,
+								   const leveldb::Snapshot *snapshot=nullptr);
+	virtual void ReleaseSnapshot(const leveldb::Snapshot* snapshot=nullptr);
 
 	//void flushdb();
 	virtual uint64_t size();
@@ -139,7 +141,6 @@ public:
 	int 	DoRPop(leveldb::WriteBatch &batch, ListMetaVal &meta_val, const Bytes &key, std::string &meta_key, std::string *val);
 	int 	DoRPush(leveldb::WriteBatch &batch, ListMetaVal &meta_val, const Bytes &key, const Bytes &val, std::string &meta_key);
     int     DoRPush(leveldb::WriteBatch &batch, const Bytes &key, const std::vector<Bytes> &val, int offset, std::string &meta_key, ListMetaVal &meta_val);
-    int64_t LDelKeyNoLock(leveldb::WriteBatch &batch, const Bytes &name);
 
     /* set */
     virtual int sadd(const Bytes &key, const Bytes &member);
@@ -196,10 +197,7 @@ public:
 	virtual int qpop_front(const Bytes &name, std::string *item);
 	virtual int qpop_back(const Bytes &name, std::string *item);
 	virtual int qfix(const Bytes &name);
-	virtual int qlist(const Bytes &name_s, const Bytes &name_e, uint64_t limit,
-			std::vector<std::string> *list);
-	virtual int qrlist(const Bytes &name_s, const Bytes &name_e, uint64_t limit,
-			std::vector<std::string> *list);
+
 	virtual int qslice(const Bytes &name, int64_t offset, int64_t limit,
 			std::vector<std::string> *list);
 	virtual int qget(const Bytes &name, int64_t index, std::string *item);
@@ -226,8 +224,8 @@ private:
     int GetKvMetaVal(const std::string &meta_key, KvMetaVal &kv);
     int del_key_internal(leveldb::WriteBatch &batch, const Bytes &key);
 
-    HIterator* hscan_internal(const Bytes &name, const Bytes &start, const Bytes &end, uint16_t version, uint64_t limit);
-    HIterator* hrscan_internal(const Bytes &name, const Bytes &start, const Bytes &end, uint16_t version, uint64_t limit);
+    HIterator* hscan_internal(const Bytes &name, const Bytes &start, const Bytes &end, uint16_t version, uint64_t limit, const leveldb::Snapshot *snapshot=nullptr);
+    HIterator* hrscan_internal(const Bytes &name, const Bytes &start, const Bytes &end, uint16_t version, uint64_t limit, const leveldb::Snapshot *snapshot=nullptr);
 	int HDelKeyNoLock(leveldb::WriteBatch &batch, const Bytes &name);
 
     int GetSetMetaVal(const std::string &meta_key, SetMetaVal &sv);
@@ -235,7 +233,7 @@ private:
     int sadd_one(leveldb::WriteBatch &batch, const Bytes &key, const Bytes &member);
     int incr_ssize(leveldb::WriteBatch &batch, const Bytes &key, int64_t incr);
 	int srem_one(leveldb::WriteBatch &batch, const Bytes &key, const Bytes &member);
-    SIterator* sscan_internal(const Bytes &name, const Bytes &start, const Bytes &end, uint16_t version, uint64_t limit);
+    SIterator* sscan_internal(const Bytes &name, const Bytes &start, const Bytes &end, uint16_t version, uint64_t limit, const leveldb::Snapshot *snapshot=nullptr);
     int sunion_internal(const std::vector<Bytes> &keys, int offset, std::set<std::string>& members);
 	int64_t SDelKeyNoLock(leveldb::WriteBatch &batch, const Bytes &name);
 

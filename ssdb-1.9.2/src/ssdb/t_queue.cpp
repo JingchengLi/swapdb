@@ -352,41 +352,6 @@ static void get_qnames(Iterator *it, std::vector<std::string> *list){
 	}
 }
 
-int SSDBImpl::qlist(const Bytes &name_s, const Bytes &name_e, uint64_t limit,
-		std::vector<std::string> *list){
-	std::string start;
-	std::string end;
-	
-	start = encode_qsize_key(name_s);
-	if(!name_e.empty()){
-		end = encode_qsize_key(name_e);
-	}
-	
-	Iterator *it = this->iterator(start, end, limit);
-	get_qnames(it, list);
-	delete it;
-	return 0;
-}
-
-int SSDBImpl::qrlist(const Bytes &name_s, const Bytes &name_e, uint64_t limit,
-		std::vector<std::string> *list){
-	std::string start;
-	std::string end;
-	
-	start = encode_qsize_key(name_s);
-	if(name_s.empty()){
-		start.append(1, 255);
-	}
-	if(!name_e.empty()){
-		end = encode_qsize_key(name_e);
-	}
-	
-	Iterator *it = this->rev_iterator(start, end, limit);
-	get_qnames(it, list);
-	delete it;
-	return 0;
-}
-
 int SSDBImpl::qfix(const Bytes &name){
 	Transaction trans(binlogs);
 // todo r2m adaptation

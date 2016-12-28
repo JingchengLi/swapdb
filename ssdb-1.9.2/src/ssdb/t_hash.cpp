@@ -185,7 +185,8 @@ HIterator* SSDBImpl::hscan(const Bytes &name, const Bytes &start, const Bytes &e
     }
 }
 
-HIterator* SSDBImpl::hscan_internal(const Bytes &name, const Bytes &start, const Bytes &end, uint16_t version, uint64_t limit){
+HIterator* SSDBImpl::hscan_internal(const Bytes &name, const Bytes &start, const Bytes &end, uint16_t version, uint64_t limit,
+									const leveldb::Snapshot *snapshot){
     std::string key_start, key_end;
 
     key_start = encode_hash_key(name, start, version);
@@ -193,10 +194,11 @@ HIterator* SSDBImpl::hscan_internal(const Bytes &name, const Bytes &start, const
         key_end = encode_hash_key(name, end, version);
     }
 
-    return new HIterator(this->iterator(key_start, key_end, limit), name, version);
+    return new HIterator(this->iterator(key_start, key_end, limit, snapshot), name, version);
 }
 
-HIterator* SSDBImpl::hrscan_internal(const Bytes &name, const Bytes &start, const Bytes &end, uint16_t version, uint64_t limit){
+HIterator* SSDBImpl::hrscan_internal(const Bytes &name, const Bytes &start, const Bytes &end, uint16_t version, uint64_t limit,
+									 const leveldb::Snapshot *snapshot){
     std::string key_start, key_end;
 
     key_start = encode_hash_key(name, start, version);
@@ -207,7 +209,7 @@ HIterator* SSDBImpl::hrscan_internal(const Bytes &name, const Bytes &start, cons
         key_end = encode_hash_key(name, end, version);
     }
 
-    return new HIterator(this->rev_iterator(key_start, key_end, limit), name, version);
+    return new HIterator(this->rev_iterator(key_start, key_end, limit, snapshot), name, version);
 }
 
 HIterator* SSDBImpl::hrscan(const Bytes &name, const Bytes &start, const Bytes &end, uint64_t limit){
