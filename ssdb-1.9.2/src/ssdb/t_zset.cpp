@@ -48,6 +48,65 @@ int SSDBImpl::zset(const Bytes &name, const Bytes &key, const Bytes &score) {
     return ret;
 }
 
+int64_t SSDBImpl::zcount(const Bytes &name, const Bytes &score_start, const Bytes &score_end) {
+    int64_t count = 0;
+
+    ZSetMetaVal zv;
+    const leveldb::Snapshot* snapshot = nullptr;
+
+    {
+        RecordLock l(&mutex_record_, name.String());
+        std::string meta_key = encode_meta_key(name);
+        int res = GetZSetMetaVal(meta_key, zv);
+        if (res != 1) {
+            return -1;
+        }
+
+        snapshot = ldb->GetSnapshot();
+    }
+
+    SnapshotPtr spl(ldb, snapshot); //auto release
+
+    std::unique_ptr<ZIterator> it(this->zscan_internal(name, "", score_start, score_end, INT_MAX, Iterator::FORWARD, zv.version, snapshot));
+    while(it->next()){
+        count ++;
+    }
+
+    return count;
+}
+
+int64_t SSDBImpl::zremrangebyscore(const Bytes &name, const Bytes &score_start, const Bytes &score_end) {
+    int64_t count = 0;
+
+    ZSetMetaVal zv;
+    const leveldb::Snapshot* snapshot = nullptr;
+
+    {
+        RecordLock l(&mutex_record_, name.String());
+        std::string meta_key = encode_meta_key(name);
+        int res = GetZSetMetaVal(meta_key, zv);
+        if (res != 1) {
+            return -1;
+        }
+
+        snapshot = ldb->GetSnapshot();
+    }
+
+    SnapshotPtr spl(ldb, snapshot); //auto release
+
+    std::unique_ptr<ZIterator> it(this->zscan_internal(name, "", score_start, score_end, INT_MAX, Iterator::FORWARD, zv.version, snapshot));
+
+    while(it->next()){
+        count ++;
+        int ret = this->zdel(name, it->key);
+        if(ret == -1){
+            return -1;
+        }
+    }
+
+    return count;
+}
+
 int SSDBImpl::zsetNoLock(leveldb::WriteBatch &batch, const Bytes &name, const Bytes &key, double score) {
     //TODO check score
     int ret = zset_one(this, batch, name, key, score);
@@ -215,14 +274,23 @@ ZIterator* SSDBImpl::zscan_internal(const Bytes &name, const Bytes &key_start,
 
 int64_t SSDBImpl::zrank(const Bytes &name, const Bytes &key) {
     ZSetMetaVal zv;
-    std::string meta_key = encode_meta_key(name);
-    int res = GetZSetMetaVal(meta_key, zv);
-    if (res != 1) {
-        return -1;
+    const leveldb::Snapshot* snapshot = nullptr;
+
+    {
+        RecordLock l(&mutex_record_, name.String());
+        std::string meta_key = encode_meta_key(name);
+        int res = GetZSetMetaVal(meta_key, zv);
+        if (res != 1) {
+            return -1;
+        }
+
+        snapshot = ldb->GetSnapshot();
     }
 
+    SnapshotPtr spl(ldb, snapshot); //auto release
+
     bool found = false;
-    std::unique_ptr<ZIterator> it(this->zscan_internal(name, "", "", "", INT_MAX, Iterator::FORWARD, zv.version));
+    std::unique_ptr<ZIterator> it(this->zscan_internal(name, "", "", "", INT_MAX, Iterator::FORWARD, zv.version, snapshot));
     uint64_t ret = 0;
     while (true) {
         if (!it->next()) {
@@ -239,14 +307,23 @@ int64_t SSDBImpl::zrank(const Bytes &name, const Bytes &key) {
 
 int64_t SSDBImpl::zrrank(const Bytes &name, const Bytes &key) {
     ZSetMetaVal zv;
-    std::string meta_key = encode_meta_key(name);
-    int res = GetZSetMetaVal(meta_key, zv);
-    if (res != 1) {
-        return -1;
+    const leveldb::Snapshot* snapshot = nullptr;
+
+    {
+        RecordLock l(&mutex_record_, name.String());
+
+        std::string meta_key = encode_meta_key(name);
+        int res = GetZSetMetaVal(meta_key, zv);
+        if (res != 1) {
+            return -1;
+        }
+
+        snapshot = ldb->GetSnapshot();
     }
 
+    SnapshotPtr spl(ldb, snapshot); //auto release
     bool found = false;
-    std::unique_ptr<ZIterator> it(this->zscan_internal(name, "", "", "", INT_MAX, Iterator::BACKWARD, zv.version));
+    std::unique_ptr<ZIterator> it(this->zscan_internal(name, "", "", "", INT_MAX, Iterator::BACKWARD, zv.version, snapshot));
     uint64_t ret = 0;
     while (true) {
         if (!it->next()) {
@@ -261,40 +338,54 @@ int64_t SSDBImpl::zrrank(const Bytes &name, const Bytes &key) {
     return found ? ret : -1;
 }
 
-ZIterator *SSDBImpl::zrange(const Bytes &name, uint64_t offset, uint64_t limit) {
+ZIterator *SSDBImpl::zrange(const Bytes &name, uint64_t offset, uint64_t limit, const leveldb::Snapshot** snapshot) {
     uint16_t version = 0;
-    ZSetMetaVal zv;
-    std::string meta_key = encode_meta_key(name);
-    int res = GetZSetMetaVal(meta_key, zv);
-    if (res == 1) {
-        version = zv.version;
-    } else {
-        return nullptr;
+
+    {
+        RecordLock l(&mutex_record_, name.String());
+
+        ZSetMetaVal zv;
+        std::string meta_key = encode_meta_key(name);
+        int res = GetZSetMetaVal(meta_key, zv);
+        if (res == 1) {
+            version = zv.version;
+        } else {
+            return nullptr;
+        }
+
+        *snapshot = ldb->GetSnapshot();
     }
+
 
     if (offset + limit > limit) {
         limit = offset + limit;
     }
-    ZIterator *it = this->zscan_internal("", "", "",  "", limit, Iterator::FORWARD, version);
+    ZIterator *it = this->zscan_internal("", "", "",  "", limit, Iterator::FORWARD, version, *snapshot);
     it->skip(offset);
     return it;
 }
 
-ZIterator *SSDBImpl::zrrange(const Bytes &name, uint64_t offset, uint64_t limit) {
+ZIterator *SSDBImpl::zrrange(const Bytes &name, uint64_t offset, uint64_t limit, const leveldb::Snapshot** snapshot) {
     uint16_t version = 0;
-    ZSetMetaVal zv;
-    std::string meta_key = encode_meta_key(name);
-    int res = GetZSetMetaVal(meta_key, zv);
-    if (res == 1) {
-        version = zv.version;
-    } else {
-        return nullptr;
+
+    {
+        RecordLock l(&mutex_record_, name.String());
+        ZSetMetaVal zv;
+        std::string meta_key = encode_meta_key(name);
+        int res = GetZSetMetaVal(meta_key, zv);
+        if (res == 1) {
+            version = zv.version;
+        } else {
+            return nullptr;
+        }
+
+        *snapshot = ldb->GetSnapshot();
     }
 
     if (offset + limit > limit) {
         limit = offset + limit;
     }
-    ZIterator *it = this->zscan_internal("", "", "", "", limit, Iterator::BACKWARD, version);
+    ZIterator *it = this->zscan_internal("", "", "", "", limit, Iterator::BACKWARD, version, *snapshot);
     it->skip(offset);
     return it;
 }

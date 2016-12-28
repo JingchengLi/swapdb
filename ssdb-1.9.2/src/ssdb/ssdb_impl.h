@@ -162,7 +162,10 @@ public:
 	virtual int zincr(const Bytes &name, const Bytes &key, double by, double *new_val);
 	//int multi_zset(const Bytes &name, const std::vector<Bytes> &kvs, int offset=0);
 	//int multi_zdel(const Bytes &name, const std::vector<Bytes> &keys, int offset=0);
-	
+
+	int64_t zcount(const Bytes &name, const Bytes &score_start, const Bytes &score_end);
+	int64_t zremrangebyscore(const Bytes &name, const Bytes &score_start, const Bytes &score_end);
+
 	virtual int64_t zsize(const Bytes &name);
 	/**
 	 * @return -1: error; 0: not found; 1: found
@@ -170,8 +173,8 @@ public:
 	virtual int zget(const Bytes &name, const Bytes &key, double *score);
 	virtual int64_t zrank(const Bytes &name, const Bytes &key);
 	virtual int64_t zrrank(const Bytes &name, const Bytes &key);
-	virtual ZIterator* zrange(const Bytes &name, uint64_t offset, uint64_t limit);
-	virtual ZIterator* zrrange(const Bytes &name, uint64_t offset, uint64_t limit);
+	virtual ZIterator* zrange(const Bytes &name, uint64_t offset, uint64_t limit, const leveldb::Snapshot** snapshot);
+	virtual ZIterator* zrrange(const Bytes &name, uint64_t offset, uint64_t limit, const leveldb::Snapshot** snapshot);
 	/**
 	 * scan by score, but won't return @key if key.score=score_start.
 	 * return (score_start, score_end]

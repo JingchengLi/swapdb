@@ -196,7 +196,10 @@ int proc_zrange(NetworkServer *net, Link *link, const Request &req, Response *re
 
 	uint64_t offset = req[2].Uint64();
 	uint64_t limit = req[3].Uint64();
-	ZIterator *it = serv->ssdb->zrange(req[1], offset, limit);
+
+	const leveldb::Snapshot* snapshot = nullptr;
+
+	ZIterator* it = serv->ssdb->zrange(req[1], offset, limit, &snapshot);
 	resp->push_back("ok");
 
     if(it != nullptr) {
@@ -206,6 +209,8 @@ int proc_zrange(NetworkServer *net, Link *link, const Request &req, Response *re
         }
         delete it;
     }
+
+	serv->ssdb->ReleaseSnapshot(snapshot);
 
 	return 0;
 }
@@ -216,7 +221,10 @@ int proc_zrrange(NetworkServer *net, Link *link, const Request &req, Response *r
 
 	uint64_t offset = req[2].Uint64();
 	uint64_t limit = req[3].Uint64();
-	ZIterator *it = serv->ssdb->zrrange(req[1], offset, limit);
+
+	const leveldb::Snapshot* snapshot = nullptr;
+
+	ZIterator *it = serv->ssdb->zrrange(req[1], offset, limit, &snapshot);
 	resp->push_back("ok");
     if(it != nullptr) {
         while(it->next()){
@@ -226,7 +234,9 @@ int proc_zrrange(NetworkServer *net, Link *link, const Request &req, Response *r
         delete it;
     }
 
-    return 0;
+	serv->ssdb->ReleaseSnapshot(snapshot);
+
+	return 0;
 }
 
 int proc_zscan(NetworkServer *net, Link *link, const Request &req, Response *resp){
@@ -318,48 +328,9 @@ int proc_zcount(NetworkServer *net, Link *link, const Request &req, Response *re
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(4);
 
-	int64_t count = 0;
-	ZIterator *it = serv->ssdb->zscan(req[1], "", req[2], req[3], -1);
-	while(it->next()){
-		count ++;
-	}
-	delete it;
+	int64_t count = serv->ssdb->zcount(req[1],req[2], req[3]);
 
 	resp->reply_int(0, count);
-	return 0;
-}
-
-int proc_zsum(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
-	CHECK_NUM_PARAMS(4);
-
-	double sum = 0;
-	ZIterator *it = serv->ssdb->zscan(req[1], "", req[2], req[3], -1);
-	while(it->next()){
-		sum += it->score;
-	}
-	delete it;
-
-	resp->reply_double(0, sum);
-	return 0;
-}
-
-int proc_zavg(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
-	CHECK_NUM_PARAMS(4);
-
-	double sum = 0;
-	int64_t count = 0;
-	ZIterator *it = serv->ssdb->zscan(req[1], "", req[2], req[3], -1);
-	while(it->next()){
-		sum += it->score;
-		count ++;
-	}
-	delete it;
-	double avg = sum/ (double)count;
-
-	resp->push_back("ok");
-	resp->add(avg);
 	return 0;
 }
 
@@ -367,18 +338,12 @@ int proc_zremrangebyscore(NetworkServer *net, Link *link, const Request &req, Re
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(4);
 
-	ZIterator *it = serv->ssdb->zscan(req[1], "", req[2], req[3], -1);
-	int64_t count = 0;
-	while(it->next()){
-		count ++;
-		int ret = serv->ssdb->zdel(req[1], it->key);
-		if(ret == -1){
-			delete it;
-			resp->push_back("error");
-			return 0;
-		}
+ 	int64_t count = serv->ssdb->zremrangebyscore(req[1], req[2], req[3]);
+
+	if (count <0) {
+		resp->push_back("error");
+		return 0;
 	}
-	delete it;
 
 	resp->reply_int(0, count);
 	return 0;
@@ -390,7 +355,10 @@ int proc_zremrangebyrank(NetworkServer *net, Link *link, const Request &req, Res
 
 	uint64_t start = req[2].Uint64();
 	uint64_t end = req[3].Uint64();
-	ZIterator *it = serv->ssdb->zrange(req[1], start, end - start + 1);
+
+	const leveldb::Snapshot* snapshot = nullptr;
+
+	ZIterator *it = serv->ssdb->zrange(req[1], start, end - start + 1, &snapshot);
 	int64_t count = 0;
     if(it != nullptr) {
         while (it->next()) {
@@ -399,12 +367,16 @@ int proc_zremrangebyrank(NetworkServer *net, Link *link, const Request &req, Res
             if (ret == -1) {
                 resp->push_back("error");
                 delete it;
-                return 0;
+
+				serv->ssdb->ReleaseSnapshot(snapshot);
+				return 0;
             }
         }
         delete it;
     }
 	resp->reply_int(0, count);
+
+	serv->ssdb->ReleaseSnapshot(snapshot);
 	return 0;
 }
 

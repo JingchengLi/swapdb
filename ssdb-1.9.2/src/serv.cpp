@@ -90,8 +90,6 @@ DEF_PROC(zscan);
 DEF_PROC(zrscan);
 DEF_PROC(zkeys);
 DEF_PROC(zcount);
-DEF_PROC(zsum);
-DEF_PROC(zavg);
 DEF_PROC(zexists);
 DEF_PROC(zremrangebyrank);
 DEF_PROC(zremrangebyscore);
@@ -220,8 +218,6 @@ void SSDBServer::reg_procs(NetworkServer *net){
 	REG_PROC(zrscan, "rt");
 	REG_PROC(zkeys, "rt");
 	REG_PROC(zcount, "rt");
-	REG_PROC(zsum, "rt");
-	REG_PROC(zavg, "rt");
 	REG_PROC(zremrangebyrank, "wt");
 	REG_PROC(zremrangebyscore, "wt");
 	REG_PROC(zexists, "rt");
