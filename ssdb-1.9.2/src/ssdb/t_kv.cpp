@@ -542,7 +542,7 @@ int SSDBImpl::dump(const Bytes &key, std::string *res) {
         }
 
         char del = meta_val[3];
-        if (del == KEY_DELETE_MASK){
+        if (del != KEY_ENABLED_MASK){
             //deleted
             return -1;
         }
