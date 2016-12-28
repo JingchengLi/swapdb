@@ -458,12 +458,30 @@ int SSDBImpl::lrange(const Bytes &key, int64_t start, int64_t end, std::vector<s
     RecordLock l(&mutex_record_, key.String());
     leveldb::WriteBatch batch;
 
+    int ret;
+
     ListMetaVal meta_val;
-    std::string meta_key = encode_meta_key(key);
-    int ret = GetListMetaVal(meta_key, meta_val);
-    if (ret != 1){
-        return ret;
+    const leveldb::Snapshot* snapshot = nullptr;
+
+    {
+        RecordLock l(&mutex_record_, key.String());
+
+        std::string meta_key = encode_meta_key(key);
+        ret = GetListMetaVal(meta_key, meta_val);
+        if (ret != 1){
+            return ret;
+        }
+
+        snapshot = ldb->GetSnapshot();
     }
+
+    SnapshotPtr spl(ldb, snapshot); //auto release
+
+    leveldb::ReadOptions readOptions = leveldb::ReadOptions();
+    readOptions.fill_cache = false;
+    readOptions.snapshot = snapshot;
+
+
     int64_t llen = (int64_t)meta_val.length;
     if (start < 0) start = llen+start;
     if (end < 0) end = llen+end;
@@ -484,7 +502,7 @@ int SSDBImpl::lrange(const Bytes &key, int64_t start, int64_t end, std::vector<s
     while (rangelen--){
         std::string val;
         std::string item_key = encode_list_key(key, cur_seq, meta_val.version);
-        ret = GetListItemVal(item_key, &val);
+        ret = GetListItemVal(item_key, &val, readOptions);
         if (1 != ret){
             list->clear();
             return -1;
