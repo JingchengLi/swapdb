@@ -226,10 +226,23 @@ Status ClientImpl::ttl(const std::string &name, int64_t *ret){
 	return _read_int64(resp, ret);
 }
 
+Status ClientImpl::pttl(const std::string &name, int64_t *ret){
+	const std::vector<std::string> *resp;
+	resp = this->request("pttl", name);
+	return _read_int64(resp, ret);
+}
+
 Status ClientImpl::expire(const std::string &key, int64_t ttl, int64_t *ret){
 	std::string s_ttl = str(ttl);
 	const std::vector<std::string> *resp;
 	resp = this->request("expire", key, s_ttl);
+	return _read_int64(resp, ret);
+}
+
+Status ClientImpl::pexpire(const std::string &key, int64_t ttl, int64_t *ret){
+	std::string s_ttl = str(ttl);
+	const std::vector<std::string> *resp;
+	resp = this->request("pexpire", key, s_ttl);
 	return _read_int64(resp, ret);
 }
 /******************** KV *************************/
