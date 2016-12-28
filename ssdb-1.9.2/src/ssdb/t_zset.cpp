@@ -416,28 +416,6 @@ ZIterator *SSDBImpl::zscan(const Bytes &name, const Bytes &key,
     return this->zscan_internal(name, key, score, score_end, limit, Iterator::FORWARD, version);
 }
 
-ZIterator *SSDBImpl::zrscan(const Bytes &name, const Bytes &key,
-                            const Bytes &score_start, const Bytes &score_end, uint64_t limit) {
-    uint16_t version = 0; //TODO op later
-    ZSetMetaVal zv;
-    std::string meta_key = encode_meta_key(name);
-    int res = GetZSetMetaVal(meta_key, zv);
-    if (res == 1) {
-        version = zv.version;
-    }
-
-    std::string score;
-    // if only key is specified, load its value
-    if (!key.empty() && score_start.empty()) {
-        double d_score = 0;
-        this->zget(name, key, &d_score);
-        score = str(d_score);
-    } else {
-        score = score_start.String();
-    }
-    return this->zscan_internal(name, key, score, score_end, limit, Iterator::BACKWARD, version);
-}
-
 
 // returns the number of newly added items
 static int zset_one(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &name, const Bytes &key, double score) {

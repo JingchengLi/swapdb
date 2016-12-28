@@ -261,21 +261,6 @@ int proc_scan(NetworkServer *net, Link *link, const Request &req, Response *resp
 	return 0;
 }
 
-int proc_rscan(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
-	CHECK_NUM_PARAMS(4);
-
-	uint64_t limit = req[3].Uint64();
-	Iterator *it = serv->ssdb->rev_iterator("", "", -1);
-	resp->push_back("ok");
-	while(it->next()){
-		resp->push_back(hexmem(it->key().data(),it->key().size()));
-		resp->push_back(hexmem(it->val().data(),it->val().size()));
-	}
-	delete it;
-	return 0;
-}
-
 int proc_keys(NetworkServer *net, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(4);

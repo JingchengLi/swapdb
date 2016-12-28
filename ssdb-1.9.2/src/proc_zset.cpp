@@ -259,29 +259,6 @@ int proc_zscan(NetworkServer *net, Link *link, const Request &req, Response *res
 	return 0;
 }
 
-int proc_zrscan(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
-	CHECK_NUM_PARAMS(6);
-
-	uint64_t limit = req[5].Uint64();
-	uint64_t offset = 0;
-	if(req.size() > 6){
-		offset = limit;
-		limit = offset + req[6].Uint64();
-	}
-	ZIterator *it = serv->ssdb->zrscan(req[1], req[2], req[3], req[4], limit);
-	if(offset > 0){
-		it->skip(offset);
-	}
-	resp->push_back("ok");
-	while(it->next()){
-		resp->push_back(it->key);
-		resp->push_back(str(it->score));
-	}
-	delete it;
-	return 0;
-}
-
 int proc_zkeys(NetworkServer *net, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(6);
