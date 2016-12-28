@@ -68,7 +68,7 @@ int proc_setx(NetworkServer *net, Link *link, const Request &req, Response *resp
 		resp->push_back("error");
 		return 0;
 	}
-	ret = serv->expiration->set_ttl(req[1], ttl);
+	ret = serv->expiration->set_ttl(req[1], ttl, TimeUnit::Second);
 	if(ret == -1){
 		resp->push_back("error");
 	}else{
@@ -78,14 +78,49 @@ int proc_setx(NetworkServer *net, Link *link, const Request &req, Response *resp
 	return 0;
 }
 
+int proc_pttl(NetworkServer *net, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *)net->data;
+	CHECK_NUM_PARAMS(2);
+
+	int64_t ttl = serv->expiration->get_ttl(req[1], TimeUnit::Millisecond);
+	resp->push_back("ok");
+	resp->push_back(str(ttl));
+	return 0;
+}
+
 int proc_ttl(NetworkServer *net, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(2);
 
-	int64_t ttl = serv->expiration->get_ttl(req[1]);
+	int64_t ttl = serv->expiration->get_ttl(req[1], TimeUnit::Second);
 	resp->push_back("ok");
 	resp->push_back(str(ttl));
 	return 0;
+}
+
+int proc_pexpire(NetworkServer *net, Link *link, const Request &req, Response *resp){
+    SSDBServer *serv = (SSDBServer *)net->data;
+    CHECK_NUM_PARAMS(3);
+
+    int64_t ttl = req[2].Int64();
+    if (errno == EINVAL){
+        resp->push_back("error");
+        return 0;
+    }
+
+    Locking l(&serv->expiration->mutex);
+    std::string val;
+    int ret = serv->expiration->set_ttl(req[1], ttl, TimeUnit::Millisecond);
+    if(ret == 1){
+        resp->push_back("ok");
+        resp->push_back("1");
+    } else if (ret == 0){
+        resp->push_back("ok");
+        resp->push_back("0");
+    } else{
+        resp->push_back("error");
+    }
+    return 0;
 }
 
 int proc_expire(NetworkServer *net, Link *link, const Request &req, Response *resp){
@@ -100,7 +135,7 @@ int proc_expire(NetworkServer *net, Link *link, const Request &req, Response *re
 
 	Locking l(&serv->expiration->mutex);
 	std::string val;
-	int ret = serv->expiration->set_ttl(req[1], ttl);
+	int ret = serv->expiration->set_ttl(req[1], ttl, TimeUnit::Second);
 	if(ret == 1){
 		resp->push_back("ok");
 		resp->push_back("1");

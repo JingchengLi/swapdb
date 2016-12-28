@@ -34,7 +34,9 @@ DEF_PROC(multi_get);
 DEF_PROC(multi_set);
 DEF_PROC(multi_del);
 DEF_PROC(ttl);
+DEF_PROC(pttl);
 DEF_PROC(expire);
+DEF_PROC(pexpire);
 
 DEF_PROC(hsize);
 DEF_PROC(hget);
@@ -161,7 +163,9 @@ void SSDBServer::reg_procs(NetworkServer *net){
 	REG_PROC(multi_set, "wt");
 	REG_PROC(multi_del, "wt");
 	REG_PROC(ttl, "rt");
+	REG_PROC(pttl, "rt");
 	REG_PROC(expire, "wt");
+	REG_PROC(pexpire, "wt");
 
 	REG_PROC(hsize, "rt");
 	REG_PROC(hget, "rt");
@@ -418,7 +422,7 @@ int proc_restore(NetworkServer *net, Link *link, const Request &req, Response *r
 
 	if (ret > 0 && ttl > 0) {
 		Locking l(&serv->expiration->mutex);
-		ret = serv->expiration->set_ttl(req[1], ttl);
+		ret = serv->expiration->set_ttl(req[1], ttl, TimeUnit::Millisecond);
 	}
 
 	if (ret < 0) {

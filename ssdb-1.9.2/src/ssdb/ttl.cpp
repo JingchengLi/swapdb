@@ -12,6 +12,7 @@ found in the LICENSE file.
 //#define EXPIRATION_LIST_KEY "\xff\xff\xff\xff\xff|EXPIRE_LIST|KV"
 #define BATCH_SIZE    1000
 
+
 ExpirationHandler::ExpirationHandler(SSDB *ssdb) {
     this->ssdb = ssdb;
     this->thread_quit = false;
@@ -46,13 +47,23 @@ void ExpirationHandler::stop() {
     }
 }
 
-int ExpirationHandler::set_ttl(const Bytes &key, int64_t ttl) {
+int ExpirationHandler::set_ttl(const Bytes &key, int64_t ttl, TimeUnit tu) {
     if (ttl <= 0){
         int r = ssdb->del(key);
         return r;
     }
 
-    int64_t expired = time_ms() + ttl * 1000;
+    if (tu == TimeUnit::Second) {
+        if (INT64_MAX/1000 < ttl) {return -1;}
+        ttl = ttl * 1000;
+    } else if (tu == TimeUnit::Millisecond) {
+        //nothing
+    } else {
+        assert(0);
+        return -1;
+    }
+
+    int64_t expired = time_ms() + ttl;
 
     int ret = ssdb->eset(key, expired);
     if (ret <= 0) {
@@ -75,29 +86,6 @@ int ExpirationHandler::set_ttl(const Bytes &key, int64_t ttl) {
     return 1;
 }
 
-int ExpirationHandler::set_ttl_internal(const Bytes &key, int64_t ttl_ms) {
-    int64_t expired = time_ms() + ttl_ms;
-
-    int ret = ssdb->esetNoLock(key, expired);
-    if (ret == -1) {
-        return -1;
-    }
-    if (expired < first_timeout) {
-        first_timeout = expired;
-    }
-    std::string s_key = key.String();
-    if (!fast_keys.empty() && expired <= fast_keys.max_score()) {
-        fast_keys.add(s_key, expired);
-        if (fast_keys.size() > BATCH_SIZE) {
-            fast_keys.pop_back();
-        }
-    } else {
-        fast_keys.del(s_key);
-        //log_debug("don't put in fast_keys");
-    }
-
-    return 0;
-}
 
 int ExpirationHandler::del_ttl(const Bytes &key) {
     // 这样用是有 bug 的, 虽然 fast_keys 为空, 不代表整个 ttl 队列为空
@@ -109,15 +97,27 @@ int ExpirationHandler::del_ttl(const Bytes &key) {
     return 0;
 }
 
-int64_t ExpirationHandler::get_ttl(const Bytes &key) {
+int64_t ExpirationHandler::get_ttl(const Bytes &key, TimeUnit tu) {
     int64_t ex = 0;
+    int64_t ttl = 0;
     int ret = ssdb->check_meta_key(key);
     if (ret <= 0){
         return -2;
     }
     ret = ssdb->eget(key, &ex);
-    if ( ret == 1) {
-        return (ex - time_ms()) / 1000;
+    if (ret == 1) {
+        ttl = ex - time_ms();
+        if (ttl < 0) return -2;;
+
+        if (tu == TimeUnit::Second) {
+            return (ttl+500) / 1000;
+        } else if (tu == TimeUnit::Millisecond) {
+            return (ttl);
+        } else {
+            assert(0);
+            return -1;
+        }
+
     }
     return -1;
 }

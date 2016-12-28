@@ -11,6 +11,12 @@ found in the LICENSE file.
 #include "../util/sorted_set.h"
 #include <string>
 
+
+enum TimeUnit{
+	Second,
+	Millisecond,
+};
+
 class ExpirationHandler
 {
 public:
@@ -19,15 +25,13 @@ public:
 	ExpirationHandler(SSDB *ssdb);
 	~ExpirationHandler();
 
-// todo r2m adaptation
-	// "In Redis 2.6 or older the command returns -1 if the key does not exist
-	// or if the key exist but has no associated expire. Starting with Redis 2.8.."
-	// I stick to Redis 2.6
-	int64_t get_ttl(const Bytes &key);
+
+	int64_t get_ttl(const Bytes &key, TimeUnit tu);
+
 	// The caller must hold mutex before calling set/del functions
 	int del_ttl(const Bytes &key);
-	int set_ttl(const Bytes &key, int64_t ttl);
-	int set_ttl_internal(const Bytes &key, int64_t ttl_ms);
+	int set_ttl(const Bytes &key, int64_t ttl, TimeUnit tu);
+
 
 private:
 	SSDB *ssdb;
@@ -42,5 +46,6 @@ private:
 	static void* thread_func(void *arg);
 	void load_expiration_keys_from_db(int num);
 };
+
 
 #endif
