@@ -89,6 +89,11 @@ start_server {tags {"ssdb"}} {
             $redis del myhash
             set _ $err
         } {}
+
+        test {RESTORE can detect a syntax error for unrecongized options} {
+            catch {$ssdb restore myhash 0 $redisEncoded invalid-option} e
+            set e
+        } {*ERR*}
     }
 # set type
     foreach valtype {string-encoded mix-encoded integer-encoded overflownumbers} \
@@ -130,6 +135,14 @@ start_server {tags {"ssdb"}} {
             assert_equal [lsort $list] [lsort [$redis smembers myset]]
             $redis del myset
         }
+
+        test {RESTORE (SSDB) can set an arbitrary expire to the materialized key} {
+            $ssdb del foottl
+            $ssdb restore foottl 5000 $redisEncoded
+            set ttl [$ssdb pttl foottl]
+            assert {$ttl >= 3000 && $ttl <= 5000}
+        }
+        $redis del foottl
     }
 
 #zset type
@@ -168,6 +181,14 @@ start_server {tags {"ssdb"}} {
             assert_equal $list [$redis zrange myzset 0 -1 withscores]
             $redis del myzset
         }
+
+        test {RESTORE (SSDB) can set an expire that overflows a 32 bit integer} {
+            $ssdb del foottl
+            $ssdb restore foottl 2569591501 $redisEncoded
+            set ttl [$ssdb pttl foottl]
+            assert {$ttl >= 2569591501-3000 && $ttl <= 2569591501}
+        }
+        $redis del foottl
     }
 
 #list type
@@ -204,5 +225,20 @@ start_server {tags {"ssdb"}} {
             assert_equal [lsort $list] [lsort [$redis lrange mylist 0 -1]]
             $redis del mylist
         }
+
+        test {RESTORE (SSDB) returns an error of the key already exists} {
+            $ssdb del foobusy
+            $ssdb set foobusy barbusy
+            set e {}
+            catch { $ssdb restore foobusy 0 $redisEncoded } e
+            list [set e] [ $ssdb get foobusy ]
+        } {*ERR* barbusy}
+
+        test {RESTORE (SSDB) can overwrite an existing key with REPLACE} {
+            $ssdb restore foobusy 0 $redisEncoded replace
+            assert_equal [lsort $list] [lsort [$ssdb lrange foobusy 0 -1]]
+        }
+        #TODO redis cannot del key stored in ssdb currently.
+        $redis del foobusy
     }
 }
