@@ -164,28 +164,22 @@ int proc_hdel(NetworkServer *net, Link *link, const Request &req, Response *resp
 	return 0;
 }
 
-int proc_hclear(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	CHECK_NUM_PARAMS(2);
-	SSDBServer *serv = (SSDBServer *)net->data;
-	
-	const Bytes &name = req[1];
-	int64_t count = serv->ssdb->hclear(name);
-	resp->reply_int(0, count);
-
-	return 0;
-}
-
 int proc_hgetall(NetworkServer *net, Link *link, const Request &req, Response *resp){
 	CHECK_NUM_PARAMS(2);
 	SSDBServer *serv = (SSDBServer *)net->data;
 
-	HIterator *it = serv->ssdb->hscan(req[1], "", "", 2000000000);
+	const leveldb::Snapshot* snapshot = nullptr;
+
+	HIterator *it = serv->ssdb->hscan(req[1], "", "", -1, &snapshot);
 	resp->push_back("ok");
 	while(it->next()){
 		resp->push_back(it->key);
 		resp->push_back(it->val);
 	}
 	delete it;
+
+	serv->ssdb->ReleaseSnapshot(snapshot);
+
 	return 0;
 }
 
@@ -204,27 +198,16 @@ int proc_hscan(NetworkServer *net, Link *link, const Request &req, Response *res
 	return 0;
 }
 
-int proc_hrscan(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	CHECK_NUM_PARAMS(5);
-	SSDBServer *serv = (SSDBServer *)net->data;
-
-	uint64_t limit = req[4].Uint64();
-	HIterator *it = serv->ssdb->hrscan(req[1], req[2], req[3], limit);
-	resp->push_back("ok");
-	while(it->next()){
-		resp->push_back(it->key);
-		resp->push_back(it->val);
-	}
-	delete it;
-	return 0;
-}
 
 int proc_hkeys(NetworkServer *net, Link *link, const Request &req, Response *resp){
 	CHECK_NUM_PARAMS(5);
 	SSDBServer *serv = (SSDBServer *)net->data;
 
 	uint64_t limit = req[4].Uint64();
-	HIterator *it = serv->ssdb->hscan(req[1], req[2], req[3], limit);
+
+	const leveldb::Snapshot* snapshot = nullptr;
+
+	HIterator *it = serv->ssdb->hscan(req[1], req[2], req[3], limit, &snapshot);
 	it->return_val(false);
 
 	resp->push_back("ok");
@@ -232,6 +215,9 @@ int proc_hkeys(NetworkServer *net, Link *link, const Request &req, Response *res
 		resp->push_back(it->key);
 	}
 	delete it;
+
+	serv->ssdb->ReleaseSnapshot(snapshot);
+
 	return 0;
 }
 
@@ -240,35 +226,19 @@ int proc_hvals(NetworkServer *net, Link *link, const Request &req, Response *res
 	SSDBServer *serv = (SSDBServer *)net->data;
 
 	uint64_t limit = req[4].Uint64();
-	HIterator *it = serv->ssdb->hscan(req[1], req[2], req[3], limit);
+
+	const leveldb::Snapshot* snapshot = nullptr;
+
+	HIterator *it = serv->ssdb->hscan(req[1], req[2], req[3], limit, &snapshot);
 
 	resp->push_back("ok");
 	while(it->next()){
 		resp->push_back(it->val);
 	}
 	delete it;
-	return 0;
-}
 
-int proc_hlist(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	CHECK_NUM_PARAMS(4);
-	SSDBServer *serv = (SSDBServer *)net->data;
+	serv->ssdb->ReleaseSnapshot(snapshot);
 
-	uint64_t limit = req[3].Uint64();
-	std::vector<std::string> list;
-	int ret = serv->ssdb->hlist(req[1], req[2], limit, &list);
-	resp->reply_list(ret, list);
-	return 0;
-}
-
-int proc_hrlist(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	CHECK_NUM_PARAMS(4);
-	SSDBServer *serv = (SSDBServer *)net->data;
-
-	uint64_t limit = req[3].Uint64();
-	std::vector<std::string> list;
-	int ret = serv->ssdb->hrlist(req[1], req[2], limit, &list);
-	resp->reply_list(ret, list);
 	return 0;
 }
 

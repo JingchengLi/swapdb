@@ -69,14 +69,8 @@ public:
 	virtual int hincr(const Bytes &name, const Bytes &key, int64_t by, int64_t *new_val) = 0;
 
 	virtual int64_t hsize(const Bytes &name) = 0;
-	virtual int64_t hclear(const Bytes &name) = 0;
 	virtual int hget(const Bytes &name, const Bytes &key, std::string *val) = 0;
-	virtual int hlist(const Bytes &name_s, const Bytes &name_e, uint64_t limit,
-			std::vector<std::string> *list) = 0;
-	virtual int hrlist(const Bytes &name_s, const Bytes &name_e, uint64_t limit,
-			std::vector<std::string> *list) = 0;
-	virtual HIterator* hscan(const Bytes &name, const Bytes &start, const Bytes &end, uint64_t limit) = 0;
-	virtual HIterator* hrscan(const Bytes &name, const Bytes &start, const Bytes &end, uint64_t limit) = 0;
+	virtual HIterator* hscan(const Bytes &name, const Bytes &start, const Bytes &end, uint64_t limit, const leveldb::Snapshot** snapshot) = 0;
 
 	/*  list  */
 	virtual int LIndex(const Bytes &key, const int64_t index, std::string *val) = 0;

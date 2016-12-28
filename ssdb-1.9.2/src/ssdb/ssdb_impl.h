@@ -112,14 +112,9 @@ public:
 	//int multi_hdel(const Bytes &name, const std::vector<Bytes> &keys, int offset=0);
 
 	virtual int64_t hsize(const Bytes &name);
-	virtual int64_t hclear(const Bytes &name);
 	virtual int hget(const Bytes &name, const Bytes &key, std::string *val);
-	virtual int hlist(const Bytes &name_s, const Bytes &name_e, uint64_t limit,
-			std::vector<std::string> *list);
-	virtual int hrlist(const Bytes &name_s, const Bytes &name_e, uint64_t limit,
-			std::vector<std::string> *list);
 	virtual HIterator* hscan(const Bytes &name, const Bytes &start, const Bytes &end, uint64_t limit);
-	virtual HIterator* hrscan(const Bytes &name, const Bytes &start, const Bytes &end, uint64_t limit);
+	virtual HIterator* hscan(const Bytes &name, const Bytes &start, const Bytes &end, uint64_t limit, const leveldb::Snapshot** snapshot);
     int     GetHashMetaVal(const std::string &meta_key, HashMetaVal &hv);
     int     GetHashItemValInternal(const std::string &item_key, std::string *val);
 
@@ -227,8 +222,6 @@ private:
     int del_key_internal(leveldb::WriteBatch &batch, const Bytes &key);
 
     HIterator* hscan_internal(const Bytes &name, const Bytes &start, const Bytes &end, uint16_t version, uint64_t limit, const leveldb::Snapshot *snapshot=nullptr);
-    HIterator* hrscan_internal(const Bytes &name, const Bytes &start, const Bytes &end, uint16_t version, uint64_t limit, const leveldb::Snapshot *snapshot=nullptr);
-	int HDelKeyNoLock(leveldb::WriteBatch &batch, const Bytes &name);
 
     int GetSetMetaVal(const std::string &meta_key, SetMetaVal &sv);
     int GetSetItemValInternal(const std::string &item_key);

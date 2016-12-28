@@ -101,57 +101,6 @@ int64_t SSDBImpl::hsize(const Bytes &name){
 	}
 }
 
-int SSDBImpl::HDelKeyNoLock(leveldb::WriteBatch &batch, const Bytes &name){
-    HashMetaVal hv;
-    std::string meta_key = encode_meta_key(name);
-    int ret = GetHashMetaVal(meta_key, hv);
-    if (ret != 1){
-        return ret;
-    }
-
-    if (hv.length > MAX_NUM_DELETE){
-        std::string del_key = encode_delete_key(name.String(), hv.version);
-        std::string meta_val = encode_hash_meta_val(hv.length, hv.version, KEY_DELETE_MASK);
-        binlogs->Put(del_key, "");
-        binlogs->Put(meta_key, meta_val);
-        return hv.length;
-    }
-
-    HIterator *it = this->hscan_internal(name, "", "", hv.version, -1);
-    int num = 0;
-    while(it->next()){
-        ret = hdel_one(this, batch, name, it->key);
-        if (-1 == ret){
-            return -1;
-        } else if (ret > 0){
-            num++;
-        }
-    }
-    if (num > 0){
-        if(incr_hsize(this, batch, name, -num) == -1){
-            return -1;
-        }
-    }
-
-    return num;
-}
-
-int64_t SSDBImpl::hclear(const Bytes &name){
-	RecordLock l(&mutex_record_, name.String());
-	leveldb::WriteBatch batch;
-
-    int num = HDelKeyNoLock(batch, name);
-
-    if (num > 0){
-		leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
-        if (!s.ok()){
-            return -1;
-        }
-    }
-
-    return num;
-}
-
 int SSDBImpl::hget(const Bytes &name, const Bytes &key, std::string *val){
 	HashMetaVal hv;
 	std::string meta_key = encode_meta_key(name);
@@ -174,15 +123,42 @@ int SSDBImpl::hget(const Bytes &name, const Bytes &key, std::string *val){
 
 HIterator* SSDBImpl::hscan(const Bytes &name, const Bytes &start, const Bytes &end, uint64_t limit){
     HashMetaVal hv;
-    std::string meta_key = encode_meta_key(name);
+	uint16_t version;
+
+	std::string meta_key = encode_meta_key(name);
     int ret = GetHashMetaVal(meta_key, hv);
-    if (0 == ret && hv.del == KEY_DELETE_MASK){
-        return hscan_internal(name, start, end, hv.version+1, limit);
-    } else if (ret > 0){
-        return hscan_internal(name, start, end, hv.version, limit);
-    } else{
-        return hscan_internal(name, start, end, 0, limit);
-    }
+	if (0 == ret && hv.del == KEY_DELETE_MASK){
+		version = hv.version+(uint16_t)1;
+	} else if (ret > 0){
+		version = hv.version;
+	} else{
+		version = 0;
+	}
+
+	return hscan_internal(name, start, end, version, limit);
+}
+
+HIterator* SSDBImpl::hscan(const Bytes &name, const Bytes &start, const Bytes &end, uint64_t limit, const leveldb::Snapshot** snapshot){
+    HashMetaVal hv;
+	uint16_t version;
+
+	{
+		RecordLock l(&mutex_record_, name.String());
+		std::string meta_key = encode_meta_key(name);
+		int ret = GetHashMetaVal(meta_key, hv);
+		if (0 == ret && hv.del == KEY_DELETE_MASK){
+			version = hv.version+(uint16_t)1;
+		} else if (ret > 0){
+			version = hv.version;
+		} else{
+			version = 0;
+		}
+
+	     *snapshot = ldb->GetSnapshot();
+
+	}
+
+    return hscan_internal(name, start, end, version, limit, *snapshot);
 }
 
 HIterator* SSDBImpl::hscan_internal(const Bytes &name, const Bytes &start, const Bytes &end, uint16_t version, uint64_t limit,
@@ -197,33 +173,6 @@ HIterator* SSDBImpl::hscan_internal(const Bytes &name, const Bytes &start, const
     return new HIterator(this->iterator(key_start, key_end, limit, snapshot), name, version);
 }
 
-HIterator* SSDBImpl::hrscan_internal(const Bytes &name, const Bytes &start, const Bytes &end, uint16_t version, uint64_t limit,
-									 const leveldb::Snapshot *snapshot){
-    std::string key_start, key_end;
-
-    key_start = encode_hash_key(name, start, version);
-    if(start.empty()){
-        key_start.append(1, 255);
-    }
-    if(!end.empty()){
-        key_end = encode_hash_key(name, end, version);
-    }
-
-    return new HIterator(this->rev_iterator(key_start, key_end, limit, snapshot), name, version);
-}
-
-HIterator* SSDBImpl::hrscan(const Bytes &name, const Bytes &start, const Bytes &end, uint64_t limit){
-    HashMetaVal hv;
-    std::string meta_key = encode_meta_key(name);
-    int ret = GetHashMetaVal(meta_key, hv);
-    if (0 == ret && hv.del == KEY_DELETE_MASK){
-        return hrscan_internal(name, start, end, hv.version+1, limit);
-    } else if (ret > 0){
-        return hrscan_internal(name, start, end, hv.version, limit);
-    } else{
-        return hrscan_internal(name, start, end, 0, limit);
-    }
-}
 
 /*// todo r2m adaptation //编码规则决定无法支持该操作，redis也不支持该操作
 static void get_hnames(Iterator *it, std::vector<std::string> *list){
@@ -239,43 +188,6 @@ static void get_hnames(Iterator *it, std::vector<std::string> *list){
 		list->push_back(n);
 	}
 }*/
-
-// todo r2m adaptation
-int SSDBImpl::hlist(const Bytes &name_s, const Bytes &name_e, uint64_t limit,
-		std::vector<std::string> *list){
-/*	std::string start;
-	std::string end;
-	
-	start = encode_hsize_key(name_s);
-	if(!name_e.empty()){
-		end = encode_hsize_key(name_e);
-	}
-	
-	Iterator *it = this->iterator(start, end, limit);
-	get_hnames(it, list);
-	delete it;*/
-	return 0;
-}
-
-// todo r2m adaptation
-int SSDBImpl::hrlist(const Bytes &name_s, const Bytes &name_e, uint64_t limit,
-		std::vector<std::string> *list){
-/*	std::string start;
-	std::string end;
-	
-	start = encode_hsize_key(name_s);
-	if(name_s.empty()){
-		start.append(1, 255);
-	}
-	if(!name_e.empty()){
-		end = encode_hsize_key(name_e);
-	}
-	
-	Iterator *it = this->rev_iterator(start, end, limit);
-	get_hnames(it, list);
-	delete it;*/
-	return 0;
-}
 
 int SSDBImpl::GetHashMetaVal(const std::string &meta_key, HashMetaVal &hv){
 	std::string meta_val;

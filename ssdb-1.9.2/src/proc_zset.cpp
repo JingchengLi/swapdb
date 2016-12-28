@@ -202,13 +202,11 @@ int proc_zrange(NetworkServer *net, Link *link, const Request &req, Response *re
 	ZIterator* it = serv->ssdb->zrange(req[1], offset, limit, &snapshot);
 	resp->push_back("ok");
 
-    if(it != nullptr) {
-        while(it->next()){
-            resp->push_back(it->key);
-            resp->push_back(str(it->score));
-        }
-        delete it;
+    while(it->next()){
+        resp->push_back(it->key);
+        resp->push_back(str(it->score));
     }
+    delete it;
 
 	serv->ssdb->ReleaseSnapshot(snapshot);
 
@@ -226,13 +224,12 @@ int proc_zrrange(NetworkServer *net, Link *link, const Request &req, Response *r
 
 	ZIterator *it = serv->ssdb->zrrange(req[1], offset, limit, &snapshot);
 	resp->push_back("ok");
-    if(it != nullptr) {
-        while(it->next()){
-            resp->push_back(it->key);
-            resp->push_back(str(it->score));
-        }
-        delete it;
+
+    while(it->next()){
+        resp->push_back(it->key);
+        resp->push_back(str(it->score));
     }
+    delete it;
 
 	serv->ssdb->ReleaseSnapshot(snapshot);
 
@@ -360,23 +357,23 @@ int proc_zremrangebyrank(NetworkServer *net, Link *link, const Request &req, Res
 
 	ZIterator *it = serv->ssdb->zrange(req[1], start, end - start + 1, &snapshot);
 	int64_t count = 0;
-    if(it != nullptr) {
-        while (it->next()) {
-            count++;
-            int ret = serv->ssdb->zdel(req[1], it->key);
-            if (ret == -1) {
-                resp->push_back("error");
-                delete it;
+    while (it->next()) {
+        count++;
+        int ret = serv->ssdb->zdel(req[1], it->key);
+        if (ret == -1) {
+            resp->push_back("error");
+            delete it;
 
-				serv->ssdb->ReleaseSnapshot(snapshot);
-				return 0;
-            }
+			serv->ssdb->ReleaseSnapshot(snapshot);
+			return 0;
         }
-        delete it;
     }
-	resp->reply_int(0, count);
+    delete it;
 
 	serv->ssdb->ReleaseSnapshot(snapshot);
+
+	resp->reply_int(0, count);
+
 	return 0;
 }
 

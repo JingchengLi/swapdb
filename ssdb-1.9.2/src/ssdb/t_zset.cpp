@@ -340,19 +340,20 @@ int64_t SSDBImpl::zrrank(const Bytes &name, const Bytes &key) {
 
 ZIterator *SSDBImpl::zrange(const Bytes &name, uint64_t offset, uint64_t limit, const leveldb::Snapshot** snapshot) {
     uint16_t version = 0;
+    ZSetMetaVal zv;
 
     {
         RecordLock l(&mutex_record_, name.String());
 
-        ZSetMetaVal zv;
         std::string meta_key = encode_meta_key(name);
-        int res = GetZSetMetaVal(meta_key, zv);
-        if (res == 1) {
+        int ret = GetZSetMetaVal(meta_key, zv);
+        if (0 == ret && zv.del == KEY_DELETE_MASK){
+            version = zv.version+(uint16_t)1;
+        } else if (ret > 0){
             version = zv.version;
-        } else {
-            return nullptr;
+        } else{
+            version = 0;
         }
-
         *snapshot = ldb->GetSnapshot();
     }
 
@@ -367,16 +368,18 @@ ZIterator *SSDBImpl::zrange(const Bytes &name, uint64_t offset, uint64_t limit, 
 
 ZIterator *SSDBImpl::zrrange(const Bytes &name, uint64_t offset, uint64_t limit, const leveldb::Snapshot** snapshot) {
     uint16_t version = 0;
+    ZSetMetaVal zv;
 
     {
         RecordLock l(&mutex_record_, name.String());
-        ZSetMetaVal zv;
         std::string meta_key = encode_meta_key(name);
-        int res = GetZSetMetaVal(meta_key, zv);
-        if (res == 1) {
+        int ret = GetZSetMetaVal(meta_key, zv);
+        if (0 == ret && zv.del == KEY_DELETE_MASK){
+            version = zv.version+(uint16_t)1;
+        } else if (ret > 0){
             version = zv.version;
-        } else {
-            return nullptr;
+        } else{
+            version = 0;
         }
 
         *snapshot = ldb->GetSnapshot();
