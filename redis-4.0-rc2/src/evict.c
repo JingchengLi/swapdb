@@ -669,9 +669,6 @@ int freeMemoryIfNeeded(void) {
     mstime_t latency, eviction_latency;
     long long delta;
 
-    /* Forbid free memory in jdjr_mode. */
-    if (server.jdjr_mode) goto cant_free;
-
     /* Check if we are over the memory usage limit. If we are not, no need
      * to subtract the slaves output buffers. We can just return ASAP. */
     mem_reported = zmalloc_used_memory();
@@ -701,6 +698,9 @@ int freeMemoryIfNeeded(void) {
 
     /* Check if we are still over the memory limit. */
     if (mem_used <= server.maxmemory) return C_OK;
+
+    /* Forbid free memory in jdjr_mode. */
+    if (server.jdjr_mode) goto cant_free;
 
     /* Compute how much memory we need to free. */
     mem_tofree = mem_used - server.maxmemory;
