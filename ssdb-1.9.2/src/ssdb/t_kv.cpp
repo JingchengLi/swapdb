@@ -166,34 +166,32 @@ return_err:
 	return num;
 }
 
+
+int SSDBImpl::setNoLock(const Bytes &key, const Bytes &val, int flags) {
+    leveldb::WriteBatch batch;
+
+    int ret = SetGeneric(batch, key, val, flags, 0);
+    if (ret < 0){
+        return ret;
+    }
+    leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
+    if (!s.ok()){
+        return -1;
+    }
+
+    return 1;
+}
+
 int SSDBImpl::set(const Bytes &key, const Bytes &val){
 	RecordLock l(&mutex_record_, key.String());
-	leveldb::WriteBatch batch;
 
-    int ret = SetGeneric(batch, key, val, OBJ_SET_NO_FLAGS, 0);
-	if (ret < 0){
-		return ret;
-	}
-	leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
-	if (!s.ok()){
-		return -1;
-	}
-	return 1;
+    return setNoLock(key, val, OBJ_SET_NO_FLAGS);
 }
 
 int SSDBImpl::setnx(const Bytes &key, const Bytes &val){
 	RecordLock l(&mutex_record_, key.String());
-	leveldb::WriteBatch batch;
 
-	int ret = SetGeneric(batch, key, val, OBJ_SET_NX, 0);
-	if (ret <= 0){
-		return ret;
-	}
-	leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
-	if (!s.ok()){
-		return -1;
-	}
-	return 1;
+    return setNoLock(key, val, OBJ_SET_NX);
 }
 
 int SSDBImpl::getset(const Bytes &key, std::string *val, const Bytes &newval){
@@ -693,7 +691,7 @@ int SSDBImpl::dump(const Bytes &key, std::string *res) {
 int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool replace, std::string *res) {
     *res = "none";
 
-//    RecordLock l(&mutex_record_, key.String());
+    RecordLock l(&mutex_record_, key.String());
 
     int ret = 0;
     std::string meta_val;
@@ -751,7 +749,7 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
                 return ret;
             }
 
-            this->set(key, r);
+            ret = this->setNoLock(key, r, OBJ_SET_NO_FLAGS);
 
             break;
         }
@@ -761,9 +759,7 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
             if ((len = rdbDecoder.rdbLoadLen(NULL)) == RDB_LENERR) return -1;
 
             std::vector<std::string> t_res;
-            std::vector<Bytes> val;
             t_res.reserve(len);
-            val.reserve(len);
 
             while (len--) {
                  std::string r = rdbDecoder.rdbGenericLoadStringObject(&ret);
@@ -773,12 +769,8 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
                 t_res.push_back(std::move(r));
             }
 
-            for (int i = 0; i < t_res.size(); ++i) {
-                val.push_back(Bytes(t_res[i]));
-            }
-
             uint64_t len_t;
-            RPush(key, val, 0, &len_t);
+            ret = rpushNoLock(key, t_res, 0, &len_t);
 
             break;
         }
@@ -852,9 +844,7 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
             if ((len = rdbDecoder.rdbLoadLen(NULL)) == RDB_LENERR) return -1;
 
             std::vector<std::string> t_res;
-            std::vector<Bytes> val;
             t_res.reserve(len);
-            val.reserve(len);
 
             while (len--) {
 
@@ -876,12 +866,8 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
                 }
             }
 
-            for (int i = 0; i < t_res.size(); ++i) {
-                val.push_back(Bytes(t_res[i]));
-            }
-
             uint64_t len_t;
-            RPush(key, val, 0, &len_t);
+            ret = this->rpushNoLock(key, t_res, 0, &len_t);
 
             break;
         }
@@ -941,10 +927,10 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
 
                 if (rdbtype == RDB_TYPE_LIST_ZIPLIST) {
 
-                    std::vector<Bytes> val;
-                    val.push_back(Bytes(t_item));
+                    std::vector<std::string> t_res;
+                    t_res.push_back(t_item);
                     uint64_t len_t;
-                    RPush(key, val, 0, &len_t);
+                    ret = this->rpushNoLock(key, t_res, 0, &len_t);
 
                 } else if (rdbtype == RDB_TYPE_ZSET_ZIPLIST) {
                     std::string value;
@@ -986,7 +972,6 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
     }
 
     *res = "OK";
-    ret = 1;
     return ret;
 }
 

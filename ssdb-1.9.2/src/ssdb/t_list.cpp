@@ -345,7 +345,8 @@ int SSDBImpl::DoRPush(leveldb::WriteBatch &batch, ListMetaVal &meta_val, const B
     return 1;
 }
 
-int SSDBImpl::DoRPush(leveldb::WriteBatch &batch, const Bytes &key, const std::vector<Bytes> &val, int offset, std::string &meta_key,
+template <typename T>
+int SSDBImpl::DoRPush(leveldb::WriteBatch &batch, const Bytes &key, const std::vector<T> &val, int offset, std::string &meta_key,
                       ListMetaVal &meta_val) {
     int size = (int)val.size();
     int num  = size - offset;
@@ -366,8 +367,9 @@ int SSDBImpl::DoRPush(leveldb::WriteBatch &batch, const Bytes &key, const std::v
         } else{
             right_seq = 0;
         }
+
         std::string item_key = encode_list_key(key, right_seq, meta_val.version);
-        batch.Put(item_key, val[i].String());
+        batch.Put(item_key, leveldb::Slice(val[i].data(), val[i].size()));
     }
 
     meta_val.right_seq = right_seq;
@@ -379,6 +381,48 @@ int SSDBImpl::DoRPush(leveldb::WriteBatch &batch, const Bytes &key, const std::v
 
 int SSDBImpl::RPush(const Bytes &key, const std::vector<Bytes> &val, int offset, uint64_t *llen) {
     RecordLock l(&mutex_record_, key.String());
+    leveldb::WriteBatch batch;
+
+    *llen = 0;
+    ListMetaVal meta_val;
+    std::string meta_key = encode_meta_key(key);
+    int ret = GetListMetaVal(meta_key, meta_val);
+    if (-1 == ret){
+        return -1;
+    } else if (1 == ret) {
+        *llen = meta_val.length;
+    }  else if (0 == ret && meta_val.del == KEY_DELETE_MASK) {
+        meta_val.left_seq = 0;
+        meta_val.right_seq = UINT64_MAX;
+        meta_val.length = 0;
+        meta_val.del = KEY_ENABLED_MASK;
+        if (meta_val.version == UINT16_MAX){
+            meta_val.version = 0;
+        } else{
+            meta_val.version = (uint16_t)(meta_val.version+1);
+        }
+    } else if(0 == ret){
+        meta_val.left_seq = 0;
+        meta_val.right_seq = UINT64_MAX;
+        meta_val.length = 0;
+        meta_val.del = KEY_ENABLED_MASK;
+        meta_val.version = 0;
+    }
+
+    ret = DoRPush<Bytes>(batch, key, val, offset, meta_key, meta_val);
+    if (ret <= 0){
+        return ret;
+    }
+
+    leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
+    if(!s.ok()){
+        return -1;
+    }
+    *llen = meta_val.length;
+    return 1;
+}
+
+int SSDBImpl::rpushNoLock(const Bytes &key, const std::vector<std::string> &val, int offset, uint64_t *llen) {
     leveldb::WriteBatch batch;
 
     *llen = 0;

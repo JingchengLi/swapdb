@@ -135,7 +135,9 @@ public:
     void    PushFirstListItem(leveldb::WriteBatch &batch, const Bytes &key, const Bytes &val, const std::string &meta_key, uint16_t version);
 	int 	DoRPop(leveldb::WriteBatch &batch, ListMetaVal &meta_val, const Bytes &key, std::string &meta_key, std::string *val);
 	int 	DoRPush(leveldb::WriteBatch &batch, ListMetaVal &meta_val, const Bytes &key, const Bytes &val, std::string &meta_key);
-    int     DoRPush(leveldb::WriteBatch &batch, const Bytes &key, const std::vector<Bytes> &val, int offset, std::string &meta_key, ListMetaVal &meta_val);
+
+	template <typename T>
+    int     DoRPush(leveldb::WriteBatch &batch, const Bytes &key, const std::vector<T> &val, int offset, std::string &meta_key, ListMetaVal &meta_val);
 
     /* set */
     virtual int sadd(const Bytes &key, const Bytes &member);
@@ -213,6 +215,7 @@ private:
 	int64_t _qpush(const Bytes &name, const Bytes &item, uint64_t front_or_back_seq);
 	int _qpop(const Bytes &name, std::string *item, uint64_t front_or_back_seq);
 
+	int setNoLock(const Bytes &key, const Bytes &val, int flags);
 	int SetGeneric(leveldb::WriteBatch &batch, const Bytes &key, const Bytes &val, int flags, const int64_t expire);
     int KDel(const Bytes &key);
 	int KDelNoLock(leveldb::WriteBatch &batch, const Bytes &key);
@@ -232,6 +235,7 @@ private:
     SIterator* sscan_internal(const Bytes &name, const Bytes &start, const Bytes &end, uint16_t version, uint64_t limit, const leveldb::Snapshot *snapshot=nullptr);
     int sunion_internal(const std::vector<Bytes> &keys, int offset, std::set<std::string>& members);
 
+	int rpushNoLock(const Bytes &key, const std::vector<std::string> &val, int offset, uint64_t *llen);
 
 	ZIterator* zscan_internal(const Bytes &name, const Bytes &key_start,
 										const Bytes &score_start, const Bytes &score_end,
