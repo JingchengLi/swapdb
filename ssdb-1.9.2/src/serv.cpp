@@ -404,7 +404,7 @@ int proc_restore(NetworkServer *net, Link *link, const Request &req, Response *r
 	std::string val;
 
 	PTS(restore)
-	int ret = serv->ssdb->restore(req[1], req[2], req[3], replace, &val);
+	int ret = serv->ssdb->restore(req[1], ttl, req[3], replace, &val);
 	PTE(restore)
 
 	if (ret > 0 && ttl > 0) {

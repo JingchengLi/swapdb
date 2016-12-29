@@ -683,23 +683,20 @@ int SSDBImpl::dump(const Bytes &key, std::string *res) {
 }
 
 
-int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, bool replace, std::string *res) {
+int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool replace, std::string *res) {
     *res = "none";
 
-    //TODO LOCK
+    RecordLock l(&mutex_record_, key.String());
 
     int ret = 0;
     std::string meta_val;
     leveldb::Status s;
 
-    {
-        Transaction trans(binlogs);
-        std::string meta_key = encode_meta_key(key.String());
-        s = ldb->Get(leveldb::ReadOptions(), meta_key, &meta_val);
-        if (!s.ok() && !s.IsNotFound()) {
-            return -1;
-        }
 
+    std::string meta_key = encode_meta_key(key.String());
+    s = ldb->Get(leveldb::ReadOptions(), meta_key, &meta_val);
+    if (!s.ok() && !s.IsNotFound()) {
+        return -1;
     }
 
     if (s.ok()) {
@@ -707,10 +704,10 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
         if(meta_val.size()<4) {
             return -1;
         }
-        
-        char del = meta_val[3];
-        if(del == KEY_ENABLED_MASK){
+
+        if(meta_val[POS_DEL] == KEY_ENABLED_MASK){
             if (!replace) {
+                //exist key no
                 return -1;
             }
 
@@ -721,10 +718,6 @@ int SSDBImpl::restore(const Bytes &key, const Bytes &expire, const Bytes &data, 
                 return -1;
             }
 
-        } else if (del == KEY_DELETE_MASK){
-            //nothing
-        } else {
-            return -1;
         }
 
     }

@@ -103,4 +103,9 @@ public:
     string      key;
 };
 
+
+#define POS_TYPE 0
+#define POS_DEL  3
+
+
 #endif //SSDB_DECODE_H

@@ -43,7 +43,7 @@ public:
 	/* 	General	*/
 	virtual int type(const Bytes &key, std::string *type) = 0;
 	virtual int dump(const Bytes &key, std::string *res) = 0;
-    virtual int restore(const Bytes &key, const Bytes &expire, const Bytes &data, bool replace, std::string *res) = 0;
+    virtual int restore(const Bytes &key, int64_t expire, const Bytes &data, bool replace, std::string *res) = 0;
 
 	/* key value */
 
