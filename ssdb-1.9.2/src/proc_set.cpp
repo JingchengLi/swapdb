@@ -13,7 +13,14 @@ int proc_sadd(NetworkServer *net, Link *link, const Request &req, Response *resp
 //    int ret = serv->ssdb->sadd(name, key);
 //    resp->reply_bool(ret);
     int64_t num = 0;
-    int ret = serv->ssdb->multi_sadd(name, req, &num);
+
+
+    std::set<Bytes> mem_set;
+    for (int j = 2; j < req.size(); ++j) {
+        mem_set.insert(req[j]);
+    }
+
+    int ret = serv->ssdb->multi_sadd(name, mem_set, &num);
     resp->reply_int(ret, num);
     return 0;
 }

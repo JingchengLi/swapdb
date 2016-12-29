@@ -759,7 +759,10 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
             if ((len = rdbDecoder.rdbLoadLen(NULL)) == RDB_LENERR) return -1;
 
             std::vector<std::string> t_res;
+            std::vector<Bytes> val;
+
             t_res.reserve(len);
+            val.reserve(len);
 
             while (len--) {
                  std::string r = rdbDecoder.rdbGenericLoadStringObject(&ret);
@@ -769,8 +772,12 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
                 t_res.push_back(std::move(r));
             }
 
+            for (int i = 0; i < t_res.size(); ++i) {
+                val.push_back(Bytes(t_res[i]));
+            }
+
             uint64_t len_t;
-            ret = rpushNoLock(key, t_res, 0, &len_t);
+            ret = this->rpushNoLock(key, val, 0, &len_t);
 
             break;
         }
@@ -779,6 +786,9 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
 
             if ((len = rdbDecoder.rdbLoadLen(NULL)) == RDB_LENERR) return -1;
 
+            std::set<std::string> tmp_set;
+            std::set<Bytes> mem_set;
+
             while (len--) {
                 //shit
                 std::string r = rdbDecoder.rdbGenericLoadStringObject(&ret);
@@ -786,8 +796,15 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
                     return ret;
                 }
 
-                sadd(key, r);
+                tmp_set.insert(std::move(r));
             }
+
+            for (auto const &item : tmp_set) {
+                mem_set.insert(Bytes(item));
+            }
+
+            int64_t num = 0;
+            ret = this->saddNoLock(key, mem_set, &num);
 
             break;
         }
@@ -844,7 +861,10 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
             if ((len = rdbDecoder.rdbLoadLen(NULL)) == RDB_LENERR) return -1;
 
             std::vector<std::string> t_res;
+            std::vector<Bytes> val;
+
             t_res.reserve(len);
+            val.reserve(len);
 
             while (len--) {
 
@@ -853,21 +873,21 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
                     return ret;
                 }
 
-//                log_debug(" zipListStr %s", hexmem(zipListStr.data(), zipListStr.size()).c_str());
-
                 unsigned char *zl = (unsigned char *) zipListStr.data();
                 unsigned char *p = ziplistIndex(zl, 0);
 
                 std::string t_item;
                 while (getNextString(zl, &p, t_item)) {
-//                    log_debug(" item : %s", hexmem(t_item.data(), t_item.length()).c_str());
-
                     t_res.push_back(std::move(t_item));
                 }
             }
 
+            for (int i = 0; i < t_res.size(); ++i) {
+                val.push_back(Bytes(t_res[i]));
+            }
+
             uint64_t len_t;
-            ret = this->rpushNoLock(key, t_res, 0, &len_t);
+            ret = this->rpushNoLock(key, val, 0, &len_t);
 
             break;
         }
@@ -888,21 +908,26 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
             const intset *set = (const intset *)insetStr.data();
             len = intsetLen(set);
 
-//            log_debug(" inset %d %s", len, hexmem(insetStr.data(), insetStr.size()).c_str());
+            std::set<std::string> tmp_set;
+            std::set<Bytes> mem_set;
 
             for (uint32_t j = 0; j < len; ++j) {
                 int64_t t_value;
                 if (intsetGet((intset *) set, j , &t_value) == 1) {
 
-//                    log_debug("%d : %d", j , t_value);
-
-                    sadd(key, str(t_value));
+                    tmp_set.insert(str(t_value));
 
                 } else {
                     return -1;
                 }
-
             }
+
+            for (auto const &item : tmp_set) {
+                mem_set.insert(Bytes(item));
+            }
+
+            int64_t num = 0;
+            ret = this->saddNoLock(key, mem_set, &num);
 
             break;
 
@@ -927,10 +952,11 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
 
                 if (rdbtype == RDB_TYPE_LIST_ZIPLIST) {
 
-                    std::vector<std::string> t_res;
-                    t_res.push_back(t_item);
+                    std::vector<Bytes> val;
+
+                    val.push_back(Bytes(t_item));
                     uint64_t len_t;
-                    ret = this->rpushNoLock(key, t_res, 0, &len_t);
+                    ret = this->rpushNoLock(key, val, 0, &len_t);
 
                 } else if (rdbtype == RDB_TYPE_ZSET_ZIPLIST) {
                     std::string value;

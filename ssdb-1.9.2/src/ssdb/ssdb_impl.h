@@ -136,12 +136,11 @@ public:
 	int 	DoRPop(leveldb::WriteBatch &batch, ListMetaVal &meta_val, const Bytes &key, std::string &meta_key, std::string *val);
 	int 	DoRPush(leveldb::WriteBatch &batch, ListMetaVal &meta_val, const Bytes &key, const Bytes &val, std::string &meta_key);
 
-	template <typename T>
-    int     DoRPush(leveldb::WriteBatch &batch, const Bytes &key, const std::vector<T> &val, int offset, std::string &meta_key, ListMetaVal &meta_val);
+    int     DoRPush(leveldb::WriteBatch &batch, const Bytes &key, const std::vector<Bytes> &val, int offset, std::string &meta_key, ListMetaVal &meta_val);
 
     /* set */
     virtual int sadd(const Bytes &key, const Bytes &member);
-    virtual int multi_sadd(const Bytes &key, const std::vector<Bytes> &members, int64_t *num);
+    virtual int multi_sadd(const Bytes &key, const std::set<Bytes> &members, int64_t *num);
     virtual int multi_srem(const Bytes &key, const std::vector<Bytes> &members, int64_t *num);
 	virtual int srem(const Bytes &key, const Bytes &member);
 	virtual int scard(const Bytes &key, uint64_t *llen);
@@ -234,8 +233,10 @@ private:
 	int srem_one(leveldb::WriteBatch &batch, const Bytes &key, const Bytes &member);
     SIterator* sscan_internal(const Bytes &name, const Bytes &start, const Bytes &end, uint16_t version, uint64_t limit, const leveldb::Snapshot *snapshot=nullptr);
     int sunion_internal(const std::vector<Bytes> &keys, int offset, std::set<std::string>& members);
+	int saddNoLock(const Bytes &key, const std::set<Bytes> &mem_set, int64_t *num);
 
-	int rpushNoLock(const Bytes &key, const std::vector<std::string> &val, int offset, uint64_t *llen);
+	int lGetCurrentMetaVal(const std::string &meta_key, ListMetaVal &meta_val, uint64_t *llen);
+	int rpushNoLock(const Bytes &key, const std::vector<Bytes> &val, int offset, uint64_t *llen);
 
 	ZIterator* zscan_internal(const Bytes &name, const Bytes &key_start,
 										const Bytes &score_start, const Bytes &score_end,

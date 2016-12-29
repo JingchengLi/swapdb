@@ -84,7 +84,7 @@ public:
 
 	/* set */
 	virtual int sadd(const Bytes &key, const Bytes &member) = 0;
-	virtual int multi_sadd(const Bytes &key, const std::vector<Bytes> &members, int64_t *num) = 0;
+	virtual int multi_sadd(const Bytes &key, const std::set<Bytes> &members, int64_t *num) = 0;
     virtual int multi_srem(const Bytes &key, const std::vector<Bytes> &members, int64_t *num) = 0;
 	virtual int srem(const Bytes &key, const Bytes &member) = 0;
     virtual int scard(const Bytes &key, uint64_t *llen) = 0;

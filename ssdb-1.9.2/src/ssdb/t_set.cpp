@@ -171,8 +171,7 @@ int SSDBImpl::sadd(const Bytes &key, const Bytes &member){
     return ret;
 }
 
-int SSDBImpl::multi_sadd(const Bytes &key, const std::vector<Bytes> &members, int64_t *num) {
-    RecordLock l(&mutex_record_, key.String());
+int SSDBImpl::saddNoLock(const Bytes &key, const std::set<Bytes> &mem_set, int64_t *num) {
     leveldb::WriteBatch batch;
 
     int ret = 0;
@@ -181,11 +180,6 @@ int SSDBImpl::multi_sadd(const Bytes &key, const std::vector<Bytes> &members, in
     ret = GetSetMetaVal(meta_key, sv);
     if (ret == -1){
         return -1;
-    }
-
-    std::set<Bytes> mem_set;
-    for (int j = 2; j < members.size(); ++j) {
-        mem_set.insert(members[j]);
     }
 
     *num = 0;
@@ -232,7 +226,12 @@ int SSDBImpl::multi_sadd(const Bytes &key, const std::vector<Bytes> &members, in
         return -1;
     }
 
-    return ret;
+    return 1;
+}
+
+int SSDBImpl::multi_sadd(const Bytes &key, const std::set<Bytes> &mem_set, int64_t *num) {
+    RecordLock l(&mutex_record_, key.String());
+    return saddNoLock(key, mem_set, num);
 }
 
 int SSDBImpl::multi_srem(const Bytes &key, const std::vector<Bytes> &members, int64_t *num) {

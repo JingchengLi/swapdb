@@ -345,8 +345,7 @@ int SSDBImpl::DoRPush(leveldb::WriteBatch &batch, ListMetaVal &meta_val, const B
     return 1;
 }
 
-template <typename T>
-int SSDBImpl::DoRPush(leveldb::WriteBatch &batch, const Bytes &key, const std::vector<T> &val, int offset, std::string &meta_key,
+int SSDBImpl::DoRPush(leveldb::WriteBatch &batch, const Bytes &key, const std::vector<Bytes> &val, int offset, std::string &meta_key,
                       ListMetaVal &meta_val) {
     int size = (int)val.size();
     int num  = size - offset;
@@ -386,30 +385,13 @@ int SSDBImpl::RPush(const Bytes &key, const std::vector<Bytes> &val, int offset,
     *llen = 0;
     ListMetaVal meta_val;
     std::string meta_key = encode_meta_key(key);
-    int ret = GetListMetaVal(meta_key, meta_val);
+
+    int ret = lGetCurrentMetaVal(meta_key, meta_val, llen);
     if (-1 == ret){
         return -1;
-    } else if (1 == ret) {
-        *llen = meta_val.length;
-    }  else if (0 == ret && meta_val.del == KEY_DELETE_MASK) {
-        meta_val.left_seq = 0;
-        meta_val.right_seq = UINT64_MAX;
-        meta_val.length = 0;
-        meta_val.del = KEY_ENABLED_MASK;
-        if (meta_val.version == UINT16_MAX){
-            meta_val.version = 0;
-        } else{
-            meta_val.version = (uint16_t)(meta_val.version+1);
-        }
-    } else if(0 == ret){
-        meta_val.left_seq = 0;
-        meta_val.right_seq = UINT64_MAX;
-        meta_val.length = 0;
-        meta_val.del = KEY_ENABLED_MASK;
-        meta_val.version = 0;
     }
 
-    ret = DoRPush<Bytes>(batch, key, val, offset, meta_key, meta_val);
+    ret = DoRPush(batch, key, val, offset, meta_key, meta_val);
     if (ret <= 0){
         return ret;
     }
@@ -422,12 +404,8 @@ int SSDBImpl::RPush(const Bytes &key, const std::vector<Bytes> &val, int offset,
     return 1;
 }
 
-int SSDBImpl::rpushNoLock(const Bytes &key, const std::vector<std::string> &val, int offset, uint64_t *llen) {
-    leveldb::WriteBatch batch;
+int SSDBImpl::lGetCurrentMetaVal(const std::string &meta_key, ListMetaVal &meta_val, uint64_t *llen) {
 
-    *llen = 0;
-    ListMetaVal meta_val;
-    std::string meta_key = encode_meta_key(key);
     int ret = GetListMetaVal(meta_key, meta_val);
     if (-1 == ret){
         return -1;
@@ -449,6 +427,21 @@ int SSDBImpl::rpushNoLock(const Bytes &key, const std::vector<std::string> &val,
         meta_val.length = 0;
         meta_val.del = KEY_ENABLED_MASK;
         meta_val.version = 0;
+    }
+
+    return 1;
+};
+
+int SSDBImpl::rpushNoLock(const Bytes &key, const std::vector<Bytes> &val, int offset, uint64_t *llen) {
+    leveldb::WriteBatch batch;
+
+    *llen = 0;
+    ListMetaVal meta_val;
+    std::string meta_key = encode_meta_key(key);
+
+    int ret = lGetCurrentMetaVal(meta_key, meta_val, llen);
+    if (-1 == ret){
+        return -1;
     }
 
     ret = DoRPush(batch, key, val, offset, meta_key, meta_val);
