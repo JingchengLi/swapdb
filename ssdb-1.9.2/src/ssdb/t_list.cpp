@@ -455,8 +455,6 @@ int SSDBImpl::LSet(const Bytes &key, const int64_t index, const Bytes &val) {
 }
 
 int SSDBImpl::lrange(const Bytes &key, int64_t start, int64_t end, std::vector<std::string> *list){
-    RecordLock l(&mutex_record_, key.String());
-    leveldb::WriteBatch batch;
 
     int ret;
 
