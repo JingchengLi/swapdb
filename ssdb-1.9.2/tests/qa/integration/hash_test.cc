@@ -375,7 +375,8 @@ TEST_F(HashTest, Test_hash_hscan) {
     ASSERT_EQ(0, list.size());
 }
 
-TEST_F(HashTest, Test_hash_hrscan) {
+//remove hrscan
+/* TEST_F(HashTest, Test_hash_hrscan) {
     key = GetRandomKey_();
     s = client->hrscan(key, "", "", 2, &list);
     ASSERT_TRUE(s.ok() && list.size() <= 4);
@@ -395,7 +396,7 @@ TEST_F(HashTest, Test_hash_hrscan) {
     s = client->del("key");
     s = client->hrscan("key", "00000000f3", "00000000f1", 2, &list);
     ASSERT_EQ(0, list.size());
-}
+} */
 
 TEST_F(HashTest, Test_hash_hmset_hmget_hdel) {
 //Redis hmset/hmget/hdel

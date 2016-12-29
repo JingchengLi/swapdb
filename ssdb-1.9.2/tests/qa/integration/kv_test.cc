@@ -473,12 +473,10 @@ TEST_F(KVTest, Test_kv_setnx) {
     key = "ksetnx";
     val = "valsetnx";
     s = client->del(key);
-    s = client->setnx(key, val);
-    ASSERT_TRUE(s.ok());
+    s = client->setnx(key, val, &ret);
     s = client->get(key,&getVal);
     ASSERT_EQ(val, getVal);
-    s = client->setnx(key, val + "Update");
-    ASSERT_TRUE(s.error());
+    s = client->setnx(key, val + "Update", &ret);
     s = client->get(key,&getVal);
     ASSERT_EQ(val, getVal);
     s = client->del(key);
