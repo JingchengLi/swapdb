@@ -120,7 +120,7 @@ string encode_list_key(const Bytes& key, uint64_t seq, uint16_t version){
     return buf;
 }
 
-string encode_kv_val(const string& val, uint16_t version, char del){
+string encode_kv_val(const Bytes& val, uint16_t version, char del){
     string buf;
     buf.append(1, DataType::KV);
 
@@ -129,7 +129,7 @@ string encode_kv_val(const string& val, uint16_t version, char del){
 
     buf.append(1, del);
 
-    buf.append(val);
+    buf.append(val.data(), val.size());
     return buf;
 }
 

@@ -30,7 +30,7 @@ string encode_list_key(const Bytes& key, uint64_t seq, uint16_t version = 0);
  * encode meta value
  */
 
-string encode_kv_val(const string& val, uint16_t version = 0, char del = KEY_ENABLED_MASK);
+string encode_kv_val( const Bytes& val, uint16_t version = 0, char del = KEY_ENABLED_MASK);
 
 string encode_hash_meta_val(uint64_t length, uint16_t version = 0, char del = KEY_ENABLED_MASK);
 

@@ -32,7 +32,7 @@ int SSDBImpl::GetKvMetaVal(const std::string &meta_key, KvMetaVal &kv) {
     return 1;
 }
 
-int SSDBImpl::SetGeneric(leveldb::WriteBatch &batch, const std::string &key, const std::string &val, int flags, const int64_t expire){
+int SSDBImpl::SetGeneric(leveldb::WriteBatch &batch, const Bytes &key, const Bytes &val, int flags, const int64_t expire){
 	if (expire < 0){
 		return -1;
 	}
@@ -60,7 +60,7 @@ int SSDBImpl::SetGeneric(leveldb::WriteBatch &batch, const std::string &key, con
         }
     } else {
         if (flags & OBJ_SET_NX) {
-            return -1;
+            return 0;
         }
         meta_val = encode_kv_val(val, kv.version);
     }
@@ -85,7 +85,7 @@ int SSDBImpl::multi_set(const std::vector<Bytes> &kvs, int offset){
 		const Bytes &val = *(it + 1);
 		mutex_record_.Lock(key.String());
 		lock_key.push_back(key);
-		int ret = SetGeneric(batch, key.String(), val.String(), OBJ_SET_NO_FLAGS, 0);
+		int ret = SetGeneric(batch, key, val, OBJ_SET_NO_FLAGS, 0);
 		if (ret < 0){
 			rval = -1;
 			goto return_err;
@@ -130,8 +130,8 @@ int SSDBImpl::multi_del(const std::vector<Bytes> &keys, int offset){ //注：red
 			goto return_err;
 		} else{
 			if (meta_val.size() >= 4 ){
-				if (meta_val[3] == KEY_ENABLED_MASK){
-					meta_val[3] = KEY_DELETE_MASK;
+				if (meta_val[POS_DEL] == KEY_ENABLED_MASK){
+					meta_val[POS_DEL] = KEY_DELETE_MASK;
 					uint16_t version = *(uint16_t *)(meta_val.c_str()+1);
 					version = be16toh(version);
 					std::string del_key = encode_delete_key(key, version);
@@ -170,7 +170,7 @@ int SSDBImpl::set(const Bytes &key, const Bytes &val){
 	RecordLock l(&mutex_record_, key.String());
 	leveldb::WriteBatch batch;
 
-    int ret = SetGeneric(batch, key.String(), val.String(), OBJ_SET_NO_FLAGS, 0);
+    int ret = SetGeneric(batch, key, val, OBJ_SET_NO_FLAGS, 0);
 	if (ret < 0){
 		return ret;
 	}
@@ -185,8 +185,8 @@ int SSDBImpl::setnx(const Bytes &key, const Bytes &val){
 	RecordLock l(&mutex_record_, key.String());
 	leveldb::WriteBatch batch;
 
-	int ret = SetGeneric(batch, key.String(), val.String(), OBJ_SET_NX, 0);
-	if (ret < 0){
+	int ret = SetGeneric(batch, key, val, OBJ_SET_NX, 0);
+	if (ret <= 0){
 		return ret;
 	}
 	leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
@@ -214,12 +214,12 @@ int SSDBImpl::getset(const Bytes &key, std::string *val, const Bytes &newval){
 			} else{
 				version = (uint16_t)(kv.version+1);
 			}
-			meta_val = encode_kv_val(newval.String(), version);
+			meta_val = encode_kv_val(newval, version);
 		} else{
-			meta_val = encode_kv_val(newval.String());
+			meta_val = encode_kv_val(newval);
 		}
 	} else{
-		meta_val = encode_kv_val(newval.String(), kv.version);
+		meta_val = encode_kv_val(newval, kv.version);
 		*val = kv.value;
         this->edel_one(batch, key); //del expire ET key
 	}
@@ -243,25 +243,32 @@ int SSDBImpl::del_key_internal(leveldb::WriteBatch &batch, const Bytes &key) {
         return -1;
     } else {
         if (meta_val.size() >= 4) {
-            if (meta_val[3] == KEY_ENABLED_MASK) {
-                meta_val[3] = KEY_DELETE_MASK;
-                uint16_t version = *(uint16_t *) (meta_val.c_str() + 1);
-                version = be16toh(version);
-                std::string del_key = encode_delete_key(key, version);
-                batch.Put(meta_key, meta_val);
-                batch.Put(del_key, "");
-                this->edel_one(batch, key); //del expire ET key
-            } else if (meta_val[3] == KEY_DELETE_MASK){
-                return 0;
-            } else {
-                return -1;
-            }
+            return this->mark_key_deleted(batch, key, meta_key, meta_val);
         } else {
             return -1;
         }
     }
-    return 1;
 }
+
+int SSDBImpl::mark_key_deleted(leveldb::WriteBatch &batch, const Bytes &key, const std::string &meta_key, std::string &meta_val) {
+
+    if (meta_val[POS_DEL] == KEY_ENABLED_MASK) {
+        meta_val[POS_DEL] = KEY_DELETE_MASK;
+        uint16_t version = *(uint16_t *) (meta_val.c_str() + 1);
+        version = be16toh(version);
+        std::string del_key = encode_delete_key(key, version);
+        batch.Put(meta_key, meta_val);
+        batch.Put(del_key, "");
+        this->edel_one(batch, key); //del expire ET key
+
+        return 1;
+    } else if (meta_val[POS_DEL] == KEY_DELETE_MASK){
+        return 0;
+    } else {
+        return -1;
+    }
+}
+
 
 int SSDBImpl::del(const Bytes &key){
 	RecordLock l(&mutex_record_, key.String());
@@ -316,7 +323,7 @@ int SSDBImpl::incr(const Bytes &key, int64_t by, int64_t *new_val){
     }
 
     std::string buf = encode_meta_key(key.String());
-    std::string meta_val = encode_kv_val(str(*new_val), version);
+    std::string meta_val = encode_kv_val(Bytes(str(*new_val)), version);
 	batch.Put(buf, meta_val);
 
 	leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
@@ -378,7 +385,7 @@ int SSDBImpl::setbit(const Bytes &key, int bitoffset, int on){
     }
 
     std::string buf = encode_meta_key(key.String());
-    std::string meta_val = encode_kv_val(val, version);
+    std::string meta_val = encode_kv_val(Bytes(val), version);
 	batch.Put(buf, meta_val);
 
 	leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
@@ -541,7 +548,7 @@ int SSDBImpl::dump(const Bytes &key, std::string *res) {
             return -1;
         }
 
-        char del = meta_val[3];
+        char del = meta_val[POS_DEL];
         if (del != KEY_ENABLED_MASK){
             //deleted
             return -1;
@@ -686,7 +693,7 @@ int SSDBImpl::dump(const Bytes &key, std::string *res) {
 int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool replace, std::string *res) {
     *res = "none";
 
-    RecordLock l(&mutex_record_, key.String());
+//    RecordLock l(&mutex_record_, key.String());
 
     int ret = 0;
     std::string meta_val;
@@ -712,7 +719,7 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
             }
 
             leveldb::WriteBatch batch;
-            del_key_internal(batch, key);
+            mark_key_deleted(batch, key, meta_key, meta_val);
             s = ldb->Write(leveldb::WriteOptions(), &(batch));
             if(!s.ok()){
                 return -1;
@@ -726,6 +733,7 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
 
     bool ok = rdbDecoder.verifyDumpPayload();
     if (!ok) {
+        log_warn("checksum failed %s:%s", hexmem(key.data(), key.size()).c_str(),(data.data(), data.size()));
         return -1;
     }
 
@@ -743,7 +751,7 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
                 return ret;
             }
 
-            set(key, r);
+            this->set(key, r);
 
             break;
         }
@@ -973,7 +981,7 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
 //        case RDB_TYPE_MODULE: break;
 
         default:
-            log_error("Unknown RDB encoding type %d", rdbtype);
+            log_error("Unknown RDB encoding type %d %s:%s", rdbtype, hexmem(key.data(), key.size()).c_str(),(data.data(), data.size()));
             return -1;
     }
 

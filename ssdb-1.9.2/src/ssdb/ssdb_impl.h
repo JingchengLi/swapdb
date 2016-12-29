@@ -213,11 +213,14 @@ private:
 	int64_t _qpush(const Bytes &name, const Bytes &item, uint64_t front_or_back_seq);
 	int _qpop(const Bytes &name, std::string *item, uint64_t front_or_back_seq);
 
-	int SetGeneric(leveldb::WriteBatch &batch, const std::string &key, const std::string &val, int flags, const int64_t expire);
+	int SetGeneric(leveldb::WriteBatch &batch, const Bytes &key, const Bytes &val, int flags, const int64_t expire);
     int KDel(const Bytes &key);
 	int KDelNoLock(leveldb::WriteBatch &batch, const Bytes &key);
     int GetKvMetaVal(const std::string &meta_key, KvMetaVal &kv);
+
+
     int del_key_internal(leveldb::WriteBatch &batch, const Bytes &key);
+    int mark_key_deleted(leveldb::WriteBatch &batch, const Bytes &key, const std::string &meta_key, std::string &meta_val);
 
     HIterator* hscan_internal(const Bytes &name, const Bytes &start, const Bytes &end, uint16_t version, uint64_t limit, const leveldb::Snapshot *snapshot=nullptr);
 
