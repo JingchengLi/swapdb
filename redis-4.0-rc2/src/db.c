@@ -323,6 +323,17 @@ long long emptyDb(int dbnum, int flags, void(callback)(void*)) {
             dictEmpty(server.db[j].expires,callback);
         }
     }
+
+    if (server.jdjr_mode && dbnum == -1) {
+        if (async)
+            emptyDbAsync(EVICTED_DATA_DB);
+        else {
+            dictEmpty(EVICTED_DATA_DB->dict,callback);
+            dictEmpty(EVICTED_DATA_DB->expires,callback);
+            dictEmpty(EVICTED_DATA_DB->transferring_keys,callback);
+        }
+    }
+
     if (server.cluster_enabled) {
         if (async) {
             slotToKeyFlushAsync();

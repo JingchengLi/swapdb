@@ -475,9 +475,6 @@ int epilogOfEvictingToSSDB(robj *keyobj) {
     if (expiretime > 0 && now > expiretime)
         return C_ERR;
 
-    /* Increase the refcount as keyobj is added to evicteddb. */
-    incrRefCount(keyobj);
-
     /* Record the evicted keys in an extra redis db. */
     setKey(evicteddb, keyobj, shared.space);
     server.dirty ++;
@@ -515,6 +512,7 @@ int epilogOfEvictingToSSDB(robj *keyobj) {
 
         decrRefCount(expirecmd);
         serverLog(LL_DEBUG, "Appending expire operation to aof.");
+        decrRefCount(llbufobj);
     }
 
     propagateExpire(db,keyobj,server.lazyfree_lazy_eviction);

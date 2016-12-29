@@ -92,6 +92,12 @@ void emptyDbAsync(redisDb *db) {
     atomicIncr(lazyfree_objects,dictSize(oldht1),
         lazyfree_objects_mutex);
     bioCreateBackgroundJob(BIO_LAZY_FREE,NULL,oldht1,oldht2);
+
+    if (server.jdjr_mode && db->id == EVICTED_DATA_DBID) {
+        dict *oldht = db->transferring_keys;
+        db->transferring_keys = dictCreate(&keyptrDictType,NULL);
+        bioCreateBackgroundJob(BIO_LAZY_FREE,NULL,NULL,oldht);
+    }
 }
 
 /* Empty the slots-keys map of Redis CLuster by creating a new empty one
