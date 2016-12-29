@@ -171,7 +171,7 @@ int SSDBImpl::setNoLock(const Bytes &key, const Bytes &val, int flags) {
     leveldb::WriteBatch batch;
 
     int ret = SetGeneric(batch, key, val, flags, 0);
-    if (ret < 0){
+    if (ret <= 0){
         return ret;
     }
     leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
