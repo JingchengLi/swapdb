@@ -665,7 +665,7 @@ int sendCommandToSSDB(client *c, sds finalcmd) {
     }
 
      if (!finalcmd) {
-          serverLog(LL_VERBOSE, "Expecting finalcmd not NULL.");
+          serverLog(LL_WARNING, "Expecting finalcmd not NULL.");
           return C_ERR;
      }
 

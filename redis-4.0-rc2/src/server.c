@@ -1159,6 +1159,12 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
     return 1000/server.hz;
 }
 
+void startToEvictIfNeeded() {
+    /* TODO: make the strategy to evict keys to SSDB.
+       factors: serve.maxmemory, zmalloc_used_memory, etc.*/
+    tryEvictingKeysToSSDB();
+}
+
 /* This function gets called every time Redis is entering the
  * main loop of the event driven library, that is, before to sleep
  * for ready file descriptors. */
@@ -1209,6 +1215,9 @@ void beforeSleep(struct aeEventLoop *eventLoop) {
 
     /* Handle writes with pending output buffers. */
     handleClientsWithPendingWrites();
+
+    /* Try to evict proper keys to make more free memory. */
+    if (server.jdjr_mode) startToEvictIfNeeded();
 }
 
 /* =========================== Server initialization ======================== */
@@ -1806,6 +1815,9 @@ void initServer(void) {
         server.db[j].id = j;
         server.db[j].avg_ttl = 0;
     }
+
+    if (server.jdjr_mode)
+        server.db[EVICTED_DATA_DBID].transferring_keys = dictCreate(&keyptrDictType,NULL);
 
     evictionPoolAlloc(); /* Initialize the LRU keys pool. */
     server.pubsub_channels = dictCreate(&keylistDictType,NULL);

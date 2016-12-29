@@ -194,12 +194,18 @@ void coldKeyPopulate(int dbid, dict *sampledict, dict *keydict, struct evictionP
             serverPanic("Unknown eviction policy in coldKeyPopulate()");
         }
 
-        if ((server.maxmemory_policy & MAXMEMORY_FLAG_LFU) &&
-                (idle < COLD_KEY_LFU_VAL)) {
-            continue;
-        }
-        if ((server.maxmemory_policy & MAXMEMORY_FLAG_LFU) &&
-                (idle < COLD_KEY_LRU_IDLE_VAL)) {
+        /* TODO: comment the strategy for testing. optimize the strategy later. */
+        /* if ((server.maxmemory_policy & MAXMEMORY_FLAG_LFU) && */
+        /*         (idle < COLD_KEY_LFU_VAL)) { */
+        /*     continue; */
+        /* } */
+        /* if ((server.maxmemory_policy & MAXMEMORY_FLAG_LFU) && */
+        /*         (idle < COLD_KEY_LRU_IDLE_VAL)) { */
+        /*     continue; */
+        /* } */
+
+        if (dictFind(EVICTED_DATA_DB->transferring_keys, key) != NULL) {
+            serverLog(LL_DEBUG, "The key is already in EVICTED_DATA_DB->transferring_keys.");
             continue;
         }
 
@@ -450,117 +456,24 @@ unsigned long LFUDecrAndReturn(robj *o) {
     return counter;
 }
 
-int evictKeysToSSDB(void) {
-    mstime_t latency, eviction_latency;
-    int k, i;
-    sds bestkey = NULL;
-    int bestdbid;
-    redisDb *db;
-    dict *dict;
-    dictEntry *de;
+int epilogOfEvictingToSSDB(robj *keyobj) {
+    char llbuf[32] = {0};
+    redisDb *evicteddb = server.db + EVICTED_DATA_DBID, *db;
+    mstime_t eviction_latency;
+    robj *llbufobj, *setcmd;
+    sds cmdname;
+    long long now = mstime(), expiretime;
+    int dbid = getTransferringDB(keyobj);
     int slaves = listLength(server.slaves);
 
-    //latencyStartMonitor(latency);
-    struct evictionPoolEntry *pool = ColdKeyPool;
+    if (dbid == -1) return C_ERR;
 
-    unsigned long total_keys = 0, keys;
-
-    /* We don't want to make local-db choices when expiring keys,
-     * so to start populate the eviction pool sampling keys from
-     * every DB. */
-    for (i = 0; i < server.dbnum; i++) {
-        db = server.db+i;
-        dict = db->dict;
-        if ((keys = dictSize(dict)) != 0) {
-            coldKeyPopulate(i, dict, db->dict, pool);
-            total_keys += keys;
-        }
-    }
-    if (!total_keys) return C_OK; /* No keys to evict. */
-
-    /* Go backward from best to worst element to evict. */
-    for (k = EVPOOL_SIZE-1; k >= 0; k--) {
-        if (pool[k].key == NULL) continue;
-        bestdbid = pool[k].dbid;
-
-        de = dictFind(server.db[pool[k].dbid].dict,
-                      pool[k].key);
-
-        /* Remove the entry from the pool. */
-        if (pool[k].key != pool[k].cached)
-            sdsfree(pool[k].key);
-        pool[k].key = NULL;
-        pool[k].idle = 0;
-
-        /* If the key exists, is our pick. Otherwise it is
-         * a ghost and we need to try the next element. */
-        if (de) {
-            bestkey = dictGetKey(de);
-            break;
-        }
-    }
-
-    /* Finally remove the selected key. */
-    if (bestkey) {
-        db = server.db+bestdbid;
-        robj *keyobj = createStringObject(bestkey,sdslen(bestkey));
-
-        //todo dump and restore
-
-        /* Transfer the selected key to EVICTED_DATA_DBID. */
-        if (server.jdjr_mode) evictingDataToSSDB(keyobj, db);
-
-        propagateExpire(db,keyobj,server.lazyfree_lazy_eviction);
-        /* We compute the amount of memory freed by db*Delete() alone.
-         * It is possible that actually the memory needed to propagate
-         * the DEL in AOF and replication link is greater than the one
-         * we are freeing removing the key, but we can't account for
-         * that otherwise we would never exit the loop.
-         *
-         * AOF and Output buffer memory will be freed eventually so
-         * we only care about memory used by the key space. */
-        latencyStartMonitor(eviction_latency);
-        if (server.lazyfree_lazy_eviction)
-            dbAsyncDelete(db,keyobj);
-        else
-            dbSyncDelete(db,keyobj);
-        latencyEndMonitor(eviction_latency);
-        latencyAddSampleIfNeeded("coldkey-transfer",eviction_latency);
-        latencyRemoveNestedEvent(latency,eviction_latency);
-        server.stat_ssdbkeys++;
-        notifyKeyspaceEvent(NOTIFY_EVICTED, "transfer-to-SSDB",
-            keyobj, db->id);
-        decrRefCount(keyobj);
-
-        /* When the memory to free starts to be big enough, we may
-         * start spending so much time here that is impossible to
-         * deliver data to the slaves fast enough, so we force the
-         * transmission here inside the loop. */
-        if (slaves) flushSlavesOutputBuffers();
-    }
-
-    //latencyEndMonitor(latency);
-    //latencyAddSampleIfNeeded("eviction-cycle",latency);
-    return C_OK;
-}
-
-void evictingDataToSSDB(robj *keyobj, redisDb *db) {
-    char llbuf[32] = {0};
-    redisDb *evicteddb = server.db + EVICTED_DATA_DBID;
-    long long expiretime = getExpire(db, keyobj), ttl = 0;
-    robj *llbufobj, *setcmd, *o;
-    sds cmdname;
-    long long now = mstime();
-    rio cmd, payload;
+    db = server.db + dbid;
+    expiretime = getExpire(db, keyobj);
 
     /* Only transfer effective data. */
     if (expiretime > 0 && now > expiretime)
-        return;
-
-    if (expiretime != -1) {
-        ttl = expiretime - now;
-        if (ttl < 1) ttl = 1;
-    }
+        return C_ERR;
 
     /* Increase the refcount as keyobj is added to evicteddb. */
     incrRefCount(keyobj);
@@ -604,15 +517,64 @@ void evictingDataToSSDB(robj *keyobj, redisDb *db) {
         serverLog(LL_DEBUG, "Appending expire operation to aof.");
     }
 
-    rioInitWithBuffer(&cmd,sdsempty());
+    propagateExpire(db,keyobj,server.lazyfree_lazy_eviction);
+
+    if (dictSize(EVICTED_DATA_DB->transferring_keys) > 0)
+        serverAssert(dictDelete(EVICTED_DATA_DB->transferring_keys,
+                                keyobj->ptr) == DICT_OK);
+
+     /* We compute the amount of memory freed by db*Delete() alone.
+     * It is possible that actually the memory needed to propagate
+     * the DEL in AOF and replication link is greater than the one
+     * we are freeing removing the key, but we can't account for
+     * that otherwise we would never exit the loop.
+     *
+     * AOF and Output buffer memory will be freed eventually so
+     * we only care about memory used by the key space. */
+    latencyStartMonitor(eviction_latency);
+    if (server.lazyfree_lazy_eviction)
+        dbAsyncDelete(db,keyobj);
+    else
+        dbSyncDelete(db,keyobj);
+    latencyEndMonitor(eviction_latency);
+    latencyAddSampleIfNeeded("coldkey-transfer",eviction_latency);
+    server.stat_ssdbkeys++;
+    notifyKeyspaceEvent(NOTIFY_EVICTED, "transfer-to-SSDB",
+                        keyobj, db->id);
+    decrRefCount(keyobj);
+
+    /* When the memory to free starts to be big enough, we may
+     * start spending so much time here that is impossible to
+     * deliver data to the slaves fast enough, so we force the
+     * transmission here inside the loop. */
+    if (slaves) flushSlavesOutputBuffers();
+
+    return C_OK;
+}
+
+int prologOfEvictingToSSDB(robj *keyobj, redisDb *db) {
+    rio cmd, payload;
+    long long ttl = 0;
+    long long expiretime = getExpire(db, keyobj);
+    long long now = mstime();
+    robj *o;
+
+    if (expiretime > 0 && now > expiretime)
+        return C_ERR;
+
+    if (expiretime != -1) {
+        ttl = expiretime - now;
+        if (ttl < 1) ttl = 1;
+    }
+
+    rioInitWithBuffer(&cmd, sdsempty());
     serverAssert(rioWriteBulkCount(&cmd, '*', 5));
     serverAssert(rioWriteBulkString(&cmd, "RESTORE", 7));
     serverAssert(sdsEncodedObject(keyobj));
     serverAssert(rioWriteBulkString(&cmd, keyobj->ptr, sdslen(keyobj->ptr)));
     serverAssert(rioWriteBulkLongLong(&cmd, ttl));
 
-    /* It's OK for the side effect of lookupKeyRead. */
-    o = lookupKeyRead(db, keyobj);
+    o = dictGetVal(dictFind(db->dict, keyobj->ptr));
     serverAssert(o);
     createDumpPayload(&payload, o);
 
@@ -623,11 +585,79 @@ void evictingDataToSSDB(robj *keyobj, redisDb *db) {
     serverAssert(rioWriteBulkString(&cmd, "REPLACE", 7));
 
     /* sendCommandToSSDB will free cmd.io.buffer.ptr. */
-    if (sendCommandToSSDB(server.ssdb_client, cmd.io.buffer.ptr) != C_OK)
+    if (sendCommandToSSDB(server.ssdb_client, cmd.io.buffer.ptr) != C_OK) {
         serverLog(LL_WARNING, "sendCommandToSSDB: server.ssdb_client failed.");
-    else
-        serverLog(LL_DEBUG, "Evicting key: %s to SSDB.", (char *)(keyobj->ptr));
+        return C_ERR;
+    }
 
+    serverLog(LL_DEBUG, "Evicting key: %s to SSDB.", (char *)(keyobj->ptr));
+    return C_OK;
+}
+
+int tryEvictingKeysToSSDB(void) {
+    mstime_t latency;
+    int k, i;
+    sds bestkey = NULL;
+    int bestdbid;
+    redisDb *db;
+    dict *dict;
+    dictEntry *de;
+
+    latencyStartMonitor(latency);
+    struct evictionPoolEntry *pool = ColdKeyPool;
+
+    unsigned long total_keys = 0, keys;
+
+    /* We don't want to make local-db choices when expiring keys,
+     * so to start populate the eviction pool sampling keys from
+     * every DB. */
+    for (i = 0; i < server.dbnum; i++) {
+        db = server.db+i;
+        dict = db->dict;
+        if ((keys = dictSize(dict)) != 0) {
+            coldKeyPopulate(i, dict, db->dict, pool);
+            total_keys += keys;
+        }
+    }
+    if (!total_keys) return C_ERR; /* No keys to evict. */
+
+    /* Go backward from best to worst element to evict. */
+    for (k = EVPOOL_SIZE-1; k >= 0; k--) {
+        if (pool[k].key == NULL) continue;
+        bestdbid = pool[k].dbid;
+
+        de = dictFind(server.db[pool[k].dbid].dict,
+                      pool[k].key);
+
+        /* Remove the entry from the pool. */
+        if (pool[k].key != pool[k].cached)
+            sdsfree(pool[k].key);
+        pool[k].key = NULL;
+        pool[k].idle = 0;
+
+        /* If the key exists, is our pick. Otherwise it is
+         * a ghost and we need to try the next element. */
+        if (de) {
+            bestkey = dictGetKey(de);
+            break;
+        }
+    }
+
+    /* Finally remove the selected key. */
+    if (bestkey) {
+        db = server.db+bestdbid;
+        robj *keyobj = createStringObject(bestkey,sdslen(bestkey));
+
+        /* Try restoring the redis dumped data to SSDB. */
+        if (prologOfEvictingToSSDB(keyobj, db) != C_OK)
+            serverLog(LL_DEBUG, "Failed to send the restore cmd to SSDB.");
+        else
+            setTransferringDB(db, keyobj);
+    }
+
+    latencyEndMonitor(latency);
+    latencyAddSampleIfNeeded("tryEvictingKeysToSSDB", latency);
+    return C_OK;
 }
 
 /* ----------------------------------------------------------------------------
@@ -640,6 +670,9 @@ int freeMemoryIfNeeded(void) {
     int slaves = listLength(server.slaves);
     mstime_t latency, eviction_latency;
     long long delta;
+
+    /* Forbid free memory in jdjr_mode. */
+    if (server.jdjr_mode) goto cant_free;
 
     /* Check if we are over the memory usage limit. If we are not, no need
      * to subtract the slaves output buffers. We can just return ASAP. */
@@ -766,9 +799,6 @@ int freeMemoryIfNeeded(void) {
         if (bestkey) {
             db = server.db+bestdbid;
             robj *keyobj = createStringObject(bestkey,sdslen(bestkey));
-
-            /* Transfer the selected key to EVICTED_DATA_DBID. */
-            if (server.jdjr_mode) evictingDataToSSDB(keyobj, db);
 
             propagateExpire(db,keyobj,server.lazyfree_lazy_eviction);
             /* We compute the amount of memory freed by db*Delete() alone.

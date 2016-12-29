@@ -1032,6 +1032,26 @@ void setExpire(redisDb *db, robj *key, long long when) {
     dictSetSignedIntegerVal(de,when);
 }
 
+void setTransferringDB(redisDb *db, robj *key) {
+    dictEntry *kde, *de;
+
+    /* Reuse the sds from the main dict in the transferring dict. */
+    kde = dictFind(db->dict,key->ptr);
+    serverAssertWithInfo(NULL,key,kde != NULL);
+    de = dictAddOrFind(EVICTED_DATA_DB->transferring_keys,dictGetKey(kde));
+    dictSetSignedIntegerVal(de,db->id);
+}
+
+long long getTransferringDB(robj *key) {
+    redisDb *db = EVICTED_DATA_DB;
+    dictEntry *de;
+
+    if (dictSize(db->transferring_keys) == 0
+        || (de = dictFind(db->transferring_keys,key->ptr)) == NULL) return -1;
+
+    return dictGetSignedIntegerVal(de);
+}
+
 /* Return the expire time of the specified key, or -1 if no expire
  * is associated with this key (i.e. the key is non volatile) */
 long long getExpire(redisDb *db, robj *key) {
