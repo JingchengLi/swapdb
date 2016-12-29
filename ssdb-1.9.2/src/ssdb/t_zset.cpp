@@ -361,7 +361,7 @@ ZIterator *SSDBImpl::zrange(const Bytes &name, uint64_t offset, uint64_t limit, 
     if (offset + limit > limit) {
         limit = offset + limit;
     }
-    ZIterator *it = this->zscan_internal("", "", "",  "", limit, Iterator::FORWARD, version, *snapshot);
+    ZIterator *it = this->zscan_internal(name, "", "",  "", limit, Iterator::FORWARD, version, *snapshot);
     it->skip(offset);
     return it;
 }
@@ -388,7 +388,7 @@ ZIterator *SSDBImpl::zrrange(const Bytes &name, uint64_t offset, uint64_t limit,
     if (offset + limit > limit) {
         limit = offset + limit;
     }
-    ZIterator *it = this->zscan_internal("", "", "", "", limit, Iterator::BACKWARD, version, *snapshot);
+    ZIterator *it = this->zscan_internal(name, "", "", "", limit, Iterator::BACKWARD, version, *snapshot);
     it->skip(offset);
     return it;
 }
