@@ -63,21 +63,32 @@ int proc_multi_hset(NetworkServer *net, Link *link, const Request &req, Response
 	if(req.size() < 4 || req.size() % 2 != 0){
 		resp->push_back("client_error");
 	}else{
-		int num = 0;
+
+		std::map<Bytes,Bytes> kvs;
+
 		const Bytes &name = req[1];
 		std::vector<Bytes>::const_iterator it = req.begin() + 2;
 		for(; it != req.end(); it += 2){
 			const Bytes &key = *it;
 			const Bytes &val = *(it + 1);
-			int ret = serv->ssdb->hset(name, key, val);
-			if(ret == -1){
-				resp->push_back("error");
-				return 0;
-			}else{
-				num += ret;
-			}
+
+			kvs[key] = val;
+//			auto fit = kvs.insert(std::make_pair(key, val));
+//			if (fit.second)
+//			{
+//				kvs.erase(key);
+//			}
+//
+//			kvs.insert(std::make_pair(key, val));
 		}
-		resp->reply_int(0, num);
+
+		int ret = serv->ssdb->hmset(name, kvs);
+		if(ret == -1){
+			resp->push_back("error");
+			return 0;
+		}
+
+		resp->reply_int(0, 1);
 	}
 	return 0;
 }

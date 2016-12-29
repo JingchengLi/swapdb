@@ -104,6 +104,7 @@ public:
 
 	/* hash */
 
+	virtual int hmset(const Bytes &name, const std::map<Bytes,Bytes> &kvs);
 	virtual int hset(const Bytes &name, const Bytes &key, const Bytes &val);
 	virtual int hdel(const Bytes &name, const Bytes &key);
 	// -1: error, 1: ok, 0: value is not an integer or out of range
@@ -214,7 +215,6 @@ private:
 	int64_t _qpush(const Bytes &name, const Bytes &item, uint64_t front_or_back_seq);
 	int _qpop(const Bytes &name, std::string *item, uint64_t front_or_back_seq);
 
-	int setNoLock(const Bytes &key, const Bytes &val, int flags);
 	int SetGeneric(leveldb::WriteBatch &batch, const Bytes &key, const Bytes &val, int flags, const int64_t expire);
     int KDel(const Bytes &key);
 	int KDelNoLock(leveldb::WriteBatch &batch, const Bytes &key);
@@ -236,12 +236,16 @@ private:
 	int saddNoLock(const Bytes &key, const std::set<Bytes> &mem_set, int64_t *num);
 
 	int lGetCurrentMetaVal(const std::string &meta_key, ListMetaVal &meta_val, uint64_t *llen);
-	int rpushNoLock(const Bytes &key, const std::vector<Bytes> &val, int offset, uint64_t *llen);
 
 	ZIterator* zscan_internal(const Bytes &name, const Bytes &key_start,
 										const Bytes &score_start, const Bytes &score_end,
 										uint64_t limit, Iterator::Direction direction, uint16_t version,
 										const leveldb::Snapshot *snapshot=nullptr);
+
+	int setNoLock(const Bytes &key, const Bytes &val, int flags);
+	int hmsetNoLock(const Bytes &name, const std::map<Bytes,Bytes> &kvs);
+	int rpushNoLock(const Bytes &key, const std::vector<Bytes> &val, int offset, uint64_t *llen);
+
 private:
 	//    pthread_mutex_t mutex_bgtask_;
 	Mutex mutex_bgtask_;

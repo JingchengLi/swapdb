@@ -5,6 +5,7 @@ found in the LICENSE file.
 */
 #include "ssdb_impl.h"
 
+static int hset_one(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const HashMetaVal &hv, bool check_exists,const Bytes &name, const Bytes &key, const Bytes &val);
 static int hset_one(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &name, const Bytes &key, const Bytes &val);
 static int hdel_one(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &name, const Bytes &key);
 static int incr_hsize(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &name, int64_t incr);
@@ -12,6 +13,68 @@ static int incr_hsize(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &n
 /**
  * @return -1: error, 0: item updated, 1: new item inserted
  */
+int SSDBImpl::hmset(const Bytes &name, const std::map<Bytes ,Bytes> &kvs) {
+	RecordLock l(&mutex_record_, name.String());
+	return hmsetNoLock(name, kvs);
+}
+
+int SSDBImpl::hmsetNoLock(const Bytes &name, const std::map<Bytes ,Bytes> &kvs) {
+
+	leveldb::WriteBatch batch;
+
+	int ret = 0;
+	HashMetaVal hv;
+	std::string meta_key = encode_meta_key(name.String());
+	ret = this->GetHashMetaVal(meta_key, hv);
+
+	if (ret == -1){
+		return -1;
+	} else if (ret == 0){
+		if (hv.del == KEY_DELETE_MASK) {
+			if (hv.version == UINT16_MAX){
+				hv.version = 0;
+			} else{
+				hv.version = (uint16_t)(hv.version+1);
+			}
+		} else {
+			hv.version = 0;
+		}
+	}
+
+	int sum = 0;
+
+	for(auto const &it : kvs)
+	{
+
+		const Bytes &key = it.first;
+		const Bytes &val = it.second;
+
+		ret = hset_one(this ,batch, hv, true, name, key, val);
+		if(ret < 0){
+			return -1;
+		}
+
+		if(ret >= 0){
+			sum = sum + ret;
+		}
+
+	}
+
+ 	if(sum != 0) {
+		if (incr_hsize(this, batch, name, sum) == -1) {
+			return -1;
+		}
+	}
+
+	leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
+	if(!s.ok()){
+		return -1;
+	}
+
+
+	return 1;
+}
+
 int SSDBImpl::hset(const Bytes &name, const Bytes &key, const Bytes &val){
 	RecordLock l(&mutex_record_, name.String());
 	leveldb::WriteBatch batch;
@@ -222,43 +285,30 @@ int SSDBImpl::GetHashItemValInternal(const std::string &item_key, std::string *v
 // returns the number of newly added items
 static int hset_one(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &name, const Bytes &key, const Bytes &val){
 	int ret = 0;
-	std::string dbval;
 	HashMetaVal hv;
 	std::string meta_key = encode_meta_key(name.String());
 	ret = ssdb->GetHashMetaVal(meta_key, hv);
+
 	if (ret == -1){
 		return -1;
-	} else if (ret == 0 && hv.del == KEY_DELETE_MASK){
-        uint16_t version;
-        if (hv.version == UINT16_MAX){
-            version = 0;
-        } else{
-            version = (uint16_t)(hv.version+1);
-        }
-		std::string hkey = encode_hash_key(name, key, version);
-		batch.Put(hkey, slice(val));
-		ret = 1;
 	} else if (ret == 0){
-		std::string hkey = encode_hash_key(name, key);
-		batch.Put(hkey, slice(val));
-		ret = 1;
-	} else{
-		std::string item_key = encode_hash_key(name, key, hv.version);
-		ret = ssdb->GetHashItemValInternal(item_key, &dbval);
-		if (ret == -1){
-			return -1;
-		} else if (ret == 0){
-			batch.Put(item_key, slice(val));
-			ret = 1;
-		} else{
-			if(dbval != val){
-				batch.Put(item_key, slice(val));
+		if (hv.del == KEY_DELETE_MASK) {
+			if (hv.version == UINT16_MAX){
+				hv.version = 0;
+			} else{
+				hv.version = (uint16_t)(hv.version+1);
 			}
-			ret = 0;
+		} else {
+			hv.version = 0;
 		}
+
+		return hset_one(ssdb ,batch, hv, false, name, key, val);
+	} else{
+
+		return hset_one(ssdb ,batch, hv, true, name, key, val);
 	}
-	return ret;
 }
+
 
 static int hdel_one(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &name, const Bytes &key){
 	int ret = 0;
@@ -329,4 +379,33 @@ static int incr_hsize(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &n
 	}
 
 	return 0;
+}
+
+int hset_one(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const HashMetaVal &hv, bool check_exists, const Bytes &name,
+			 const Bytes &key, const Bytes &val) {
+	int ret = 0;
+	std::string dbval;
+
+	if (check_exists) {
+		std::string item_key = encode_hash_key(name, key, hv.version);
+		ret = ssdb->GetHashItemValInternal(item_key, &dbval);
+		if (ret == -1){
+			return -1;
+		} else if (ret == 0){
+			batch.Put(item_key, slice(val));
+			ret = 1;
+		} else{
+			if(dbval != val){
+				batch.Put(item_key, slice(val));
+			}
+			ret = 0;
+		}
+	} else {
+		std::string item_key = encode_hash_key(name, key, hv.version);
+		batch.Put(item_key, slice(val));
+		ret = 1;
+	}
+
+	return ret;
+
 }

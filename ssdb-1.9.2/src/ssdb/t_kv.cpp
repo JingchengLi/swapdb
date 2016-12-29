@@ -691,7 +691,7 @@ int SSDBImpl::dump(const Bytes &key, std::string *res) {
 int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool replace, std::string *res) {
     *res = "none";
 
-    RecordLock l(&mutex_record_, key.String());
+//    RecordLock l(&mutex_record_, key.String());
 
     int ret = 0;
     std::string meta_val;
@@ -837,6 +837,9 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
 
         case RDB_TYPE_HASH: {
 
+            std::map<std::string,std::string> tmp_map;
+            std::map<Bytes,Bytes> kvs;
+
             if ((len = rdbDecoder.rdbLoadLen(NULL)) == RDB_LENERR) return -1;
             while (len--) {
 
@@ -850,8 +853,19 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
                     return ret;
                 }
 
-                hset(key, field, value);
+                tmp_map[field] = value;
             }
+
+
+            for(auto const &it : tmp_map)
+            {
+                const std::string &field_key = it.first;
+                const std::string &field_value = it.second;
+
+                kvs[Bytes(field_key)] = Bytes(field_value);
+            }
+
+            ret = this->hmsetNoLock(key, kvs);
 
             break;
         }
@@ -932,61 +946,95 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
             break;
 
         }
-        case RDB_TYPE_LIST_ZIPLIST:
-        case RDB_TYPE_ZSET_ZIPLIST:
-        case RDB_TYPE_HASH_ZIPLIST: {
+        case RDB_TYPE_LIST_ZIPLIST: {
 
             std::string zipListStr = rdbDecoder.rdbGenericLoadStringObject(&ret);
             if (ret != 0) {
                 return ret;
             }
 
-//            log_debug(" zipListStr %s", hexmem(zipListStr.data(), zipListStr.size()).c_str());
+            std::vector<std::string> t_res;
+            std::vector<Bytes> val;
+
+            unsigned char *zl = (unsigned char *) zipListStr.data();
+            unsigned char *p = ziplistIndex(zl, 0);
+
+            std::string r;
+            while (getNextString(zl, &p, r)) {
+                t_res.push_back(std::move(r));
+            }
+
+            for (int i = 0; i < t_res.size(); ++i) {
+                val.push_back(Bytes(t_res[i]));
+            }
+
+            uint64_t len_t;
+            ret = this->rpushNoLock(key, val, 0, &len_t);
+
+            break;
+        }
+        case RDB_TYPE_ZSET_ZIPLIST: {
+
+            std::string zipListStr = rdbDecoder.rdbGenericLoadStringObject(&ret);
+            if (ret != 0) {
+                return ret;
+            }
 
             unsigned char *zl = (unsigned char *) zipListStr.data();
             unsigned char *p = ziplistIndex(zl, 0);
 
             std::string t_item;
             while (getNextString(zl, &p, t_item)) {
-//                log_debug(" item : %s", hexmem(t_item.data(), t_item.length()).c_str());
 
-                if (rdbtype == RDB_TYPE_LIST_ZIPLIST) {
-
-                    std::vector<Bytes> val;
-
-                    val.push_back(Bytes(t_item));
-                    uint64_t len_t;
-                    ret = this->rpushNoLock(key, val, 0, &len_t);
-
-                } else if (rdbtype == RDB_TYPE_ZSET_ZIPLIST) {
-                    std::string value;
+                std::string value;
                     if(getNextString(zl, &p, value)) {
-//                        log_debug(" score : %s", hexmem(value.data(), value.length()).c_str());
                         zset(key, t_item, value);
 
                     } else {
                         log_error("value not found ");
                         return -1;
                     }
-
-                } else if (rdbtype == RDB_TYPE_HASH_ZIPLIST) {
-                    std::string value;
-                    if(getNextString(zl, &p, value)) {
-//                        log_debug(" value : %s", hexmem(value.data(), value.length()).c_str());
-                        hset(key, t_item, value);
-
-                    } else {
-                        log_error("value not found ");
-                        return -1;
-                    }
-
-                } else {
-                    log_error("???");
-                    return -1;
-                }
-
             }
 
+
+            break;
+        }
+
+        case RDB_TYPE_HASH_ZIPLIST: {
+
+            std::map<std::string,std::string> tmp_map;
+            std::map<Bytes,Bytes> kvs;
+
+
+            std::string zipListStr = rdbDecoder.rdbGenericLoadStringObject(&ret);
+            if (ret != 0) {
+                return ret;
+            }
+
+            unsigned char *zl = (unsigned char *) zipListStr.data();
+            unsigned char *p = ziplistIndex(zl, 0);
+
+            std::string field;
+            while (getNextString(zl, &p, field)) {
+                std::string value;
+
+                if(getNextString(zl, &p, value)) {
+                    tmp_map[field] = value;
+                } else {
+                    log_error("value not found ");
+                    return -1;
+                }
+            }
+
+            for(auto const &it : tmp_map)
+            {
+                const std::string &field_key = it.first;
+                const std::string &field_value = it.second;
+
+                kvs[Bytes(field_key)] = Bytes(field_value);
+            }
+
+            ret = this->hmsetNoLock(key, kvs);
 
             break;
         }

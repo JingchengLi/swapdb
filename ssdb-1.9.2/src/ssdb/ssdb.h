@@ -9,6 +9,7 @@ found in the LICENSE file.
 #include <vector>
 #include <set>
 #include <string>
+#include <map>
 #include "const.h"
 #include "options.h"
 #include "iterator.h"
@@ -63,6 +64,7 @@ public:
 
 	/* hash */
 
+	virtual int hmset(const Bytes &name, const std::map<Bytes, Bytes> &kvs) = 0;
 	virtual int hset(const Bytes &name, const Bytes &key, const Bytes &val) = 0;
 	virtual int hdel(const Bytes &name, const Bytes &key) = 0;
 	// -1: error, 1: ok, 0: value is not an integer or out of range
