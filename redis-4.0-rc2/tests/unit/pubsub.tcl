@@ -367,6 +367,7 @@ start_server {tags {"pubsub"}} {
     test "Keyspace notifications: evicted events" {
         r config set notify-keyspace-events Ee
         r config set maxmemory-policy allkeys-lru
+        r config set jdjr-mode no
         r flushdb
         set rd1 [redis_deferring_client]
         assert_equal {1} [psubscribe $rd1 *]
