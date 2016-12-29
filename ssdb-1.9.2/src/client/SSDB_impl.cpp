@@ -260,11 +260,10 @@ Status ClientImpl::set(const std::string &key, const std::string &val){
 	return s;
 }
 
-Status ClientImpl::setnx(const std::string &key, const std::string &val){
+Status ClientImpl::setnx(const std::string &key, const std::string &val, int64_t *ret){
 	const std::vector<std::string> *resp;
 	resp = this->request("setnx", key, val);
-	Status s(resp);
-	return s;
+    return _read_int64(resp, ret);
 }
 
 Status ClientImpl::setbit(const std::string &key, int bitoffset, int on){
