@@ -11,13 +11,13 @@ void RdbEncoder::encodeFooter() {
     unsigned char buf[2];
     buf[0] = RDB_VERSION & 0xff;
     buf[1] = (RDB_VERSION >> 8) & 0xff;
-    w.append((char *) &buf, 2);
-
+    rdbWriteRaw(&buf, 2);
 
     uint64_t crc;
     crc = crc64(0, (unsigned char *) w.data(), w.length());
     memrev64ifbe(&crc);
-    w.append((char *) &crc, 8);
+    rdbWriteRaw(&crc, 8);
+
 }
 
 int RdbEncoder::rdbSaveLen(uint64_t len) {
@@ -50,18 +50,19 @@ int RdbEncoder::rdbSaveLen(uint64_t len) {
         if (rdbWriteRaw(&len, 8) == -1) return -1;
         nwritten = 1 + 8;
     }
+
     return nwritten;
 }
 
 void RdbEncoder::rdbSaveType(unsigned char type) {
-    w.append(1, type);
+    rdbWriteRaw(&type, 1);
 }
 
 std::string RdbEncoder::toString() const {
     return w;
 }
 
-int RdbEncoder::rdbSaveRawString(const std::string &string) {
+int64_t RdbEncoder::rdbSaveRawString(const std::string &string) {
     size_t len = string.length();
     if (len <= 11) {
         int enclen;
@@ -88,7 +89,7 @@ int RdbEncoder::rdbSaveRawString(const std::string &string) {
 }
 
 
-int RdbEncoder::saveRawString(const std::string &string) {
+int64_t RdbEncoder::saveRawString(const std::string &string) {
 
     rdbSaveLen(string.length());
     rdbWriteRaw((void *) string.data(), string.length());
@@ -130,7 +131,7 @@ int RdbEncoder::saveDoubleValue(double val) {
         len = buf[0] + 1;
     }
 
-    w.append((char *) &buf, len);
+    rdbWriteRaw(&buf, len);
 
     return 1;
 }
@@ -146,21 +147,21 @@ int RdbEncoder::rdbSaveBinaryFloatValue(float val) {
 }
 
 int RdbEncoder::rdbEncodeInteger(long long value, unsigned char *enc) {
-    if (value >= -(1<<7) && value <= (1<<7)-1) {
-        enc[0] = (RDB_ENCVAL<<6)|RDB_ENC_INT8;
-        enc[1] = value&0xFF;
+    if (value >= -(1 << 7) && value <= (1 << 7) - 1) {
+        enc[0] = (RDB_ENCVAL << 6) | RDB_ENC_INT8;
+        enc[1] = value & 0xFF;
         return 2;
-    } else if (value >= -(1<<15) && value <= (1<<15)-1) {
-        enc[0] = (RDB_ENCVAL<<6)|RDB_ENC_INT16;
-        enc[1] = value&0xFF;
-        enc[2] = (value>>8)&0xFF;
+    } else if (value >= -(1 << 15) && value <= (1 << 15) - 1) {
+        enc[0] = (RDB_ENCVAL << 6) | RDB_ENC_INT16;
+        enc[1] = value & 0xFF;
+        enc[2] = (value >> 8) & 0xFF;
         return 3;
-    } else if (value >= -((long long)1<<31) && value <= ((long long)1<<31)-1) {
-        enc[0] = (RDB_ENCVAL<<6)|RDB_ENC_INT32;
-        enc[1] = value&0xFF;
-        enc[2] = (value>>8)&0xFF;
-        enc[3] = (value>>16)&0xFF;
-        enc[4] = (value>>24)&0xFF;
+    } else if (value >= -((long long) 1 << 31) && value <= ((long long) 1 << 31) - 1) {
+        enc[0] = (RDB_ENCVAL << 6) | RDB_ENC_INT32;
+        enc[1] = value & 0xFF;
+        enc[2] = (value >> 8) & 0xFF;
+        enc[3] = (value >> 16) & 0xFF;
+        enc[4] = (value >> 24) & 0xFF;
         return 5;
     } else {
         return 0;

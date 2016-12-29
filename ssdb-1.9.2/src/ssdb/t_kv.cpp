@@ -661,7 +661,7 @@ int SSDBImpl::dump(const Bytes &key, std::string *res) {
                 if (1 != ret) {
                     return -1;
                 }
-                rdbEncoder.saveRawString(item_val);
+                rdbEncoder.rdbSaveRawString(item_val);
 
                 if (UINT64_MAX == cur_seq) {
                     cur_seq = 0;

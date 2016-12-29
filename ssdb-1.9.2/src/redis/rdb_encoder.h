@@ -23,11 +23,6 @@ public:
 
     }
 
-
-    void write(const char *s, size_t n) {
-        w.append(s, n);
-    }
-
     int rdbWriteRaw(void *p, size_t n) {
         w.append((const char *) p, n);
         return n;
@@ -35,13 +30,13 @@ public:
 
     int rdbSaveLen(uint64_t len);
 
-    int rdbSaveRawString(const std::string &string);
+    int64_t rdbSaveRawString(const std::string &string);
 
     int64_t rdbSaveLzfBlob(void *data, size_t compress_len, size_t original_len);
 
     int64_t rdbSaveLzfStringObject(const std::string &string);
 
-    int saveRawString(const std::string &string);
+    int64_t saveRawString(const std::string &string);
 
     int saveDoubleValue(double value);
 

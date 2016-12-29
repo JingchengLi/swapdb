@@ -402,7 +402,10 @@ int proc_restore(NetworkServer *net, Link *link, const Request &req, Response *r
     }
 
 	std::string val;
-    int ret = serv->ssdb->restore(req[1], req[2], req[3], replace, &val);
+
+	PTS(restore)
+	int ret = serv->ssdb->restore(req[1], req[2], req[3], replace, &val);
+	PTE(restore)
 
 	if (ret > 0 && ttl > 0) {
 		Locking l(&serv->expiration->mutex);
@@ -422,7 +425,11 @@ int proc_dump(NetworkServer *net, Link *link, const Request &req, Response *resp
 	CHECK_NUM_PARAMS(2);
 
 	std::string val;
+
+	PTS(dump)
 	int ret = serv->ssdb->dump(req[1], &val);
+//	log_info("len : %d",val.length());
+	PTE(dump)
 
 	resp->reply_get(ret, &val);
 	return 0;
