@@ -149,6 +149,7 @@ public:
     virtual int smembers(const Bytes &key, std::vector<std::string> &members);
     virtual int sunion(const std::vector<Bytes> &keys, std::set<std::string>& members);
     virtual int sunionstore(const Bytes &destination, const std::vector<Bytes> &keys, int64_t *num);
+	virtual SIterator* sscan(const Bytes &key, const Bytes &start, const Bytes &end, uint64_t limit);
 
 	/* zset */
 	virtual int zset(const Bytes &name, const Bytes &key, const Bytes &score);

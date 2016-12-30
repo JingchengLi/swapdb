@@ -129,6 +129,7 @@ DEF_PROC(restore);
 DEF_PROC(select);
 DEF_PROC(client);
 DEF_PROC(quit);
+DEF_PROC(replic);
 
 
 
@@ -246,6 +247,7 @@ void SSDBServer::reg_procs(NetworkServer *net){
 	REG_PROC(select, "rt");
 	REG_PROC(client, "r");
 	REG_PROC(quit, "r");
+	REG_PROC(replic, "wt");
 
 
 	REG_PROC(clear_binlog, "wt");
@@ -551,4 +553,122 @@ int proc_info(NetworkServer *net, Link *link, const Request &req, Response *resp
 	return 0;
 }
 
+void* thread_replic(void *arg){
+	SSDBServer *serv = (SSDBServer *)arg;
+	std::vector<Slave_info>::iterator it = serv->slave_infos.begin();
+	for (; it != serv->slave_infos.end(); ++it) {
+		ssdb::Client *client = ssdb::Client::connect(it->ip, it->port);
+		if(client == NULL){
+			printf("fail to connect to slave ssdb! ip[%s] port[%d]\n", it->ip.c_str(), it->port);
+			return 0;
+		}
+		it->client = client;
+	}
+
+	std::string start;
+	start.append(1, DataType::META);
+
+	auto mit = std::unique_ptr<MIterator>(new MIterator(serv->ssdb->iterator(start, "", -1)));
+	while (mit->next()){
+		if (mit->delType == KEY_DELETE_MASK) continue;
+		int64_t ts = 0;
+		int64_t r = 0;
+		switch (mit->dataType) {
+			case DataType::KV:
+				{
+					KvMetaVal kv;
+					if (kv.DecodeMetaVal(mit->dbVal) == -1){
+						continue;
+					}
+					serv->ssdb->eget(mit->key, &ts);
+					it = serv->slave_infos.begin();
+					for (; it != serv->slave_infos.end(); ++it){
+						it->client->set(mit->key, kv.value);
+						it->client->expire(mit->key, ts, &r);
+					}
+				}
+                break;
+            case DataType::HSIZE:
+				{
+					HashMetaVal hv;
+					if (hv.DecodeMetaVal(mit->dbVal) == -1){
+						continue;
+					}
+					auto hit = std::unique_ptr<HIterator>(serv->ssdb->hscan(mit->key, "", "", -1));
+					std::map<std::string, std::string> kvs;
+					while (hit->next()){
+						kvs.insert(make_pair(hit->key, hit->val));
+					}
+					serv->ssdb->eget(mit->key, &ts);
+					it = serv->slave_infos.begin();
+					for (; it != serv->slave_infos.end(); ++it){
+						it->client->multi_hset(mit->key, kvs);
+						it->client->expire(mit->key, ts, &r);
+					}
+				}
+                break;
+            case DataType::SSIZE:
+				{
+					SetMetaVal sv;
+					if (sv.DecodeMetaVal(mit->dbVal) == -1){
+						continue;
+					}
+					auto sit = std::unique_ptr<SIterator>(serv->ssdb->sscan(mit->key, "", "", -1));
+					std::vector<std::string> members;
+					while (sit->next()){
+						members.push_back(sit->key);
+					}
+					serv->ssdb->eget(mit->key, &ts);
+					it = serv->slave_infos.begin();
+					for (; it != serv->slave_infos.end(); ++it){
+						it->client->sadd(mit->key, members);
+						it->client->expire(mit->key, ts, &r);
+					}
+				}
+                break;
+            case DataType::ZSIZE:
+                break;
+            case DataType::LSIZE:
+				{
+					std::vector<std::string> lists;
+					serv->ssdb->lrange(mit->key, 0, -1, &lists);
+					serv->ssdb->eget(mit->key, &ts);
+					it = serv->slave_infos.begin();
+					for (; it != serv->slave_infos.end(); ++it){
+						it->client->qpush_back(mit->key, lists);
+						it->client->expire(mit->key, ts, &r);
+					}
+				}
+                break;
+            default:
+                break;
+		}
+	}
+
+	return (void *)NULL;
+}
+
+int proc_replic(NetworkServer *net, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *)net->data;
+	CHECK_NUM_PARAMS(3);
+	if ((req.size() - 1) % 2 != 0){
+		resp->push_back("wrong number of arguments");
+		return 0;
+	}
+	for (int i = 1; i < req.size(); i += 2) {
+		std::string ip = req[i].String();
+		int port = req[i+1].Int();
+		serv->slave_infos.push_back(Slave_info{ip, port, NULL});
+	}
+
+//	breplication = true; //todo 设置全量复制开始标志
+
+	pthread_t tid;
+	int err = pthread_create(&tid, NULL, &thread_replic, serv);
+	if(err != 0){
+		log_fatal("can't create thread: %s", strerror(err));
+		exit(0);
+	}
+	return 0;
+}
 

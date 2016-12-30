@@ -110,7 +110,9 @@ bool MIterator::next(){
 		key = mk.key;
 
 		Bytes vs = it->val();
+		this->dbVal = it->val().String();
 		this->dataType = vs.data()[0];
+		this->delType = vs.data()[3];
 		return true;
 	}
 	return false;

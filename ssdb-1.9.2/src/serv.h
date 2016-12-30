@@ -16,6 +16,13 @@ found in the LICENSE file.
 #include "backend_sync.h"
 #include "slave.h"
 #include "net/server.h"
+#include "SSDB_client.h"
+
+struct Slave_info{
+	std::string ip;
+	int port;
+	ssdb::Client *client;
+};
 
 class SSDBServer
 {
@@ -30,6 +37,7 @@ public:
 	BackendSync *backend_sync;
 	ExpirationHandler *expiration;
 	std::vector<Slave *> slaves;
+	std::vector<Slave_info> slave_infos;
 
 	SSDBServer(SSDB *ssdb, SSDB *meta, const Config &conf, NetworkServer *net);
 	~SSDBServer();

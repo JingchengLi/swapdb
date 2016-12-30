@@ -54,7 +54,9 @@ private:
 class MIterator{
 public:
 	char dataType;
+	char delType;
 	std::string key;
+    std::string dbVal;
 
 	MIterator(Iterator *it);
 	~MIterator();

@@ -152,6 +152,22 @@ SIterator* SSDBImpl::sscan_internal(const Bytes &name, const Bytes &start, const
     return new SIterator(this->iterator(key_start, key_end, limit, snapshot), name, version);
 }
 
+SIterator* SSDBImpl::sscan(const Bytes &key, const Bytes &start, const Bytes &end, uint64_t limit) {
+    SetMetaVal sv;
+    uint16_t  version;
+
+    std::string meta_key = encode_meta_key(key);
+    int ret = GetSetMetaVal(meta_key, sv);
+    if (0 == ret && sv.del == KEY_DELETE_MASK){
+        version = sv.version + (uint16_t)1;
+    } else if (ret > 0){
+        version = sv.version;
+    } else {
+        version = 0;
+    }
+    return sscan_internal(key, start, end, version, limit, nullptr);
+}
+
 int SSDBImpl::sadd(const Bytes &key, const Bytes &member){
     RecordLock l(&mutex_record_, key.String());
     leveldb::WriteBatch batch;

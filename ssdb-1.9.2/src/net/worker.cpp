@@ -25,6 +25,10 @@ int ProcWorker::proc(ProcJob *job){
 	job->result = (*p)(job->serv, job->link, *req, &job->resp);
 	job->time_proc = 1000 * (millitime() - job->stime) - job->time_wait;
 
+//	if (breplication && job->cmd->flags & Command::FLAG_WRITE){
+		//todo 将req中的命令和参数保存值buffer中，待全量复制结束时发送值从ssdb
+//	}
+
 	if(job->link->send(job->resp.resp) == -1){
 		log_debug("job->link->send error");
 		job->result = PROC_ERROR;
