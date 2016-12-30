@@ -214,6 +214,11 @@ int RedisLink::convert_req(){
 				recv_string.push_back(recv_bytes[i].String());
 			}
 
+			if((recv_bytes.size() + 2 - scoreidx) % 2 != 0){
+				//wrong args
+				return -1;
+			}
+
 			for(int i=scoreidx; i<=recv_bytes.size()-2; i+=2){
 				recv_string.push_back(recv_bytes[i+1].String());
 				double score = recv_bytes[i].Double();

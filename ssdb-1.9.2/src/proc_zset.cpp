@@ -91,7 +91,7 @@ int proc_multi_zset(NetworkServer *net, Link *link, const Request &req, Response
 
     }
 
-	if((req.size() + scoreidx - 2) % 2 != 0){
+	if((req.size() - 2 + scoreidx) % 2 != 0){
 		//wrong args
 		resp->push_back("client_error");
 		return 0;
