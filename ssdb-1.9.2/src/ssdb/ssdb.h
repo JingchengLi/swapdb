@@ -10,6 +10,7 @@ found in the LICENSE file.
 #include <set>
 #include <string>
 #include <map>
+#include <util/sorted_set.h>
 #include "const.h"
 #include "options.h"
 #include "iterator.h"
@@ -96,6 +97,7 @@ public:
 
 	/* zset */
 	virtual int zset(const Bytes &name, const Bytes &key, const Bytes &score) = 0;
+	virtual int multi_zset(const Bytes &name, const SortedSet<double> &sortedSet, int flags) = 0;
 
 	virtual int zdel(const Bytes &name, const Bytes &key) = 0;
 	// -1: error, 1: ok, 0: value is not an integer or out of range

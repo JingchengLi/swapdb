@@ -38,7 +38,7 @@ private:
 	volatile bool thread_quit;
 //	std::string list_name;
 	int64_t first_timeout;
-	SortedSet fast_keys;
+	SortedSet<int64_t> fast_keys;
 
 	void start();
 	void stop();

@@ -180,7 +180,7 @@ SET( UTIL_OBJS
 src/util/log.cpp
 src/util/config.cpp
 src/util/bytes.cpp
-src/util/sorted_set.cpp
+#src/util/sorted_set.cpp
 src/util/app.cpp
 src/util/thread.cpp
 )

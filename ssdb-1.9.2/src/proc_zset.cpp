@@ -60,25 +60,54 @@ int proc_multi_zsize(NetworkServer *net, Link *link, const Request &req, Respons
 
 int proc_multi_zset(NetworkServer *net, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *)net->data;
-	if(req.size() < 4 || req.size() % 2 != 0){
+	int flags = ZADD_NONE;
+	if(req.size() < 4){
 		resp->push_back("client_error");
-	}else{
-		int num = 0;
-		const Bytes &name = req[1];
-		std::vector<Bytes>::const_iterator it = req.begin() + 2;
-		for(; it != req.end(); it += 2){
-			const Bytes &key = *it;
-			const Bytes &val = *(it + 1);
-			int ret = serv->ssdb->zset(name, key, val);
-			if(ret == -1){
-				resp->push_back("error");
-				return 0;
-			}else{
-				num += ret;
-			}
-		}
-		resp->reply_int(0, num);
+		return 0;
 	}
+
+	int num = 0;
+	const Bytes &name = req[1];
+
+	int scoreidx = 2;
+	std::vector<Bytes>::const_iterator it = req.begin() + scoreidx;
+	for(; it != req.end(); it += 2){
+		const Bytes &key = *it;
+		if (key!="nx") flags |= ZADD_NX;
+		else if (key!="xx") flags |= ZADD_XX;
+		else if (key!="ch") flags |= ZADD_CH;
+		else if (key!="incr") flags |= ZADD_INCR;
+		else break;
+		scoreidx++;
+	}
+
+	if((req.size() + scoreidx - 2) % 2 != 0){
+		//wrong args
+		resp->push_back("client_error");
+		return 0;
+	}
+
+	SortedSet<double> sortedSet;
+
+	it = req.begin() + scoreidx;
+	for(; it != req.end(); it += 2){
+		const Bytes &key = *it;
+		const Bytes &val = *(it + 1);
+
+		sortedSet.add(key.String(), key.Double());
+
+		int ret = serv->ssdb->multi_zset(name, sortedSet, flags);
+		if(ret == -1){
+			resp->push_back("error");
+			return 0;
+		}else{
+			num += ret;
+		}
+	}
+
+
+	resp->reply_int(0, num);
+
 	return 0;
 }
 

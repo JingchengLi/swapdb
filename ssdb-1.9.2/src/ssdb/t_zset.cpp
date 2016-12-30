@@ -48,6 +48,23 @@ int SSDBImpl::zset(const Bytes &name, const Bytes &key, const Bytes &score) {
     return ret;
 }
 
+
+int SSDBImpl::multi_zset(const Bytes &name, const SortedSet<double> &sortedSet, int flags) {
+    RecordLock l(&mutex_record_, name.String());
+    return zsetNoLock(name, sortedSet, flags);
+}
+
+int SSDBImpl::zsetNoLock(const Bytes &name, const SortedSet<double> &sortedSet, int flags) {
+    RecordLock l(&mutex_record_, name.String());
+
+
+
+
+    return 0;
+
+}
+
+
 int64_t SSDBImpl::zcount(const Bytes &name, const Bytes &score_start, const Bytes &score_end) {
     int64_t count = 0;
 
@@ -105,19 +122,6 @@ int64_t SSDBImpl::zremrangebyscore(const Bytes &name, const Bytes &score_start, 
     }
 
     return count;
-}
-
-int SSDBImpl::zsetNoLock(leveldb::WriteBatch &batch, const Bytes &name, const Bytes &key, double score) {
-    //TODO check score
-    int ret = zset_one(this, batch, name, key, score);
-    if (ret >= 0) {
-        if (ret > 0) {
-            if (incr_zsize(this, batch, name, ret) == -1) {
-                return -1;
-            }
-        }
-    }
-    return ret;
 }
 
 int SSDBImpl::zdel(const Bytes &name, const Bytes &key) {
