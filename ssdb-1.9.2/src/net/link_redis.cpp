@@ -193,8 +193,22 @@ int RedisLink::convert_req(){
 	if(this->req_desc->strategy == STRATEGY_ZADD){
 		recv_string.push_back(req_desc->ssdb_cmd);
 		if(recv_bytes.size() >= 2){
+
+            int scoreidx = 2;
+			for(int i=2; i<=recv_bytes.size()-2; i+=1){
+				std::string key =recv_bytes[i].String();
+				strtolower(&key);
+                if (key=="nx" || key=="xx" || key=="ch" || key=="incr") {
+					scoreidx++;
+				} else break;
+            }
+
 			recv_string.push_back(recv_bytes[1].String());
-			for(int i=2; i<=recv_bytes.size()-2; i+=2){
+			for(int i=2; i<scoreidx; i+=1){
+				recv_string.push_back(recv_bytes[i].String());
+			}
+
+			for(int i=scoreidx; i<=recv_bytes.size()-2; i+=2){
 				recv_string.push_back(recv_bytes[i+1].String());
 				double score = recv_bytes[i].Double();
 				recv_string.push_back(str(score));

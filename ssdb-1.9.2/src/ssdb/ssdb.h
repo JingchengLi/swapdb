@@ -97,7 +97,7 @@ public:
 
 	/* zset */
 	virtual int zset(const Bytes &name, const Bytes &key, const Bytes &score) = 0;
-	virtual int multi_zset(const Bytes &name, const SortedSet<double> &sortedSet, int flags) = 0;
+	virtual int multi_zset(const Bytes &name, const std::map<Bytes ,Bytes> &sortedSet, int flags) = 0;
 
 	virtual int zdel(const Bytes &name, const Bytes &key) = 0;
 	// -1: error, 1: ok, 0: value is not an integer or out of range

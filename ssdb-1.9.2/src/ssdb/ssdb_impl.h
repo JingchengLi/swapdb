@@ -152,7 +152,7 @@ public:
 
 	/* zset */
 	virtual int zset(const Bytes &name, const Bytes &key, const Bytes &score);
-	virtual int multi_zset(const Bytes &name, const SortedSet<double> &sortedSet, int flags);
+	virtual int multi_zset(const Bytes &name, const std::map<Bytes ,Bytes> &sortedSet, int flags);
 	virtual int zdel(const Bytes &name, const Bytes &key);
 	// -1: error, 1: ok, 0: value is not an integer or out of range
 	virtual int zincr(const Bytes &name, const Bytes &key, double by, double *new_val);
@@ -245,7 +245,7 @@ private:
 	int setNoLock(const Bytes &key, const Bytes &val, int flags);
 	int hmsetNoLock(const Bytes &name, const std::map<Bytes,Bytes> &kvs);
 	int rpushNoLock(const Bytes &key, const std::vector<Bytes> &val, int offset, uint64_t *llen);
-	int zsetNoLock(const Bytes &name, const SortedSet<double> &sortedSet, int flags);
+	int zsetNoLock(const Bytes &name, const std::map<Bytes ,Bytes> &sortedSet, int flags);
 
 private:
 	//    pthread_mutex_t mutex_bgtask_;

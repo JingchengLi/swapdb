@@ -49,19 +49,189 @@ int SSDBImpl::zset(const Bytes &name, const Bytes &key, const Bytes &score) {
 }
 
 
-int SSDBImpl::multi_zset(const Bytes &name, const SortedSet<double> &sortedSet, int flags) {
+int SSDBImpl::multi_zset(const Bytes &name, const std::map<Bytes ,Bytes> &sortedSet, int flags) {
     RecordLock l(&mutex_record_, name.String());
     return zsetNoLock(name, sortedSet, flags);
 }
 
-int SSDBImpl::zsetNoLock(const Bytes &name, const SortedSet<double> &sortedSet, int flags) {
-    RecordLock l(&mutex_record_, name.String());
 
 
+int zsetAdd(SSDBImpl *ssdb, leveldb::WriteBatch &batch, bool needCheck,
+             const Bytes &name, const Bytes &key, double score, uint16_t cur_version,
+            int *flags, double *newscore) {
+    /* Turn options into simple to check vars. */
+    int incr = (*flags & ZADD_INCR) != 0;
+    int nx = (*flags & ZADD_NX) != 0;
+    int xx = (*flags & ZADD_XX) != 0;
+    *flags = 0; /* We'll return our response flags. */
+
+    /* NaN as input is an error regardless of all the other parameters. */
+    if (isnan(score)) {
+        *flags = ZADD_NAN;
+        return -1;
+    }
+
+    if (needCheck) {
+        double old_score = 0;
+
+        int found = ssdb->zget(name, key, &old_score);
+        if (found == -1) {
+            return -1;
+        }
+
+        if (found == 0) {
+            if (!xx) {
+                if (newscore) *newscore = score;
+                zset_internal(ssdb, batch, name, key, score, cur_version);
+                *flags |= ZADD_ADDED;
+            } else {
+                *flags |= ZADD_NOP;
+            }
+
+            return 1;
+
+        } else if (found == 1) {
+            if (nx) {
+                *flags |= ZADD_NOP;
+                return 1;
+            }
+
+            if (incr) {
+                score += old_score;
+                if (isnan(score)) {
+                    *flags |= ZADD_NAN;
+                    return -1;
+                }
+                if (newscore) *newscore = score;
+            }
+
+            if (fabs(old_score - score) < eps) {
+                //same
+            } else {
+                if (newscore) *newscore = score;
+
+                string old_score_key = encode_zscore_key(name, key, old_score, cur_version);
+                batch.Delete(old_score_key);
+                zset_internal(ssdb, batch, name, key, score, cur_version);
+                *flags |= ZADD_UPDATED;
+            }
+            return 1;
+        } else {
+            //error
+            return -1;
+        }
+    } else {
+
+        if (!xx) {
+            if (newscore) *newscore = score;
+            zset_internal(ssdb, batch, name, key, score, cur_version);
+            *flags |= ZADD_ADDED;
+        } else {
+            *flags |= ZADD_NOP;
+        }
+
+        return 1;
+    }
+}
 
 
-    return 0;
+int SSDBImpl::zsetNoLock(const Bytes &name, const std::map<Bytes ,Bytes> &sortedSet, int flags) {
+    int incr = (flags & ZADD_INCR) != 0;
+    int nx = (flags & ZADD_NX) != 0;
+    int xx = (flags & ZADD_XX) != 0;
+    int ch = (flags & ZADD_CH) != 0;
 
+    /* XX and NX options at the same time are not compatible. */
+    if (nx && xx) {
+        return -1;
+    }
+
+    //INCR option supports a single increment-element pair
+    if (incr && sortedSet.size() > 1) {
+        return -1;
+    }
+
+    /* The following vars are used in order to track what the command actually
+ * did during the execution, to reply to the client and to trigger the
+ * notification of keyspace change. */
+    int added = 0;      /* Number of new elements added. */
+    int updated = 0;    /* Number of elements with updated score. */
+    int processed = 0;  /* Number of elements processed, may remain zero with
+                           options like XX. */
+
+
+    leveldb::WriteBatch batch;
+
+    ZSetMetaVal zv;
+    std::string meta_key = encode_meta_key(name);
+    int ret = GetZSetMetaVal(meta_key, zv);
+    uint16_t cur_version = 0;
+    bool needCheck = false;
+
+    if (ret == -1) {
+        return -1;
+    } else if (ret == 0) {
+        needCheck = false;
+        if (zv.del == KEY_DELETE_MASK) {
+            if (zv.version == UINT16_MAX){
+                cur_version = 0;
+            } else{
+                cur_version = (uint16_t) (zv.version + 1);
+            }
+        } else {
+            cur_version = 0;
+
+        }
+    } else {
+        needCheck = true;
+        cur_version = zv.version;
+    }
+
+    double newscore;
+
+    for(auto const &it : sortedSet)
+    {
+        const Bytes &key = it.first;
+        const Bytes &val = it.second;
+
+        log_info("%s:%s" , hexmem(key.data(),key.size()).c_str(), hexmem(val.data(),val.size()).c_str());
+
+        double score = val.Double();
+        if (score > ZSET_SCORE_MAX || score < ZSET_SCORE_MIN) {
+            return -1;
+        }
+        int retflags = flags;
+
+        int retval = zsetAdd(this, batch ,needCheck, name, key, score, cur_version, &retflags, &newscore);
+        if (retval == -1) {
+            return -1;
+        }
+
+        if (retflags & ZADD_ADDED) added++;
+        if (retflags & ZADD_UPDATED) updated++;
+        if (!(retflags & ZADD_NOP)) processed++;
+
+    }
+
+
+    if (added > 0) {
+        if (incr_zsize(this, batch, name, added) == -1) {
+            log_error("incr_zsize error");
+            return -1;
+        }
+    }
+
+    leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
+    if (!s.ok()) {
+        log_error("zset error: %s", s.ToString().c_str());
+        return -1;
+    }
+
+    if (ch) {
+        return added+updated;
+    } else {
+        return added;
+    }
 }
 
 

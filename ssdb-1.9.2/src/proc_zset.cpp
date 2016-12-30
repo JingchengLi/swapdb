@@ -71,15 +71,25 @@ int proc_multi_zset(NetworkServer *net, Link *link, const Request &req, Response
 
 	int scoreidx = 2;
 	std::vector<Bytes>::const_iterator it = req.begin() + scoreidx;
-	for(; it != req.end(); it += 2){
-		const Bytes &key = *it;
-		if (key!="nx") flags |= ZADD_NX;
-		else if (key!="xx") flags |= ZADD_XX;
-		else if (key!="ch") flags |= ZADD_CH;
-		else if (key!="incr") flags |= ZADD_INCR;
-		else break;
-		scoreidx++;
-	}
+	for(; it != req.end(); it += 1){
+        std::string key = (*it).String();
+        strtolower(&key);
+
+		if (key=="nx") {
+            flags |= ZADD_NX;
+        } else if (key=="xx") {
+            flags |= ZADD_XX;
+        } else if (key=="ch") {
+            flags |= ZADD_CH;
+        } else if (key=="incr") {
+            flags |= ZADD_INCR;
+        }
+
+        if (key=="nx" || key=="xx" || key=="ch" || key=="incr") {
+            scoreidx++;
+        } else break;
+
+    }
 
 	if((req.size() + scoreidx - 2) % 2 != 0){
 		//wrong args
@@ -87,26 +97,44 @@ int proc_multi_zset(NetworkServer *net, Link *link, const Request &req, Response
 		return 0;
 	}
 
-	SortedSet<double> sortedSet;
+    int incr = (flags & ZADD_INCR) != 0;
+    int nx = (flags & ZADD_NX) != 0;
+    int xx = (flags & ZADD_XX) != 0;
+
+    /* XX and NX options at the same time are not compatible. */
+    if (nx && xx) {
+        resp->push_back("error");
+        return 0;
+    }
+
+    std::map<Bytes,Bytes> sortedSet;
 
 	it = req.begin() + scoreidx;
 	for(; it != req.end(); it += 2){
 		const Bytes &key = *it;
 		const Bytes &val = *(it + 1);
-
-		sortedSet.add(key.String(), key.Double());
-
-		int ret = serv->ssdb->multi_zset(name, sortedSet, flags);
-		if(ret == -1){
-			resp->push_back("error");
-			return 0;
-		}else{
-			num += ret;
-		}
+        if (nx) {
+            sortedSet.insert(make_pair(key,val));
+        } else {
+            sortedSet[key]=val;
+        }
 	}
 
+    //INCR option supports a single increment-element pair
+    if (incr && sortedSet.size() > 1) {
+        resp->push_back("error");
+        return 0;
+    }
 
-	resp->reply_int(0, num);
+    int ret = serv->ssdb->multi_zset(name, sortedSet, flags);
+    if(ret == -1){
+        resp->push_back("error");
+        return 0;
+    }else{
+        num += ret;
+    }
+
+    resp->reply_int(0, num);
 
 	return 0;
 }
