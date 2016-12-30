@@ -11,5 +11,8 @@ then
     echo "You need tcl 8.5 or newer in order to run the Redis test"
     exit 1
 fi
+
+mkdir -p ../jenkins/report/integration
+
 cd tests/qa/integration
 $TCLSH test_helper.tcl $*
