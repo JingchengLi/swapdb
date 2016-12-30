@@ -13,6 +13,7 @@ found in the LICENSE file.
 DEF_PROC(get);
 DEF_PROC(set);
 DEF_PROC(setx);
+DEF_PROC(psetx);
 DEF_PROC(setnx);
 DEF_PROC(getset);
 DEF_PROC(getbit);
@@ -36,6 +37,9 @@ DEF_PROC(ttl);
 DEF_PROC(pttl);
 DEF_PROC(expire);
 DEF_PROC(pexpire);
+DEF_PROC(expireat);
+DEF_PROC(pexpireat);
+DEF_PROC(persist);
 
 DEF_PROC(hsize);
 DEF_PROC(hget);
@@ -135,6 +139,7 @@ void SSDBServer::reg_procs(NetworkServer *net){
 	REG_PROC(set, "wt");
 	REG_PROC(del, "wt");
 	REG_PROC(setx, "wt");
+	REG_PROC(psetx, "wt");
 	REG_PROC(setnx, "wt");
 	REG_PROC(getset, "wt");
 	REG_PROC(getbit, "rt");
@@ -157,6 +162,9 @@ void SSDBServer::reg_procs(NetworkServer *net){
 	REG_PROC(pttl, "rt");
 	REG_PROC(expire, "wt");
 	REG_PROC(pexpire, "wt");
+	REG_PROC(expireat, "wt");
+	REG_PROC(pexpireat, "wt");
+	REG_PROC(persist, "wt");
 
 	REG_PROC(hsize, "rt");
 	REG_PROC(hget, "rt");
@@ -409,7 +417,7 @@ int proc_restore(NetworkServer *net, Link *link, const Request &req, Response *r
 
 	if (ret > 0 && ttl > 0) {
 		Locking l(&serv->expiration->mutex);
-		ret = serv->expiration->set_ttl(req[1], ttl, TimeUnit::Millisecond);
+		ret = serv->expiration->expire(req[1], ttl, TimeUnit::Millisecond);
 	}
 
 	if (ret < 0) {

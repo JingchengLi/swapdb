@@ -64,6 +64,11 @@ static RedisCommand_raw cmds_raw[] = {
 	{STRATEGY_AUTO, "pttl",		"pttl",			REPLY_INT},
 	{STRATEGY_AUTO, "expire",	"expire",		REPLY_INT},
 	{STRATEGY_AUTO, "pexpire",	"pexpire",		REPLY_INT},
+	{STRATEGY_AUTO, "expireat",	"expireat",		REPLY_INT},
+	{STRATEGY_AUTO, "pexpireat","pexpireat",    REPLY_INT},
+	{STRATEGY_AUTO, "persist","persist",    REPLY_INT},
+
+
 	{STRATEGY_AUTO, "getbit",	"getbit",		REPLY_INT},
 	{STRATEGY_AUTO, "setbit",	"setbit",		REPLY_INT},
 	{STRATEGY_AUTO, "strlen",	"strlen",		REPLY_INT},
@@ -120,6 +125,7 @@ static RedisCommand_raw cmds_raw[] = {
 	{STRATEGY_HKEYS,	"hkeys", 		"hkeys", 		REPLY_MULTI_BULK},
 	{STRATEGY_HVALS,	"hvals", 		"hvals", 		REPLY_MULTI_BULK},
 	{STRATEGY_SETEX,	"setex",		"setx", 		REPLY_STATUS},
+	{STRATEGY_SETEX,	"psetex",		"psetx", 		REPLY_STATUS},
 	{STRATEGY_ZRANGE,	"zrange",		"zrange",		REPLY_MULTI_BULK},
 	{STRATEGY_ZREVRANGE,"zrevrange",	"zrrange",		REPLY_MULTI_BULK},
 	{STRATEGY_ZADD,		"zadd",			"multi_zset", 	REPLY_INT},

@@ -48,14 +48,10 @@ void ExpirationHandler::stop() {
     }
 }
 
-int ExpirationHandler::set_ttl(const Bytes &key, int64_t ttl, TimeUnit tu) {
-    if (ttl <= 0){
-        int r = ssdb->del(key);
-        return r;
-    }
+int ExpirationHandler::expire(const Bytes &key, int64_t ttl, TimeUnit tu) {
 
     if (tu == TimeUnit::Second) {
-        if (INT64_MAX/1000 < ttl) {return -1;}
+        if (INT64_MAX / 1000 < ttl) { return -1; }
         ttl = ttl * 1000;
     } else if (tu == TimeUnit::Millisecond) {
         //nothing
@@ -64,18 +60,28 @@ int ExpirationHandler::set_ttl(const Bytes &key, int64_t ttl, TimeUnit tu) {
         return -1;
     }
 
-    int64_t expired = time_ms() + ttl;
+    int64_t pexpireat = time_ms() + ttl;
+    if (pexpireat <= time_ms()) {
+        int r = ssdb->del(key);
+        return r;
+    }
 
-    int ret = ssdb->eset(key, expired);
+    return expireAt(key, pexpireat);
+}
+
+
+int ExpirationHandler::expireAt(const Bytes &key, int64_t ts_ms) {
+
+    int ret = ssdb->eset(key, ts_ms);
     if (ret <= 0) {
         return ret;
     }
-    if (expired < first_timeout) {
-        first_timeout = expired;
+    if (ts_ms < first_timeout) {
+        first_timeout = ts_ms;
     }
     std::string s_key = key.String();
-    if (!fast_keys.empty() && expired <= fast_keys.max_score()) {
-        fast_keys.add(s_key, expired);
+    if (!fast_keys.empty() && ts_ms <= fast_keys.max_score()) {
+        fast_keys.add(s_key, ts_ms);
         if (fast_keys.size() > BATCH_SIZE) {
             fast_keys.pop_back();
         }
@@ -85,24 +91,26 @@ int ExpirationHandler::set_ttl(const Bytes &key, int64_t ttl, TimeUnit tu) {
     }
 
     return 1;
+
 }
 
 
-int ExpirationHandler::del_ttl(const Bytes &key) {
+int ExpirationHandler::persist(const Bytes &key) {
     // 这样用是有 bug 的, 虽然 fast_keys 为空, 不代表整个 ttl 队列为空
     // if(!this->fast_keys.empty()){
+    int ret = 0;
     if (first_timeout != INT64_MAX) {
         fast_keys.del(key.String());
-        ssdb->edel(key);
+        ret = ssdb->edel(key);
     }
-    return 0;
+    return ret;
 }
 
-int64_t ExpirationHandler::get_ttl(const Bytes &key, TimeUnit tu) {
+int64_t ExpirationHandler::pttl(const Bytes &key, TimeUnit tu) {
     int64_t ex = 0;
     int64_t ttl = 0;
     int ret = ssdb->check_meta_key(key);
-    if (ret <= 0){
+    if (ret <= 0) {
         return -2;
     }
     ret = ssdb->eget(key, &ex);
@@ -111,7 +119,7 @@ int64_t ExpirationHandler::get_ttl(const Bytes &key, TimeUnit tu) {
         if (ttl < 0) return -2;;
 
         if (tu == TimeUnit::Second) {
-            return (ttl+500) / 1000;
+            return (ttl + 500) / 1000;
         } else if (tu == TimeUnit::Millisecond) {
             return (ttl);
         } else {
@@ -185,3 +193,4 @@ void *ExpirationHandler::thread_func(void *arg) {
     handler->thread_quit = false;
     return (void *) NULL;
 }
+

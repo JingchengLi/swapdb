@@ -68,7 +68,34 @@ int proc_setx(NetworkServer *net, Link *link, const Request &req, Response *resp
 		resp->push_back("error");
 		return 0;
 	}
-	ret = serv->expiration->set_ttl(req[1], ttl, TimeUnit::Second);
+	ret = serv->expiration->expire(req[1], ttl, TimeUnit::Second);
+	if(ret == -1){
+		resp->push_back("error");
+	}else{
+		resp->push_back("ok");
+		resp->push_back("1");
+	}
+	return 0;
+}
+
+int proc_psetx(NetworkServer *net, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *)net->data;
+	CHECK_NUM_PARAMS(4);
+
+	int64_t ttl = req[3].Int64();
+	if (errno == EINVAL || ttl <= 0){
+		resp->push_back("error");
+		return 0;
+	}
+
+	Locking l(&serv->expiration->mutex);
+	int ret;
+	ret = serv->ssdb->set(req[1], req[2]);
+	if(ret == -1){
+		resp->push_back("error");
+		return 0;
+	}
+	ret = serv->expiration->expire(req[1], ttl, TimeUnit::Millisecond);
 	if(ret == -1){
 		resp->push_back("error");
 	}else{
@@ -82,7 +109,7 @@ int proc_pttl(NetworkServer *net, Link *link, const Request &req, Response *resp
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(2);
 
-	int64_t ttl = serv->expiration->get_ttl(req[1], TimeUnit::Millisecond);
+	int64_t ttl = serv->expiration->pttl(req[1], TimeUnit::Millisecond);
 	resp->push_back("ok");
 	resp->push_back(str(ttl));
 	return 0;
@@ -92,7 +119,7 @@ int proc_ttl(NetworkServer *net, Link *link, const Request &req, Response *resp)
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(2);
 
-	int64_t ttl = serv->expiration->get_ttl(req[1], TimeUnit::Second);
+	int64_t ttl = serv->expiration->pttl(req[1], TimeUnit::Second);
 	resp->push_back("ok");
 	resp->push_back(str(ttl));
 	return 0;
@@ -110,7 +137,7 @@ int proc_pexpire(NetworkServer *net, Link *link, const Request &req, Response *r
 
     Locking l(&serv->expiration->mutex);
     std::string val;
-    int ret = serv->expiration->set_ttl(req[1], ttl, TimeUnit::Millisecond);
+    int ret = serv->expiration->expire(req[1], ttl, TimeUnit::Millisecond);
     if(ret == 1){
         resp->push_back("ok");
         resp->push_back("1");
@@ -135,7 +162,76 @@ int proc_expire(NetworkServer *net, Link *link, const Request &req, Response *re
 
 	Locking l(&serv->expiration->mutex);
 	std::string val;
-	int ret = serv->expiration->set_ttl(req[1], ttl, TimeUnit::Second);
+	int ret = serv->expiration->expire(req[1], ttl, TimeUnit::Second);
+	if(ret == 1){
+		resp->push_back("ok");
+		resp->push_back("1");
+	} else if (ret == 0){
+		resp->push_back("ok");
+		resp->push_back("0");
+	} else{
+		resp->push_back("error");
+	}
+	return 0;
+}
+
+int proc_expireat(NetworkServer *net, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *)net->data;
+	CHECK_NUM_PARAMS(3);
+
+	int64_t ts_ms = req[2].Int64();
+	if (errno == EINVAL){
+		resp->push_back("error");
+		return 0;
+	}
+
+	Locking l(&serv->expiration->mutex);
+	std::string val;
+	int ret = serv->expiration->expireAt(req[1], ts_ms * 1000);
+	if(ret == 1){
+		resp->push_back("ok");
+		resp->push_back("1");
+	} else if (ret == 0){
+		resp->push_back("ok");
+		resp->push_back("0");
+	} else{
+		resp->push_back("error");
+	}
+	return 0;
+}
+
+int proc_persist(NetworkServer *net, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *)net->data;
+	CHECK_NUM_PARAMS(2);
+
+	Locking l(&serv->expiration->mutex);
+	std::string val;
+	int ret = serv->expiration->persist(req[1]);
+	if(ret == 1){
+		resp->push_back("ok");
+		resp->push_back("1");
+	} else if (ret == 0){
+		resp->push_back("ok");
+		resp->push_back("0");
+	} else{
+		resp->push_back("error");
+	}
+	return 0;
+}
+
+int proc_pexpireat(NetworkServer *net, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *)net->data;
+	CHECK_NUM_PARAMS(3);
+
+	int64_t ts_ms = req[2].Int64();
+	if (errno == EINVAL){
+		resp->push_back("error");
+		return 0;
+	}
+
+	Locking l(&serv->expiration->mutex);
+	std::string val;
+	int ret = serv->expiration->expireAt(req[1], ts_ms);
 	if(ret == 1){
 		resp->push_back("ok");
 		resp->push_back("1");
@@ -202,7 +298,7 @@ int proc_multi_del(NetworkServer *net, Link *link, const Request &req, Response 
 	}else{
 		for(Request::const_iterator it=req.begin()+1; it!=req.end(); it++){
 			const Bytes key = *it;
-			serv->expiration->del_ttl(key);
+			serv->expiration->persist(key);
 		}
 		resp->reply_int(0, ret);
 	}
@@ -237,7 +333,7 @@ int proc_del(NetworkServer *net, Link *link, const Request &req, Response *resp)
 		resp->push_back("not_found");
 		resp->push_back("0");
 	} else{
-		serv->expiration->del_ttl(req[1]);
+		serv->expiration->persist(req[1]);
 
 		resp->push_back("ok");
 		resp->push_back(str(ret));
