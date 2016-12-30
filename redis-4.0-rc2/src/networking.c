@@ -1466,7 +1466,7 @@ void processInputBuffer(client *c) {
             if (server.jdjr_mode
                 && c->argc > 1
                 && !dictFind(c->db->dict, c->argv[1]->ptr)
-                && dictFind(EVICTED_DATA_DB->dict, c->argv[1]->ptr)
+                && lookupKey(EVICTED_DATA_DB, c->argv[1], LOOKUP_NONE)
                 && sendCommandToSSDB(c, NULL) == C_OK)
                 resetClient(c);
             else if (processCommand(c) == C_OK)
