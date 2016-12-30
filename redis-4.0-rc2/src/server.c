@@ -302,6 +302,7 @@ struct redisCommand redisCommandTable[] = {
     {"host:",securityWarningCommand,-1,"lt",0,NULL,0,0,0,0,0},
     {"latency",latencyCommand,-2,"aslt",0,NULL,0,0,0,0,0},
     {"customized-del",customizedDelCommand,-2,"w",0,NULL,1,-1,1,0,0},
+    {"customized-restorefail",customizedRestorFailCommand,-2,"",0,NULL,1,-1,1,0,0},
 };
 
 /*============================ Utility functions ============================ */
@@ -1167,10 +1168,15 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
     return 1000/server.hz;
 }
 
+#define EVICTED_TO_SSDB_SCALE_THREHOLD 0.8
 void startToEvictIfNeeded() {
+    if (!(server.maxmemory_policy & (MAXMEMORY_FLAG_LRU|MAXMEMORY_FLAG_LFU)))
+        return;
+
     /* TODO: make the strategy to evict keys to SSDB.
        factors: serve.maxmemory, zmalloc_used_memory, etc.*/
-    tryEvictingKeysToSSDB();
+    if (zmalloc_used_memory() >= server.maxmemory * EVICTED_TO_SSDB_SCALE_THREHOLD)
+        tryEvictingKeysToSSDB();
 }
 
 /* This function gets called every time Redis is entering the

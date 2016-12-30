@@ -1943,7 +1943,7 @@ void latencyCommand(client *c);
 void moduleCommand(client *c);
 void securityWarningCommand(client *c);
 void customizedDelCommand(client *c);
-
+void customizedRestorFailCommand(client *c);
 #if defined(__GNUC__)
 void *calloc(size_t count, size_t size) __attribute__ ((deprecated));
 void free(void *ptr) __attribute__ ((deprecated));
