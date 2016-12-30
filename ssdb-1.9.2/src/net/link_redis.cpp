@@ -196,7 +196,7 @@ int RedisLink::convert_req(){
 			recv_string.push_back(recv_bytes[1].String());
 			for(int i=2; i<=recv_bytes.size()-2; i+=2){
 				recv_string.push_back(recv_bytes[i+1].String());
-				int64_t score = (int64_t)recv_bytes[i].Double();
+				double score = recv_bytes[i].Double();
 				recv_string.push_back(str(score));
 			}
 		}
