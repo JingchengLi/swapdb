@@ -691,7 +691,7 @@ int SSDBImpl::dump(const Bytes &key, std::string *res) {
 int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool replace, std::string *res) {
     *res = "none";
 
-//    RecordLock l(&mutex_record_, key.String());
+    RecordLock l(&mutex_record_, key.String());
 
     int ret = 0;
     std::string meta_val;
@@ -811,26 +811,36 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
 
         case RDB_TYPE_ZSET_2:
         case RDB_TYPE_ZSET: {
-
             if ((len = rdbDecoder.rdbLoadLen(NULL)) == RDB_LENERR) return -1;
 
-            while (len--) {
+            std::map<std::string,std::string> tmp_map;
+            std::map<Bytes,Bytes> sorted_set;
 
+            while (len--) {
                 std::string r = rdbDecoder.rdbGenericLoadStringObject(&ret);
                 if (ret != 0) {
                     return ret;
                 }
 
                 double score;
-
                 if (rdbtype == RDB_TYPE_ZSET_2) {
                     if (rdbDecoder.rdbLoadBinaryDoubleValue(&score) == -1) return -1;
                 } else {
                     if (rdbDecoder.rdbLoadDoubleValue(&score) == -1) return -1;
                 }
 
-                zset(key, r, str(score));
+                tmp_map[r] = str(score);
             }
+
+            for(auto const &it : tmp_map)
+            {
+                const std::string &field_key = it.first;
+                const std::string &field_value = it.second;
+
+                sorted_set[Bytes(field_key)] = Bytes(field_value);
+            }
+
+            ret = zsetNoLock(key, sorted_set, ZADD_NONE);
 
             break;
         }
@@ -980,22 +990,32 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
                 return ret;
             }
 
+            std::map<std::string,std::string> tmp_map;
+            std::map<Bytes,Bytes> sorted_set;
+
             unsigned char *zl = (unsigned char *) zipListStr.data();
             unsigned char *p = ziplistIndex(zl, 0);
 
             std::string t_item;
             while (getNextString(zl, &p, t_item)) {
-
                 std::string value;
                     if(getNextString(zl, &p, value)) {
-                        zset(key, t_item, value);
-
+                        tmp_map[t_item] = value;
                     } else {
                         log_error("value not found ");
                         return -1;
                     }
             }
 
+            for(auto const &it : tmp_map)
+            {
+                const std::string &field_key = it.first;
+                const std::string &field_value = it.second;
+
+                sorted_set[Bytes(field_key)] = Bytes(field_value);
+            }
+
+            ret = zsetNoLock(key, sorted_set, ZADD_NONE);
 
             break;
         }
