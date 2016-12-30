@@ -1449,3 +1449,23 @@ unsigned int countKeysInSlot(unsigned int hashslot) {
     }
     return count;
 }
+
+void customizedDelCommand(client *c) {
+    robj *keyobj;
+    int numdel = 0, j;
+
+    if (!server.jdjr_mode) {
+        addReplyErrorFormat(c,"Command only supported in jdjr-mode '%s'",
+                            (char*)c->argv[0]->ptr);
+        return;
+    }
+
+    for (j = 1; j < c->argc; j ++) {
+        keyobj = c->argv[j];
+        if (epilogOfEvictingToSSDB(keyobj) == C_OK) {
+            serverLog(LL_DEBUG, "customizedDelCommand dictDelete ok.");
+            numdel ++;
+        }
+    }
+    addReplyLongLong(c, numdel);
+}

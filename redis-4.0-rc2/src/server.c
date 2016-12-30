@@ -300,7 +300,8 @@ struct redisCommand redisCommandTable[] = {
     {"pfdebug",pfdebugCommand,-3,"w",0,NULL,0,0,0,0,0},
     {"post",securityWarningCommand,-1,"lt",0,NULL,0,0,0,0,0},
     {"host:",securityWarningCommand,-1,"lt",0,NULL,0,0,0,0,0},
-    {"latency",latencyCommand,-2,"aslt",0,NULL,0,0,0,0,0}
+    {"latency",latencyCommand,-2,"aslt",0,NULL,0,0,0,0,0},
+    {"customized-del",customizedDelCommand,-2,"w",0,NULL,1,-1,1,0,0},
 };
 
 /*============================ Utility functions ============================ */
@@ -702,6 +703,10 @@ void tryResizeHashTables(int dbid) {
         dictResize(server.db[dbid].dict);
     if (htNeedsResize(server.db[dbid].expires))
         dictResize(server.db[dbid].expires);
+
+    if (server.jdjr_mode && dbid == EVICTED_DATA_DBID
+        && htNeedsResize(server.db[dbid].transferring_keys))
+        dictResize(server.db[dbid].transferring_keys);
 }
 
 /* Our hash table implementation performs rehashing incrementally while
@@ -893,6 +898,9 @@ void databasesCron(void) {
             tryResizeHashTables(resize_db % server.dbnum);
             resize_db++;
         }
+
+        if (server.jdjr_mode)
+            tryResizeHashTables(EVICTED_DATA_DBID);
 
         /* Rehash */
         if (server.activerehashing) {
@@ -2211,6 +2219,12 @@ void call(client *c, int flags) {
         if (c->flags & CLIENT_PREVENT_AOF_PROP ||
             !(flags & CMD_CALL_PROPAGATE_AOF))
                 propagate_flags &= ~PROPAGATE_AOF;
+
+        /* customizedDelCommand is a phony command that wraps a del command
+           in jdjr-mode. */
+        if (server.jdjr_mode
+            && c->cmd->proc == customizedDelCommand)
+            propagate_flags = PROPAGATE_NONE;
 
         /* Call propagate() only if at least one of AOF / replication
          * propagation is needed. */

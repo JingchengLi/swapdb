@@ -204,11 +204,6 @@ void coldKeyPopulate(int dbid, dict *sampledict, dict *keydict, struct evictionP
         /*     continue; */
         /* } */
 
-        if (dictFind(EVICTED_DATA_DB->transferring_keys, key) != NULL) {
-            serverLog(LL_DEBUG, "The key is already in EVICTED_DATA_DB->transferring_keys.");
-            continue;
-        }
-
         /* Insert the element inside the pool.
          * First, find the first empty bucket or the first populated
          * bucket that has an idle time smaller than our idle time. */
@@ -466,14 +461,20 @@ int epilogOfEvictingToSSDB(robj *keyobj) {
     int dbid = getTransferringDB(keyobj);
     int slaves = listLength(server.slaves);
 
-    if (dbid == -1) return C_ERR;
+    if (dbid == -1) {
+        serverLog(LL_WARNING, "The key: %s should be found.", (char *)keyobj->ptr);
+        return C_ERR;
+    }
 
     db = server.db + dbid;
     expiretime = getExpire(db, keyobj);
 
     /* Only transfer effective data. */
-    if (expiretime > 0 && now > expiretime)
-        return C_ERR;
+    if (expiretime > 0 && now > expiretime) {
+        expireIfNeeded(db, keyobj);
+        serverLog(LL_DEBUG, "The key: %s has expired.", (char *)keyobj->ptr);
+        return C_OK;
+    }
 
     /* Record the evicted keys in an extra redis db. */
     setKey(evicteddb, keyobj, shared.space);
@@ -545,7 +546,6 @@ int epilogOfEvictingToSSDB(robj *keyobj) {
     server.stat_ssdbkeys++;
     notifyKeyspaceEvent(NOTIFY_EVICTED, "transfer-to-SSDB",
                         keyobj, db->id);
-    decrRefCount(keyobj);
 
     /* When the memory to free starts to be big enough, we may
      * start spending so much time here that is impossible to
@@ -647,8 +647,12 @@ int tryEvictingKeysToSSDB(void) {
         }
     }
 
-    /* Finally remove the selected key. */
+    /* Try to remove the selected key. */
     if (bestkey) {
+        if (dictFind(EVICTED_DATA_DB->transferring_keys, bestkey) != NULL) {
+            return C_ERR;
+        }
+
         db = server.db+bestdbid;
         robj *keyobj = createStringObject(bestkey,sdslen(bestkey));
 

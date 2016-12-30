@@ -1753,6 +1753,8 @@ void disconnectAllBlockedClients(void);
 
 /* expire.c -- Handling of expired keys */
 void activeExpireCycle(int type);
+/* expire.c -- Handling of evicting keys to SSDB. */
+int epilogOfEvictingToSSDB(robj *keyobj);
 
 /* evict.c -- maxmemory handling and LRU eviction. */
 void evictionPoolAlloc(void);
@@ -1940,6 +1942,7 @@ void pfdebugCommand(client *c);
 void latencyCommand(client *c);
 void moduleCommand(client *c);
 void securityWarningCommand(client *c);
+void customizedDelCommand(client *c);
 
 #if defined(__GNUC__)
 void *calloc(size_t count, size_t size) __attribute__ ((deprecated));
