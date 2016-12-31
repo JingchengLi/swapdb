@@ -563,8 +563,13 @@ int prologOfEvictingToSSDB(robj *keyobj, redisDb *db) {
         return C_ERR;
 
     if (expiretime != -1) {
+        /* todo: to optimize for keys with very little ttl time, we
+         * don't transfer but let redis expire them. */
         ttl = expiretime - now;
         if (ttl < 1) ttl = 1;
+    } else {
+        // for 'restore' command, when ttl is 0 the key is created without any expire
+        ttl = 0;
     }
 
     rioInitWithBuffer(&cmd, sdsempty());
