@@ -455,7 +455,7 @@ int epilogOfEvictingToSSDB(robj *keyobj) {
     char llbuf[32] = {0};
     redisDb *evicteddb = server.db + EVICTED_DATA_DBID, *db;
     mstime_t eviction_latency;
-    robj *llbufobj, *setcmd;
+    robj *setcmd;
     sds cmdname;
     long long now = mstime(), expiretime;
     int dbid = getTransferringDB(keyobj);
@@ -497,15 +497,11 @@ int epilogOfEvictingToSSDB(robj *keyobj) {
         ll2string(llbuf, sizeof(llbuf), expiretime);
         notifyKeyspaceEvent(NOTIFY_GENERIC,
                             "expire", keyobj, evicteddb->id);
-    } else
-        ll2string(llbuf, sizeof(llbuf), 0);
 
-    llbufobj = createObject(OBJ_STRING, (void *)(sdsnew(llbuf)));
-
-    /* Append expire operation to aof if necessary. */
-    if (expiretime > 0) {
-        sds cmdname = sdsnew("expire");
+        /* Append expire operation to aof if necessary. */
+        robj *llbufobj = createObject(OBJ_STRING, (void *)(sdsnew(llbuf)));
         robj *expirecmd = createObject(OBJ_STRING, (void *)cmdname);
+        sds cmdname = sdsnew("expire");
         robj *expireArgv[3] = {expirecmd, keyobj, llbufobj};
 
         propagate(lookupCommand(cmdname), EVICTED_DATA_DBID, expireArgv, 3,
@@ -709,8 +705,11 @@ int freeMemoryIfNeeded(void) {
     /* Check if we are still over the memory limit. */
     if (mem_used <= server.maxmemory) return C_OK;
 
+    // todo: remove below commented codes
+    /* review by lijingcheng: we shoudn't prohibit memory data eviction even if in
+     * jdjr_mode, this is due to maxmory policy specified by our users. */
     /* Forbid free memory in jdjr_mode. */
-    if (server.jdjr_mode) goto cant_free;
+    //if (server.jdjr_mode) goto cant_free;
 
     /* Compute how much memory we need to free. */
     mem_tofree = mem_used - server.maxmemory;
