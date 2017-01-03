@@ -9,7 +9,7 @@ found in the LICENSE file.
 #include <vector>
 #include <string>
 #include "../util/bytes.h"
-#include "redis/reponse_redis.h"
+#include "reponse_redis.h"
 
 struct RedisRequestDesc
 {

@@ -233,3 +233,8 @@ ELSE()
 ENDIF()
 
 ADD_EXECUTABLE(hello-ssdb ${CLIENT_OBJS})
+
+
+ADD_EXECUTABLE(test_link src/net/test_link.cpp)
+TARGET_LINK_LIBRARIES(test_link libutil-static libnet-static libcodec-static)
+

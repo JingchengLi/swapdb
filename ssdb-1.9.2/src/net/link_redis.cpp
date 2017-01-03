@@ -381,14 +381,15 @@ int RedisLink::convert_req(){
 
 
 RedisReponse *RedisLink::recv_res(Buffer *input) {
+	RedisReponse *r = new RedisReponse();
+
 	if (input->empty()) {
-		return NULL;
+		r->status = -2;
+		return r;
 	}
 
 	int size = input->size();
 	char *head = input->data();
-
-	RedisReponse *r = new RedisReponse();
 
 	char *body = (char *) memchr(head, '\n', size);
 	if (body == NULL) {
@@ -410,13 +411,8 @@ RedisReponse *RedisLink::recv_res(Buffer *input) {
 	std::string line = std::string(head + 1, head_len - 3);
 	input->decr(head_len);
 
-	if (line.length() < 2) {
-		r->status = -1;
-		return r;
-	}
 
-
-	switch (line[0]) {
+	switch (*head) {
 		case '-' : {
 			r->type = REDIS_REPLY_ERROR;
 			r->str = line;
