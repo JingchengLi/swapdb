@@ -201,8 +201,8 @@ TEST_F(RDBTest, Test_rdb_ttl_dump_restore) {
     s = client->get(key, &getVal);
     ASSERT_EQ(val, getVal)<<"string type with ttl>0 restore wrong val!"<<endl;
 
-    s = client->ttl(key, &ret);
-    EXPECT_TRUE(ret >= 3000 && ret <= 5000)<<"ttl should near "<<ttl<<endl;
+    s = client->pttl(key, &ret);
+    EXPECT_TRUE(ret >= 3000 && ret <= 5000)<<ret<<" ttl should near "<<ttl<<endl;
 
     client->del(key);
     ttl = 2569591501;
@@ -211,8 +211,8 @@ TEST_F(RDBTest, Test_rdb_ttl_dump_restore) {
     s = client->get(key, &getVal);
     ASSERT_EQ(val, getVal)<<"string type with ttl overflow 32 bit integer restore wrong val!"<<endl;
 
-    s = client->ttl(key, &ret);
-    EXPECT_TRUE(ret >= 2569591501-3000 && ret <= 2569591501)<<"ttl should near "<<ttl<<endl;
+    s = client->pttl(key, &ret);
+    EXPECT_TRUE(ret >= 2569591501-3000 && ret <= 2569591501)<<ret<<" ttl should near "<<ttl<<endl;
 
     client->del(key);
 }
@@ -245,7 +245,9 @@ TEST_F(RDBTest, Test_rdb_syntax_dump_restore) {
     client->del(key);
 
     dumpVal.clear();
+
     s = client->dump(key, &dumpVal);
-    EXPECT_EQ("not_found",s.code())<<"dump non existing key should not found."<<endl;
-    EXPECT_TRUE(dumpVal.empty())<<"dump non existing key return nil."<<endl;
+    EXPECT_EQ("not_found",s.code())<<"dump non existing key should not found:"<<s.code()<<endl;
+    EXPECT_TRUE(dumpVal.empty())<<dumpVal<<"dump non existing key return nil:"<<endl;
+    client->del(key);
 }

@@ -392,7 +392,7 @@ TEST_F(ZsetTest, Test_zset_zrange) {
     ASSERT_NEAR(0, atof(list[3].data()), eps);
     list.clear();
     s = client->zrange(key, 0, 3, &list);
-    ASSERT_EQ(6, list.size());
+    ASSERT_EQ(8, list.size());
     ASSERT_EQ(field + '0', list[0]);
     ASSERT_NEAR(-2.5, atof(list[1].data()), eps);
     s = client->del(key);
@@ -431,7 +431,7 @@ TEST_F(ZsetTest, Test_zset_zrevrange) {
     ASSERT_NEAR(-2.4, atof(list[3].data()), eps);
     list.clear();
     s = client->zrrange(key, 0, 3, &list);
-    ASSERT_EQ(6, list.size());
+    ASSERT_EQ(8, list.size());
     ASSERT_EQ(field + '3', list[0]);
     ASSERT_NEAR(1, atof(list[1].data()), eps);
     s = client->del(key);

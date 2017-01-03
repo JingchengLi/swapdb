@@ -10,6 +10,7 @@
 
 //log info when set true
 const bool LDEBUG = false;
+bool midStateFlag;
 
 using namespace std;
 
@@ -18,7 +19,7 @@ class RobustTest : public SSDBTest
     public:
         ssdb::Status s;
         static const int BIG_KEY_NUM = 10000;
-        static const int threadsNum = 9;
+        static const int threadsNum = 50;
         std::vector<std::string> list;
         std::vector<std::string> keys;
         std::map<std::string, std::string> kvs;
@@ -56,6 +57,9 @@ void* RobustTest::mset_thread_func(void *arg) {
 }
 
 void* RobustTest::mget_thread_func(void *arg) {
+    if(midStateFlag == true)
+        return (void *)NULL;
+
     if(LDEBUG)
         cout<<"mget_thread_func start!"<<endl; 
     RobustTest* robustTest = (RobustTest*)arg;
@@ -75,9 +79,11 @@ void* RobustTest::mget_thread_func(void *arg) {
     robustTest->s = tmpclient->multi_get(robustTest->keys, &tmplist);
     if(!robustTest->s.ok())
         cout<<"set fail!"<<robustTest->s.code()<<endl;
-    if(LDEBUG)
-        cout<<"Get list size is:"<<tmplist.size()/2<<endl;
-
+    if(BIG_KEY_NUM!=tmplist.size()/2&&0!=tmplist.size())
+    {
+        cout<<"Get mid state list size is:"<<tmplist.size()/2<<endl;
+        midStateFlag = true;
+    }
 
     delete tmpclient;
     tmpclient = NULL;
@@ -146,11 +152,12 @@ TEST_F(RobustTest, Test_bigkey_hash_del) {
 TEST_F(RobustTest, Test_mset_mget_mthreads) {
     key = "key";
     val = "val";
-    keysNum = 10000;
+    keysNum = BIG_KEY_NUM;
     keys.clear();
     kvs.clear();
     void * status;
     int setThreads = 1;
+    midStateFlag = false;
     for(int n = 0;n < keysNum; n++)
     {
         keys.push_back(key+itoa(n));
@@ -164,21 +171,20 @@ TEST_F(RobustTest, Test_mset_mget_mthreads) {
     for(int n = 0; n < setThreads; n++)
     {
         pthread_create(&bg_tid[n], NULL, &mset_thread_func, this);
-        usleep(100*1000);
+        usleep(10*1000);
     }
 
     for(int n = setThreads; n < threadsNum; n++)
     {
         pthread_create(&bg_tid[n], NULL, &mget_thread_func, this);
-        usleep(100*1000);
+        usleep(20*1000);
     }
 
     for(int n = 0; n < threadsNum; n++)
     {
         pthread_join(bg_tid[n], &status);
-        if(LDEBUG)
-            cout<<"thread["<<n<<"] return status:"<<status<<endl;
     }
+    EXPECT_EQ(false, midStateFlag)<<"Multi threads Read mid state when write key!" <<endl;
 
     list.clear();
     s = client->multi_get(keys, &list);
