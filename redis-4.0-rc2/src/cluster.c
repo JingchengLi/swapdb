@@ -478,7 +478,6 @@ void clusterInit(void) {
 
     /* The slots -> keys map is a sorted set. Init it. */
     server.cluster->slots_to_keys = zslCreate();
-    server.cluster->slots_to_ssdb_keys = zslCreate();
 
     /* Set myself->port / cport to my listening ports, we'll just need to
      * discover the IP address via MEET messages. */
