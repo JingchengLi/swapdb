@@ -433,7 +433,7 @@ RedisReponse *RedisLink::recv_res(Buffer *input) {
 		};
 		case '$' : {
 			r->type = REDIS_REPLY_STRING;
-			if (line.length() == 3 && line[1] == '-' && line[2] == '1') {
+			if (line.length() == 2 && line[0] == '-' && line[1] == '1') {
 				r->type = REDIS_REPLY_NIL;
 				r->status = 1;
 				break;
@@ -455,7 +455,7 @@ RedisReponse *RedisLink::recv_res(Buffer *input) {
 		case '*': {
 			r->type = REDIS_REPLY_ARRAY;
 
-			if (line.length() == 3 && line[1] == '-' && line[2] == '1') {
+			if (line.length() == 2 && line[0] == '-' && line[1] == '1') {
 				r->type = REDIS_REPLY_NIL;
 				r->status = 1;
 				break;

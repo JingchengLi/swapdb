@@ -17,6 +17,13 @@ int main(int argc, char **argv) {
     dump(res.data(),res.size());
 
 
+    req.clear();
+    req.push_back("dump");
+    req.push_back("a");
+
+    res = link->redisRequest(req)->toString();
+    dump(res.data(),res.size());
+
 
 
 
