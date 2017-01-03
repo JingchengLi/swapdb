@@ -1409,14 +1409,6 @@ unsigned int countKeysInSlot(unsigned int hashslot) {
     return count;
 }
 
-unsigned int countKeysInSlot(unsigned int hashslot) {
-    unsigned int count = countKeysInSlotHelper(server.cluster->slots_to_keys, hashslot);
-    if (server.jdjr_mode) {
-        count += countKeysInSlotHelper(server.cluster->slots_to_ssdb_keys, hashslot);
-    }
-    return count;
-}
-
 void customizedDelCommand(client *c) {
     robj *keyobj;
     int numdel = 0, j;
