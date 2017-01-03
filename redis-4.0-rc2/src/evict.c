@@ -500,8 +500,8 @@ int epilogOfEvictingToSSDB(robj *keyobj) {
 
         /* Append expire operation to aof if necessary. */
         robj *llbufobj = createObject(OBJ_STRING, (void *)(sdsnew(llbuf)));
-        robj *expirecmd = createObject(OBJ_STRING, (void *)cmdname);
         sds cmdname = sdsnew("expire");
+        robj *expirecmd = createObject(OBJ_STRING, (void *)cmdname);
         robj *expireArgv[3] = {expirecmd, keyobj, llbufobj};
 
         propagate(lookupCommand(cmdname), EVICTED_DATA_DBID, expireArgv, 3,
