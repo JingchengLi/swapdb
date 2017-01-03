@@ -37,6 +37,7 @@ public:
 	BackendDump *backend_dump;
 	BackendSync *backend_sync;
 	ExpirationHandler *expiration;
+//	BackgroudJob *backgroundJob = nullptr;
 	std::vector<Slave *> slaves;
 	std::vector<Slave_info> slave_infos;
 	Link*	master_link;

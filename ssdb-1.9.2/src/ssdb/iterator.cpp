@@ -309,3 +309,48 @@ bool EIterator::next(){
 	}
 	return false;
 }
+
+
+
+BIterator::BIterator(Iterator *it){
+	this->it = it;
+}
+
+BIterator::~BIterator(){
+	delete it;
+}
+
+bool BIterator::skip(uint64_t offset){
+	while(offset-- > 0){
+		if(this->next() == false){
+			return false;
+		}
+	}
+	return true;
+}
+
+bool BIterator::next(){
+	while(it->next()){
+		Bytes ks = it->key();
+		Bytes vs = it->val();
+//		dump(ks.data(), ks.size(), "z.next");
+//		dump(vs.data(), vs.size(), "z.next");
+
+		if (ks.size() < 1 || ks.data()[0] != DataType::BQUEUE) {
+			return false;
+		}
+
+		BQueueKey bQueueKey;
+		if(bQueueKey.DecodeBQueueKey(ks.String()) == -1){
+			continue;
+		}
+
+		key = bQueueKey.key;
+		value = vs.String();
+		type = bQueueKey.type;
+
+ 		return true;
+
+	}
+	return false;
+}

@@ -144,4 +144,20 @@ public:
 private:
 	Iterator *it;
 };
+
+
+class BIterator{
+public:
+	std::string key;
+	std::string value;
+	uint16_t    type;
+
+	BIterator(Iterator *it);
+	~BIterator();
+	bool skip(uint64_t offset);
+	bool next();
+
+private:
+	Iterator *it;
+};
 #endif

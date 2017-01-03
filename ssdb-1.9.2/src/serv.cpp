@@ -9,6 +9,7 @@ found in the LICENSE file.
 #include "serv.h"
 #include "net/proc.h"
 #include "net/server.h"
+#include "ssdb/background_job.h"
 
 DEF_PROC(get);
 DEF_PROC(set);
@@ -277,8 +278,21 @@ SSDBServer::SSDBServer(SSDB *ssdb, SSDB *meta, const Config &conf, NetworkServer
 	backend_dump = new BackendDump(this->ssdb);
 	backend_sync = new BackendSync(this->ssdb, sync_speed);
 	expiration = new ExpirationHandler(this->ssdb);
-	
 
+
+	{
+		const Config *upstream_conf = conf.get("upstream");
+		if(upstream_conf != NULL) {
+			std::string ip = conf.get_str("upstream.ip");
+			int port = conf.get_num("upstream.port");
+
+			log_info("upstream: %s:%d", ip.c_str(), port);
+
+			RedisUpstream redisUpstream(ip ,port);
+			BackgroudJob* backgroundJob = new BackgroudJob(this->ssdb, redisUpstream);
+
+		}
+	}
 
 	{ // slaves
 		const Config *repl_conf = conf.get("replication");
@@ -334,6 +348,10 @@ SSDBServer::~SSDBServer(){
 	delete backend_dump;
 	delete backend_sync;
 	delete expiration;
+
+//	if (backgroundJob != nullptr) {
+//		delete backgroundJob;
+//	}
 
 	log_debug("SSDBServer finalized");
 }

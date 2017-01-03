@@ -31,6 +31,7 @@ public:
 	static const char ZSET		= 's'; // TODO CHAECK AND DELETE !   key => score
 	static const char ZSCORE	= 'z';
 
+	static const char BQUEUE	= 'B'; // background queue
 	static const char ESCORE	= 'T'; // expire key
 	static const char EKEY   	= 'E'; // expire timestamp key
 	static const char QUEUE		= 'q'; // TODO CHAECK AND DELETE !

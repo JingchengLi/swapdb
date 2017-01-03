@@ -105,60 +105,13 @@ class Link{
 		const std::vector<Bytes>* request(const Bytes &s1, const Bytes &s2, const Bytes &s3, const Bytes &s4, const Bytes &s5);
 
 
-    RedisReponse* redisrecv() {
-		// Redis protocol supports
-        // - + : $
-        if (redis == NULL) {
-            redis = new RedisLink();
-        }
+		RedisReponse* redisrecv();
 
-        return redis->recv_res(input);
-	}
+		RedisReponse* redisResponse();
 
-    RedisReponse* redisResponse() {
-        while (1) {
-            RedisReponse *resp = this->redisrecv();
-            if (resp == NULL) {
-                return NULL;
-            } else if (resp->status == -2) { //retry
-                delete resp;
-                if (this->read() <= 0) {
-                    return NULL;
-                }
-            } else {
-                return resp;
-            }
-        }
-        return NULL;
-    }
+		int redisRequestSend(const std::vector<std::string>& args);
 
-    int redisRequestSend(const std::vector<std::string>& args) {
-        std::string tmp;
-        tmp.append("*");
-        tmp.append(str(args.size()));
-        tmp.append("\r\n");
-        for (const std::string &s: args) {
-            tmp.append("$");
-            tmp.append(str(s.size()));
-            tmp.append("\r\n");
-            tmp.append(s);
-            tmp.append("\r\n");
-        }
-        tmp.append("\r\n");
-        return output->append(tmp.data(), tmp.size());
-    }
-
-    RedisReponse* redisRequest(const std::vector<std::string>& args) {
-			if (this->redisRequestSend(args) == -1) {
-				return NULL;
-			}
-
-			if (this->flush() == -1) {
-				return NULL;
-			}
-
-			return this->redisResponse();
-		}
+		RedisReponse* redisRequest(const std::vector<std::string>& args);
 
 };
 

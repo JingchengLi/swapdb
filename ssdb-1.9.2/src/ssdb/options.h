@@ -26,9 +26,6 @@ public:
 	bool binlog;
 	size_t binlog_capacity;
 
-	bool redis_upstream;
-	std::string redis_ip;
-	int redis_port;
 };
 #else
 struct Options {
@@ -71,5 +68,18 @@ struct Options {
     }
 };
 #endif
+
+
+
+class RedisUpstream
+{
+public:
+	RedisUpstream(const std::string &ip, int port) : ip(ip), port(port) {}
+
+	~RedisUpstream(){}
+
+	std::string ip;
+	int port;
+};
 
 #endif

@@ -65,17 +65,4 @@ void Options::load(const Config &conf){
 		max_open_files = 1000;
 	}
 
-	std::string upstream_redis = conf.get_str("upstream.redis");
-	strtolower(&upstream_redis);
-	if(upstream_redis != "yes"){
-		this->redis_upstream = false;
-	}else{
-		this->redis_upstream = true;
-	}
-
-	if (this->redis_upstream) {
-		this->redis_ip = conf.get_str("upstream.ip");
-		this->redis_port = conf.get_num("upstream.port");
-	}
-
 }

@@ -261,3 +261,18 @@ int DeleteKey::DecodeDeleteKey(const Bytes &str) {
 
     return 0;
 }
+
+int BQueueKey::DecodeBQueueKey(const string &str) {
+    Decoder decoder(str.data(), str.size());
+    if(decoder.skip(1) == -1){
+        return -1;
+    }
+    if (decoder.read_uint16(&type) == -1){
+        return -1;
+    } else{
+        type = be16toh(type);
+    }
+
+    decoder.read_data(&key);
+    return 0;
+}
