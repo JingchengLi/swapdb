@@ -731,7 +731,7 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
 
     bool ok = rdbDecoder.verifyDumpPayload();
     if (!ok) {
-        log_warn("checksum failed %s:%s", hexmem(key.data(), key.size()).c_str(),(data.data(), data.size()));
+        log_warn("checksum failed %s:%s", hexmem(key.data(), key.size()).c_str(),hexmem(data.data(), data.size()).c_str());
         return -1;
     }
 
