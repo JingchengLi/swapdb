@@ -61,6 +61,7 @@ int proc_multi_zsize(NetworkServer *net, Link *link, const Request &req, Respons
 int proc_multi_zset(NetworkServer *net, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *)net->data;
 	int flags = ZADD_NONE;
+
 	if(req.size() < 4){
 		resp->push_back("client_error");
 		return 0;
@@ -113,6 +114,14 @@ int proc_multi_zset(NetworkServer *net, Link *link, const Request &req, Response
 	for(; it != req.end(); it += 2){
 		const Bytes &key = *it;
 		const Bytes &val = *(it + 1);
+
+ 		char* eptr;
+		double score = strtod(val.data(), &eptr); //check double
+		if (eptr[0] != '\0' || errno!= 0 || std::isnan(score)) {
+			resp->push_back("error");
+			return 0;
+		}
+
         if (nx) {
             sortedSet.insert(make_pair(key,val));
         } else {

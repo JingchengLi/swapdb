@@ -197,6 +197,7 @@ int SSDBImpl::zsetNoLock(const Bytes &name, const std::map<Bytes ,Bytes> &sorted
 //        log_info("%s:%s" , hexmem(key.data(),key.size()).c_str(), hexmem(val.data(),val.size()).c_str());
 
         double score = val.Double();
+
         if (score > ZSET_SCORE_MAX || score < ZSET_SCORE_MIN) {
             return -1;
         }
