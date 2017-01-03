@@ -9,6 +9,7 @@ found in the LICENSE file.
 #include <vector>
 #include <string>
 #include "../util/bytes.h"
+#include "redis/reponse_redis.h"
 
 struct RedisRequestDesc
 {
@@ -35,6 +36,7 @@ public:
 	}
 	
 	const std::vector<Bytes>* recv_req(Buffer *input);
+	RedisReponse* recv_res(Buffer *input);
 	int send_resp(Buffer *output, const std::vector<std::string> &resp);
 };
 

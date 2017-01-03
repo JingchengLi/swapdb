@@ -5,6 +5,7 @@ found in the LICENSE file.
 */
 #include "link_redis.h"
 #include <map>
+#include <cstring>
 
 enum REPLY{
 	REPLY_BULK = 0,
@@ -376,6 +377,115 @@ int RedisLink::convert_req(){
 	}
 	
 	return 0;
+}
+
+
+RedisReponse *RedisLink::recv_res(Buffer *input) {
+	if (input->empty()) {
+		return NULL;
+	}
+
+	int size = input->size();
+	char *head = input->data();
+
+	RedisReponse *r = new RedisReponse();
+
+	char *body = (char *) memchr(head, '\n', size);
+	if (body == NULL) {
+		return r;
+	}
+	body++;
+
+	int head_len = body - head;
+	if (head_len < 2) {
+		r->status = -2;
+		return r;
+	}
+
+	if (*(body - 2) != '\r') {
+		r->status = -1;
+		return r;
+	}
+
+	std::string line = std::string(head + 1, head_len - 3);
+	input->decr(head_len);
+
+	if (line.length() < 2) {
+		r->status = -1;
+		return r;
+	}
+
+
+	switch (line[0]) {
+		case '-' : {
+			r->type = REDIS_REPLY_ERROR;
+			r->str = line;
+			r->status = 1;
+			break;
+		};
+		case '+' : {
+			r->type = REDIS_REPLY_STATUS;
+			r->str = line;
+			r->status = 1;
+			break;
+		};
+		case ':' : {
+			r->type = REDIS_REPLY_INTEGER;
+			r->integer = str_to_int(line);
+			r->status = 1;
+			break;
+		};
+		case '$' : {
+			r->type = REDIS_REPLY_STRING;
+			if (line.length() == 3 && line[1] == '-' && line[2] == '1') {
+				r->type = REDIS_REPLY_NIL;
+				r->status = 1;
+				break;
+			}
+
+			int replyLen = str_to_int(line);
+			if ((replyLen + 2) < size) {
+				//not enough. retry
+				r->status = -1;
+				return r;
+			}
+
+			std::string str = std::string(body, replyLen + 2);
+			input->decr(replyLen + 2);
+			r->str = str;
+			r->status = 1;
+			break;
+		};
+		case '*': {
+			r->type = REDIS_REPLY_ARRAY;
+
+			if (line.length() == 3 && line[1] == '-' && line[2] == '1') {
+				r->type = REDIS_REPLY_NIL;
+				r->status = 1;
+				break;
+			}
+
+			int repliesNum = str_to_int(line);
+			for (int i = 0; i < repliesNum; ++i) {
+				RedisReponse *tmp = recv_res(input);
+				if (tmp != NULL && tmp->status == 1) {
+					r->element.push_back(tmp);
+				} else {
+					r->status = -1;
+					return r;
+				}
+			}
+
+			break;
+		}
+		default: {
+			r->status = -2;
+			return r;
+			break;
+		}
+	}
+
+	return r;
 }
 
 const std::vector<Bytes>* RedisLink::recv_req(Buffer *input){
