@@ -66,7 +66,7 @@ int zsetAdd(SSDBImpl *ssdb, leveldb::WriteBatch &batch, bool needCheck,
     *flags = 0; /* We'll return our response flags. */
 
     /* NaN as input is an error regardless of all the other parameters. */
-    if (isnan(score)) {
+    if (std::isnan(score)) {
         *flags = ZADD_NAN;
         return -1;
     }
@@ -98,7 +98,7 @@ int zsetAdd(SSDBImpl *ssdb, leveldb::WriteBatch &batch, bool needCheck,
 
             if (incr) {
                 score += old_score;
-                if (isnan(score)) {
+                if (std::isnan(score)) {
                     *flags |= ZADD_NAN;
                     return -1;
                 }
