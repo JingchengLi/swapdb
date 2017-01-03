@@ -542,7 +542,7 @@ ZIterator *SSDBImpl::zrange(const Bytes &name, int64_t offset, int64_t end, cons
     }
 
     if (end < 0) {
-        end = offset + end + zv.length +1;
+        end = end + zv.length +1;
         if (end < 0) {
             end = 0;
         }
