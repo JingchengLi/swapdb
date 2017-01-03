@@ -25,6 +25,10 @@ public:
 	std::string compression;
 	bool binlog;
 	size_t binlog_capacity;
+
+	bool redis_upstream;
+	std::string redis_ip;
+	int redis_port;
 };
 #else
 struct Options {
