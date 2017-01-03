@@ -117,9 +117,12 @@ int proc_multi_zset(NetworkServer *net, Link *link, const Request &req, Response
 
  		char* eptr;
 		double score = strtod(val.data(), &eptr); //check double
-		if (eptr[0] != '\0' || errno!= 0 || std::isnan(score)) {
-			resp->push_back("error");
-			return 0;
+		if (eptr[0] != '\n' ) {  // skip for ssdb protocol
+			if (eptr[0] != '\0' || errno!= 0 || std::isnan(score)) {
+				resp->push_back("error");
+				return 0;
+			}
+
 		}
 
         if (nx) {
