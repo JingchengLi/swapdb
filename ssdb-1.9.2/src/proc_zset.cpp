@@ -260,8 +260,8 @@ int proc_zrange(NetworkServer *net, Link *link, const Request &req, Response *re
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(4);
 
-	uint64_t offset = req[2].Uint64();
-	uint64_t limit = req[3].Uint64();
+	int64_t offset = req[2].Int64();
+	int64_t limit = req[3].Int64();
 
 	const leveldb::Snapshot* snapshot = nullptr;
 
@@ -390,12 +390,12 @@ int proc_zremrangebyrank(NetworkServer *net, Link *link, const Request &req, Res
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(4);
 
-	uint64_t start = req[2].Uint64();
-	uint64_t end = req[3].Uint64();
+	int64_t start = req[2].Int64();
+	int64_t end = req[3].Int64();
 
 	const leveldb::Snapshot* snapshot = nullptr;
 
-	auto it = std::unique_ptr<ZIterator>(serv->ssdb->zrange(req[1], start, end - start + 1, &snapshot));
+	auto it = std::unique_ptr<ZIterator>(serv->ssdb->zrange(req[1], start, end, &snapshot));
 	int64_t count = 0;
     while (it->next()) {
         count++;

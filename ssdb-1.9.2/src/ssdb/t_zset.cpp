@@ -513,7 +513,7 @@ int64_t SSDBImpl::zrrank(const Bytes &name, const Bytes &key) {
     return found ? ret : -1;
 }
 
-ZIterator *SSDBImpl::zrange(const Bytes &name, uint64_t offset, uint64_t limit, const leveldb::Snapshot** snapshot) {
+ZIterator *SSDBImpl::zrange(const Bytes &name, int64_t offset, int64_t end, const leveldb::Snapshot** snapshot) {
     uint16_t version = 0;
     ZSetMetaVal zv;
 
@@ -524,19 +524,33 @@ ZIterator *SSDBImpl::zrange(const Bytes &name, uint64_t offset, uint64_t limit, 
         int ret = GetZSetMetaVal(meta_key, zv);
         if (0 == ret && zv.del == KEY_DELETE_MASK){
             version = zv.version+(uint16_t)1;
+            zv.length = 0;
         } else if (ret > 0){
             version = zv.version;
         } else{
             version = 0;
+            zv.length = 0;
         }
         *snapshot = ldb->GetSnapshot();
     }
 
-
-    if (offset + limit > limit) {
-        limit = offset + limit;
+    if (offset < 0) {
+        offset = offset + zv.length;
+        if (offset < 0) {
+            offset = 0;
+        }
     }
-    ZIterator *it = this->zscan_internal(name, "", "",  "", limit, Iterator::FORWARD, version, *snapshot);
+
+    if (end < 0) {
+        end = offset + end + zv.length +1;
+        if (end < 0) {
+            end = 0;
+        }
+    } else {
+        end = end + 1;
+    }
+
+    ZIterator *it = this->zscan_internal(name, "", "",  "", end, Iterator::FORWARD, version, *snapshot);
     it->skip(offset);
     return it;
 }
