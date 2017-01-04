@@ -132,6 +132,8 @@ DEF_PROC(quit);
 DEF_PROC(replic);
 DEF_PROC(sync150);
 
+DEF_PROC(rr_dump);
+DEF_PROC(rr_restore);
 
 
 #define REG_PROC(c, f)     net->proc_map.set_proc(#c, f, proc_##c)
@@ -244,6 +246,9 @@ void SSDBServer::reg_procs(NetworkServer *net){
 
 	REG_PROC(dump, "wt"); //auctual read but ...
 	REG_PROC(restore, "wt");
+	REG_PROC(rr_dump, "wt"); //auctual read but ...
+	REG_PROC(rr_restore, "wt");
+
 	REG_PROC(select, "rt");
 	REG_PROC(client, "r");
 	REG_PROC(quit, "r");
@@ -288,8 +293,8 @@ SSDBServer::SSDBServer(SSDB *ssdb, SSDB *meta, const Config &conf, NetworkServer
 
 			log_info("upstream: %s:%d", ip.c_str(), port);
 
-			RedisUpstream redisUpstream(ip ,port);
-			BackgroudJob* backgroundJob = new BackgroudJob(this->ssdb, redisUpstream);
+			redisUpstream = new RedisUpstream(ip ,port);
+			backgroundJob = new BackgroudJob(this);
 
 		}
 	}
@@ -349,9 +354,12 @@ SSDBServer::~SSDBServer(){
 	delete backend_sync;
 	delete expiration;
 
-//	if (backgroundJob != nullptr) {
-//		delete backgroundJob;
-//	}
+	if (backgroundJob != nullptr) {
+		delete backgroundJob;
+	}
+	if (redisUpstream != nullptr) {
+		delete redisUpstream;
+	}
 
 	log_debug("SSDBServer finalized");
 }
@@ -460,6 +468,69 @@ int proc_dump(NetworkServer *net, Link *link, const Request &req, Response *resp
 	PTE(dump)
 
 	resp->reply_get(ret, &val);
+	return 0;
+}
+
+
+
+int proc_rr_restore(NetworkServer *net, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *)net->data;
+	CHECK_NUM_PARAMS(4);
+
+	int64_t ttl = req[2].Int64();
+	if (errno == EINVAL || ttl < 0){
+		resp->push_back("error");
+		return 0;
+	}
+
+	bool replace = false;
+	if (req.size()>4) {
+		std::string q4 = req[4].String();
+		strtoupper(&q4);
+		if (q4 == "REPLACE") {
+			replace = true;
+		} else {
+			resp->push_back("error");
+			return 0;
+		}
+	}
+
+	std::string val;
+
+	PTS(restore)
+	int ret = serv->ssdb->restore(req[1], ttl, req[3], replace, &val);
+	PTE(restore)
+
+	if (ret > 0 && ttl > 0) {
+		Locking l(&serv->expiration->mutex);
+		ret = serv->expiration->expire(req[1], ttl, TimeUnit::Millisecond);
+	}
+
+	if (ret < 0) {
+		log_info("%s : %s", hexmem(req[1].data(),req[1].size()).c_str(), hexmem(req[3].data(),req[3].size()).c_str());
+	}
+
+	serv->ssdb->raw_set(encode_bqueue_key(COMMAND_REDIS_DEL, req[1]), "");
+	serv->backgroundJob->queued++;
+
+	resp->reply_get(ret, &val);
+	return 0;
+}
+
+
+int proc_rr_dump(NetworkServer *net, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *)net->data;
+	CHECK_NUM_PARAMS(2);
+
+	std::string val;
+
+//	resp->reply_get(ret, &val);
+	resp->reply_get(1, &val);
+
+
+	serv->ssdb->raw_set(encode_bqueue_key(COMMAND_REDIS_RESTROE, req[1]), "");
+	serv->backgroundJob->queued++;
+
 	return 0;
 }
 

@@ -4,7 +4,7 @@
 
 #include <memory>
 #include "background_job.h"
-
+#include <serv.h>
 
 
 void *BackgroudJob::thread_func(void *arg) {
@@ -17,7 +17,7 @@ void *BackgroudJob::thread_func(void *arg) {
 
         if (backgroudJob->queued == 0) {
             usleep(1000 * 1000);
-            log_info("BackgroudJob");
+//            log_info("BackgroudJob");
         }
 
     }
@@ -56,7 +56,7 @@ void BackgroudJob::loop() {
     std::string start;
     start.append(1, DataType::BQUEUE);
 
-    auto it = std::unique_ptr<BIterator>(new BIterator(ssdb->iterator(start, "", 10))); //  +
+    auto it = std::unique_ptr<BIterator>(new BIterator(serv->ssdb->iterator(start, "", 10))); //  +
     int n = 0;
     while (it->next()) {
         if (this->proc(it->data_key, it->key, it->value, it->type)) {
@@ -80,7 +80,7 @@ bool BackgroudJob::proc(const std::string &data_key, const std::string &key, con
     std::map<uint16_t, bproc_t>::iterator iter;
     iter = bproc_map.find(type);
     if (iter != bproc_map.end()) {
-        iter->second(ssdb, options, data_key, key, value);
+        iter->second(serv, data_key, key, value);
     } else {
         log_error("can not find a way to process type:%d", type);
         //not found
@@ -95,20 +95,35 @@ void BackgroudJob::regType() {
 //    REG_BPROC(COMMAND_REDIS_DEL);
 
     this->bproc_map[COMMAND_REDIS_DEL] = bproc_COMMAND_REDIS_DEL;
+    this->bproc_map[COMMAND_REDIS_RESTROE] = bproc_COMMAND_REDIS_RESTROE;
 }
 
 
-int bproc_COMMAND_REDIS_DEL(SSDB *ssdb, const RedisUpstream &options, const std::string &data_key, const std::string &key, const std::string &value) {
+int bproc_COMMAND_REDIS_DEL(SSDBServer *serv, const std::string &data_key, const std::string &key, const std::string &value) {
 
-    Link *link = Link::connect(options.ip.c_str(), options.port);
+    Link *link = Link::connect(serv->redisUpstream->ip.c_str(), serv->redisUpstream->port);
+    if (link == nullptr) {
+        log_error("link is null");
+        return -1;
+    }
+    link->noblock(false);
+    link->nodelay(true);
+
 
     std::vector<std::string> req;
     req.push_back("customized-del");
-    req.push_back(key);
+    req.push_back(data_key);
 
     auto t_res =link->redisRequest(req);
+    if (t_res == nullptr) {
+        log_error("t_res is null");
+        return -1;
+
+    }
     std::string res = t_res->toString();
     dump(res.data(), res.size());
+
+    serv->ssdb->raw_del(key);
 
     delete t_res;
     delete link;
@@ -118,3 +133,57 @@ int bproc_COMMAND_REDIS_DEL(SSDB *ssdb, const RedisUpstream &options, const std:
 
 
 
+int bproc_COMMAND_REDIS_RESTROE(SSDBServer *serv, const std::string &data_key, const std::string &key, const std::string &value) {
+
+    std::string val;
+    int ret = serv->ssdb->dump(data_key, &val);
+    if (ret < 1) {
+        log_error("bproc_COMMAND_REDIS_RESTROE error");
+        return -1;
+    }
+
+    int64_t pttl = serv->expiration->pttl(data_key, TimeUnit::Millisecond);
+    if (pttl < 0) {
+        pttl = 0;
+    }
+
+
+    Link *link = Link::connect(serv->redisUpstream->ip.c_str(), serv->redisUpstream->port);
+    if (link == nullptr) {
+        log_error("link is null");
+        return -1;
+    }
+    link->noblock(false);
+    link->nodelay(true);
+
+
+    std::vector<std::string> req;
+    req.push_back("restore");
+    req.push_back(data_key);
+    req.push_back(str(pttl));
+    req.push_back(val);
+    req.push_back("replace");
+
+    auto t_res =link->redisRequest(req);
+    if (t_res == nullptr) {
+        log_error("t_res is null");
+        return -1;
+
+    }
+    std::string res = t_res->toString();
+    dump(res.data(), res.size());
+
+
+    serv->ssdb->raw_del(key);
+
+    if (t_res->status == 1 && t_res->str == "OK") {
+        serv->ssdb->del(key);
+    }
+
+    delete t_res;
+    delete link;
+
+    return 0;
+
+
+}

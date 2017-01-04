@@ -18,7 +18,7 @@
 
 class RedisReponse {
 public:
-    int status;
+    int status = 0;
 
     int type;
     long long integer;

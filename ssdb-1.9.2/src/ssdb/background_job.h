@@ -11,22 +11,26 @@
 #include "ssdb.h"
 #include <net/link.h>
 
+class SSDBServer;
+
 #define COMMAND_REDIS_DEL 1
+#define COMMAND_REDIS_RESTROE 2
 
 
 #define REG_BPROC(c)     this->bproc_map[##c] = bproc_##c
-#define DEF_BPROC(c)     int bproc_##c(SSDB *ssdb, const RedisUpstream &options, const std::string &data_key, const std::string &key, const std::string &value)
+#define DEF_BPROC(c)     int bproc_##c(SSDBServer *serv, const std::string &data_key, const std::string &key, const std::string &value)
 
 
 
 DEF_BPROC(COMMAND_REDIS_DEL);
+DEF_BPROC(COMMAND_REDIS_RESTROE);
 
-typedef int (*bproc_t)(SSDB *ssdb, const RedisUpstream &options, const std::string &data_key, const std::string &key, const std::string &value);
+typedef int (*bproc_t)(SSDBServer *serv, const std::string &data_key, const std::string &key, const std::string &value);
 
 
 class BackgroudJob {
 public:
-    BackgroudJob(SSDB *ssdb, const RedisUpstream &options) : ssdb(ssdb), options(options) {
+    BackgroudJob(SSDBServer *serv) : serv(serv) {
         this->thread_quit = false;
         start();
     }
@@ -34,7 +38,7 @@ public:
     virtual ~BackgroudJob() {
         Locking l(&this->mutex);
         stop();
-        ssdb = nullptr;
+        serv = nullptr;
     }
 
     std::atomic<int> queued;
@@ -44,8 +48,7 @@ private:
 
     Mutex mutex;
 
-    SSDB *ssdb;
-    const RedisUpstream &options;
+    SSDBServer *serv;
 
     std::atomic<bool> thread_quit;
 

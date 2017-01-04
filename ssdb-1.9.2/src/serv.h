@@ -10,6 +10,7 @@ found in the LICENSE file.
 #include <map>
 #include <vector>
 #include <string>
+#include <ssdb/background_job.h>
 #include "ssdb/ssdb_impl.h"
 #include "ssdb/ttl.h"
 #include "backend_dump.h"
@@ -37,7 +38,10 @@ public:
 	BackendDump *backend_dump;
 	BackendSync *backend_sync;
 	ExpirationHandler *expiration;
-//	BackgroudJob *backgroundJob = nullptr;
+
+	BackgroudJob *backgroundJob = nullptr;
+	RedisUpstream *redisUpstream = nullptr;
+
 	std::vector<Slave *> slaves;
 	std::vector<Slave_info> slave_infos;
 	Link*	master_link;
