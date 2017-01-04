@@ -16,7 +16,10 @@ void *BackgroundJob::thread_func(void *arg) {
 
         backgroudJob->loop();
 
-        backgroudJob->cv.wait();
+        if (backgroudJob->queued == 0) {
+            log_info("Background wait Job");
+            backgroudJob->cv.wait();
+        }
 
 //        if (backgroudJob->queued == 0) {
 //            usleep(1000 * 1000);
@@ -59,20 +62,14 @@ void BackgroundJob::loop() {
     std::string start;
     start.append(1, DataType::BQUEUE);
 
-    auto it = std::unique_ptr<BIterator>(new BIterator(serv->ssdb->iterator(start, "", 10))); //  +
+    auto it = std::unique_ptr<BIterator>(new BIterator(serv->ssdb->iterator(start, "", -1))); //  +
     int n = 0;
     while (it->next()) {
         this->proc(it->data_key, it->key, it->value, it->type);
         n++;
     }
 
-    if (n == 10) {
-        queued = 1;
-    } else if (n == 0) {
-        queued = 0;
-    } else {
-        queued = n;
-    }
+    queued = n;
 
 }
 
