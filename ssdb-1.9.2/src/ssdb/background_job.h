@@ -15,13 +15,13 @@
 
 
 #define REG_BPROC(c)     this->bproc_map[##c] = bproc_##c
-#define DEF_BPROC(c)     int bproc_##c(SSDB *ssdb, const RedisUpstream &options, const std::string &key, const std::string &value)
+#define DEF_BPROC(c)     int bproc_##c(SSDB *ssdb, const RedisUpstream &options, const std::string &data_key, const std::string &key, const std::string &value)
 
 
 
 DEF_BPROC(COMMAND_REDIS_DEL);
 
-typedef int (*bproc_t)(SSDB *ssdb, const RedisUpstream &options, const std::string &key, const std::string &value);
+typedef int (*bproc_t)(SSDB *ssdb, const RedisUpstream &options, const std::string &data_key, const std::string &key, const std::string &value);
 
 
 class BackgroudJob {
@@ -58,7 +58,7 @@ private:
 
     void loop();
 
-    bool proc(const std::string &key, const std::string &value, uint16_t type);
+    bool proc(const std::string &data_key, const std::string &key, const std::string &value, uint16_t type);
 
     void regType();
 };

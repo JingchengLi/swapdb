@@ -345,9 +345,11 @@ bool BIterator::next(){
 			continue;
 		}
 
-		key = bQueueKey.key;
+		key = ks.String();
 		value = vs.String();
+
 		type = bQueueKey.type;
+		data_key = bQueueKey.key;
 
  		return true;
 

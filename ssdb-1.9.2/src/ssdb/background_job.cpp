@@ -59,7 +59,7 @@ void BackgroudJob::loop() {
     auto it = std::unique_ptr<BIterator>(new BIterator(ssdb->iterator(start, "", 10))); //  +
     int n = 0;
     while (it->next()) {
-        if (this->proc(it->key, it->value, it->type)) {
+        if (this->proc(it->data_key, it->key, it->value, it->type)) {
             n++;
         };
     }
@@ -75,12 +75,12 @@ void BackgroudJob::loop() {
 }
 
 
-bool BackgroudJob::proc(const std::string &key, const std::string &value, uint16_t type) {
+bool BackgroudJob::proc(const std::string &data_key, const std::string &key, const std::string &value, uint16_t type) {
 
     std::map<uint16_t, bproc_t>::iterator iter;
     iter = bproc_map.find(type);
     if (iter != bproc_map.end()) {
-        iter->second(ssdb, options, key, value);
+        iter->second(ssdb, options, data_key, key, value);
     } else {
         log_error("can not find a way to process type:%d", type);
         //not found
@@ -98,7 +98,7 @@ void BackgroudJob::regType() {
 }
 
 
-int bproc_COMMAND_REDIS_DEL(SSDB *ssdb, const RedisUpstream &options, const std::string &key, const std::string &value) {
+int bproc_COMMAND_REDIS_DEL(SSDB *ssdb, const RedisUpstream &options, const std::string &data_key, const std::string &key, const std::string &value) {
 
     Link *link = Link::connect(options.ip.c_str(), options.port);
 

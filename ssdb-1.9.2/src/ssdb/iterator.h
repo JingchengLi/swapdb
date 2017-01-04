@@ -149,6 +149,7 @@ private:
 class BIterator{
 public:
 	std::string key;
+	std::string data_key;
 	std::string value;
 	uint16_t    type;
 
