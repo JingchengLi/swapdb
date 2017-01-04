@@ -124,10 +124,11 @@ int SSDBImpl::hincr(const Bytes &name, const Bytes &key, int64_t by, int64_t *ne
 	}else if(ret == 0){
 		*new_val = by;
 	}else{
-        int64_t oldvalue = str_to_int64(old);
-        if(errno != 0){
-            return 0;
-        }
+//        int64_t oldvalue = str_to_int64(old);
+		long long oldvalue;
+		if (string2ll(old.c_str(), old.size(), &oldvalue) == 0) {
+			return 0;
+		}
         if ((by < 0 && oldvalue < 0 && by < (LLONG_MIN-oldvalue)) ||
             (by > 0 && oldvalue > 0 && by > (LLONG_MAX-oldvalue))) {
             return 0;
