@@ -15,7 +15,7 @@ found in the LICENSE file.
 #include <limits.h>
 #include <errno.h>
 #include <string.h>
-#include <math.h>
+#include <cmath>
 #include <fcntl.h>
 #include <assert.h>
 #include <signal.h>
