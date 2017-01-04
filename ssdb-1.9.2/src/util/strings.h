@@ -224,6 +224,13 @@ std::string hexmem(const void *p, int size){
 	*/
 }
 
+
+template <typename T>
+inline static
+std::string hexstr(const T &t){
+	return hexmem(t.data(), t.size());
+}
+
 // TODO: mem_printf("%5c%d%s", p, size);
 static inline
 void dump(const void *p, int size, const char *msg = NULL){
@@ -277,6 +284,17 @@ std::string str(double v){
 static inline
 std::string str(float v){
 	return str((double)v);
+}
+
+static inline
+std::string str(const std::vector<std::string>& req){
+	std::string tmp;
+	for (const auto &t : req) {
+		tmp.append(t);
+		tmp.append(" ");
+	}
+
+	return tmp;
 }
 
 // all str_to_xx methods set errno on error

@@ -116,6 +116,8 @@ int bproc_COMMAND_REDIS_DEL(SSDBServer *serv, const std::string &data_key, const
     req.push_back("customized-del");
     req.push_back(data_key);
 
+    log_debug("send back to redis : %s", hexstr<std::string>(str(req)).c_str());
+
     auto t_res = link->redisRequest(req);
     if (t_res == nullptr) {
         log_error("t_res is null");
@@ -124,7 +126,7 @@ int bproc_COMMAND_REDIS_DEL(SSDBServer *serv, const std::string &data_key, const
 
     }
     std::string res = t_res->toString();
-    dump(res.data(), res.size());
+    log_debug("redis response : %s", hexstr<std::string>(res).c_str());
 
     serv->ssdb->raw_del(key);
 
@@ -158,11 +160,13 @@ int bproc_COMMAND_REDIS_RESTROE(SSDBServer *serv, const std::string &data_key, c
     }
 
     std::vector<std::string> req;
-    req.push_back("restore");
+    req.push_back("customized-restore");
     req.push_back(data_key);
     req.push_back(str(pttl));
     req.push_back(val);
     req.push_back("replace");
+
+    log_debug("send back to redis : %s", hexstr<std::string>(str(req)).c_str());
 
     auto t_res = link->redisRequest(req);
     if (t_res == nullptr) {
@@ -172,7 +176,7 @@ int bproc_COMMAND_REDIS_RESTROE(SSDBServer *serv, const std::string &data_key, c
 
     }
     std::string res = t_res->toString();
-    dump(res.data(), res.size());
+    log_debug("redis response : %s", hexstr<std::string>(res).c_str());
 
 
     serv->ssdb->raw_del(key);
