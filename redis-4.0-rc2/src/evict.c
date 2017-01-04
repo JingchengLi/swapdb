@@ -568,9 +568,16 @@ int epilogOfEvictingToSSDB(robj *keyobj) {
 int prologOfEvictingToSSDB(robj *keyobj, redisDb *db) {
     rio cmd, payload;
     long long ttl = 0;
-    long long expiretime = getExpire(db, keyobj);
+    long long expiretime;
     long long now = mstime();
+    dictEntry* de;
     robj *o;
+
+    de = dictFind(db->dict, keyobj->ptr);
+    if (!de) {
+        return C_ERR;
+    }
+    expiretime = getExpire(db, keyobj);
 
     if (expiretime > 0 && now > expiretime)
         return C_ERR;
@@ -592,7 +599,7 @@ int prologOfEvictingToSSDB(robj *keyobj, redisDb *db) {
     serverAssert(rioWriteBulkString(&cmd, keyobj->ptr, sdslen(keyobj->ptr)));
     serverAssert(rioWriteBulkLongLong(&cmd, ttl));
 
-    o = dictGetVal(dictFind(db->dict, keyobj->ptr));
+    o = dictGetVal(de);
     serverAssert(o);
     createDumpPayload(&payload, o);
 
@@ -671,6 +678,7 @@ int tryEvictingKeysToSSDB(void) {
             serverLog(LL_DEBUG, "Failed to send the restore cmd to SSDB.");
         else
             setTransferringDB(db, keyobj);
+        decrRefCount(keyobj);
     }
 
     latencyEndMonitor(latency);
@@ -766,6 +774,7 @@ int freeMemoryIfNeeded(void) {
 
                 /* Go backward from best to worst element to evict. */
                 for (k = EVPOOL_SIZE-1; k >= 0; k--) {
+                    int key_is_transfering = 0;
                     if (pool[k].key == NULL) continue;
                     bestdbid = pool[k].dbid;
 
@@ -777,11 +786,21 @@ int freeMemoryIfNeeded(void) {
                             pool[k].key);
                     }
 
+                    if (server.jdjr_mode) {
+                        if (dictFind(server.db[pool[k].dbid].transferring_keys, pool[k].key) != NULL) {
+                            key_is_transfering = 1;
+                        }
+                    }
+
                     /* Remove the entry from the pool. */
                     if (pool[k].key != pool[k].cached)
                         sdsfree(pool[k].key);
                     pool[k].key = NULL;
                     pool[k].idle = 0;
+
+                    if (server.jdjr_mode && key_is_transfering) {
+                        continue;
+                    }
 
                     /* If the key exists, is our pick. Otherwise it is
                      * a ghost and we need to try the next element. */
@@ -790,6 +809,12 @@ int freeMemoryIfNeeded(void) {
                         break;
                     } else {
                         /* Ghost... Iterate again. */
+
+                        /* I think there are the following cases:
+                         * 1. the key maybe had been deleted after pushed into eviction pool.
+                         * 2. in jdjr_mode, the key maybe had been transfered to SSDB after
+                         * pushed into eviction pool.
+                         * */
                     }
                 }
             }
