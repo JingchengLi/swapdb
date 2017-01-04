@@ -160,7 +160,7 @@ string encode_zset_meta_val(uint64_t length, uint16_t version, char del){
 }
 
 
-string encode_bqueue_key(uint64_t length, uint16_t task_type, const Bytes& val){
+string encode_bqueue_key(uint16_t task_type, const Bytes& val){
     string buf;
 
     buf.append(1, DataType::BQUEUE);
