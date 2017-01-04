@@ -61,6 +61,7 @@ public:
 	
 	virtual int get(const Bytes &key, std::string *val) = 0;
 	virtual int getset(const Bytes &key, std::string *val, const Bytes &newval) = 0;
+	virtual int getrange(const Bytes &key, int64_t start, int64_t end, std::string *res) = 0;
 	// return (start, end]
 
 	/* hash */

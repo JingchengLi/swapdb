@@ -526,25 +526,19 @@ int proc_substr(NetworkServer *net, Link *link, const Request &req, Response *re
 
 int proc_getrange(NetworkServer *net, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *)net->data;
-	CHECK_NUM_PARAMS(2);
+	CHECK_NUM_PARAMS(4);
 
 	const Bytes &key = req[1];
-	int start = 0;
-	if(req.size() > 2){
-		start = req[2].Int();
-	}
-	int size = -1;
-	if(req.size() > 3){
-		size = req[3].Int();
-	}
+	int64_t start = req[2].Int64();
+	int64_t end = req[3].Int64();
+
 	std::string val;
-	int ret = serv->ssdb->get(key, &val);
+	int ret = serv->ssdb->getrange(key, start, end, &val);
 	if(ret == -1){
 		resp->push_back("error");
 	}else{
-		std::string str = str_slice(val, start, size);
 		resp->push_back("ok");
-		resp->push_back(str);
+		resp->push_back(val);
 	}
 	return 0;
 }

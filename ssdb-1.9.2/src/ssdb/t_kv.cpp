@@ -409,6 +409,34 @@ int SSDBImpl::getbit(const Bytes &key, int bitoffset) {
     return (val[len] & (1 << bit)) == 0 ? 0 : 1;
 }
 
+int SSDBImpl::getrange(const Bytes &key, int64_t start, int64_t end, std::string *res) {
+    std::string val;
+    *res = "";
+    int ret = this->get(key, &val);
+    if (ret < 0) {
+        return ret;
+    }
+
+    if (start < 0 && end < 0 && start > end) {
+        return 0;
+    }
+    size_t strlen = val.size();
+    if (start < 0) start = strlen+start;
+    if (end < 0) end = strlen+end;
+    if (start < 0) start = 0;
+    if (end < 0) end = 0;
+    if ((unsigned long long)end >= strlen) end = strlen-1;
+
+    /* Precondition: end >= 0 && end < strlen, so the only condition where
+     * nothing can be returned is: start > end. */
+    if (start > end || strlen == 0) {
+        return 0;
+    } else {
+        res->assign((char*)(val.c_str()) + start, end-start+1);
+        return 1;
+    }
+}
+
 
 int SSDBImpl::KDel(const Bytes &key){
 	RecordLock l(&mutex_record_, key.String());
