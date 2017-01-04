@@ -7,7 +7,7 @@
 int main(int argc, char **argv) {
 
 
-    Link* link = Link::connect("127.0.0.1" , 6379);
+    Link* link = Link::connect("127.0.0.1" , 8888);
 
     std::vector<std::string> req;
     req.push_back("DEL");
@@ -17,14 +17,23 @@ int main(int argc, char **argv) {
     dump(res.data(),res.size());
 
 
+
+
+    req.clear();
+    req.push_back("set");
+    req.push_back("a");
+    req.push_back("a1");
+
+    res = link->redisRequest(req)->toString();
+    dump(res.data(),res.size());
+
+
     req.clear();
     req.push_back("dump");
     req.push_back("a");
 
     res = link->redisRequest(req)->toString();
     dump(res.data(),res.size());
-
-
 
 
     delete link;

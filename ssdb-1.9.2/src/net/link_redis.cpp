@@ -399,6 +399,7 @@ RedisReponse *RedisLink::recv_res(Buffer *input) {
 
 	char *body = (char *) memchr(head, '\n', size);
 	if (body == NULL) {
+		r->status = -2;
 		return r;
 	}
 	body++;
@@ -415,8 +416,8 @@ RedisReponse *RedisLink::recv_res(Buffer *input) {
 	}
 
 	std::string line = std::string(head + 1, head_len - 3);
-	input->decr(head_len);
-
+	int parsed = head_len;
+	size = size - head_len;
 
 	switch (*head) {
 		case '-' : {
@@ -446,14 +447,14 @@ RedisReponse *RedisLink::recv_res(Buffer *input) {
 			}
 
 			int replyLen = str_to_int(line);
-			if ((replyLen + 2) < size) {
+			if ((replyLen + 2) > size) {
 				//not enough. retry
-				r->status = -1;
-				return r;
+				r->status = -2;
+				break;
 			}
 
 			std::string str = std::string(body, replyLen + 2);
-			input->decr(replyLen + 2);
+			parsed = parsed + replyLen + 2;
 			r->str = str;
 			r->status = 1;
 			break;
@@ -472,18 +473,37 @@ RedisReponse *RedisLink::recv_res(Buffer *input) {
 				RedisReponse *tmp = recv_res(input);
 				if (tmp != NULL && tmp->status == 1) {
 					r->element.push_back(tmp);
+					continue;
+				} else if (tmp != NULL){
+					r->status = tmp->status;
+					break;
 				} else {
 					r->status = -1;
-					return r;
+					break;
 				}
 			}
 
 			break;
 		}
 		default: {
-			r->status = -2;
+			r->status = -1;
 			return r;
 			break;
+		}
+	}
+
+	if (r->status == 1) {
+		input->decr(parsed);
+	}
+
+	if (input->space() == 0) {
+		input->nice();
+		if (input->space() == 0) {
+			if (input->grow() == -1) {
+				//log_error("fd: %d, unable to resize input buffer!", this->sock);
+				return NULL;
+			}
+			//log_debug("fd: %d, resize input buffer, %s", this->sock, input->stats().c_str());
 		}
 	}
 
