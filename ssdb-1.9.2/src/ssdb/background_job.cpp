@@ -62,9 +62,8 @@ void BackgroundJob::loop() {
     auto it = std::unique_ptr<BIterator>(new BIterator(serv->ssdb->iterator(start, "", 10))); //  +
     int n = 0;
     while (it->next()) {
-        if (this->proc(it->data_key, it->key, it->value, it->type)) {
-            n++;
-        };
+        this->proc(it->data_key, it->key, it->value, it->type);
+        n++;
     }
 
     if (n == 10) {
