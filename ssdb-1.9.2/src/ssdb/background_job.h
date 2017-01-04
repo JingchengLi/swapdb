@@ -28,14 +28,14 @@ DEF_BPROC(COMMAND_REDIS_RESTROE);
 typedef int (*bproc_t)(SSDBServer *serv, const std::string &data_key, const std::string &key, const std::string &value);
 
 
-class BackgroudJob {
+class BackgroundJob {
 public:
-    BackgroudJob(SSDBServer *serv) : serv(serv) {
+    BackgroundJob(SSDBServer *serv) : serv(serv) {
         this->thread_quit = false;
         start();
     }
 
-    virtual ~BackgroudJob() {
+    virtual ~BackgroundJob() {
         Locking l(&this->mutex);
         stop();
         serv = nullptr;

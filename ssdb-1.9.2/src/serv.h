@@ -39,7 +39,7 @@ public:
 	BackendSync *backend_sync;
 	ExpirationHandler *expiration;
 
-	BackgroudJob *backgroundJob = nullptr;
+	BackgroundJob *backgroundJob = nullptr;
 	RedisUpstream *redisUpstream = nullptr;
 
 	std::vector<Slave *> slaves;

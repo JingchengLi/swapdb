@@ -294,7 +294,7 @@ SSDBServer::SSDBServer(SSDB *ssdb, SSDB *meta, const Config &conf, NetworkServer
 			log_info("upstream: %s:%d", ip.c_str(), port);
 
 			redisUpstream = new RedisUpstream(ip ,port);
-			backgroundJob = new BackgroudJob(this);
+			backgroundJob = new BackgroundJob(this);
 
 		}
 	}

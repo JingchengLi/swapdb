@@ -7,8 +7,8 @@
 #include <serv.h>
 
 
-void *BackgroudJob::thread_func(void *arg) {
-    BackgroudJob *backgroudJob = (BackgroudJob *) arg;
+void *BackgroundJob::thread_func(void *arg) {
+    BackgroundJob *backgroudJob = (BackgroundJob *) arg;
 
 
     while (!backgroudJob->thread_quit) {
@@ -17,30 +17,30 @@ void *BackgroudJob::thread_func(void *arg) {
 
         if (backgroudJob->queued == 0) {
             usleep(1000 * 1000);
-//            log_info("BackgroudJob");
+//            log_info("BackgroundJob");
         }
 
     }
 
-    log_debug("BackgroudJob thread quit");
+    log_debug("BackgroundJob thread quit");
     backgroudJob->thread_quit = false;
 
     return nullptr;
 }
 
 
-void BackgroudJob::start() {
+void BackgroundJob::start() {
     this->regType();
     thread_quit = false;
     pthread_t tid;
-    int err = pthread_create(&tid, NULL, &BackgroudJob::thread_func, this);
+    int err = pthread_create(&tid, NULL, &BackgroundJob::thread_func, this);
     if (err != 0) {
         log_fatal("can't create thread: %s", strerror(err));
         exit(0);
     }
 }
 
-void BackgroudJob::stop() {
+void BackgroundJob::stop() {
     thread_quit = true;
     for (int i = 0; i < 100; i++) {
         if (!thread_quit) {
@@ -51,7 +51,7 @@ void BackgroudJob::stop() {
 }
 
 
-void BackgroudJob::loop() {
+void BackgroundJob::loop() {
 
     std::string start;
     start.append(1, DataType::BQUEUE);
@@ -75,7 +75,7 @@ void BackgroudJob::loop() {
 }
 
 
-bool BackgroudJob::proc(const std::string &data_key, const std::string &key, const std::string &value, uint16_t type) {
+bool BackgroundJob::proc(const std::string &data_key, const std::string &key, const std::string &value, uint16_t type) {
 
     std::map<uint16_t, bproc_t>::iterator iter;
     iter = bproc_map.find(type);
@@ -90,7 +90,7 @@ bool BackgroudJob::proc(const std::string &data_key, const std::string &key, con
     return true;
 }
 
-void BackgroudJob::regType() {
+void BackgroundJob::regType() {
 
 //    REG_BPROC(COMMAND_REDIS_DEL);
 
