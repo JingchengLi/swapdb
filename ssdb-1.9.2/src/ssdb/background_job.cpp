@@ -111,9 +111,6 @@ int bproc_COMMAND_REDIS_DEL(SSDBServer *serv, const std::string &data_key, const
         log_error("link is null");
         return -1;
     }
-    link->noblock(false);
-    link->nodelay(true);
-
 
     std::vector<std::string> req;
     req.push_back("customized-del");
@@ -122,6 +119,7 @@ int bproc_COMMAND_REDIS_DEL(SSDBServer *serv, const std::string &data_key, const
     auto t_res = link->redisRequest(req);
     if (t_res == nullptr) {
         log_error("t_res is null");
+        delete link;
         return -1;
 
     }
@@ -158,9 +156,6 @@ int bproc_COMMAND_REDIS_RESTROE(SSDBServer *serv, const std::string &data_key, c
         log_error("link is null");
         return -1;
     }
-    link->noblock(false);
-    link->nodelay(true);
-
 
     std::vector<std::string> req;
     req.push_back("restore");
