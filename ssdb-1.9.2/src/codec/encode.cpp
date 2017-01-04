@@ -159,6 +159,20 @@ string encode_zset_meta_val(uint64_t length, uint16_t version, char del){
     return encode_meta_val_internal(DataType::ZSIZE, length, version, del);
 }
 
+
+string encode_bqueue_key(uint64_t length, uint16_t task_type, const Bytes& val){
+    string buf;
+
+    buf.append(1, DataType::BQUEUE);
+
+    task_type = htobe16(task_type);
+    buf.append((char *)&task_type, sizeof(uint16_t));
+
+    buf.append(val.data(), val.size());
+
+    return buf;
+}
+
 string encode_list_meta_val(uint64_t length, uint64_t left, uint64_t right, uint16_t version, char del){
     string buf;
 

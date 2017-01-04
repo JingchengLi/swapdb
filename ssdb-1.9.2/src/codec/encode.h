@@ -45,4 +45,6 @@ string encode_list_meta_val(uint64_t length, uint64_t left, uint64_t right, uint
  */
 string encode_delete_key(const Bytes& key, uint16_t version = 0);
 
+string encode_bqueue_key(uint64_t length, uint16_t task_type, const Bytes& val);
+
 #endif //SSDB_ENCODE_H
