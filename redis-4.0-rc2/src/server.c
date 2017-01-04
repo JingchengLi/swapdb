@@ -303,6 +303,7 @@ struct redisCommand redisCommandTable[] = {
     {"latency",latencyCommand,-2,"aslt",0,NULL,0,0,0,0,0},
     {"customized-del",customizedDelCommand,-2,"w",0,NULL,1,-1,1,0,0},
     {"customized-restorefail",customizedRestorFailCommand,-2,"",0,NULL,1,-1,1,0,0},
+    {"customized-restore",customizedRestoreCommand,-4,"wm",0,NULL,1,1,1,0,0},
 };
 
 /*============================ Utility functions ============================ */
@@ -1179,6 +1180,32 @@ void startToEvictIfNeeded() {
         tryEvictingKeysToSSDB();
 }
 
+void startToLoadIfNeeded() {
+    listIter li;
+    listNode *ln;
+    int processed = 0;
+    dictEntry *de;
+
+    if (!server.evicting_keys || !listLength(server.evicting_keys))
+        return;
+
+    listRewind(server.evicting_keys, &li);
+
+    while((ln = listNext(&li))) {
+        robj *keyobj = (robj *)(ln->value);
+
+        if ((de = dictFind(EVICTED_DATA_DB->transferring_keys, keyobj->ptr)))
+            continue;
+
+        /* TODO: not using EVICTED_DATA_DB->transferring_keys. */
+        setTransferringDB(EVICTED_DATA_DB, keyobj);
+        prologOfLoadingFromSSDB(keyobj);
+    }
+
+    listRelease(server.evicting_keys);
+    server.evicting_keys = listCreate();
+}
+
 /* This function gets called every time Redis is entering the
  * main loop of the event driven library, that is, before to sleep
  * for ready file descriptors. */
@@ -1232,6 +1259,9 @@ void beforeSleep(struct aeEventLoop *eventLoop) {
 
     /* Try to evict proper keys to make more free memory. */
     if (server.jdjr_mode) startToEvictIfNeeded();
+
+    /* Try to load keys from SSDB to redis. */
+    if (server.jdjr_mode) startToLoadIfNeeded();
 }
 
 /* =========================== Server initialization ======================== */
@@ -1775,6 +1805,7 @@ void initServer(void) {
     server.slaves = listCreate();
     server.monitors = listCreate();
     server.clients_pending_write = listCreate();
+    server.evicting_keys = listCreate();
     server.slaveseldb = -1; /* Force to emit the first SELECT command. */
     server.unblocked_clients = listCreate();
     server.ready_keys = listCreate();
@@ -2229,7 +2260,8 @@ void call(client *c, int flags) {
         /* customizedDelCommand is a phony command that wraps a del command
            in jdjr-mode. */
         if (server.jdjr_mode
-            && c->cmd->proc == customizedDelCommand)
+            && (c->cmd->proc == customizedDelCommand
+                || c->cmd->proc == customizedRestoreCommand))
             propagate_flags = PROPAGATE_NONE;
 
         /* Call propagate() only if at least one of AOF / replication
@@ -2266,6 +2298,34 @@ void call(client *c, int flags) {
     }
     server.also_propagate = prev_also_propagate;
     server.stat_numcommands++;
+}
+
+int processCommandMaybeInSSDB(client *c) {
+    if (c->argc > 1
+        && !dictFind(c->db->dict, c->argv[1]->ptr)
+        && lookupKey(EVICTED_DATA_DB, c->argv[1], LOOKUP_NONE)) {
+        if (sendCommandToSSDB(c, NULL) != C_OK) {
+            serverLog(LL_WARNING, "sendCommandToSSDB fail.");
+            return C_ERR;
+        }
+
+        serverAssert(server.maxmemory_policy & MAXMEMORY_FLAG_LFU);
+
+        /* TODO: temporary code. Using the distribute of lfu counter to
+           determine if the key is to load to redis. */
+        dictEntry *de = dictFind(EVICTED_DATA_DB->dict, c->argv[1]->ptr);
+
+        if (de) {
+            robj *val = dictGetVal(de);
+            int counter = val->lru & 255;
+
+            if (counter > LFU_INIT_VAL - 2)
+                listAddNodeHead(server.evicting_keys, dupStringObject(c->argv[1]));
+            return C_OK;
+        }
+    }
+
+    return C_ERR;
 }
 
 /* If this function gets called we already read a whole

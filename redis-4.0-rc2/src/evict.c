@@ -565,6 +565,25 @@ int epilogOfEvictingToSSDB(robj *keyobj) {
     return C_OK;
 }
 
+int prologOfLoadingFromSSDB(robj *keyobj) {
+    rio cmd;
+
+    rioInitWithBuffer(&cmd, sdsempty());
+    serverAssert(rioWriteBulkCount(&cmd, '*', 2));
+    serverAssert(rioWriteBulkString(&cmd, "RR_DUMP", 7));
+    serverAssert(sdsEncodedObject(keyobj));
+    serverAssert(rioWriteBulkString(&cmd, keyobj->ptr, sdslen(keyobj->ptr)));
+
+    /* sendCommandToSSDB will free cmd.io.buffer.ptr. */
+    if (sendCommandToSSDB(server.ssdb_client, cmd.io.buffer.ptr) != C_OK) {
+        serverLog(LL_WARNING, "sendCommandToSSDB: server.ssdb_client failed.");
+        return C_ERR;
+    }
+
+    serverLog(LL_DEBUG, "Loading key: %s to SSDB started.", (char *)(keyobj->ptr));
+    return C_OK;
+}
+
 int prologOfEvictingToSSDB(robj *keyobj, redisDb *db) {
     rio cmd, payload;
     long long ttl = 0;
@@ -594,7 +613,7 @@ int prologOfEvictingToSSDB(robj *keyobj, redisDb *db) {
 
     rioInitWithBuffer(&cmd, sdsempty());
     serverAssert(rioWriteBulkCount(&cmd, '*', 5));
-    serverAssert(rioWriteBulkString(&cmd, "RESTORE", 7));
+    serverAssert(rioWriteBulkString(&cmd, "RR_RESTORE", 10));
     serverAssert(sdsEncodedObject(keyobj));
     serverAssert(rioWriteBulkString(&cmd, keyobj->ptr, sdslen(keyobj->ptr)));
     serverAssert(rioWriteBulkLongLong(&cmd, ttl));
@@ -678,6 +697,7 @@ int tryEvictingKeysToSSDB(void) {
             serverLog(LL_DEBUG, "Failed to send the restore cmd to SSDB.");
         else
             setTransferringDB(db, keyobj);
+
         decrRefCount(keyobj);
     }
 

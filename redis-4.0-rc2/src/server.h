@@ -893,6 +893,7 @@ struct redisServer {
     list *clients_to_close;     /* Clients to close asynchronously */
     list *clients_pending_write; /* There is to write or install handler. */
     list *slaves, *monitors;    /* List of slaves and MONITORs */
+    list *evicting_keys;         /* List of keys is to be evicted to SSDB. */
     client *current_client; /* Current client, only used on crash report */
     int clients_paused;         /* True if clients are currently paused */
     mstime_t clients_pause_end_time; /* Time when we undo clients_paused */
@@ -1944,6 +1945,7 @@ void moduleCommand(client *c);
 void securityWarningCommand(client *c);
 void customizedDelCommand(client *c);
 void customizedRestorFailCommand(client *c);
+void customizedRestoreCommand(client *c);
 #if defined(__GNUC__)
 void *calloc(size_t count, size_t size) __attribute__ ((deprecated));
 void free(void *ptr) __attribute__ ((deprecated));

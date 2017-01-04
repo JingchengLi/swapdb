@@ -677,6 +677,7 @@ int sendCommandToSSDB(client *c, sds finalcmd) {
              } else {
                  serverLog(LL_WARNING,
                            "Error writing to SSDB server: %s", strerror(errno));
+                 if (finalcmd) sdsfree(finalcmd);
                  return C_ERR;
              }
           } else if (nwritten > 0) {
@@ -829,6 +830,12 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
         if (redisBufferRead(c->context) == REDIS_OK
             && fd != ssdb_client_fd)
             addReplyString(c, r->buf + oldlen, r->len - oldlen);
+
+        /* Return early when the context has seen an error. */
+        if (c->context->err) {
+            serverLog(LL_WARNING, "Redis Client has an error.");
+            return;
+        }
 
         if (redisGetReplyFromReader(c->context, &aux) == REDIS_ERR)
             break;
@@ -1463,11 +1470,7 @@ void processInputBuffer(client *c) {
             resetClient(c);
         } else {
             /* Only reset the client when the command was executed. */
-            if (server.jdjr_mode
-                && c->argc > 1
-                && !dictFind(c->db->dict, c->argv[1]->ptr)
-                && lookupKey(EVICTED_DATA_DB, c->argv[1], LOOKUP_NONE)
-                && sendCommandToSSDB(c, NULL) == C_OK)
+            if (server.jdjr_mode && processCommandMaybeInSSDB(c) == C_OK)
                 resetClient(c);
             else if (processCommand(c) == C_OK)
                 resetClient(c);

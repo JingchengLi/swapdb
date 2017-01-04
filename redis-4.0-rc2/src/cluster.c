@@ -4623,6 +4623,36 @@ void restoreCommand(client *c) {
     server.dirty++;
 }
 
+void customizedRestoreCommand(client *c) {
+    robj * key = c->argv[1];
+    long long old_dirty = server.dirty;
+
+    serverAssert(c->db->id == 0);
+
+    restoreCommand(c);
+
+    /* Delete key from EVICTED_DATA_DB if restoreCommand is OK. */
+    if (server.dirty == old_dirty + 1) {
+        serverAssert(dictDelete(EVICTED_DATA_DB->transferring_keys,
+                                key->ptr) == DICT_OK);
+
+        /* TODO: using new arg to customize the way to free. */
+        dictDelete(EVICTED_DATA_DB->dict, key->ptr);
+
+        if (getExpire(EVICTED_DATA_DB, key) != -1)
+            dictDelete(EVICTED_DATA_DB->expires, key->ptr);
+
+        propagateExpire(EVICTED_DATA_DB, key, server.lazyfree_lazy_eviction);
+
+        if (server.lazyfree_lazy_eviction)
+            dbAsyncDelete(EVICTED_DATA_DB, key);
+        else
+            dbSyncDelete(EVICTED_DATA_DB, key);
+    } else
+        serverLog(LL_WARNING, "customizedRestoreCommand failed.");
+
+}
+
 /* MIGRATE socket cache implementation.
  *
  * We take a map between host:ip and a TCP socket that we used to connect
