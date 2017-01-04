@@ -16,6 +16,7 @@ found in the LICENSE file.
 #include <vector>
 #include <string>
 #include <unordered_map>
+#include <sys/time.h>
 
 class Mutex{
 	private:
@@ -50,6 +51,14 @@ class CondVar{
 		}
 		void wait(){
 			pthread_cond_wait(&cv_, &mu_->mutex);
+		}
+		void waitFor(int s, int ms){
+			struct timeval now;
+			struct timespec outtime;
+			gettimeofday(&now, NULL);
+			outtime.tv_sec = now.tv_sec + s;
+			outtime.tv_nsec = now.tv_usec * 1000 + ms;
+			pthread_cond_timedwait(&cv_, &mu_->mutex, &outtime);
 		}
 		void signal(){
 			pthread_cond_signal(&cv_);

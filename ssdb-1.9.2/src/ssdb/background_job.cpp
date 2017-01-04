@@ -18,7 +18,7 @@ void *BackgroundJob::thread_func(void *arg) {
 
         if (backgroudJob->queued == 0) {
             log_info("Background wait Job");
-            backgroudJob->cv.wait();
+            backgroudJob->cv.waitFor(10, 0);
         }
 
 //        if (backgroudJob->queued == 0) {
@@ -69,6 +69,7 @@ void BackgroundJob::loop() {
         n++;
     }
 
+//    log_info("found %d", n);
     queued = n;
 
 }
