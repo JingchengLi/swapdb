@@ -30,7 +30,9 @@ typedef int (*bproc_t)(SSDBServer *serv, const std::string &data_key, const std:
 
 class BackgroundJob {
 public:
-    BackgroundJob(SSDBServer *serv) : serv(serv) {
+    BackgroundJob(SSDBServer *serv) {
+        this->cv = CondVar(&mutex);
+        this->serv = serv;
         this->thread_quit = false;
         start();
     }
@@ -42,6 +44,7 @@ public:
     }
 
     std::atomic<int> queued;
+    CondVar cv = CondVar(nullptr);
 
 private:
     static void *thread_func(void *arg);

@@ -512,6 +512,7 @@ int proc_rr_restore(NetworkServer *net, Link *link, const Request &req, Response
 
 	serv->ssdb->raw_set(encode_bqueue_key(COMMAND_REDIS_DEL, req[1]), "");
 	serv->backgroundJob->queued++;
+	serv->backgroundJob->cv.signal();
 
 	resp->reply_get(ret, &val);
 	return 0;
@@ -530,6 +531,7 @@ int proc_rr_dump(NetworkServer *net, Link *link, const Request &req, Response *r
 
 	serv->ssdb->raw_set(encode_bqueue_key(COMMAND_REDIS_RESTROE, req[1]), "");
 	serv->backgroundJob->queued++;
+	serv->backgroundJob->cv.signal();
 
 	return 0;
 }

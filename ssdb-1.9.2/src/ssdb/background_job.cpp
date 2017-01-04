@@ -13,12 +13,15 @@ void *BackgroundJob::thread_func(void *arg) {
 
     while (!backgroudJob->thread_quit) {
 
+
         backgroudJob->loop();
 
-        if (backgroudJob->queued == 0) {
-            usleep(1000 * 1000);
+        backgroudJob->cv.wait();
+
+//        if (backgroudJob->queued == 0) {
+//            usleep(1000 * 1000);
 //            log_info("BackgroundJob");
-        }
+//        }
 
     }
 
@@ -80,6 +83,7 @@ bool BackgroundJob::proc(const std::string &data_key, const std::string &key, co
     std::map<uint16_t, bproc_t>::iterator iter;
     iter = bproc_map.find(type);
     if (iter != bproc_map.end()) {
+        log_debug("processing %d :%s", type, hexmem(data_key.data(), data_key.length()).c_str());
         iter->second(serv, data_key, key, value);
     } else {
         log_error("can not find a way to process type:%d", type);
@@ -99,7 +103,8 @@ void BackgroundJob::regType() {
 }
 
 
-int bproc_COMMAND_REDIS_DEL(SSDBServer *serv, const std::string &data_key, const std::string &key, const std::string &value) {
+int bproc_COMMAND_REDIS_DEL(SSDBServer *serv, const std::string &data_key, const std::string &key,
+                            const std::string &value) {
 
     Link *link = Link::connect(serv->redisUpstream->ip.c_str(), serv->redisUpstream->port);
     if (link == nullptr) {
@@ -114,7 +119,7 @@ int bproc_COMMAND_REDIS_DEL(SSDBServer *serv, const std::string &data_key, const
     req.push_back("customized-del");
     req.push_back(data_key);
 
-    auto t_res =link->redisRequest(req);
+    auto t_res = link->redisRequest(req);
     if (t_res == nullptr) {
         log_error("t_res is null");
         return -1;
@@ -132,8 +137,8 @@ int bproc_COMMAND_REDIS_DEL(SSDBServer *serv, const std::string &data_key, const
 }
 
 
-
-int bproc_COMMAND_REDIS_RESTROE(SSDBServer *serv, const std::string &data_key, const std::string &key, const std::string &value) {
+int bproc_COMMAND_REDIS_RESTROE(SSDBServer *serv, const std::string &data_key, const std::string &key,
+                                const std::string &value) {
 
     std::string val;
     int ret = serv->ssdb->dump(data_key, &val);
@@ -164,9 +169,10 @@ int bproc_COMMAND_REDIS_RESTROE(SSDBServer *serv, const std::string &data_key, c
     req.push_back(val);
     req.push_back("replace");
 
-    auto t_res =link->redisRequest(req);
+    auto t_res = link->redisRequest(req);
     if (t_res == nullptr) {
         log_error("t_res is null");
+        delete link;
         return -1;
 
     }
