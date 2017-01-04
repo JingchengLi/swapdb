@@ -1,9 +1,5 @@
-start_server {tags {"zset"}} {
-    proc r {args} {
-        set ssdb [redis 127.0.0.1 8888]
-        $ssdb {*}$args
-    }
-
+source "./ssdb/init_ssdb.tcl"
+start_server {tags {"ssdb"}} {
     proc create_zset {key items} {
         r del $key
         foreach {score entry} $items {
@@ -113,8 +109,9 @@ start_server {tags {"zset"}} {
         }
 
         test "ZINCRBY calls leading to NaN result in error" {
+            r del myzset
             catch {r zincrby myzset +inf abc} err
-            assert_equal inf [r zscore myset abc]
+            assert_equal inf [r zscore myzset abc]
             catch {r zincrby myzset -inf abc} err
             set err
         } {ERR*}
@@ -132,7 +129,7 @@ start_server {tags {"zset"}} {
             r del myzset
             catch {r zadd myzset 10 a 20 b 30.badscore c} e
             list [set e] [r zcard myzset]
-        } {{ERR*} 0}
+        } {ERR* 0}
 
         test {ZADD - Variadic version will raise error on missing arg} {
             r del myzset
@@ -181,65 +178,65 @@ start_server {tags {"zset"}} {
         } {3}
 
         #TODO zrange ztmp 0 -2 will crash test currently
-        # test "ZRANGE basics - $encoding" {
-            # r del ztmp
-            # r zadd ztmp 1 a
-            # r zadd ztmp 2 b
-            # r zadd ztmp 3 c
-            # r zadd ztmp 4 d
+        test "ZRANGE basics - $encoding" {
+            r del ztmp
+            r zadd ztmp 1 a
+            r zadd ztmp 2 b
+            r zadd ztmp 3 c
+            r zadd ztmp 4 d
 
-            # assert_equal {a b c d} [r zrange ztmp 0 -1]
-            # assert_equal {a b c} [r zrange ztmp 0 -2]
-            # assert_equal {b c d} [r zrange ztmp 1 -1]
-            # assert_equal {b c} [r zrange ztmp 1 -2]
-            # assert_equal {c d} [r zrange ztmp -2 -1]
-            # assert_equal {c} [r zrange ztmp -2 -2]
+            assert_equal {a b c d} [r zrange ztmp 0 -1]
+            assert_equal {a b c} [r zrange ztmp 0 -2]
+            assert_equal {b c d} [r zrange ztmp 1 -1]
+            assert_equal {b c} [r zrange ztmp 1 -2]
+            assert_equal {c d} [r zrange ztmp -2 -1]
+            assert_equal {c} [r zrange ztmp -2 -2]
 
             # out of range start index
-            # assert_equal {a b c} [r zrange ztmp -5 2]
-            # assert_equal {a b} [r zrange ztmp -5 1]
-            # assert_equal {} [r zrange ztmp 5 -1]
-            # assert_equal {} [r zrange ztmp 5 -2]
+            assert_equal {a b c} [r zrange ztmp -5 2]
+            assert_equal {a b} [r zrange ztmp -5 1]
+            assert_equal {} [r zrange ztmp 5 -1]
+            assert_equal {} [r zrange ztmp 5 -2]
 
             # out of range end index
-            # assert_equal {a b c d} [r zrange ztmp 0 5]
-            # assert_equal {b c d} [r zrange ztmp 1 5]
-            # assert_equal {} [r zrange ztmp 0 -5]
-            # assert_equal {} [r zrange ztmp 1 -5]
+            assert_equal {a b c d} [r zrange ztmp 0 5]
+            assert_equal {b c d} [r zrange ztmp 1 5]
+            assert_equal {} [r zrange ztmp 0 -5]
+            assert_equal {} [r zrange ztmp 1 -5]
 
             # withscores
-            # assert_equal {a 1 b 2 c 3 d 4} [r zrange ztmp 0 -1 withscores]
-        # }
+            assert_equal {a 1 b 2 c 3 d 4} [r zrange ztmp 0 -1 withscores]
+        }
 
-        #test "ZREVRANGE basics - $encoding" {
-        #    r del ztmp
-        #    r zadd ztmp 1 a
-        #    r zadd ztmp 2 b
-        #    r zadd ztmp 3 c
-        #    r zadd ztmp 4 d
+        test "ZREVRANGE basics - $encoding" {
+            r del ztmp
+            r zadd ztmp 1 a
+            r zadd ztmp 2 b
+            r zadd ztmp 3 c
+            r zadd ztmp 4 d
 
-        #    assert_equal {d c b a} [r zrevrange ztmp 0 -1]
-        #    assert_equal {d c b} [r zrevrange ztmp 0 -2]
-        #    assert_equal {c b a} [r zrevrange ztmp 1 -1]
-        #    assert_equal {c b} [r zrevrange ztmp 1 -2]
-        #    assert_equal {b a} [r zrevrange ztmp -2 -1]
-        #    assert_equal {b} [r zrevrange ztmp -2 -2]
+            assert_equal {d c b a} [r zrevrange ztmp 0 -1]
+            assert_equal {d c b} [r zrevrange ztmp 0 -2]
+            assert_equal {c b a} [r zrevrange ztmp 1 -1]
+            assert_equal {c b} [r zrevrange ztmp 1 -2]
+            assert_equal {b a} [r zrevrange ztmp -2 -1]
+            assert_equal {b} [r zrevrange ztmp -2 -2]
 
-        #    # out of range start index
-        #    assert_equal {d c b} [r zrevrange ztmp -5 2]
-        #    assert_equal {d c} [r zrevrange ztmp -5 1]
-        #    assert_equal {} [r zrevrange ztmp 5 -1]
-        #    assert_equal {} [r zrevrange ztmp 5 -2]
+            # out of range start index
+            assert_equal {d c b} [r zrevrange ztmp -5 2]
+            assert_equal {d c} [r zrevrange ztmp -5 1]
+            assert_equal {} [r zrevrange ztmp 5 -1]
+            assert_equal {} [r zrevrange ztmp 5 -2]
 
-        #    # out of range end index
-        #    assert_equal {d c b a} [r zrevrange ztmp 0 5]
-        #    assert_equal {c b a} [r zrevrange ztmp 1 5]
-        #    assert_equal {} [r zrevrange ztmp 0 -5]
-        #    assert_equal {} [r zrevrange ztmp 1 -5]
+            # out of range end index
+            assert_equal {d c b a} [r zrevrange ztmp 0 5]
+            assert_equal {c b a} [r zrevrange ztmp 1 5]
+            assert_equal {} [r zrevrange ztmp 0 -5]
+            assert_equal {} [r zrevrange ztmp 1 -5]
 
-        #    # withscores
-        #    assert_equal {d 4 c 3 b 2 a 1} [r zrevrange ztmp 0 -1 withscores]
-        #}
+            # withscores
+            assert_equal {d 4 c 3 b 2 a 1} [r zrevrange ztmp 0 -1 withscores]
+        }
 
         test "ZRANK/ZREVRANK basics - $encoding" {
             r del zranktmp
@@ -294,7 +291,7 @@ start_server {tags {"zset"}} {
 
     proc stressers {encoding} {
 
-        set elements 10
+        set elements 100
         test "ZSCORE - $encoding" {
             r del zscoretest
             set aux {}
@@ -397,6 +394,7 @@ start_server {tags {"zset"}} {
                 }
             }
             assert_equal {} $err
+            r del myzset
         }
     }
 

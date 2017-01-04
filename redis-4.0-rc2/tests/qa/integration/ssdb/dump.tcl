@@ -1,5 +1,5 @@
 #current need to start redis and ssdb manually, wait Dev can start ssdb when redis start
-start_server {tags {"ssdb"}} {
+start_server {tags {"redis-ssdb"}} {
     set ssdb [redis 127.0.0.1 8888]
     set redis [redis 127.0.0.1 6379]
 

@@ -145,6 +145,7 @@ proc start_server {options {code undefined}} {
             set srv {}
             dict set srv "host" $::host
             dict set srv "port" $::port
+            set ::port 8888 
             set client [redis $::host $::port]
             dict set srv "client" $client
             $client select 9
