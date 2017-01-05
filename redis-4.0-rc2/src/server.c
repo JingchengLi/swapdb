@@ -1860,8 +1860,10 @@ void initServer(void) {
         server.db[j].avg_ttl = 0;
     }
 
-    if (server.jdjr_mode)
+    if (server.jdjr_mode) {
         server.db[EVICTED_DATA_DBID].transferring_keys = dictCreate(&keyptrDictType,NULL);
+        server.db[EVICTED_DATA_DBID].loading_hot_keys = dictCreate(&keyptrDictType,NULL);
+    }
 
     evictionPoolAlloc(); /* Initialize the LRU keys pool. */
     server.pubsub_channels = dictCreate(&keylistDictType,NULL);
@@ -2300,22 +2302,40 @@ void call(client *c, int flags) {
 }
 
 int processCommandMaybeInSSDB(client *c) {
-    if (c->argc > 1
-        && !dictFind(c->db->dict, c->argv[1]->ptr)
-        && lookupKey(EVICTED_DATA_DB, c->argv[1], LOOKUP_NONE)) {
-        if (sendCommandToSSDB(c, NULL) != C_OK) {
-            serverLog(LL_WARNING, "sendCommandToSSDB fail.");
-            return C_ERR;
+    if (c->argc > 1) {
+        struct redisCommand* cmd = lookupCommand(c->argv[0]->ptr);
+        if (cmd->flags & CMD_WRITE) {
+            if (dictFind(EVICTED_DATA_DB->transferring_keys, c->argv[1]->ptr) ||
+                dictFind(EVICTED_DATA_DB->loading_hot_keys, c->argv[1]->ptr)) {
+                /* return C_ERR to avoid calling "resetClient", so we can save
+                 the state of current client and process this command in the next time. */
+                return C_ERR;
+            }
+        } else if (cmd->flags & CMD_READONLY) {
+            /* we can read a key of transferring state from redis. */
+            if (dictFind(EVICTED_DATA_DB->loading_hot_keys, c->argv[1]->ptr)) {
+                /* return C_ERR to avoid calling "resetClient", so we can save
+                 the state of current client and process this command in the next time. */
+                return C_ERR;
+            }
         }
+    }
 
-        serverAssert(server.maxmemory_policy & MAXMEMORY_FLAG_LFU);
-
-        /* TODO: temporary code. Using the distribute of lfu counter to
-           determine if the key is to load to redis. */
+    // todo: here process the first key only, need to support multiple keys command
+    if (c->argc > 1 && !dictFind(c->db->dict, c->argv[1]->ptr)) {
         dictEntry *de = dictFind(EVICTED_DATA_DB->dict, c->argv[1]->ptr);
-
         if (de) {
-            robj *val = dictGetVal(de);
+            robj* val;
+            if (sendCommandToSSDB(c, NULL) != C_OK) {
+                serverLog(LL_WARNING, "sendCommandToSSDB fail.");
+                return C_ERR;
+            }
+
+            serverAssert(server.maxmemory_policy & MAXMEMORY_FLAG_LFU);
+
+            /* TODO: temporary code. Using the distribute of lfu counter to
+                determine if the key is to load to redis. */
+            val = dictGetVal(de);
             int counter = val->lru & 255;
 
             if (counter > LFU_INIT_VAL - 2)
