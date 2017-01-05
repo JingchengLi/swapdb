@@ -1470,7 +1470,12 @@ void processInputBuffer(client *c) {
             resetClient(c);
         } else {
             /* Only reset the client when the command was executed. */
-            if (server.jdjr_mode && processCommandMaybeInSSDB(c) == C_OK)
+            // todo: only process the first key here, to consider multiple keys commands.
+            if (server.jdjr_mode
+                && c->argc > 1
+                && !dictFind(c->db->dict, c->argv[1]->ptr)
+                && lookupKey(EVICTED_DATA_DB, c->argv[1], LOOKUP_NONE)
+                && sendCommandToSSDB(c, NULL) == C_OK)
                 resetClient(c);
             else if (processCommand(c) == C_OK)
                 resetClient(c);

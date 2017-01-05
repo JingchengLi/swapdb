@@ -921,3 +921,34 @@ cant_free:
     return C_ERR;
 }
 
+int loadHotKeyFromSSDB() {
+
+}
+
+void handleClientsBlockedOnLoadingkey(void) {
+
+}
+
+void blockForLoadingkey(client *c, robj* key, mstime_t timeout) {
+    dictEntry *de;
+    list *l;
+    int j;
+
+    c->bpop.timeout = timeout;
+    c->bpop.loading_ssdb_key = key;
+    incrRefCount(key);
+
+    de = dictFind(c->db->blocking_keys,key);
+    if (de == NULL) {
+        int retval;
+
+        l = listCreate();
+        retval = dictAdd(c->db->blocking_keys,key,l);
+        incrRefCount(key);
+        serverAssertWithInfo(c,key,retval == DICT_OK);
+    } else {
+        l = dictGetVal(de);
+    }
+    listAddNodeTail(l,c);
+    blockClient(c,BLOCKED_LOADING_HOT_KEY);
+}

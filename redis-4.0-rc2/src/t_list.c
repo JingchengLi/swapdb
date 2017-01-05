@@ -655,6 +655,17 @@ void blockForKeys(client *c, robj **keys, int numkeys, mstime_t timeout, robj *t
     blockClient(c,BLOCKED_LIST);
 }
 
+void unblockClientWaitingLoadKey(client *c) {
+    list *l;
+    serverAssertWithInfo(c,NULL,(c->bpop.loading_ssdb_key) != NULL);
+    l = dictFetchValue(c->db->blocking_keys,c->bpop.loading_ssdb_key);
+    serverAssertWithInfo(c,c->bpop.loading_ssdb_key,l != NULL);
+    listDelNode(l,listSearchKey(l,c));
+    if (listLength(l) == 0)
+        dictDelete(c->db->blocking_keys,c->bpop.loading_ssdb_key);
+    decrRefCount(c->bpop.loading_ssdb_key);
+}
+
 /* Unblock a client that's waiting in a blocking operation such as BLPOP.
  * You should never call this function directly, but unblockClient() instead. */
 void unblockClientWaitingData(client *c) {

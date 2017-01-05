@@ -252,6 +252,7 @@ typedef long long mstime_t; /* millisecond time type. */
 #define BLOCKED_LIST 1    /* BLPOP & co. */
 #define BLOCKED_WAIT 2    /* WAIT for synchronous replication. */
 #define BLOCKED_MODULE 3  /* Blocked by a loadable module. */
+#define BLOCKED_LOADING_HOT_KEY 10 /* Blocked when loading a key becomes hot in SSDB. */
 
 /* Client request types */
 #define PROTO_REQ_INLINE 1
@@ -595,7 +596,8 @@ typedef struct redisDb {
     dict *blocking_keys;        /* Keys with clients waiting for data (BLPOP)*/
     dict *ready_keys;           /* Blocked keys that received a PUSH */
     dict *watched_keys;         /* WATCHED keys for MULTI/EXEC CAS */
-    dict *transferring_keys;     /* Keys are in the process of transferring keys to SSDB. */
+    dict *transferring_keys;    /* Keys are in the process of transferring keys to SSDB. */
+    dict *loading_hot_keys;     /* keys become hot and in loading state from SSDB. */
     int id;                     /* Database ID */
     long long avg_ttl;          /* Average TTL, just for stats */
 } redisDb;
@@ -635,6 +637,9 @@ typedef struct blockingState {
     void *module_blocked_handle; /* RedisModuleBlockedClient structure.
                                     which is opaque for the Redis core, only
                                     handled in module.c. */
+    /* BLOCKED_LOADING_HOT_KEY */
+    robj *loading_ssdb_key; /* The key becomes hot and is loading from ssdb to redis. */
+
 } blockingState;
 
 /* The following structure represents a node in the server.ready_keys list,
