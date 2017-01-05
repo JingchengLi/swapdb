@@ -675,7 +675,8 @@ int tryEvictingKeysToSSDB(void) {
 
         /* If the key exists, is our pick. Otherwise it is
          * a ghost and we need to try the next element. */
-        if (de) {
+        if (de && dictFind(EVICTED_DATA_DB->transferring_keys,
+                           dictGetKey(de)) == NULL) {
             bestkey = dictGetKey(de);
             break;
         }
