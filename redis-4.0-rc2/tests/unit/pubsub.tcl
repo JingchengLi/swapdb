@@ -356,6 +356,7 @@ start_server {tags {"pubsub"}} {
 
     test "Keyspace notifications: expired events (background expire)" {
         r config set notify-keyspace-events Ex
+        r config set jdjr-mode no
         r del foo
         set rd1 [redis_deferring_client]
         assert_equal {1} [psubscribe $rd1 *]
