@@ -284,7 +284,7 @@ void evictionPoolPopulate(int dbid, dict *sampledict, dict *keydict, struct evic
         key = dictGetKey(de);
 
         /* skip the keys already in "transfering" state. */
-        if (server.jdjr_mode && dictFind(EVICTED_DATA_DB, key) != NULL)
+        if (server.jdjr_mode && dictFind(EVICTED_DATA_DB->transferring_keys, key) != NULL)
             continue;
 
         /* If the dictionary we are sampling from is not the main
@@ -924,7 +924,6 @@ void handleClientsBlockedOnLoadingkey(void) {
 void blockForLoadingkey(client *c, robj* key, mstime_t timeout) {
     dictEntry *de;
     list *l;
-    int j;
 
     c->bpop.timeout = timeout;
     c->bpop.loading_ssdb_key = key;
