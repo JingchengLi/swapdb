@@ -2344,9 +2344,8 @@ int processCommandMaybeInSSDB(client *c) {
 
     // todo: here process the first key only, need to support multiple keys command
     if (c->argc > 1 && (cmd->flags & (CMD_READONLY | CMD_WRITE)) && (!dictFind(c->db->dict, c->argv[1]->ptr))) {
-        dictEntry *de = dictFind(EVICTED_DATA_DB->dict, c->argv[1]->ptr);
-        if (de) {
-            robj* val;
+        robj* val = lookupKey(EVICTED_DATA_DB, c->argv[1], LOOKUP_NONE);
+        if (val) {
             if (sendCommandToSSDB(c, NULL) != C_OK) {
                 serverLog(LL_WARNING, "sendCommandToSSDB fail.");
                 return C_ERR;
@@ -2356,7 +2355,6 @@ int processCommandMaybeInSSDB(client *c) {
 
             /* TODO: temporary code. Using the distribute of lfu counter to
                 determine if the key is to load to redis. */
-            val = dictGetVal(de);
             int counter = val->lru & 255;
 
             if (counter > LFU_INIT_VAL - 2)
