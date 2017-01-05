@@ -1434,7 +1434,7 @@ int processMultibulkBuffer(client *c) {
 void processInputBuffer(client *c) {
     server.current_client = c;
     /* Keep processing while there is something in the input buffer */
-    while(sdslen(c->querybuf)) {
+    while(sdslen(c->querybuf) || (server.jdjr_mode && (c->flags & CLIENT_BLOCKED_KEY_SSDB))) {
         /* Return if clients are paused. */
         if (!(c->flags & CLIENT_SLAVE) && clientsArePaused()) break;
 
@@ -1447,6 +1447,10 @@ void processInputBuffer(client *c) {
          *
          * The same applies for clients we want to terminate ASAP. */
         if (c->flags & (CLIENT_CLOSE_AFTER_REPLY|CLIENT_CLOSE_ASAP)) break;
+
+        if (server.jdjr_mode && (c->flags & CLIENT_BLOCKED_KEY_SSDB)) {
+            // todo
+        }
 
         /* Determine request type when unknown. */
         if (!c->reqtype) {
@@ -1470,12 +1474,9 @@ void processInputBuffer(client *c) {
             resetClient(c);
         } else {
             /* Only reset the client when the command was executed. */
-            // todo: only process the first key here, to consider multiple keys commands.
-            if (server.jdjr_mode
-                && c->argc > 1
-                && !dictFind(c->db->dict, c->argv[1]->ptr)
-                && lookupKey(EVICTED_DATA_DB, c->argv[1], LOOKUP_NONE)
-                && sendCommandToSSDB(c, NULL) == C_OK)
+            if (server.jdjr_mode && checkKeysInMediateState(c) == C_OK)
+                resetClient(c);
+            else if (server.jdjr_mode && processCommandMaybeInSSDB(c) == C_OK)
                 resetClient(c);
             else if (processCommand(c) == C_OK)
                 resetClient(c);

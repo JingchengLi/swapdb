@@ -2302,48 +2302,51 @@ void call(client *c, int flags) {
     server.stat_numcommands++;
 }
 
-/* for jdjr_mode only */
-int processCommandMaybeInSSDB(client *c) {
-    if (!strcasecmp(c->argv[0]->ptr,"quit")) {
-        addReply(c,shared.ok);
-        c->flags |= CLIENT_CLOSE_AFTER_REPLY;
-        return C_ERR;
-    }
+int checkKeysInMediateState(client* c) {
+    //if (!strcasecmp(c->argv[0]->ptr,"quit")) {
+    //    addReply(c,shared.ok);
+    //    c->flags |= CLIENT_CLOSE_AFTER_REPLY;
+    //    return C_ERR;
+    //}
 
-    struct redisCommand* cmd = lookupCommand(c->argv[0]->ptr);
-    if (!cmd) {
+    c->cmd = c->lastcmd = lookupCommand(c->argv[0]->ptr);
+    if (!c->cmd) {
         flagTransaction(c);
         addReplyErrorFormat(c,"unknown command '%s'",
             (char*)c->argv[0]->ptr);
         return C_OK;
-    } else if ((cmd->arity > 0 && cmd->arity != c->argc) ||
-               (c->argc < -cmd->arity)) {
+    } else if ((c->cmd->arity > 0 && c->cmd->arity != c->argc) ||
+               (c->argc < -c->cmd->arity)) {
         flagTransaction(c);
         addReplyErrorFormat(c,"wrong number of arguments for '%s' command",
-            cmd->name);
+            c->cmd->name);
         return C_OK;
     }
 
-    if (c->argc > 1) {
-        if (cmd->flags & CMD_WRITE) {
-            if (dictFind(EVICTED_DATA_DB->transferring_keys, c->argv[1]->ptr) ||
-                dictFind(EVICTED_DATA_DB->loading_hot_keys, c->argv[1]->ptr)) {
-                /* return C_ERR to avoid calling "resetClient", so we can save
-                 the state of current client and process this command in the next time. */
-                return C_ERR;
-            }
-        } else if (cmd->flags & CMD_READONLY) {
-            /* we can read a key of transferring state from redis. */
-            if (dictFind(EVICTED_DATA_DB->loading_hot_keys, c->argv[1]->ptr)) {
-                /* return C_ERR to avoid calling "resetClient", so we can save
-                 the state of current client and process this command in the next time. */
-                return C_ERR;
-            }
+    // todo: here process the first key only, need to support multiple keys command
+    if (c->cmd->flags & CMD_WRITE) {
+        if (dictFind(EVICTED_DATA_DB->transferring_keys, c->argv[1]->ptr) ||
+            dictFind(EVICTED_DATA_DB->loading_hot_keys, c->argv[1]->ptr)) {
+            /* return C_ERR to avoid calling "resetClient", so we can save
+             the state of current client and process this command in the next time. */
+            c->flags |= CLIENT_BLOCKED_KEY_SSDB;
+            return C_ERR;
+        }
+    } else if (c->cmd->flags & CMD_READONLY) {
+        /* we can read a key of transferring state from redis. */
+        if (dictFind(EVICTED_DATA_DB->loading_hot_keys, c->argv[1]->ptr)) {
+            /* return C_ERR to avoid calling "resetClient", so we can save
+             the state of current client and process this command in the next time. */
+            c->flags |= CLIENT_BLOCKED_KEY_SSDB;
+            return C_ERR;
         }
     }
+}
 
+/* for jdjr_mode only */
+int processCommandMaybeInSSDB(client *c) {
     // todo: here process the first key only, need to support multiple keys command
-    if (c->argc > 1 && (cmd->flags & (CMD_READONLY | CMD_WRITE)) && (!dictFind(c->db->dict, c->argv[1]->ptr))) {
+    if (c->argc > 1 && (c->cmd->flags & (CMD_READONLY | CMD_WRITE)) && (!dictFind(c->db->dict, c->argv[1]->ptr))) {
         robj* val = lookupKey(EVICTED_DATA_DB, c->argv[1], LOOKUP_NONE);
         if (val) {
             if (sendCommandToSSDB(c, NULL) != C_OK) {
@@ -2375,37 +2378,31 @@ int processCommandMaybeInSSDB(client *c) {
  * other operations can be performed by the caller. Otherwise
  * if C_ERR is returned the client was destroyed (i.e. after QUIT). */
 int processCommand(client *c) {
-    if (server.jdjr_mode) {
-        c->cmd = c->lastcmd = lookupCommand(c->argv[0]->ptr);
-    } else {
-        /* for jdjr_mode, we process the following things in "processCommandMaybeInSSDB". */
+    /* The QUIT command is handled separately. Normal command procs will
+     * go through checking for replication and QUIT will cause trouble
+     * when FORCE_REPLICATION is enabled and would be implemented in
+     * a regular command proc. */
+    if (!strcasecmp(c->argv[0]->ptr,"quit")) {
+        addReply(c,shared.ok);
+        c->flags |= CLIENT_CLOSE_AFTER_REPLY;
+        return C_ERR;
+    }
 
-        /* The QUIT command is handled separately. Normal command procs will
-         * go through checking for replication and QUIT will cause trouble
-         * when FORCE_REPLICATION is enabled and would be implemented in
-         * a regular command proc. */
-        if (!strcasecmp(c->argv[0]->ptr,"quit")) {
-            addReply(c,shared.ok);
-            c->flags |= CLIENT_CLOSE_AFTER_REPLY;
-            return C_ERR;
-        }
+    /* Now lookup the command and check ASAP about trivial error conditions
+     * such as wrong arity, bad command name and so forth. */
+    c->cmd = c->lastcmd = lookupCommand(c->argv[0]->ptr);
 
-        /* Now lookup the command and check ASAP about trivial error conditions
-         * such as wrong arity, bad command name and so forth. */
-        c->cmd = c->lastcmd = lookupCommand(c->argv[0]->ptr);
-
-        if (!c->cmd) {
-            flagTransaction(c);
-            addReplyErrorFormat(c,"unknown command '%s'",
-                (char*)c->argv[0]->ptr);
-            return C_OK;
-        } else if ((c->cmd->arity > 0 && c->cmd->arity != c->argc) ||
-                   (c->argc < -c->cmd->arity)) {
-            flagTransaction(c);
-            addReplyErrorFormat(c,"wrong number of arguments for '%s' command",
-                c->cmd->name);
-            return C_OK;
-        }
+    if (!c->cmd) {
+        flagTransaction(c);
+        addReplyErrorFormat(c,"unknown command '%s'",
+            (char*)c->argv[0]->ptr);
+        return C_OK;
+    } else if ((c->cmd->arity > 0 && c->cmd->arity != c->argc) ||
+               (c->argc < -c->cmd->arity)) {
+        flagTransaction(c);
+        addReplyErrorFormat(c,"wrong number of arguments for '%s' command",
+            c->cmd->name);
+        return C_OK;
     }
 
     /* Check if the user is authenticated */

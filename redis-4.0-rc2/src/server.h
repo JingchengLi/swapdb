@@ -245,7 +245,8 @@ typedef long long mstime_t; /* millisecond time type. */
 #define CLIENT_LUA_DEBUG_SYNC (1<<26)  /* EVAL debugging without fork() */
 #define CLIENT_MODULE (1<<27) /* Non connected client used by some module. */
 
-#define CLIENT_HANDLE_SSDB_AE (1<<30)
+#define CLIENT_BLOCKED_KEY_SSDB (1<<30) /* client is blocking when loading/transferring ssdb key.*/
+
 /* Client block type (btype field in client structure)
  * if CLIENT_BLOCKED flag is set. */
 #define BLOCKED_NONE 0    /* Not blocked, no CLIENT_BLOCKED flag set. */
