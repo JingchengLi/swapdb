@@ -179,7 +179,7 @@ int bproc_COMMAND_REDIS_RESTROE(SSDBServer *serv, const std::string &data_key, c
     serv->ssdb->raw_del(key);
 
     if (t_res->status == 1 && t_res->str == "OK") {
-        serv->ssdb->del(key);
+        serv->ssdb->del(data_key);
     }
 
     delete t_res;
