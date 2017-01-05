@@ -898,7 +898,7 @@ struct redisServer {
     list *clients_to_close;     /* Clients to close asynchronously */
     list *clients_pending_write; /* There is to write or install handler. */
     list *slaves, *monitors;    /* List of slaves and MONITORs */
-    list *evicting_keys;         /* List of keys is to be evicted to SSDB. */
+    list *hot_keys;         /* List of keys is to be loaded to redis. */
     client *current_client; /* Current client, only used on crash report */
     int clients_paused;         /* True if clients are currently paused */
     mstime_t clients_pause_end_time; /* Time when we undo clients_paused */
@@ -1568,6 +1568,7 @@ int zslLexValueLteMax(sds value, zlexrangespec *spec);
 int freeMemoryIfNeeded(void);
 int tryEvictingKeysToSSDB(void);
 int processCommand(client *c);
+int processCommandMaybeInSSDB(client *c);
 void setupSignalHandlers(void);
 struct redisCommand *lookupCommand(sds name);
 struct redisCommand *lookupCommandByCString(char *s);
@@ -1951,6 +1952,9 @@ void securityWarningCommand(client *c);
 void customizedDelCommand(client *c);
 void customizedRestorFailCommand(client *c);
 void customizedRestoreCommand(client *c);
+
+int prologOfLoadingFromSSDB(robj *keyobj);
+
 #if defined(__GNUC__)
 void *calloc(size_t count, size_t size) __attribute__ ((deprecated));
 void free(void *ptr) __attribute__ ((deprecated));

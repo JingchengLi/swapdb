@@ -155,7 +155,6 @@ void evictionPoolAlloc(void) {
 void coldKeyPopulate(int dbid, dict *sampledict, dict *keydict, struct evictionPoolEntry *pool) {
     int j, k, count;
     dictEntry *samples[server.maxmemory_samples];
-    redisDb* db = server.db+dbid;
 
     /* we support cold key transfer to ssdb only if evict algorithm is LRU or LFU */
     if (!(server.maxmemory_policy & (MAXMEMORY_FLAG_LRU|MAXMEMORY_FLAG_LFU))) {
@@ -171,9 +170,8 @@ void coldKeyPopulate(int dbid, dict *sampledict, dict *keydict, struct evictionP
         de = samples[j];
         key = dictGetKey(de);
 
-        if (dictFind(db->transferring_keys, key) != NULL) {
+        if (dictFind(EVICTED_DATA_DB->transferring_keys, key) != NULL)
             continue;
-        }
 
         /* If the dictionary we are sampling from is not the main
          * dictionary (but the expires one) we need to lookup the key
@@ -274,7 +272,6 @@ void coldKeyPopulate(int dbid, dict *sampledict, dict *keydict, struct evictionP
 void evictionPoolPopulate(int dbid, dict *sampledict, dict *keydict, struct evictionPoolEntry *pool) {
     int j, k, count;
     dictEntry *samples[server.maxmemory_samples];
-    redisDb* db = server.db+dbid;
 
     count = dictGetSomeKeys(sampledict,samples,server.maxmemory_samples);
     for (j = 0; j < count; j++) {
@@ -287,11 +284,8 @@ void evictionPoolPopulate(int dbid, dict *sampledict, dict *keydict, struct evic
         key = dictGetKey(de);
 
         /* skip the keys already in "transfering" state. */
-        if (server.jdjr_mode) {
-            if (dictFind(db->transferring_keys, key) != NULL) {
-                continue;
-            }
-        }
+        if (server.jdjr_mode && dictFind(EVICTED_DATA_DB, key) != NULL)
+            continue;
 
         /* If the dictionary we are sampling from is not the main
          * dictionary (but the expires one) we need to lookup the key
@@ -806,11 +800,9 @@ int freeMemoryIfNeeded(void) {
                             pool[k].key);
                     }
 
-                    if (server.jdjr_mode) {
-                        if (dictFind(server.db[pool[k].dbid].transferring_keys, pool[k].key) != NULL) {
-                            key_is_transfering = 1;
-                        }
-                    }
+                    if (server.jdjr_mode
+                        && dictFind(EVICTED_DATA_DB->transferring_keys, pool[k].key) != NULL)
+                        key_is_transfering = 1;
 
                     /* Remove the entry from the pool. */
                     if (pool[k].key != pool[k].cached)

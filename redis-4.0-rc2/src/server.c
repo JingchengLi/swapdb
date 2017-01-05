@@ -1183,13 +1183,12 @@ void startToEvictIfNeeded() {
 void startToLoadIfNeeded() {
     listIter li;
     listNode *ln;
-    int processed = 0;
     dictEntry *de;
 
-    if (!server.evicting_keys || !listLength(server.evicting_keys))
+    if (!server.hot_keys || !listLength(server.hot_keys))
         return;
 
-    listRewind(server.evicting_keys, &li);
+    listRewind(server.hot_keys, &li);
 
     while((ln = listNext(&li))) {
         robj *keyobj = (robj *)(ln->value);
@@ -1202,8 +1201,8 @@ void startToLoadIfNeeded() {
         prologOfLoadingFromSSDB(keyobj);
     }
 
-    listRelease(server.evicting_keys);
-    server.evicting_keys = listCreate();
+    listRelease(server.hot_keys);
+    server.hot_keys = listCreate();
 }
 
 /* This function gets called every time Redis is entering the
@@ -1805,7 +1804,7 @@ void initServer(void) {
     server.slaves = listCreate();
     server.monitors = listCreate();
     server.clients_pending_write = listCreate();
-    server.evicting_keys = listCreate();
+    server.hot_keys = listCreate();
     server.slaveseldb = -1; /* Force to emit the first SELECT command. */
     server.unblocked_clients = listCreate();
     server.ready_keys = listCreate();
@@ -2320,7 +2319,7 @@ int processCommandMaybeInSSDB(client *c) {
             int counter = val->lru & 255;
 
             if (counter > LFU_INIT_VAL - 2)
-                listAddNodeHead(server.evicting_keys, dupStringObject(c->argv[1]));
+                listAddNodeHead(server.hot_keys, dupStringObject(c->argv[1]));
             return C_OK;
         }
     }

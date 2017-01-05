@@ -480,7 +480,7 @@ void selectCommand(client *c) {
         return;
 
     if (server.cluster_enabled && (id != 0)
-        && (!server.jdjr_mode || server.loading && id != EVICTED_DATA_DBID)) {
+        && (!server.jdjr_mode || (server.loading && id != EVICTED_DATA_DBID))) {
         addReplyError(c,"SELECT is not allowed in cluster mode");
         return;
     }

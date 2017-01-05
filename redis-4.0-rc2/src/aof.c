@@ -1053,7 +1053,7 @@ int rewriteAppendOnlyFileRio(rio *aof) {
     int j;
     int server_dbnum = server.jdjr_mode ? server.dbnum + 1 : server.dbnum;
 
-    for (j = 0; j < server.dbnum; j++) {
+    for (j = 0; j < server_dbnum; j++) {
         char selectcmd[] = "*2\r\n$6\r\nSELECT\r\n";
         redisDb *db = server.db+j;
         dict *d = db->dict;
