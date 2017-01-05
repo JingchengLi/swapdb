@@ -1199,6 +1199,7 @@ void startToLoadIfNeeded() {
         /* TODO: not using EVICTED_DATA_DB->transferring_keys. */
         setTransferringDB(EVICTED_DATA_DB, keyobj);
         prologOfLoadingFromSSDB(keyobj);
+        decrRefCount(keyobj);
     }
 
     listRelease(server.hot_keys);
