@@ -2302,33 +2302,35 @@ void call(client *c, int flags) {
     server.stat_numcommands++;
 }
 
-int checkKeysInMediateState(client* c) {
-    //if (!strcasecmp(c->argv[0]->ptr,"quit")) {
-    //    addReply(c,shared.ok);
-    //    c->flags |= CLIENT_CLOSE_AFTER_REPLY;
-    //    return C_ERR;
-    //}
-
+int checkValidCommand(client* c) {
+    if (!strcasecmp(c->argv[0]->ptr,"quit")) {
+        return C_OK;
+    }
     c->cmd = c->lastcmd = lookupCommand(c->argv[0]->ptr);
     if (!c->cmd) {
         flagTransaction(c);
         addReplyErrorFormat(c,"unknown command '%s'",
             (char*)c->argv[0]->ptr);
-        return C_OK;
+        return C_ERR;
     } else if ((c->cmd->arity > 0 && c->cmd->arity != c->argc) ||
                (c->argc < -c->cmd->arity)) {
         flagTransaction(c);
         addReplyErrorFormat(c,"wrong number of arguments for '%s' command",
             c->cmd->name);
-        return C_OK;
+        return C_ERR;
     }
+    return C_OK;
+}
 
+int checkKeysInMediateState(client* c) {
     // todo: here process the first key only, need to support multiple keys command
     if (c->cmd->flags & CMD_WRITE) {
         if (dictFind(EVICTED_DATA_DB->transferring_keys, c->argv[1]->ptr) ||
             dictFind(EVICTED_DATA_DB->loading_hot_keys, c->argv[1]->ptr)) {
             /* return C_ERR to avoid calling "resetClient", so we can save
              the state of current client and process this command in the next time. */
+            // todo: use a suitable timeout
+            blockForLoadingkey(c, c->argv[1]->ptr), 5000+mstime());
             c->flags |= CLIENT_BLOCKED_KEY_SSDB;
             return C_ERR;
         }
@@ -2337,10 +2339,13 @@ int checkKeysInMediateState(client* c) {
         if (dictFind(EVICTED_DATA_DB->loading_hot_keys, c->argv[1]->ptr)) {
             /* return C_ERR to avoid calling "resetClient", so we can save
              the state of current client and process this command in the next time. */
+            // todo: use a suitable timeout
+            blockForLoadingkey(c, c->argv[1]->ptr), 5000+mstime());
             c->flags |= CLIENT_BLOCKED_KEY_SSDB;
             return C_ERR;
         }
     }
+    return C_OK;
 }
 
 /* for jdjr_mode only */

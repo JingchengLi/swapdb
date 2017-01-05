@@ -596,6 +596,9 @@ typedef struct redisDb {
     dict *expires;              /* Timeout of keys with a timeout set */
     dict *blocking_keys;        /* Keys with clients waiting for data (BLPOP)*/
     dict *ready_keys;           /* Blocked keys that received a PUSH */
+    dict *ssdb_blocking_keys;   /* For jdjr_mode: Keys in loading/tranferring state
+                                   from/to SSDB. */
+    dict *ssdb_ready_keys;      /* Blocked keys that ssdb load/transfer ok. */
     dict *watched_keys;         /* WATCHED keys for MULTI/EXEC CAS */
     dict *transferring_keys;    /* Keys are in the process of transferring keys to SSDB. */
     dict *loading_hot_keys;     /* keys become hot and in loading state from SSDB. */
@@ -1100,6 +1103,7 @@ struct redisServer {
     unsigned int bpop_blocked_clients; /* Number of clients blocked by lists */
     list *unblocked_clients; /* list of clients to unblock before next loop */
     list *ready_keys;        /* List of readyList structures for BLPOP & co */
+    list *ssdb_ready_keys;   /* list of readyList structures for ssdb loading/transferring.*/
     /* Sort parameters - qsort_r() is only available under BSD so we
      * have to take this state global, in order to pass it to sortCompare() */
     int sort_desc;
@@ -1567,8 +1571,12 @@ int zslLexValueLteMax(sds value, zlexrangespec *spec);
 
 /* Core functions */
 int freeMemoryIfNeeded(void);
+void blockForLoadingkey(client *c, robj* key, mstime_t timeout);
+void unblockClientWaitingSSDB(client* c);
 int tryEvictingKeysToSSDB(void);
 int processCommand(client *c);
+int checkValidCommand(client* c);
+int checkKeysInMediateState(client* c);
 int processCommandMaybeInSSDB(client *c);
 void setupSignalHandlers(void);
 struct redisCommand *lookupCommand(sds name);

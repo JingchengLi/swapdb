@@ -918,8 +918,31 @@ int loadHotKeyFromSSDB() {
 
 }
 
-void handleClientsBlockedOnLoadingkey(void) {
+void handleClientsBlockedOnSSDB(void) {
 
+}
+
+void signalBlockingKeyAsReady(redisDb *db, robj *key) {
+    readyList *rl;
+
+    /* No clients blocking for this key? No need to queue it. */
+    if (dictFind(db->ssdb_blocking_keys,key) == NULL) return;
+
+    /* Key was already signaled? No need to queue it again. */
+    if (dictFind(db->ssdb_ready_keys,key) != NULL) return;
+
+    /* Ok, we need to queue this key into server.ready_keys. */
+    rl = zmalloc(sizeof(*rl));
+    rl->key = key;
+    rl->db = db;
+    incrRefCount(key);
+    listAddNodeTail(server.ssdb_ready_keys,rl);
+
+    /* We also add the key in the db->ready_keys dictionary in order
+     * to avoid adding it multiple times into a list with a simple O(1)
+     * check. */
+    incrRefCount(key);
+    serverAssert(dictAdd(db->ssdb_ready_keys,key,NULL) == DICT_OK);
 }
 
 void blockForLoadingkey(client *c, robj* key, mstime_t timeout) {
@@ -930,12 +953,12 @@ void blockForLoadingkey(client *c, robj* key, mstime_t timeout) {
     c->bpop.loading_ssdb_key = key;
     incrRefCount(key);
 
-    de = dictFind(c->db->blocking_keys,key);
+    de = dictFind(c->db->ssdb_blocking_keys,key);
     if (de == NULL) {
         int retval;
 
         l = listCreate();
-        retval = dictAdd(c->db->blocking_keys,key,l);
+        retval = dictAdd(c->db->ssdb_blocking_keys,key,l);
         incrRefCount(key);
         serverAssertWithInfo(c,key,retval == DICT_OK);
     } else {
@@ -943,4 +966,8 @@ void blockForLoadingkey(client *c, robj* key, mstime_t timeout) {
     }
     listAddNodeTail(l,c);
     blockClient(c,BLOCKED_LOADING_HOT_KEY);
+}
+
+void unblockClientWaitingSSDB(client* c) {
+
 }

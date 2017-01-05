@@ -1473,8 +1473,15 @@ void processInputBuffer(client *c) {
         if (c->argc == 0) {
             resetClient(c);
         } else {
+            int cmd_is_valid = 0;
+            if (server.jdjr_mode && checkValidCommand(c) == C_OK) {
+                cmd_is_valid = 1;
+            }
+            if (server.jdjr_mode && checkKeysInMediateState(c) == C_ERR) {
+                break;
+            }
             /* Only reset the client when the command was executed. */
-            if (server.jdjr_mode && checkKeysInMediateState(c) == C_OK)
+            if (server.jdjr_mode && !cmd_is_valid)
                 resetClient(c);
             else if (server.jdjr_mode && processCommandMaybeInSSDB(c) == C_OK)
                 resetClient(c);
