@@ -36,7 +36,7 @@ public:
 	}
 	
 	const std::vector<Bytes>* recv_req(Buffer *input);
-	RedisReponse* recv_res(Buffer *input);
+	int recv_res(Buffer *input, RedisResponse *r, int shit);
 	int send_resp(Buffer *output, const std::vector<std::string> &resp);
 };
 

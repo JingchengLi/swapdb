@@ -16,7 +16,7 @@
 #define REDIS_REPLY_ERROR 6
 
 
-class RedisReponse {
+class RedisResponse {
 public:
     int status = 0;
 
@@ -24,19 +24,32 @@ public:
     long long integer;
 
     std::string str;
-    std::vector<RedisReponse *> element;
+    std::vector<RedisResponse *> element;
 
-    bool empty() {
-        return false;
+    void reset() {
+        status = 0;
+        str = "";
+
+        for (int i = 0; i < element.size(); ++i) {
+            if (element[i] != NULL) {
+                delete element[i];
+            }
+        }
+
+        element.clear();
+
     }
 
-    virtual ~RedisReponse() {
+    virtual ~RedisResponse() {
         for (int i = 0; i < element.size(); ++i) {
             if (element[i] != NULL) {
                 delete element[i];
             }
 
         }
+
+        element.clear();
+
     }
 
     std::string toString() {
@@ -57,24 +70,18 @@ public:
                 std::string tmp;
                 for (int i = 0; i < element.size(); ++i) {
                     tmp.append("(");
-                    tmp.append(::str((int64_t)element.size()));
+                    tmp.append(::str(i));
                     tmp.append(")");
                     tmp.append(element[i]->toString());
                     tmp.append("\n");
                 }
-                break;
+                return tmp;
             }
-
-
-
-
-
 
         }
 
 
-
-
+        return "ERR ?";
 
     }
 

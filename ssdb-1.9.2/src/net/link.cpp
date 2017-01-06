@@ -574,30 +574,33 @@ Link::request(const Bytes &s1, const Bytes &s2, const Bytes &s3, const Bytes &s4
     return this->response();
 }
 
-RedisReponse *Link::redisrecv() {
+
+RedisResponse *Link::redisResponse() {
     // Redis protocol supports
     // - + : $
     if (redis == NULL) {
         redis = new RedisLink();
     }
 
-    return redis->recv_res(input);
-}
+    RedisResponse *resp = new RedisResponse();
 
-RedisReponse *Link::redisResponse() {
     while (1) {
-        RedisReponse *resp = this->redisrecv();
-        if (resp == NULL) {
-            return NULL;
+        int parsed = redis->recv_res(input, resp, 0);
+        if (resp->status == 1) {
+            input->decr(parsed);
+            return resp;
         } else if (resp->status == -2) { //retry
-            delete resp;
+            resp->reset();
             if (this->read() <= 0) {
+                delete resp;
                 return NULL;
             }
         } else {
             return resp;
         }
     }
+
+    delete resp;
     return NULL;
 }
 
@@ -617,7 +620,7 @@ int Link::redisRequestSend(const std::vector<std::string> &args) {
     return output->append(tmp.data(), tmp.size());
 }
 
-RedisReponse *Link::redisRequest(const std::vector<std::string> &args) {
+RedisResponse *Link::redisRequest(const std::vector<std::string> &args) {
     if (this->redisRequestSend(args) == -1) {
         return NULL;
     }

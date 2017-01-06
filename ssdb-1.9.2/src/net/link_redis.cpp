@@ -386,38 +386,41 @@ int RedisLink::convert_req(){
 }
 
 
-RedisReponse *RedisLink::recv_res(Buffer *input) {
-	RedisReponse *r = new RedisReponse();
+int RedisLink::recv_res(Buffer *input, RedisResponse *r, int shit) {
+	int parsed = 0;
 
 	if (input->empty()) {
 		r->status = -2;
-		return r;
+		return parsed;
 	}
 
-	int size = input->size();
-	char *head = input->data();
+	//head for first line
+	//head2 for second line
 
-	char *body = (char *) memchr(head, '\n', size);
-	if (body == NULL) {
+	int size = input->size() - shit;
+	char *head = input->data() + shit;
+
+	char *head2 = (char *) memchr(head, '\n', size);
+	if (head2 == NULL) {
 		r->status = -2;
-		return r;
+		return parsed;
 	}
-	body++;
+	head2++;
 
-	int head_len = body - head;
+	unsigned long head_len = head2 - head;
 	if (head_len < 2) {
 		r->status = -2;
-		return r;
+		return parsed;
 	}
 
-	if (*(body - 2) != '\r') {
+	if (*(head2 - 2) != '\r') {
 		r->status = -1;
-		return r;
+		return parsed;
 	}
 
 	std::string line = std::string(head + 1, head_len - 3);
-	int parsed = head_len;
-	size = size - head_len;
+
+	parsed = head_len;
 
 	switch (*head) {
 		case '-' : {
@@ -447,13 +450,13 @@ RedisReponse *RedisLink::recv_res(Buffer *input) {
 			}
 
 			int replyLen = str_to_int(line);
-			if ((replyLen + 2) > size) {
+			if ((replyLen + 2) > (size - head_len)) {
 				//not enough. retry
 				r->status = -2;
 				break;
 			}
 
-			std::string str = std::string(body, replyLen + 2);
+			std::string str = std::string(head2, replyLen);
 			parsed = parsed + replyLen + 2;
 			r->str = str;
 			r->status = 1;
@@ -470,11 +473,18 @@ RedisReponse *RedisLink::recv_res(Buffer *input) {
 
 			int repliesNum = str_to_int(line);
 			for (int i = 0; i < repliesNum; ++i) {
-				RedisReponse *tmp = recv_res(input);
-				if (tmp != NULL && tmp->status == 1) {
+				RedisResponse *tmp = new RedisResponse();
+
+				int pt = recv_res(input, tmp, parsed);
+				if (tmp->status == 1) {
+					parsed = parsed + pt;
 					r->element.push_back(tmp);
+					r->status = tmp->status;
 					continue;
-				} else if (tmp != NULL){
+				} else if (tmp->status == -1){
+					r->status = tmp->status;
+					break;
+				} else if (tmp->status == -2){
 					r->status = tmp->status;
 					break;
 				} else {
@@ -487,13 +497,9 @@ RedisReponse *RedisLink::recv_res(Buffer *input) {
 		}
 		default: {
 			r->status = -1;
-			return r;
+			return parsed;
 			break;
 		}
-	}
-
-	if (r->status == 1) {
-		input->decr(parsed);
 	}
 
 	if (input->space() == 0) {
@@ -507,7 +513,7 @@ RedisReponse *RedisLink::recv_res(Buffer *input) {
 		}
 	}
 
-	return r;
+	return parsed;
 }
 
 const std::vector<Bytes>* RedisLink::recv_req(Buffer *input){

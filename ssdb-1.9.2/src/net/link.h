@@ -105,13 +105,11 @@ class Link{
 		const std::vector<Bytes>* request(const Bytes &s1, const Bytes &s2, const Bytes &s3, const Bytes &s4, const Bytes &s5);
 
 
-		RedisReponse* redisrecv();
-
-		RedisReponse* redisResponse();
+		RedisResponse* redisResponse();
 
 		int redisRequestSend(const std::vector<std::string>& args);
 
-		RedisReponse* redisRequest(const std::vector<std::string>& args);
+		RedisResponse* redisRequest(const std::vector<std::string>& args);
 
 };
 
