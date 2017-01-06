@@ -500,7 +500,7 @@ int epilogOfEvictingToSSDB(robj *keyobj) {
 
     /* Record the expire info. */
     if (expiretime > 0) {
-        setExpire(evicteddb, keyobj, expiretime);
+        setExpire(NULL, evicteddb, keyobj, expiretime);
         ll2string(llbuf, sizeof(llbuf), expiretime);
         notifyKeyspaceEvent(NOTIFY_GENERIC,
                             "expire", keyobj, evicteddb->id);
