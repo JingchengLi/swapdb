@@ -485,12 +485,11 @@ TEST_F(KVTest, Test_kv_setnx) {
 TEST_F(KVTest, Test_kv_setbit_getbit) {
     key = "kbit";
     val = "valbit";
-    int bitoffset = GetRandomUint_(0, MAX_PACKET_SIZE*8);
-    // int bitoffset = GetRandomUint_(0, MAX_UINT32-1);
+    int64_t bitoffset = GetRandomUint_(0, MAX_UINT32-1);
     int64_t getBit;
     s = client->del(key);
     s = client->getbit(key, bitoffset, &getBit);
-    ASSERT_TRUE(s.ok());
+    EXPECT_TRUE(s.ok())<<s.code();
     ASSERT_EQ(0, getBit);
     s = client->setbit(key, bitoffset, 1);
     ASSERT_TRUE(s.ok());
@@ -522,10 +521,15 @@ TEST_F(KVTest, Test_kv_setbit_getbit) {
     ASSERT_TRUE(s.error())<<"this key should set fail!"<<endl; 
     client->del(key);
 
+    s = client->setbit(key, MAX_UINT32, 1);
+    ASSERT_EQ("ok",s.code())<<"this key should set ok!"<<endl; 
+    s = client->getbit(key, MAX_UINT32, &getBit);
+    ASSERT_EQ(1,getBit)<<"should get 1!"<<endl; 
+
     //offset exceed range [0,MAX_PACKET_SIZE]
     s = client->setbit(key, -1, 1);
     ASSERT_NE("ok",s.code())<<"this key should set fail!"<<endl; 
-    s = client->setbit(key, MAX_PACKET_SIZE*8+1, 1);
+    s = client->setbit(key, MAX_UINT32+1, 1);
     ASSERT_NE("ok",s.code())<<"this key should set fail!"<<endl; 
 }
 

@@ -266,14 +266,14 @@ Status ClientImpl::setnx(const std::string &key, const std::string &val, int64_t
     return _read_int64(resp, ret);
 }
 
-Status ClientImpl::setbit(const std::string &key, int bitoffset, int on){
+Status ClientImpl::setbit(const std::string &key, int64_t bitoffset, int on){
 	const std::vector<std::string> *resp;
 	resp = this->request("setbit", key, str(bitoffset), str(on));
 	Status s(resp);
 	return s;
 }
 
-Status ClientImpl::getbit(const std::string &key, int bitoffset, int64_t* ret){
+Status ClientImpl::getbit(const std::string &key, int64_t bitoffset, int64_t* ret){
 	const std::vector<std::string> *resp;
 	resp = this->request("getbit", key, str(bitoffset));
 	return _read_int64(resp, ret);

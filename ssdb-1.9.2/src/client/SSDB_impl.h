@@ -39,8 +39,8 @@ public:
 	virtual Status get(const std::string &key, std::string *val);
 	virtual Status set(const std::string &key, const std::string &val);
 	virtual Status setnx(const std::string &key, const std::string &val, int64_t *ret=NULL);
-	virtual Status setbit(const std::string &key, int bitoffset, int on);
-	virtual Status getbit(const std::string &key, int bitoffset, int64_t* ret);
+	virtual Status setbit(const std::string &key, int64_t bitoffset, int on);
+	virtual Status getbit(const std::string &key, int64_t bitoffset, int64_t* ret);
 	virtual Status getset(const std::string &key, const std::string &val, std::string *getVal);
 	virtual Status setx(const std::string &key, const std::string &val, int ttl);
 	virtual Status del(const std::string &key);
