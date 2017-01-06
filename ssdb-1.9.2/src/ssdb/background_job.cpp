@@ -103,7 +103,7 @@ void BackgroundJob::regType() {
 int bproc_COMMAND_REDIS_DEL(SSDBServer *serv, const std::string &data_key, const std::string &key,
                             const std::string &value) {
 
-    Link *link = Link::connect(serv->redisUpstream->ip.c_str(), serv->redisUpstream->port);
+    Link *link = serv->redisUpstream->getLink();
     if (link == nullptr) {
         log_error("link is null");
         return -1;
@@ -118,7 +118,7 @@ int bproc_COMMAND_REDIS_DEL(SSDBServer *serv, const std::string &data_key, const
     auto t_res = link->redisRequest(req);
     if (t_res == nullptr) {
         log_error("t_res is null");
-        delete link;
+        serv->redisUpstream->reset();
         return -1;
 
     }
@@ -128,7 +128,6 @@ int bproc_COMMAND_REDIS_DEL(SSDBServer *serv, const std::string &data_key, const
     serv->ssdb->raw_del(key);
 
     delete t_res;
-    delete link;
 
     return 0;
 }
@@ -152,7 +151,7 @@ int bproc_COMMAND_REDIS_RESTROE(SSDBServer *serv, const std::string &data_key, c
     }
 
 
-    Link *link = Link::connect(serv->redisUpstream->ip.c_str(), serv->redisUpstream->port);
+    Link *link = serv->redisUpstream->getLink();
     if (link == nullptr) {
         log_error("link is null");
         return -1;
@@ -170,7 +169,7 @@ int bproc_COMMAND_REDIS_RESTROE(SSDBServer *serv, const std::string &data_key, c
     auto t_res = link->redisRequest(req);
     if (t_res == nullptr) {
         log_error("t_res is null");
-        delete link;
+        serv->redisUpstream->reset();
         return -1;
 
     }
@@ -185,7 +184,6 @@ int bproc_COMMAND_REDIS_RESTROE(SSDBServer *serv, const std::string &data_key, c
 //    }
 
     delete t_res;
-    delete link;
 
     return 0;
 

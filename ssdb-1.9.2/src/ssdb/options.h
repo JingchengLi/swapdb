@@ -6,6 +6,7 @@ found in the LICENSE file.
 #ifndef SSDB_OPTION_H_
 #define SSDB_OPTION_H_
 
+#include <net/link.h>
 #include "../util/config.h"
 
 #ifdef USE_LEVELDB
@@ -73,10 +74,28 @@ struct Options {
 
 class RedisUpstream
 {
+	Link *link = nullptr;
 public:
 	RedisUpstream(const std::string &ip, int port) : ip(ip), port(port) {}
 
 	~RedisUpstream(){}
+
+	Link *getLink() {
+		if (link == nullptr) {
+			link = Link::connect(ip.c_str(), port);
+		}
+
+		return link;
+	}
+
+	Link *reset() {
+		if (link != nullptr) {
+			delete link;
+			link = Link::connect(ip.c_str(), port);
+		}
+
+		return link;
+	}
 
 	std::string ip;
 	int port;
