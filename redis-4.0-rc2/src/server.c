@@ -2567,6 +2567,8 @@ int processCommand(client *c) {
         c->woff = server.master_repl_offset;
         if (listLength(server.ready_keys))
             handleClientsBlockedOnLists();
+        if (server.jdjr_mode && listLength(server.ssdb_ready_keys))
+            handleClientsBlockedOnSSDB();
     }
     return C_OK;
 }

@@ -1449,7 +1449,11 @@ void processInputBuffer(client *c) {
         if (c->flags & (CLIENT_CLOSE_AFTER_REPLY|CLIENT_CLOSE_ASAP)) break;
 
         if (server.jdjr_mode && (c->flags & CLIENT_BLOCKED_KEY_SSDB)) {
-            // todo
+            // process blocked command because of ssdb loading/transferring.
+            c->flags &= ~CLIENT_BLOCKED_KEY_SSDB;
+            if (processCommand(c) == C_OK)
+                resetClient(c);
+            break;
         }
 
         /* Determine request type when unknown. */

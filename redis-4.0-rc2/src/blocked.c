@@ -122,7 +122,8 @@ void processUnblockedClients(void) {
          * client is not blocked before to proceed, but things may change and
          * the code is conceptually more correct this way. */
         if (!(c->flags & CLIENT_BLOCKED)) {
-            if (c->querybuf && sdslen(c->querybuf) > 0) {
+            if ((c->querybuf && sdslen(c->querybuf) > 0) ||
+                (server.jdjr_mode && (c->flags & CLIENT_BLOCKED_KEY_SSDB))) {
                 processInputBuffer(c);
             }
         }

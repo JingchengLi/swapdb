@@ -914,12 +914,52 @@ cant_free:
     return C_ERR;
 }
 
-int loadHotKeyFromSSDB() {
-
-}
-
 void handleClientsBlockedOnSSDB(void) {
+    while(listLength(server.ssdb_ready_keys) != 0) {
+        list *l;
 
+        /* Point server.ready_keys to a fresh list and save the current one
+         * locally. This way as we run the old list we are free to call
+         * signalBlockingKeyAsReady() that may push new elements in server.ready_keys
+         * when handling clients blocked into SSDB loading/transferring. */
+        l = server.ssdb_ready_keys;
+        server.ssdb_ready_keys = listCreate();
+
+        while (listLength(l) != 0) {
+            listNode *ln = listFirst(l);
+            readyList *rl = ln->value;
+            dictEntry *de;
+
+            /* First of all remove this key from db->ssdb_ready_keys so that
+             * we can safely call signalBlockingKeyAsReady() against this key. */
+            dictDelete(rl->db->ssdb_ready_keys, rl->key);
+
+            /* We serve clients in the same order they blocked for
+             * this key, from the first blocked to the last. */
+            de = dictFind(rl->db->ssdb_blocking_keys,rl->key);
+            if (de) {
+                list *clients = dictGetVal(de);
+                int numclients = listLength(clients);
+
+                while (numclients--) {
+                    listNode *clientnode = listFirst(clients);
+                    client *c = clientnode->value;
+                    /* Unblock this client and add it into "server.unblocked_clients",
+                     * The blocked command will be executed in "processInputBuffer".*/
+                    unblockClient(c);
+                    if (server.jdjr_mode && (c->flags & CLIENT_BLOCKED_KEY_SSDB)) {
+                        processInputBuffer(c);
+                    }
+                }
+            }
+
+            /* Free this item. */
+            decrRefCount(rl->key);
+            zfree(rl);
+            listDelNode(l,ln);
+        }
+        listRelease(l); /* We have the new list on place at this point. */
+    }
 }
 
 void signalBlockingKeyAsReady(redisDb *db, robj *key) {
@@ -931,14 +971,14 @@ void signalBlockingKeyAsReady(redisDb *db, robj *key) {
     /* Key was already signaled? No need to queue it again. */
     if (dictFind(db->ssdb_ready_keys,key) != NULL) return;
 
-    /* Ok, we need to queue this key into server.ready_keys. */
+    /* Ok, we need to queue this key into server.ssdb_ready_keys. */
     rl = zmalloc(sizeof(*rl));
     rl->key = key;
     rl->db = db;
     incrRefCount(key);
     listAddNodeTail(server.ssdb_ready_keys,rl);
 
-    /* We also add the key in the db->ready_keys dictionary in order
+    /* We also add the key in the db->ssdb_ready_keys dictionary in order
      * to avoid adding it multiple times into a list with a simple O(1)
      * check. */
     incrRefCount(key);
@@ -969,5 +1009,19 @@ void blockForLoadingkey(client *c, robj* key, mstime_t timeout) {
 }
 
 void unblockClientWaitingSSDB(client* c) {
+    robj *key;
+    list *l;
 
+    key = c->bpop.loading_ssdb_key;
+    /* Remove this client from the list of clients blocking on this key. */
+    l = dictFetchValue(c->db->ssdb_blocking_keys, key);
+    serverAssertWithInfo(c,key,l != NULL);
+    listDelNode(l, listSearchKey(l,c));
+    /* If the list is empty we need to remove it to avoid wasting memory */
+    if (listLength(l) == 0) {
+        dictDelete(c->db->ssdb_blocking_keys,key);
+        decrRefCount(key);
+    }
+    decrRefCount(c->bpop.loading_ssdb_key);
+    c->bpop.loading_ssdb_key = NULL;
 }

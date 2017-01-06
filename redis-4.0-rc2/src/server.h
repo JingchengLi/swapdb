@@ -1571,7 +1571,10 @@ int zslLexValueLteMax(sds value, zlexrangespec *spec);
 
 /* Core functions */
 int freeMemoryIfNeeded(void);
+
 void blockForLoadingkey(client *c, robj* key, mstime_t timeout);
+void signalBlockingKeyAsReady(redisDb *db, robj *key);
+void handleClientsBlockedOnSSDB(void);
 void unblockClientWaitingSSDB(client* c);
 int tryEvictingKeysToSSDB(void);
 int processCommand(client *c);
