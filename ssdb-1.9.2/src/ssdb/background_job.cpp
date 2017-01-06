@@ -17,7 +17,7 @@ void *BackgroundJob::thread_func(void *arg) {
         backgroudJob->loop();
 
         if (backgroudJob->queued == 0) {
-            log_info("Background wait Job");
+//            log_info("Background wait Job");
             backgroudJob->cv.waitFor(10, 0);
         }
 
@@ -141,7 +141,7 @@ int bproc_COMMAND_REDIS_RESTROE(SSDBServer *serv, const std::string &data_key, c
     if (ret < 1) {
         serv->ssdb->raw_del(key);
         //TODO
-        log_error("bproc_COMMAND_REDIS_RESTROE error");
+        log_error("bproc_COMMAND_REDIS_RESTROE error %d", ret);
         return -1;
     }
 
@@ -179,9 +179,9 @@ int bproc_COMMAND_REDIS_RESTROE(SSDBServer *serv, const std::string &data_key, c
 
     serv->ssdb->raw_del(key);
 
-//    if (t_res->status == 1 && t_res->str == "OK") {
-//        serv->ssdb->del(data_key);
-//    }
+    if (t_res->status == 1 && t_res->str == "OK") {
+        serv->ssdb->del(data_key);
+    }
 
     delete t_res;
 
