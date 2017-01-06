@@ -1857,6 +1857,10 @@ void initServer(void) {
         server.db[j].blocking_keys = dictCreate(&keylistDictType,NULL);
         server.db[j].ready_keys = dictCreate(&objectKeyPointerValueDictType,NULL);
         server.db[j].watched_keys = dictCreate(&keylistDictType,NULL);
+        if (server.jdjr_mode) {
+            server.db[j].ssdb_blocking_keys = dictCreate(&keyptrDictType,NULL);
+            server.db[j].ssdb_ready_keys = dictCreate(&keyptrDictType,NULL);
+        }
         server.db[j].id = j;
         server.db[j].avg_ttl = 0;
     }
