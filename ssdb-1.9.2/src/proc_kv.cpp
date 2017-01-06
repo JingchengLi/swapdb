@@ -70,6 +70,7 @@ int proc_setx(NetworkServer *net, Link *link, const Request &req, Response *resp
 	}
 	ret = serv->expiration->expire(req[1], ttl, TimeUnit::Second);
 	if(ret == -1){
+        serv->ssdb->del(req[1]);
 		resp->push_back("error");
 	}else{
 		resp->push_back("ok");
