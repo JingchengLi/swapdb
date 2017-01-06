@@ -1032,7 +1032,7 @@ void blockForLoadingkey(client *c, robj **keys, int numkeys, mstime_t timeout) {
         }
         listAddNodeTail(l, c);
     }
-    blockClient(c,BLOCKED_LOADING_HOT_KEY);
+    blockClient(c,BLOCKED_LOADING_TRANSFER_SSDB);
 }
 
 
