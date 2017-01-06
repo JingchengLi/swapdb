@@ -139,6 +139,11 @@ TEST_F(KVTest, Test_kv_setex) {
     FalseSetx
 
     client->del(key);
+
+    s = client->setx(key, val, MAX_INT64);
+    EXPECT_TRUE(s.error())<<"fail to set key with MAX_INT64!"<<s.code()<<endl;
+    s = client->get(key, &getVal);
+    ASSERT_TRUE(s.not_found())<<"this key should be not found!"<<s.code()<<endl;
 }
 
 TEST_F(KVTest, Test_kv_get) {

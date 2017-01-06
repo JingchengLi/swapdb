@@ -285,7 +285,7 @@ Status ClientImpl::getset(const std::string &key, const std::string &val, std::s
 	return _read_str(resp, getVal);
 }
 
-Status ClientImpl::setx(const std::string &key, const std::string &val, int ttl){
+Status ClientImpl::setx(const std::string &key, const std::string &val, int64_t ttl){
 	const std::vector<std::string> *resp;
 	resp = this->request("setx", key, val, str(ttl));
 	Status s(resp);
