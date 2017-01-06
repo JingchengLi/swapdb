@@ -10,6 +10,7 @@ found in the LICENSE file.
 #include <sys/socket.h>
 #include <netdb.h>
 #include <sys/un.h>
+#include <util/log.h>
 
 #include "link.h"
 
@@ -298,7 +299,7 @@ int Link::write() {
             } else if (errno == EWOULDBLOCK) {
                 break;
             } else {
-                //log_debug("fd: %d, write: -1, error: %s", sock, strerror(errno));
+                log_debug("fd: %d, write: -1, error: %s", sock, strerror(errno));
                 return -1;
             }
         } else {

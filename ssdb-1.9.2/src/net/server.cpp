@@ -328,7 +328,8 @@ void NetworkServer::serve(){
 				fdes->set(link->fd(), FDEVENT_IN, 1, link);
 				continue;
 			}
-			
+
+
 			link->active_time = millitime();
 
 			ProcJob *job = new ProcJob();
@@ -336,6 +337,8 @@ void NetworkServer::serve(){
 			job->req = link->last_recv();
 			int result = this->proc(job);
 			if(result == PROC_THREAD){
+				log_debug("receive req: %s", serialize_req(*job->req).c_str());
+
 				fdes->del(link->fd());
 			}else if(result == PROC_BACKEND){
 				fdes->del(link->fd());
