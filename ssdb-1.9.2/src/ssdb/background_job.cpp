@@ -140,6 +140,8 @@ int bproc_COMMAND_REDIS_RESTROE(SSDBServer *serv, const std::string &data_key, c
     std::string val;
     int ret = serv->ssdb->dump(data_key, &val);
     if (ret < 1) {
+        serv->ssdb->raw_del(key);
+        //TODO
         log_error("bproc_COMMAND_REDIS_RESTROE error");
         return -1;
     }
@@ -178,9 +180,9 @@ int bproc_COMMAND_REDIS_RESTROE(SSDBServer *serv, const std::string &data_key, c
 
     serv->ssdb->raw_del(key);
 
-    if (t_res->status == 1 && t_res->str == "OK") {
-        serv->ssdb->del(data_key);
-    }
+//    if (t_res->status == 1 && t_res->str == "OK") {
+//        serv->ssdb->del(data_key);
+//    }
 
     delete t_res;
     delete link;

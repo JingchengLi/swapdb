@@ -523,7 +523,7 @@ int proc_rr_dump(NetworkServer *net, Link *link, const Request &req, Response *r
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(2);
 
-	std::string val;
+	std::string val = "OK";
 
 //	resp->reply_get(ret, &val);
 	resp->reply_get(1, &val);

@@ -52,7 +52,7 @@ static RedisCommand_raw cmds_raw[] = {
 	{STRATEGY_AUTO, "restore",	"restore",  	REPLY_STATUS},
 
 
-	{STRATEGY_AUTO, "rr_dump",		"rr_dump",			REPLY_BULK},
+	{STRATEGY_AUTO, "rr_dump",		"rr_dump",			REPLY_STATUS},
 	{STRATEGY_AUTO, "rr_restore",	"rr_restore",  	REPLY_STATUS},
 
 
