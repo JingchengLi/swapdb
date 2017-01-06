@@ -2324,6 +2324,8 @@ int checkValidCommand(client* c) {
 
 int checkKeysInMediateState(client* c) {
     // todo: here process the first key only, need to support multiple keys command
+    if (c->argc <= 1) return C_OK;
+
     if (c->cmd->flags & CMD_WRITE) {
         if (dictFind(EVICTED_DATA_DB->transferring_keys, c->argv[1]->ptr) ||
             dictFind(EVICTED_DATA_DB->loading_hot_keys, c->argv[1]->ptr)) {
