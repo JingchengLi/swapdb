@@ -959,13 +959,13 @@ void handleClientsBlockedOnSSDB(void) {
                     removeClientFromListForBlockedKey(c, rl->key);
 
                     /* Remove this key from the blocked keys dict of this client */
-                    retval = dictDelete(c->bpop.loading_ssdb_key, rl->key);
+                    retval = dictDelete(c->bpop.loading_or_transfer_keys, rl->key);
                     serverAssertWithInfo(c,rl->key,retval == DICT_OK);
 
                     /* unblock this client if all blocked keys in the command arguments
                      * are ready(load/transfer done). */
-                    if (dictSize(c->bpop.loading_ssdb_key) == 0) {
-                        dictEmpty(c->bpop.loading_ssdb_key,NULL);
+                    if (dictSize(c->bpop.loading_or_transfer_keys) == 0) {
+                        dictEmpty(c->bpop.loading_or_transfer_keys,NULL);
                         /* Unblock this client and add it into "server.unblocked_clients",
                          * The blocked command will be executed in "processInputBuffer".*/
                         unblockClient(c);
@@ -1016,7 +1016,7 @@ void blockForLoadingkey(client *c, robj **keys, int numkeys, mstime_t timeout) {
     c->bpop.timeout = timeout;
 
     for (j = 0; j < numkeys; j++) {
-        if (dictAdd(c->bpop.loading_ssdb_key,keys[j],NULL) != DICT_OK) continue;
+        if (dictAdd(c->bpop.loading_or_transfer_keys,keys[j],NULL) != DICT_OK) continue;
         incrRefCount(keys[j]);
 
         de = dictFind(c->db->ssdb_blocking_keys, keys[j]);
@@ -1032,11 +1032,11 @@ void blockForLoadingkey(client *c, robj **keys, int numkeys, mstime_t timeout) {
         }
         listAddNodeTail(l, c);
     }
-    blockClient(c,BLOCKED_LOADING_TRANSFER_SSDB);
+    blockClient(c,BLOCKED_SSDB_LOADING_OR_TRANSFER);
 }
 
 
 void unblockClientWaitingSSDB(client* c) {
-    //serverAssertWithInfo(c,NULL,dictSize(c->bpop.loading_ssdb_key) == 0);
+    //serverAssertWithInfo(c,NULL,dictSize(c->bpop.loading_or_transfer_keys) == 0);
     /* do nothing */
 }

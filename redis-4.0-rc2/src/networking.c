@@ -121,7 +121,7 @@ client *createClient(int fd) {
     c->bpop.timeout = 0;
     c->bpop.keys = dictCreate(&objectKeyPointerValueDictType,NULL);
     if (server.jdjr_mode)
-        c->bpop.loading_ssdb_key = dictCreate(&objectKeyPointerValueDictType,NULL);
+        c->bpop.loading_or_transfer_keys = dictCreate(&objectKeyPointerValueDictType,NULL);
     c->bpop.target = NULL;
     c->bpop.numreplicas = 0;
     c->bpop.reploffset = 0;

@@ -139,7 +139,7 @@ void unblockClient(client *c) {
         unblockClientWaitingReplicas(c);
     } else if (c->btype == BLOCKED_MODULE) {
         unblockClientFromModule(c);
-    } else if (server.jdjr_mode && c->btype == BLOCKED_LOADING_TRANSFER_SSDB) {
+    } else if (server.jdjr_mode && c->btype == BLOCKED_SSDB_LOADING_OR_TRANSFER) {
         unblockClientWaitingSSDB(c);
     } else {
         serverPanic("Unknown btype in unblockClient().");

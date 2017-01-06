@@ -253,7 +253,7 @@ typedef long long mstime_t; /* millisecond time type. */
 #define BLOCKED_LIST 1    /* BLPOP & co. */
 #define BLOCKED_WAIT 2    /* WAIT for synchronous replication. */
 #define BLOCKED_MODULE 3  /* Blocked by a loadable module. */
-#define BLOCKED_LOADING_TRANSFER_SSDB 10 /* Blocked when loading a key becomes hot in SSDB
+#define BLOCKED_SSDB_LOADING_OR_TRANSFER 10 /* Blocked when loading a key becomes hot in SSDB
                                     * or transferring a key becomes cold to SSDB. */
 
 /* Client request types */
@@ -642,8 +642,8 @@ typedef struct blockingState {
     void *module_blocked_handle; /* RedisModuleBlockedClient structure.
                                     which is opaque for the Redis core, only
                                     handled in module.c. */
-    /* BLOCKED_LOADING_TRANSFER_SSDB */
-    dict *loading_ssdb_key; /* two cases:
+    /* BLOCKED_SSDB_LOADING_OR_TRANSFER */
+    dict *loading_or_transfer_keys; /* two cases:
                             * 1) The keys becomes hot and are loading from ssdb to redis.
                             * 2) The keys becomes cold and are transferring to ssdb. */
 
