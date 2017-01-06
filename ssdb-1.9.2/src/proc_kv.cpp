@@ -55,11 +55,11 @@ int proc_setx(NetworkServer *net, Link *link, const Request &req, Response *resp
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(4);
 
-	int64_t ttl = req[3].Int64();
-	if (errno == EINVAL || ttl <= 0){
-		resp->push_back("error");
-		return 0;
-	}
+    long long when;
+    if (string2ll(req[3].data(), (size_t)req[3].size(), &when) == 0) {
+        resp->push_back("ERR:value is not an integer or out of range");
+        return 0;
+    }
 
 	Locking l(&serv->expiration->mutex);
 	int ret;
@@ -68,7 +68,7 @@ int proc_setx(NetworkServer *net, Link *link, const Request &req, Response *resp
 		resp->push_back("error");
 		return 0;
 	}
-	ret = serv->expiration->expire(req[1], ttl, TimeUnit::Second);
+	ret = serv->expiration->expire(req[1], (int64_t)when, TimeUnit::Second);
 	if(ret == -1){
         serv->ssdb->del(req[1]);
 		resp->push_back("error");
@@ -83,11 +83,11 @@ int proc_psetx(NetworkServer *net, Link *link, const Request &req, Response *res
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(4);
 
-	int64_t ttl = req[3].Int64();
-	if (errno == EINVAL || ttl <= 0){
-		resp->push_back("error");
-		return 0;
-	}
+    long long when;
+    if (string2ll(req[3].data(), (size_t)req[3].size(), &when) == 0) {
+        resp->push_back("ERR:value is not an integer or out of range");
+        return 0;
+    }
 
 	Locking l(&serv->expiration->mutex);
 	int ret;
@@ -96,8 +96,9 @@ int proc_psetx(NetworkServer *net, Link *link, const Request &req, Response *res
 		resp->push_back("error");
 		return 0;
 	}
-	ret = serv->expiration->expire(req[1], ttl, TimeUnit::Millisecond);
+	ret = serv->expiration->expire(req[1], (int64_t)when, TimeUnit::Millisecond);
 	if(ret == -1){
+        serv->ssdb->del(req[1]);
 		resp->push_back("error");
 	}else{
 		resp->push_back("ok");
@@ -130,15 +131,15 @@ int proc_pexpire(NetworkServer *net, Link *link, const Request &req, Response *r
     SSDBServer *serv = (SSDBServer *)net->data;
     CHECK_NUM_PARAMS(3);
 
-    int64_t ttl = req[2].Int64();
-    if (errno == EINVAL){
-        resp->push_back("error");
+    long long when;
+    if (string2ll(req[2].data(), (size_t)req[2].size(), &when) == 0) {
+        resp->push_back("ERR:value is not an integer or out of range");
         return 0;
     }
 
     Locking l(&serv->expiration->mutex);
     std::string val;
-    int ret = serv->expiration->expire(req[1], ttl, TimeUnit::Millisecond);
+    int ret = serv->expiration->expire(req[1], (int64_t)when, TimeUnit::Millisecond);
     if(ret == 1){
         resp->push_back("ok");
         resp->push_back("1");
@@ -155,15 +156,15 @@ int proc_expire(NetworkServer *net, Link *link, const Request &req, Response *re
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(3);
 
-	int64_t ttl = req[2].Int64();
-	if (errno == EINVAL){
-		resp->push_back("error");
-		return 0;
-	}
+    long long when;
+    if (string2ll(req[2].data(), (size_t)req[2].size(), &when) == 0) {
+        resp->push_back("ERR:value is not an integer or out of range");
+        return 0;
+    }
 
 	Locking l(&serv->expiration->mutex);
 	std::string val;
-	int ret = serv->expiration->expire(req[1], ttl, TimeUnit::Second);
+	int ret = serv->expiration->expire(req[1], (int64_t)when, TimeUnit::Second);
 	if(ret == 1){
 		resp->push_back("ok");
 		resp->push_back("1");
@@ -180,15 +181,15 @@ int proc_expireat(NetworkServer *net, Link *link, const Request &req, Response *
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(3);
 
-	int64_t ts_ms = req[2].Int64();
-	if (errno == EINVAL){
-		resp->push_back("error");
-		return 0;
-	}
+    long long ts_ms;
+    if (string2ll(req[2].data(), (size_t)req[2].size(), &ts_ms) == 0) {
+        resp->push_back("ERR:value is not an integer or out of range");
+        return 0;
+    }
 
 	Locking l(&serv->expiration->mutex);
 	std::string val;
-	int ret = serv->expiration->expireAt(req[1], ts_ms * 1000);
+	int ret = serv->expiration->expireAt(req[1], (int64_t)ts_ms * 1000);
 	if(ret == 1){
 		resp->push_back("ok");
 		resp->push_back("1");
@@ -224,15 +225,15 @@ int proc_pexpireat(NetworkServer *net, Link *link, const Request &req, Response 
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(3);
 
-	int64_t ts_ms = req[2].Int64();
-	if (errno == EINVAL){
-		resp->push_back("error");
-		return 0;
-	}
+    long long ts_ms;
+    if (string2ll(req[2].data(), (size_t)req[2].size(), &ts_ms) == 0) {
+        resp->push_back("ERR:value is not an integer or out of range");
+        return 0;
+    }
 
 	Locking l(&serv->expiration->mutex);
 	std::string val;
-	int ret = serv->expiration->expireAt(req[1], ts_ms);
+	int ret = serv->expiration->expireAt(req[1], (int64_t)ts_ms);
 	if(ret == 1){
 		resp->push_back("ok");
 		resp->push_back("1");
