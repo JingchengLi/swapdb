@@ -120,6 +120,8 @@ client *createClient(int fd) {
     c->btype = BLOCKED_NONE;
     c->bpop.timeout = 0;
     c->bpop.keys = dictCreate(&objectKeyPointerValueDictType,NULL);
+    if (server.jdjr_mode)
+        c->bpop.loading_ssdb_key = dictCreate(&objectKeyPointerValueDictType,NULL);
     c->bpop.target = NULL;
     c->bpop.numreplicas = 0;
     c->bpop.reploffset = 0;
@@ -1482,7 +1484,9 @@ void processInputBuffer(client *c) {
                 if (checkValidCommand(c) == C_OK) {
                     cmd_is_valid = 1;
                 }
-                if (cmd_is_valid && checkKeysInMediateState(c) == C_ERR) {
+                // todo: here process the first key only, need to support multiple keys command
+                if (cmd_is_valid && c->argc > 1 &&
+                        checkKeysInMediateState(c, c->argv[1]->ptr) == C_ERR) {
                     break;
                 }
             }

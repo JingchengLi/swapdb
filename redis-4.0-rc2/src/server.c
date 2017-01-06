@@ -1809,6 +1809,7 @@ void initServer(void) {
     server.slaveseldb = -1; /* Force to emit the first SELECT command. */
     server.unblocked_clients = listCreate();
     server.ready_keys = listCreate();
+    if (server.jdjr_mode) server.ssdb_ready_keys = listCreate();
     server.clients_waiting_acks = listCreate();
     server.get_ack_from_slaves = 0;
     server.clients_paused = 0;
@@ -1858,8 +1859,8 @@ void initServer(void) {
         server.db[j].ready_keys = dictCreate(&objectKeyPointerValueDictType,NULL);
         server.db[j].watched_keys = dictCreate(&keylistDictType,NULL);
         if (server.jdjr_mode) {
-            server.db[j].ssdb_blocking_keys = dictCreate(&keyptrDictType,NULL);
-            server.db[j].ssdb_ready_keys = dictCreate(&keyptrDictType,NULL);
+            server.db[j].ssdb_blocking_keys = dictCreate(&keylistDictType,NULL);
+            server.db[j].ssdb_ready_keys = dictCreate(&objectKeyPointerValueDictType,NULL);
         }
         server.db[j].id = j;
         server.db[j].avg_ttl = 0;
@@ -2326,27 +2327,24 @@ int checkValidCommand(client* c) {
     return C_OK;
 }
 
-int checkKeysInMediateState(client* c) {
-    // todo: here process the first key only, need to support multiple keys command
-    if (c->argc <= 1) return C_OK;
-
+int checkKeysInMediateState(client* c, robj* key) {
     if (c->cmd->flags & CMD_WRITE) {
-        if (dictFind(EVICTED_DATA_DB->transferring_keys, c->argv[1]->ptr) ||
-            dictFind(EVICTED_DATA_DB->loading_hot_keys, c->argv[1]->ptr)) {
+        if (dictFind(EVICTED_DATA_DB->transferring_keys, key) ||
+            dictFind(EVICTED_DATA_DB->loading_hot_keys, key)) {
             /* return C_ERR to avoid calling "resetClient", so we can save
              the state of current client and process this command in the next time. */
             // todo: use a suitable timeout
-            blockForLoadingkey(c, c->argv[1]->ptr, 5000+mstime());
+            blockForLoadingkey(c, &key, 1, 5000+mstime());
             c->flags |= CLIENT_BLOCKED_KEY_SSDB;
             return C_ERR;
         }
     } else if (c->cmd->flags & CMD_READONLY) {
         /* we can read a key of transferring state from redis. */
-        if (dictFind(EVICTED_DATA_DB->loading_hot_keys, c->argv[1]->ptr)) {
+        if (dictFind(EVICTED_DATA_DB->loading_hot_keys, key)) {
             /* return C_ERR to avoid calling "resetClient", so we can save
              the state of current client and process this command in the next time. */
             // todo: use a suitable timeout
-            blockForLoadingkey(c, c->argv[1]->ptr, 5000+mstime());
+            blockForLoadingkey(c, &key, 1, 5000+mstime());
             c->flags |= CLIENT_BLOCKED_KEY_SSDB;
             return C_ERR;
         }

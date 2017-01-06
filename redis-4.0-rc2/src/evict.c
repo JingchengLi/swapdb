@@ -914,6 +914,16 @@ cant_free:
     return C_ERR;
 }
 
+static void removeClientFromListForBlockedKey(client* c, robj* key) {
+     /* Remove this client from the list of clients blocking on this key. */
+    list *l = dictFetchValue(c->db->ssdb_blocking_keys, key);
+    serverAssertWithInfo(c,key,l != NULL);
+    listDelNode(l, listSearchKey(l,c));
+    /* If the list is empty we need to remove it to avoid wasting memory */
+    if (listLength(l) == 0)
+        dictDelete(c->db->ssdb_blocking_keys,key);
+}
+
 void handleClientsBlockedOnSSDB(void) {
     while(listLength(server.ssdb_ready_keys) != 0) {
         list *l;
@@ -944,11 +954,24 @@ void handleClientsBlockedOnSSDB(void) {
                 while (numclients--) {
                     listNode *clientnode = listFirst(clients);
                     client *c = clientnode->value;
-                    /* Unblock this client and add it into "server.unblocked_clients",
-                     * The blocked command will be executed in "processInputBuffer".*/
-                    unblockClient(c);
-                    if (server.jdjr_mode && (c->flags & CLIENT_BLOCKED_KEY_SSDB)) {
-                        processInputBuffer(c);
+                    int retval;
+
+                    removeClientFromListForBlockedKey(c, rl->key);
+
+                    /* Remove this key from the blocked keys dict of this client */
+                    retval = dictDelete(c->bpop.loading_ssdb_key, rl->key);
+                    serverAssertWithInfo(c,rl->key,retval == DICT_OK);
+
+                    /* unblock this client if all blocked keys in the command arguments
+                     * are ready(load/transfer done). */
+                    if (dictSize(c->bpop.loading_ssdb_key) == 0) {
+                        dictEmpty(c->bpop.loading_ssdb_key,NULL);
+                        /* Unblock this client and add it into "server.unblocked_clients",
+                         * The blocked command will be executed in "processInputBuffer".*/
+                        unblockClient(c);
+                        if (c->flags & CLIENT_BLOCKED_KEY_SSDB) {
+                            processInputBuffer(c);
+                        }
                     }
                 }
             }
@@ -985,43 +1008,35 @@ void signalBlockingKeyAsReady(redisDb *db, robj *key) {
     serverAssert(dictAdd(db->ssdb_ready_keys,key,NULL) == DICT_OK);
 }
 
-void blockForLoadingkey(client *c, robj* key, mstime_t timeout) {
+void blockForLoadingkey(client *c, robj **keys, int numkeys, mstime_t timeout) {
     dictEntry *de;
     list *l;
+    int j;
 
     c->bpop.timeout = timeout;
-    c->bpop.loading_ssdb_key = key;
-    incrRefCount(key);
 
-    de = dictFind(c->db->ssdb_blocking_keys,key);
-    if (de == NULL) {
-        int retval;
+    for (j = 0; j < numkeys; j++) {
+        if (dictAdd(c->bpop.loading_ssdb_key,keys[j],NULL) != DICT_OK) continue;
+        incrRefCount(keys[j]);
 
-        l = listCreate();
-        retval = dictAdd(c->db->ssdb_blocking_keys,key,l);
-        incrRefCount(key);
-        serverAssertWithInfo(c,key,retval == DICT_OK);
-    } else {
-        l = dictGetVal(de);
+        de = dictFind(c->db->ssdb_blocking_keys, keys[j]);
+        if (de == NULL) {
+            int retval;
+
+            l = listCreate();
+            retval = dictAdd(c->db->ssdb_blocking_keys, keys[j], l);
+            incrRefCount(keys[j]);
+            serverAssertWithInfo(c, keys[j], retval == DICT_OK);
+        } else {
+            l = dictGetVal(de);
+        }
+        listAddNodeTail(l, c);
     }
-    listAddNodeTail(l,c);
     blockClient(c,BLOCKED_LOADING_HOT_KEY);
 }
 
-void unblockClientWaitingSSDB(client* c) {
-    robj *key;
-    list *l;
 
-    key = c->bpop.loading_ssdb_key;
-    /* Remove this client from the list of clients blocking on this key. */
-    l = dictFetchValue(c->db->ssdb_blocking_keys, key);
-    serverAssertWithInfo(c,key,l != NULL);
-    listDelNode(l, listSearchKey(l,c));
-    /* If the list is empty we need to remove it to avoid wasting memory */
-    if (listLength(l) == 0) {
-        dictDelete(c->db->ssdb_blocking_keys,key);
-        decrRefCount(key);
-    }
-    decrRefCount(c->bpop.loading_ssdb_key);
-    c->bpop.loading_ssdb_key = NULL;
+void unblockClientWaitingSSDB(client* c) {
+    //serverAssertWithInfo(c,NULL,dictSize(c->bpop.loading_ssdb_key) == 0);
+    /* do nothing */
 }

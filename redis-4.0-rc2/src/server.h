@@ -598,7 +598,7 @@ typedef struct redisDb {
     dict *ready_keys;           /* Blocked keys that received a PUSH */
     dict *ssdb_blocking_keys;   /* For jdjr_mode: Keys in loading/tranferring state
                                    from/to SSDB. */
-    dict *ssdb_ready_keys;      /* Blocked keys that ssdb load/transfer ok. */
+    dict *ssdb_ready_keys;      /* For jdjr_mode: Blocked keys that ssdb load/transfer ok. */
     dict *watched_keys;         /* WATCHED keys for MULTI/EXEC CAS */
     dict *transferring_keys;    /* Keys are in the process of transferring keys to SSDB. */
     dict *loading_hot_keys;     /* keys become hot and in loading state from SSDB. */
@@ -642,7 +642,7 @@ typedef struct blockingState {
                                     which is opaque for the Redis core, only
                                     handled in module.c. */
     /* BLOCKED_LOADING_HOT_KEY */
-    robj *loading_ssdb_key; /* The key becomes hot and is loading from ssdb to redis. */
+    dict *loading_ssdb_key; /* The key becomes hot and is loading from ssdb to redis. */
 
 } blockingState;
 
@@ -1572,14 +1572,14 @@ int zslLexValueLteMax(sds value, zlexrangespec *spec);
 /* Core functions */
 int freeMemoryIfNeeded(void);
 
-void blockForLoadingkey(client *c, robj* key, mstime_t timeout);
-void signalBlockingKeyAsReady(redisDb *db, robj *key);
+void blockForLoadingkey(client *c, robj **keys, int numkeys, mstime_t timeout);
+void signalBlockingKeyAsReady(redisDb *db, robj* key);
 void handleClientsBlockedOnSSDB(void);
 void unblockClientWaitingSSDB(client* c);
 int tryEvictingKeysToSSDB(void);
 int processCommand(client *c);
 int checkValidCommand(client* c);
-int checkKeysInMediateState(client* c);
+int checkKeysInMediateState(client* c, robj* key);
 int processCommandMaybeInSSDB(client *c);
 void setupSignalHandlers(void);
 struct redisCommand *lookupCommand(sds name);
