@@ -390,7 +390,7 @@ int RedisLink::recv_res(Buffer *input, RedisResponse *r, int shit) {
 	int parsed = 0;
 
 	if (input->empty()) {
-		r->status = -2;
+		r->status = REDIS_RESPONSE_RETRY;
 		return parsed;
 	}
 
@@ -402,19 +402,24 @@ int RedisLink::recv_res(Buffer *input, RedisResponse *r, int shit) {
 
 	char *head2 = (char *) memchr(head, '\n', size);
 	if (head2 == NULL) {
-		r->status = -2;
+		r->status = REDIS_RESPONSE_RETRY;
 		return parsed;
 	}
 	head2++;
 
 	unsigned long head_len = head2 - head;
 	if (head_len < 2) {
-		r->status = -2;
+		r->status = REDIS_RESPONSE_RETRY;
+		return parsed;
+	}
+
+	if (head_len == 2) {
+		r->status = REDIS_RESPONSE_ERR;
 		return parsed;
 	}
 
 	if (*(head2 - 2) != '\r') {
-		r->status = -1;
+		r->status = REDIS_RESPONSE_ERR;
 		return parsed;
 	}
 
@@ -426,40 +431,40 @@ int RedisLink::recv_res(Buffer *input, RedisResponse *r, int shit) {
 		case '-' : {
 			r->type = REDIS_REPLY_ERROR;
 			r->str = line;
-			r->status = 1;
+			r->status = REDIS_RESPONSE_DONE;
 			break;
 		};
 		case '+' : {
 			r->type = REDIS_REPLY_STATUS;
 			r->str = line;
-			r->status = 1;
+			r->status = REDIS_RESPONSE_DONE;
 			break;
 		};
 		case ':' : {
 			r->type = REDIS_REPLY_INTEGER;
 			r->integer = str_to_int(line);
-			r->status = 1;
+			r->status = REDIS_RESPONSE_DONE;
 			break;
 		};
 		case '$' : {
 			r->type = REDIS_REPLY_STRING;
 			if (line.length() == 2 && line[0] == '-' && line[1] == '1') {
 				r->type = REDIS_REPLY_NIL;
-				r->status = 1;
+				r->status = REDIS_RESPONSE_DONE;
 				break;
 			}
 
 			int replyLen = str_to_int(line);
 			if ((replyLen + 2) > (size - head_len)) {
 				//not enough. retry
-				r->status = -2;
+				r->status = REDIS_RESPONSE_RETRY;
 				break;
 			}
 
 			std::string str = std::string(head2, replyLen);
 			parsed = parsed + replyLen + 2;
 			r->str = str;
-			r->status = 1;
+			r->status = REDIS_RESPONSE_DONE;
 			break;
 		};
 		case '*': {
@@ -467,7 +472,7 @@ int RedisLink::recv_res(Buffer *input, RedisResponse *r, int shit) {
 
 			if (line.length() == 2 && line[0] == '-' && line[1] == '1') {
 				r->type = REDIS_REPLY_NIL;
-				r->status = 1;
+				r->status = REDIS_RESPONSE_DONE;
 				break;
 			}
 
@@ -476,19 +481,19 @@ int RedisLink::recv_res(Buffer *input, RedisResponse *r, int shit) {
 				RedisResponse *tmp = new RedisResponse();
 
 				int pt = recv_res(input, tmp, parsed);
-				if (tmp->status == 1) {
+				if (tmp->status == REDIS_RESPONSE_DONE) {
 					parsed = parsed + pt;
 					r->element.push_back(tmp);
 					r->status = tmp->status;
 					continue;
-				} else if (tmp->status == -1){
+				} else if (tmp->status == REDIS_RESPONSE_ERR){
 					r->status = tmp->status;
 					break;
-				} else if (tmp->status == -2){
+				} else if (tmp->status == REDIS_RESPONSE_RETRY){
 					r->status = tmp->status;
 					break;
 				} else {
-					r->status = -1;
+					r->status = REDIS_RESPONSE_ERR;
 					break;
 				}
 			}
@@ -496,7 +501,7 @@ int RedisLink::recv_res(Buffer *input, RedisResponse *r, int shit) {
 			break;
 		}
 		default: {
-			r->status = -1;
+			r->status = REDIS_RESPONSE_ERR;
 			return parsed;
 			break;
 		}

@@ -15,6 +15,9 @@
 #define REDIS_REPLY_STATUS 5
 #define REDIS_REPLY_ERROR 6
 
+#define REDIS_RESPONSE_DONE 1
+#define REDIS_RESPONSE_ERR -1
+#define REDIS_RESPONSE_RETRY -2
 
 class RedisResponse {
 public:
@@ -57,7 +60,7 @@ public:
             return "error status :" + status;
         }
 
-        switch(type) {
+        switch (type) {
             case REDIS_REPLY_NIL:
                 return "nil";
             case REDIS_REPLY_STRING:
@@ -65,7 +68,7 @@ public:
             case REDIS_REPLY_ERROR:
                 return str;
             case REDIS_REPLY_INTEGER:
-                return ::str((int64_t)integer);
+                return ::str((int64_t) integer);
             case REDIS_REPLY_ARRAY: {
                 std::string tmp;
                 for (int i = 0; i < element.size(); ++i) {

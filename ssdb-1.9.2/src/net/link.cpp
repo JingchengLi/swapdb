@@ -587,16 +587,17 @@ RedisResponse *Link::redisResponse() {
 
     while (1) {
         int parsed = redis->recv_res(input, resp, 0);
-        if (resp->status == 1) {
+        if (resp->status == REDIS_RESPONSE_ERR) {
             input->decr(parsed);
             return resp;
-        } else if (resp->status == -2) { //retry
+        } else if (resp->status == REDIS_RESPONSE_RETRY) { //retry
             resp->reset();
             if (this->read() <= 0) {
                 delete resp;
                 return NULL;
             }
         } else {
+            input->decr(parsed);
             return resp;
         }
     }
