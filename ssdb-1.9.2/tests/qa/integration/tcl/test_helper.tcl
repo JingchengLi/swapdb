@@ -12,7 +12,6 @@ source support/test.tcl
 source support/util.tcl
 
 set ::all_tests {
-    ssdb/dump
     ssdb/hash
     ssdb/list-3
     ssdb/list
@@ -22,6 +21,8 @@ set ::all_tests {
     ssdb/zset
     ssdb/expire
 }
+# need run with redis
+# ssdb/dump
 
 # unit/printver
 # unit/dump
@@ -430,6 +431,7 @@ proc the_end {} {
         exit 0
             
     } else {
+        write_redis_test_result_report "</testsuites>"
         cleanup
         if {[llength $::failed_tests]} {
             exit 1
@@ -437,7 +439,6 @@ proc the_end {} {
             exit 0
         }
     }
-    write_redis_test_result_report "</testsuites>"
 }
 
 # The client is not even driven (the test server is instead) as we just need

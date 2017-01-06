@@ -40,7 +40,7 @@ start_server {tags {"ssdb"}} {
         } {}
 
         test {SET 10000 numeric keys and access all them in reverse order} {
-            r flushdb
+            # r flushdb
             set err {}
             for {set x 0} {$x < 10000} {incr x} {
                 r set $x $x
@@ -101,7 +101,7 @@ start_server {tags {"ssdb"}} {
     }
 
     test {MGET} {
-        r flushdb
+        # r flushdb
         r set foo BAR
         r set bar FOO
         r mget foo bar
