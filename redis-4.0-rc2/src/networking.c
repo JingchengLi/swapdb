@@ -1474,12 +1474,15 @@ void processInputBuffer(client *c) {
             resetClient(c);
         } else {
             int cmd_is_valid = 0;
-            if (server.jdjr_mode && checkValidCommand(c) == C_OK) {
-                cmd_is_valid = 1;
+            if (server.jdjr_mode) {
+                if (checkValidCommand(c) == C_OK) {
+                    cmd_is_valid = 1;
+                }
+                if (cmd_is_valid && checkKeysInMediateState(c) == C_ERR) {
+                    break;
+                }
             }
-            if (server.jdjr_mode && checkKeysInMediateState(c) == C_ERR) {
-                break;
-            }
+
             /* Only reset the client when the command was executed. */
             if (server.jdjr_mode && !cmd_is_valid)
                 resetClient(c);

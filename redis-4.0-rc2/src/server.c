@@ -2330,7 +2330,7 @@ int checkKeysInMediateState(client* c) {
             /* return C_ERR to avoid calling "resetClient", so we can save
              the state of current client and process this command in the next time. */
             // todo: use a suitable timeout
-            blockForLoadingkey(c, c->argv[1]->ptr), 5000+mstime());
+            blockForLoadingkey(c, c->argv[1]->ptr, 5000+mstime());
             c->flags |= CLIENT_BLOCKED_KEY_SSDB;
             return C_ERR;
         }
@@ -2340,7 +2340,7 @@ int checkKeysInMediateState(client* c) {
             /* return C_ERR to avoid calling "resetClient", so we can save
              the state of current client and process this command in the next time. */
             // todo: use a suitable timeout
-            blockForLoadingkey(c, c->argv[1]->ptr), 5000+mstime());
+            blockForLoadingkey(c, c->argv[1]->ptr, 5000+mstime());
             c->flags |= CLIENT_BLOCKED_KEY_SSDB;
             return C_ERR;
         }
