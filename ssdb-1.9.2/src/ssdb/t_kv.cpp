@@ -346,7 +346,7 @@ int SSDBImpl::get(const Bytes &key, std::string *val) {
 }
 
 
-int SSDBImpl::setbit(const Bytes &key, int bitoffset, int on){
+int SSDBImpl::setbit(const Bytes &key, int64_t bitoffset, int on){
 	RecordLock l(&mutex_record_, key.String());
 	leveldb::WriteBatch batch;
 	
@@ -370,8 +370,8 @@ int SSDBImpl::setbit(const Bytes &key, int bitoffset, int on){
 		val = kv.value;
 	}
 
-    int len = bitoffset >> 3;
-    int bit = 7 - (bitoffset & 0x7);
+    int64_t len = bitoffset >> 3;
+    int64_t bit = 7 - (bitoffset & 0x7);
     if (len >= val.size()) {
         val.resize(len + 1, 0);
     }
@@ -394,15 +394,15 @@ int SSDBImpl::setbit(const Bytes &key, int bitoffset, int on){
 	return orig;
 }
 
-int SSDBImpl::getbit(const Bytes &key, int bitoffset) {
+int SSDBImpl::getbit(const Bytes &key, int64_t bitoffset) {
     std::string val;
     int ret = this->get(key, &val);
     if (ret <= 0) {
         return ret;
     }
 
-    int len = bitoffset >> 3;
-    int bit = 7 - (bitoffset & 0x7);
+    int64_t len = bitoffset >> 3;
+    int64_t bit = 7 - (bitoffset & 0x7);
     if (len >= val.size()) {
         return 0;
     }

@@ -415,8 +415,10 @@ int proc_decr(NetworkServer *net, Link *link, const Request &req, Response *resp
 int proc_getbit(NetworkServer *net, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(3);
+	long long offset;
+	string2ll(req[2].data(), (size_t)req[2].size(), &offset);
 
-	int ret = serv->ssdb->getbit(req[1], req[2].Int());
+	int ret = serv->ssdb->getbit(req[1], (int64_t)offset);
 	resp->reply_bool(ret);
 	return 0;
 }
@@ -426,9 +428,10 @@ int proc_setbit(NetworkServer *net, Link *link, const Request &req, Response *re
 	CHECK_NUM_PARAMS(4);
 
 	const Bytes &key = req[1];
-//	int offset = req[2].Int();
-    int64_t offset = req[2].Int64();
-    int on = req[3].Int();
+	long long offset;
+	string2ll(req[2].data(), (size_t)req[2].size(), &offset);
+
+	int on = req[3].Int();
 	if(on & ~1){
 		resp->push_back("client_error");
 		resp->push_back("bit is not an integer or out of range");
@@ -440,7 +443,7 @@ int proc_setbit(NetworkServer *net, Link *link, const Request &req, Response *re
 		resp->push_back(msg);
 		return 0;
 	}
-	int ret = serv->ssdb->setbit(key, offset, on);
+	int ret = serv->ssdb->setbit(key, (int64_t)offset, on);
 	resp->reply_bool(ret);
 	return 0;
 }

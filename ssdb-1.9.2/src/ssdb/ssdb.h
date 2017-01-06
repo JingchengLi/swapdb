@@ -56,8 +56,8 @@ public:
 	virtual int incr(const Bytes &key, int64_t by, int64_t *new_val) = 0;
 	virtual int multi_set(const std::vector<Bytes> &kvs, int offset=0) = 0;
 	virtual int multi_del(const std::vector<Bytes> &keys, int offset=0) = 0;
-	virtual int setbit(const Bytes &key, int bitoffset, int on) = 0;
-	virtual int getbit(const Bytes &key, int bitoffset) = 0;
+	virtual int setbit(const Bytes &key, int64_t bitoffset, int on) = 0;
+	virtual int getbit(const Bytes &key, int64_t bitoffset) = 0;
 	
 	virtual int get(const Bytes &key, std::string *val) = 0;
 	virtual int getset(const Bytes &key, std::string *val, const Bytes &newval) = 0;
