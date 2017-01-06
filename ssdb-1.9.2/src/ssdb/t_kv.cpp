@@ -290,27 +290,27 @@ int SSDBImpl::incr(const Bytes &key, int64_t by, int64_t *new_val){
 	RecordLock l(&mutex_record_, key.String());
 	leveldb::WriteBatch batch;
 
-	std::string old;
-	uint16_t version = 0;
-	std::string meta_key = encode_meta_key(key);
-	KvMetaVal kv;
-	int ret = GetKvMetaVal(meta_key, kv);
-	if(ret == -1){
-		return -1;
-	}else if(ret == 0){
-		*new_val = by;
-		if (kv.del == KEY_DELETE_MASK){
-			if (kv.version == UINT16_MAX){
-				version = 0;
-			} else{
-				version = (uint16_t)(kv.version+1);
-			}
-		}
-	}else{
-		old = kv.value;
-		version = kv.version;
-        int64_t oldvalue = str_to_int64(old);
-        if (errno != 0) {
+    std::string old;
+    uint16_t version = 0;
+    std::string meta_key = encode_meta_key(key);
+    KvMetaVal kv;
+    int ret = GetKvMetaVal(meta_key, kv);
+    if (ret == -1) {
+        return -1;
+    } else if (ret == 0) {
+        *new_val = by;
+        if (kv.del == KEY_DELETE_MASK) {
+            if (kv.version == UINT16_MAX) {
+                version = 0;
+            } else {
+                version = (uint16_t) (kv.version + 1);
+            }
+        }
+    } else {
+        old = kv.value;
+        version = kv.version;
+        long long oldvalue;
+        if (string2ll(old.c_str(), old.size(), &oldvalue) == 0) {
             return 0;
         }
         if ((by < 0 && oldvalue < 0 && by < (LLONG_MIN - oldvalue)) ||
