@@ -525,7 +525,7 @@ int SSDBImpl::lrange(const Bytes &key, int64_t start, int64_t end, std::vector<s
     /* Invariant: start >= 0, so this test will be true when end < 0.
      * The range is empty when start > end or start >= length. */
     if (start > end || start >= llen) {
-        return -1;
+        return 0;
     }
     if (end >= llen) end = llen-1;
     int64_t rangelen = (end-start)+1;
