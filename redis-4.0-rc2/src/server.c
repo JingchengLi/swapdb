@@ -2322,9 +2322,9 @@ int checkKeysInMediateState(client* c, robj* key) {
         if (dictFind(EVICTED_DATA_DB->transferring_keys, key) ||
             dictFind(EVICTED_DATA_DB->loading_hot_keys, key)) {
             /* return C_ERR to avoid calling "resetClient", so we can save
-             the state of current client and process this command in the next time. */
-            // todo: use a suitable timeout
-            blockForLoadingkey(c, &key, 1, 5000+mstime());
+               the state of current client and process this command in the next time. */
+            /* TODO: use a suitable timeout */
+            blockForLoadingkey(c, c->argv + 1, 1, 5000+mstime());
             c->flags |= CLIENT_BLOCKED_KEY_SSDB;
             return C_ERR;
         }
@@ -2332,9 +2332,9 @@ int checkKeysInMediateState(client* c, robj* key) {
         /* we can read a key of transferring state from redis. */
         if (dictFind(EVICTED_DATA_DB->loading_hot_keys, key)) {
             /* return C_ERR to avoid calling "resetClient", so we can save
-             the state of current client and process this command in the next time. */
-            // todo: use a suitable timeout
-            blockForLoadingkey(c, &key, 1, 5000+mstime());
+               the state of current client and process this command in the next time. */
+             /* TODO: use a suitable timeout. */
+            blockForLoadingkey(c, c->argv + 1, 1, 5000+mstime());
             c->flags |= CLIENT_BLOCKED_KEY_SSDB;
             return C_ERR;
         }
@@ -2349,7 +2349,7 @@ int processCommandMaybeInSSDB(client *c) {
     if (c->argc <= 1 || !lookupKey(EVICTED_DATA_DB, c->argv[1], LOOKUP_NONE))
         return C_ERR;
 
-    serverAssert(dictFind(c->db->dict, c->argv[1]->ptr));
+    serverAssert(!dictFind(c->db->dict, c->argv[1]->ptr));
 
     if (!c->cmd) c->cmd = c->lastcmd = lookupCommand(c->argv[0]->ptr);
 

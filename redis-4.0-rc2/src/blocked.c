@@ -167,6 +167,9 @@ void replyToBlockedClientTimedOut(client *c) {
         addReplyLongLong(c,replicationCountAcksByOffset(c->bpop.reploffset));
     } else if (c->btype == BLOCKED_MODULE) {
         moduleBlockedClientTimedOut(c);
+    } else if (server.jdjr_mode && c->btype == BLOCKED_SSDB_LOADING_OR_TRANSFER) {
+        /* TODO: return null according to the key's type. */
+        addReplyString(c, "-Err timeout", 13);
     } else {
         serverPanic("Unknown btype in replyToBlockedClientTimedOut().");
     }

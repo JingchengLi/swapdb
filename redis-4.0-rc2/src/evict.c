@@ -914,16 +914,6 @@ cant_free:
     return C_ERR;
 }
 
-static void removeClientFromListForBlockedKey(client* c, robj* key) {
-     /* Remove this client from the list of clients blocking on this key. */
-    list *l = dictFetchValue(c->db->ssdb_blocking_keys, key);
-    serverAssertWithInfo(c,key,l != NULL);
-    listDelNode(l, listSearchKey(l,c));
-    /* If the list is empty we need to remove it to avoid wasting memory */
-    if (listLength(l) == 0)
-        dictDelete(c->db->ssdb_blocking_keys,key);
-}
-
 void handleClientsBlockedOnSSDB(void) {
     while(listLength(server.ssdb_ready_keys) != 0) {
         list *l;
@@ -956,7 +946,6 @@ void handleClientsBlockedOnSSDB(void) {
                     client *c = clientnode->value;
                     int retval;
 
-                    removeClientFromListForBlockedKey(c, rl->key);
 
                     /* Remove this key from the blocked keys dict of this client */
                     retval = dictDelete(c->bpop.loading_or_transfer_keys, rl->key);
@@ -1037,6 +1026,27 @@ void blockForLoadingkey(client *c, robj **keys, int numkeys, mstime_t timeout) {
 
 
 void unblockClientWaitingSSDB(client* c) {
-    //serverAssertWithInfo(c,NULL,dictSize(c->bpop.loading_or_transfer_keys) == 0);
-    /* do nothing */
+    dictEntry *de;
+    dictIterator *di;
+    list *l;
+
+    serverAssertWithInfo(c, NULL, dictSize(c->bpop.loading_or_transfer_keys) != 0);
+    di = dictGetIterator(c->bpop.loading_or_transfer_keys);
+
+    /* The client may wait for multiple keys, so unblock it for every key. */
+    while((de = dictNext(di)) != NULL) {
+        robj *key = dictGetKey(de);
+
+        /* Remove this client from the list of clients waiting for this key. */
+        l = dictFetchValue(c->db->ssdb_blocking_keys, key);
+        serverAssertWithInfo(c, key, l != NULL);
+        listDelNode(l, listSearchKey(l, c));
+        /* If the list is empty we need to remove it to avoid wasting memory */
+        if (listLength(l) == 0)
+            dictDelete(c->db->ssdb_blocking_keys,key);
+    }
+    dictReleaseIterator(di);
+
+    /* Cleanup the client structure */
+    dictEmpty(c->bpop.loading_or_transfer_keys,NULL);
 }
