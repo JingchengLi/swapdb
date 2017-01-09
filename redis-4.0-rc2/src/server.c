@@ -2318,6 +2318,12 @@ void call(client *c, int flags) {
 int checkKeysInMediateState(client* c, robj* key) {
     c->cmd = c->lastcmd = lookupCommand(c->argv[0]->ptr);
 
+    /* Command from SSDB should not be blocked. */
+    if (c->cmd->proc == customizedDelCommand
+        || c->cmd->proc == customizedRestorFailCommand
+        || c->cmd->proc == customizedRestoreCommand)
+        return C_OK;
+
     if (c->cmd->flags & CMD_WRITE) {
         if (dictFind(EVICTED_DATA_DB->transferring_keys, key) ||
             dictFind(EVICTED_DATA_DB->loading_hot_keys, key)) {
