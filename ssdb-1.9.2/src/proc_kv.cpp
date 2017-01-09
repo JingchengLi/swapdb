@@ -60,6 +60,10 @@ int proc_setx(NetworkServer *net, Link *link, const Request &req, Response *resp
         resp->push_back("ERR:value is not an integer or out of range");
         return 0;
     }
+	if (when <= 0) {
+		resp->push_back("ERR: invalid expire time");
+		return 0;
+	}
 
 	Locking l(&serv->expiration->mutex);
 	int ret;
@@ -88,6 +92,10 @@ int proc_psetx(NetworkServer *net, Link *link, const Request &req, Response *res
         resp->push_back("ERR:value is not an integer or out of range");
         return 0;
     }
+	if (when <= 0) {
+		resp->push_back("ERR: invalid expire time");
+		return 0;
+	}
 
 	Locking l(&serv->expiration->mutex);
 	int ret;
