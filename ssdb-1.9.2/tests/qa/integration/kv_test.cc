@@ -526,16 +526,20 @@ TEST_F(KVTest, Test_kv_setbit_getbit) {
     ASSERT_TRUE(s.error())<<"this key should set fail!"<<endl; 
     client->del(key);
 
-    s = client->setbit(key, MAX_UINT32, 1);
+    bitoffset = MAX_UINT32;
+    s = client->setbit(key, bitoffset, 1);
     ASSERT_EQ("ok",s.code())<<"this key should set ok!"<<endl; 
-    s = client->getbit(key, MAX_UINT32, &getBit);
+    s = client->getbit(key, bitoffset, &getBit);
     ASSERT_EQ(1,getBit)<<"should get 1!"<<endl; 
 
     //offset exceed range [0,MAX_PACKET_SIZE]
     s = client->setbit(key, -1, 1);
     ASSERT_NE("ok",s.code())<<"this key should set fail!"<<endl; 
-    s = client->setbit(key, MAX_UINT32+1, 1);
+    bitoffset += 1;
+    s = client->setbit(key, bitoffset, 1);
     ASSERT_NE("ok",s.code())<<"this key should set fail!"<<endl; 
+    s = client->getbit(key, bitoffset, &getBit);
+    ASSERT_NE("ok",s.code())<<"this key should get fail!"<<endl;
 }
 
 TEST_F(KVTest, Test_kv_getset) {
