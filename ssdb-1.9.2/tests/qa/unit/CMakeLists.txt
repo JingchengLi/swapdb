@@ -5,6 +5,7 @@ SET(BUILD_PATH "${CMAKE_SOURCE_DIR}/../../..")
 SET(LEVELDB_PATH=${BUILD_PATH}/deps/leveldb-1.18)
 SET(JEMALLOC_PATH=${BUILD_PATH}/deps/jemalloc-4.1.0)
 SET(SNAPPY_PATH=${BUILD_PATH}/deps/snappy-1.1.0)
+SET(EXECUTABLE_OUTPUT_PATH "${CMAKE_SOURCE_DIR}/build")
 
 INCLUDE_DIRECTORIES(
     #${BUILD_PATH}/deps/leveldb-1.18/include
@@ -128,77 +129,11 @@ set_target_properties(libcodec-shared PROPERTIES
     LINKER_LANGUAGE CXX
     OUTPUT_NAME "codec")
 
-ADD_EXECUTABLE(test_codec 
+ADD_EXECUTABLE(ssdb-server 
     ${CODEC_OBJS}                                                                                                                                             
     ${GTEST_SRC}
     ${GTEST_CODEC_SRC}
     )
 
-TARGET_LINK_LIBRARIES(test_codec gtest) 
+TARGET_LINK_LIBRARIES(ssdb-server gtest) 
 
-# src/net
-# libnet.a
-
-SET( NET_OBJS 
-    ${BUILD_PATH}/src/net/server.cpp
-    ${BUILD_PATH}/src/net/resp.cpp
-    ${BUILD_PATH}/src/net/proc.cpp
-    ${BUILD_PATH}/src/net/worker.cpp
-    ${BUILD_PATH}/src/net/fde.cpp
-    ${BUILD_PATH}/src/net/link.cpp
-)
-
-ADD_LIBRARY(libnet-static STATIC ${NET_OBJS})                                                                                                                                                  
-ADD_LIBRARY(libnet-shared SHARED ${NET_OBJS})
-set_target_properties(libnet-static PROPERTIES
-    LINKER_LANGUAGE CXX
-    OUTPUT_NAME "net")
-set_target_properties(libnet-shared PROPERTIES
-    LINKER_LANGUAGE CXX
-    OUTPUT_NAME "net")
-
-
-# src/util
-# libutil.a
-
-SET( UTIL_OBJS 
-    ${BUILD_PATH}/src/util/log.cpp
-    ${BUILD_PATH}/src/util/config.cpp
-    ${BUILD_PATH}/src/util/bytes.cpp
-    ${BUILD_PATH}/src/util/sorted_set.cpp
-    ${BUILD_PATH}/src/util/app.cpp
-)
-
-ADD_LIBRARY(libutil-static STATIC ${UTIL_OBJS})                                                                                                                                                  
-ADD_LIBRARY(libutil-shared SHARED ${UTIL_OBJS})
-set_target_properties(libutil-static PROPERTIES
-    LINKER_LANGUAGE CXX
-    OUTPUT_NAME "util")
-set_target_properties(libutil-shared PROPERTIES
-    LINKER_LANGUAGE CXX
-    OUTPUT_NAME "util")
-
-# src
-
-SET( SRC_OBJS
-    ${GTEST_SRC}
-    ${GTEST_CODEC_SRC}
-    ${BUILD_PATH}/src/ssdb-server.cpp
-    ${BUILD_PATH}/src/client/SSDB_impl.cpp
-    ${BUILD_PATH}/src/proc_kv.cpp
-    ${BUILD_PATH}/src/proc_hash.cpp
-    ${BUILD_PATH}/src/proc_zset.cpp
-    ${BUILD_PATH}/src/proc_queue.cpp
-    ${BUILD_PATH}/src/proc_set.cpp
-    ${BUILD_PATH}/src/backend_dump.cpp
-    ${BUILD_PATH}/src/backend_sync.cpp
-    ${BUILD_PATH}/src/slave.cpp
-    ${BUILD_PATH}/src/serv.cpp
-    ${BUILD_PATH}/src/proc_cluster.cpp
-    ${BUILD_PATH}/src/cluster.cpp
-    ${BUILD_PATH}/src/cluster_store.cpp
-    ${BUILD_PATH}/src/cluster_migrate.cpp
-)
-
-ADD_EXECUTABLE(ssdb-server ${SRC_OBJS})                                                                                                                                             
-TARGET_LINK_LIBRARIES(ssdb-server snappy libssdb-static libutil-static libnet-static bz2 z jemalloc pthread rt rocksdb gtest gflags libcodec-static) 
