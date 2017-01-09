@@ -201,6 +201,7 @@ proc s {args} {
 }
 
 proc cleanup {} {
+    write_redis_test_result_report "</testsuites>"
     if {!$::quiet} {puts -nonewline "Cleanup: may take some time... "}
     flush stdout
     catch {exec rm -rf {*}[glob tmp/redis.conf.*]}
@@ -431,7 +432,6 @@ proc the_end {} {
         exit 0
             
     } else {
-        write_redis_test_result_report "</testsuites>"
         cleanup
         if {[llength $::failed_tests]} {
             exit 1
