@@ -864,7 +864,8 @@ int createClientForEvicting() {
     if (nonBlockConnectToSsdbServer(server.ssdb_client) == C_OK) {
         server.ssdb_client->fd = server.ssdb_client->context->fd;
         listAddNodeTail(server.clients, server.ssdb_client);
-    }
+    } else
+        return C_ERR;
 
     serverLog(LL_NOTICE, "Connecting to SSDB Unix socket succeeded.");
     return C_OK;
