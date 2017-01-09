@@ -427,6 +427,12 @@ int proc_getbit(NetworkServer *net, Link *link, const Request &req, Response *re
 	CHECK_NUM_PARAMS(3);
 	long long offset;
 	string2ll(req[2].data(), (size_t)req[2].size(), &offset);
+    if(offset < 0 || ((uint64_t)offset >> 3) >= Link::MAX_PACKET_SIZE * 4){
+        std::string msg = "offset is is not an integer or out of range";
+        resp->push_back("client_error");
+        resp->push_back(msg);
+        return 0;
+    }
 
 	int ret = serv->ssdb->getbit(req[1], (int64_t)offset);
 	resp->reply_bool(ret);
