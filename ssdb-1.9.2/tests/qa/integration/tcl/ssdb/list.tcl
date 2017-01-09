@@ -200,8 +200,7 @@ start_server {
         test "LRANGE inverted indexes - $type" {
             create_list mylist "$large 1 2 3 4 5 6 7 8 9"
 
-            assert_error NoERR* {r lrange mylist 6 2}
-            # assert_equal {} [r lrange mylist 6 2]
+            assert_equal {} [r lrange mylist 6 2]
         }
 
         test "LRANGE out of range indexes including the full list - $type" {
@@ -213,8 +212,7 @@ start_server {
             create_list mylist "$large 1 2 3"
             assert_equal $large [r lrange mylist 0 -4]
 
-            assert_error NoERR* {r lrange mylist 0 -5}
-            # assert_equal {} [r lrange mylist 0 -5]
+            assert_equal {} [r lrange mylist 0 -5]
         }
     }
 
