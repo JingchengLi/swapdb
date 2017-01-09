@@ -322,6 +322,8 @@ proc read_from_test_client fd {
         set testcase [string range $data 0 [string first "in $classname.tcl" $data]-2]
         set searchStr "in $classname.tcl"
         set report [string range $data [expr [string first $searchStr $data]+[string length $searchStr]+1 ] [string length $data]]
+        # replace for xml parse
+        set report [string map {& &amp; \" &quot; ' &apos; < &lt; > &gt;} $report]        
         set err "\[[colorstr red $status]\]: $data"
         if {!$::quiet} {
             puts $err
