@@ -1451,7 +1451,7 @@ void processInputBuffer(client *c) {
         if (c->flags & (CLIENT_CLOSE_AFTER_REPLY|CLIENT_CLOSE_ASAP)) break;
 
         if (server.jdjr_mode && (c->flags & CLIENT_BLOCKED_KEY_SSDB)) {
-            // process blocked command because of ssdb loading/transferring.
+            /* Process blocked command because of ssdb loading/transferring. */
             c->flags &= ~CLIENT_BLOCKED_KEY_SSDB;
             if (processCommand(c) == C_OK)
                 resetClient(c);
@@ -1479,22 +1479,15 @@ void processInputBuffer(client *c) {
         if (c->argc == 0) {
             resetClient(c);
         } else {
-            int cmd_is_valid = 0;
-            if (server.jdjr_mode) {
-                if (checkValidCommand(c) == C_OK) {
-                    cmd_is_valid = 1;
-                }
-                // todo: here process the first key only, need to support multiple keys command
-                if (cmd_is_valid && c->argc > 1 &&
-                        checkKeysInMediateState(c, c->argv[1]->ptr) == C_ERR) {
-                    break;
-                }
-            }
+            /* TODO: jdjr-mode current only process the first key only,
+               need to support multiple keys command. */
+            if (server.jdjr_mode
+                && c->argc > 1
+                && checkKeysInMediateState(c, c->argv[1]->ptr) == C_ERR)
+                break;
 
             /* Only reset the client when the command was executed. */
-            if (server.jdjr_mode && !cmd_is_valid)
-                resetClient(c);
-            else if (server.jdjr_mode && processCommandMaybeInSSDB(c) == C_OK)
+            if (server.jdjr_mode && processCommandMaybeInSSDB(c) == C_OK)
                 resetClient(c);
             else if (processCommand(c) == C_OK)
                 resetClient(c);

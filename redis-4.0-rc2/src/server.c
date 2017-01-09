@@ -2314,27 +2314,10 @@ void call(client *c, int flags) {
     server.stat_numcommands++;
 }
 
-int checkValidCommand(client* c) {
-    if (!strcasecmp(c->argv[0]->ptr,"quit")) {
-        return C_OK;
-    }
-    c->cmd = c->lastcmd = lookupCommand(c->argv[0]->ptr);
-    if (!c->cmd) {
-        flagTransaction(c);
-        addReplyErrorFormat(c,"unknown command '%s'",
-            (char*)c->argv[0]->ptr);
-        return C_ERR;
-    } else if ((c->cmd->arity > 0 && c->cmd->arity != c->argc) ||
-               (c->argc < -c->cmd->arity)) {
-        flagTransaction(c);
-        addReplyErrorFormat(c,"wrong number of arguments for '%s' command",
-            c->cmd->name);
-        return C_ERR;
-    }
-    return C_OK;
-}
-
+/* Return C_ERR if the key is in loading or transferring state. */
 int checkKeysInMediateState(client* c, robj* key) {
+    c->cmd = c->lastcmd = lookupCommand(c->argv[0]->ptr);
+
     if (c->cmd->flags & CMD_WRITE) {
         if (dictFind(EVICTED_DATA_DB->transferring_keys, key) ||
             dictFind(EVICTED_DATA_DB->loading_hot_keys, key)) {
@@ -2359,10 +2342,18 @@ int checkKeysInMediateState(client* c, robj* key) {
     return C_OK;
 }
 
-/* for jdjr_mode only */
+/* Process keys may be in SSDB, only handle the command jdjr_mode supported.
+ The rest cases will be handled by processCommand. */
 int processCommandMaybeInSSDB(client *c) {
-    // todo: here process the first key only, need to support multiple keys command
-    if (c->argc > 1 && (c->cmd->flags & (CMD_READONLY | CMD_WRITE)) && (!dictFind(c->db->dict, c->argv[1]->ptr))) {
+    /* Calling lookupKey to update lru or lfu counter. */
+    if (c->argc <= 1 || !lookupKey(EVICTED_DATA_DB, c->argv[1], LOOKUP_NONE))
+        return C_ERR;
+
+    serverAssert(dictFind(c->db->dict, c->argv[1]->ptr));
+
+    if (!c->cmd) c->cmd = c->lastcmd = lookupCommand(c->argv[0]->ptr);
+
+    if (c->cmd->flags & (CMD_READONLY | CMD_WRITE | CMD_JDJR_MODE)) {
         robj* val = lookupKey(EVICTED_DATA_DB, c->argv[1], LOOKUP_NONE);
         if (val) {
             if (sendCommandToSSDB(c, NULL) != C_OK) {
