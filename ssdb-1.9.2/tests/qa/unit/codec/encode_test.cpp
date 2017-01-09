@@ -456,3 +456,113 @@ TEST_F(EncodeTest, Test_encode_delete_key) {
 
     delete space;
 }
+
+void compare_encode_zset_score_prefix(const string & key, uint16_t version, char* expectStr){
+    string key_zscore_prefix = encode_zset_score_prefix(key, version);
+    expectStr[0] = 'z';
+    uint16_t keylen = key.size();
+    uint8_t* pkeylen = (uint8_t*)&keylen;
+    expectStr[1] = pkeylen[1];
+    expectStr[2] = pkeylen[0];
+    memcpy(expectStr+3, key.data(), keylen);
+    uint8_t* pversion = (uint8_t*)&version;
+    expectStr[keylen+3] = pversion[1];
+    expectStr[keylen+4] = pversion[0];
+
+    EXPECT_EQ(0, key_zscore_prefix.compare(0, 5+keylen, expectStr, 5+keylen));
+}
+
+TEST_F(EncodeTest, Test_encode_zset_score_prefix) {
+    char* space = new char[maxKeyLen_+5];
+    string key;
+    uint16_t version;
+
+    //Some random keys
+    uint16_t keysNum = 100;
+    for(int n = 0; n < keysNum; n++)
+    {
+        key = GetRandomKey_();
+        version = GetRandomVer_();
+        compare_encode_zset_score_prefix(key, version, space);
+    }
+
+    //Some special keys
+    keysNum = sizeof(Keys)/sizeof(string);
+
+    for(int n = 0; n < keysNum; n++)
+        compare_encode_zset_score_prefix(Keys[n], version, space);
+
+    //MaxLength key
+    compare_encode_zset_score_prefix(GetRandomBytes_(maxKeyLen_), version, space);
+
+    delete space;
+}
+
+void compare_encode_escore_key(const string & key, uint64_t ts, char* expectStr){
+    string escore_key = encode_escore_key(key, ts);
+    expectStr[0] = 'T';
+    uint8_t* pts = (uint8_t*)&ts;
+    for(int i = 0; i < 8; i++)
+    {
+        expectStr[i+1] = pts[7-i];
+    }
+    memcpy(expectStr+9, key.data(), key.size());
+    EXPECT_EQ(0, escore_key.compare(0, key.size()+9, expectStr, key.size()+9));
+}
+
+TEST_F(EncodeTest, Test_encode_escore_key) {
+    char* space = new char[maxKeyLen_+9];
+
+    //Some special keys
+    uint16_t keysNum = sizeof(Keys)/sizeof(string);
+    uint64_t timestamp;
+
+    for(int n = 0; n < keysNum; n++)
+    {
+        timestamp = GetRandomUInt64_(0, MAX_UINT64-1);
+        compare_encode_escore_key(Keys[n], timestamp, space);
+    }
+
+    //Some random keys
+    keysNum = 500;
+    for(int n = 0; n < keysNum; n++)
+    {
+        string key = GetRandomKey_();
+        compare_encode_escore_key(key, timestamp, space);
+    }
+
+    //MaxLength key
+    compare_encode_escore_key(GetRandomBytes_(maxKeyLen_), timestamp, space);
+
+    delete space;
+}
+
+void compare_encode_eset_key(const string & key, char* expectStr){
+    string eset_key = encode_eset_key(key);
+    expectStr[0] = 'E';
+    memcpy(expectStr+1, key.data(), key.size());
+    EXPECT_EQ(0, eset_key.compare(0, key.size()+1, expectStr, key.size()+1));
+}
+
+TEST_F(EncodeTest, Test_encode_eset_key) {
+    char* space = new char[maxKeyLen_+1];
+
+    //Some special keys
+    uint16_t keysNum = sizeof(Keys)/sizeof(string);
+
+    for(int n = 0; n < keysNum; n++)
+        compare_encode_eset_key(Keys[n], space);
+
+    //Some random keys
+    keysNum = 500;
+    for(int n = 0; n < keysNum; n++)
+    {
+        string key = GetRandomKey_();
+        compare_encode_eset_key(key, space);
+    }
+
+    //MaxLength key
+    compare_encode_eset_key(GetRandomBytes_(maxKeyLen_), space);
+
+    delete space;
+}

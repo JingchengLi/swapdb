@@ -355,3 +355,44 @@ TEST_F(DecodeTest, Test_DeleteKey) {
     for(int n = 0; n < sizeof(dummyDelKey)/sizeof(string); n++)
         EXPECT_EQ(-1, deletekey.DecodeDeleteKey(dummyDelKey[n]));
 }
+
+void compare_EScoreItemKey(const string &key, uint64_t ts){
+    string escore_key;
+    escore_key = encode_escore_key(key, ts);
+
+    EScoreItemKey escorekey;
+
+    EXPECT_EQ(escorekey.DecodeItemKey(escore_key), 0);
+    EXPECT_EQ(ts, escorekey.score);
+    EXPECT_EQ(0, key.compare(escorekey.field));
+}
+
+TEST_F(DecodeTest, Test_EScoreItemKey) {
+    uint64_t timestamp;
+    string key;
+
+    //Some random keys
+    uint16_t keysNum = 100;
+    for(int n = 0; n < keysNum; n++)
+    {
+        timestamp = GetRandomUInt64_(0, MAX_UINT64-1);
+        key = GetRandomKey_();
+        compare_EScoreItemKey(key, timestamp);
+    }
+
+    //Some special keys
+    keysNum = sizeof(Keys)/sizeof(string);
+
+    for(int n = 0; n < keysNum; n++)
+        compare_EScoreItemKey(Keys[n], timestamp);
+
+    //MaxLength key
+    compare_EScoreItemKey(GetRandomBytes_(maxKeyLen_), timestamp);
+
+    //error return
+    string true_key = encode_delete_key(key, timestamp);
+    string dummyDelKey [] = {"", "X11111111key", "T1", "T1111111"};
+    EScoreItemKey escorekey;
+    for(int n = 0; n < sizeof(dummyDelKey)/sizeof(string); n++)
+        EXPECT_EQ(-1, escorekey.DecodeItemKey(dummyDelKey[n]));
+}

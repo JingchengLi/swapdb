@@ -97,7 +97,8 @@ public:
 		//Currently zset score range is -1e13 to 1e13
 		int eNum = rand()%24 - 12;
 		float base = rand()*1.0/rand();
-		double randomDouble = base*pow(10, eNum);
+		int sign = rand()&0x1?-1:1;
+		double randomDouble = sign*base*pow(10, eNum);
 		return randomDouble; 
 	}
 	
