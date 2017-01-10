@@ -114,6 +114,7 @@ public:
 	//int multi_hdel(const Bytes &name, const std::vector<Bytes> &keys, int offset=0);
 
 	virtual int64_t hsize(const Bytes &name);
+	virtual int hmget(const Bytes &name, const std::vector<std::string> &reqKeys, std::map<std::string, std::string> *val);
 	virtual int hget(const Bytes &name, const Bytes &key, std::string *val);
 	virtual HIterator* hscan(const Bytes &name, const Bytes &start, const Bytes &end, uint64_t limit);
 	virtual HIterator* hscan(const Bytes &name, const Bytes &start, const Bytes &end, uint64_t limit, const leveldb::Snapshot** snapshot);

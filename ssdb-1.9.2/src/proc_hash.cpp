@@ -71,15 +71,7 @@ int proc_multi_hset(NetworkServer *net, Link *link, const Request &req, Response
 		for(; it != req.end(); it += 2){
 			const Bytes &key = *it;
 			const Bytes &val = *(it + 1);
-
 			kvs[key] = val;
-//			auto fit = kvs.insert(std::make_pair(key, val));
-//			if (fit.second)
-//			{
-//				kvs.erase(key);
-//			}
-//
-//			kvs.insert(std::make_pair(key, val));
 		}
 
 		int ret = serv->ssdb->hmset(name, kvs);
@@ -122,19 +114,32 @@ int proc_multi_hget(NetworkServer *net, Link *link, const Request &req, Response
 	Request::const_iterator it=req.begin() + 1;
 	const Bytes name = *it;
 	it ++;
+
+	std::vector<std::string> reqKeys;
+	std::map<std::string, std::string> resMap;
+
 	for(; it!=req.end(); it+=1){
 		const Bytes &key = *it;
-		std::string val;
-		int ret = serv->ssdb->hget(name, key, &val);
-		if(ret == 1){
-			resp->push_back(key.String());
-			resp->push_back(val);
-		} else if(ret < 0){
-            resp->resp.clear();
-			resp->push_back("error");
-			break;
-		}
+		reqKeys.push_back(key.String());
 	}
+
+	int ret = serv->ssdb->hmget(name, reqKeys, &resMap);
+    if (ret == 1) {
+
+		for(std::map<std::string, std::string>::const_iterator mit = resMap.begin();
+			mit != resMap.end(); ++mit)
+		{
+			resp->push_back(mit->first);
+			resp->push_back(mit->second);
+		}
+
+    } else if (ret == 0) {
+		//nothing
+	} else {
+		resp->resp.clear();
+		resp->push_back("error");
+	}
+
 	return 0;
 }
 

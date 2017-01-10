@@ -165,6 +165,35 @@ int64_t SSDBImpl::hsize(const Bytes &name){
 	}
 }
 
+int SSDBImpl::hmget(const Bytes &name, const std::vector<std::string> &reqKeys, std::map<std::string, std::string> *resMap) {
+	HashMetaVal hv;
+	const leveldb::Snapshot* snapshot = nullptr;
+
+	{
+		RecordLock l(&mutex_record_, name.String());
+		std::string meta_key = encode_meta_key(name);
+		int ret = GetHashMetaVal(meta_key, hv);
+		if (ret != 1){
+			return ret;
+		}
+		snapshot = ldb->GetSnapshot();
+	}
+
+	SnapshotPtr spl(ldb, snapshot);
+
+	for (const std::string &reqKey : reqKeys) {
+		std::string val;
+		std::string dbkey = encode_hash_key(name, reqKey, hv.version);
+		leveldb::Status s = ldb->Get(leveldb::ReadOptions(), dbkey, &val);
+		if(s.ok()){
+			(*resMap)[reqKey] = val;
+		}
+
+	}
+
+    return 1;
+}
+
 int SSDBImpl::hget(const Bytes &name, const Bytes &key, std::string *val){
 	HashMetaVal hv;
 	std::string meta_key = encode_meta_key(name);
