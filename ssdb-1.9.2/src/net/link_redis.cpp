@@ -143,7 +143,17 @@ static RedisCommand_raw cmds_raw[] = {
 	{STRATEGY_AUTO,		"lset",		    "qset", 			REPLY_STATUS},
 	{STRATEGY_AUTO,		"lrange",		"qslice",			REPLY_MULTI_BULK},
 
+
+	{STRATEGY_AUTO, 	"linsert",			"qsize",			REPLY_INT},//TODO
+	{STRATEGY_AUTO, 	"lrem",			"qsize",			REPLY_INT},//TODO
+	{STRATEGY_AUTO, 	"ltrim",		"qsize",			REPLY_INT},//TODO
+	{STRATEGY_AUTO,		"lpushx",		"qpush_front", 		REPLY_INT}, //TODO
+	{STRATEGY_AUTO,		"rpushx",		"qpush_back", 		REPLY_INT}, //TODO
+
+
 	{STRATEGY_AUTO, 	NULL,			NULL,			0}
+
+
 };
 
 int RedisLink::convert_req(){
