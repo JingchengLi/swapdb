@@ -7,9 +7,14 @@
 #include <serv.h>
 
 
+
+#ifndef PTIMER
+#define PTS(name) PTimer name(#name);name.begin();
+#define PTE(name) name.end();
+#endif
+
 void *BackgroundJob::thread_func(void *arg) {
     BackgroundJob *backgroudJob = (BackgroundJob *) arg;
-
 
     while (!backgroudJob->thread_quit) {
 
@@ -18,13 +23,12 @@ void *BackgroundJob::thread_func(void *arg) {
 
         if (backgroudJob->queued == 0) {
 //            log_info("Background wait Job");
-            backgroudJob->cv.waitFor(10, 0);
-        }
 
-//        if (backgroudJob->queued == 0) {
-//            usleep(1000 * 1000);
-//            log_info("BackgroundJob");
-//        }
+            PTS(Background_wait_Job);
+            backgroudJob->cv.waitFor(2, 0);
+            PTE(Background_wait_Job);
+
+        }
 
     }
 
@@ -115,7 +119,11 @@ int bproc_COMMAND_REDIS_DEL(SSDBServer *serv, const std::string &data_key, const
 
     log_debug("send back to redis : %s", hexstr<std::string>(str(req)).c_str());
 
+    PTS(redisRequest);
     auto t_res = link->redisRequest(req);
+    PTE(redisRequest);
+
+
     if (t_res == nullptr) {
         log_error("t_res is null");
         serv->redisUpstream->reset();
@@ -166,7 +174,10 @@ int bproc_COMMAND_REDIS_RESTROE(SSDBServer *serv, const std::string &data_key, c
 
     log_debug("send back to redis : %s", hexstr<std::string>(str(req)).c_str());
 
+    PTS(redisRequest);
     auto t_res = link->redisRequest(req);
+    PTE(redisRequest);
+
     if (t_res == nullptr) {
         log_error("t_res is null");
         serv->redisUpstream->reset();
