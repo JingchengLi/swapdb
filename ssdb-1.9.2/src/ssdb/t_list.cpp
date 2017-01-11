@@ -74,7 +74,7 @@ int SSDBImpl::LIndex(const Bytes &key, const int64_t index, std::string *val) {
     int s = GetListMetaVal(meta_key, lv);
     if (1 == s){
         sequence = getSeqByIndex(index, lv);
-        std::string item_key = encode_list_key(key.String(), sequence, lv.version);
+        std::string item_key = encode_list_key(key, sequence, lv.version);
         s = GetListItemVal(item_key, val);
         return s;
     }
@@ -102,7 +102,7 @@ int SSDBImpl::LPop(const Bytes &key, std::string *val) {
     if (1 == ret) {
         if (meta_val.length > 0) {
             uint64_t first_item_seq = meta_val.left_seq;
-            std::string first_item_key = encode_list_key(key.String(), first_item_seq, meta_val.version);
+            std::string first_item_key = encode_list_key(key, first_item_seq, meta_val.version);
             ret = GetListItemVal(first_item_key, val);
             if (1 == ret) {
                 uint64_t len = meta_val.length - 1;

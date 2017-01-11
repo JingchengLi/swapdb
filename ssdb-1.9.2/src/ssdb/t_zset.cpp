@@ -734,7 +734,7 @@ static int incr_zsize(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &n
             len = len - u64;
         }
         if (len == 0) {
-            std::string del_key = encode_delete_key(name.String(), zv.version);
+            std::string del_key = encode_delete_key(name, zv.version);
             std::string meta_val = encode_zset_meta_val(zv.length, zv.version, KEY_DELETE_MASK);
             batch.Put(del_key, "");
             batch.Put(size_key, meta_val);

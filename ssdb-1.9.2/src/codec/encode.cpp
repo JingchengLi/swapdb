@@ -3,7 +3,7 @@
 //
 #include "encode.h"
 
-static string encode_key_internal(char type, const string& key, const string& field, uint16_t version);
+static string encode_key_internal(char type, const Bytes& key, const Bytes& field, uint16_t version);
 static string encode_meta_val_internal(const char type, uint64_t length, uint16_t version, char del);
 static uint64_t encodeScore(const double score);
 
@@ -14,43 +14,42 @@ string encode_meta_key(const Bytes& key){
     uint16_t slot = (uint16_t)keyHashSlot(key.data(), key.size());
     slot = htobe16(slot);
     buf.append((char *)&slot, sizeof(uint16_t));
-
-    buf.append(key.String());
+    buf.append(key.data(), key.size());
 
     return buf;
 }
 
-static string encode_key_internal(char type, const string& key, const string& field, uint16_t version){
+static string encode_key_internal(char type, const Bytes& key, const Bytes& field, uint16_t version){
     string buf;
 
     buf.append(1, type);
 
     uint16_t len = htobe16((uint16_t)key.size());
     buf.append((char *)&len, sizeof(uint16_t));
-    buf.append(key);
+    buf.append(key.data(), key.size());
 
     version = htobe16(version);
     buf.append((char *)&version, sizeof(uint16_t));
 
-    buf.append(field);
+    buf.append(field.data(), field.size());
 
     return buf;
 }
 
 string encode_hash_key(const Bytes& key, const Bytes& field, uint16_t version){
-    return encode_key_internal(DataType::ITEM, key.String(), field.String(), version);
+    return encode_key_internal(DataType::ITEM, key, field, version);
 }
 
 string encode_set_key(const Bytes& key, const Bytes& member, uint16_t version){
-    return encode_key_internal(DataType::ITEM, key.String(), member.String(), version);
+    return encode_key_internal(DataType::ITEM, key, member, version);
 }
 
 string encode_zset_key(const Bytes& key, const Bytes& member, uint16_t version){
-    return encode_key_internal(DataType::ITEM, key.String(), member.String(), version);
+    return encode_key_internal(DataType::ITEM, key, member, version);
 }
 
 string encode_zset_score_prefix(const Bytes& key, uint16_t version){
-    return encode_key_internal(DataType::ZSCORE, key.String(), "", version);
+    return encode_key_internal(DataType::ZSCORE, key, Bytes(""), version);
 }
 
 string encode_eset_key(const Bytes& member){
@@ -109,7 +108,7 @@ string encode_list_key(const Bytes& key, uint64_t seq, uint16_t version){
 
     uint16_t len = htobe16((uint16_t)key.size());
     buf.append((char *)&len, sizeof(uint16_t));
-    buf.append(key.String());
+    buf.append(key.data(), key.size());
 
     version = htobe16(version);
     buf.append((char *)&version, sizeof(uint16_t));
@@ -194,7 +193,7 @@ string encode_delete_key(const Bytes& key, uint16_t version){
 
     uint16_t len = htobe16((uint16_t)key.size());
     buf.append((char *)&len, sizeof(uint16_t));
-    buf.append(key.String());
+    buf.append(key.data(), key.size());
 
     version = htobe16(version);
     buf.append((char *)&version, sizeof(uint16_t));
