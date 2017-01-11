@@ -126,12 +126,24 @@ int proc_multi_hget(NetworkServer *net, Link *link, const Request &req, Response
 	int ret = serv->ssdb->hmget(name, reqKeys, &resMap);
     if (ret == 1) {
 
-		for(std::map<std::string, std::string>::const_iterator mit = resMap.begin();
-			mit != resMap.end(); ++mit)
-		{
-			resp->push_back(mit->first);
-			resp->push_back(mit->second);
+		for (const auto& reqKey : reqKeys) {
+
+			auto pos = resMap.find(reqKey);
+			if (pos == resMap.end()) {
+				//
+			} else {
+				resp->push_back(pos->first);
+				resp->push_back(pos->second);
+			}
+
 		}
+
+//		for(std::map<std::string, std::string>::const_iterator mit = resMap.begin();
+//			mit != resMap.end(); ++mit)
+//		{
+//			resp->push_back(mit->first);
+//			resp->push_back(mit->second);
+//		}
 
     } else if (ret == 0) {
 		//nothing
