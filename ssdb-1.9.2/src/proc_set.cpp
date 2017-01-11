@@ -114,6 +114,7 @@ int proc_sunion(NetworkServer *net, Link *link, const Request &req, Response *re
     if (ret == -1){
         resp->resp.push_back("error");
     } else{
+        resp->resp.push_back("ok");
         std::set<std::string>::iterator it = members.begin();
         for (; it != members.end(); ++it) {
             resp->push_back(*it);
