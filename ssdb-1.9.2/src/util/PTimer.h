@@ -48,6 +48,7 @@ public:
 #define PTE(name) name.end();
 #else
 #define PTS(name) "";
+#define PTST(name,second) "";
 #define PTE(name) "";
 #endif
 
