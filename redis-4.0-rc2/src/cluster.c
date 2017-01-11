@@ -4648,6 +4648,9 @@ void customizedRestoreCommand(client *c) {
             dbAsyncDelete(EVICTED_DATA_DB, key);
         else
             dbSyncDelete(EVICTED_DATA_DB, key);
+
+        /* Queue the ready key to ssdb_ready_keys. */
+        signalBlockingKeyAsReady(c->db, key);
     } else
         serverLog(LL_WARNING, "customizedRestoreCommand failed.");
 

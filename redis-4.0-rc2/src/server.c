@@ -2315,7 +2315,7 @@ void call(client *c, int flags) {
 }
 
 /* Return C_ERR if the key is in loading or transferring state. */
-int checkKeysInMediateState(client* c, robj* key) {
+int checkKeysInMediateState(client* c, sds key) {
     c->cmd = c->lastcmd = lookupCommand(c->argv[0]->ptr);
 
     /* Command from SSDB should not be blocked. */
@@ -2332,6 +2332,9 @@ int checkKeysInMediateState(client* c, robj* key) {
             /* TODO: use a suitable timeout */
             blockForLoadingkey(c, c->argv + 1, 1, 5000+mstime());
             c->flags |= CLIENT_BLOCKED_KEY_SSDB;
+
+            serverLog(LL_DEBUG, "client fd: %d, key: %s is blocked.", c->fd, key);
+
             return C_ERR;
         }
     } else if (c->cmd->flags & CMD_READONLY) {
@@ -2342,6 +2345,9 @@ int checkKeysInMediateState(client* c, robj* key) {
              /* TODO: use a suitable timeout. */
             blockForLoadingkey(c, c->argv + 1, 1, 5000+mstime());
             c->flags |= CLIENT_BLOCKED_KEY_SSDB;
+
+            serverLog(LL_DEBUG, "client fd: %d key: %s is blocked.", c->fd, key);
+
             return C_ERR;
         }
     }
@@ -2363,7 +2369,6 @@ int processCommandMaybeInSSDB(client *c) {
         robj* val = lookupKey(EVICTED_DATA_DB, c->argv[1], LOOKUP_NONE);
         if (val) {
             if (sendCommandToSSDB(c, NULL) != C_OK) {
-                serverLog(LL_WARNING, "sendCommandToSSDB fail.");
                 return C_ERR;
             }
 

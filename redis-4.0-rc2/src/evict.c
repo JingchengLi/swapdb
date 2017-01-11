@@ -525,6 +525,9 @@ int epilogOfEvictingToSSDB(robj *keyobj) {
         serverAssert(dictDelete(EVICTED_DATA_DB->transferring_keys,
                                 keyobj->ptr) == DICT_OK);
 
+    /* Queue the ready key to ssdb_ready_keys. */
+    signalBlockingKeyAsReady(db, keyobj);
+
      /* We compute the amount of memory freed by db*Delete() alone.
      * It is possible that actually the memory needed to propagate
      * the DEL in AOF and replication link is greater than the one
@@ -914,6 +917,18 @@ cant_free:
     return C_ERR;
 }
 
+static void removeClientFromListForBlockedKey(client* c, robj* key) {
+    /* Remove this client from the list of clients blocking on this key. */
+    list *l = dictFetchValue(c->db->ssdb_blocking_keys, key);
+    serverAssertWithInfo(c,key,l != NULL);
+    listDelNode(l, listSearchKey(l,c));
+    /* If the list is empty we need to remove it to avoid wasting memory */
+    if (listLength(l) == 0)
+        dictDelete(c->db->ssdb_blocking_keys,key);
+}
+
+
+
 void handleClientsBlockedOnSSDB(void) {
     while(listLength(server.ssdb_ready_keys) != 0) {
         list *l;
@@ -946,21 +961,19 @@ void handleClientsBlockedOnSSDB(void) {
                     client *c = clientnode->value;
                     int retval;
 
+                    removeClientFromListForBlockedKey(c, rl->key);
 
                     /* Remove this key from the blocked keys dict of this client */
                     retval = dictDelete(c->bpop.loading_or_transfer_keys, rl->key);
                     serverAssertWithInfo(c,rl->key,retval == DICT_OK);
 
-                    /* unblock this client if all blocked keys in the command arguments
+                    /* Unblock this client if all blocked keys in the command arguments
                      * are ready(load/transfer done). */
                     if (dictSize(c->bpop.loading_or_transfer_keys) == 0) {
                         dictEmpty(c->bpop.loading_or_transfer_keys,NULL);
                         /* Unblock this client and add it into "server.unblocked_clients",
                          * The blocked command will be executed in "processInputBuffer".*/
                         unblockClient(c);
-                        if (c->flags & CLIENT_BLOCKED_KEY_SSDB) {
-                            processInputBuffer(c);
-                        }
                     }
                 }
             }
@@ -1005,7 +1018,7 @@ void blockForLoadingkey(client *c, robj **keys, int numkeys, mstime_t timeout) {
     c->bpop.timeout = timeout;
 
     for (j = 0; j < numkeys; j++) {
-        if (dictAdd(c->bpop.loading_or_transfer_keys,keys[j],NULL) != DICT_OK) continue;
+        if (dictAdd(c->bpop.loading_or_transfer_keys, keys[j], NULL) != DICT_OK) continue;
         incrRefCount(keys[j]);
 
         de = dictFind(c->db->ssdb_blocking_keys, keys[j]);
@@ -1021,32 +1034,20 @@ void blockForLoadingkey(client *c, robj **keys, int numkeys, mstime_t timeout) {
         }
         listAddNodeTail(l, c);
     }
-    blockClient(c,BLOCKED_SSDB_LOADING_OR_TRANSFER);
+    blockClient(c, BLOCKED_SSDB_LOADING_OR_TRANSFER);
 }
 
-
-void unblockClientWaitingSSDB(client* c) {
+/* TODO: return null according to the key's type??? */
+void transferringOrLoadingBlockedClientTimeOut(client *c) {
+    dictIterator *di = dictGetIterator(c->bpop.loading_or_transfer_keys);
     dictEntry *de;
-    dictIterator *di;
-    list *l;
 
-    serverAssertWithInfo(c, NULL, dictSize(c->bpop.loading_or_transfer_keys) != 0);
-    di = dictGetIterator(c->bpop.loading_or_transfer_keys);
-
-    /* The client may wait for multiple keys, so unblock it for every key. */
     while((de = dictNext(di)) != NULL) {
-        robj *key = dictGetKey(de);
+        robj * keyobj = dictGetKey(de);
 
-        /* Remove this client from the list of clients waiting for this key. */
-        l = dictFetchValue(c->db->ssdb_blocking_keys, key);
-        serverAssertWithInfo(c, key, l != NULL);
-        listDelNode(l, listSearchKey(l, c));
-        /* If the list is empty we need to remove it to avoid wasting memory */
-        if (listLength(l) == 0)
-            dictDelete(c->db->ssdb_blocking_keys,key);
+        removeClientFromListForBlockedKey(c, keyobj);
+        serverAssert(dictDelete(c->bpop.loading_or_transfer_keys, keyobj) == DICT_OK);
     }
-    dictReleaseIterator(di);
 
-    /* Cleanup the client structure */
-    dictEmpty(c->bpop.loading_or_transfer_keys,NULL);
+    addReplyString(c, "-Err timeout", 13);
 }

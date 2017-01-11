@@ -1455,12 +1455,13 @@ void processInputBuffer(client *c) {
             /* Process blocked command because of ssdb loading/transferring. */
             c->flags &= ~CLIENT_BLOCKED_KEY_SSDB;
 
+            serverAssert(c->argc > 1);
+            serverLog(LL_DEBUG, "client fd: %d, key: %s is unblocked.", c->fd, (char*)c->argv[1]->ptr);
             /* Only reset the client when the command was executed. */
             if (server.jdjr_mode && processCommandMaybeInSSDB(c) == C_OK)
                 resetClient(c);
             else if (processCommand(c) == C_OK)
                 resetClient(c);
-
             break;
         }
 

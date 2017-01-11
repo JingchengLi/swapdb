@@ -645,8 +645,8 @@ typedef struct blockingState {
                                     handled in module.c. */
     /* BLOCKED_SSDB_LOADING_OR_TRANSFER */
     dict *loading_or_transfer_keys; /* two cases:
-                            * 1) The keys becomes hot and are loading from ssdb to redis.
-                            * 2) The keys becomes cold and are transferring to ssdb. */
+                                     * 1) The keys becomes hot and are loading from ssdb to redis.
+                                     * 2) The keys becomes cold and are transferring to ssdb. */
 
 } blockingState;
 
@@ -1391,6 +1391,7 @@ void unblockClientWaitingData(client *c);
 void handleClientsBlockedOnLists(void);
 void popGenericCommand(client *c, int where);
 void signalListAsReady(redisDb *db, robj *key);
+void transferringOrLoadingBlockedClientTimeOut(client *c);
 
 /* MULTI/EXEC/WATCH... */
 void unwatchAllKeys(client *c);
@@ -1580,11 +1581,10 @@ int freeMemoryIfNeeded(void);
 void blockForLoadingkey(client *c, robj **keys, int numkeys, mstime_t timeout);
 void signalBlockingKeyAsReady(redisDb *db, robj* key);
 void handleClientsBlockedOnSSDB(void);
-void unblockClientWaitingSSDB(client* c);
 int tryEvictingKeysToSSDB(void);
 int processCommand(client *c);
 int checkValidCommand(client* c);
-int checkKeysInMediateState(client* c, robj* key);
+int checkKeysInMediateState(client* c, sds key);
 int processCommandMaybeInSSDB(client *c);
 void setupSignalHandlers(void);
 struct redisCommand *lookupCommand(sds name);
