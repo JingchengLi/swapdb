@@ -7,9 +7,9 @@
 #include <serv.h>
 
 
-
 #ifndef PTIMER
 #define PTS(name) PTimer name(#name);name.begin();
+#define PTST(name,second) PTimer name(#name,second);name.begin();
 #define PTE(name) name.end();
 #endif
 
@@ -24,7 +24,7 @@ void *BackgroundJob::thread_func(void *arg) {
         if (backgroudJob->queued == 0) {
 //            log_info("Background wait Job");
 
-            PTS(Background_wait_Job);
+            PTST(Background_wait_Job, 2.1);
             backgroudJob->cv.waitFor(2, 0);
             PTE(Background_wait_Job);
 
@@ -119,7 +119,7 @@ int bproc_COMMAND_REDIS_DEL(SSDBServer *serv, const std::string &data_key, const
 
     log_debug("send back to redis : %s", hexstr<std::string>(str(req)).c_str());
 
-    PTS(redisRequest);
+    PTST(redisRequest, 0.5);
     auto t_res = link->redisRequest(req);
     PTE(redisRequest);
 
@@ -145,7 +145,10 @@ int bproc_COMMAND_REDIS_RESTROE(SSDBServer *serv, const std::string &data_key, c
                                 const std::string &value) {
 
     std::string val;
+    PTST(ssdb_dump, 0.5);
     int ret = serv->ssdb->dump(data_key, &val);
+    PTE(ssdb_dump);
+
     if (ret < 1) {
         serv->ssdb->raw_del(key);
         //TODO
@@ -174,7 +177,7 @@ int bproc_COMMAND_REDIS_RESTROE(SSDBServer *serv, const std::string &data_key, c
 
     log_debug("send back to redis : %s", hexstr<std::string>(str(req)).c_str());
 
-    PTS(redisRequest);
+    PTST(redisRequest, 0.5);
     auto t_res = link->redisRequest(req);
     PTE(redisRequest);
 
