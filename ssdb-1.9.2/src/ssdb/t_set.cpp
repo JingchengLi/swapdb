@@ -38,7 +38,7 @@ int SSDBImpl::sadd_one(leveldb::WriteBatch &batch, const Bytes &key, const Bytes
     int ret = 0;
     std::string dbval;
     SetMetaVal sv;
-    std::string meta_key = encode_meta_key(key.String());
+    std::string meta_key = encode_meta_key(key);
     ret = GetSetMetaVal(meta_key, sv);
     if (ret == -1){
         return -1;
@@ -73,7 +73,7 @@ int SSDBImpl::sadd_one(leveldb::WriteBatch &batch, const Bytes &key, const Bytes
 
 int SSDBImpl::srem_one(leveldb::WriteBatch &batch, const Bytes &key, const Bytes &member) {
     SetMetaVal sv;
-    std::string meta_key = encode_meta_key(key.String());
+    std::string meta_key = encode_meta_key(key);
     int ret = GetSetMetaVal(meta_key, sv);
     if (ret != 1){
         return ret;
@@ -90,7 +90,7 @@ int SSDBImpl::srem_one(leveldb::WriteBatch &batch, const Bytes &key, const Bytes
 
 int SSDBImpl::incr_ssize(leveldb::WriteBatch &batch, const Bytes &key, int64_t incr){
     SetMetaVal sv;
-    std::string meta_key = encode_meta_key(key.String());
+    std::string meta_key = encode_meta_key(key);
     int ret = GetSetMetaVal(meta_key, sv);
     if (ret == -1){
         return ret;
@@ -192,7 +192,7 @@ int SSDBImpl::saddNoLock(const Bytes &key, const std::set<Bytes> &mem_set, int64
 
     int ret = 0;
     SetMetaVal sv;
-    std::string meta_key = encode_meta_key(key.String());
+    std::string meta_key = encode_meta_key(key);
     ret = GetSetMetaVal(meta_key, sv);
     if (ret == -1){
         return -1;
@@ -257,7 +257,7 @@ int SSDBImpl::multi_srem(const Bytes &key, const std::vector<Bytes> &members, in
     int ret = 0;
     *num = 0;
     SetMetaVal sv;
-    std::string meta_key = encode_meta_key(key.String());
+    std::string meta_key = encode_meta_key(key);
     ret = GetSetMetaVal(meta_key, sv);
     if (ret != 1){
         return ret;

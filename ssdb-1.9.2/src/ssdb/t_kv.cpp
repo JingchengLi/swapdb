@@ -320,7 +320,7 @@ int SSDBImpl::incr(const Bytes &key, int64_t by, int64_t *new_val){
         *new_val = oldvalue + by;
     }
 
-    std::string buf = encode_meta_key(key.String());
+    std::string buf = encode_meta_key(key);
     std::string meta_val = encode_kv_val(Bytes(str(*new_val)), version);
 	batch.Put(buf, meta_val);
 
@@ -382,7 +382,7 @@ int SSDBImpl::setbit(const Bytes &key, int64_t bitoffset, int on){
         val[len] &= ~(1 << bit);
     }
 
-    std::string buf = encode_meta_key(key.String());
+    std::string buf = encode_meta_key(key);
     std::string meta_val = encode_kv_val(Bytes(val), version);
 	batch.Put(buf, meta_val);
 
@@ -456,7 +456,7 @@ int SSDBImpl::KDel(const Bytes &key){
 }
 
 int SSDBImpl::KDelNoLock(leveldb::WriteBatch &batch, const Bytes &key){
-	std::string buf = encode_meta_key(key.String());
+	std::string buf = encode_meta_key(key);
     std::string en_val;
     leveldb::Status s = ldb->Get(leveldb::ReadOptions(), buf, &en_val);
     if (s.IsNotFound()) {
@@ -480,7 +480,7 @@ int SSDBImpl::type(const Bytes &key, std::string *type) {
     *type = "none";
     int ret = 0;
     std::string val;
-    std::string meta_key = encode_meta_key(key.String());
+    std::string meta_key = encode_meta_key(key);
     leveldb::Status s = ldb->Get(leveldb::ReadOptions(), meta_key, &val);
     if (s.IsNotFound()) {
         return 0;
@@ -558,7 +558,7 @@ int SSDBImpl::dump(const Bytes &key, std::string *res) {
     {
         RecordLock l(&mutex_record_, key.String());
 
-        std::string meta_key = encode_meta_key(key.String());
+        std::string meta_key = encode_meta_key(key);
         leveldb::Status s = ldb->Get(leveldb::ReadOptions(), meta_key, &meta_val);
         if (s.IsNotFound()) {
             return 0;
@@ -726,7 +726,7 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
     leveldb::Status s;
 
 
-    std::string meta_key = encode_meta_key(key.String());
+    std::string meta_key = encode_meta_key(key);
     s = ldb->Get(leveldb::ReadOptions(), meta_key, &meta_val);
     if (!s.ok() && !s.IsNotFound()) {
         return -1;

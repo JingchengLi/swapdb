@@ -24,7 +24,7 @@ int SSDBImpl::hmsetNoLock(const Bytes &name, const std::map<Bytes ,Bytes> &kvs) 
 
 	int ret = 0;
 	HashMetaVal hv;
-	std::string meta_key = encode_meta_key(name.String());
+	std::string meta_key = encode_meta_key(name);
 	ret = this->GetHashMetaVal(meta_key, hv);
 
 	if (ret == -1){
@@ -316,7 +316,7 @@ int SSDBImpl::GetHashItemValInternal(const std::string &item_key, std::string *v
 static int hset_one(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &name, const Bytes &key, const Bytes &val){
 	int ret = 0;
 	HashMetaVal hv;
-	std::string meta_key = encode_meta_key(name.String());
+	std::string meta_key = encode_meta_key(name);
 	ret = ssdb->GetHashMetaVal(meta_key, hv);
 
 	if (ret == -1){
