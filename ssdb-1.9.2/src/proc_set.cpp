@@ -81,7 +81,7 @@ int proc_smembers(NetworkServer *net, Link *link, const Request &req, Response *
     if (ret == -1){
         resp->resp.push_back("error");
     } else if (ret == 0){
-        resp->resp.push_back("not_found");
+        resp->resp.push_back("ok");
     } else{
         resp->resp.push_back("ok");
         std::vector<std::string>::iterator it = members.begin();
