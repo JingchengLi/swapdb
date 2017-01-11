@@ -25,7 +25,7 @@ void *BackgroundJob::thread_func(void *arg) {
 //            log_info("Background wait Job");
 
             PTST(Background_wait_Job, 2.1);
-            backgroudJob->cv.waitFor(2, 0);
+            backgroudJob->cv.waitFor(10, 0);
             PTE(Background_wait_Job);
 
         }
@@ -127,6 +127,7 @@ int bproc_COMMAND_REDIS_DEL(SSDBServer *serv, const std::string &data_key, const
     if (t_res == nullptr) {
         log_error("t_res is null");
         serv->redisUpstream->reset();
+        delete t_res;
         return -1;
 
     }
@@ -184,6 +185,7 @@ int bproc_COMMAND_REDIS_RESTROE(SSDBServer *serv, const std::string &data_key, c
     if (t_res == nullptr) {
         log_error("t_res is null");
         serv->redisUpstream->reset();
+        delete t_res;
         return -1;
 
     }

@@ -488,13 +488,16 @@ int RedisLink::recv_res(Buffer *input, RedisResponse *r, int shit) {
 					continue;
 				} else if (tmp->status == REDIS_RESPONSE_ERR){
 					r->status = tmp->status;
+                    delete tmp;
 					break;
 				} else if (tmp->status == REDIS_RESPONSE_RETRY){
 					r->status = tmp->status;
-					break;
+                    delete tmp;
+                    break;
 				} else {
 					r->status = REDIS_RESPONSE_ERR;
-					break;
+                    delete tmp;
+                    break;
 				}
 			}
 
