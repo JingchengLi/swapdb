@@ -4652,7 +4652,7 @@ void customizedRestoreCommand(client *c) {
 
         /* Queue the ready key to ssdb_ready_keys. */
         signalBlockingKeyAsReady(c->db, key);
-        serverLog(LL_WARNING, "customizedRestoreCommand succeed.");
+        serverLog(LL_DEBUG, "customizedRestoreCommand succeed.");
     } else
         serverLog(LL_WARNING, "customizedRestoreCommand failed.");
 
