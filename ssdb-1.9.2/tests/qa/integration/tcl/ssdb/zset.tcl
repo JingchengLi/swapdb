@@ -287,6 +287,193 @@ start_server {tags {"ssdb"}} {
         }
     }
 
+    proc create_default_zset {} {
+        create_zset zset {-1000 a 1 b 2 c 3 d 4 e 5 f +1000 g}
+        # create_zset zset {-inf a 1 b 2 c 3 d 4 e 5 f +inf g}
+    }
+
+    test "ZRANGEBYSCORE/ZREVRANGEBYSCORE/ZCOUNT basics" {
+        create_default_zset
+
+        # inclusive range
+        assert_equal {a b c} [r zrangebyscore zset -inf 2]
+        assert_equal {b c d} [r zrangebyscore zset 0 3]
+        assert_equal {d e f} [r zrangebyscore zset 3 6]
+        assert_equal {e f g} [r zrangebyscore zset 4 +inf]
+        # assert_equal {c b a} [r zrevrangebyscore zset 2 -inf]
+        # assert_equal {d c b} [r zrevrangebyscore zset 3 0]
+        # assert_equal {f e d} [r zrevrangebyscore zset 6 3]
+        # assert_equal {g f e} [r zrevrangebyscore zset +inf 4]
+        assert_equal 3 [r zcount zset 0 3]
+
+        # exclusive range
+        assert_equal {b}   [r zrangebyscore zset (-inf (2]
+        assert_equal {b c} [r zrangebyscore zset (0 (3]
+        assert_equal {e f} [r zrangebyscore zset (3 (6]
+        assert_equal {f}   [r zrangebyscore zset (4 (+inf]
+        # assert_equal {b}   [r zrevrangebyscore zset (2 (-inf]
+        # assert_equal {c b} [r zrevrangebyscore zset (3 (0]
+        # assert_equal {f e} [r zrevrangebyscore zset (6 (3]
+        # assert_equal {f}   [r zrevrangebyscore zset (+inf (4]
+        assert_equal 2 [r zcount zset (0 (3]
+
+        # test empty ranges
+        r zrem zset a
+        r zrem zset g
+
+        # inclusive
+        assert_equal {} [r zrangebyscore zset 4 2]
+        assert_equal {} [r zrangebyscore zset 6 +inf]
+        assert_equal {} [r zrangebyscore zset -inf -6]
+        # assert_equal {} [r zrevrangebyscore zset +inf 6]
+        # assert_equal {} [r zrevrangebyscore zset -6 -inf]
+
+        # exclusive
+        assert_equal {} [r zrangebyscore zset (4 (2]
+        assert_equal {} [r zrangebyscore zset 2 (2]
+        assert_equal {} [r zrangebyscore zset (2 2]
+        assert_equal {} [r zrangebyscore zset (6 (+inf]
+        assert_equal {} [r zrangebyscore zset (-inf (-6]
+        # assert_equal {} [r zrevrangebyscore zset (+inf (6]
+        # assert_equal {} [r zrevrangebyscore zset (-6 (-inf]
+
+        # empty inner range
+        assert_equal {} [r zrangebyscore zset 2.4 2.6]
+        assert_equal {} [r zrangebyscore zset (2.4 2.6]
+        assert_equal {} [r zrangebyscore zset 2.4 (2.6]
+        assert_equal {} [r zrangebyscore zset (2.4 (2.6]
+    }
+
+    test "ZRANGEBYSCORE with WITHSCORES" {
+        create_default_zset
+        assert_equal {b 1 c 2 d 3} [r zrangebyscore zset 0 3 withscores]
+        # assert_equal {d 3 c 2 b 1} [r zrevrangebyscore zset 3 0 withscores]
+    }
+
+    test "ZRANGEBYSCORE with LIMIT" {
+        create_default_zset
+        assert_equal {b c}   [r zrangebyscore zset 0 10 LIMIT 0 2]
+        assert_equal {d e f} [r zrangebyscore zset 0 10 LIMIT 2 3]
+        assert_equal {d e f} [r zrangebyscore zset 0 10 LIMIT 2 10]
+        assert_equal {}      [r zrangebyscore zset 0 10 LIMIT 20 10]
+        # assert_equal {f e}   [r zrevrangebyscore zset 10 0 LIMIT 0 2]
+        # assert_equal {d c b} [r zrevrangebyscore zset 10 0 LIMIT 2 3]
+        # assert_equal {d c b} [r zrevrangebyscore zset 10 0 LIMIT 2 10]
+        # assert_equal {}      [r zrevrangebyscore zset 10 0 LIMIT 20 10]
+    }
+
+    test "ZRANGEBYSCORE with LIMIT and WITHSCORES" {
+        create_default_zset
+        assert_equal {e 4 f 5} [r zrangebyscore zset 2 5 LIMIT 2 3 WITHSCORES]
+        # assert_equal {d 3 c 2} [r zrevrangebyscore zset 5 2 LIMIT 2 3 WITHSCORES]
+    }
+
+    test "ZRANGEBYSCORE with non-value min or max" {
+        assert_error "ERR*" {r zrangebyscore fooz str 1}
+        assert_error "ERR*" {r zrangebyscore fooz 1 str}
+        assert_error "ERR*" {r zrangebyscore fooz 1 NaN}
+    }
+
+    proc create_default_lex_zset {} {
+        create_zset zset {0 alpha 0 bar 0 cool 0 down
+                          0 elephant 0 foo 0 great 0 hill
+                          0 omega}
+    }
+
+    test "ZREMRANGEBYSCORE basics" {
+        proc remrangebyscore {min max} {
+            create_zset zset {1 a 2 b 3 c 4 d 5 e}
+            # assert_equal 1 [r exists zset]
+            r zremrangebyscore zset $min $max
+        }
+
+        # inner range
+        assert_equal 3 [remrangebyscore 2 4]
+        assert_equal {a e} [r zrange zset 0 -1]
+
+        # start underflow
+        assert_equal 1 [remrangebyscore -10 1]
+        assert_equal {b c d e} [r zrange zset 0 -1]
+
+        # end overflow
+        assert_equal 1 [remrangebyscore 5 10]
+        assert_equal {a b c d} [r zrange zset 0 -1]
+
+        # switch min and max
+        assert_equal 0 [remrangebyscore 4 2]
+        assert_equal {a b c d e} [r zrange zset 0 -1]
+
+        # -inf to mid
+        assert_equal 3 [remrangebyscore -inf 3]
+        assert_equal {d e} [r zrange zset 0 -1]
+
+        # mid to +inf
+        assert_equal 3 [remrangebyscore 3 +inf]
+        assert_equal {a b} [r zrange zset 0 -1]
+
+        # -inf to +inf
+        assert_equal 5 [remrangebyscore -inf +inf]
+        assert_equal {} [r zrange zset 0 -1]
+
+        # exclusive min
+        assert_equal 4 [remrangebyscore (1 5]
+        assert_equal {a} [r zrange zset 0 -1]
+        assert_equal 3 [remrangebyscore (2 5]
+        assert_equal {a b} [r zrange zset 0 -1]
+
+        # exclusive max
+        assert_equal 4 [remrangebyscore 1 (5]
+        assert_equal {e} [r zrange zset 0 -1]
+        assert_equal 3 [remrangebyscore 1 (4]
+        assert_equal {d e} [r zrange zset 0 -1]
+
+        # exclusive min and max
+        assert_equal 3 [remrangebyscore (1 (5]
+        assert_equal {a e} [r zrange zset 0 -1]
+
+        # destroy when empty
+        assert_equal 5 [remrangebyscore 1 5]
+        assert_equal 0 [r exists zset]
+    }
+
+    test "ZREMRANGEBYSCORE with non-value min or max" {
+        assert_error "ERR" {r zremrangebyscore fooz str 1}
+        assert_error "ERR" {r zremrangebyscore fooz 1 str}
+        assert_error "ERR" {r zremrangebyscore fooz 1 NaN}
+    }
+
+    test "ZREMRANGEBYRANK basics" {
+        proc remrangebyrank {min max} {
+            create_zset zset {1 a 2 b 3 c 4 d 5 e}
+            # assert_equal 1 [r exists zset]
+            r zremrangebyrank zset $min $max
+        }
+
+        # inner range
+        assert_equal 3 [remrangebyrank 1 3]
+        assert_equal {a e} [r zrange zset 0 -1]
+
+        # start underflow
+        assert_equal 1 [remrangebyrank -10 0]
+        assert_equal {b c d e} [r zrange zset 0 -1]
+
+        # start overflow
+        assert_equal 0 [remrangebyrank 10 -1]
+        assert_equal {a b c d e} [r zrange zset 0 -1]
+
+        # end underflow
+        assert_equal 0 [remrangebyrank 0 -10]
+        assert_equal {a b c d e} [r zrange zset 0 -1]
+
+        # end overflow
+        assert_equal 5 [remrangebyrank 0 10]
+        assert_equal {} [r zrange zset 0 -1]
+
+        # destroy when empty
+        assert_equal 5 [remrangebyrank 0 4]
+        assert_equal 0 [r exists zset]
+    }
+
     basics ziplist
 
     proc stressers {encoding} {
@@ -351,6 +538,103 @@ start_server {tags {"ssdb"}} {
                 }
             }
             assert_equal 0 $delta
+        }
+
+        test "ZRANGEBYSCORE fuzzy test, 100 ranges in $elements element sorted set - $encoding" {
+            set err {}
+            r del zset
+            for {set i 0} {$i < $elements} {incr i} {
+                r zadd zset [expr rand()] $i
+            }
+
+            assert_encoding $encoding zset
+            for {set i 0} {$i < 1} {incr i} {
+                set min [expr rand()]
+                set max [expr rand()]
+                if {$min > $max} {
+                    set aux $min
+                    set min $max
+                    set max $aux
+                }
+                set low [r zrangebyscore zset -inf $min]
+                set ok [r zrangebyscore zset $min $max]
+                set high [r zrangebyscore zset $max +inf]
+                set lowx [r zrangebyscore zset -inf ($min]
+                set okx [r zrangebyscore zset ($min ($max]
+                set highx [r zrangebyscore zset ($max +inf]
+
+                #remove inf
+                set inf 1000
+                puts "[r zcount zset -$inf $min]"
+                puts "[llength $low]"
+                if {[r zcount zset -$inf $min] != [llength $low]} {
+                    append err "Error, len does not match zcount\n"
+                }
+                puts "[r zcount zset $min $max]"
+                puts "[llength $ok]"
+                if {[r zcount zset $min $max] != [llength $ok]} {
+                    append err "Error, len does not match zcount\n"
+                }
+                puts "[r zcount zset $max +$inf]"
+                puts "[llength $high]"
+                if {[r zcount zset $max +$inf] != [llength $high]} {
+                    append err "Error, len does not match zcount\n"
+                }
+                puts "[r zcount zset -$inf ($min]"
+                puts "[llength $lowx]"
+                if {[r zcount zset -$inf ($min] != [llength $lowx]} {
+                    append err "Error, len does not match zcount\n"
+                }
+                puts "[r zcount zset ($min ($max]"
+                puts "[llength $okx]"
+                if {[r zcount zset ($min ($max] != [llength $okx]} {
+                    append err "Error, len does not match zcount\n"
+                }
+                puts "[r zcount zset ($max +$inf]"
+                puts "[llength $highx]"
+                puts $max
+                if {[r zcount zset ($max +$inf] != [llength $highx]} {
+                    append err "Error, len does not match zcount\n"
+                }
+
+                foreach x $low {
+                    set score [r zscore zset $x]
+                    if {$score > $min} {
+                        append err "Error, score for $x is $score > $min\n"
+                    }
+                }
+                foreach x $lowx {
+                    set score [r zscore zset $x]
+                    if {$score >= $min} {
+                        append err "Error, score for $x is $score >= $min\n"
+                    }
+                }
+                foreach x $ok {
+                    set score [r zscore zset $x]
+                    if {$score < $min || $score > $max} {
+                        append err "Error, score for $x is $score outside $min-$max range\n"
+                    }
+                }
+                foreach x $okx {
+                    set score [r zscore zset $x]
+                    if {$score <= $min || $score >= $max} {
+                        append err "Error, score for $x is $score outside $min-$max open range\n"
+                    }
+                }
+                foreach x $high {
+                    set score [r zscore zset $x]
+                    if {$score < $max} {
+                        append err "Error, score for $x is $score < $max\n"
+                    }
+                }
+                foreach x $highx {
+                    set score [r zscore zset $x]
+                    if {$score <= $max} {
+                        append err "Error, score for $x is $score <= $max\n"
+                    }
+                }
+            }
+            assert_equal {} $err
         }
 
         test "ZSETs skiplist implementation backlink consistency test - $encoding" {
