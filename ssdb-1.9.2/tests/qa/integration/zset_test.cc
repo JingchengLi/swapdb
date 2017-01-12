@@ -424,20 +424,20 @@ TEST_F(ZsetTest, Test_zset_zrevrange) {
     client->zset(key, field + '2', 0);
     client->zset(key, field + '3', 1);
     s = client->zrrange(key, 1, 2, &list);
-    ASSERT_TRUE(s.ok() && list.size() == 4);
-    ASSERT_EQ(field + '2', list[0]);
-    ASSERT_NEAR(0, atof(list[1].data()), eps);
-    ASSERT_EQ(field + '1', list[2]);
-    ASSERT_NEAR(-2.4, atof(list[3].data()), eps);
+    EXPECT_TRUE(s.ok() && list.size() == 4);
+    EXPECT_EQ(field + '2', list[0]);
+    EXPECT_NEAR(0, atof(list[1].data()), eps);
+    EXPECT_EQ(field + '1', list[2]);
+    EXPECT_NEAR(-2.4, atof(list[3].data()), eps);
     list.clear();
     s = client->zrrange(key, 0, 3, &list);
-    ASSERT_EQ(8, list.size());
-    ASSERT_EQ(field + '3', list[0]);
-    ASSERT_NEAR(1, atof(list[1].data()), eps);
+    EXPECT_EQ(8, list.size());
+    EXPECT_EQ(field + '3', list[0]);
+    EXPECT_NEAR(1, atof(list[1].data()), eps);
     s = client->del(key);
     list.clear();
     s = client->zrrange(key, 0, 3, &list);
-    ASSERT_TRUE(s.ok() && list.size() == 0);
+    EXPECT_TRUE(s.ok() && list.size() == 0);
 
     //del should clear zset types
     client->zset(key, field + '1', -2.4);
@@ -447,7 +447,7 @@ TEST_F(ZsetTest, Test_zset_zrevrange) {
     s = client->del(key);
     list.clear();
     s = client->zrrange(key, 0, 3, &list);
-    ASSERT_TRUE(s.ok() && list.size() == 0);
+    EXPECT_TRUE(s.ok() && list.size() == 0);
 }
 
 TEST_F(ZsetTest, Test_zset_zrank) {

@@ -256,10 +256,6 @@ TEST_F(SetTest, Test_set_sunion_sunionstore) {
     std::vector<std::string> v(500), v2(500), set1, set2, set3, set4, set5;
     std::vector<std::string>::iterator it;
     key = GetRandomKey_();
-    for (int i = 1; i <= 5; i++){
-        client->del("set"+itoa(i));
-    }
-
     for (int i = 0; i < 200; i++){
         client->sadd("set1", itoa(i), &ret);
         set1.push_back(itoa(i));
@@ -359,7 +355,16 @@ TEST_F(SetTest, Test_set_sunion_sunionstore) {
     list.push_back("non-exist key");
     client->sunionstore(key, list, &ret);
     s = client->get(key, &getVal);
-    ASSERT_TRUE(s.not_found())<<"sunionstore with non-exist key should del key:"<<s.code()<<endl;
+    EXPECT_TRUE(s.not_found())<<"sunionstore with non-exist key should del key:"<<s.code()<<endl;
+
+    client->del("key");
+    for (int i = 1; i <= 5; i++){
+        client->del("set"+itoa(i));
+    }
 
     client->del(key);
+    for (int i = 1; i <= 5; i++){
+        client->del("set"+itoa(i));
+    }
+
 }

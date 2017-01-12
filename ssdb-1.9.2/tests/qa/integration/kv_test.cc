@@ -86,13 +86,13 @@ TEST_F(KVTest, Test_kv_set) {
 TEST_F(KVTest, Test_kv_setex) {
     int64_t ttl;
 #define OKSetx s = client->setx(key, val, ttl);\
-    ASSERT_TRUE(s.ok())<<"fail to set key!"<<endl;\
+    EXPECT_TRUE(s.ok())<<"fail to set key!"<<endl;\
     sleep(ttl-1);\
     s = client->get(key, &getVal);\
-    ASSERT_TRUE(s.ok()&&(val == getVal))<<"fail to get key val!"<<endl;\
+    EXPECT_TRUE(s.ok()&&(val == getVal))<<"fail to get key val!"<<endl;\
     sleep(2);\
     s = client->get(key, &getVal);\
-    ASSERT_TRUE(s.not_found())<<"this key should be not found!"<<endl;
+    EXPECT_TRUE(s.not_found())<<"this key should be not found!"<<endl;
 
 #define FalseSetx s = client->setx(key, val, ttl);\
     EXPECT_TRUE(s.error())<<"should fail to set key!"<<endl;
@@ -142,19 +142,20 @@ TEST_F(KVTest, Test_kv_setex) {
     s = client->setx(key, val, MAX_INT64/1000);
     EXPECT_TRUE(s.error())<<"should fail to set key with MAX_INT64/1000!"<<s.code()<<endl;
     s = client->get(key, &getVal);
-    ASSERT_TRUE(s.not_found())<<"this key should be not found!"<<s.code()<<endl;
+    EXPECT_TRUE(s.not_found())<<"this key should be not found!"<<s.code()<<endl;
+    client->del(key);
 }
 
 TEST_F(KVTest, Test_kv_psetex) {
     int64_t pttl;
 #define OKSetx s = client->psetx(key, val, pttl);\
-    ASSERT_TRUE(s.ok())<<"fail to set key!"<<endl;\
+    EXPECT_TRUE(s.ok())<<"fail to set key!"<<endl;\
     sleep(pttl/1000-1);\
     s = client->get(key, &getVal);\
-    ASSERT_TRUE(s.ok()&&(val == getVal))<<"fail to get key val!"<<endl;\
+    EXPECT_TRUE(s.ok()&&(val == getVal))<<"fail to get key val!"<<endl;\
     sleep(2);\
     s = client->get(key, &getVal);\
-    ASSERT_TRUE(s.not_found())<<"this key should be not found!"<<endl;
+    EXPECT_TRUE(s.not_found())<<"this key should be not found!"<<endl;
 
 #define FalseSetx s = client->psetx(key, val, pttl);\
     EXPECT_TRUE(s.error())<<"should fail to set key!"<<endl;
@@ -204,7 +205,8 @@ TEST_F(KVTest, Test_kv_psetex) {
     s = client->psetx(key, val, MAX_INT64);
     EXPECT_TRUE(s.error())<<"should fail to set key with MAX_INT64!"<<s.code()<<endl;
     s = client->get(key, &getVal);
-    ASSERT_TRUE(s.not_found())<<"this key should be not found!"<<s.code()<<endl;
+    EXPECT_TRUE(s.not_found())<<"this key should be not found!"<<s.code()<<endl;
+    client->del(key);
 }
 
 TEST_F(KVTest, Test_kv_get) {
@@ -592,6 +594,8 @@ TEST_F(KVTest, Test_kv_setbit_getbit) {
     ASSERT_EQ("ok",s.code())<<"this key should set ok!"<<endl; 
     s = client->getbit(key, bitoffset, &getBit);
     ASSERT_EQ(1,getBit)<<"should get 1!"<<endl; 
+
+    client->del(key);
 
     //offset exceed range [0,MAX_PACKET_SIZE]
     s = client->setbit(key, -1, 1);
