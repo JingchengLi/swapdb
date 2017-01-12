@@ -4,35 +4,28 @@
 
 #include "ssdb_impl.h"
 
-static void eset_internal(const SSDBImpl *ssdb, const Bytes &key, int64_t ts);
+static void eset_internal(const SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &key, int64_t ts);
 
-static int eset_one(SSDBImpl *ssdb, const Bytes &key, int64_t ts);
+static int eset_one(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &key, int64_t ts);
 
 
 int SSDBImpl::eset(const Bytes &key, int64_t ts) {
-    Transaction trans(binlogs);
-
-    int ret = check_meta_key(key);
-    if (ret <= 0){
-        return ret;
-    }
-
-    ret = eset_one(this, key, ts);
-    if (ret >= 0) {
-        leveldb::Status s = binlogs->commit();
-        if (!s.ok()) {
-            log_error("eset error: %s", s.ToString().c_str());
-            return -1;
-        }
-    }
-
-    return ret;
+    RecordLock l(&mutex_record_, key.String());
+    return esetNoLock(key, ts);
 }
 
 int SSDBImpl::esetNoLock(const Bytes &key, int64_t ts) {
-    int ret = eset_one(this, key, ts);
+
+    leveldb::WriteBatch batch;
+
+    int ret = check_meta_key(key);
+    if (ret <= 0) {
+        return ret;
+    }
+
+    ret = eset_one(this, batch, key, ts);
     if (ret >= 0) {
-        leveldb::Status s = binlogs->commit();
+        leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
         if (!s.ok()) {
             log_error("eset error: %s", s.ToString().c_str());
             return -1;
@@ -98,7 +91,7 @@ int SSDBImpl::eget(const Bytes &key, int64_t *ts) {
 }
 
 
-void eset_internal(const SSDBImpl *ssdb, const Bytes &key, int64_t ts) {
+void eset_internal(const SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &key, int64_t ts) {
     string ekey = encode_eset_key(key);
 
     string buf;
@@ -106,13 +99,12 @@ void eset_internal(const SSDBImpl *ssdb, const Bytes &key, int64_t ts) {
 
     string score_key = encode_escore_key(key, static_cast<uint64_t>(ts));
 
-    ssdb->binlogs->Put(ekey, buf);
-    ssdb->binlogs->Put(score_key, "");
-    ssdb->binlogs->add_log(BinlogCommand::ESET, ekey);
+    batch.Put(ekey, buf);
+    batch.Put(score_key, "");
 }
 
 
-int eset_one(SSDBImpl *ssdb, const Bytes &key, int64_t ts) {
+int eset_one(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &key, int64_t ts) {
 
     int ret = 1;
 
@@ -124,15 +116,15 @@ int eset_one(SSDBImpl *ssdb, const Bytes &key, int64_t ts) {
     }
 
     if (found == 0) {
-        eset_internal(ssdb, key, ts);
+        eset_internal(ssdb, batch, key, ts);
 
     } else if (found == 1) {
         if (old_ts == ts) {
             //same
         } else {
             string old_score_key = encode_escore_key(key, static_cast<uint64_t>(old_ts));
-            ssdb->binlogs->Delete(old_score_key);
-            eset_internal(ssdb, key, ts);
+            batch.Delete(old_score_key);
+            eset_internal(ssdb, batch, key, ts);
         }
     } else {
         //error
@@ -147,16 +139,16 @@ int SSDBImpl::check_meta_key(const Bytes &key) {
     std::string meta_key = encode_meta_key(key);
     std::string meta_val;
     leveldb::Status s = ldb->Get(leveldb::ReadOptions(), meta_key, &meta_val);
-    if (s.IsNotFound()){
+    if (s.IsNotFound()) {
         return 0;
-    } else if (!s.ok()){
+    } else if (!s.ok()) {
         return -1;
-    } else{
-        if (meta_val.size() >= 4 ){
-            if (meta_val[3] == KEY_DELETE_MASK){
+    } else {
+        if (meta_val.size() >= 4) {
+            if (meta_val[3] == KEY_DELETE_MASK) {
                 return 0;
             }
-        } else{
+        } else {
             return -1;
         }
     }
