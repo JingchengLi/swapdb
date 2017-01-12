@@ -413,6 +413,14 @@ int SSDBImpl::sunionstore(const Bytes &destination, const std::vector<Bytes> &ke
     }
 
     *num = members.size();
+    if (*num == 0) {
+        leveldb::Status ss = ldb->Write(leveldb::WriteOptions(), &(batch));
+        if(!ss.ok()){
+            return -1;
+        }
+        return 1;
+    }
+
     std::set<std::string>::iterator it = members.begin();
     std::string val;
     std::string meta_key = encode_meta_key(destination);
