@@ -17,19 +17,7 @@ void *BackgroundJob::thread_func(void *arg) {
     BackgroundJob *backgroudJob = (BackgroundJob *) arg;
 
     while (!backgroudJob->thread_quit) {
-
-
-        backgroudJob->pop();
-//        backgroudJob->loop();
-
-//
-//        if (backgroudJob->queued == 0) {
-//            PTST(Background_wait_Job, 2.1);
-//            backgroudJob->cv.waitFor(10, 0);
-//            PTE(Background_wait_Job);
-//        }
-
-
+        backgroudJob->loop();
     }
 
     log_debug("BackgroundJob thread quit");
@@ -61,7 +49,7 @@ void BackgroundJob::stop() {
 }
 
 
-void BackgroundJob::pop() {
+void BackgroundJob::loop() {
     BTask bTask = serv->bqueue.pop();
 
     std::map<uint16_t, bproc_t>::iterator iter;
@@ -77,31 +65,18 @@ void BackgroundJob::pop() {
     }
 }
 
-void BackgroundJob::loop() {
 
-    std::string start;
-    start.append(1, DataType::BQUEUE);
-
-    auto it = std::unique_ptr<BIterator>(new BIterator(serv->ssdb->iterator(start, "", -1))); //  +
-    int n = 0;
-    while (it->next()) {
-        this->proc(it->data_key, it->key, it->value, it->type);
-        n++;
-    }
-
-//    log_info("found %d", n);
-    queued = n;
-
-}
-
-
-bool BackgroundJob::proc(const std::string &data_key, const std::string &key, const std::string &value, uint16_t type) {
+bool BackgroundJob::proc(const std::string &data_key, const std::string &key, void* value, uint16_t type) {
 
     std::map<uint16_t, bproc_t>::iterator iter;
     iter = bproc_map.find(type);
     if (iter != bproc_map.end()) {
         log_debug("processing %d :%s", type, hexmem(data_key.data(), data_key.length()).c_str());
         iter->second(serv, data_key, value);
+        //free value here~
+        if (value != nullptr) {
+            delete value;
+        }
     } else {
         log_error("can not find a way to process type:%d", type);
         //not found
@@ -120,7 +95,28 @@ void BackgroundJob::regType() {
 }
 
 
-int bproc_COMMAND_REDIS_DEL(SSDBServer *serv, const std::string &data_key, const std::string &value) {
+int bproc_COMMAND_REDIS_DEL(SSDBServer *serv, const std::string &data_key, void* value) {
+
+    DumpData* dumpData = (DumpData*)value;
+
+    int64_t ttl;
+
+    std::string val;
+
+    PTST(rr_restore, 0.3)
+    int ret = serv->ssdb->restore(dumpData->key, dumpData->expire, dumpData->data, dumpData->replace, &val);
+    PTE(rr_restore)
+
+    if (ret > 0 && ttl > 0) {
+        Locking l(&serv->expiration->mutex);
+        ret = serv->expiration->expire(dumpData->key, ttl, TimeUnit::Millisecond);
+    }
+
+    if (ret < 0) {
+        log_info("%s : %s", hexmem(dumpData->key.data(),dumpData->key.size()).c_str(), hexmem(dumpData->data.data(),dumpData->data.size()).c_str());
+        return -1;
+    }
+
 
     Link *link = serv->redisUpstream->getLink();
     if (link == nullptr) {
@@ -132,7 +128,7 @@ int bproc_COMMAND_REDIS_DEL(SSDBServer *serv, const std::string &data_key, const
     req.push_back("customized-del");
     req.push_back(data_key);
 
-    log_debug("send back to redis : %s", hexstr<std::string>(str(req)).c_str());
+    log_debug("[request2redis] : %s", hexstr<std::string>(str(req)).c_str());
 
     PTST(redisRequest, 0.5);
     auto t_res = link->redisRequest(req);
@@ -146,8 +142,9 @@ int bproc_COMMAND_REDIS_DEL(SSDBServer *serv, const std::string &data_key, const
         return -1;
 
     }
+
     std::string res = t_res->toString();
-    log_debug("redis response : %s", hexstr<std::string>(res).c_str());
+    log_debug("[response2redis] : %s", hexstr<std::string>(res).c_str());
 
 
     delete t_res;
@@ -156,7 +153,7 @@ int bproc_COMMAND_REDIS_DEL(SSDBServer *serv, const std::string &data_key, const
 }
 
 
-int bproc_COMMAND_REDIS_RESTROE(SSDBServer *serv, const std::string &data_key, const std::string &value) {
+int bproc_COMMAND_REDIS_RESTROE(SSDBServer *serv, const std::string &data_key, void* value) {
 
     std::string val;
     PTST(ssdb_dump, 0.5);
@@ -188,7 +185,7 @@ int bproc_COMMAND_REDIS_RESTROE(SSDBServer *serv, const std::string &data_key, c
     req.push_back(val);
     req.push_back("replace");
 
-    log_debug("send back to redis : %s", hexstr<std::string>(str(req)).c_str());
+    log_debug("[request2redis] : %s", hexstr<std::string>(str(req)).c_str());
 
     PTST(redisRequest, 0.5);
     auto t_res = link->redisRequest(req);
@@ -202,8 +199,7 @@ int bproc_COMMAND_REDIS_RESTROE(SSDBServer *serv, const std::string &data_key, c
 
     }
     std::string res = t_res->toString();
-    log_debug("redis response : %s", hexstr<std::string>(res).c_str());
-
+    log_debug("[response2redis] : %s", hexstr<std::string>(res).c_str());
 
 
     if (t_res->status == 1 && t_res->str == "OK") {

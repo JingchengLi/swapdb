@@ -598,6 +598,7 @@ int SSDBImpl::dump(const Bytes &key, std::string *res) {
         //decodeMetaVal
         if(meta_val.size()<4) {
             //invalid
+            log_error("invalid MetaVal: %s", s.ToString().c_str());
             return -1;
         }
 
@@ -613,7 +614,7 @@ int SSDBImpl::dump(const Bytes &key, std::string *res) {
             case DataType::SSIZE:
             case DataType::ZSIZE:
             case DataType::LSIZE:{
-                snapshot = ldb->GetSnapshot();
+//                snapshot = ldb->GetSnapshot();
                 break;
             }
 

@@ -11,14 +11,31 @@
 #include <string>
 
 
+class DumpData {
+public:
+    std::string key;
+    std::string data;
+
+    int64_t expire;
+    bool replace;
+
+    DumpData(const std::string &key, const std::string &data, int64_t expire, bool replace) : key(key), data(data),
+                                                                                              expire(expire),
+                                                                                              replace(replace) {}
+
+};
+
 class BTask {
 public:
     uint16_t type;
 
     std::string data_key;
-    std::string value;
+    void *value;
 
-    BTask(uint16_t type, const std::string &key, const std::string &value) : type(type), data_key(key) , value(value) {}
+    BTask(uint16_t type, const std::string &key, void *value = nullptr) : type(type), data_key(key), value(value) {}
+
+    virtual ~BTask() {
+    }
 
 };
 

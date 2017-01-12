@@ -18,20 +18,19 @@ class SSDBServer;
 
 
 #define REG_BPROC(c)     this->bproc_map[##c] = bproc_##c
-#define DEF_BPROC(c)     int bproc_##c(SSDBServer *serv, const std::string &data_key, const std::string &value)
+#define DEF_BPROC(c)     int bproc_##c(SSDBServer *serv, const std::string &data_key, void* value)
 
 
 
 DEF_BPROC(COMMAND_REDIS_DEL);
 DEF_BPROC(COMMAND_REDIS_RESTROE);
 
-typedef int (*bproc_t)(SSDBServer *serv, const std::string &data_key, const std::string &value);
+typedef int (*bproc_t)(SSDBServer *serv, const std::string &data_key, void* value);
 
 
 class BackgroundJob {
 public:
     BackgroundJob(SSDBServer *serv) {
-        this->cv = CondVar(&mutex);
         this->serv = serv;
         this->thread_quit = false;
         start();
@@ -42,10 +41,6 @@ public:
         stop();
         serv = nullptr;
     }
-
-    std::atomic<int> queued;
-    CondVar cv = CondVar(nullptr);
-
 
 private:
     static void *thread_func(void *arg);
@@ -65,9 +60,7 @@ private:
 
     void loop();
 
-    void pop();
-
-    bool proc(const std::string &data_key, const std::string &key, const std::string &value, uint16_t type);
+    bool proc(const std::string &data_key, const std::string &key, void* value, uint16_t type);
 
     void regType();
 };
