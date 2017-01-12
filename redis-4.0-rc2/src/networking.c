@@ -1456,12 +1456,15 @@ void processInputBuffer(client *c) {
             c->flags &= ~CLIENT_BLOCKED_KEY_SSDB;
 
             serverAssert(c->argc > 1);
-            serverLog(LL_DEBUG, "client fd: %d, key: %s is unblocked.", c->fd, (char*)c->argv[1]->ptr);
+            serverLog(LL_DEBUG, "blocked client fd: %d, key: %s is processing.",
+                      c->fd, (char*)c->argv[1]->ptr);
             /* Only reset the client when the command was executed. */
             if (server.jdjr_mode && processCommandMaybeInSSDB(c) == C_OK)
                 resetClient(c);
             else if (processCommand(c) == C_OK)
                 resetClient(c);
+            serverLog(LL_DEBUG, "blocked client fd: %d, key: %s is finished.",
+                      c->fd, (char*)c->argv[1]->ptr);
             break;
         }
 
@@ -1544,6 +1547,7 @@ void readQueryFromClient(aeEventLoop *el, int fd, void *privdata, int mask) {
         }
     } else if (nread == 0) {
         serverLog(LL_VERBOSE, "Client closed connection");
+        serverLog(LL_DEBUG, "Client fd: %d closed connection.", c->fd);
         freeClient(c);
         return;
     }

@@ -4633,8 +4633,9 @@ void customizedRestoreCommand(client *c) {
 
     /* Delete key from EVICTED_DATA_DB if restoreCommand is OK. */
     if (server.dirty == old_dirty + 1) {
-        serverAssert(dictDelete(EVICTED_DATA_DB->transferring_keys,
-                                key->ptr) == DICT_OK);
+        serverAssertWithInfo(c, key, dictDelete(EVICTED_DATA_DB->loading_hot_keys,
+                                                key->ptr) == DICT_OK);
+        serverLog(LL_DEBUG, "key: %s is deleted from loading_hot_keys.", key->ptr);
 
         /* TODO: using new arg to customize the way to free. */
         dictDelete(EVICTED_DATA_DB->dict, key->ptr);
@@ -4651,6 +4652,7 @@ void customizedRestoreCommand(client *c) {
 
         /* Queue the ready key to ssdb_ready_keys. */
         signalBlockingKeyAsReady(c->db, key);
+        serverLog(LL_WARNING, "customizedRestoreCommand succeed.");
     } else
         serverLog(LL_WARNING, "customizedRestoreCommand failed.");
 

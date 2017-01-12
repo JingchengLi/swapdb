@@ -705,10 +705,6 @@ void tryResizeHashTables(int dbid) {
         dictResize(server.db[dbid].dict);
     if (htNeedsResize(server.db[dbid].expires))
         dictResize(server.db[dbid].expires);
-
-    if (server.jdjr_mode && dbid == EVICTED_DATA_DBID
-        && htNeedsResize(server.db[dbid].transferring_keys))
-        dictResize(server.db[dbid].transferring_keys);
 }
 
 /* Our hash table implementation performs rehashing incrementally while
@@ -893,24 +889,26 @@ void databasesCron(void) {
         static unsigned int resize_db = 0;
         static unsigned int rehash_db = 0;
         int dbs_per_call = CRON_DBS_PER_CALL;
-        int j;
+        int j, server_dbnum = server.dbnum;
+
+        if (server.jdjr_mode) {
+            dbs_per_call += 1;
+            server_dbnum += 1;
+        }
 
         /* Don't test more DBs than we have. */
-        if (dbs_per_call > server.dbnum) dbs_per_call = server.dbnum;
+        if (dbs_per_call > server_dbnum) dbs_per_call = server_dbnum;
 
         /* Resize */
         for (j = 0; j < dbs_per_call; j++) {
-            tryResizeHashTables(resize_db % server.dbnum);
+            tryResizeHashTables(resize_db % server_dbnum);
             resize_db++;
         }
-
-        if (server.jdjr_mode)
-            tryResizeHashTables(EVICTED_DATA_DBID);
 
         /* Rehash */
         if (server.activerehashing) {
             for (j = 0; j < dbs_per_call; j++) {
-                int work_done = incrementallyRehash(rehash_db % server.dbnum);
+                int work_done = incrementallyRehash(rehash_db % server_dbnum);
                 rehash_db++;
                 if (work_done) {
                     /* If the function did some work, stop here, we'll do
@@ -1199,8 +1197,12 @@ void startToLoadIfNeeded() {
         if ((de = dictFind(EVICTED_DATA_DB->transferring_keys, keyobj->ptr)))
             continue;
 
-        /* TODO: not using EVICTED_DATA_DB->transferring_keys. */
-        setTransferringDB(EVICTED_DATA_DB, keyobj);
+        /* Elements in hot_keys list may be duplicated. */
+        if (dictFind(EVICTED_DATA_DB->loading_hot_keys, keyobj->ptr))
+            continue;
+
+        serverLog(LL_DEBUG, "Try loading key: %s from SSDB.", keyobj->ptr);
+        setLoadingDB(keyobj);
         prologOfLoadingFromSSDB(keyobj);
         decrRefCount(keyobj);
     }
@@ -1869,6 +1871,7 @@ void initServer(void) {
             server.db[j].ssdb_blocking_keys = dictCreate(&keylistDictType,NULL);
             server.db[j].ssdb_ready_keys = dictCreate(&objectKeyPointerValueDictType,NULL);
         }
+
         server.db[j].id = j;
         server.db[j].avg_ttl = 0;
     }
@@ -2316,7 +2319,13 @@ void call(client *c, int flags) {
 
 /* Return C_ERR if the key is in loading or transferring state. */
 int checkKeysInMediateState(client* c, sds key) {
+    robj **keyobjs = NULL;
+    int *keys = NULL, blockednum = 0, numkeys = 0, j;
     c->cmd = c->lastcmd = lookupCommand(c->argv[0]->ptr);
+
+    /* processCommand will handle this case. */
+    if (!c->cmd || !(c->cmd->flags & (CMD_WRITE | CMD_READONLY)))
+        return C_OK;
 
     /* Command from SSDB should not be blocked. */
     if (c->cmd->proc == customizedDelCommand
@@ -2324,33 +2333,22 @@ int checkKeysInMediateState(client* c, sds key) {
         || c->cmd->proc == customizedRestoreCommand)
         return C_OK;
 
-    if (c->cmd->flags & CMD_WRITE) {
-        if (dictFind(EVICTED_DATA_DB->transferring_keys, key) ||
-            dictFind(EVICTED_DATA_DB->loading_hot_keys, key)) {
-            /* return C_ERR to avoid calling "resetClient", so we can save
-               the state of current client and process this command in the next time. */
-            /* TODO: use a suitable timeout */
-            blockForLoadingkey(c, c->argv + 1, 1, 5000+mstime());
-            c->flags |= CLIENT_BLOCKED_KEY_SSDB;
+    keys = getKeysFromCommand(c->cmd, c->argv, c->argc, &numkeys);
 
-            serverLog(LL_DEBUG, "client fd: %d, key: %s is blocked.", c->fd, key);
+    if (numkeys)
+        keyobjs = zmalloc(sizeof(robj *) * numkeys);
 
-            return C_ERR;
-        }
-    } else if (c->cmd->flags & CMD_READONLY) {
-        /* we can read a key of transferring state from redis. */
-        if (dictFind(EVICTED_DATA_DB->loading_hot_keys, key)) {
-            /* return C_ERR to avoid calling "resetClient", so we can save
-               the state of current client and process this command in the next time. */
-             /* TODO: use a suitable timeout. */
-            blockForLoadingkey(c, c->argv + 1, 1, 5000+mstime());
-            c->flags |= CLIENT_BLOCKED_KEY_SSDB;
+    for (j = 0; j < numkeys; j ++)
+        keyobjs[j] = c->argv[keys[j]];
 
-            serverLog(LL_DEBUG, "client fd: %d key: %s is blocked.", c->fd, key);
+    /* TODO: use a suitable timeout */
+    blockednum = blockForLoadingkeys(c, keyobjs, numkeys, 5000 + mstime());
 
-            return C_ERR;
-        }
-    }
+    if (numkeys && keyobjs) zfree(keyobjs);
+    if (keys) getKeysFreeResult(keys);
+
+    if (blockednum) return C_ERR;
+
     return C_OK;
 }
 
@@ -2378,8 +2376,12 @@ int processCommandMaybeInSSDB(client *c) {
                 determine if the key is to load to redis. */
             int counter = val->lru & 255;
 
-            if (counter > LFU_INIT_VAL - 2)
+            if (counter > LFU_INIT_VAL - 2) {
                 listAddNodeHead(server.hot_keys, dupStringObject(c->argv[1]));
+                serverLog(LL_DEBUG, "key: %s is added to server.hot_keys, client fd: %d.",
+                          c->argv[1]->ptr, c->fd);
+            }
+
             return C_OK;
         }
     }
