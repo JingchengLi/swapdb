@@ -196,6 +196,12 @@ Status ClientImpl::restore(const std::string &key, int64_t ttl, const std::strin
 	return _read_str(resp, val);
 }
 
+Status ClientImpl::exists(const std::vector<std::string> &keys, int64_t *ret) {
+	const std::vector<std::string> *resp;
+	resp = this->request("exists", keys);
+	return _read_int64(resp, ret);
+}
+
 Status ClientImpl::dbsize(int64_t *ret){
 	const std::vector<std::string> *resp;
 	resp = this->request("dbsize");

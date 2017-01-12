@@ -536,6 +536,26 @@ int SSDBImpl::type(const Bytes &key, std::string *type) {
     return ret;
 }
 
+int SSDBImpl::exists(const Bytes &key) {
+    std::string meta_val;
+    std::string meta_key = encode_meta_key(key);
+    leveldb::Status s = ldb->Get(leveldb::ReadOptions(), meta_key, &meta_val);
+    if (s.IsNotFound()) {
+        return 0;
+    }
+    if (!s.ok()) {
+        log_error("get error: %s", s.ToString().c_str());
+        return -1;
+    }
+    if (meta_val[POS_DEL] == KEY_ENABLED_MASK) {
+        return 1;
+    } else if (meta_val[POS_DEL] == KEY_DELETE_MASK){
+        return 0;
+    } else {
+        return -1;
+    }
+}
+
 template<typename T>
 int decodeMetaVal(T &mv, const std::string &val) {
 

@@ -35,6 +35,7 @@ public:
 	virtual Status pexpire(const std::string &key, int64_t ttl, int64_t *ret);
     virtual Status dump(const std::string &key, std::string *val=NULL);
     virtual Status restore(const std::string &key, int64_t ttl, const std::string &data, const std::string &replace, std::string *val=NULL);
+	virtual Status exists(const std::vector<std::string> &keys, int64_t *ret);
 
 	virtual Status get(const std::string &key, std::string *val);
 	virtual Status set(const std::string &key, const std::string &val);

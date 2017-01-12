@@ -258,31 +258,15 @@ int proc_exists(NetworkServer *net, Link *link, const Request &req, Response *re
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(2);
 
-	const Bytes key = req[1];
-	std::string val;
-	int ret = serv->ssdb->get(key, &val);
-	resp->reply_bool(ret);
-	return 0;
-}
-
-int proc_multi_exists(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
-	CHECK_NUM_PARAMS(2);
-
-	resp->push_back("ok");
+    int count = 0;
 	for(Request::const_iterator it=req.begin()+1; it!=req.end(); it++){
 		const Bytes key = *it;
-		std::string val;
-		int ret = serv->ssdb->get(key, &val);
-		resp->push_back(key.String());
+		int ret = serv->ssdb->exists(key);
 		if(ret == 1){
-			resp->push_back("1");
-		}else if(ret == 0){
-			resp->push_back("0");
-		}else{
-			resp->push_back("0");
+			count++;
 		}
 	}
+    resp->reply_int(1, count);
 	return 0;
 }
 
