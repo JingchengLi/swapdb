@@ -349,6 +349,78 @@ TEST_F(ListTest, Test_list_lindex) {
     }
 }
 
+TEST_F(ListTest, Test_list_lset) {
+#define OKQset(index, v) s = client->qset(key, index, v);\
+    ASSERT_TRUE(s.ok())<<"qset key not ok!"<<endl;\
+    client->qget(key, index, &getVal);\
+    ASSERT_EQ(v, getVal)<<"fail to qget key!"<<key<<endl;
+
+#define NotFoundQset(index) s = client->qset(key, index, val);\
+    ASSERT_TRUE(s.error())<<"qset key should be error!"<<endl;\
+    s = client->qget(key, index, &getVal);\
+    ASSERT_TRUE(s.not_found())<<"qget key should be not_found!"<<endl;
+
+#define FalseQset s = client->qset(key, 0, val);\
+    ASSERT_TRUE(s.error())<<"qset key should be error!"<<endl;\
+    s = client->qget(key, 0, &getVal);\
+    ASSERT_TRUE(s.error())<<"qget key should be error!"<<endl;
+    
+    key = GetRandomKey_(); 
+    val = GetRandomVal_(); 
+
+    list.clear();
+    s = client->del(key);
+    keysNum = 100;
+    for(int n = 0; n < keysNum; n++)
+    {
+        s = client->qpush_back(key, val+itoa(n), &ret);
+    }
+
+    for(int n = 0; n < keysNum; n++)
+    {
+        string tmpval = val+itoa(n)+"set";
+        OKQset(n, tmpval)
+    }
+
+    for(int n = 0; n < keysNum; n++)
+    {
+        string tmpval = val+itoa(keysNum-n-1)+"set_again";
+        OKQset(-n-1, tmpval)
+    }
+
+    NotFoundQset(keysNum)
+    NotFoundQset(-keysNum-1)
+
+    s = client->del(key);
+
+    for(int n = 0; n < keysNum; n++)
+    {
+        NotFoundQset(n)
+    }
+
+    //other types key
+    field = GetRandomField_();
+    val = GetRandomVal_();
+
+    client->del(key);
+    s = client->set(key, val);
+    FalseQset
+
+    client->del(key); 
+    client->sadd(key, val);
+    FalseQset
+
+    client->del(key); 
+    client->hset(key, field, val);
+    FalseQset
+
+    client->del(key); 
+    client->zset(key, field, 1.0);
+    FalseQset
+
+    client->del(key);
+}
+
 TEST_F(ListTest, Test_list_lrange) {
 
     // Some random keys
@@ -432,4 +504,7 @@ TEST_F(ListTest, Test_list_lrange) {
     ASSERT_EQ(0, getList.size());
 
     client->del(key);
+    s = client->qslice(key, 0, -1, &getList);
+    ASSERT_TRUE(s.ok());
+    ASSERT_EQ(0, getList.size());
 }

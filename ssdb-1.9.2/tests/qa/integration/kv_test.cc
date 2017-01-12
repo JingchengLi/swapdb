@@ -84,7 +84,6 @@ TEST_F(KVTest, Test_kv_set) {
 }
 
 TEST_F(KVTest, Test_kv_setex) {
-//currently setx not process expire time <=0, so disable this case.
     int64_t ttl;
 #define OKSetx s = client->setx(key, val, ttl);\
     ASSERT_TRUE(s.ok())<<"fail to set key!"<<endl;\
@@ -140,8 +139,70 @@ TEST_F(KVTest, Test_kv_setex) {
 
     client->del(key);
 
-    s = client->setx(key, val, MAX_INT64);
-    EXPECT_TRUE(s.error())<<"fail to set key with MAX_INT64!"<<s.code()<<endl;
+    s = client->setx(key, val, MAX_INT64/1000);
+    EXPECT_TRUE(s.error())<<"should fail to set key with MAX_INT64/1000!"<<s.code()<<endl;
+    s = client->get(key, &getVal);
+    ASSERT_TRUE(s.not_found())<<"this key should be not found!"<<s.code()<<endl;
+}
+
+TEST_F(KVTest, Test_kv_psetex) {
+    int64_t pttl;
+#define OKSetx s = client->psetx(key, val, pttl);\
+    ASSERT_TRUE(s.ok())<<"fail to set key!"<<endl;\
+    sleep(pttl/1000-1);\
+    s = client->get(key, &getVal);\
+    ASSERT_TRUE(s.ok()&&(val == getVal))<<"fail to get key val!"<<endl;\
+    sleep(2);\
+    s = client->get(key, &getVal);\
+    ASSERT_TRUE(s.not_found())<<"this key should be not found!"<<endl;
+
+#define FalseSetx s = client->psetx(key, val, pttl);\
+    EXPECT_TRUE(s.error())<<"should fail to set key!"<<endl;
+
+    key = GetRandomBytes_(200); 
+    val = GetRandomVal_(); 
+    pttl = 2000;
+    OKSetx
+
+    s = client->set(key, val);
+    // set exsit key
+    val = GetRandomVal_(); 
+    OKSetx
+
+    //other types key, kv can not setex other types
+    field = GetRandomField_();
+
+    client->del(key);
+    client->hset(key, field, val);
+    FalseSetx
+
+    client->del(key);
+    client->zset(key, field, 1.0);
+    FalseSetx
+
+    client->del(key);
+    client->qpush_front(key, val);
+    FalseSetx
+
+    client->del(key);
+    client->sadd(key, val);
+    FalseSetx
+    client->del(key);
+
+    pttl = -1;
+    FalseSetx
+
+    pttl = -1;
+    s = client->set(key, val);
+    FalseSetx
+
+    pttl = 0;
+    FalseSetx
+
+    client->del(key);
+
+    s = client->psetx(key, val, MAX_INT64);
+    EXPECT_TRUE(s.error())<<"should fail to set key with MAX_INT64!"<<s.code()<<endl;
     s = client->get(key, &getVal);
     ASSERT_TRUE(s.not_found())<<"this key should be not found!"<<s.code()<<endl;
 }

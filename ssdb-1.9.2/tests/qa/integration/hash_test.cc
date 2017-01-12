@@ -95,7 +95,7 @@ TEST_F(HashTest, Test_hash_hget) {
         s = client->del(key);
         NotFoundHget
     }
-key="key";
+
     keysNum = 100;
     for(int n = 0; n < keysNum; n++)
     {
@@ -241,7 +241,8 @@ TEST_F(HashTest, Test_hash_hdecrby) {
 }
 
 TEST_F(HashTest, Test_hash_hgetall) {
-#define NotFoundHgetall s = client->hgetall(key, &list);\
+#define NotExsitHgetall s = client->hgetall(key, &list);\
+    ASSERT_TRUE(s.ok());\
     ASSERT_EQ(0, list.size())<<"get list should be empty!"<<endl;
 
     // EXPECT_TRUE(s.not_found())<<"this key should be not found!"<<endl;
@@ -250,7 +251,7 @@ TEST_F(HashTest, Test_hash_hgetall) {
     val = GetRandomVal_(); 
     field = GetRandomField_();
     s = client->del(key);
-    NotFoundHgetall
+    NotExsitHgetall
     keysNum = 10;
     for(int n = 0; n < keysNum; n++)
     {
