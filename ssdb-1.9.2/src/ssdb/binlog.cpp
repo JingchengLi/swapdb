@@ -171,6 +171,10 @@ BinlogQueue::BinlogQueue(leveldb::DB *db, bool enabled, int capacity){
 	this->tran_seq = 0;
 	this->capacity = capacity;
 	this->enabled = enabled;
+
+	/**
+	 disable code below , speedup on start up*/
+/*
 	
 	Binlog log;
 	if(this->find_last(&log) == 1){
@@ -206,6 +210,7 @@ BinlogQueue::BinlogQueue(leveldb::DB *db, bool enabled, int capacity){
 			exit(0);
 		}
 	}
+ */
 }
 
 BinlogQueue::~BinlogQueue(){
