@@ -343,3 +343,86 @@ TEST_F(KeysTest, Test_keys_pttl) {
         ASSERT_TRUE(s.not_found())<<"this key should be not found!"<<s.code()<<endl;
         PTTL(-2)
 }
+
+TEST_F(KeysTest, Test_keys_exists) {
+    field = GetRandomField_();
+    val = GetRandomVal_();
+    score = GetRandomDouble_();
+    pttl = 500;
+
+    std::vector<std::string> keys = {"key", "hkey", "lkey", "skey", "zkey"};
+
+    for (auto i : keys){ client->del(i); }
+
+    s = client->exists(keys, &ret);
+    EXPECT_TRUE(s.ok());
+    EXPECT_EQ(0, ret)<<"non-exist keys return 0";
+
+    list.clear();
+
+    for(int n = 0; n < 5; n++){
+        list.push_back(keys[n]);
+        switch(n){
+            case 0:
+                client->set(keys[n],val);
+                break;
+            case 1:
+                client->hset(keys[n], field, val);
+                break;
+            case 2:
+                client->qpush_front(keys[n], val);
+                break;
+            case 3:
+                client->sadd(keys[n], val);
+                break;
+            case 4:
+                client->zset(keys[n], field, score);
+                break;
+            s = client->exists(list, &ret);
+            EXPECT_TRUE(s.ok());
+            EXPECT_EQ(n+1, ret)<<"exists return no of exists no volatile keys!";
+        }
+    }
+
+    for(int n = 0; n < 5; n++){
+        list.push_back(keys[n]);
+        s = client->exists(list, &ret);
+        EXPECT_TRUE(s.ok());
+        EXPECT_EQ(n+6, ret)<<"exists retrun no of accumulate duplicate keys!";
+    }
+
+    for(int n = 0; n < 5; n++){
+        client->pexpire(keys[n], pttl, &ret);
+        s = client->exists(keys, &ret);
+        EXPECT_TRUE(s.ok());
+        EXPECT_EQ(5-n, ret)<<"exists return no of exists no volatile keys and still not expire keys!";
+        sleep(1);
+        s = client->exists(keys, &ret);
+        EXPECT_TRUE(s.ok());
+        EXPECT_EQ(4-n, ret)<<"exists return no of exists no volatile keys and exclude expired keys!";
+    }
+
+    for(int n = 0; n < 5; n++){
+        switch(n){
+            case 0:
+                client->set(keys[n],val);
+                break;
+            case 1:
+                client->hset(keys[n], field, val);
+                break;
+            case 2:
+                client->qpush_front(keys[n], val);
+                break;
+            case 3:
+                client->sadd(keys[n], val);
+                break;
+            case 4:
+                client->zset(keys[n], field, score);
+                break;
+            client->del(keys[n]);
+            s = client->exists(keys, &ret);
+            EXPECT_TRUE(s.ok());
+            EXPECT_EQ(0, ret)<<"exists return 0 after key is deleted!";
+        }
+    }
+}
