@@ -216,12 +216,13 @@ start_server {tags {"ssdb"}} {
         }
     }
 
-    test "GETBIT against non-existing key" {
+    test "GETBIT/BITCOUNT against non-existing key" {
         r del mykey
         assert_equal 0 [r getbit mykey 0]
+        assert_equal 0 [r bitcount mykey 0]
     }
 
-    test "GETBIT against string-encoded key" {
+    test "GETBIT/BITCOUNT against string-encoded key" {
         # Single byte with 2nd and 3rd bit set
         r set mykey "`"
 
@@ -230,6 +231,7 @@ start_server {tags {"ssdb"}} {
         assert_equal 1 [r getbit mykey 1]
         assert_equal 1 [r getbit mykey 2]
         assert_equal 0 [r getbit mykey 3]
+        assert_equal 2 [r bitcount mykey]
 
         # Out-range
         assert_equal 0 [r getbit mykey 8]
@@ -237,7 +239,7 @@ start_server {tags {"ssdb"}} {
         assert_equal 0 [r getbit mykey 10000]
     }
 
-    test "GETBIT against integer-encoded key" {
+    test "GETBIT/BITCOUNT against integer-encoded key" {
         r set mykey 1
         assert_encoding int mykey
 
@@ -246,11 +248,20 @@ start_server {tags {"ssdb"}} {
         assert_equal 0 [r getbit mykey 1]
         assert_equal 1 [r getbit mykey 2]
         assert_equal 1 [r getbit mykey 3]
+        assert_equal 3 [r bitcount mykey]
 
         # Out-range
         assert_equal 0 [r getbit mykey 8]
         assert_equal 0 [r getbit mykey 100]
         assert_equal 0 [r getbit mykey 10000]
+    }
+
+    test "GETBIT against integer-encoded key" {
+        r set mykey "foobar"
+        assert_equal 26 [r bitcount mykey]
+        assert_equal 4 [r bitcount mykey 0 0]
+        assert_equal 6 [r bitcount mykey 1 1]
+        assert_equal 10 [r bitcount mykey 0 1]
     }
 
     test "GETRANGE against non-existing key" {

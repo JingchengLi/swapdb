@@ -97,6 +97,114 @@ start_server {
         r srem myset 1 2 3 4 5 6 7 8
     } {3}
 
+    foreach {type} {hashtable} {
+        for {set i 1} {$i <= 5} {incr i} {
+            r del [format "set%d" $i]
+        }
+        for {set i 0} {$i < 200} {incr i} {
+            r sadd set1 $i
+            r sadd set2 [expr $i+195]
+        }
+        foreach i {199 195 1000 2000} {
+            r sadd set3 $i
+        }
+        for {set i 5} {$i < 200} {incr i} {
+            r sadd set4 $i
+        }
+        r sadd set5 0
+
+        # To make sure the sets are encoded as the type we are testing -- also
+        # when the VM is enabled and the values may be swapped in and out
+        # while the tests are running -- an extra element is added to every
+        # set that determines its encoding.
+        set large 200
+        if {$type eq "hashtable"} {
+            set large foo
+        }
+
+        for {set i 1} {$i <= 5} {incr i} {
+            r sadd [format "set%d" $i] $large
+        }
+
+        test "Generated sets must be encoded as $type" {
+            for {set i 1} {$i <= 5} {incr i} {
+                assert_encoding $type [format "set%d" $i]
+            }
+        }
+
+#        test "SINTER with two sets - $type" {
+#            assert_equal [list 195 196 197 198 199 $large] [lsort [r sinter set1 set2]]
+#        }
+#
+#        test "SINTERSTORE with two sets - $type" {
+#            r sinterstore setres set1 set2
+#            assert_encoding $type setres
+#            assert_equal [list 195 196 197 198 199 $large] [lsort [r smembers setres]]
+#        }
+#
+#        test "SINTERSTORE with two sets, after a DEBUG RELOAD - $type" {
+#            r debug reload
+#            r sinterstore setres set1 set2
+#            assert_encoding $type setres
+#            assert_equal [list 195 196 197 198 199 $large] [lsort [r smembers setres]]
+#        }
+
+        test "SUNION with two sets - $type" {
+            set expected [lsort -uniq "[r smembers set1] [r smembers set2]"]
+            assert_equal $expected [lsort [r sunion set1 set2]]
+        }
+
+        test "SUNIONSTORE with two sets - $type" {
+            r sunionstore setres set1 set2
+            assert_encoding $type setres
+            set expected [lsort -uniq "[r smembers set1] [r smembers set2]"]
+            assert_equal $expected [lsort [r smembers setres]]
+        }
+
+#        test "SINTER against three sets - $type" {
+#            assert_equal [list 195 199 $large] [lsort [r sinter set1 set2 set3]]
+#        }
+#
+#        test "SINTERSTORE with three sets - $type" {
+#            r sinterstore setres set1 set2 set3
+#            assert_equal [list 195 199 $large] [lsort [r smembers setres]]
+#        }
+
+        test "SUNION with non existing keys - $type" {
+            set expected [lsort -uniq "[r smembers set1] [r smembers set2]"]
+            assert_equal $expected [lsort [r sunion nokey1 set1 set2 nokey2]]
+        }
+
+#        test "SDIFF with two sets - $type" {
+#            assert_equal {0 1 2 3 4} [lsort [r sdiff set1 set4]]
+#        }
+#
+#        test "SDIFF with three sets - $type" {
+#            assert_equal {1 2 3 4} [lsort [r sdiff set1 set4 set5]]
+#        }
+#
+#        test "SDIFFSTORE with three sets - $type" {
+#            r sdiffstore setres set1 set4 set5
+#            # When we start with intsets, we should always end with intsets.
+#            if {$type eq {intset}} {
+#                assert_encoding intset setres
+#            }
+#            assert_equal {1 2 3 4} [lsort [r smembers setres]]
+#        }
+    }
+
+    test "SUNION against non-set should throw error" {
+        r set key1 x
+        assert_error "ERR*" {r sunion key1 noset}
+    }
+
+    test "SUNIONSTORE against non existing keys should delete dstkey" {
+        r del setres
+        r set setres xxx
+        assert_equal 0 [r sunionstore setres foo111 bar222]
+        assert_equal 0 [r exists setres]
+    }
+
     tags {slow} {
         test {intsets implementation stress testing} {
             for {set j 0} {$j < 20} {incr j} {

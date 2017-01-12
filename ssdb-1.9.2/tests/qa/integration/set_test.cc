@@ -240,12 +240,126 @@ TEST_F(SetTest, Test_set_smembers) {
 
     client->del(key);
 
+    getList.clear();
     s = client->smembers(key, &getList);
-    ASSERT_TRUE(s.not_found());
+    EXPECT_TRUE(s.ok());
+    EXPECT_EQ(0, getList.size());
 
     client->zset(key, val, 1.0);
     s = client->smembers(key, &getList);
     ASSERT_TRUE(s.error());
+
+    client->del(key);
+}
+
+TEST_F(SetTest, Test_set_sunion_sunionstore) {
+    std::vector<std::string> v(500), v2(500), set1, set2, set3, set4, set5;
+    std::vector<std::string>::iterator it;
+    key = GetRandomKey_();
+    for (int i = 1; i <= 5; i++){
+        client->del("set"+itoa(i));
+    }
+
+    for (int i = 0; i < 200; i++){
+        client->sadd("set1", itoa(i), &ret);
+        set1.push_back(itoa(i));
+        client->sadd("set2", itoa(i+195), &ret);                                              
+        set2.push_back(itoa(i+195));
+
+    }
+    for (auto i : {199, 195, 1000, 2000}){
+        client->sadd("set3", itoa(i), &ret);
+        set3.push_back(itoa(i));
+    }
+    for (int i = 5; i < 200; i++){
+        client->sadd("set4", itoa(i), &ret);
+        set4.push_back(itoa(i));
+
+    } 
+    client->sadd("set5", itoa(0), &ret);
+    set5.push_back(itoa(0));
+
+    list.clear();
+    list.push_back("set1");
+    list.push_back("set2");
+
+    std::sort(set1.begin(), set1.end());
+    std::sort(set2.begin(), set2.end());
+    it = std::set_union(set1.begin(),set1.end(),set2.begin(),set2.end(),v.begin());
+    v.resize(it-v.begin());
+    std::sort(v.begin(), v.end());
+
+    s = client->sunion(list, &getList);
+    ASSERT_TRUE(s.ok())<<"sunion should return ok!";
+    std::sort(getList.begin(), getList.end());
+    EXPECT_TRUE(std::equal(v.begin(),v.end(),getList.begin()))<<"sunion with two sets"<<endl;
+
+    client->del(key);
+    s = client->sunionstore(key, list, &ret);
+    ASSERT_TRUE(s.ok())<<"sunionstore should return ok!";
+    getList.clear();
+    client->smembers(key, &getList);
+    EXPECT_EQ(ret, getList.size())<<"sunionstore should return the union elements numbers.";
+    std::sort(getList.begin(), getList.end());
+    EXPECT_TRUE(std::equal(v.begin(),v.end(),getList.begin()))<<"sunionstore with two sets"<<endl;
+
+    client->del("key");
+    list.push_back("key");
+
+    getList.clear();
+    s = client->sunion(list, &getList);
+    ASSERT_TRUE(s.ok())<<"sunion with non-exist key should return ok!";
+    std::sort(getList.begin(), getList.end());
+    EXPECT_TRUE(std::equal(v.begin(),v.end(),getList.begin()))<<"sunion with non-exist key"<<endl;
+
+    s = client->sunionstore(key, list, &ret);
+    ASSERT_TRUE(s.ok())<<"sunionstore with non-exist key should return ok!";
+    getList.clear();
+    client->smembers(key, &getList);
+    EXPECT_EQ(ret, getList.size())<<"sunionstore swith non-exist key hould return the union elements numbers.";
+    std::sort(getList.begin(), getList.end());
+    EXPECT_TRUE(std::equal(v.begin(),v.end(),getList.begin()))<<"sunionstore with two sets"<<endl;
+
+
+    list.push_back("set3");
+    std::sort(set3.begin(), set3.end());
+    it = std::set_union(v.begin(),v.end(),set3.begin(),set3.end(),v2.begin());
+    v2.resize(it-v2.begin());
+    std::sort(v2.begin(), v2.end());
+
+    getList.clear();
+    s = client->sunion(list, &getList);
+    ASSERT_TRUE(s.ok())<<"sunion should return ok!";
+    std::sort(getList.begin(), getList.end());
+    EXPECT_TRUE(std::equal(v2.begin(),v2.end(),getList.begin()))<<"sunion with multi sets"<<endl;
+
+    client->sadd(key, "override");
+
+    s = client->sunionstore(key, list, &ret);
+    ASSERT_TRUE(s.ok())<<"sunionstore should return ok!";
+    getList.clear();
+    client->smembers(key, &getList);
+    EXPECT_EQ(ret, getList.size())<<"sunionstore should return the union elements numbers.";
+    std::sort(getList.begin(), getList.end());
+    EXPECT_TRUE(std::equal(v2.begin(),v2.end(),getList.begin()))<<"sunionstore with multi sets"<<endl;
+
+    client->set("key", "val");
+
+    getList.clear();
+    s = client->sunion(list, &getList);
+    ASSERT_TRUE(s.error())<<"sunion with non-set should return error!";
+    ASSERT_TRUE(getList.empty());
+
+    getList.clear();
+    s = client->sunionstore(key, list, &ret);
+    ASSERT_TRUE(s.error())<<"sunionstore with non-set should return error!";
+    ASSERT_TRUE(getList.empty());
+
+    list.clear();
+    list.push_back("non-exist key");
+    client->sunionstore(key, list, &ret);
+    s = client->get(key, &getVal);
+    ASSERT_TRUE(s.not_found())<<"sunionstore with non-exist key should del key:"<<s.code()<<endl;
 
     client->del(key);
 }
