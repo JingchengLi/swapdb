@@ -794,7 +794,7 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
 
     int rdbtype = rdbDecoder.rdbLoadObjectType();
 
-    log_info("rdb type : %d", rdbtype);
+//    log_info("rdb type : %d", rdbtype);
 
     switch (rdbtype) {
         case RDB_TYPE_STRING: {

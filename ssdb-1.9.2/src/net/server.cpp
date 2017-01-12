@@ -337,7 +337,7 @@ void NetworkServer::serve(){
 			job->req = link->last_recv();
 			int result = this->proc(job);
 			if(result == PROC_THREAD){
-				log_debug("receive req: %s", serialize_req(*job->req).c_str());
+				log_debug("[receive] req: %s", serialize_req(*job->req).c_str());
 
 				fdes->del(link->fd());
 			}else if(result == PROC_BACKEND){
@@ -381,7 +381,7 @@ int NetworkServer::proc_result(ProcJob *job, ready_list_t *ready_list){
 	int result = job->result;
 			
 	if(log_level() >= Logger::LEVEL_DEBUG){
-		log_debug("w:%.3f,p:%.3f, req: %s, resp: %s",
+		log_debug("[result] w:%.3f,p:%.3f, req: %s, resp: %s",
 			job->time_wait, job->time_proc,
 			serialize_req(*job->req).c_str(),
 			serialize_req(job->resp.resp).c_str());

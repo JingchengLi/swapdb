@@ -26,6 +26,11 @@ found in the LICENSE file.
 #include <pthread.h>
 #include <string>
 
+#ifndef __FILENAME__
+#include <string.h>
+#define __FILENAME__ (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
+#endif
+
 class Logger{
 	public:
 		static const int LEVEL_NONE		= (-1);
@@ -105,15 +110,15 @@ int log_write(int level, const char *fmt, ...);
 	#endif
 
 	#define log_debug(fmt, args...)	\
-		log_write(Logger::LEVEL_DEBUG, "%s:%d " fmt, __FILE__, __LINE__, ##args)
+		log_write(Logger::LEVEL_DEBUG, "%s:%d " fmt, __FILENAME__, __LINE__, ##args)
 	#define log_info(fmt, args...)	\
-		log_write(Logger::LEVEL_INFO,  "%s:%d " fmt, __FILE__, __LINE__, ##args)
+		log_write(Logger::LEVEL_INFO,  "%s:%d " fmt, __FILENAME__, __LINE__, ##args)
 	#define log_warn(fmt, args...)	\
-		log_write(Logger::LEVEL_WARN,  "%s:%d " fmt, __FILE__, __LINE__, ##args)
+		log_write(Logger::LEVEL_WARN,  "%s:%d " fmt, __FILENAME__, __LINE__, ##args)
 	#define log_error(fmt, args...)	\
-		log_write(Logger::LEVEL_ERROR, "%s:%d " fmt, __FILE__, __LINE__, ##args)
+		log_write(Logger::LEVEL_ERROR, "%s:%d " fmt, __FILENAME__, __LINE__, ##args)
 	#define log_fatal(fmt, args...)	\
-		log_write(Logger::LEVEL_FATAL, "%s:%d " fmt, __FILE__, __LINE__, ##args)
+		log_write(Logger::LEVEL_FATAL, "%s:%d " fmt, __FILENAME__, __LINE__, ##args)
 #else
 	#define log_trace(fmt, args...) do{}while(0)
 	#define log_debug(fmt, args...) do{}while(0)
