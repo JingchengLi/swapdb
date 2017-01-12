@@ -106,6 +106,7 @@ public:
 	 * Set the value of the key, with a time to live.
 	 */
 	virtual Status setx(const std::string &key, const std::string &val, int64_t ttl) = 0;
+	virtual Status psetx(const std::string &key, const std::string &val, int64_t ttl) = 0;
 	virtual Status del(const std::string &key) = 0;
 	virtual Status incr(const std::string &key, int64_t incrby, int64_t *ret) = 0;
 	virtual Status decr(const std::string &key, int64_t incrby, int64_t *ret) = 0;
@@ -156,6 +157,9 @@ public:
 	virtual Status hkeys(const std::string &name, 
 		const std::string &key_start, const std::string &key_end,
 		uint64_t limit, std::vector<std::string> *ret) = 0;
+	virtual Status hvals(const std::string &name, 
+		const std::string &key_start, const std::string &key_end,
+		uint64_t limit, std::vector<std::string> *ret) = 0;
 	/**
 	 * Return all hashmap key-value pairs.
 	 * The two elements at ret[n] and ret[n+1] form a key-value pair, n=0,2,4,...
@@ -183,6 +187,7 @@ public:
 		std::vector<std::string> *ret) = 0;
 	virtual Status multi_hset(const std::string &name, const std::map<std::string, std::string> &kvs) = 0;
 	virtual Status multi_hdel(const std::string &name, const std::vector<std::string> &keys, int64_t *ret_size=NULL) = 0;
+	virtual Status hexists(const std::string &name, const std::string &key, int64_t *ret) = 0;
 	/// @}
 
 	/// @name set methods
@@ -195,7 +200,7 @@ public:
 	virtual Status smembers(const std::string &name, std::vector<std::string> *ret) = 0;
 	virtual Status sismember(const std::string &name, const std::string &key, int64_t *ret) = 0;
 	virtual Status sunion(const std::vector<std::string> &names, std::vector<std::string> *ret) = 0;
-	virtual Status sunionstore(const std::vector<std::string> &names, int64_t *ret) = 0;
+	virtual Status sunionstore(const std::string &name, const std::vector<std::string> &keys, int64_t *ret) = 0;
 	/// @}
 
 	/// @name Zset methods
@@ -281,6 +286,7 @@ public:
 	virtual Status qrange(const std::string &name, int64_t begin, int64_t limit, std::vector<std::string> *ret) = 0;
 	virtual Status qclear(const std::string &name, int64_t *ret=NULL) = 0;
 	virtual Status qsize(const std::string &name, int64_t *ret=NULL) = 0;
+	virtual Status qset(const std::string &name, int64_t index, std::string &val) = 0;
 	virtual Status qget(const std::string &name, int64_t index, std::string *val) = 0;
 	/// @}
 private:

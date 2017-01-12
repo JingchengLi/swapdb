@@ -292,6 +292,13 @@ Status ClientImpl::setx(const std::string &key, const std::string &val, int64_t 
 	return s;
 }
 
+Status ClientImpl::psetx(const std::string &key, const std::string &val, int64_t ttl){
+	const std::vector<std::string> *resp;
+	resp = this->request("psetx", key, val, str(ttl));
+	Status s(resp);
+	return s;
+}
+
 Status ClientImpl::del(const std::string &key){
 	const std::vector<std::string> *resp;
 	resp = this->request("del", key);
@@ -434,6 +441,16 @@ Status ClientImpl::hkeys(const std::string &name,
 	return _read_list(resp, ret);
 }
 
+Status ClientImpl::hvals(const std::string &name,
+	const std::string &key_start, const std::string &key_end,
+	uint64_t limit, std::vector<std::string> *ret)
+{
+	std::string s_limit = str(limit);
+	const std::vector<std::string> *resp;
+	resp = this->request("hvals", name, key_start, key_end, s_limit);
+	return _read_list(resp, ret);
+}
+
 Status ClientImpl::hgetall(const std::string &name,
 	 std::vector<std::string> *ret)
 {
@@ -495,6 +512,12 @@ Status ClientImpl::multi_hdel(const std::string &name, const std::vector<std::st
 		}
 	}
 	return s;
+}
+
+Status ClientImpl::hexists(const std::string &name, const std::string &key, int64_t *ret) {
+    const std::vector<std::string> *resp;
+    resp = this->request("hexists", name, key);
+    return _read_int64(resp, ret);
 }
 
 /******************** set *************************/
@@ -578,9 +601,9 @@ Status ClientImpl::sunion(const std::vector<std::string> &names, std::vector<std
 	return _read_list(resp, ret);
 }
 
-Status ClientImpl::sunionstore(const std::vector<std::string> &names, int64_t *ret) {
+Status ClientImpl::sunionstore(const std::string &name, const std::vector<std::string> &keys, int64_t *ret) {
 	const std::vector<std::string> *resp;
-	resp = this->request("sunionstore", names);
+	resp = this->request("sunionstore", name, keys);
 	return _read_int64(resp, ret);
 }
 
@@ -925,6 +948,14 @@ Status ClientImpl::qsize(const std::string &name, int64_t *ret){
 	const std::vector<std::string> *resp;
 	resp = this->request("qsize", name);
 	return _read_int64(resp, ret);
+}
+
+Status ClientImpl::qset(const std::string &name, int64_t index, std::string &val){
+	std::string s_index = str(index);
+	const std::vector<std::string> *resp;
+	resp = this->request("qset", name, s_index, val);
+	Status s(resp);
+	return s;
 }
 
 Status ClientImpl::qget(const std::string &name, int64_t index, std::string *val){
