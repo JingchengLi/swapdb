@@ -237,7 +237,11 @@ int SSDBImpl::saddNoLock(const Bytes &key, const std::set<Bytes> &mem_set, int64
             return -1;
         }
     }
+
+    PTST(ldb_Write, 0.3)
     leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
+    PTE(ldb_Write)
+
     if(!s.ok()){
         return -1;
     }

@@ -497,11 +497,11 @@ int proc_rr_restore(NetworkServer *net, Link *link, const Request &req, Response
 
 	std::string val;
 
-	PTS(restore)
+	PTST(rr_restore, 0.3)
 	int ret = serv->ssdb->restore(req[1], ttl, req[3], replace, &val);
-	PTE(restore)
+	PTE(rr_restore)
 
-	if (ret > 0 && ttl > 0) {
+    if (ret > 0 && ttl > 0) {
 		Locking l(&serv->expiration->mutex);
 		ret = serv->expiration->expire(req[1], ttl, TimeUnit::Millisecond);
 	}
@@ -510,9 +510,16 @@ int proc_rr_restore(NetworkServer *net, Link *link, const Request &req, Response
 		log_info("%s : %s", hexmem(req[1].data(),req[1].size()).c_str(), hexmem(req[3].data(),req[3].size()).c_str());
 	}
 
-	serv->ssdb->raw_set(encode_bqueue_key(COMMAND_REDIS_DEL, req[1]), "");
-	serv->backgroundJob->queued++;
-	serv->backgroundJob->cv.signal();
+//    serv->ssdb->raw_set(encode_bqueue_key(COMMAND_REDIS_DEL, req[1]), "");
+
+    BTask bTask(COMMAND_REDIS_DEL, req[1].String(), "");
+    serv->bqueue.push(bTask);
+
+//
+//    PTST(backgroundJob_signal, 0.3)
+//    serv->backgroundJob->queued++;
+//	serv->backgroundJob->cv.signal();
+//    PTE(backgroundJob_signal)
 
 	resp->reply_get(ret, &val);
 	return 0;
@@ -526,12 +533,18 @@ int proc_rr_dump(NetworkServer *net, Link *link, const Request &req, Response *r
 	std::string val = "OK";
 
 //	resp->reply_get(ret, &val);
-	resp->reply_get(1, &val);
+
+    PTST(rr_dump, 0.3)
+    resp->reply_get(1, &val);
+    PTE(rr_dump)
 
 
-	serv->ssdb->raw_set(encode_bqueue_key(COMMAND_REDIS_RESTROE, req[1]), "");
-	serv->backgroundJob->queued++;
-	serv->backgroundJob->cv.signal();
+//	serv->ssdb->raw_set(encode_bqueue_key(COMMAND_REDIS_RESTROE, req[1]), "");
+    BTask bTask(COMMAND_REDIS_RESTROE, req[1].String(), "");
+    serv->bqueue.push(bTask);
+
+//	serv->backgroundJob->queued++;
+//	serv->backgroundJob->cv.signal();
 
 	return 0;
 }

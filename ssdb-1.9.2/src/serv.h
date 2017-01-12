@@ -11,6 +11,7 @@ found in the LICENSE file.
 #include <vector>
 #include <string>
 #include <ssdb/background_job.h>
+#include <util/blocking_queue.h>
 #include "ssdb/ssdb_impl.h"
 #include "ssdb/ttl.h"
 #include "backend_dump.h"
@@ -38,6 +39,8 @@ public:
 	BackendDump *backend_dump;
 	BackendSync *backend_sync;
 	ExpirationHandler *expiration;
+
+	BQueue<BTask> bqueue;
 
 	BackgroundJob *backgroundJob = nullptr;
 	RedisUpstream *redisUpstream = nullptr;

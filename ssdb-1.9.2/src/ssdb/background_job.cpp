@@ -19,16 +19,16 @@ void *BackgroundJob::thread_func(void *arg) {
     while (!backgroudJob->thread_quit) {
 
 
-        backgroudJob->loop();
+        backgroudJob->pop();
+//        backgroudJob->loop();
 
-        if (backgroudJob->queued == 0) {
-//            log_info("Background wait Job");
+//
+//        if (backgroudJob->queued == 0) {
+//            PTST(Background_wait_Job, 2.1);
+//            backgroudJob->cv.waitFor(10, 0);
+//            PTE(Background_wait_Job);
+//        }
 
-            PTST(Background_wait_Job, 2.1);
-            backgroudJob->cv.waitFor(10, 0);
-            PTE(Background_wait_Job);
-
-        }
 
     }
 
@@ -61,6 +61,22 @@ void BackgroundJob::stop() {
 }
 
 
+void BackgroundJob::pop() {
+    BTask bTask = serv->bqueue.pop();
+
+    std::map<uint16_t, bproc_t>::iterator iter;
+
+    iter = bproc_map.find(bTask.type);
+    if (iter != bproc_map.end()) {
+        log_debug("processing %d :%s", bTask.type, hexmem(bTask.data_key.data(), bTask.data_key.length()).c_str());
+        iter->second(serv, bTask.data_key, bTask.value);
+    } else {
+        log_error("can not find a way to process type:%d", bTask.type);
+        //not found
+        //TODO DEL
+    }
+}
+
 void BackgroundJob::loop() {
 
     std::string start;
@@ -85,7 +101,7 @@ bool BackgroundJob::proc(const std::string &data_key, const std::string &key, co
     iter = bproc_map.find(type);
     if (iter != bproc_map.end()) {
         log_debug("processing %d :%s", type, hexmem(data_key.data(), data_key.length()).c_str());
-        iter->second(serv, data_key, key, value);
+        iter->second(serv, data_key, value);
     } else {
         log_error("can not find a way to process type:%d", type);
         //not found
@@ -104,8 +120,7 @@ void BackgroundJob::regType() {
 }
 
 
-int bproc_COMMAND_REDIS_DEL(SSDBServer *serv, const std::string &data_key, const std::string &key,
-                            const std::string &value) {
+int bproc_COMMAND_REDIS_DEL(SSDBServer *serv, const std::string &data_key, const std::string &value) {
 
     Link *link = serv->redisUpstream->getLink();
     if (link == nullptr) {
@@ -134,7 +149,6 @@ int bproc_COMMAND_REDIS_DEL(SSDBServer *serv, const std::string &data_key, const
     std::string res = t_res->toString();
     log_debug("redis response : %s", hexstr<std::string>(res).c_str());
 
-    serv->ssdb->raw_del(key);
 
     delete t_res;
 
@@ -142,8 +156,7 @@ int bproc_COMMAND_REDIS_DEL(SSDBServer *serv, const std::string &data_key, const
 }
 
 
-int bproc_COMMAND_REDIS_RESTROE(SSDBServer *serv, const std::string &data_key, const std::string &key,
-                                const std::string &value) {
+int bproc_COMMAND_REDIS_RESTROE(SSDBServer *serv, const std::string &data_key, const std::string &value) {
 
     std::string val;
     PTST(ssdb_dump, 0.5);
@@ -151,7 +164,6 @@ int bproc_COMMAND_REDIS_RESTROE(SSDBServer *serv, const std::string &data_key, c
     PTE(ssdb_dump);
 
     if (ret < 1) {
-        serv->ssdb->raw_del(key);
         //TODO
         log_error("bproc_COMMAND_REDIS_RESTROE error %d", ret);
         return -1;
@@ -197,8 +209,6 @@ int bproc_COMMAND_REDIS_RESTROE(SSDBServer *serv, const std::string &data_key, c
     if (t_res->status == 1 && t_res->str == "OK") {
         serv->ssdb->del(data_key);
     }
-
-    serv->ssdb->raw_del(key);
 
     delete t_res;
 
