@@ -976,7 +976,10 @@ void handleClientsBlockedOnSSDB(void) {
                     serverLog(LL_DEBUG, "key :%s is deleted from loading_or_transfer_keys.",
                               rl->key->ptr);
                     retval = dictDelete(c->bpop.loading_or_transfer_keys, rl->key);
-                    serverAssertWithInfo(c,rl->key,retval == DICT_OK);
+
+                    /* If the client is closed and reconnect with the same fd,
+                       dictDelete will fail. */
+                    if (retval) continue;
 
                     /* Unblock this client if all blocked keys in the command arguments
                      * are ready(load/transfer done). */

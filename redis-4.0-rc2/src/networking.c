@@ -976,6 +976,8 @@ void freeClient(client *c) {
     if (c->flags & CLIENT_BLOCKED) unblockClient(c);
     dictRelease(c->bpop.keys);
 
+    if (server.jdjr_mode) dictRelease(c->bpop.loading_or_transfer_keys);
+
     /* UNWATCH all the keys */
     unwatchAllKeys(c);
     listRelease(c->watched_keys);
