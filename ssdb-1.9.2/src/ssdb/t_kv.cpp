@@ -859,10 +859,7 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
             }
 
             int64_t num = 0;
-
-            PTST(saddNoLock, 0.3)
             ret = this->saddNoLock(key, mem_set, &num);
-            PTE(saddNoLock)
 
             break;
         }
