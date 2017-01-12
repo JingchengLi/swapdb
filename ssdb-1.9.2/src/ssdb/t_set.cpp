@@ -199,7 +199,7 @@ int SSDBImpl::saddNoLock(const Bytes &key, const std::set<Bytes> &mem_set, int64
     }
 
     *num = 0;
-    std::set<Bytes>::iterator it = mem_set.begin();
+    std::set<Bytes>::const_iterator it = mem_set.begin();
     for (; it != mem_set.end(); ++it) {
         const Bytes& member= *it;
         int change = 0;
@@ -352,7 +352,7 @@ int SSDBImpl::smembers(const Bytes &key, std::vector<std::string> &members) {
 
     auto it = std::unique_ptr<SIterator>(sscan_internal(key, "", "", sv.version, -1, snapshot));
     while (it->next()){
-        members.push_back(it->key);
+        members.push_back(std::move(it->key));
     }
 
     return s;

@@ -40,6 +40,12 @@ class Bytes{
 			size_ = (int)strlen(str);
 		}
 
+        //be careful~
+		inline char operator[](unsigned int e) const
+		{
+ 			return *(data_ + e);
+		}
+
 		const char* data() const{
 			return data_;
 		}

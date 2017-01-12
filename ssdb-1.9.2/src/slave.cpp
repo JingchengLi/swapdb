@@ -378,13 +378,13 @@ int Slave::proc_sync(const Binlog &log, const std::vector<Bytes> &req){
 				}
 				std::string key;
 				MetaKey mk;
-				if (mk.DecodeMetaKey(log.key().String()) == -1){
+				if (mk.DecodeMetaKey(log.key()) == -1){
                     return -1;
 				}
 				key = mk.key;
 				log_trace("set %s", hexmem(key.data(), key.size()).c_str());
 				KvMetaVal kv;
-				if (kv.DecodeMetaVal(req[1].String()) == -1){
+				if (kv.DecodeMetaVal(req[1]) == -1){
 					return -1;
 				}
 				if(ssdb->set(key, kv.value) == -1){
@@ -396,7 +396,7 @@ int Slave::proc_sync(const Binlog &log, const std::vector<Bytes> &req){
 			{
 				std::string key;
 				MetaKey mk;
-				if (mk.DecodeMetaKey(log.key().String()) == -1){
+				if (mk.DecodeMetaKey(log.key()) == -1){
 					break;
 				}
 				key = mk.key;
@@ -413,7 +413,7 @@ int Slave::proc_sync(const Binlog &log, const std::vector<Bytes> &req){
 				}
 				std::string name, key;
 				HashItemKey hk;
-				if (hk.DecodeItemKey(log.key().String()) == -1){
+				if (hk.DecodeItemKey(log.key()) == -1){
 					break;
 				}
 				name= hk.key;
@@ -430,7 +430,7 @@ int Slave::proc_sync(const Binlog &log, const std::vector<Bytes> &req){
 			{
 				std::string name, key;
 				HashItemKey hk;
-				if (hk.DecodeItemKey(log.key().String()) == -1){
+				if (hk.DecodeItemKey(log.key()) == -1){
 					break;
 				}
 				name= hk.key;
@@ -446,7 +446,7 @@ int Slave::proc_sync(const Binlog &log, const std::vector<Bytes> &req){
         case BinlogCommand::SSET:
             {
                 SetItemKey sk;
-                if (sk.DecodeItemKey(log.key().String()) == -1){
+                if (sk.DecodeItemKey(log.key()) == -1){
                     return -1;
                 }
                 log_trace("sadd %s %s",
@@ -460,7 +460,7 @@ int Slave::proc_sync(const Binlog &log, const std::vector<Bytes> &req){
         case BinlogCommand::SDEL:
             {
                 SetItemKey sk;
-                if (sk.DecodeItemKey(log.key().String()) == -1){
+                if (sk.DecodeItemKey(log.key()) == -1){
                     return -1;
                 }
                 log_trace("srem %s %s",
@@ -479,7 +479,7 @@ int Slave::proc_sync(const Binlog &log, const std::vector<Bytes> &req){
 				}
 				std::string name, key;
 				ZScoreItemKey zk;
-				if (zk.DecodeItemKey(log.key().String()) == -1){
+				if (zk.DecodeItemKey(log.key()) == -1){
 					break;
 				}
 //				if(decode_zset_key(log.key(), &name, &key) == -1){
@@ -518,7 +518,7 @@ int Slave::proc_sync(const Binlog &log, const std::vector<Bytes> &req){
 				std::string name;
 				uint64_t seq;
 				ListItemKey lk;
-				if (lk.DecodeItemKey(log.key().String()) == -1){
+				if (lk.DecodeItemKey(log.key()) == -1){
 					break;
 				}
 				name = lk.key;
@@ -561,7 +561,7 @@ int Slave::proc_sync(const Binlog &log, const std::vector<Bytes> &req){
         case BinlogCommand::DEL_KEY:
             {
                 MetaKey mk;
-                if (mk.DecodeMetaKey(log.key().String()) == -1){
+                if (mk.DecodeMetaKey(log.key()) == -1){
                     break;
                 }
                 std::string key = mk.key;

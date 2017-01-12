@@ -6,10 +6,11 @@
 #define SSDB_DECODE_H
 
 #include "util.h"
+class Bytes;
 
 class MetaKey{
 public:
-    int DecodeMetaKey(const string& str);
+    int DecodeMetaKey(const Bytes& str);
 public:
     uint16_t slot;
     string   key;
@@ -17,7 +18,7 @@ public:
 
 class ItemKey{
 public:
-     virtual int DecodeItemKey(const string& str);
+     virtual int DecodeItemKey(const Bytes& str);
 
 public:
     uint16_t    version;
@@ -30,7 +31,7 @@ typedef ItemKey ZSetItemKey;
 
 class ZScoreItemKey : public ItemKey{
 public:
-    virtual int DecodeItemKey(const string& str);
+    virtual int DecodeItemKey(const Bytes& str);
 
 public:
     double      score;
@@ -38,7 +39,7 @@ public:
 
 class ListItemKey : public ItemKey{
 public:
-    virtual int DecodeItemKey(const string& str);
+    virtual int DecodeItemKey(const Bytes& str);
 
 public:
     uint64_t    seq;
@@ -46,7 +47,7 @@ public:
 
 class EScoreItemKey : public ItemKey{
 public:
-    virtual int DecodeItemKey(const string& str);
+    virtual int DecodeItemKey(const Bytes& str);
 
 public:
     int64_t     score;
@@ -57,7 +58,7 @@ public:
  */
 class KvMetaVal{
 public:
-    int DecodeMetaVal(const string& str);
+    int DecodeMetaVal(const Bytes& str);
 
 public:
     char        type;
@@ -68,7 +69,7 @@ public:
 
 class MetaVal{
 public:
-    virtual int DecodeMetaVal(const string& str);
+    virtual int DecodeMetaVal(const Bytes& str);
 
 public:
     char        type;
@@ -82,7 +83,7 @@ typedef MetaVal ZSetMetaVal;
 
 class ListMetaVal : public MetaVal{
 public:
-    virtual int DecodeMetaVal(const string& str);
+    virtual int DecodeMetaVal(const Bytes& str);
 
 public:
     uint64_t    left_seq;
@@ -94,7 +95,7 @@ public:
  */
 class DeleteKey{
 public:
-    int DecodeDeleteKey(const string& str);
+    int DecodeDeleteKey(const Bytes& str);
 
 public:
     char        type;

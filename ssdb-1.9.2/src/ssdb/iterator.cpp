@@ -104,7 +104,7 @@ bool MIterator::next(){
 		}
 
 		MetaKey mk;
-		if (mk.DecodeMetaKey(it->key().String()) == -1){
+		if (mk.DecodeMetaKey(it->key()) == -1){
 			continue;
 		}
 		key = mk.key;
@@ -142,7 +142,7 @@ bool HIterator::next(){
 		//dump(ks.data(), ks.size(), "z.next");
 		//dump(vs.data(), vs.size(), "z.next");
 		HashItemKey hk;
-		if(hk.DecodeItemKey(ks.String()) == -1){
+		if(hk.DecodeItemKey(ks) == -1){
 			continue;
 		}
 		if(hk.key != this->name || hk.version != this->version){
@@ -174,13 +174,13 @@ bool SIterator::next() {
 		Bytes ks = it->key();
 
 		SetItemKey sk;
-		if (sk.DecodeItemKey(ks.String()) == -1){
+		if (sk.DecodeItemKey(ks) == -1){
 			continue;
 		}
 		if(sk.key != this->name || sk.version != this->version){
 			return false;
 		}
-		this->key = sk.field;
+		this->key = std::move(sk.field);
 
 		return true;
 	}
@@ -217,7 +217,7 @@ bool ZIterator::next(){
 //		dump(vs.data(), vs.size(), "z.next");
 
 		ZScoreItemKey zk;
-		if(zk.DecodeItemKey(ks.String()) == -1){
+		if(zk.DecodeItemKey(ks) == -1){
 			continue;
 		}
 		if(zk.key != this->name || zk.version != this->version){
@@ -252,7 +252,7 @@ bool LIterator::next() {
 		Bytes ks = it->key();
 
 		ListItemKey sk;
-		if (sk.DecodeItemKey(ks.String()) == -1){
+		if (sk.DecodeItemKey(ks) == -1){
 			continue;
 		}
 		if(sk.key != this->name || sk.version != this->version){
@@ -296,7 +296,7 @@ bool EIterator::next(){
 		}
 
 		EScoreItemKey ek;
-		if(ek.DecodeItemKey(ks.String()) == -1){
+		if(ek.DecodeItemKey(ks) == -1){
 			continue;
 		}
 

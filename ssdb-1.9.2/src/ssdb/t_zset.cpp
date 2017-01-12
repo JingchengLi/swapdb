@@ -782,7 +782,7 @@ int64_t SSDBImpl::zfix(const Bytes &name) {
 //            break;
 //        }
         ZScoreItemKey zk;
-        if(zk.DecodeItemKey(ks.String()) == -1){
+        if(zk.DecodeItemKey(ks) == -1){
             size = -1;
             break;
         }
@@ -865,9 +865,9 @@ int64_t SSDBImpl::zfix(const Bytes &name) {
         }
 
         ZSetItemKey zk;
-        zk.DecodeItemKey(ks.String());
+        zk.DecodeItemKey(ks);
 
-        if (zk.DecodeItemKey(ks.String()) == -1){
+        if (zk.DecodeItemKey(ks) == -1){
             size = -1;
             break;
         }

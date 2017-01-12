@@ -6,7 +6,7 @@
 
 static double decodeScore(const int64_t score);
 
-int MetaKey::DecodeMetaKey(const string &str) {
+int MetaKey::DecodeMetaKey(const Bytes &str) {
     Decoder decoder(str.data(), str.size());
     if(decoder.skip(1) == -1){
         return -1;
@@ -23,7 +23,7 @@ int MetaKey::DecodeMetaKey(const string &str) {
     return 0;
 }
 
-int ItemKey::DecodeItemKey(const string &str) {
+int ItemKey::DecodeItemKey(const Bytes &str) {
     Decoder decoder(str.data(), str.size());
     if(decoder.skip(1) == -1){
         return -1;
@@ -43,7 +43,7 @@ int ItemKey::DecodeItemKey(const string &str) {
     return 0;
 }
 
-int ZScoreItemKey::DecodeItemKey(const string &str) {
+int ZScoreItemKey::DecodeItemKey(const Bytes &str) {
     Decoder decoder(str.data(), str.size());
     if(decoder.skip(1) == -1){
         return -1;
@@ -74,7 +74,7 @@ static double decodeScore(const int64_t score) {
     return (double)(score - ZSET_SCORE_SHIFT) / 100000.0;
 }
 
-int ListItemKey::DecodeItemKey(const string &str) {
+int ListItemKey::DecodeItemKey(const Bytes &str) {
     Decoder decoder(str.data(), str.size());
     if(decoder.skip(1) == -1){
         return -1;
@@ -98,7 +98,7 @@ int ListItemKey::DecodeItemKey(const string &str) {
     return 0;
 }
 
-int EScoreItemKey::DecodeItemKey(const string &str) {
+int EScoreItemKey::DecodeItemKey(const Bytes &str) {
 
     Decoder decoder(str.data(), str.size());
     if(decoder.skip(1) == -1){
@@ -125,7 +125,7 @@ int EScoreItemKey::DecodeItemKey(const string &str) {
 /*
  * decode meta value class
  */
-int KvMetaVal::DecodeMetaVal(const string &str) {
+int KvMetaVal::DecodeMetaVal(const Bytes &str) {
     Decoder decoder(str.data(), str.size());
     if(decoder.skip(1) == -1){
         return -1;
@@ -155,7 +155,7 @@ int KvMetaVal::DecodeMetaVal(const string &str) {
     return 0;
 }
 
-int MetaVal::DecodeMetaVal(const string &str) {
+int MetaVal::DecodeMetaVal(const Bytes &str) {
     Decoder decoder(str.data(), str.size());
     if(decoder.skip(1) == -1){
         return -1;
@@ -189,7 +189,7 @@ int MetaVal::DecodeMetaVal(const string &str) {
     return 0;
 }
 
-int ListMetaVal::DecodeMetaVal(const string &str) {
+int ListMetaVal::DecodeMetaVal(const Bytes &str) {
     Decoder decoder(str.data(), str.size());
     if(decoder.skip(1) == -1){
         return -1;
@@ -236,7 +236,7 @@ int ListMetaVal::DecodeMetaVal(const string &str) {
 /*
  * decode delete key class
  */
-int DeleteKey::DecodeDeleteKey(const string &str) {
+int DeleteKey::DecodeDeleteKey(const Bytes &str) {
     Decoder decoder(str.data(), str.size());
     if(decoder.skip(1) == -1){
         return -1;
