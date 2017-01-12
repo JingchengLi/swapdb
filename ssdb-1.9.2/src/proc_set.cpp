@@ -84,7 +84,7 @@ int proc_smembers(NetworkServer *net, Link *link, const Request &req, Response *
         resp->resp.push_back("ok");
     } else{
         resp->resp.push_back("ok");
-        std::vector<std::string>::iterator it = members.begin();
+        std::vector<std::string>::const_iterator it = members.begin();
         for (;  it != members.end(); ++it) {
             resp->push_back(*it);
         }

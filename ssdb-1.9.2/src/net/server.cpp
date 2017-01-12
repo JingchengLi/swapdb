@@ -386,8 +386,8 @@ int NetworkServer::proc_result(ProcJob *job, ready_list_t *ready_list){
 		}
 
 		error_cmd.append(" resp: ");
-		for(std::vector<std::string>::iterator it=job->resp.resp.begin(); it!=job->resp.resp.end(); it++){
-			std::string res = *it;
+		for(std::vector<std::string>::const_iterator it=job->resp.resp.begin(); it!=job->resp.resp.end(); it++){
+			const std::string& res = *it;
  			error_cmd.append(hexmem(res.data(),res.size()));
 			error_cmd.append(" ");
 		}

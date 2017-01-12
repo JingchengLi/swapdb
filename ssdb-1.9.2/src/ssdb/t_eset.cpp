@@ -4,7 +4,7 @@
 
 #include "ssdb_impl.h"
 
-static void eset_internal(const SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &key, int64_t ts);
+static void eset_internal(leveldb::WriteBatch &batch, const Bytes &key, int64_t ts);
 
 static int eset_one(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &key, int64_t ts);
 
@@ -91,7 +91,7 @@ int SSDBImpl::eget(const Bytes &key, int64_t *ts) {
 }
 
 
-void eset_internal(const SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &key, int64_t ts) {
+void eset_internal(leveldb::WriteBatch &batch, const Bytes &key, int64_t ts) {
     string ekey = encode_eset_key(key);
 
     string buf;
@@ -116,7 +116,7 @@ int eset_one(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &key, int64
     }
 
     if (found == 0) {
-        eset_internal(ssdb, batch, key, ts);
+        eset_internal(batch, key, ts);
 
     } else if (found == 1) {
         if (old_ts == ts) {
@@ -124,7 +124,7 @@ int eset_one(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &key, int64
         } else {
             string old_score_key = encode_escore_key(key, static_cast<uint64_t>(old_ts));
             batch.Delete(old_score_key);
-            eset_internal(ssdb, batch, key, ts);
+            eset_internal(batch, key, ts);
         }
     } else {
         //error
