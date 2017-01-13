@@ -65,18 +65,33 @@ SSDB* SSDB::open(const Options &opt, const std::string &dir){
 	ssdb->options.compaction_speed = opt.compaction_speed;
 #else
 	rocksdb::BlockBasedTableOptions op;
+
+	//for spin disk
+	op.cache_index_and_filter_blocks = true;
+	ssdb->options.optimize_filters_for_hits = true;
+	ssdb->options.skip_stats_update_on_db_open = true;
+	ssdb->options.level_compaction_dynamic_level_bytes = true;
+	ssdb->options.new_table_reader_for_compaction_inputs = true;
+	ssdb->options.target_file_size_base = 16 * 1024 * 1024;
+	ssdb->options.level0_file_num_compaction_trigger = 2; //start compaction
+	ssdb->options.level0_slowdown_writes_trigger = 20; //slow write
+	ssdb->options.level0_stop_writes_trigger = 24;  //block write
+	//========
+
     op.filter_policy = std::shared_ptr<const leveldb::FilterPolicy>(leveldb::NewBloomFilterPolicy(10));
     op.block_cache = leveldb::NewLRUCache(opt.cache_size * 1048576);
 	op.block_size = opt.block_size * 1024;
 
 	ssdb->options.table_factory = std::shared_ptr<leveldb::TableFactory>(rocksdb::NewBlockBasedTableFactory(op));
 #endif
-	ssdb->options.write_buffer_size = opt.write_buffer_size * 1024 * 1024;
+	ssdb->options.write_buffer_size = static_cast<size_t >(opt.write_buffer_size) * 1024 * 1024;
 	if(opt.compression == "yes"){
 		ssdb->options.compression = leveldb::kSnappyCompression;
 	}else{
 		ssdb->options.compression = leveldb::kNoCompression;
 	}
+
+
 
 	leveldb::Status status;
 

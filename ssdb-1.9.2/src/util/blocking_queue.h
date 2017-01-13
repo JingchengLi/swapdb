@@ -9,6 +9,7 @@
 #include <condition_variable>
 #include <deque>
 #include <string>
+#include <sstream>
 
 
 class DumpData {
@@ -37,6 +38,12 @@ public:
     virtual ~BTask() {
     }
 
+    std::string dump() {
+        std::ostringstream stringStream;
+        stringStream << "task type : " << type << "datakey" << hexmem(data_key.data(),data_key.size()).c_str() ;
+        return stringStream.str();
+    }
+
 };
 
 template<typename T>
@@ -52,6 +59,11 @@ public:
             d_queue.push_front(value);
         }
         this->d_condition.notify_one();
+    }
+
+    size_t size() {
+        std::unique_lock<std::mutex> lock(this->d_mutex);
+        return this -> d_queue.size();
     }
 
     T pop() {

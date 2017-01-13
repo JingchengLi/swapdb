@@ -439,9 +439,9 @@ int proc_restore(NetworkServer *net, Link *link, const Request &req, Response *r
 
 	std::string val;
 
-	PTS(restore)
+	PTST(restore, 0.3)
 	int ret = serv->ssdb->restore(req[1], ttl, req[3], replace, &val);
-	PTE(restore)
+	PTE(restore, req[1].String())
 
 	if (ret > 0 && ttl > 0) {
 		Locking l(&serv->expiration->mutex);
@@ -462,10 +462,9 @@ int proc_dump(NetworkServer *net, Link *link, const Request &req, Response *resp
 
 	std::string val;
 
-	PTS(dump)
+	PTST(dump, 0.3)
 	int ret = serv->ssdb->dump(req[1], &val);
-//	log_info("len : %d",val.length());
-	PTE(dump)
+	PTE(dump, req[1].String())
 
 	resp->reply_get(ret, &val);
 	return 0;

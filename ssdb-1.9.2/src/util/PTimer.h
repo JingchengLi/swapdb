@@ -31,12 +31,12 @@ public:
         gettimeofday(&t_start, NULL);
     }
 
-    void end() {
+    void end(std::string tag = "") {
         gettimeofday(&t_end, NULL);
         double delta = (double) ((t_end.tv_sec - t_start.tv_sec) * 1000000 + (t_end.tv_usec - t_start.tv_usec)) /
                        1000000.0;                                       //second
         if (delta > threshold) {
-            log_info("%s costs: %f second", name.c_str(), delta);
+            log_info("%s costs: %f second %s", name.c_str(), delta, tag.c_str());
         }
 
      }
@@ -45,7 +45,7 @@ public:
 #ifdef PTIMER
 #define PTS(name) PTimer name(#name);name.begin();
 #define PTST(name,second) PTimer name(#name,second);name.begin();
-#define PTE(name) name.end();
+#define PTE(name, tag) name.end(#tag);
 #else
 #define PTS(name) "";
 #define PTST(name,second) "";
