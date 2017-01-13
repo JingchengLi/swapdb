@@ -8,10 +8,6 @@
 #include "ssdb_test.h"
 #include <time.h>
 
-//log info when set true
-const bool LDEBUG = false;
-bool midStateFlag;
-
 using namespace std;
 
 class RobustTest : public SSDBTest
@@ -27,70 +23,8 @@ class RobustTest : public SSDBTest
         uint32_t keysNum;
         int64_t ret;
         double score, getScore;
-        pthread_t bg_tid[threadsNum];
-
-        static void* mset_thread_func(void *arg);
-        static void* mget_thread_func(void *arg);
 
 };
-
-void* RobustTest::mset_thread_func(void *arg) {
-    if(LDEBUG)
-        cout<<"mset_thread_func start!"<<endl; 
-    RobustTest* robustTest = (RobustTest*)arg;
-    ssdb::Client *tmpclient = ssdb::Client::connect(robustTest->ip.data(), robustTest->port);
-    if(tmpclient == NULL)
-    {
-        cout<<"fail to connect to server in mset_thread_func!";
-        return (void *)NULL;
-    }
-
-    robustTest->s = tmpclient->multi_set(robustTest->kvs);
-    if(!robustTest->s.ok())
-        cout<<"set fail!"<<robustTest->s.code()<<endl;
-
-    delete tmpclient;
-    tmpclient = NULL;
-    if(LDEBUG)
-        cout<<"mset_thread_func complete!"<<endl; 
-    return (void *)NULL;
-}
-
-void* RobustTest::mget_thread_func(void *arg) {
-    if(midStateFlag == true)
-        return (void *)NULL;
-
-    if(LDEBUG)
-        cout<<"mget_thread_func start!"<<endl; 
-    RobustTest* robustTest = (RobustTest*)arg;
-    ssdb::Client *tmpclient = ssdb::Client::connect(robustTest->ip.data(), robustTest->port);
-    if(tmpclient == NULL)
-    {
-        cout<<"fail to connect to server in mget_thread_func!";
-        return (void *)NULL;
-    }
-
-    robustTest->s = tmpclient->get("key1", &robustTest->getVal);
-    if(LDEBUG)
-        cout<<"get key1:"<<robustTest->getVal<<endl;
-
-    std::vector<std::string> tmplist;
-    tmplist.clear();
-    robustTest->s = tmpclient->multi_get(robustTest->keys, &tmplist);
-    if(!robustTest->s.ok())
-        cout<<"set fail!"<<robustTest->s.code()<<endl;
-    if(BIG_KEY_NUM!=tmplist.size()/2&&0!=tmplist.size())
-    {
-        cout<<"Get mid state list size is:"<<tmplist.size()/2<<endl;
-        midStateFlag = true;
-    }
-
-    delete tmpclient;
-    tmpclient = NULL;
-    if(LDEBUG)
-        cout<<"mget_thread_func end!"<<endl; 
-    return (void *)NULL;
-}
 
 TEST_F(RobustTest, Test_bigkey_hash_del) {
 #define HsetBigKey(num) for(int n = 0; n < num; n++)\
@@ -147,55 +81,6 @@ TEST_F(RobustTest, Test_bigkey_hash_del) {
         ASSERT_TRUE(s.ok()&&("kval" == getVal))<<"fail to get key val!"<<endl;
         s = client->del(key);
     }
-}
-
-TEST_F(RobustTest, Test_mset_mget_mthreads) {
-    key = "key";
-    val = "val";
-    keysNum = BIG_KEY_NUM;
-    keys.clear();
-    kvs.clear();
-    void * status;
-    int setThreads = 1;
-    midStateFlag = false;
-    for(int n = 0;n < keysNum; n++)
-    {
-        keys.push_back(key+itoa(n));
-        kvs.insert(std::make_pair(key+itoa(n), val+itoa(n)));
-    }
-
-    s = client->multi_del(keys, &ret);
-    if(!s.ok())
-        cout<<"del fail!"<<s.code()<<endl;
-
-    for(int n = 0; n < setThreads; n++)
-    {
-        pthread_create(&bg_tid[n], NULL, &mset_thread_func, this);
-        usleep(10*1000);
-    }
-
-    for(int n = setThreads; n < threadsNum; n++)
-    {
-        pthread_create(&bg_tid[n], NULL, &mget_thread_func, this);
-        usleep(20*1000);
-    }
-
-    for(int n = 0; n < threadsNum; n++)
-    {
-        pthread_join(bg_tid[n], &status);
-    }
-    EXPECT_EQ(false, midStateFlag)<<"Multi threads Read mid state when write key!" <<endl;
-
-    list.clear();
-    s = client->multi_get(keys, &list);
-    for(int n = 0; n < keysNum; n++)
-    {
-        client->get(key+itoa(n), &getVal);
-        if(getVal != val+itoa(n))
-            cout<<"not_equal:"<<key+itoa(n)<<endl;
-    }
-    s = client->multi_del(keys);
-    ASSERT_EQ(keysNum, list.size()/2)<<"Set fail at last:"<<list.size()/2<<endl;
 }
 
 TEST_F(RobustTest, Test_del_mset_mget_repeat) {
@@ -330,7 +215,7 @@ TEST_F(RobustTest, DISABLED_Test_zset_rrank_time_compare) {
 
     client->del(key);
 
-    for(int n = 0; n < 10; n++)
+    for(int n = 0; n < count; n++)
     {
         client->zset(key, field + itoa(n), score + n);
     }
@@ -341,7 +226,7 @@ TEST_F(RobustTest, DISABLED_Test_zset_rrank_time_compare) {
 
     client->del(key);
 
-    for(int n = 0; n < 10; n++)
+    for(int n = 0; n < count; n++)
     {
         client->zset(key, field + itoa(n), score + n);
     }
@@ -362,7 +247,6 @@ TEST_F(RobustTest, DISABLED_Test_zset_rrank_time_compare) {
 
     for(int repeat = 0; repeat < 1000; repeat++)
     {
-        int count = 10;
 
         for(int n = 0; n < count; n++)
         {

@@ -378,10 +378,10 @@ TEST_F(KeysTest, Test_keys_exists) {
             case 4:
                 client->zset(keys[n], field, score);
                 break;
-            s = client->exists(list, &ret);
-            EXPECT_TRUE(s.ok());
-            EXPECT_EQ(n+1, ret)<<"exists return no of exists no volatile keys!";
         }
+        s = client->exists(list, &ret);
+        EXPECT_TRUE(s.ok());
+        EXPECT_EQ(n+1, ret)<<"exists return no of exists no volatile keys!";
     }
 
     for(int n = 0; n < 5; n++){
@@ -419,10 +419,10 @@ TEST_F(KeysTest, Test_keys_exists) {
             case 4:
                 client->zset(keys[n], field, score);
                 break;
-            client->del(keys[n]);
-            s = client->exists(keys, &ret);
-            EXPECT_TRUE(s.ok());
-            EXPECT_EQ(0, ret)<<"exists return 0 after key is deleted!";
         }
+        client->del(keys[n]);
+        s = client->exists(keys, &ret);
+        EXPECT_TRUE(s.ok());
+        EXPECT_EQ(0, ret)<<"exists return 0 after key is deleted!";
     }
 }
