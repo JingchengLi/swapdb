@@ -17,11 +17,12 @@ found in the LICENSE file.
 #include "slave.h"
 #include "net/server.h"
 #include "SSDB_client.h"
+#include "net/link.h"
 
 struct Slave_info{
 	std::string ip;
 	int port;
-	ssdb::Client *client;
+	Link	*link;
 };
 
 class SSDBServer
@@ -38,6 +39,7 @@ public:
 	ExpirationHandler *expiration;
 	std::vector<Slave *> slaves;
 	std::vector<Slave_info> slave_infos;
+	Link*	master_link;
 
 	SSDBServer(SSDB *ssdb, SSDB *meta, const Config &conf, NetworkServer *net);
 	~SSDBServer();

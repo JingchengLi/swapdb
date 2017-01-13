@@ -10,6 +10,7 @@ found in the LICENSE file.
 #include "../util/log.h"
 #include "../util/ip_filter.h"
 #include "link.h"
+#include "fde.h"
 #include <vector>
 
 static DEF_PROC(ping);
@@ -21,6 +22,7 @@ static DEF_PROC(del_allow_ip);
 static DEF_PROC(list_deny_ip);
 static DEF_PROC(add_deny_ip);
 static DEF_PROC(del_deny_ip);
+//static DEF_PROC(sync150);
 
 #define TICK_INTERVAL          100 // ms
 #define STATUS_REPORT_TICKS    (300 * 1000/TICK_INTERVAL) // second
@@ -289,7 +291,29 @@ void NetworkServer::serve(){
 				if(proc_result(job, &ready_list) == PROC_ERROR){
 					//
 				}
-			}else{
+			} else if (fde->data.num == 150){
+				Link* link = (Link*)fde->data.ptr;
+				Command *cmd = proc_map.get_proc("sync150");
+				if(!cmd){
+					link->output->append("client_error");
+					link->flush();
+					continue;
+				}
+
+                int len = link->read();
+                if(len <= 0){
+                    double serv_time = millitime() - link->create_time;
+                    log_debug("fd: %d, read: %d, delete link, s:%.3f", link->fd(), len, serv_time);
+                    this->link_count--;
+                    fdes->del(link->fd());
+                    delete link;
+                    continue;
+                }
+
+				proc_t p = cmd->proc;
+				const Request req;
+				int result = (*p)(this, link, req, NULL);
+            } else{
 				proc_client_event(fde, &ready_list);
 			}
 		}
@@ -494,6 +518,14 @@ int NetworkServer::proc(ProcJob *job){
 		if(this->need_auth && job->link->auth == false && req->at(0) != "auth"){
 			job->resp.push_back("noauth");
 			job->resp.push_back("authentication required");
+			break;
+		}
+
+		if (req->at(0) == "sync150") {
+			int sock = job->link->fd();
+			fdes->del(sock);
+			fdes->set(sock, FDEVENT_IN, 150, job->link);
+			job->resp.push_back("ok");
 			break;
 		}
 		

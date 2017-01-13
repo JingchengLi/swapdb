@@ -129,6 +129,7 @@ DEF_PROC(select);
 DEF_PROC(client);
 DEF_PROC(quit);
 DEF_PROC(replic);
+DEF_PROC(sync150);
 
 
 
@@ -246,6 +247,7 @@ void SSDBServer::reg_procs(NetworkServer *net){
 	REG_PROC(client, "r");
 	REG_PROC(quit, "r");
 	REG_PROC(replic, "wt");
+	REG_PROC(sync150, "r");
 
 
 	REG_PROC(clear_binlog, "wt");
@@ -551,97 +553,102 @@ int proc_info(NetworkServer *net, Link *link, const Request &req, Response *resp
 	return 0;
 }
 
+static int ssdb_save_len(uint64_t len, std::string &res){
+	unsigned char buf[2];
+	size_t nwritten;
+
+	if (len < (1<<6)) {
+		/* Save a 6 bit len */
+		buf[0] = (len&0xFF)|(RDB_6BITLEN<<6);
+		res.append(1, buf[0]);
+		nwritten = 1;
+	} else if (len < (1<<14)) {
+		/* Save a 14 bit len */
+		buf[0] = ((len>>8)&0xFF)|(RDB_14BITLEN<<6);
+		buf[1] = len&0xFF;
+		res.append(1, buf[0]);
+		res.append(1, buf[1]);
+		nwritten = 2;
+	} else if (len <= UINT32_MAX) {
+		/* Save a 32 bit len */
+		buf[0] = RDB_32BITLEN;
+		res.append(1, buf[0]);
+		uint32_t len32 = htobe32(len);
+		res.append((char*)&len32, sizeof(uint32_t));
+		nwritten = 1+4;
+	} else {
+		/* Save a 64 bit len */
+		buf[0] = RDB_64BITLEN;
+		res.append(1, buf[0]);
+		len = htobe64(len);
+		res.append((char*)&len, sizeof(uint64_t));
+		nwritten = 1+8;
+	}
+	return (int)nwritten;
+}
+
 void* thread_replic(void *arg){
 	SSDBServer *serv = (SSDBServer *)arg;
 	std::vector<Slave_info>::iterator it = serv->slave_infos.begin();
 	for (; it != serv->slave_infos.end(); ++it) {
-		ssdb::Client *client = ssdb::Client::connect(it->ip, it->port);
-		if(client == NULL){
+		it->link = Link::connect((it->ip).c_str(), it->port);
+		if(it->link == NULL){
 			printf("fail to connect to slave ssdb! ip[%s] port[%d]\n", it->ip.c_str(), it->port);
-			return 0;
+			continue;
 		}
-		it->client = client;
+		std::vector<std::string> req;
+		req.push_back(std::string("sync150"));
+		it->link->send(req);
+		it->link->flush();
+		it->link->response();
 	}
 
-	std::string start;
-	start.append(1, DataType::META);
+	const leveldb::Snapshot *snapshot = nullptr;
+	auto fit = std::unique_ptr<Iterator>(serv->ssdb->iterator("", "", -1, snapshot));
+	while (fit->next()) {
+		std::string key = fit->key().String();
+		std::string val = fit->val().String();
+        it = serv->slave_infos.begin();
+		for (; it != serv->slave_infos.end(); ++it) {
+			if (it->link != NULL) {
+				std::string res;
+				ssdb_save_len((uint64_t)(fit->key().size()), res);
+				it->link->output->append(res.c_str(), (int)res.size());
+				it->link->output->append(fit->key());
+				res.clear();
+				ssdb_save_len((uint64_t)(fit->val().size()), res);
+				it->link->output->append(res.c_str(), (int)res.size());
+				it->link->output->append(fit->val());
 
-	auto mit = std::unique_ptr<MIterator>(new MIterator(serv->ssdb->iterator(start, "", -1)));
-	while (mit->next()){
-		if (mit->delType == KEY_DELETE_MASK) continue;
-		int64_t ts = 0;
-		int64_t r = 0;
-		switch (mit->dataType) {
-			case DataType::KV:
-				{
-					KvMetaVal kv;
-					if (kv.DecodeMetaVal(mit->dbVal) == -1){
-						continue;
-					}
-					serv->ssdb->eget(mit->key, &ts);
-					it = serv->slave_infos.begin();
-					for (; it != serv->slave_infos.end(); ++it){
-						it->client->set(mit->key, kv.value);
-						it->client->expire(mit->key, ts, &r);
-					}
+				if (it->link->output->size() > 512){
+					it->link->flush();
+                    it->link->response();
 				}
-                break;
-            case DataType::HSIZE:
-				{
-					HashMetaVal hv;
-					if (hv.DecodeMetaVal(mit->dbVal) == -1){
-						continue;
-					}
-					auto hit = std::unique_ptr<HIterator>(serv->ssdb->hscan(mit->key, "", "", -1));
-					std::map<std::string, std::string> kvs;
-					while (hit->next()){
-						kvs.insert(make_pair(hit->key, hit->val));
-					}
-					serv->ssdb->eget(mit->key, &ts);
-					it = serv->slave_infos.begin();
-					for (; it != serv->slave_infos.end(); ++it){
-						it->client->multi_hset(mit->key, kvs);
-						it->client->expire(mit->key, ts, &r);
-					}
-				}
-                break;
-            case DataType::SSIZE:
-				{
-					SetMetaVal sv;
-					if (sv.DecodeMetaVal(mit->dbVal) == -1){
-						continue;
-					}
-					auto sit = std::unique_ptr<SIterator>(serv->ssdb->sscan(mit->key, "", "", -1));
-					std::vector<std::string> members;
-					while (sit->next()){
-						members.push_back(sit->key);
-					}
-					serv->ssdb->eget(mit->key, &ts);
-					it = serv->slave_infos.begin();
-					for (; it != serv->slave_infos.end(); ++it){
-						it->client->sadd(mit->key, members);
-						it->client->expire(mit->key, ts, &r);
-					}
-				}
-                break;
-            case DataType::ZSIZE:
-                break;
-            case DataType::LSIZE:
-				{
-					std::vector<std::string> lists;
-					serv->ssdb->lrange(mit->key, 0, -1, &lists);
-					serv->ssdb->eget(mit->key, &ts);
-					it = serv->slave_infos.begin();
-					for (; it != serv->slave_infos.end(); ++it){
-						it->client->qpush_back(mit->key, lists);
-						it->client->expire(mit->key, ts, &r);
-					}
-				}
-                break;
-            default:
-                break;
+			}
 		}
 	}
+
+    it = serv->slave_infos.begin();
+    for(; it != serv->slave_infos.end(); ++it){
+        if (it->link != NULL ){
+            if (it->link->output->size() > 0){
+                it->link->flush();
+                it->link->response();
+                log_debug("flush data to slave via tcp");
+            }
+            delete it->link;
+        }
+    }
+    serv->slave_infos.clear();
+
+	serv->ssdb->ReleaseSnapshot(snapshot);
+
+    if (serv->master_link != NULL){
+        std::vector<std::string> response;
+        response.push_back("replic finish");
+        serv->master_link->send(response);
+        serv->master_link->flush();
+    }
 
 	return (void *)NULL;
 }
@@ -658,6 +665,7 @@ int proc_replic(NetworkServer *net, Link *link, const Request &req, Response *re
 		int port = req[i+1].Int();
 		serv->slave_infos.push_back(Slave_info{ip, port, NULL});
 	}
+    serv->master_link = link;
 
 //	breplication = true; //todo 设置全量复制开始标志
 
@@ -667,6 +675,24 @@ int proc_replic(NetworkServer *net, Link *link, const Request &req, Response *re
 		log_fatal("can't create thread: %s", strerror(err));
 		exit(0);
 	}
+	resp->push_back("ok");
+	return 0;
+}
+
+int proc_sync150(NetworkServer *net, Link *link, const Request &req, Response *resp) {
+	SSDBServer *serv = (SSDBServer *)net->data;
+
+	int size = link->input->size();
+	int orgi_size = size;
+	char *head = link->input->data();
+	int ret = serv->ssdb->parse_replic(head, size);
+	link->input->decr(orgi_size - size);
+
+    std::vector<std::string> request;
+    request.push_back(std::string("ok"));
+    link->send(request);
+    link->flush();
+    log_debug("slave response ok ");
 	return 0;
 }
 
