@@ -614,7 +614,7 @@ int SSDBImpl::dump(const Bytes &key, std::string *res) {
             case DataType::SSIZE:
             case DataType::ZSIZE:
             case DataType::LSIZE:{
-//                snapshot = ldb->GetSnapshot();
+                snapshot = ldb->GetSnapshot();
                 break;
             }
 
