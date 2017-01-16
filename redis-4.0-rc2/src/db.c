@@ -1064,7 +1064,7 @@ void setTransferringDB(redisDb *db, robj *key) {
     kde = dictFind(db->dict,key->ptr);
     serverAssertWithInfo(NULL,key,kde != NULL);
     de = dictAddOrFind(EVICTED_DATA_DB->transferring_keys,dictGetKey(kde));
-    serverLog(LL_DEBUG, "key: %s is added to transferring_keys.", key->ptr);
+    serverLog(LL_DEBUG, "key: %s is added to transferring_keys.", (char *)key->ptr);
     dictSetSignedIntegerVal(de,db->id);
 }
 
@@ -1074,7 +1074,7 @@ void setLoadingDB(robj *key) {
     kde = dictFind(EVICTED_DATA_DB->dict,key->ptr);
     de = dictAddOrFind(EVICTED_DATA_DB->loading_hot_keys,dictGetKey(kde));
     serverAssert(de);
-    serverLog(LL_DEBUG, "key: %s is added to loading_hot_keys.", key->ptr);
+    serverLog(LL_DEBUG, "key: %s is added to loading_hot_keys.", (char *)key->ptr);
 }
 
 long long getTransferringDB(robj *key) {
@@ -1439,7 +1439,7 @@ void customizedDelCommand(client *c) {
 
     if (!server.jdjr_mode) {
         addReplyErrorFormat(c,"Command only supported in jdjr-mode '%s'",
-                            (char*)c->argv[0]->ptr);
+                            (char *)c->argv[0]->ptr);
         return;
     }
 
@@ -1447,11 +1447,11 @@ void customizedDelCommand(client *c) {
         keyobj = c->argv[j];
         if (epilogOfEvictingToSSDB(keyobj) == C_OK) {
             serverLog(LL_DEBUG, "customizedDelCommand fd:%d key: %s dictDelete ok.",
-                      c->fd, keyobj->ptr);
+                      c->fd, (char *)keyobj->ptr);
             numdel ++;
         } else
             serverLog(LL_WARNING, "customizedDelCommand fd:%d key: %s dictDelete nok.",
-                      c->fd, keyobj->ptr);
+                      c->fd, (char *)keyobj->ptr);
     }
     addReplyLongLong(c, numdel);
 }

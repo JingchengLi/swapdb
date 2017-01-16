@@ -1201,7 +1201,7 @@ void startToLoadIfNeeded() {
         if (dictFind(EVICTED_DATA_DB->loading_hot_keys, keyobj->ptr))
             continue;
 
-        serverLog(LL_DEBUG, "Try loading key: %s from SSDB.", keyobj->ptr);
+        serverLog(LL_DEBUG, "Try loading key: %s from SSDB.", (char *)keyobj->ptr);
         setLoadingDB(keyobj);
         prologOfLoadingFromSSDB(keyobj);
         decrRefCount(keyobj);
@@ -2318,7 +2318,7 @@ void call(client *c, int flags) {
 }
 
 /* Return C_ERR if the key is in loading or transferring state. */
-int checkKeysInMediateState(client* c, sds key) {
+int checkKeysInMediateState(client* c) {
     robj **keyobjs = NULL;
     int *keys = NULL, blockednum = 0, numkeys = 0, j;
     c->cmd = c->lastcmd = lookupCommand(c->argv[0]->ptr);
@@ -2379,7 +2379,7 @@ int processCommandMaybeInSSDB(client *c) {
             if (counter > LFU_INIT_VAL - 2) {
                 listAddNodeHead(server.hot_keys, dupStringObject(c->argv[1]));
                 serverLog(LL_DEBUG, "key: %s is added to server.hot_keys, client fd: %d.",
-                          c->argv[1]->ptr, c->fd);
+                          (char *)c->argv[1]->ptr, c->fd);
             }
 
             return C_OK;

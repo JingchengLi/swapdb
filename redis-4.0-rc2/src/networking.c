@@ -1495,7 +1495,7 @@ void processInputBuffer(client *c) {
                need to support multiple keys command. */
             if (server.jdjr_mode
                 && c->argc > 1
-                && checkKeysInMediateState(c, c->argv[1]->ptr) == C_ERR)
+                && checkKeysInMediateState(c) == C_ERR)
                 break;
 
             /* Only reset the client when the command was executed. */

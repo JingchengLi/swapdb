@@ -524,7 +524,7 @@ int epilogOfEvictingToSSDB(robj *keyobj) {
     if (dictSize(EVICTED_DATA_DB->transferring_keys) > 0) {
         serverAssert(dictDelete(EVICTED_DATA_DB->transferring_keys,
                                 keyobj->ptr) == DICT_OK);
-        serverLog(LL_DEBUG, "key: %s is deleted from transferring_keys.", keyobj->ptr);
+        serverLog(LL_DEBUG, "key: %s is deleted from transferring_keys.", (char *)keyobj->ptr);
     }
 
     /* Queue the ready key to ssdb_ready_keys. */
@@ -926,7 +926,7 @@ static void removeClientFromListForBlockedKey(client* c, robj* key) {
     listDelNode(l, listSearchKey(l,c));
     /* If the list is empty we need to remove it to avoid wasting memory */
     if (listLength(l) == 0) {
-        serverLog(LL_DEBUG, "key: %s is deleted from ssdb_blocking_keys.", key->ptr);
+        serverLog(LL_DEBUG, "key: %s is deleted from ssdb_blocking_keys.", (char *)key->ptr);
         dictDelete(c->db->ssdb_blocking_keys,key);
     }
 }
@@ -974,7 +974,7 @@ void handleClientsBlockedOnSSDB(void) {
 
                     /* Remove this key from the blocked keys dict of this client */
                     serverLog(LL_DEBUG, "key :%s is deleted from loading_or_transfer_keys.",
-                              rl->key->ptr);
+                              (char *)rl->key->ptr);
                     retval = dictDelete(c->bpop.loading_or_transfer_keys, rl->key);
 
                     /* If the client is closed and reconnect with the same fd,
@@ -987,7 +987,7 @@ void handleClientsBlockedOnSSDB(void) {
                         dictEmpty(c->bpop.loading_or_transfer_keys,NULL);
                         /* Unblock this client and add it into "server.unblocked_clients",
                          * The blocked command will be executed in "processInputBuffer".*/
-                        serverLog(LL_DEBUG, "client fd: %d, key: %s is unblocked.", c->fd);
+                        serverLog(LL_DEBUG, "client fd: %d is unblocked.", c->fd);
                         unblockClient(c);
                     }
                 }
@@ -1033,15 +1033,15 @@ int blockForLoadingkeys(client *c, robj **keys, int numkeys, mstime_t timeout) {
     c->bpop.timeout = timeout;
 
     for (j = 0; j < numkeys; j++) {
-        if ((c->cmd->flags & CMD_WRITE)
+        if (((c->cmd->flags & CMD_WRITE)
             && (dictFind(EVICTED_DATA_DB->transferring_keys, keys[j]->ptr)
-                || dictFind(EVICTED_DATA_DB->loading_hot_keys, keys[j]->ptr))
+                || dictFind(EVICTED_DATA_DB->loading_hot_keys, keys[j]->ptr)))
             /* Read a key of transferring state from redis. */
-            || (c->cmd->flags & CMD_READONLY)
-            && dictFind(EVICTED_DATA_DB->loading_hot_keys, keys[j]->ptr)) {
+            || ((c->cmd->flags & CMD_READONLY)
+                && dictFind(EVICTED_DATA_DB->loading_hot_keys, keys[j]->ptr))) {
             if (dictAdd(c->bpop.loading_or_transfer_keys, keys[j], NULL) != DICT_OK) continue;
 
-            serverLog(LL_DEBUG, "key: %s is added to loading_or_transfer_keys.", keys[j]->ptr);
+            serverLog(LL_DEBUG, "key: %s is added to loading_or_transfer_keys.", (char *)keys[j]->ptr);
 
             incrRefCount(keys[j]);
 
@@ -1051,7 +1051,7 @@ int blockForLoadingkeys(client *c, robj **keys, int numkeys, mstime_t timeout) {
 
                 l = listCreate();
                 retval = dictAdd(c->db->ssdb_blocking_keys, keys[j], l);
-                serverLog(LL_DEBUG, "key: %s is added to ssdb_blocking_keys.", keys[j]->ptr);
+                serverLog(LL_DEBUG, "key: %s is added to ssdb_blocking_keys.", (char *)keys[j]->ptr);
                 incrRefCount(keys[j]);
                 serverAssertWithInfo(c, keys[j], retval == DICT_OK);
             } else {
@@ -1062,7 +1062,7 @@ int blockForLoadingkeys(client *c, robj **keys, int numkeys, mstime_t timeout) {
             blockednum ++;
 
             serverLog(LL_DEBUG, "client fd: %d, cmd: %s, key: %s is blocked.",
-                      c->fd, c->cmd->name,keys[j]->ptr);
+                      c->fd, c->cmd->name, (char *)keys[j]->ptr);
         }
     }
 
@@ -1084,12 +1084,12 @@ void transferringOrLoadingBlockedClientTimeOut(client *c) {
 
         removeClientFromListForBlockedKey(c, keyobj);
         serverAssert(dictDelete(c->bpop.loading_or_transfer_keys, keyobj) == DICT_OK);
-        serverLog(LL_DEBUG, "key: %s is deleted from loading_or_transfer_keys.", keyobj->ptr);
+        serverLog(LL_DEBUG, "key: %s is deleted from loading_or_transfer_keys.", (char *)keyobj->ptr);
         if (dictDelete(EVICTED_DATA_DB->transferring_keys, keyobj->ptr) == DICT_OK)
-            serverLog(LL_DEBUG, "key: %s is deleted from transferring_keys.", keyobj->ptr);
+            serverLog(LL_DEBUG, "key: %s is deleted from transferring_keys.", (char *)keyobj->ptr);
         if (dictDelete(EVICTED_DATA_DB->loading_hot_keys, keyobj->ptr) == DICT_OK)
-            serverLog(LL_DEBUG, "key: %s is deleted from loadint_hot_keys.", keyobj->ptr);
-        serverLog(LL_DEBUG, "client: %d key: %s is timeout.", c->fd, keyobj->ptr);
+            serverLog(LL_DEBUG, "key: %s is deleted from loadint_hot_keys.", (char *)keyobj->ptr);
+        serverLog(LL_DEBUG, "client: %d key: %s is timeout.", c->fd, (char *)keyobj->ptr);
     }
 
     addReplyString(c, "-Err timeout", 13);
