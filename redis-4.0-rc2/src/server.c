@@ -302,7 +302,6 @@ struct redisCommand redisCommandTable[] = {
     {"host:",securityWarningCommand,-1,"lt",0,NULL,0,0,0,0,0},
     {"latency",latencyCommand,-2,"aslt",0,NULL,0,0,0,0,0},
     {"customized-del",customizedDelCommand,-2,"w",0,NULL,1,-1,1,0,0},
-    {"customized-restorefail",customizedRestorFailCommand,-2,"",0,NULL,1,-1,1,0,0},
     {"customized-restore",customizedRestoreCommand,-4,"wm",0,NULL,1,1,1,0,0},
 };
 
@@ -2329,7 +2328,6 @@ int checkKeysInMediateState(client* c) {
 
     /* Command from SSDB should not be blocked. */
     if (c->cmd->proc == customizedDelCommand
-        || c->cmd->proc == customizedRestorFailCommand
         || c->cmd->proc == customizedRestoreCommand)
         return C_OK;
 
@@ -2475,6 +2473,11 @@ int processCommand(client *c) {
         if ((c->cmd->flags & CMD_DENYOOM) && retval == C_ERR) {
             flagTransaction(c);
             addReply(c, shared.oomerr);
+
+            /* Try to unblock the clients blocked by the loading_hot key. */
+            if (server.jdjr_mode && c->cmd->proc == customizedRestoreCommand)
+                signalBlockingKeyAsReady(c->db, c->argv[1]);
+
             return C_OK;
         }
     }

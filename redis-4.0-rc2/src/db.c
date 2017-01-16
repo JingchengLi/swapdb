@@ -332,7 +332,6 @@ long long emptyDb(int dbnum, int flags, void(callback)(void*)) {
         else {
             dictEmpty(EVICTED_DATA_DB->dict,callback);
             dictEmpty(EVICTED_DATA_DB->expires,callback);
-            dictEmpty(EVICTED_DATA_DB->transferring_keys,callback);
         }
     }
 
@@ -1454,25 +1453,4 @@ void customizedDelCommand(client *c) {
                       c->fd, (char *)keyobj->ptr);
     }
     addReplyLongLong(c, numdel);
-}
-
-void customizedRestorFailCommand(client *c) {
-    robj *keyobj;
-    int numfail = 0, j;
-
-    if (!server.jdjr_mode) {
-        addReplyErrorFormat(c,"Command only supported in jdjr-mode '%s'",
-                            (char*)c->argv[0]->ptr);
-        return;
-    }
-
-    for (j = 1; j < c->argc; j ++) {
-        keyobj = c->argv[j];
-        if (dictDelete(EVICTED_DATA_DB->transferring_keys,
-                       keyobj->ptr) == DICT_OK)
-            numfail ++;
-        else
-            serverLog(LL_WARNING, "EVICTED_DATA_DB->transferring_keys: DICT_ERR, key not found.");
-    }
-    addReplyLongLong(c, numfail);
 }

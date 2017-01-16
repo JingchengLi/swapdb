@@ -675,7 +675,7 @@ typedef struct client {
     robj *name;             /* As set by CLIENT SETNAME. */
     sds querybuf;           /* Buffer we use to accumulate client queries. */
     size_t querybuf_peak;   /* Recent (100ms or more) peak of querybuf size. */
-    int argc, lastargc;     /* Num of arguments of current/last command. */
+    int argc;     /* Num of arguments of current command. */
     robj **argv;            /* Arguments of current command. */
     struct redisCommand *cmd, *lastcmd;  /* Last command executed. */
     int reqtype;            /* Request protocol type: PROTO_REQ_* */
@@ -1980,7 +1980,6 @@ void latencyCommand(client *c);
 void moduleCommand(client *c);
 void securityWarningCommand(client *c);
 void customizedDelCommand(client *c);
-void customizedRestorFailCommand(client *c);
 void customizedRestoreCommand(client *c);
 
 int prologOfLoadingFromSSDB(robj *keyobj);
