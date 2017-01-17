@@ -510,7 +510,7 @@ int proc_rr_restore(NetworkServer *net, Link *link, const Request &req, Response
 //	resp->reply_get(ret, &val);
 
 
-    BTask bTask(COMMAND_REDIS_DEL, req[1].String(), new DumpData(req[1].String(), req[3].String(), ttl, replace));
+    BTask bTask(COMMAND_DATA_SAVE, req[1].String(), new DumpData(req[1].String(), req[3].String(), ttl, replace));
     serv->bqueue.push(bTask);
 
 	std::string val = "OK";
@@ -524,8 +524,9 @@ int proc_rr_dump(NetworkServer *net, Link *link, const Request &req, Response *r
 	CHECK_NUM_PARAMS(2);
 
 
-    BTask bTask(COMMAND_REDIS_RESTROE, req[1].String());
-    serv->bqueue.push(bTask);
+    BTask bTask(COMMAND_DATA_DUMP, req[1].String());
+//    serv->rt_bqueue.push(bTask);
+    serv->bqueue.push1st(bTask);
 
 	std::string val = "OK";
 	resp->reply_get(1, &val);

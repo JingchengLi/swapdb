@@ -747,12 +747,12 @@ int SSDBImpl::dump(const Bytes &key, std::string *res) {
 int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool replace, std::string *res) {
     *res = "none";
 
+    PTST(mutex_record, 0.05)
     RecordLock l(&mutex_record_, key.String());
 
     int ret = 0;
     std::string meta_val;
     leveldb::Status s;
-
 
     std::string meta_key = encode_meta_key(key);
     s = ldb->Get(leveldb::ReadOptions(), meta_key, &meta_val);
@@ -775,6 +775,7 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
             leveldb::WriteBatch batch;
             mark_key_deleted(batch, key, meta_key, meta_val);
             s = ldb->Write(leveldb::WriteOptions(), &(batch));
+
             if(!s.ok()){
                 return -1;
             }
@@ -784,12 +785,15 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
     }
 
     RdbDecoder rdbDecoder(data.data(), data.size());
-
     bool ok = rdbDecoder.verifyDumpPayload();
+
+
     if (!ok) {
         log_warn("checksum failed %s:%s", hexmem(key.data(), key.size()).c_str(),hexmem(data.data(), data.size()).c_str());
         return -1;
     }
+
+    PTE(mutex_record, "")
 
     uint64_t len = 0;
 
@@ -839,6 +843,7 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
         }
 
         case RDB_TYPE_SET: {
+            PTST(restore, 0.05)
 
             if ((len = rdbDecoder.rdbLoadLen(NULL)) == RDB_LENERR) return -1;
 
@@ -861,6 +866,7 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
 
             int64_t num = 0;
             ret = this->saddNoLock(key, mem_set, &num);
+            PTE(restore, "")
 
             break;
         }

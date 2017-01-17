@@ -10,11 +10,13 @@
 #include "../util/log.h"
 #include "ssdb.h"
 #include <net/link.h>
+#include <util/blocking_queue.h>
+#include "background_job.h"
 
 class SSDBServer;
 
-#define COMMAND_REDIS_DEL 1
-#define COMMAND_REDIS_RESTROE 2
+#define COMMAND_DATA_SAVE 1
+#define COMMAND_DATA_DUMP 2
 
 
 #define REG_BPROC(c)     this->bproc_map[##c] = bproc_##c
@@ -22,8 +24,8 @@ class SSDBServer;
 
 
 
-DEF_BPROC(COMMAND_REDIS_DEL);
-DEF_BPROC(COMMAND_REDIS_RESTROE);
+DEF_BPROC(COMMAND_DATA_SAVE);
+DEF_BPROC(COMMAND_DATA_DUMP);
 
 typedef int (*bproc_t)(SSDBServer *serv, const std::string &data_key, void* value);
 
@@ -53,16 +55,16 @@ private:
 
     std::map<uint16_t, bproc_t> bproc_map;
 
-
     void start();
 
     void stop();
 
-    void loop();
+    void loop(const BQueue<BTask>& queue);
 
     bool proc(const std::string &data_key, const std::string &key, void* value, uint16_t type);
 
     void regType();
+
 };
 
 

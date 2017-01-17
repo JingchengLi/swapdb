@@ -41,6 +41,7 @@ public:
 	ExpirationHandler *expiration;
 
 	BQueue<BTask> bqueue;
+	BQueue<BTask> rt_bqueue;
 
 	BackgroundJob *backgroundJob = nullptr;
 	RedisUpstream *redisUpstream = nullptr;

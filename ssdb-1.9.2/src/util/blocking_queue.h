@@ -40,7 +40,7 @@ public:
 
     std::string dump() {
         std::ostringstream stringStream;
-        stringStream << "task type : " << type << "datakey" << hexmem(data_key.data(),data_key.size()).c_str() ;
+        stringStream << "task type : " << type << "datakey" << hexmem(data_key.data(), data_key.size()).c_str();
         return stringStream.str();
     }
 
@@ -63,7 +63,7 @@ public:
 
     size_t size() {
         std::unique_lock<std::mutex> lock(this->d_mutex);
-        return this -> d_queue.size();
+        return this->d_queue.size();
     }
 
     T pop() {
@@ -75,5 +75,57 @@ public:
     }
 };
 
+
+template<>
+class BQueue<BTask> {
+private:
+    std::mutex d_mutex;
+    std::condition_variable d_condition;
+    std::deque<BTask> d_queue;
+public:
+
+
+    void push1st(BTask const &value) {
+        {
+            std::unique_lock<std::mutex> lock(this->d_mutex);
+            d_queue.push_back(value);
+        }
+        this->d_condition.notify_one();
+    }
+
+    void push(BTask const &value) {
+        {
+            std::unique_lock<std::mutex> lock(this->d_mutex);
+
+            for (auto i = d_queue.begin(); i != d_queue.end(); i++) {
+                if ((*i).data_key == value.data_key) {
+                    d_queue.push_back((*i));
+                    d_queue.erase(i);
+                    d_queue.push_back(value);
+
+                    return;
+                };
+
+            }
+
+            d_queue.push_front(value);
+
+        }
+        this->d_condition.notify_one();
+    }
+
+    size_t size() {
+        std::unique_lock<std::mutex> lock(this->d_mutex);
+        return this->d_queue.size();
+    }
+
+    BTask pop() {
+        std::unique_lock<std::mutex> lock(this->d_mutex);
+        this->d_condition.wait(lock, [=] { return !this->d_queue.empty(); });
+        BTask rc(std::move(this->d_queue.back()));
+        this->d_queue.pop_back();
+        return rc;
+    }
+};
 
 #endif //SSDB_BLOCKING_QUEUE_H

@@ -78,7 +78,15 @@ class RedisUpstream
 public:
 	RedisUpstream(const std::string &ip, int port) : ip(ip), port(port) {}
 
-	~RedisUpstream(){}
+	~RedisUpstream(){
+		if (link != nullptr) {
+			delete link;
+		}
+	}
+
+	Link *getTmpLink() {
+		return Link::connect(ip.c_str(), port);
+	}
 
 	Link *getLink() {
 		if (link == nullptr) {
