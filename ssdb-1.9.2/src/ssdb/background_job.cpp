@@ -162,7 +162,6 @@ int bproc_COMMAND_DATA_SAVE(SSDBServer *serv, const std::string &data_key, void*
     if (t_res == nullptr) {
         log_error("t_res is null");
         serv->redisUpstream->reset();
-        delete t_res;
         return -1;
 
     }
@@ -222,7 +221,6 @@ int bproc_COMMAND_DATA_DUMP(SSDBServer *serv, const std::string &data_key, void*
     if (t_res == nullptr) {
         log_error("t_res is null");
         serv->redisUpstream->reset();
-        delete t_res;
         return -1;
 
     }
