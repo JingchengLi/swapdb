@@ -45,6 +45,8 @@ public:
     }
 
 private:
+    int64_t last;
+
     static void *thread_func(void *arg);
 
     Mutex mutex;

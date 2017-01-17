@@ -6,7 +6,6 @@
 #include <serv.h>
 
 
-
 void *BackgroundJob::thread_func(void *arg) {
     BackgroundJob *backgroudJob = (BackgroundJob *) arg;
 
@@ -23,6 +22,8 @@ void *BackgroundJob::thread_func(void *arg) {
 
 
 void BackgroundJob::start() {
+    last = time_ms();
+
     this->regType();
     thread_quit = false;
     int err;
@@ -47,7 +48,7 @@ void BackgroundJob::stop() {
 }
 
 
-void BackgroundJob::loop(const BQueue<BTask>& queue) {
+void BackgroundJob::loop(const BQueue<BTask> &queue) {
 
     size_t qsize = serv->bqueue.size();
 
@@ -55,15 +56,17 @@ void BackgroundJob::loop(const BQueue<BTask>& queue) {
         return; //one thread only
     }
 
-    if (qsize > 150) {
-        log_error("BackgroundJob queue size is now : %d", qsize);
+    if ((time_ms() - last) > 3000) {
+        last = time_ms();
+        if (qsize > 150) {
+            log_error("BackgroundJob queue size is now : %d", qsize);
+        } else if (qsize > 100) {
+            log_warn("BackgroundJob queue size is now : %d", qsize);
+        } else if (qsize > 50) {
+            log_info("BackgroundJob queue size is now : %d", qsize);
+        }
     }
-    else if (qsize > 100) {
-        log_warn("BackgroundJob queue size is now : %d", qsize);
-    }
-    else if (qsize > 50) {
-        log_info("BackgroundJob queue size is now : %d", qsize);
-    }
+
 
     BTask bTask = serv->bqueue.pop();
 
@@ -86,7 +89,7 @@ void BackgroundJob::loop(const BQueue<BTask>& queue) {
 }
 
 
-bool BackgroundJob::proc(const std::string &data_key, const std::string &key, void* value, uint16_t type) {
+bool BackgroundJob::proc(const std::string &data_key, const std::string &key, void *value, uint16_t type) {
 
     std::map<uint16_t, bproc_t>::iterator iter;
     iter = bproc_map.find(type);
@@ -115,9 +118,9 @@ void BackgroundJob::regType() {
 }
 
 
-int bproc_COMMAND_DATA_SAVE(SSDBServer *serv, const std::string &data_key, void* value) {
+int bproc_COMMAND_DATA_SAVE(SSDBServer *serv, const std::string &data_key, void *value) {
 
-    DumpData* dumpData = (DumpData*)value;
+    DumpData *dumpData = (DumpData *) value;
 
     int64_t ttl;
 
@@ -134,7 +137,8 @@ int bproc_COMMAND_DATA_SAVE(SSDBServer *serv, const std::string &data_key, void*
     }
 
     if (ret < 0) {
-        log_info("%s : %s", hexmem(dumpData->key.data(),dumpData->key.size()).c_str(), hexmem(dumpData->data.data(),dumpData->data.size()).c_str());
+        log_info("%s : %s", hexmem(dumpData->key.data(), dumpData->key.size()).c_str(),
+                 hexmem(dumpData->data.data(), dumpData->data.size()).c_str());
         return -1;
     }
 
@@ -176,7 +180,7 @@ int bproc_COMMAND_DATA_SAVE(SSDBServer *serv, const std::string &data_key, void*
 }
 
 
-int bproc_COMMAND_DATA_DUMP(SSDBServer *serv, const std::string &data_key, void* value) {
+int bproc_COMMAND_DATA_DUMP(SSDBServer *serv, const std::string &data_key, void *value) {
 
     std::string val;
 
