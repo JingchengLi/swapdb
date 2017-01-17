@@ -88,10 +88,7 @@ int SSDBImpl::srem_one(leveldb::WriteBatch &batch, const Bytes &key, const Bytes
     return 1;
 }
 
-int SSDBImpl::incr_ssize(leveldb::WriteBatch &batch, const Bytes &key, int64_t incr){
-    SetMetaVal sv;
-    std::string meta_key = encode_meta_key(key);
-    int ret = GetSetMetaVal(meta_key, sv);
+int SSDBImpl::incr_ssize(leveldb::WriteBatch &batch, const SetMetaVal &sv, const std::string &meta_key, int ret ,const Bytes &key, int64_t incr){
     if (ret == -1){
         return ret;
     } else if (ret == 0 && sv.del == KEY_DELETE_MASK){
@@ -138,6 +135,13 @@ int SSDBImpl::incr_ssize(leveldb::WriteBatch &batch, const Bytes &key, int64_t i
     }
 
     return 0;
+}
+
+int SSDBImpl::incr_ssize(leveldb::WriteBatch &batch, const Bytes &key, int64_t incr){
+    SetMetaVal sv;
+    std::string meta_key = encode_meta_key(key);
+    int ret = GetSetMetaVal(meta_key, sv);
+    return incr_ssize(batch, sv,meta_key, ret, key, incr);
 }
 
 SIterator* SSDBImpl::sscan_internal(const Bytes &name, const Bytes &start, const Bytes &end, uint16_t version,
@@ -233,7 +237,7 @@ int SSDBImpl::saddNoLock(const Bytes &key, const std::set<Bytes> &mem_set, int64
     }
 
     if (*num > 0){
-        if(incr_ssize(batch, key, *num) == -1){
+        if(incr_ssize(batch, sv, meta_key, ret, key, *num) == -1){
             return -1;
         }
     }

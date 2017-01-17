@@ -840,6 +840,7 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
         }
 
         case RDB_TYPE_SET: {
+            PTST(saddNoLock, 0.01)
 
             if ((len = rdbDecoder.rdbLoadLen(NULL)) == RDB_LENERR) return -1;
 
@@ -863,6 +864,7 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
             int64_t num = 0;
             ret = this->saddNoLock(key, mem_set, &num);
 
+            PTE(saddNoLock, key.String())
             break;
         }
 

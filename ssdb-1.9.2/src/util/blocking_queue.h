@@ -12,8 +12,7 @@
 #include <sstream>
 
 
-class DumpData {
-public:
+struct DumpData {
     std::string key;
     std::string data;
 
@@ -23,7 +22,6 @@ public:
     DumpData(const std::string &key, const std::string &data, int64_t expire, bool replace) : key(key), data(data),
                                                                                               expire(expire),
                                                                                               replace(replace) {}
-
 };
 
 class BTask {

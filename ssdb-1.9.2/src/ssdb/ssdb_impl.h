@@ -233,6 +233,7 @@ private:
     int GetSetMetaVal(const std::string &meta_key, SetMetaVal &sv);
     int GetSetItemValInternal(const std::string &item_key);
     int sadd_one(leveldb::WriteBatch &batch, const Bytes &key, const Bytes &member);
+	int incr_ssize(leveldb::WriteBatch &batch, const SetMetaVal &sv, const std::string &meta_key,int ret , const Bytes &key, int64_t incr);
     int incr_ssize(leveldb::WriteBatch &batch, const Bytes &key, int64_t incr);
 	int srem_one(leveldb::WriteBatch &batch, const Bytes &key, const Bytes &member);
     SIterator* sscan_internal(const Bytes &name, const Bytes &start, const Bytes &end, uint16_t version, uint64_t limit, const leveldb::Snapshot *snapshot=nullptr);

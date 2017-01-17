@@ -6,11 +6,18 @@
 #include <serv.h>
 
 
+void BackgroundJob::regType() {
+
+    REG_BPROC(COMMAND_DATA_SAVE);
+    REG_BPROC(COMMAND_DATA_DUMP);
+
+}
+
+
 void *BackgroundJob::thread_func(void *arg) {
     BackgroundJob *backgroudJob = (BackgroundJob *) arg;
 
     while (!backgroudJob->thread_quit) {
-        backgroudJob->loop(backgroudJob->serv->rt_bqueue);
         backgroudJob->loop(backgroudJob->serv->bqueue);
     }
 
@@ -52,13 +59,13 @@ void BackgroundJob::loop(const BQueue<BTask> &queue) {
 
     size_t qsize = serv->bqueue.size();
 
-    if (qsize == 0) {
-        return; //one thread only
-    }
+//    if (qsize == 0) {
+//        return; //one thread only
+//    }
 
     if ((time_ms() - last) > 3000) {
         last = time_ms();
-        if (qsize > 150) {
+        if (qsize > 200) {
             log_error("BackgroundJob queue size is now : %d", qsize);
         } else if (qsize > 100) {
             log_warn("BackgroundJob queue size is now : %d", qsize);
@@ -67,10 +74,8 @@ void BackgroundJob::loop(const BQueue<BTask> &queue) {
         }
     }
 
-
     BTask bTask = serv->bqueue.pop();
-
-    std::map<uint16_t, bproc_t>::iterator iter;
+    std::map<uint16_t, bproc_t>::const_iterator iter;
 
     iter = bproc_map.find(bTask.type);
     if (iter != bproc_map.end()) {
@@ -79,42 +84,13 @@ void BackgroundJob::loop(const BQueue<BTask> &queue) {
         PTST(bTask_process, 0.1)
         iter->second(serv, bTask.data_key, bTask.value);
         std::string res = bTask.dump();
-        PTE(bTask_process, res)
+        PTE(bTask_process, bTask.data_key)
 
     } else {
         log_error("can not find a way to process type:%d", bTask.type);
         //not found
         //TODO DEL
     }
-}
-
-
-bool BackgroundJob::proc(const std::string &data_key, const std::string &key, void *value, uint16_t type) {
-
-    std::map<uint16_t, bproc_t>::iterator iter;
-    iter = bproc_map.find(type);
-    if (iter != bproc_map.end()) {
-        log_debug("processing %d :%s", type, hexmem(data_key.data(), data_key.length()).c_str());
-        iter->second(serv, data_key, value);
-        //free value here~
-        if (value != nullptr) {
-            delete value;
-        }
-    } else {
-        log_error("can not find a way to process type:%d", type);
-        //not found
-        //TODO DEL
-    }
-
-    return true;
-}
-
-void BackgroundJob::regType() {
-
-//    REG_BPROC(COMMAND_DATA_SAVE);
-
-    this->bproc_map[COMMAND_DATA_SAVE] = bproc_COMMAND_DATA_SAVE;
-    this->bproc_map[COMMAND_DATA_DUMP] = bproc_COMMAND_DATA_DUMP;
 }
 
 
@@ -126,7 +102,7 @@ int bproc_COMMAND_DATA_SAVE(SSDBServer *serv, const std::string &data_key, void 
 
     std::string val;
 
-    PTST(ssdb_restore, 0.1)
+    PTST(ssdb_restore, 0.01)
     int ret = serv->ssdb->restore(dumpData->key, dumpData->expire, dumpData->data, dumpData->replace, &val);
     PTE(ssdb_restore, dumpData->key)
 
@@ -158,7 +134,7 @@ int bproc_COMMAND_DATA_SAVE(SSDBServer *serv, const std::string &data_key, void 
 
     log_debug("[request2redis] : %s", hexstr<std::string>(str(req)).c_str());
 
-    PTST(redisRequest, 0.1);
+    PTST(redisRequest, 0.01);
     auto t_res = link->redisRequest(req);
     PTE(redisRequest, hexstr<std::string>(str(req)));
 
@@ -173,6 +149,7 @@ int bproc_COMMAND_DATA_SAVE(SSDBServer *serv, const std::string &data_key, void 
     std::string res = t_res->toString();
     log_debug("[response2redis] : %s", hexstr<std::string>(res).c_str());
 
+    log_debug("output stat : %s" , link->output->stats().c_str());
 
     delete t_res;
 
@@ -184,7 +161,7 @@ int bproc_COMMAND_DATA_DUMP(SSDBServer *serv, const std::string &data_key, void 
 
     std::string val;
 
-    PTST(ssdb_dump, 0.1);
+    PTST(ssdb_dump, 0.01);
     int ret = serv->ssdb->dump(data_key, &val);
     PTE(ssdb_dump, data_key);
 
@@ -207,7 +184,7 @@ int bproc_COMMAND_DATA_DUMP(SSDBServer *serv, const std::string &data_key, void 
 //        return -1;
 //    }
 
-    auto tl = unique_ptr<Link>(link);
+//    auto tl = unique_ptr<Link>(link);
 
     std::vector<std::string> req;
     req.push_back("customized-restore");
@@ -218,7 +195,7 @@ int bproc_COMMAND_DATA_DUMP(SSDBServer *serv, const std::string &data_key, void 
 
     log_debug("[request2redis] : %s", hexstr<std::string>(str(req)).c_str());
 
-    PTST(redisRequest, 0.1);
+    PTST(redisRequest, 0.01);
     auto t_res = link->redisRequest(req);
     PTE(redisRequest, hexstr<std::string>(str(req)));
 
@@ -235,6 +212,8 @@ int bproc_COMMAND_DATA_DUMP(SSDBServer *serv, const std::string &data_key, void 
     if (t_res->status == 1 && t_res->str == "OK") {
         serv->ssdb->del(data_key);
     }
+
+    log_debug("output stat : %s" , link->output->stats().c_str());
 
     delete t_res;
 

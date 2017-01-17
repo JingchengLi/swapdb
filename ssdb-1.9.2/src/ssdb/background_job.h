@@ -15,14 +15,14 @@
 
 class SSDBServer;
 
-#define COMMAND_DATA_SAVE 1
-#define COMMAND_DATA_DUMP 2
-
-
-#define REG_BPROC(c)     this->bproc_map[##c] = bproc_##c
+#define _STRING(x) x
+#define REG_BPROC(c)     this->bproc_map[_STRING(c)] = bproc_##c
 #define DEF_BPROC(c)     int bproc_##c(SSDBServer *serv, const std::string &data_key, void* value)
 
 
+
+#define COMMAND_DATA_SAVE 1
+#define COMMAND_DATA_DUMP 2
 
 DEF_BPROC(COMMAND_DATA_SAVE);
 DEF_BPROC(COMMAND_DATA_DUMP);
@@ -62,8 +62,6 @@ private:
     void stop();
 
     void loop(const BQueue<BTask>& queue);
-
-    bool proc(const std::string &data_key, const std::string &key, void* value, uint16_t type);
 
     void regType();
 

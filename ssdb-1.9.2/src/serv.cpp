@@ -494,22 +494,6 @@ int proc_rr_restore(NetworkServer *net, Link *link, const Request &req, Response
 		}
 	}
 
-
-//	PTST(rr_restore, 0.3)
-//	int ret = serv->ssdb->restore(req[1], ttl, req[3], replace, &val);
-//	PTE(rr_restore)
-//
-//    if (ret > 0 && ttl > 0) {
-//		Locking l(&serv->expiration->mutex);
-//		ret = serv->expiration->expire(req[1], ttl, TimeUnit::Millisecond);
-//	}
-//
-//	if (ret < 0) {
-//		log_info("%s : %s", hexmem(req[1].data(),req[1].size()).c_str(), hexmem(req[3].data(),req[3].size()).c_str());
-//	}
-//	resp->reply_get(ret, &val);
-
-
     BTask bTask(COMMAND_DATA_SAVE, req[1].String(), new DumpData(req[1].String(), req[3].String(), ttl, replace));
     serv->bqueue.push(bTask);
 
@@ -525,7 +509,6 @@ int proc_rr_dump(NetworkServer *net, Link *link, const Request &req, Response *r
 
 
     BTask bTask(COMMAND_DATA_DUMP, req[1].String());
-//    serv->rt_bqueue.push(bTask);
     serv->bqueue.push1st(bTask);
 
 	std::string val = "OK";
