@@ -439,7 +439,7 @@ int proc_restore(NetworkServer *net, Link *link, const Request &req, Response *r
 
 	std::string val;
 
-	PTST(restore, 0.3)
+	PTST(restore, 0.1)
 	int ret = serv->ssdb->restore(req[1], ttl, req[3], replace, &val);
 	PTE(restore, req[1].String())
 
@@ -462,7 +462,7 @@ int proc_dump(NetworkServer *net, Link *link, const Request &req, Response *resp
 
 	std::string val;
 
-	PTST(dump, 0.3)
+	PTST(dump, 0.1)
 	int ret = serv->ssdb->dump(req[1], &val);
 	PTE(dump, req[1].String())
 

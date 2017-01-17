@@ -76,7 +76,7 @@ void BackgroundJob::loop(const BQueue<BTask> &queue) {
     if (iter != bproc_map.end()) {
         log_debug("processing %d :%s", bTask.type, hexmem(bTask.data_key.data(), bTask.data_key.length()).c_str());
 
-        PTST(bTask_process, 0.2)
+        PTST(bTask_process, 0.1)
         iter->second(serv, bTask.data_key, bTask.value);
         std::string res = bTask.dump();
         PTE(bTask_process, res)
@@ -122,13 +122,13 @@ int bproc_COMMAND_DATA_SAVE(SSDBServer *serv, const std::string &data_key, void 
 
     DumpData *dumpData = (DumpData *) value;
 
-    int64_t ttl;
+    int64_t ttl = dumpData->expire;
 
     std::string val;
 
-    PTST(rr_restore, 0.1)
+    PTST(ssdb_restore, 0.1)
     int ret = serv->ssdb->restore(dumpData->key, dumpData->expire, dumpData->data, dumpData->replace, &val);
-    PTE(rr_restore, "")
+    PTE(ssdb_restore, dumpData->key)
 
 
     if (ret > 0 && ttl > 0) {
@@ -218,7 +218,7 @@ int bproc_COMMAND_DATA_DUMP(SSDBServer *serv, const std::string &data_key, void 
 
     log_debug("[request2redis] : %s", hexstr<std::string>(str(req)).c_str());
 
-    PTST(redisRequest, 0.2);
+    PTST(redisRequest, 0.1);
     auto t_res = link->redisRequest(req);
     PTE(redisRequest, hexstr<std::string>(str(req)));
 

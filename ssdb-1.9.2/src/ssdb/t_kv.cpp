@@ -747,7 +747,6 @@ int SSDBImpl::dump(const Bytes &key, std::string *res) {
 int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool replace, std::string *res) {
     *res = "none";
 
-    PTST(mutex_record, 0.05)
     RecordLock l(&mutex_record_, key.String());
 
     int ret = 0;
@@ -792,8 +791,6 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
         log_warn("checksum failed %s:%s", hexmem(key.data(), key.size()).c_str(),hexmem(data.data(), data.size()).c_str());
         return -1;
     }
-
-    PTE(mutex_record, "")
 
     uint64_t len = 0;
 
@@ -843,7 +840,6 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
         }
 
         case RDB_TYPE_SET: {
-            PTST(restore, 0.05)
 
             if ((len = rdbDecoder.rdbLoadLen(NULL)) == RDB_LENERR) return -1;
 
@@ -866,7 +862,6 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
 
             int64_t num = 0;
             ret = this->saddNoLock(key, mem_set, &num);
-            PTE(restore, "")
 
             break;
         }
