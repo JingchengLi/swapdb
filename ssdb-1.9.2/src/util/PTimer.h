@@ -49,7 +49,7 @@ public:
 #else
 #define PTS(name) "";
 #define PTST(name,second) "";
-#define PTE(name) "";
+#define PTE(name, tag) "";
 #endif
 
 // -D PTIMER=ON
