@@ -89,15 +89,19 @@ public:
     void push1st(BTask const &value) {
         {
             std::unique_lock<std::mutex> lock(this->d_mutex);
-//
-//            for (auto i = d_queue.begin(); i != d_queue.end(); i++) {
-//                if ((*i).data_key == value.data_key) {
-//                    d_queue.push_back(value);
-//                    d_queue.push_back((*i));
-//                    d_queue.erase(i);
-//                    return;
-//                };
-//            }
+
+            for (auto i = d_queue.begin(); i != d_queue.end(); i++) {
+                if ((*i).data_key == value.data_key) {
+                    if ((*i).type != value.type) {
+                        d_queue.push_back(value);
+                    }
+                    d_queue.push_back((*i));
+                    d_queue.erase(i);
+                    this->d_condition.notify_one();
+
+                    return;
+                };
+            }
             d_queue.push_back(value);
 
         }
@@ -110,9 +114,13 @@ public:
 
             for (auto i = d_queue.begin(); i != d_queue.end(); i++) {
                 if ((*i).data_key == value.data_key) {
-                    d_queue.push_back(value);
+                    if ((*i).type != value.type) {
+                        d_queue.push_back(value);
+                    }
                     d_queue.push_back((*i));
                     d_queue.erase(i);
+                    this->d_condition.notify_one();
+
                     return;
                 };
 

@@ -79,7 +79,7 @@ void BackgroundJob::loop(const BQueue<BTask> &queue) {
 
 
     int64_t current = time_ms();
-    if ((current - last) > 3000) {
+    if ((current - last) > 1000) {
         last = time_ms();
         if (qsize > 200) {
             log_error("BackgroundJob queue size is now : %d", qsize);
@@ -89,15 +89,15 @@ void BackgroundJob::loop(const BQueue<BTask> &queue) {
             log_info("BackgroundJob queue size is now : %d", qsize);
         }
 
-        if ((current - bTask.ts) > 3000) {
-            log_info("task %s had waited %d ms",bTask.dump().c_str() , ((current - bTask.ts)));
+        log_info("task avg wait %f ms", avg_wait);
+
+        if ((current - bTask.ts) > 2000) {
+            log_warn("task %s had waited %d ms",bTask.dump().c_str() , ((current - bTask.ts)));
         }
     }
 
     count++;
     avg_wait = ((current -  bTask.ts)*1.0 - avg_wait)*1.0 / count * 1.0 + avg_wait;
-    log_info("task avg wait %f ms", avg_wait);
-
 
 }
 
@@ -110,7 +110,7 @@ int bproc_COMMAND_DATA_SAVE(SSDBServer *serv, const std::string &data_key, void 
 
     std::string val;
 
-    PTST(ssdb_restore, 0.01)
+    PTST(ssdb_restore, 0.1)
     int ret = serv->ssdb->restore(dumpData->key, dumpData->expire, dumpData->data, dumpData->replace, &val);
     PTE(ssdb_restore, dumpData->key)
 

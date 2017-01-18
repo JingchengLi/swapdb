@@ -624,10 +624,12 @@ int Link::redisRequestSend(const std::vector<std::string> &args) {
 
 RedisResponse *Link::redisRequest(const std::vector<std::string> &args) {
     if (this->redisRequestSend(args) == -1) {
+        log_error("redisRequestSend error");
         return NULL;
     }
 
     if (this->flush() == -1) {
+        log_error("redisRequest flush error");
         return NULL;
     }
 
