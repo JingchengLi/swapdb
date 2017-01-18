@@ -56,7 +56,9 @@ public:
 		uint64_t limit, std::vector<std::string> *ret);
 	virtual Status multi_get(const std::vector<std::string> &keys, std::vector<std::string> *ret);
 	virtual Status multi_set(const std::map<std::string, std::string> &kvs);
+	virtual Status multi_set(const std::vector<std::string> &kvs);
 	virtual Status multi_del(const std::vector<std::string> &keys, int64_t *ret_size=NULL);
+	virtual Status multi_del(const std::string key, int64_t *ret_size=NULL);
 	
 	virtual Status hget(const std::string &name, const std::string &key, std::string *val);
 	virtual Status hset(const std::string &name, const std::string &key, const std::string &val);
@@ -77,7 +79,9 @@ public:
 	virtual Status multi_hget(const std::string &name, const std::vector<std::string> &keys,
 		std::vector<std::string> *ret);
 	virtual Status multi_hset(const std::string &name, const std::map<std::string, std::string> &kvs);
+	virtual Status multi_hset(const std::string &name, const std::vector<std::string> &kvs);
 	virtual Status multi_hdel(const std::string &name, const std::vector<std::string> &keys, int64_t *ret_size=NULL);
+	virtual Status multi_hdel(const std::string &name, const std::string &key, int64_t *ret_size=NULL);
 	virtual Status hexists(const std::string &name, const std::string &key, int64_t *ret);
 
 	virtual Status sadd(const std::string &name, const std::vector<std::string> &items, int64_t *ret_size=NULL);

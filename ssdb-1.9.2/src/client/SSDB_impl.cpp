@@ -375,8 +375,32 @@ Status ClientImpl::multi_set(const std::map<std::string, std::string> &kvs){
 	return s;
 }
 
+//update to vector from map for test mset same keys
+Status ClientImpl::multi_set(const std::vector<std::string> &kvs){
+	const std::vector<std::string> *resp;
+	resp = this->request("multi_set", kvs);
+	Status s(resp);
+	return s;
+}
+
 Status ClientImpl::multi_del(const std::vector<std::string> &keys, int64_t *ret_size){
 	const std::vector<std::string> *resp;
+	resp = this->request("multi_del", keys);
+	Status s(resp);
+	if(ret_size != NULL && s.ok()){
+		if(resp->size() > 1){
+			*ret_size = str_to_int64(resp->at(1));
+		}else{
+			return Status("error");
+		}
+	}
+	return s;
+}
+
+Status ClientImpl::multi_del(const std::string key, int64_t *ret_size){
+	const std::vector<std::string> *resp;
+	std::vector<std::string> keys;
+	keys.push_back(key);
 	resp = this->request("multi_del", keys);
 	Status s(resp);
 	if(ret_size != NULL && s.ok()){
@@ -508,8 +532,31 @@ Status ClientImpl::multi_hset(const std::string &name, const std::map<std::strin
 	return s;
 }
 
+Status ClientImpl::multi_hset(const std::string &name, const std::vector<std::string> &kvs){
+	const std::vector<std::string> *resp;
+	resp = this->request("multi_hset", name, kvs);
+	Status s(resp);
+	return s;
+}
+
 Status ClientImpl::multi_hdel(const std::string &name, const std::vector<std::string> &keys, int64_t *ret_size){
 	const std::vector<std::string> *resp;
+	resp = this->request("multi_hdel", name, keys);
+	Status s(resp);
+	if(ret_size != NULL && s.ok()){
+		if(resp->size() > 1){
+			*ret_size = str_to_int64(resp->at(1));
+		}else{
+			return Status("error");
+		}
+	}
+	return s;
+}
+
+Status ClientImpl::multi_hdel(const std::string &name, const std::string &key, int64_t *ret_size){
+	const std::vector<std::string> *resp;
+	std::vector<std::string> keys;
+	keys.push_back(key);
 	resp = this->request("multi_hdel", name, keys);
 	Status s(resp);
 	if(ret_size != NULL && s.ok()){

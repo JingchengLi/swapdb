@@ -135,7 +135,9 @@ public:
 	 */
 	virtual Status multi_get(const std::vector<std::string> &keys, std::vector<std::string> *vals) = 0;
 	virtual Status multi_set(const std::map<std::string, std::string> &kvs) = 0;
+	virtual Status multi_set(const std::vector<std::string> &kvs) = 0;
 	virtual Status multi_del(const std::vector<std::string> &keys, int64_t *ret_size=NULL) = 0;
+	virtual Status multi_del(const std::string key, int64_t *ret_size=NULL) = 0;
 	/// @}
 
 
@@ -187,7 +189,9 @@ public:
 	virtual Status multi_hget(const std::string &name, const std::vector<std::string> &keys,
 		std::vector<std::string> *ret) = 0;
 	virtual Status multi_hset(const std::string &name, const std::map<std::string, std::string> &kvs) = 0;
+	virtual Status multi_hset(const std::string &name, const std::vector<std::string> &kvs) = 0;
 	virtual Status multi_hdel(const std::string &name, const std::vector<std::string> &keys, int64_t *ret_size=NULL) = 0;
+	virtual Status multi_hdel(const std::string &name, const std::string &key, int64_t *ret_size=NULL) = 0;
 	virtual Status hexists(const std::string &name, const std::string &key, int64_t *ret) = 0;
 	/// @}
 

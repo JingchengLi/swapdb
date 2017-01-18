@@ -161,7 +161,8 @@ TEST_F(SetTest, Test_set_srem) {
 
 TEST_F(SetTest, Test_set_scard) {
     //other types key
-    key = GetRandomKey_(); 
+    key = GetRandomKey_();
+    val = GetRandomVal_();
     s = client->del(key);
     s = client->set(key, val);
     s = client->scard(key, &ret);
@@ -285,14 +286,15 @@ TEST_F(SetTest, Test_set_sunion_sunionstore) {
     v.resize(it-v.begin());
     std::sort(v.begin(), v.end());
 
+    getList.clear();
     s = client->sunion(list, &getList);
-    ASSERT_TRUE(s.ok())<<"sunion should return ok!";
+    ASSERT_TRUE(s.ok())<<"sunion should return ok!"<<s.code();
     std::sort(getList.begin(), getList.end());
     EXPECT_TRUE(std::equal(v.begin(),v.end(),getList.begin()))<<"sunion with two sets"<<endl;
 
     client->del(key);
     s = client->sunionstore(key, list, &ret);
-    ASSERT_TRUE(s.ok())<<"sunionstore should return ok!";
+    ASSERT_TRUE(s.ok())<<"sunionstore should return ok!"<<s.code();
     getList.clear();
     client->smembers(key, &getList);
     EXPECT_EQ(ret, getList.size())<<"sunionstore should return the union elements numbers.";
