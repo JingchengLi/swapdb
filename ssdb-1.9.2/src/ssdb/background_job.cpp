@@ -110,10 +110,7 @@ int bproc_COMMAND_DATA_SAVE(SSDBServer *serv, const std::string &data_key, void 
 
     std::string val;
 
-    PTST(ssdb_restore, 0.1)
     int ret = serv->ssdb->restore(dumpData->key, dumpData->expire, dumpData->data, dumpData->replace, &val);
-    PTE(ssdb_restore, dumpData->key)
-
 
     if (ret > 0 && ttl > 0) {
         Locking l(&serv->expiration->mutex);
@@ -169,9 +166,7 @@ int bproc_COMMAND_DATA_DUMP(SSDBServer *serv, const std::string &data_key, void 
 
     std::string val;
 
-    PTST(ssdb_dump, 0.01);
     int ret = serv->ssdb->dump(data_key, &val);
-    PTE(ssdb_dump, data_key);
 
     if (ret < 1) {
         //TODO
@@ -191,7 +186,6 @@ int bproc_COMMAND_DATA_DUMP(SSDBServer *serv, const std::string &data_key, void 
 //        log_error("link is null");
 //        return -1;
 //    }
-
 //    auto tl = unique_ptr<Link>(link);
 
     std::vector<std::string> req;
