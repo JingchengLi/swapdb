@@ -286,16 +286,6 @@ std::string str(float v){
 	return str((double)v);
 }
 
-static inline
-std::string str(const std::vector<std::string>& req){
-	std::string tmp;
-	for (const std::string &t : req) {
-		tmp.append(t);
-		tmp.append(" ");
-	}
-
-	return tmp;
-}
 
 // all str_to_xx methods set errno on error
 

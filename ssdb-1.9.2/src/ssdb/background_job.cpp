@@ -1,7 +1,3 @@
-//
-// Created by zts on 17-1-3.
-//
-
 #include <memory>
 #include <serv.h>
 
@@ -144,11 +140,11 @@ int bproc_COMMAND_DATA_SAVE(SSDBServer *serv, const std::string &data_key, void 
     req.push_back("customized-del");
     req.push_back(data_key);
 
-    log_debug("[request2redis] : %s", hexstr<std::string>(str(req)).c_str());
+    log_debug("[request2redis] : customized-del %s", data_key.c_str());
 
     PTST(redisRequest, 0.01);
     auto t_res = link->redisRequest(req);
-    PTE(redisRequest, hexstr<std::string>(str(req)));
+    PTE(redisRequest, "customized-del "+data_key);
 
 
     if (t_res == nullptr) {
@@ -205,11 +201,11 @@ int bproc_COMMAND_DATA_DUMP(SSDBServer *serv, const std::string &data_key, void 
     req.push_back(val);
     req.push_back("replace");
 
-    log_debug("[request2redis] : %s", hexstr<std::string>(str(req)).c_str());
+    log_debug("[request2redis] : customized-restore %s", data_key.c_str());
 
     PTST(redisRequest, 0.01);
     auto t_res = link->redisRequest(req);
-    PTE(redisRequest, hexstr<std::string>(str(req)));
+    PTE(redisRequest, "customized-restore "+data_key);
 
     if (t_res == nullptr) {
         log_error("t_res is null");
