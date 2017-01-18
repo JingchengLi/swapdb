@@ -637,7 +637,8 @@ int prologOfEvictingToSSDB(robj *keyobj, redisDb *db) {
     return C_OK;
 }
 
-int tryEvictingKeysToSSDB(void) {
+#define OBJ_COMPUTE_SIZE_DEF_SAMPLES 5 /* Default sample size. */
+int tryEvictingKeysToSSDB(int *mem_tofree) {
     mstime_t latency;
     int k, i;
     sds bestkey = NULL;
@@ -682,7 +683,16 @@ int tryEvictingKeysToSSDB(void) {
          * a ghost and we need to try the next element. */
         if (de && dictFind(EVICTED_DATA_DB->transferring_keys,
                            dictGetKey(de)) == NULL) {
+            size_t usage;
             bestkey = dictGetKey(de);
+
+            /* Estimate the memory usage of the bestkey. */
+            usage = objectComputeSize(dictGetVal(de), OBJ_COMPUTE_SIZE_DEF_SAMPLES);
+            usage += sdsAllocSize(bestkey);
+            usage += sizeof(dictEntry);
+
+            serverLog(LL_DEBUG, "The best key size: %d", usage);
+            *mem_tofree = *mem_tofree - usage;
             break;
         }
     }
@@ -791,6 +801,13 @@ int freeMemoryIfNeeded(void) {
                     }
                 }
                 if (!total_keys) break; /* No keys to evict. */
+
+                /* If total_keys < dictSize of EVICTED_DATA_DB->transferring_keys,
+                 the loop happens to be endless.
+                 TODO: to be determined if it is allowed to evict data in jdjr-mode. */
+                if (server.jdjr_mode
+                    && total_keys <= dictSize(EVICTED_DATA_DB->transferring_keys))
+                  break;
 
                 /* Go backward from best to worst element to evict. */
                 for (k = EVPOOL_SIZE-1; k >= 0; k--) {
@@ -965,7 +982,7 @@ void handleClientsBlockedOnSSDB(void) {
                     client *c = clientnode->value;
                     int retval;
 
-                    if (c->fd < 0) {
+                    if (c->fd < 0 || c->context->fd < 0) {
                         serverLog(LL_DEBUG, "The client is already closed");
                         continue;
                     }

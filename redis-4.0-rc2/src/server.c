@@ -1169,15 +1169,21 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
     return 1000/server.hz;
 }
 
-#define EVICTED_TO_SSDB_SCALE_THREHOLD 0.8
+#define EVICTED_TO_SSDB_SCALE_THREHOLD 0.9
 void startToEvictIfNeeded() {
+    int mem_tofree, old_mem_tofree;
     if (!(server.maxmemory_policy & (MAXMEMORY_FLAG_LRU|MAXMEMORY_FLAG_LFU)))
         return;
 
     /* TODO: make the strategy to evict keys to SSDB.
        factors: serve.maxmemory, zmalloc_used_memory, etc.*/
-    if (zmalloc_used_memory() >= server.maxmemory * EVICTED_TO_SSDB_SCALE_THREHOLD)
-        tryEvictingKeysToSSDB();
+
+    mem_tofree = zmalloc_used_memory() - server.maxmemory * EVICTED_TO_SSDB_SCALE_THREHOLD;
+
+    while (mem_tofree && mem_tofree != old_mem_tofree) {
+        old_mem_tofree = mem_tofree;
+        tryEvictingKeysToSSDB(&mem_tofree);
+    }
 }
 
 void startToLoadIfNeeded() {

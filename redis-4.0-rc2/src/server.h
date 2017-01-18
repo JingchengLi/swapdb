@@ -1582,7 +1582,7 @@ void blockForLoadingkey(client *c, robj **keys, int numkeys, mstime_t timeout);
 void signalBlockingKeyAsReady(redisDb *db, robj* key);
 int blockForLoadingkeys(client *c, robj **keys, int numkeys, mstime_t timeout);
 void handleClientsBlockedOnSSDB(void);
-int tryEvictingKeysToSSDB(void);
+int tryEvictingKeysToSSDB(int *mem_tofree);
 int processCommand(client *c);
 int checkValidCommand(client* c);
 int checkKeysInMediateState(client* c);
