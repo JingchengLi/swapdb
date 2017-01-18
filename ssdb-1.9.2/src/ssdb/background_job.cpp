@@ -87,6 +87,8 @@ void BackgroundJob::loop(const BQueue<BTask> &queue) {
             log_warn("BackgroundJob queue size is now : %d", qsize);
         } else if (qsize > 50) {
             log_info("BackgroundJob queue size is now : %d", qsize);
+        } else if (qsize > 10) {
+            log_debug("BackgroundJob queue size is now : %d", qsize);
         }
 
         log_info("task avg wait %f ms", avg_wait);

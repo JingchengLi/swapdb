@@ -93,6 +93,17 @@ public:
 			link = Link::connect(ip.c_str(), port);
 		}
 
+        if (link != nullptr) {
+			//check before use
+            std::vector<std::string> req;
+            req.push_back("ping");
+            auto t_res = link->redisRequest(req);
+
+            if (t_res == nullptr) {
+                reset();
+            }
+        }
+
 		return link;
 	}
 
