@@ -101,7 +101,9 @@ public:
 
             if (t_res == nullptr) {
                 reset();
-            }
+            } else {
+				delete t_res;
+			}
         }
 
 		return link;

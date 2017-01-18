@@ -36,7 +36,7 @@ public:
         this->serv = serv;
         this->thread_quit = false;
         this->avg_wait = 0.0;
-        this->count = 0;
+        this->count = 1;
         start();
     }
 

@@ -53,13 +53,14 @@ void BackgroundJob::stop() {
 
 void BackgroundJob::loop(const BQueue<BTask> &queue) {
 
-    size_t qsize = serv->bqueue.size();
-
-//    if (qsize == 0) {
-//        return; //one thread only
-//    }
 
     BTask bTask = serv->bqueue.pop();
+
+    int64_t current = time_ms();
+
+    avg_wait = ((current -  bTask.ts)*1.0 - avg_wait)*1.0 / count * 1.0 + avg_wait;
+    count++;
+
     std::map<uint16_t, bproc_t>::const_iterator iter;
 
     iter = bproc_map.find(bTask.type);
@@ -78,16 +79,16 @@ void BackgroundJob::loop(const BQueue<BTask> &queue) {
     }
 
 
-    int64_t current = time_ms();
     if ((current - last) > 1000) {
+        size_t qsize = serv->bqueue.size();
         last = time_ms();
-        if (qsize > 200) {
+        if (qsize > 500) {
             log_error("BackgroundJob queue size is now : %d", qsize);
-        } else if (qsize > 100) {
+        } else if (qsize > 218) {
             log_warn("BackgroundJob queue size is now : %d", qsize);
-        } else if (qsize > 50) {
+        } else if (qsize > 36) {
             log_info("BackgroundJob queue size is now : %d", qsize);
-        } else if (qsize > 10) {
+        } else if (qsize > 6) {
             log_debug("BackgroundJob queue size is now : %d", qsize);
         }
 
@@ -97,9 +98,6 @@ void BackgroundJob::loop(const BQueue<BTask> &queue) {
             log_warn("task %s had waited %d ms",bTask.dump().c_str() , ((current - bTask.ts)));
         }
     }
-
-    count++;
-    avg_wait = ((current -  bTask.ts)*1.0 - avg_wait)*1.0 / count * 1.0 + avg_wait;
 
 }
 
