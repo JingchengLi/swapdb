@@ -68,7 +68,7 @@ void BackgroundJob::loop(const BQueue<BTask> &queue) {
 
     iter = bproc_map.find(bTask.type);
     if (iter != bproc_map.end()) {
-        log_debug("processing %d :%s", bTask.type, hexmem(bTask.data_key.data(), bTask.data_key.length()).c_str());
+        log_debug("processing %s", bTask.dump().c_str());
 
         PTST(bTask_process, 0.1)
         iter->second(serv, bTask.data_key, bTask.value);
@@ -97,6 +97,11 @@ void BackgroundJob::loop(const BQueue<BTask> &queue) {
             log_info("task %s had waited %d ms",bTask.dump().c_str() , ((current - bTask.ts)));
         }
     }
+
+    count++;
+    avg_wait = ((current -  bTask.ts)*1.0 - avg_wait)*1.0 / count * 1.0 + avg_wait;
+    log_info("task avg wait %f ms", avg_wait);
+
 
 }
 

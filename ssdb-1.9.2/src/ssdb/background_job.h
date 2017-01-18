@@ -20,14 +20,14 @@ class SSDBServer;
 #define DEF_BPROC(c)     int bproc_##c(SSDBServer *serv, const std::string &data_key, void* value)
 
 
-
 #define COMMAND_DATA_SAVE 1
 #define COMMAND_DATA_DUMP 2
 
 DEF_BPROC(COMMAND_DATA_SAVE);
+
 DEF_BPROC(COMMAND_DATA_DUMP);
 
-typedef int (*bproc_t)(SSDBServer *serv, const std::string &data_key, void* value);
+typedef int (*bproc_t)(SSDBServer *serv, const std::string &data_key, void *value);
 
 
 class BackgroundJob {
@@ -35,6 +35,8 @@ public:
     BackgroundJob(SSDBServer *serv) {
         this->serv = serv;
         this->thread_quit = false;
+        this->avg_wait = 0.0;
+        this->count = 0;
         start();
     }
 
@@ -45,6 +47,10 @@ public:
     }
 
 private:
+
+    int64_t count;
+    double avg_wait;
+
     int64_t last;
 
     static void *thread_func(void *arg);
@@ -61,7 +67,7 @@ private:
 
     void stop();
 
-    void loop(const BQueue<BTask>& queue);
+    void loop(const BQueue<BTask> &queue);
 
     void regType();
 
