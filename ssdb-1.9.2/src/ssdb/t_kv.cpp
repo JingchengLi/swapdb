@@ -73,8 +73,8 @@ int SSDBImpl::SetGeneric(leveldb::WriteBatch &batch, const Bytes &key, const Byt
 
 int SSDBImpl::multi_set(const std::vector<Bytes> &kvs, int offset){
 	leveldb::WriteBatch batch;
-	std::vector<Bytes> lock_key;
-	std::vector<Bytes>::const_iterator iter;
+	std::set<Bytes> lock_key;
+	std::set<Bytes>::const_iterator iter;
     leveldb::Status s;
     int rval = 0;
 
@@ -83,8 +83,11 @@ int SSDBImpl::multi_set(const std::vector<Bytes> &kvs, int offset){
 	for(; it != kvs.end(); it += 2){
 		const Bytes &key = *it;
 		const Bytes &val = *(it + 1);
-		mutex_record_.Lock(key.String());
-		lock_key.push_back(key);
+        if (lock_key.find(key) == lock_key.end()){
+            mutex_record_.Lock(key.String());
+            lock_key.insert(key);
+            rval++;
+        }
 		int ret = SetGeneric(batch, key, val, OBJ_SET_NO_FLAGS, 0);
 		if (ret < 0){
 			rval = -1;
@@ -97,7 +100,6 @@ int SSDBImpl::multi_set(const std::vector<Bytes> &kvs, int offset){
 		rval = -1;
 		goto return_err;
 	}
-	rval = ((int)kvs.size() - offset)/2;
 
 return_err:
 	iter = lock_key.begin();
@@ -112,12 +114,17 @@ int SSDBImpl::multi_del(const std::vector<Bytes> &keys, int offset){ //注：red
 	leveldb::WriteBatch batch;
 	std::vector<Bytes> lock_key;
 	std::vector<Bytes>::const_iterator iter;
+    std::set<Bytes>     distinct_keys;
 
     int num = 0;
 	std::vector<Bytes>::const_iterator it;
 	it = keys.begin() + offset;
-	for(; it != keys.end(); it++){
-		const Bytes &key = *it;
+    for(; it != keys.end(); ++it){
+        distinct_keys.insert(*it);
+    }
+    std::set<Bytes>::const_iterator itor = distinct_keys.begin();
+	for(; itor != distinct_keys.end(); itor++){
+		const Bytes &key = *itor;
 		mutex_record_.Lock(key.String());
 		lock_key.push_back(key);
 		std::string meta_key = encode_meta_key(key);
