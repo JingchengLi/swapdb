@@ -63,17 +63,6 @@ void BackgroundJob::loop(const BQueue<BTask> &queue) {
 //        return; //one thread only
 //    }
 
-    if ((time_ms() - last) > 3000) {
-        last = time_ms();
-        if (qsize > 200) {
-            log_error("BackgroundJob queue size is now : %d", qsize);
-        } else if (qsize > 100) {
-            log_warn("BackgroundJob queue size is now : %d", qsize);
-        } else if (qsize > 50) {
-            log_info("BackgroundJob queue size is now : %d", qsize);
-        }
-    }
-
     BTask bTask = serv->bqueue.pop();
     std::map<uint16_t, bproc_t>::const_iterator iter;
 
@@ -91,6 +80,24 @@ void BackgroundJob::loop(const BQueue<BTask> &queue) {
         //not found
         //TODO DEL
     }
+
+
+    int64_t current = time_ms();
+    if ((current - last) > 3000) {
+        last = time_ms();
+        if (qsize > 200) {
+            log_error("BackgroundJob queue size is now : %d", qsize);
+        } else if (qsize > 100) {
+            log_warn("BackgroundJob queue size is now : %d", qsize);
+        } else if (qsize > 50) {
+            log_info("BackgroundJob queue size is now : %d", qsize);
+        }
+
+        if ((current - bTask.ts) > 3000) {
+            log_info("task %s had waited %d ms",bTask.dump().c_str() , ((current - bTask.ts)));
+        }
+    }
+
 }
 
 

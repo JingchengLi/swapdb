@@ -27,11 +27,14 @@ struct DumpData {
 class BTask {
 public:
     uint16_t type;
+    int64_t ts;
 
     std::string data_key;
     void *value;
 
-    BTask(uint16_t type, const std::string &key, void *value = nullptr) : type(type), data_key(key), value(value) {}
+    BTask(uint16_t type, const std::string &key, void *value = nullptr) : type(type), data_key(key), value(value) {
+        ts = time_ms();
+    }
 
     virtual ~BTask() {
     }
