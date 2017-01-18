@@ -1189,7 +1189,7 @@ void startToEvictIfNeeded() {
 void startToLoadIfNeeded() {
     listIter li;
     listNode *ln;
-    dictEntry *de;
+    list *tmp = listCreate();
 
     if (!server.hot_keys || !listLength(server.hot_keys))
         return;
@@ -1199,8 +1199,14 @@ void startToLoadIfNeeded() {
     while((ln = listNext(&li))) {
         robj *keyobj = (robj *)(ln->value);
 
-        if ((de = dictFind(EVICTED_DATA_DB->transferring_keys, keyobj->ptr)))
+        if (dictFind(EVICTED_DATA_DB->transferring_keys, keyobj->ptr))
             continue;
+
+        /* Try to load the keys in the next loop. */
+        if (dictFind(EVICTED_DATA_DB->visiting_ssdb_keys, keyobj->ptr)) {
+            listAddNodeTail(tmp, dupStringObject(keyobj));
+            continue;
+        }
 
         /* Elements in hot_keys list may be duplicated. */
         if (dictFind(EVICTED_DATA_DB->loading_hot_keys, keyobj->ptr))
@@ -1213,7 +1219,7 @@ void startToLoadIfNeeded() {
     }
 
     listRelease(server.hot_keys);
-    server.hot_keys = listCreate();
+    server.hot_keys = tmp;
 }
 
 /* This function gets called every time Redis is entering the
@@ -1884,6 +1890,7 @@ void initServer(void) {
     if (server.jdjr_mode) {
         server.db[EVICTED_DATA_DBID].transferring_keys = dictCreate(&keyptrDictType,NULL);
         server.db[EVICTED_DATA_DBID].loading_hot_keys = dictCreate(&keyptrDictType,NULL);
+        server.db[EVICTED_DATA_DBID].visiting_ssdb_keys = dictCreate(&keyptrDictType,NULL);
     }
 
     evictionPoolAlloc(); /* Initialize the LRU keys pool. */
@@ -2372,6 +2379,19 @@ int processCommandMaybeInSSDB(client *c) {
         if (val) {
             if (sendCommandToSSDB(c, NULL) != C_OK) {
                 return C_ERR;
+            }
+
+            /* Record the keys visting SSDB. */
+            {
+                int *keys = NULL, numkeys = 0, j;
+                keys = getKeysFromCommand(c->cmd, c->argv, c->argc, &numkeys);
+                for (j = 0; j < numkeys; j ++) {
+                    dictAddOrFind(EVICTED_DATA_DB->visiting_ssdb_keys, c->argv[keys[j]]->ptr);
+                    serverLog(LL_DEBUG, "key: %s is added to visiting_ssdb_keys.");
+                }
+
+                if (keys) getKeysFreeResult(keys);
+                blockClient(c, BLOCKED_VISITING_SSDB);
             }
 
             serverAssert(server.maxmemory_policy & MAXMEMORY_FLAG_LFU);

@@ -682,7 +682,9 @@ int tryEvictingKeysToSSDB(int *mem_tofree) {
         /* If the key exists, is our pick. Otherwise it is
          * a ghost and we need to try the next element. */
         if (de && dictFind(EVICTED_DATA_DB->transferring_keys,
-                           dictGetKey(de)) == NULL) {
+                           dictGetKey(de)) == NULL
+            && dictFind(EVICTED_DATA_DB->visiting_ssdb_keys,
+                        dictGetKey(de)) == NULL) {
             size_t usage;
             bestkey = dictGetKey(de);
 

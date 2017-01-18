@@ -826,6 +826,26 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
 
     redisReader *r = c->context->reader;
 
+    if (c->btype & BLOCKED_VISITING_SSDB) {
+        int *keys = NULL, numkeys = 0, j;
+        serverAssert(c->cmd && c->argc);
+
+        keys = getKeysFromCommand(c->cmd, c->argv, c->argc, &numkeys);
+        for (j = 0; j < numkeys; j ++) {
+            dictDelete(EVICTED_DATA_DB->visiting_ssdb_keys, c->argv[keys[j]]->ptr);
+            serverLog(LL_DEBUG, "key: %s is deleted from visiting_ssdb_keys.",
+                      c->argv[keys[j]]->ptr);
+        }
+
+        if (keys) getKeysFreeResult(keys);
+
+        unblockClient(c);
+
+        /* Due to the async operations, add the btype for handling timeout. */
+        c->btype = BLOCKED_VISITING_SSDB_TIMEOUT;
+        resetClient(c);
+    }
+
     /* TODO: Considering redis pipeline. */
     do {
         int oldlen = r->len;
@@ -1462,7 +1482,7 @@ void processInputBuffer(client *c) {
                       c->fd, (char*)c->argv[1]->ptr);
             /* Only reset the client when the command was executed. */
             if (server.jdjr_mode && processCommandMaybeInSSDB(c) == C_OK)
-                resetClient(c);
+                /* resetClient(c); */;
             else if (processCommand(c) == C_OK)
                 resetClient(c);
             serverLog(LL_DEBUG, "blocked client fd: %d, key: %s is finished.",
@@ -1500,7 +1520,7 @@ void processInputBuffer(client *c) {
 
             /* Only reset the client when the command was executed. */
             if (server.jdjr_mode && processCommandMaybeInSSDB(c) == C_OK)
-                resetClient(c);
+                /* resetClient(c); */;
             else if (processCommand(c) == C_OK)
                 resetClient(c);
 

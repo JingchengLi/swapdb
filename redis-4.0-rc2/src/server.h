@@ -246,7 +246,7 @@ typedef long long mstime_t; /* millisecond time type. */
 #define CLIENT_LUA_DEBUG_SYNC (1<<26)  /* EVAL debugging without fork() */
 #define CLIENT_MODULE (1<<27) /* Non connected client used by some module. */
 
-#define CLIENT_BLOCKED_KEY_SSDB (1<<30) /* client is blocking when loading/transferring ssdb key.*/
+#define CLIENT_BLOCKED_KEY_SSDB (1<<30) /* Client is blocking when loading/transferring ssdb key.*/
 
 /* Client block type (btype field in client structure)
  * if CLIENT_BLOCKED flag is set. */
@@ -256,6 +256,8 @@ typedef long long mstime_t; /* millisecond time type. */
 #define BLOCKED_MODULE 3  /* Blocked by a loadable module. */
 #define BLOCKED_SSDB_LOADING_OR_TRANSFER 10 /* Blocked when loading a key becomes hot in SSDB
                                     * or transferring a key becomes cold to SSDB. */
+#define BLOCKED_VISITING_SSDB 11   /* Client is visiting SSDB. */
+#define BLOCKED_VISITING_SSDB_TIMEOUT 12 /* Client is visiting SSDB and may be out of time. */
 
 /* Client request types */
 #define PROTO_REQ_INLINE 1
@@ -604,6 +606,7 @@ typedef struct redisDb {
     dict *watched_keys;         /* WATCHED keys for MULTI/EXEC CAS */
     dict *transferring_keys;    /* Keys are in the process of transferring keys to SSDB. */
     dict *loading_hot_keys;     /* keys become hot and in loading state from SSDB. */
+    dict *visiting_ssdb_keys;   /* Keys are visiting SSDB, including reading and writing. */
     int id;                     /* Database ID */
     long long avg_ttl;          /* Average TTL, just for stats */
 } redisDb;
