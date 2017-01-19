@@ -53,31 +53,34 @@ void BackgroundJob::stop() {
 
 void BackgroundJob::loop(const BQueue<BTask> &queue) {
 
-
     BTask bTask = serv->bqueue.pop();
 
     int64_t current = time_ms();
 
+    bproc_map[bTask.type](serv, bTask.data_key, bTask.value);
+
     avg_wait = ((current -  bTask.ts)*1.0 - avg_wait)*1.0 / count * 1.0 + avg_wait;
+    avg_process = ((time_ms() -  current)*1.0 - avg_process)*1.0 / count * 1.0 + avg_process;
+
     count++;
 
-    std::map<uint16_t, bproc_t>::const_iterator iter;
 
-    iter = bproc_map.find(bTask.type);
-    if (iter != bproc_map.end()) {
-        log_debug("processing %s", bTask.dump().c_str());
-
-        PTST(bTask_process, 0.1)
-        iter->second(serv, bTask.data_key, bTask.value);
-        std::string res = bTask.dump();
-        PTE(bTask_process, bTask.data_key)
-
-    } else {
-        log_error("can not find a way to process type:%d", bTask.type);
-        //not found
-        //TODO DEL
-    }
-
+//    std::map<uint16_t, bproc_t>::const_iterator iter;
+//    iter = bproc_map.find(bTask.type);
+//    if (iter != bproc_map.end()) {
+//        log_debug("processing %s", bTask.dump().c_str());
+//
+//        PTST(bTask_process, 0.01)
+//        iter->second(serv, bTask.data_key, bTask.value);
+//        std::string res = bTask.dump();
+//        PTE(bTask_process, bTask.data_key)
+//
+//    } else {
+//        log_error("can not find a way to process type:%d", bTask.type);
+//        //not found
+//        //TODO DEL
+//    }
+//
 
     if ((current - last) > 1000) {
         size_t qsize = serv->bqueue.size();
@@ -93,10 +96,11 @@ void BackgroundJob::loop(const BQueue<BTask> &queue) {
         }
 
         log_info("task avg wait %f ms", avg_wait);
+        log_info("task avg process %f ms", avg_process);
+    }
 
-        if ((current - bTask.ts) > 2000) {
-            log_warn("task %s had waited %d ms",bTask.dump().c_str() , ((current - bTask.ts)));
-        }
+    if ((current - bTask.ts) > 1000) {
+        log_warn("task %s had waited %d ms",bTask.dump().c_str() , ((current - bTask.ts)));
     }
 
 }
@@ -153,8 +157,6 @@ int bproc_COMMAND_DATA_SAVE(SSDBServer *serv, const std::string &data_key, void 
 
     std::string res = t_res->toString();
     log_debug("[response2redis] : %s", hexstr<std::string>(res).c_str());
-
-    log_debug("output stat : %s" , link->output->stats().c_str());
 
     delete t_res;
 
@@ -216,8 +218,6 @@ int bproc_COMMAND_DATA_DUMP(SSDBServer *serv, const std::string &data_key, void 
     if (t_res->status == 1 && t_res->str == "OK") {
         serv->ssdb->del(data_key);
     }
-
-    log_debug("output stat : %s" , link->output->stats().c_str());
 
     delete t_res;
 

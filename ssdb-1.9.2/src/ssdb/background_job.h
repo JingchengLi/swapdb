@@ -50,6 +50,7 @@ private:
 
     int64_t count;
     double avg_wait;
+    double avg_process;
 
     int64_t last;
 
