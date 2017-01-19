@@ -207,7 +207,7 @@ src/redis/lzf_c.c
 src/redis/lzf_d.c
 src/redis/endianconv.c
 src/redis/crc64.c
-src/redis/rdb.cpp
+src/redis/zmalloc.c
 src/redis/rdb_encoder.cpp
 src/redis/rdb_decoder.cpp
 )

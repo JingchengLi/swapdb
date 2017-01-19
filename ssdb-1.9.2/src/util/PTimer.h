@@ -47,9 +47,9 @@ public:
 #define PTST(name,second) PTimer name(#name,second);name.begin();
 #define PTE(name, tag) name.end(tag);
 #else
-#define PTS(name) "";
-#define PTST(name,second) "";
-#define PTE(name, tag) "";
+#define PTS(name) ;
+#define PTST(name,second) ;
+#define PTE(name, tag) ;
 #endif
 
 // -D PTIMER=ON

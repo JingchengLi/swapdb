@@ -6,8 +6,10 @@
 #define SSDB_ZMALLOC_H
 
 #define assert(_e) ((_e)?(void)0 : (exit(1)))
-#define zmalloc(t) ((malloc(t)))
-#define zrealloc(p,t) ((realloc(p,t)))
-#define zfree(ptr) if (ptr == NULL) return; free(*ptr);ptr=NULL;
+
+void *zmalloc(size_t size);
+void *zrealloc(void *ptr, size_t size);
+void zfree(void *ptr);
+
 
 #endif //SSDB_ZMALLOC_H

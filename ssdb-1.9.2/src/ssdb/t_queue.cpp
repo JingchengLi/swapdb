@@ -337,21 +337,6 @@ int SSDBImpl::qpop_back(const Bytes &name, std::string *item){
 	return _qpop(name, item, QBACK_SEQ);
 }
 
-static void get_qnames(Iterator *it, std::vector<std::string> *list){
-	while(it->next()){
-		Bytes ks = it->key();
-		//dump(ks.data(), ks.size());
-		if(ks.data()[0] != DataType::QSIZE){
-			break;
-		}
-		std::string n;
-		if(decode_qsize_key(ks, &n) == -1){
-			continue;
-		}
-		list->push_back(n);
-	}
-}
-
 int SSDBImpl::qfix(const Bytes &name){
 	Transaction trans(binlogs);
 // todo r2m adaptation

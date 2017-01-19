@@ -386,24 +386,18 @@ int proc_flushdb(NetworkServer *net, Link *link, const Request &req, Response *r
 }
 
 int proc_select(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
-
 	resp->push_back("ok");
 	return 0;
 }
 
 
 int proc_client(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
-
 	resp->push_back("ok");
 	return 0;
 }
 
 
 int proc_quit(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
-	//TODO quit support
 	resp->push_back("ok");
 	return 0;
 }
@@ -756,7 +750,7 @@ int proc_sync150(NetworkServer *net, Link *link, const Request &req, Response *r
 	int size = link->input->size();
 	int orgi_size = size;
 	char *head = link->input->data();
-	int ret = serv->ssdb->parse_replic(head, size);
+    int ret = serv->ssdb->parse_replic(head, size);
 	link->input->decr(orgi_size - size);
 
     std::vector<std::string> request;

@@ -515,7 +515,7 @@ int RedisLink::recv_res(Buffer *input, RedisResponse *r, int shit) {
 		if (input->space() == 0) {
 			if (input->grow() == -1) {
 				//log_error("fd: %d, unable to resize input buffer!", this->sock);
-				return NULL;
+				return REDIS_RESPONSE_ERR;
 			}
 			//log_debug("fd: %d, resize input buffer, %s", this->sock, input->stats().c_str());
 		}

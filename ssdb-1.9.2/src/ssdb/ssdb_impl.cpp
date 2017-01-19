@@ -267,7 +267,12 @@ std::vector<std::string> SSDBImpl::info(){
 }
 
 void SSDBImpl::compact(){
+#ifdef USE_LEVELDB
 	ldb->CompactRange(NULL, NULL);
+#else
+	leveldb::CompactRangeOptions compactRangeOptions = rocksdb::CompactRangeOptions();
+	ldb->CompactRange(compactRangeOptions, NULL, NULL);
+#endif
 }
 
 

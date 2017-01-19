@@ -167,7 +167,7 @@ Link *Link::unixsocket(const std::string &path) {
 
     link = new Link(true);
     link->sock = sock;
-    snprintf(link-> remote_ip, sizeof(link->remote_ip), "", "");
+    snprintf(link->remote_ip, sizeof(link->remote_ip), "%s", "");
     link->remote_port = 0;
     return link;
 
