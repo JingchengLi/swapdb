@@ -182,11 +182,13 @@ int bproc_COMMAND_DATA_DUMP(SSDBServer *serv, const std::string &data_key, void 
 
     Link *link = serv->redisUpstream->getLink();
 //    Link *link = serv->redisUpstream->getTmpLink();
-//    if (link == nullptr) {
-//        log_error("link is null");
-//        return -1;
-//    }
+
 //    auto tl = unique_ptr<Link>(link);
+
+    if (link == nullptr) {
+        log_error("link is null");
+        return -1;
+    }
 
     std::vector<std::string> req;
     req.push_back("customized-restore");
