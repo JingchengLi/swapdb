@@ -464,9 +464,11 @@ int epilogOfEvictingToSSDB(robj *keyobj) {
     mstime_t eviction_latency;
     robj *setcmd;
     sds cmdname;
+    dictEntry *de;
     long long now = mstime(), expiretime;
     int dbid = getTransferringDB(keyobj);
     int slaves = listLength(server.slaves);
+    long long usage;
 
     if (dbid == -1) {
         serverLog(LL_WARNING, "The key: %s should be found.", (char *)keyobj->ptr);
@@ -484,7 +486,10 @@ int epilogOfEvictingToSSDB(robj *keyobj) {
     }
 
     /* Record the evicted keys in an extra redis db. */
-    setKey(evicteddb, keyobj, shared.space);
+
+    de = dictFind(db->dict, keyobj->ptr);
+    usage = (long long)estimateKeyMemoryUsage(de);
+    setKey(evicteddb, keyobj, createStringObjectFromLongLong(usage));
     server.dirty ++;
 
     notifyKeyspaceEvent(NOTIFY_STRING,"set",keyobj,evicteddb->id);
@@ -561,6 +566,8 @@ int epilogOfEvictingToSSDB(robj *keyobj) {
      * transmission here inside the loop. */
     if (slaves) flushSlavesOutputBuffers();
 
+    server.evicting_keys_num --;
+
     return C_OK;
 }
 
@@ -633,11 +640,23 @@ int prologOfEvictingToSSDB(robj *keyobj, redisDb *db) {
         return C_ERR;
     }
 
-    serverLog(LL_DEBUG, "Evicting key: %s to SSDB.", (char *)(keyobj->ptr));
+    serverLog(LL_DEBUG, "Evicting key: %s to SSDB, maxmemory: %d, zmalloc_used_memory: %d.",
+              (char *)(keyobj->ptr), server.maxmemory, zmalloc_used_memory());
+
+    server.evicting_keys_num += 1;
     return C_OK;
 }
 
 #define OBJ_COMPUTE_SIZE_DEF_SAMPLES 5 /* Default sample size. */
+size_t estimateKeyMemoryUsage(dictEntry *de) {
+    size_t usage;
+    usage = objectComputeSize(dictGetVal(de), OBJ_COMPUTE_SIZE_DEF_SAMPLES);
+    usage += sdsAllocSize(dictGetKey(de));
+    usage += sizeof(dictEntry);
+    return usage;
+}
+
+
 int tryEvictingKeysToSSDB(int *mem_tofree) {
     mstime_t latency;
     int k, i;
@@ -687,11 +706,8 @@ int tryEvictingKeysToSSDB(int *mem_tofree) {
                         dictGetKey(de)) == NULL) {
             size_t usage;
             bestkey = dictGetKey(de);
-
             /* Estimate the memory usage of the bestkey. */
-            usage = objectComputeSize(dictGetVal(de), OBJ_COMPUTE_SIZE_DEF_SAMPLES);
-            usage += sdsAllocSize(bestkey);
-            usage += sizeof(dictEntry);
+            usage = estimateKeyMemoryUsage(de);
 
             serverLog(LL_DEBUG, "The best key size: %d", usage);
             *mem_tofree = *mem_tofree - usage;
@@ -1070,18 +1086,18 @@ int blockForLoadingkeys(client *c, robj **keys, int numkeys, mstime_t timeout) {
 
                 l = listCreate();
                 retval = dictAdd(c->db->ssdb_blocking_keys, keys[j], l);
-                serverLog(LL_DEBUG, "key: %s is added to ssdb_blocking_keys.", (char *)keys[j]->ptr);
+                serverLog(LL_DEBUG, "key: %s is added to ssdb_blocking_keys.",
+                          (char *)keys[j]->ptr);
                 incrRefCount(keys[j]);
                 serverAssertWithInfo(c, keys[j], retval == DICT_OK);
+                serverLog(LL_DEBUG, "client fd: %d, cmd: %s, key: %s is blocked.",
+                          c->fd, c->cmd->name, (char *)keys[j]->ptr);
             } else {
                 l = dictGetVal(de);
             }
 
             listAddNodeTail(l, c);
             blockednum ++;
-
-            serverLog(LL_DEBUG, "client fd: %d, cmd: %s, key: %s is blocked.",
-                      c->fd, c->cmd->name, (char *)keys[j]->ptr);
         }
     }
 

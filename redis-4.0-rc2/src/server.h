@@ -1181,6 +1181,9 @@ struct redisServer {
     int watchdog_period;  /* Software watchdog period in ms. 0 = off */
     /* System hardware info */
     size_t system_memory_size;  /* Total memory in system as reported by OS */
+
+    /* Record the number of keys in the process of evicting to SSDB. */
+    long long evicting_keys_num;
 };
 
 typedef struct pubsubPattern {
@@ -1586,6 +1589,7 @@ void signalBlockingKeyAsReady(redisDb *db, robj* key);
 int blockForLoadingkeys(client *c, robj **keys, int numkeys, mstime_t timeout);
 void handleClientsBlockedOnSSDB(void);
 int tryEvictingKeysToSSDB(int *mem_tofree);
+size_t estimateKeyMemoryUsage(dictEntry *de);
 int processCommand(client *c);
 int checkValidCommand(client* c);
 int checkKeysInMediateState(client* c);

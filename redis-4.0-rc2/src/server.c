@@ -1019,6 +1019,8 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
                 listLength(server.clients)-listLength(server.slaves)-(server.jdjr_mode?1:0),
                 listLength(server.slaves),
                 zmalloc_used_memory());
+            if (server.jdjr_mode)
+                serverLog(LL_VERBOSE, "%d keys are evicting to SSDB", server.evicting_keys_num);
         }
     }
 
@@ -1170,8 +1172,9 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
 }
 
 #define EVICTED_TO_SSDB_SCALE_THREHOLD 0.9
+#define EVICTING_TO_SSDB_KEYS_MAX_NUM 50
 void startToEvictIfNeeded() {
-    int mem_tofree, old_mem_tofree;
+    int mem_tofree, old_mem_tofree = 0;
     if (!(server.maxmemory_policy & (MAXMEMORY_FLAG_LRU|MAXMEMORY_FLAG_LFU)))
         return;
 
@@ -1180,7 +1183,8 @@ void startToEvictIfNeeded() {
 
     mem_tofree = zmalloc_used_memory() - server.maxmemory * EVICTED_TO_SSDB_SCALE_THREHOLD;
 
-    while (mem_tofree && mem_tofree != old_mem_tofree) {
+    while (server.evicting_keys_num <= EVICTING_TO_SSDB_KEYS_MAX_NUM
+           && mem_tofree > 0 && mem_tofree != old_mem_tofree) {
         old_mem_tofree = mem_tofree;
         tryEvictingKeysToSSDB(&mem_tofree);
     }
@@ -1189,15 +1193,24 @@ void startToEvictIfNeeded() {
 void startToLoadIfNeeded() {
     listIter li;
     listNode *ln;
-    list *tmp = listCreate();
+    list *tmp;
+
+    int mem_free = server.maxmemory - zmalloc_used_memory();
+
+    if (mem_free < 0) return;
 
     if (!server.hot_keys || !listLength(server.hot_keys))
         return;
 
     listRewind(server.hot_keys, &li);
 
+    tmp = listCreate();
+    listSetFreeMethod(tmp, freeStringObject);
+
     while((ln = listNext(&li))) {
         robj *keyobj = (robj *)(ln->value);
+        int keyusage;
+        dictEntry *de;
 
         if (dictFind(EVICTED_DATA_DB->transferring_keys, keyobj->ptr))
             continue;
@@ -1211,6 +1224,18 @@ void startToLoadIfNeeded() {
         /* Elements in hot_keys list may be duplicated. */
         if (dictFind(EVICTED_DATA_DB->loading_hot_keys, keyobj->ptr))
             continue;
+
+        de = dictFind(EVICTED_DATA_DB->dict, keyobj->ptr);
+        serverAssert(de);
+        serverAssert(getLongLongFromObject(dictGetVal(de), &keyusage) == C_OK);
+
+        if (mem_free < keyusage) {
+            serverLog(LL_DEBUG, "No more memory to load key: %s from SSDB to redis.",
+                      (char *)keyobj->ptr);
+            /* Try to load the keys in the next loop. */
+            listAddNodeTail(tmp, dupStringObject(keyobj));
+            continue;
+        }
 
         serverLog(LL_DEBUG, "Try loading key: %s from SSDB.", (char *)keyobj->ptr);
         setLoadingDB(keyobj);
@@ -1803,6 +1828,9 @@ void resetServerStats(void) {
     server.stat_net_input_bytes = 0;
     server.stat_net_output_bytes = 0;
     server.aof_delayed_fsync = 0;
+
+    if (server.jdjr_mode)
+        server.evicting_keys_num = 0;
 }
 
 void initServer(void) {
@@ -1826,6 +1854,7 @@ void initServer(void) {
     server.monitors = listCreate();
     server.clients_pending_write = listCreate();
     server.hot_keys = listCreate();
+    listSetFreeMethod(server.hot_keys, freeStringObject);
     server.slaveseldb = -1; /* Force to emit the first SELECT command. */
     server.unblocked_clients = listCreate();
     server.ready_keys = listCreate();
@@ -2387,7 +2416,8 @@ int processCommandMaybeInSSDB(client *c) {
                 keys = getKeysFromCommand(c->cmd, c->argv, c->argc, &numkeys);
                 for (j = 0; j < numkeys; j ++) {
                     dictAddOrFind(EVICTED_DATA_DB->visiting_ssdb_keys, c->argv[keys[j]]->ptr);
-                    serverLog(LL_DEBUG, "key: %s is added to visiting_ssdb_keys.");
+                    serverLog(LL_DEBUG, "key: %s is added to visiting_ssdb_keys, fd: %d.",
+                              c->argv[keys[j]]->ptr, c->fd);
                 }
 
                 if (keys) getKeysFreeResult(keys);
@@ -2612,6 +2642,9 @@ int processCommand(client *c) {
         if (server.jdjr_mode && listLength(server.ssdb_ready_keys))
             handleClientsBlockedOnSSDB();
     }
+
+    serverLog(LL_DEBUG, "processing %s, fd: %d", c->cmd->name, c->fd);
+
     return C_OK;
 }
 
