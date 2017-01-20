@@ -67,17 +67,17 @@ SSDB* SSDB::open(const Options &opt, const std::string &dir){
 	rocksdb::BlockBasedTableOptions op;
 
 	//for spin disk
-	op.cache_index_and_filter_blocks = true;
-  	ssdb->options.optimize_filters_for_hits = true;
-	ssdb->options.skip_stats_update_on_db_open = true;
-	ssdb->options.level_compaction_dynamic_level_bytes = true;
-	ssdb->options.new_table_reader_for_compaction_inputs = true;
-	ssdb->options.compaction_readahead_size = 16 * 1024 * 1024;
-
-	ssdb->options.target_file_size_base = 64 * 1024 * 1024;
-	ssdb->options.level0_file_num_compaction_trigger = 3; //start compaction
-	ssdb->options.level0_slowdown_writes_trigger = 20; //slow write
-	ssdb->options.level0_stop_writes_trigger = 24;  //block write
+//	op.cache_index_and_filter_blocks = true;
+//  	ssdb->options.optimize_filters_for_hits = true;
+//	ssdb->options.skip_stats_update_on_db_open = true;
+//	ssdb->options.level_compaction_dynamic_level_bytes = true;
+//	ssdb->options.new_table_reader_for_compaction_inputs = true;
+//	ssdb->options.compaction_readahead_size = 16 * 1024 * 1024;
+//
+//	ssdb->options.target_file_size_base = 64 * 1024 * 1024;
+//	ssdb->options.level0_file_num_compaction_trigger = 3; //start compaction
+//	ssdb->options.level0_slowdown_writes_trigger = 20; //slow write
+//	ssdb->options.level0_stop_writes_trigger = 24;  //block write
 	//========
 
     op.filter_policy = std::shared_ptr<const leveldb::FilterPolicy>(leveldb::NewBloomFilterPolicy(10));
@@ -115,35 +115,45 @@ err:
 }
 
 int SSDBImpl::flushdb(){
-	Transaction trans(binlogs);
+//lock
+
 	int ret = 0;
 	bool stop = false;
-	while(!stop){
-		leveldb::Iterator *it;
-		leveldb::ReadOptions iterate_options;
-		iterate_options.fill_cache = false;
-		leveldb::WriteOptions write_opts;
 
-		it = ldb->NewIterator(iterate_options);
-		it->SeekToFirst();
-		for(int i=0; i<10000; i++){
+	leveldb::ReadOptions iterate_options;
+	iterate_options.fill_cache = false;
+	leveldb::WriteOptions write_opts;
+	write_opts.disableWAL = true;
+
+	leveldb::Iterator *it;
+	it = ldb->NewIterator(iterate_options);
+	it->SeekToFirst();
+
+	while(!stop){
+
+		leveldb::WriteBatch writeBatch;
+
+		for(int i=0; i<100000; i++){
 			if(!it->Valid()){
 				stop = true;
 				break;
 			}
-			//log_debug("%s", hexmem(it->key().data(), it->key().size()).c_str());
-			leveldb::Status s = ldb->Delete(write_opts, it->key());
-			if(!s.ok()){
-				log_error("del error: %s", s.ToString().c_str());
-				stop = true;
-				ret = -1;
-				break;
-			}
+
+			writeBatch.Delete(it->key());
 			it->Next();
 		}
-		delete it;
+
+ 		leveldb::Status s = ldb->Write(write_opts, &writeBatch);
+		if(!s.ok()){
+			log_error("del error: %s", s.ToString().c_str());
+			stop = true;
+			ret = -1;
+		}
+
 	}
-	binlogs->flush();
+
+	delete it;
+
 	return ret;
 }
 

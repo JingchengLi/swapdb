@@ -64,6 +64,9 @@ void BackgroundJob::loop(const BQueue<BTask> &queue) {
 
     count++;
 
+    if (bTask.value != nullptr) {
+        free(bTask.value);
+    }
 
 //    std::map<uint16_t, bproc_t>::const_iterator iter;
 //    iter = bproc_map.find(bTask.type);
@@ -72,7 +75,6 @@ void BackgroundJob::loop(const BQueue<BTask> &queue) {
 //
 //        PTST(bTask_process, 0.01)
 //        iter->second(serv, bTask.data_key, bTask.value);
-//        std::string res = bTask.dump();
 //        PTE(bTask_process, bTask.data_key)
 //
 //    } else {
@@ -82,7 +84,7 @@ void BackgroundJob::loop(const BQueue<BTask> &queue) {
 //    }
 //
 
-    if ((current - last) > 1000) {
+    if ((current - last) > 2000) {
         size_t qsize = serv->bqueue.size();
         last = time_ms();
         if (qsize > 500) {
@@ -97,11 +99,12 @@ void BackgroundJob::loop(const BQueue<BTask> &queue) {
 
         log_info("task avg wait %f ms", avg_wait);
         log_info("task avg process %f ms", avg_process);
+
+        if ((current - bTask.ts) > 1000) {
+            log_warn("task %s had waited %d ms",bTask.dump().c_str() , ((current - bTask.ts)));
+        }
     }
 
-    if ((current - bTask.ts) > 1000) {
-        log_warn("task %s had waited %d ms",bTask.dump().c_str() , ((current - bTask.ts)));
-    }
 
 }
 
@@ -126,7 +129,6 @@ int bproc_COMMAND_DATA_SAVE(SSDBServer *serv, const std::string &data_key, void 
                  hexmem(dumpData->data.data(), dumpData->data.size()).c_str());
         return -1;
     }
-
 
     Link *link = serv->redisUpstream->getLink();
 //    Link *link = serv->redisUpstream->getTmpLink();
