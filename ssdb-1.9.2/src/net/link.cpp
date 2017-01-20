@@ -10,7 +10,7 @@ found in the LICENSE file.
 #include <sys/socket.h>
 #include <netdb.h>
 #include <sys/un.h>
-#include <util/log.h>
+#include <sys/ioctl.h>
 
 #include "link.h"
 
@@ -256,6 +256,11 @@ int Link::read() {
         input->shrink(BEST_BUFFER_SIZE);
     }
 
+    int64_t nread;
+    ioctl(sock, FIONREAD, &nread);
+    if (nread > input->space()) {
+        input->shrink(nread);
+    }
     while ((want = input->space()) > 0) {
         // test
         //want = 1;
