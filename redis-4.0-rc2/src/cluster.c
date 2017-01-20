@@ -4658,6 +4658,67 @@ void customizedRestoreCommand(client *c) {
 
 }
 
+void dumptossdbCommand(client *c) {
+    if (!server.jdjr_mode) {
+        addReplyErrorFormat(c,"Command only supported in jdjr-mode '%s'",
+                            (char*)c->argv[0]->ptr);
+        return;
+    }
+
+    robj *keyobj = c->argv[1], *o;
+
+    if ((o = lookupKeyReadOrReply(c, c->argv[1], shared.nullbulk)) == NULL)
+        return;
+
+    /* Try restoring the redis dumped data to SSDB. */
+    if (prologOfEvictingToSSDB(keyobj, c->db) != C_OK)
+        serverLog(LL_DEBUG, "Failed to send the restore cmd to SSDB.");
+    else
+        setTransferringDB(c->db, keyobj);
+
+    addReply(c,shared.ok);
+}
+
+void restorefromssdbCommand(client *c) {
+    dictEntry *de;
+
+    if (!server.jdjr_mode) {
+        addReplyErrorFormat(c,"Command only supported in jdjr-mode '%s'",
+                            (char*)c->argv[0]->ptr);
+        return;
+    }
+
+    robj *keyobj = c->argv[1], *o;
+
+    if ((o = lookupKeyRead(c->db, c->argv[1])) != NULL) {
+        addReplyError(c, "Already in redis.");
+        return;
+    }
+
+    if ((de = dictFind(EVICTED_DATA_DB->transferring_keys, keyobj->ptr))) {
+        addReplyError(c, "In transferring_keys.");
+        return;
+    } else if ((de = dictFind(EVICTED_DATA_DB->loading_hot_keys, keyobj->ptr))) {
+        addReplyError(c, "In loading_hot_keys.");
+        return;
+    } else if (dictFind(EVICTED_DATA_DB->visiting_ssdb_keys, keyobj->ptr)) {
+        addReplyError(c, "In visiting_ssdb_keys.");
+        return;
+    }
+
+    if ((o = lookupKeyRead(EVICTED_DATA_DB,c->argv[1])) == NULL) {
+        addReply(c, shared.nullbulk);
+        return;
+    }
+
+    setTransferringDB(EVICTED_DATA_DB, keyobj);
+    prologOfLoadingFromSSDB(keyobj);
+
+    addReply(c,shared.ok);
+}
+
+
+
 /* MIGRATE socket cache implementation.
  *
  * We take a map between host:ip and a TCP socket that we used to connect

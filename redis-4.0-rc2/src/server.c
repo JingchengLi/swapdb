@@ -303,6 +303,8 @@ struct redisCommand redisCommandTable[] = {
     {"latency",latencyCommand,-2,"aslt",0,NULL,0,0,0,0,0},
     {"customized-del",customizedDelCommand,-2,"w",0,NULL,1,-1,1,0,0},
     {"customized-restore",customizedRestoreCommand,-4,"wm",0,NULL,1,1,1,0,0},
+    {"dumptossdb",dumptossdbCommand,-2,"w",0,NULL,1,-1,1,0,0},
+    {"restorefromssdb",restorefromssdbCommand,2,"w",0,NULL,1,-1,1,0,0},
 };
 
 /*============================ Utility functions ============================ */

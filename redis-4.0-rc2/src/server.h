@@ -1990,7 +1990,9 @@ void moduleCommand(client *c);
 void securityWarningCommand(client *c);
 void customizedDelCommand(client *c);
 void customizedRestoreCommand(client *c);
-
+void dumptossdbCommand(client *c);
+void restorefromssdbCommand(client *c);
+int prologOfEvictingToSSDB(robj *keyobj, redisDb *db);
 int prologOfLoadingFromSSDB(robj *keyobj);
 
 #if defined(__GNUC__)
