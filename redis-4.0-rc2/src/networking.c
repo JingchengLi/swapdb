@@ -834,7 +834,7 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
         for (j = 0; j < numkeys; j ++) {
             dictDelete(EVICTED_DATA_DB->visiting_ssdb_keys, c->argv[keys[j]]->ptr);
             serverLog(LL_DEBUG, "key: %s is deleted from visiting_ssdb_keys, fd: %d.",
-                      c->argv[keys[j]]->ptr, c->fd);
+                      (char *)c->argv[keys[j]]->ptr, c->fd);
         }
 
         if (keys) getKeysFreeResult(keys);

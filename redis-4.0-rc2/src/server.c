@@ -1020,7 +1020,7 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
                 listLength(server.slaves),
                 zmalloc_used_memory());
             if (server.jdjr_mode)
-                serverLog(LL_VERBOSE, "%d keys are evicting to SSDB", server.evicting_keys_num);
+                serverLog(LL_VERBOSE, "%lld keys are evicting to SSDB", server.evicting_keys_num);
         }
     }
 
@@ -1205,11 +1205,11 @@ void startToLoadIfNeeded() {
     listRewind(server.hot_keys, &li);
 
     tmp = listCreate();
-    listSetFreeMethod(tmp, freeStringObject);
+    listSetFreeMethod(tmp, (void (*)(void*))freeStringObject);
 
     while((ln = listNext(&li))) {
         robj *keyobj = (robj *)(ln->value);
-        int keyusage;
+        long long keyusage;
         dictEntry *de;
 
         if (dictFind(EVICTED_DATA_DB->transferring_keys, keyobj->ptr))
@@ -1854,7 +1854,7 @@ void initServer(void) {
     server.monitors = listCreate();
     server.clients_pending_write = listCreate();
     server.hot_keys = listCreate();
-    listSetFreeMethod(server.hot_keys, freeStringObject);
+    listSetFreeMethod(server.hot_keys, (void (*)(void*))freeStringObject);
     server.slaveseldb = -1; /* Force to emit the first SELECT command. */
     server.unblocked_clients = listCreate();
     server.ready_keys = listCreate();
@@ -2417,7 +2417,7 @@ int processCommandMaybeInSSDB(client *c) {
                 for (j = 0; j < numkeys; j ++) {
                     dictAddOrFind(EVICTED_DATA_DB->visiting_ssdb_keys, c->argv[keys[j]]->ptr);
                     serverLog(LL_DEBUG, "key: %s is added to visiting_ssdb_keys, fd: %d.",
-                              c->argv[keys[j]]->ptr, c->fd);
+                              (char *)c->argv[keys[j]]->ptr, c->fd);
                 }
 
                 if (keys) getKeysFreeResult(keys);
