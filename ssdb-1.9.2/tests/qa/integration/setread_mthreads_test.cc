@@ -78,8 +78,10 @@ void* SetReadMthreadsTest::write_thread_func(void *arg) {
             break;
     }
 
-    if(!mthreadsTest->s.ok())
+    if(!mthreadsTest->s.ok()) {
         cout<<"write fail!"<<mthreadsTest->s.code()<<endl;
+        mthreadsTest->midStateFlag = true;
+    }
 
     delete tmpclient;
     tmpclient = NULL;
@@ -421,8 +423,10 @@ TEST_F(SetReadMthreadsTest, Test_mset_get_mget_mthreads) {
     for(int n = 0; n < keysNum; n++)
     {
         client->get(key+itoa(n), &getVal);
-        if(getVal != val+itoa(n))
+        if(getVal != val+itoa(n)) {
             cout<<"not_equal:"<<key+itoa(n)<<endl;
+            break;
+        }
     }
     s = client->multi_del(keys);
     ASSERT_EQ(keysNum, list.size()/2)<<"Write fail at last:"<<list.size()/2<<endl;
@@ -469,8 +473,10 @@ TEST_F(SetReadMthreadsTest, Test_hmset_hget_hlen_hmget_mthreads) {
     for(int n = 0; n < keysNum; n++)
     {
         client->hget(key, field+itoa(n), &getVal);
-        if(getVal != val+itoa(n))
+        if(getVal != val+itoa(n)) {
             cout<<"not_equal:"<<val+itoa(n)<<endl;
+            break;
+        }
     }
     s = client->del(key);
     ASSERT_EQ(keysNum, list.size()/2)<<"Write fail at last:"<<list.size()/2<<endl;
@@ -518,8 +524,10 @@ TEST_F(SetReadMthreadsTest, Test_hmset_hexists_hgetall_mthreads) {
     for(int n = 0; n < keysNum; n++)
     {
         client->hget(key, field+itoa(n), &getVal);
-        if(getVal != val+itoa(n))
+        if(getVal != val+itoa(n)) {
             cout<<"not_equal:"<<val+itoa(n)<<endl;
+            break;
+        }
     }
     s = client->del(key);
     ASSERT_EQ(keysNum, list.size()/2)<<"Write fail at last:"<<list.size()/2<<endl;
@@ -567,8 +575,10 @@ TEST_F(SetReadMthreadsTest, Test_hmset_hkeys_mthreads) {
     for(int n = 0; n < keysNum; n++)
     {
         client->hget(key, field+itoa(n), &getVal);
-        if(getVal != val+itoa(n))
+        if(getVal != val+itoa(n)) {
             cout<<"not_equal:"<<val+itoa(n)<<endl;
+            break;
+        }
     }
     s = client->del(key);
     ASSERT_EQ(keysNum, list.size())<<"Write fail at last:"<<list.size()<<endl;
@@ -616,8 +626,10 @@ TEST_F(SetReadMthreadsTest, Test_hmset_hvals_mthreads) {
     for(int n = 0; n < keysNum; n++)
     {
         client->hget(key, field+itoa(n), &getVal);
-        if(getVal != val+itoa(n))
+        if(getVal != val+itoa(n)) {
             cout<<"not_equal:"<<val+itoa(n)<<endl;
+            break;
+        }
     }
     s = client->del(key);
     ASSERT_EQ(keysNum, list.size())<<"Write fail at last:"<<list.size()<<endl;
@@ -661,8 +673,10 @@ TEST_F(SetReadMthreadsTest, Test_rpush_lindex_llen_lrange_mthreads) {
     for(int n = 0; n < keysNum; n++)
     {
         client->qget(key, n, &getVal);
-        if(getVal != val+itoa(n))
+        if(getVal != val+itoa(n)) {
             cout<<"not_equal:"<<val+itoa(n)<<endl;
+            break;
+        }
     }
     s = client->del(key);
     ASSERT_EQ(keysNum*setThreads, list.size())<<"Write fail at last:"<<list.size()<<endl;
@@ -706,8 +720,10 @@ TEST_F(SetReadMthreadsTest, Test_lpush_lindex_llen_lrange_mthreads) {
     for(int n = 0; n < keysNum; n++)
     {
         client->qget(key, keysNum-n-1, &getVal);
-        if(getVal != val+itoa(n))
+        if(getVal != val+itoa(n)) {
             cout<<"not_equal:"<<val+itoa(n)<<endl;
+            break;
+        }
     }
     s = client->del(key);
     ASSERT_EQ(keysNum*setThreads, list.size())<<"Write fail at last:"<<list.size()<<endl;

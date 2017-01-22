@@ -63,8 +63,10 @@ void* SetDumpMthreadsTest::write_thread_func(void *arg) {
             break;
     }
 
-    if(!mthreadsTest->s.ok())
+    if(!mthreadsTest->s.ok()) {
         cout<<"write fail!"<<mthreadsTest->s.code()<<endl;
+        mthreadsTest->midStateFlag = true;
+    }
 
     delete tmpclient;
     tmpclient = NULL;
@@ -128,9 +130,9 @@ void* SetDumpMthreadsTest::read_thread_func(void *arg) {
             if(!mthreadsTest->s.ok()) {
                 cout<<"read fail!"<<mthreadsTest->s.code()<<endl;
                 mthreadsTest->midStateFlag = true;
-    }
+            }
         } else {
-            cout<<"restore key fail!"<<endl;
+            cout<<"restore key fail!"<<dumpVal.size()<<endl;
             mthreadsTest->midStateFlag = true;
         }
     } else if(!s_dump.not_found()){
