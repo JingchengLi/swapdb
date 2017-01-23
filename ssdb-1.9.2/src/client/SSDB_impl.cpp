@@ -204,6 +204,13 @@ Status ClientImpl::replic(const std::string &ip, int port) {
 	return s;
 }
 
+Status ClientImpl::replic(const std::vector<std::string> &items) {
+	const std::vector<std::string> *resp;
+	resp = this->request("replic", items);
+	Status s(resp);
+	return s;
+}
+
 Status ClientImpl::dbsize(int64_t *ret){
 	const std::vector<std::string> *resp;
 	resp = this->request("dbsize");

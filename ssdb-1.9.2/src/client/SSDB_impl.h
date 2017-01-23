@@ -29,25 +29,27 @@ public:
 	virtual Status dbsize(int64_t *ret);
 	virtual Status get_kv_range(std::string *start, std::string *end);
 	virtual Status set_kv_range(const std::string &start, const std::string &end);
-	virtual Status ttl(const std::string &name, int64_t *ret);
-	virtual Status pttl(const std::string &name, int64_t *ret);
-	virtual Status expire(const std::string &key, int64_t ttl, int64_t *ret);
-	virtual Status pexpire(const std::string &key, int64_t ttl, int64_t *ret);
+	virtual Status ttl(const std::string &name, int64_t *ret=NULL);
+	virtual Status pttl(const std::string &name, int64_t *ret=NULL);
+	virtual Status expire(const std::string &key, int64_t ttl, int64_t *ret=NULL);
+	virtual Status pexpire(const std::string &key, int64_t ttl, int64_t *ret=NULL);
     virtual Status dump(const std::string &key, std::string *val=NULL);
     virtual Status restore(const std::string &key, int64_t ttl, const std::string &data, const std::string &replace, std::string *val=NULL);
+	virtual Status exists(const std::vector<std::string> &keys, int64_t *ret=NULL);
 	virtual Status replic(const std::string &ip, int port);
+	virtual Status replic(const std::vector<std::string> &items);
 
-	virtual Status get(const std::string &key, std::string *val);
+	virtual Status get(const std::string &key, std::string *val=NULL);
 	virtual Status set(const std::string &key, const std::string &val);
 	virtual Status setnx(const std::string &key, const std::string &val, int64_t *ret=NULL);
 	virtual Status setbit(const std::string &key, int64_t bitoffset, int on);
-	virtual Status getbit(const std::string &key, int64_t bitoffset, int64_t* ret);
-	virtual Status getset(const std::string &key, const std::string &val, std::string *getVal);
+	virtual Status getbit(const std::string &key, int64_t bitoffset, int64_t* ret=NULL);
+	virtual Status getset(const std::string &key, const std::string &val, std::string *getVal=NULL);
 	virtual Status setx(const std::string &key, const std::string &val, int64_t ttl);
 	virtual Status psetx(const std::string &key, const std::string &val, int64_t ttl);
 	virtual Status del(const std::string &key);
-	virtual Status incr(const std::string &key, int64_t incrby, int64_t *ret);
-	virtual Status decr(const std::string &key, int64_t incrby, int64_t *ret);
+	virtual Status incr(const std::string &key, int64_t incrby, int64_t *ret=NULL);
+	virtual Status decr(const std::string &key, int64_t incrby, int64_t *ret=NULL);
 	virtual Status keys(const std::string &key_start, const std::string &key_end,
 		uint64_t limit, std::vector<std::string> *ret);
 	virtual Status scan(const std::string &key_start, const std::string &key_end,
@@ -60,12 +62,12 @@ public:
 	virtual Status multi_del(const std::vector<std::string> &keys, int64_t *ret_size=NULL);
 	virtual Status multi_del(const std::string key, int64_t *ret_size=NULL);
 	
-	virtual Status hget(const std::string &name, const std::string &key, std::string *val);
+	virtual Status hget(const std::string &name, const std::string &key, std::string *val=NULL);
 	virtual Status hset(const std::string &name, const std::string &key, const std::string &val);
 	virtual Status hdel(const std::string &name, const std::string &key);
-	virtual Status hincr(const std::string &name, const std::string &key, int64_t incrby, int64_t *ret);
-	virtual Status hdecr(const std::string &name, const std::string &key, int64_t incrby, int64_t *ret);
-	virtual Status hsize(const std::string &name, int64_t *ret);
+	virtual Status hincr(const std::string &name, const std::string &key, int64_t incrby, int64_t *ret=NULL);
+	virtual Status hdecr(const std::string &name, const std::string &key, int64_t incrby, int64_t *ret=NULL);
+	virtual Status hsize(const std::string &name, int64_t *ret=NULL);
 	virtual Status hclear(const std::string &name, int64_t *ret=NULL);
 	virtual Status hkeys(const std::string &name, const std::string &key_start, const std::string &key_end,
 		uint64_t limit, std::vector<std::string> *ret);

@@ -84,33 +84,35 @@ public:
 	virtual const std::vector<std::string>* request(const std::string &cmd, const std::string &s2, const std::vector<std::string> &s3) = 0;
 	/// @}
 	
-	virtual Status dbsize(int64_t *ret) = 0;
+	virtual Status dbsize(int64_t *ret=NULL) = 0;
 	virtual Status get_kv_range(std::string *start, std::string *end) = 0;
 	virtual Status set_kv_range(const std::string &start, const std::string &end) = 0;
-	virtual Status ttl(const std::string &name, int64_t *ret) = 0;
-	virtual Status pttl(const std::string &name, int64_t *ret) = 0;
-	virtual Status expire(const std::string &key, int64_t ttl, int64_t *ret) = 0;
-	virtual Status pexpire(const std::string &key, int64_t ttl, int64_t *ret) = 0;
+	virtual Status ttl(const std::string &name, int64_t *ret=NULL) = 0;
+	virtual Status pttl(const std::string &name, int64_t *ret=NULL) = 0;
+	virtual Status expire(const std::string &key, int64_t ttl, int64_t *ret=NULL) = 0;
+	virtual Status pexpire(const std::string &key, int64_t ttl, int64_t *ret=NULL) = 0;
     virtual Status dump(const std::string &key, std::string *val) = 0;
     virtual Status restore(const std::string &key, int64_t ttl, const std::string &data, const std::string &replace, std::string *val) = 0;
+	virtual Status exists(const std::vector<std::string> &keys, int64_t *ret=NULL) = 0;
 	virtual Status replic(const std::string &ip, int port) = 0;
+	virtual Status replic(const std::vector<std::string> &items) = 0;
 
 	/// @name KV methods
 	/// @{
-	virtual Status get(const std::string &key, std::string *val) = 0;
+	virtual Status get(const std::string &key, std::string *val=NULL) = 0;
 	virtual Status set(const std::string &key, const std::string &val) = 0;
-	virtual Status setnx(const std::string &key, const std::string &val, int64_t *ret) = 0;
+	virtual Status setnx(const std::string &key, const std::string &val, int64_t *ret=NULL) = 0;
 	virtual Status setbit(const std::string &key, int64_t bitoffset, int on) = 0;
-	virtual Status getbit(const std::string &key, int64_t bitoffset, int64_t* ret) = 0;
-	virtual Status getset(const std::string &key, const std::string &val, std::string *getVal) = 0;
+	virtual Status getbit(const std::string &key, int64_t bitoffset, int64_t* ret=NULL) = 0;
+	virtual Status getset(const std::string &key, const std::string &val, std::string *getVal=NULL) = 0;
 	/**
 	 * Set the value of the key, with a time to live.
 	 */
 	virtual Status setx(const std::string &key, const std::string &val, int64_t ttl) = 0;
 	virtual Status psetx(const std::string &key, const std::string &val, int64_t ttl) = 0;
 	virtual Status del(const std::string &key) = 0;
-	virtual Status incr(const std::string &key, int64_t incrby, int64_t *ret) = 0;
-	virtual Status decr(const std::string &key, int64_t incrby, int64_t *ret) = 0;
+	virtual Status incr(const std::string &key, int64_t incrby, int64_t *ret=NULL) = 0;
+	virtual Status decr(const std::string &key, int64_t incrby, int64_t *ret=NULL) = 0;
 	/**
 	 * @param key_start Empty string means no limit.
 	 * @param key_end Empty string means no limit.
@@ -146,9 +148,9 @@ public:
 	virtual Status hget(const std::string &name, const std::string &key, std::string *val) = 0;
 	virtual Status hset(const std::string &name, const std::string &key, const std::string &val) = 0;
 	virtual Status hdel(const std::string &name, const std::string &key) = 0;
-	virtual Status hincr(const std::string &name, const std::string &key, int64_t incrby, int64_t *ret) = 0;
-	virtual Status hdecr(const std::string &name, const std::string &key, int64_t incrby, int64_t *ret) = 0;
-	virtual Status hsize(const std::string &name, int64_t *ret) = 0;
+	virtual Status hincr(const std::string &name, const std::string &key, int64_t incrby, int64_t *ret=NULL) = 0;
+	virtual Status hdecr(const std::string &name, const std::string &key, int64_t incrby, int64_t *ret=NULL) = 0;
+	virtual Status hsize(const std::string &name, int64_t *ret=NULL) = 0;
 	/**
 	 * Delete all of the keys in a hashmap, return the number of keys deleted.
 	 */
@@ -159,8 +161,8 @@ public:
 	 */
 	virtual Status hkeys(const std::string &name, 
 		const std::string &key_start, const std::string &key_end,
-		uint64_t limit, std::vector<std::string> *ret) = 0;
-	virtual Status hvals(const std::string &name, 
+		uint64_t limit, std::vector<std::string> *ret=NULL) = 0;
+	virtual Status hvals(const std::string &name,
 		const std::string &key_start, const std::string &key_end,
 		uint64_t limit, std::vector<std::string> *ret) = 0;
 	/**
@@ -192,7 +194,7 @@ public:
 	virtual Status multi_hset(const std::string &name, const std::vector<std::string> &kvs) = 0;
 	virtual Status multi_hdel(const std::string &name, const std::vector<std::string> &keys, int64_t *ret_size=NULL) = 0;
 	virtual Status multi_hdel(const std::string &name, const std::string &key, int64_t *ret_size=NULL) = 0;
-	virtual Status hexists(const std::string &name, const std::string &key, int64_t *ret) = 0;
+	virtual Status hexists(const std::string &name, const std::string &key, int64_t *ret=NULL) = 0;
 	/// @}
 
 	/// @name set methods
@@ -201,23 +203,23 @@ public:
 	virtual Status sadd(const std::string &name, const std::string &item, int64_t *ret_size=NULL) = 0;
 	virtual Status srem(const std::string &name, const std::vector<std::string> &items, int64_t *ret_size=NULL) = 0;
 	virtual Status srem(const std::string &name, const std::string &item, int64_t *ret_size=NULL) = 0;
-	virtual Status scard(const std::string &name, int64_t *ret) = 0;
+	virtual Status scard(const std::string &name, int64_t *ret=NULL) = 0;
 	virtual Status smembers(const std::string &name, std::vector<std::string> *ret) = 0;
-	virtual Status sismember(const std::string &name, const std::string &key, int64_t *ret) = 0;
+	virtual Status sismember(const std::string &name, const std::string &key, int64_t *ret=NULL) = 0;
 	virtual Status sunion(const std::vector<std::string> &names, std::vector<std::string> *ret) = 0;
-	virtual Status sunionstore(const std::string &name, const std::vector<std::string> &keys, int64_t *ret) = 0;
+	virtual Status sunionstore(const std::string &name, const std::vector<std::string> &keys, int64_t *ret=NULL) = 0;
 	/// @}
 
 	/// @name Zset methods
 	/// @{
-	virtual Status zget(const std::string &name, const std::string &key, double *ret) = 0;
+	virtual Status zget(const std::string &name, const std::string &key, double *ret=NULL) = 0;
 	virtual Status zset(const std::string &name, const std::map<std::string, double> &items, int64_t *ret_size=NULL) = 0;
 	virtual Status zset(const std::string &name, const std::string &key, double score) = 0;
 	virtual Status zdel(const std::string &name, const std::vector<std::string> &items, int64_t *ret_size=NULL) = 0;
 	virtual Status zdel(const std::string &name, const std::string &key, int64_t *ret_size=NULL) = 0;
-	virtual Status zincr(const std::string &name, const std::string &key, double incrby, double *ret) = 0;
-	virtual Status zdecr(const std::string &name, const std::string &key, double incrby, double *ret) = 0;
-	virtual Status zsize(const std::string &name, int64_t *ret) = 0;
+	virtual Status zincr(const std::string &name, const std::string &key, double incrby, double *ret=NULL) = 0;
+	virtual Status zdecr(const std::string &name, const std::string &key, double incrby, double *ret=NULL) = 0;
+	virtual Status zsize(const std::string &name, int64_t *ret=NULL) = 0;
 	/**
 	 * Delete all of the keys in a zset, return the number of keys deleted.
 	 */
@@ -225,44 +227,44 @@ public:
 	/**
 	 * <b>Important! This method may be extremly SLOW!</b>
 	 */
-	virtual Status zrank(const std::string &name, const std::string &key, int64_t *ret) = 0;
+	virtual Status zrank(const std::string &name, const std::string &key, int64_t *ret=NULL) = 0;
 	/**
 	 * <b>Important! This method may be extremly SLOW!</b>
 	 */
-	virtual Status zrrank(const std::string &name, const std::string &key, int64_t *ret) = 0;
+	virtual Status zrrank(const std::string &name, const std::string &key, int64_t *ret=NULL) = 0;
 	/**
 	 * <b>Important! This method is SLOW for large offset!</b>
 	 */
 	virtual Status zrange(const std::string &name,
 		uint64_t offset, uint64_t limit,
-		std::vector<std::string> *ret) = 0;
+		std::vector<std::string> *ret=NULL) = 0;
 	/**
 	 * <b>Important! This method is SLOW for large offset!</b>
 	 */
 	virtual Status zrrange(const std::string &name,
 		uint64_t offset, uint64_t limit,
-		std::vector<std::string> *ret) = 0;
+		std::vector<std::string> *ret=NULL) = 0;
 	/**
 	 * @param score_start NULL means no limit.
 	 * @param score_end NULL means no limit.
 	 */
 	virtual Status zkeys(const std::string &name, const std::string &key_start,
 		double *score_start, double *score_end,
-		uint64_t limit, std::vector<std::string> *ret) = 0;
+		uint64_t limit, std::vector<std::string> *ret=NULL) = 0;
 	/**
 	 * Return key-score pairs.
 	 * The two elements at ret[n] and ret[n+1] form a key-score pair, n=0,2,4,...
 	 */
 	virtual Status zscan(const std::string &name, const std::string &key_start,
 		int64_t *score_start, int64_t *score_end,
-		uint64_t limit, std::vector<std::string> *ret) = 0;
+		uint64_t limit, std::vector<std::string> *ret=NULL) = 0;
 	/**
 	 * Return key-score pairs.
 	 * The two elements at ret[n] and ret[n+1] form a key-score pair, n=0,2,4,...
 	 */
 	virtual Status zrscan(const std::string &name, const std::string &key_start,
 		int64_t *score_start, int64_t *score_end,
-		uint64_t limit, std::vector<std::string> *ret) = 0;
+		uint64_t limit, std::vector<std::string> *ret=NULL) = 0;
 	/**
 	 * Return key-value pairs.
 	 * The two elements at ret[n] and ret[n+1] form a key-value pair, n=0,2,4,...
@@ -281,14 +283,14 @@ public:
 	virtual Status qpush_front(const std::string &name, const std::string &item, int64_t *ret_size=NULL) = 0;
 	virtual Status qpush_back(const std::string &name, const std::vector<std::string> &items, int64_t *ret_size=NULL) = 0;
 	virtual Status qpush_back(const std::string &name, const std::string &item, int64_t *ret_size=NULL) = 0;
-	virtual Status qpop(const std::string &name, std::string *ret) = 0;
-	virtual Status qpop(const std::string &name, int64_t limit, std::vector<std::string> *ret) = 0;
+	virtual Status qpop(const std::string &name, std::string *ret=NULL) = 0;
+	virtual Status qpop(const std::string &name, int64_t limit, std::vector<std::string> *ret=NULL) = 0;
 	virtual Status qpop_front(const std::string &name, std::string *val) = 0;
 	virtual Status qpop_back(const std::string &name, std::string *val) = 0;
-	virtual Status qpop_front(const std::string &name, int64_t limit, std::vector<std::string> *ret) = 0;
-	virtual Status qpop_back(const std::string &name, int64_t limit, std::vector<std::string> *ret) = 0;
-	virtual Status qslice(const std::string &name, int64_t begin, int64_t end, std::vector<std::string> *ret) = 0;
-	virtual Status qrange(const std::string &name, int64_t begin, int64_t limit, std::vector<std::string> *ret) = 0;
+	virtual Status qpop_front(const std::string &name, int64_t limit, std::vector<std::string> *ret=NULL) = 0;
+	virtual Status qpop_back(const std::string &name, int64_t limit, std::vector<std::string> *ret=NULL) = 0;
+	virtual Status qslice(const std::string &name, int64_t begin, int64_t end, std::vector<std::string> *ret=NULL) = 0;
+	virtual Status qrange(const std::string &name, int64_t begin, int64_t limit, std::vector<std::string> *ret=NULL) = 0;
 	virtual Status qclear(const std::string &name, int64_t *ret=NULL) = 0;
 	virtual Status qsize(const std::string &name, int64_t *ret=NULL) = 0;
 	virtual Status qset(const std::string &name, int64_t index, std::string &val) = 0;
