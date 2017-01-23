@@ -13,6 +13,7 @@ class RDBTest : public SSDBTest
 {
     public:
         ssdb::Status s;
+        static const int BIG_KEY_NUM = 10000;
         std::vector<std::string> list,getList;
         std::vector<std::string> keys;
         std::map<std::string, double> items;
@@ -21,7 +22,34 @@ class RDBTest : public SSDBTest
         uint32_t keysNum;
         double score, getScore;
         int64_t ret, ttl, counts;
+
+
+        static void* restore_thread_func(void *arg);
+        static const int threadsNum = 9;
+        pthread_t bg_tid[threadsNum];
+        string restorekey;
 };
+
+void* RDBTest::restore_thread_func(void *arg) {
+    ssdb::Status s_restore;
+    RDBTest* mthreadsTest = (RDBTest*)arg;
+    ssdb::Client *tmpclient = ssdb::Client::connect(mthreadsTest->ip.data(), mthreadsTest->port);
+    string restoreVal;
+    if(tmpclient == NULL) {
+        cout<<"fail to connect to server in read_thread_func!";
+        return (void *)NULL;
+    }
+    s_restore = tmpclient->restore(mthreadsTest->restorekey, 0, mthreadsTest->dumpVal, "replace", &restoreVal);
+    if(!s_restore.ok()) {
+        cout<<"restore key fail!"<<mthreadsTest->dumpVal.size()<<s_restore.code()<<endl;
+    } else {
+        cout<<"success!"<<endl;
+    }
+
+    delete tmpclient;
+    tmpclient = NULL;
+    return (void *)NULL;
+}
 
 TEST_F(RDBTest, Test_rdb_base_dump_restore) {
 
@@ -250,4 +278,72 @@ TEST_F(RDBTest, Test_rdb_syntax_dump_restore) {
     EXPECT_EQ("not_found",s.code())<<"dump non existing key should not found:"<<s.code()<<endl;
     EXPECT_TRUE(dumpVal.empty())<<dumpVal<<"dump non existing key return nil:"<<endl;
     client->del(key);
+}
+
+TEST_F(RDBTest, Test_rdb_big_key_dump_restore) {
+    key = "hkey";
+    string restorekey = "hrestorekey";
+    field = "field";
+    val = "val";
+    keysNum = BIG_KEY_NUM;
+    keys.clear();
+    kvs.clear();
+    for(int n = 0;n < keysNum; n++) {
+        keys.push_back(field+itoa(n));
+        kvs.insert(std::make_pair(field+itoa(n), val+itoa(n)));
+    }
+
+    client->del(key);
+    client->multi_hset(key, kvs);
+    string dumpVal, restoreVal;
+    s = client->dump(key, &dumpVal);
+    cout<<dumpVal.size()<<endl;
+    ASSERT_TRUE(s.ok())<<"dump big key fail!"<<s.code()<<endl;
+    s = client->restore(restorekey, 0, dumpVal, "replace", &restoreVal);
+    ASSERT_TRUE(s.ok())<<"restore big key fail!"<<s.code()<<endl;
+
+    s = client->multi_hget(restorekey, keys, &getList);
+
+    for(int n = 0;n < getList.size()/2; n++){
+        if(field+itoa(n)!=getList[0+2*n]||
+                val+itoa(n)!=getList[1+2*n]) {
+            cout<<n<<":"<<getList[0+2*n]<<":"<<getList[1+2*n]<<endl;
+            break;
+        }
+    }
+
+    client->multi_del(key);
+    client->multi_del(restorekey);
+}
+
+TEST_F(RDBTest, Test_rdb_big_key_mthreads_dump_restore) {
+    key = "hkey";
+    restorekey = "hrestorekey";
+    field = "field";
+    val = "val";
+    keysNum = BIG_KEY_NUM;
+    keys.clear();
+    kvs.clear();
+    for(int n = 0;n < keysNum; n++) {
+        keys.push_back(field+itoa(n));
+        kvs.insert(std::make_pair(field+itoa(n), val+itoa(n)));
+    }
+
+    client->del(key);
+    client->multi_hset(key, kvs);
+    s = client->dump(key, &dumpVal);
+    cout<<dumpVal.size()<<endl;
+    ASSERT_TRUE(s.ok())<<"dump big key fail!"<<s.code()<<endl;
+
+    for(int n = 0; n < threadsNum; n++) {
+        pthread_create(&bg_tid[n], NULL, &restore_thread_func, this);
+        usleep(1000);
+    }
+        void * status;
+    for(int n = 0; n < threadsNum; n++) {
+        pthread_join(bg_tid[n], &status);
+    }
+
+    s = client->del(key);
+    s = client->del(restorekey);
 }
