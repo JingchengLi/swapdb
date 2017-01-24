@@ -2635,7 +2635,8 @@ int processCommand(client *c) {
         && checkKeysInMediateState(c) == C_ERR)
         return C_ERR;
 
-    if (processCommandMaybeInSSDB(c) == C_OK)
+    if (server.jdjr_mode
+        && processCommandMaybeInSSDB(c) == C_OK)
         return C_OK;
 
     /* Exec the command */
