@@ -2402,8 +2402,7 @@ int processCommandMaybeInSSDB(client *c) {
         return C_ERR;
 
     serverAssert(!dictFind(c->db->dict, c->argv[1]->ptr));
-
-    if (!c->cmd) c->cmd = c->lastcmd = lookupCommand(c->argv[0]->ptr);
+    serverAssert(c->cmd);
 
     if (c->cmd->flags & (CMD_READONLY | CMD_WRITE | CMD_JDJR_MODE)) {
         robj* val = lookupKey(EVICTED_DATA_DB, c->argv[1], LOOKUP_NONE);
@@ -2628,6 +2627,16 @@ int processCommand(client *c) {
         addReply(c, shared.slowscripterr);
         return C_OK;
     }
+
+    /* Check if current cmd contains blocked keys. */
+    if (server.jdjr_mode
+        && c->argc > 1
+        && !(c->flags & CLIENT_BLOCKED_KEY_SSDB)
+        && checkKeysInMediateState(c) == C_ERR)
+        return C_ERR;
+
+    if (processCommandMaybeInSSDB(c) == C_OK)
+        return C_OK;
 
     /* Exec the command */
     if (c->flags & CLIENT_MULTI &&

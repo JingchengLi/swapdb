@@ -1475,16 +1475,15 @@ void processInputBuffer(client *c) {
 
         if (server.jdjr_mode && (c->flags & CLIENT_BLOCKED_KEY_SSDB)) {
             /* Process blocked command because of ssdb loading/transferring. */
-            c->flags &= ~CLIENT_BLOCKED_KEY_SSDB;
-
             serverAssert(c->argc > 1);
             serverLog(LL_DEBUG, "blocked client fd: %d, key: %s is processing.",
                       c->fd, (char*)c->argv[1]->ptr);
-            /* Only reset the client when the command was executed. */
-            if (server.jdjr_mode && processCommandMaybeInSSDB(c) == C_OK)
-                /* resetClient(c); */;
-            else if (processCommand(c) == C_OK)
+
+            if (processCommand(c) == C_OK)
                 resetClient(c);
+
+            c->flags &= ~CLIENT_BLOCKED_KEY_SSDB;
+
             serverLog(LL_DEBUG, "blocked client fd: %d, key: %s is finished.",
                       c->fd, (char*)c->argv[1]->ptr);
             break;
@@ -1511,17 +1510,8 @@ void processInputBuffer(client *c) {
         if (c->argc == 0) {
             resetClient(c);
         } else {
-            /* TODO: jdjr-mode current only process the first key only,
-               need to support multiple keys command. */
-            if (server.jdjr_mode
-                && c->argc > 1
-                && checkKeysInMediateState(c) == C_ERR)
-                break;
-
             /* Only reset the client when the command was executed. */
-            if (server.jdjr_mode && processCommandMaybeInSSDB(c) == C_OK)
-                /* resetClient(c); */;
-            else if (processCommand(c) == C_OK)
+            if (processCommand(c) == C_OK)
                 resetClient(c);
 
             /* freeMemoryIfNeeded may flush slave output buffers. This may result
