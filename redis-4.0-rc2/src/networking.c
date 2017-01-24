@@ -826,7 +826,7 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
 
     redisReader *r = c->context->reader;
 
-    if (c->btype & BLOCKED_VISITING_SSDB) {
+    if (c->btype == BLOCKED_VISITING_SSDB) {
         int *keys = NULL, numkeys = 0, j;
         serverAssert(c->cmd && c->argc);
 
