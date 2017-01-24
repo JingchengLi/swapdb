@@ -234,7 +234,7 @@ ELSE()
     TARGET_LINK_LIBRARIES(ssdb-server leveldb libssdb-static libutil-static libnet-static libcodec-static gflags snappy jemalloc pthread rt z bz2)
 ENDIF()
 
-ADD_EXECUTABLE(hello-ssdb ${CLIENT_OBJS})
+#ADD_EXECUTABLE(hello-ssdb ${CLIENT_OBJS})
 
 
 ADD_EXECUTABLE(test_link src/net/test_link.cpp)
