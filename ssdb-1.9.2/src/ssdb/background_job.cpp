@@ -6,6 +6,7 @@ void BackgroundJob::regType() {
 
     REG_BPROC(COMMAND_DATA_SAVE);
     REG_BPROC(COMMAND_DATA_DUMP);
+    REG_BPROC(COMMAND_SYNC_PREPARE1);
 
 }
 
