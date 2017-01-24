@@ -2637,7 +2637,7 @@ int processCommand(client *c) {
 
     if (server.jdjr_mode
         && processCommandMaybeInSSDB(c) == C_OK)
-        return C_OK;
+        return C_ERR;
 
     /* Exec the command */
     if (c->flags & CLIENT_MULTI &&

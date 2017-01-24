@@ -462,7 +462,7 @@ int epilogOfEvictingToSSDB(robj *keyobj) {
     char llbuf[32] = {0};
     redisDb *evicteddb = server.db + EVICTED_DATA_DBID, *db;
     mstime_t eviction_latency;
-    robj *setcmd;
+    robj *setcmd, *usage_obj;
     sds cmdname;
     dictEntry *de;
     long long now = mstime(), expiretime;
@@ -489,7 +489,8 @@ int epilogOfEvictingToSSDB(robj *keyobj) {
 
     de = dictFind(db->dict, keyobj->ptr);
     usage = (long long)estimateKeyMemoryUsage(de);
-    setKey(evicteddb, keyobj, createStringObjectFromLongLong(usage));
+    usage_obj = createStringObjectFromLongLong(usage);
+    setKey(evicteddb, keyobj, usage_obj);
     server.dirty ++;
 
     notifyKeyspaceEvent(NOTIFY_STRING,"set",keyobj,evicteddb->id);
@@ -497,7 +498,7 @@ int epilogOfEvictingToSSDB(robj *keyobj) {
     /* Append set operation to aof. */
     cmdname = sdsnew("set");
     setcmd = createObject(OBJ_STRING, (void *)cmdname);
-    robj *setargv[3] = {setcmd, keyobj, shared.space};
+    robj *setargv[3] = {setcmd, keyobj, usage_obj};
 
     propagate(lookupCommand(cmdname), EVICTED_DATA_DBID, setargv, 3,
               PROPAGATE_AOF | PROPAGATE_REPL);
