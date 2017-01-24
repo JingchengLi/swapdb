@@ -123,9 +123,8 @@ int SSDBImpl::flushdb(){
 	leveldb::ReadOptions iterate_options;
 	iterate_options.fill_cache = false;
 	leveldb::WriteOptions write_opts;
-	write_opts.disableWAL = true;
-
 	leveldb::Iterator *it;
+
 	it = ldb->NewIterator(iterate_options);
 	it->SeekToFirst();
 
