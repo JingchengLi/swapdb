@@ -4679,6 +4679,24 @@ void dumptossdbCommand(client *c) {
     addReply(c,shared.ok);
 }
 
+void locatekeyCommand(client *c) {
+    char *replyString;
+
+    if (!server.jdjr_mode) {
+        addReplyErrorFormat(c,"Command only supported in jdjr-mode '%s'",
+                            (char*)c->argv[0]->ptr);
+        return;
+    }
+
+    serverAssert(c->argc == 2);
+
+    replyString = lookupKey(EVICTED_DATA_DB, c->argv[1], LOOKUP_NONE)
+        ? "ssdb" : (lookupKey(c->db, c->argv[1], LOOKUP_NONE)
+                    ? "redis" : "none");
+
+    addReplyBulk(c, createStringObject(replyString, strlen(replyString)));
+}
+
 void restorefromssdbCommand(client *c) {
     dictEntry *de;
 

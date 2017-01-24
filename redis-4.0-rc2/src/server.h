@@ -1991,6 +1991,7 @@ void securityWarningCommand(client *c);
 void customizedDelCommand(client *c);
 void customizedRestoreCommand(client *c);
 void dumptossdbCommand(client *c);
+void locatekeyCommand(client *c);
 void restorefromssdbCommand(client *c);
 int prologOfEvictingToSSDB(robj *keyobj, redisDb *db);
 int prologOfLoadingFromSSDB(robj *keyobj);
