@@ -4681,6 +4681,7 @@ void dumptossdbCommand(client *c) {
 
 void locatekeyCommand(client *c) {
     char *replyString;
+    robj *replyObj;
 
     if (!server.jdjr_mode) {
         addReplyErrorFormat(c,"Command only supported in jdjr-mode '%s'",
@@ -4694,7 +4695,9 @@ void locatekeyCommand(client *c) {
         ? "ssdb" : (lookupKey(c->db, c->argv[1], LOOKUP_NONE)
                     ? "redis" : "none");
 
-    addReplyBulk(c, createStringObject(replyString, strlen(replyString)));
+    replyObj = createStringObject(replyString, strlen(replyString));
+    addReplyBulk(c, replyObj);
+    decrRefCount(replyObj);
 }
 
 void restorefromssdbCommand(client *c) {
