@@ -69,6 +69,7 @@ public:
 								   const leveldb::Snapshot *snapshot=nullptr);
 	virtual const leveldb::Snapshot* GetSnapshot();
 	virtual void ReleaseSnapshot(const leveldb::Snapshot* snapshot=nullptr);
+	virtual const leveldb::Snapshot* GetSnapshot();
 
 	//void flushdb();
 	virtual uint64_t size();

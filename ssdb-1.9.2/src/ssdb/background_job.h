@@ -22,10 +22,12 @@ class SSDBServer;
 
 #define COMMAND_DATA_SAVE 1
 #define COMMAND_DATA_DUMP 2
+#define COMMAND_SYNC_PREPARE1 2
 
 DEF_BPROC(COMMAND_DATA_SAVE);
-
 DEF_BPROC(COMMAND_DATA_DUMP);
+DEF_BPROC(COMMAND_SYNC_PREPARE1);
+
 
 typedef int (*bproc_t)(SSDBServer *serv, const std::string &data_key, void *value);
 

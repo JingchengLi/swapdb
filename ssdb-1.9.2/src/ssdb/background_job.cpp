@@ -227,3 +227,41 @@ int bproc_COMMAND_DATA_DUMP(SSDBServer *serv, const std::string &data_key, void 
 
 
 }
+
+int bproc_COMMAND_SYNC_PREPARE1(SSDBServer *serv, const std::string &data_key, void *value) {
+
+    Link *link = serv->redisUpstream->getLink();
+
+//    Link *link = serv->redisUpstream->getTmpLink();
+//    auto tl = unique_ptr<Link>(link);
+
+    if (link == nullptr) {
+        log_error("link is null");
+        return -1;
+    }
+
+    std::vector<std::string> req;
+    req.push_back("customized-sync1");
+    req.push_back("done");
+
+    log_debug("[request2redis] : customized-sync1");
+
+    PTST(redisRequest, 0.01);
+    auto t_res = link->redisRequest(req);
+    PTE(redisRequest, "customized-sync1");
+
+    if (t_res == nullptr) {
+        log_error("t_res is null");
+        serv->redisUpstream->reset();
+        return -1;
+
+    }
+    std::string res = t_res->toString();
+    log_debug("[response2redis] : %s", hexstr<std::string>(res).c_str());
+
+    delete t_res;
+
+    return 0;
+
+
+}

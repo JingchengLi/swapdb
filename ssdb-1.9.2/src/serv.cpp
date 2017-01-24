@@ -134,6 +134,8 @@ DEF_PROC(sync150);
 
 DEF_PROC(rr_dump);
 DEF_PROC(rr_restore);
+DEF_PROC(rr_prepare1);
+DEF_PROC(rr_prepare2);
 
 
 #define REG_PROC(c, f)     net->proc_map.set_proc(#c, f, proc_##c)
@@ -248,6 +250,8 @@ void SSDBServer::reg_procs(NetworkServer *net){
 	REG_PROC(restore, "wt");
 	REG_PROC(rr_dump, "wt"); //auctual read but ...
 	REG_PROC(rr_restore, "wt");
+	REG_PROC(rr_prepare1, "wt");
+	REG_PROC(rr_prepare2, "wt");
 
 	REG_PROC(select, "rt");
 	REG_PROC(client, "r");
@@ -506,6 +510,32 @@ int proc_rr_dump(NetworkServer *net, Link *link, const Request &req, Response *r
 
     BTask bTask(COMMAND_DATA_DUMP, req[1].String());
     serv->bqueue.push1st(bTask);
+
+	std::string val = "OK";
+	resp->reply_get(1, &val);
+	return 0;
+}
+
+int proc_rr_prepare1(NetworkServer *net, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *)net->data;
+	CHECK_NUM_PARAMS(1);
+
+	BTask bTask(COMMAND_SYNC_PREPARE1, "");
+	serv->bqueue.push(bTask);
+
+	std::string val = "OK";
+	resp->reply_get(1, &val);
+	return 0;
+}
+
+int proc_rr_prepare2(NetworkServer *net, Link *link, const Request &req, Response *resp) {
+	SSDBServer *serv = (SSDBServer *)net->data;
+	CHECK_NUM_PARAMS(1);
+
+
+
+//	const leveldb::Snapshot* sp = serv->ssdb->GetSnapshot();
+
 
 	std::string val = "OK";
 	resp->reply_get(1, &val);
