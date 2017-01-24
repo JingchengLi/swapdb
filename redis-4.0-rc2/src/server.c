@@ -2633,10 +2633,13 @@ int processCommand(client *c) {
         && c->argc > 1
         && !(c->flags & CLIENT_BLOCKED_KEY_SSDB)
         && checkKeysInMediateState(c) == C_ERR)
+        /* Return C_ERR to keep client info for delayed handling. */
         return C_ERR;
 
     if (server.jdjr_mode
         && processCommandMaybeInSSDB(c) == C_OK)
+        /* Return C_ERR to avoid calling resetClient,
+           the resetClient is delayed to ssdbClientUnixHandler. */
         return C_ERR;
 
     /* Exec the command */
