@@ -9,9 +9,6 @@ INCLUDE_DIRECTORIES(
     include
     )
 
-#LINK_DIRECTORIES(
-#    ${BUILD_PATH}/src
-#    )
 add_subdirectory(${BUILD_PATH}/tests/gtest_1.7.0 gtest)
 ADD_DEFINITIONS(-DGTESTING)
 AUX_SOURCE_DIRECTORY(. GTEST_SRC)
@@ -43,8 +40,28 @@ set_target_properties(libssdb-client-static PROPERTIES
     LINKER_LANGUAGE CXX
     OUTPUT_NAME "ssdb-client")
 
-ADD_EXECUTABLE(integ-test
-    ${GTEST_SRC}
-    )
+# src/util
+# libutil.a
 
-TARGET_LINK_LIBRARIES(integ-test gtest libssdb-client-static) 
+SET( UTIL_OBJS
+    ${BUILD_PATH}/src/util/log.cpp
+    ${BUILD_PATH}/src/util/config.cpp
+    ${BUILD_PATH}/src/util/bytes.cpp
+    #${BUILD_PATH}/src/util/sorted_set.cpp
+    ${BUILD_PATH}/src/util/app.cpp
+    ${BUILD_PATH}/src/util/thread.cpp
+)
+
+ADD_LIBRARY(libutil-static STATIC ${UTIL_OBJS})
+ADD_LIBRARY(libutil-shared SHARED ${UTIL_OBJS})
+set_target_properties(libutil-static PROPERTIES
+    LINKER_LANGUAGE CXX
+    OUTPUT_NAME "util")
+set_target_properties(libutil-shared PROPERTIES
+    LINKER_LANGUAGE CXX
+    OUTPUT_NAME "util")
+
+ADD_EXECUTABLE(integ-test
+    ${GTEST_SRC})
+
+TARGET_LINK_LIBRARIES(integ-test gtest libssdb-client-static libutil-static)
