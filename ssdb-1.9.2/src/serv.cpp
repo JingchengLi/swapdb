@@ -284,6 +284,8 @@ SSDBServer::SSDBServer(SSDB *ssdb, SSDB *meta, const Config &conf, NetworkServer
 	backend_sync = new BackendSync(this->ssdb, sync_speed);
 	expiration = new ExpirationHandler(this->ssdb);
 
+	master_link = NULL;
+	snapshot = nullptr;
 
 	{
 		const Config *upstream_conf = conf.get("upstream");
@@ -668,7 +670,7 @@ void* thread_replic(void *arg){
 		it->link->response();
 	}
 
-	const leveldb::Snapshot *snapshot = nullptr;
+	const leveldb::Snapshot *snapshot = serv->snapshot;
 	auto fit = std::unique_ptr<Iterator>(serv->ssdb->iterator("", "", -1, snapshot));
 	while (fit->next()) {
 		std::string key = fit->key().String();
@@ -731,7 +733,7 @@ int proc_replic(NetworkServer *net, Link *link, const Request &req, Response *re
 		serv->slave_infos.push_back(Slave_info{ip, port, NULL});
 	}
     serv->master_link = link;
-
+	serv->snapshot = serv->ssdb->GetSnapshot();
 //	breplication = true; //todo 设置全量复制开始标志
 
 	pthread_t tid;

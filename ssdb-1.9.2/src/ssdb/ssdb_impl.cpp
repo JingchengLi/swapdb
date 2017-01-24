@@ -190,6 +190,13 @@ Iterator* SSDBImpl::rev_iterator(const std::string &start, const std::string &en
 	return new Iterator(it, end, limit, Iterator::BACKWARD, iterate_options.snapshot);
 }
 
+const leveldb::Snapshot* SSDBImpl::GetSnapshot() {
+    if (ldb) {
+        return ldb->GetSnapshot();
+    }
+    return nullptr;
+}
+
 void SSDBImpl::ReleaseSnapshot(const leveldb::Snapshot* snapshot) {
 	if (snapshot != nullptr) {
 		ldb->ReleaseSnapshot(snapshot);

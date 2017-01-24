@@ -67,6 +67,7 @@ public:
 							   const leveldb::Snapshot *snapshot=nullptr);
 	virtual Iterator* rev_iterator(const std::string &start, const std::string &end, uint64_t limit,
 								   const leveldb::Snapshot *snapshot=nullptr);
+	virtual const leveldb::Snapshot* GetSnapshot();
 	virtual void ReleaseSnapshot(const leveldb::Snapshot* snapshot=nullptr);
 
 	//void flushdb();

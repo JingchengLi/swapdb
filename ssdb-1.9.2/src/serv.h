@@ -48,6 +48,7 @@ public:
 	std::vector<Slave *> slaves;
 	std::vector<Slave_info> slave_infos;
 	Link*	master_link;
+	const leveldb::Snapshot* snapshot;
 
 	SSDBServer(SSDB *ssdb, SSDB *meta, const Config &conf, NetworkServer *net);
 	~SSDBServer();
