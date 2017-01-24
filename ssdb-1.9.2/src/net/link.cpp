@@ -15,6 +15,7 @@ found in the LICENSE file.
 #include "link.h"
 
 #include "link_redis.cpp"
+#include "redis/rdb.h"
 
 #define INIT_BUFFER_SIZE  1024
 #define BEST_BUFFER_SIZE  (8 * 1024)
@@ -36,6 +37,7 @@ Link::Link(bool is_server) {
     } else {
         input = new Buffer(INIT_BUFFER_SIZE);
         output = new Buffer(INIT_BUFFER_SIZE);
+        input_buffer = new Buffer(INIT_BUFFER_SIZE);
     }
 }
 
@@ -48,6 +50,9 @@ Link::~Link() {
     }
     if (output) {
         delete output;
+    }
+    if (input_buffer) {
+        delete input_buffer;
     }
     this->close();
 }
@@ -256,11 +261,6 @@ int Link::read() {
         input->shrink(BEST_BUFFER_SIZE);
     }
 
-    int64_t nread;
-    ioctl(sock, FIONREAD, &nread);
-    if (nread > input->space()) {
-        input->shrink(nread);
-    }
     while ((want = input->space()) > 0) {
         // test
         //want = 1;
@@ -447,6 +447,90 @@ const std::vector<Bytes> *Link::recv() {
     // not ready
     this->recv_data.clear();
     return &this->recv_data;
+}
+
+static int ssdb_load_len(const char *data, int *offset, uint64_t *lenptr){
+    unsigned char buf[2];
+    buf[0] = (unsigned char)data[0];
+    buf[1] = (unsigned char)data[1];
+    int type;
+    type = (buf[0]&0xC0)>>6;
+    if (type == RDB_ENCVAL) {
+        /* Read a 6 bit encoding type. */
+        *lenptr = buf[0]&0x3F;
+        *offset = 1;
+    } else if (type == RDB_6BITLEN) {
+        /* Read a 6 bit len. */
+        *lenptr = buf[0]&0x3F;
+        *offset = 1;
+    } else if (type == RDB_14BITLEN) {
+        /* Read a 14 bit len. */
+        *lenptr = ((buf[0]&0x3F)<<8)|buf[1];
+        *offset = 2;
+    } else if (buf[0] == RDB_32BITLEN) {
+        /* Read a 32 bit len. */
+        uint32_t len;
+        len = *(uint32_t*)(data+1);
+        *lenptr = be32toh(len);
+        *offset = 1 + sizeof(uint32_t);
+    } else if (buf[0] == RDB_64BITLEN) {
+        /* Read a 64 bit len. */
+        uint64_t len;
+        len = *(uint64_t*)(data+1);
+        *lenptr = be64toh(len);
+        *offset = 1 + sizeof(uint64_t);
+    } else {
+        printf("Unknown length encoding %d in rdbLoadLen()",type);
+        return -1; /* Never reached. */
+    }
+    return 0;
+}
+
+int Link::parse_sync_data() {
+    input_buffer->nice();
+    if (input_buffer->size() == 0 && input_buffer->total() > BEST_BUFFER_SIZE) {
+        input_buffer->shrink(BEST_BUFFER_SIZE);
+    }
+    if (input_buffer->space() < input->size()) {
+        input_buffer->grow();
+    }
+    if (input_buffer->space() < input->size()) {
+        memcpy(input_buffer->slot(), input->data(), input_buffer->space());
+        input_buffer->incr(input_buffer->space());
+        input->decr(input_buffer->space());
+    } else{
+        memcpy(input_buffer->slot(), input->data(), input->size());
+        input_buffer->incr(input->size());
+        input->decr(input->size());
+    }
+
+    while (input_buffer->size() > 0){
+        int key_offset = 0, val_offset = 0;
+        uint64_t key_len = 0, val_len = 0;
+        if (ssdb_load_len(input_buffer->data(), &key_offset, &key_len) == -1){
+            return -1;
+        }
+        if (input_buffer->size() < (int)key_len){
+            break;
+        }
+        std::string key;
+        key.append(input_buffer->data()+key_offset, key_len);
+        input_buffer->decr(key_offset + (int)key_len);
+
+        if (ssdb_load_len(input_buffer->data(), &val_offset, &val_len) == -1){
+            return -1;
+        }
+        if (input_buffer->size() < (int)val_len){
+            input_buffer->incr(key_offset + (int)key_len);
+            break;
+        }
+        std::string value;
+        value.append(input_buffer->data()+val_offset, val_len);
+        input_buffer->decr(val_offset + (int)val_len);
+        sync_data.push_back(key);
+        sync_data.push_back(value);
+    }
+    return 0;
 }
 
 int Link::send(const std::vector<std::string> &resp) {

@@ -298,10 +298,16 @@ void NetworkServer::serve(){
                     delete link;
                     continue;
                 }
-
-				proc_t p = cmd->proc;
-				const Request req;
-				int result = (*p)(this, link, req, NULL);
+				int ret = link->parse_sync_data();
+				if (ret == -1){
+					log_fatal("parse sync data error!");
+					exit(0);
+				}
+                if (link->sync_data.size() > 0) {
+                    proc_t p = cmd->proc;
+                    const Request req;
+                    int result = (*p)(this, link, req, NULL);
+                }
             } else{
 				proc_client_event(fde, &ready_list);
 			}

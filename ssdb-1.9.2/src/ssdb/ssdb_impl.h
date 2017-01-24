@@ -69,7 +69,6 @@ public:
 								   const leveldb::Snapshot *snapshot=nullptr);
 	virtual const leveldb::Snapshot* GetSnapshot();
 	virtual void ReleaseSnapshot(const leveldb::Snapshot* snapshot=nullptr);
-	virtual const leveldb::Snapshot* GetSnapshot();
 
 	//void flushdb();
 	virtual uint64_t size();
@@ -87,7 +86,8 @@ public:
 	virtual int type(const Bytes &key, std::string *type);
 	virtual int dump(const Bytes &key, std::string *res);
     virtual int restore(const Bytes &key, int64_t expire, const Bytes &data, bool replace, std::string *res);
-	virtual int parse_replic(const char* data, int& size);
+	virtual int exists(const Bytes &key);
+	virtual int parse_replic(const std::vector<std::string> &kvs);
 
 	/* key value */
 

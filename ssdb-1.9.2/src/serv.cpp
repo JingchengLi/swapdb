@@ -779,11 +779,10 @@ int proc_replic(NetworkServer *net, Link *link, const Request &req, Response *re
 int proc_sync150(NetworkServer *net, Link *link, const Request &req, Response *resp) {
 	SSDBServer *serv = (SSDBServer *)net->data;
 
-	int size = link->input->size();
-	int orgi_size = size;
-	char *head = link->input->data();
-    int ret = serv->ssdb->parse_replic(head, size);
-	link->input->decr(orgi_size - size);
+    int ret = serv->ssdb->parse_replic(link->sync_data);
+	if (ret != -1){
+		link->sync_data.clear();
+	}
 
     std::vector<std::string> request;
     request.push_back(std::string("ok"));

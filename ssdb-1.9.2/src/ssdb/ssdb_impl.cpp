@@ -203,11 +203,6 @@ void SSDBImpl::ReleaseSnapshot(const leveldb::Snapshot* snapshot) {
 	}
 }
 
-const leveldb::Snapshot* SSDBImpl::GetSnapshot() {
-	return ldb->GetSnapshot();
-}
-
-
 /* raw operates */
 
 int SSDBImpl::raw_set(const Bytes &key, const Bytes &val){

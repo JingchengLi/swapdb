@@ -93,6 +93,10 @@ class Link{
 			return &recv_data;
 		}
 
+		Buffer	*input_buffer;
+		std::vector<std::string> sync_data;
+		int parse_sync_data();
+
 		/** these methods will send a request to the server, and wait until a response received.
 		 * @return
 		 * NULL: error
