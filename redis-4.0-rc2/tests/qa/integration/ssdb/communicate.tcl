@@ -31,46 +31,56 @@ start_server {tags {"ssdb"}} {
         #redis should have some flag/status to check this
     }
 
-    test "Cold key only store in ssdb" {
+    test "Hot key only store in redis" {
         $redis del foo
-        #TODO make sure key only in ssdb
         
-        $ssdb set foo bar
+        $redis set foo bar
+        list [$redis locatekey foo] [ $ssdb get foo ] [ $redis get foo ] 
+    } {redis {} bar}
 
+    test "Key(become cold) move from redis to ssdb" {
+        $redis dumptossdb foo
         $redis bgsave
         set nossdbpid [exec ../../../src/redis-server $nossdbcfgfile &]
         after 1000
         set redis_no_ssdb [redis 127.0.0.1 6389]
-        list [ $redis_no_ssdb get foo ] [ $redis get foo ]
-    } {{} bar}
+        list [$redis locatekey foo] [ $redis_no_ssdb get foo ] [ $ssdb get foo ]
+    } {ssdb {} bar}
 
     test "Redis can read key stored in ssdb" {
         $redis get foo
     } {bar}
 
     test "GET Key(become hot) move from ssdb to redis" {
-        $ssdb get foo
-    } {}
+        list [$redis locatekey foo] [ $ssdb get foo ]
+    } {redis {}}
 
-    test "ToDo Key(become cold) move from redis to ssdb" {
-        # TODO
-        $ssdb get foo
-    } {bar}
+    test "Key(become cold) move from redis to ssdb" {
+        $redis dumptossdb foo
+        list [$redis locatekey foo] [ $ssdb get foo ]
+    } {ssdb bar}
 
     test "SET Key(become hot) move from ssdb to redis" {
         $redis set foo bar1
         list [$ssdb get foo] [$redis get foo]
     } {{} bar1}
 
-    test "ToDo2 Key(become cold) move from redis to ssdb" {
+    test "Redis can DEL key loaded from ssdb to redis" {
+        $redis del foo
+        list [$redis locatekey foo] [$redis get foo] [$ssdb get foo]
+    } {none {} {}}
+
+    test "Key(become cold) move from redis to ssdb" {
         # TODO
-        $ssdb get foo
-    } {bar}
+        $redis set foo bar
+        $redis dumptossdb foo
+        list [$redis locatekey foo] [ $ssdb get foo ]
+    } {ssdb bar}
 
     test "Redis can DEL key stored in ssdb" {
         $redis del foo
-        list [$redis get foo] [$ssdb get foo]
-    } {{} {}}
+        list [$redis locatekey foo] [$redis get foo] [$ssdb get foo]
+    } {none {} {}}
 
     test "SET new key(Hot key) not store in ssdb" {
         $redis set foo bar
