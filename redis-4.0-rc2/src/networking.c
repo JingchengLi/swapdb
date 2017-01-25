@@ -864,6 +864,8 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
     } while (aux == NULL);
 
     reply = (redisReply *)aux;
+    /* todo: process error reply for RR_DUMP/RR_RESTORE key and remove the key
+       from transferring/loading dict. */
     if (reply->type == REDIS_REPLY_ERROR)
         serverLog(LL_WARNING, "Reply from SSDB is ERROR.");
 
