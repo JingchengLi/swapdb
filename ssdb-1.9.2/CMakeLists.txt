@@ -240,3 +240,7 @@ ENDIF()
 ADD_EXECUTABLE(test_link src/net/test_link.cpp)
 TARGET_LINK_LIBRARIES(test_link libnet-static libutil-static libcodec-static)
 
+
+IF(QA)
+add_subdirectory(tests/qa/fake)
+ENDIF()
