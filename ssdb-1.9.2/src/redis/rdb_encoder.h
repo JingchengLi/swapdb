@@ -11,12 +11,6 @@
 #include <util/strings.h>
 #include "rdb.h"
 
-extern "C" {
-#include "lzf.h"
-#include "crc64.h"
-#include "endianconv.h"
-};
-
 class RdbEncoder {
 public:
     void encodeHeader() {

@@ -6,6 +6,14 @@
 #include <cstring>
 #include "rdb_encoder.h"
 
+extern "C" {
+#include "lzf.h"
+#include "crc64.h"
+#include "endianconv.h"
+#include "zmalloc.h"
+};
+
+
 void RdbEncoder::encodeFooter() {
 
     unsigned char buf[2];
@@ -189,7 +197,7 @@ int64_t RdbEncoder::rdbSaveLzfStringObject(const std::string &string) {
     /* We require at least four bytes compression for this to be worth it */
     if (len <= 4) return 0;
     outlen = len - 4;
-    if ((out = malloc(outlen + 1)) == NULL) return 0;
+    if ((out = zmalloc(outlen + 1)) == NULL) return 0;
     comprlen = lzf_compress(string.data(), len, out, outlen);
     if (comprlen == 0) {
         free(out);
@@ -197,7 +205,7 @@ int64_t RdbEncoder::rdbSaveLzfStringObject(const std::string &string) {
     }
 
     int64_t nwritten = rdbSaveLzfBlob(out, comprlen, len);
-    free(out);
+    zfree(out);
     return nwritten;
 }
 
