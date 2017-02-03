@@ -521,7 +521,7 @@ int Link::parse_sync_data() {
             return -1;
         }
         if (input_buffer->size() < (int)val_len){
-            input_buffer->incr(key_offset + (int)key_len);
+            input_buffer->rdec(key_offset + (int)key_len);
             break;
         }
         std::string value;

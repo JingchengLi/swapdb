@@ -169,6 +169,11 @@ class Buffer{
 			data_ += num;
 		}
 
+        void rdec(int num){
+            size_ += num;
+            data_ -= num;
+        }
+
 		// 保证不改变后半段的数据, 以便使已生成的 Bytes 不失效.
 		void nice();
 		// 扩大缓冲区
