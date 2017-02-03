@@ -634,6 +634,7 @@ int sendCommandToSSDB(client *c, sds finalcmd) {
     char *cmd = NULL;
     int i, len, nwritten;
     struct redisCommand *cmdinfo = NULL;
+    sds dupcmd = NULL;
 
     if (!finalcmd) {
         cmdinfo = lookupCommand(c->argv[0]->ptr);
@@ -671,6 +672,8 @@ int sendCommandToSSDB(client *c, sds finalcmd) {
           return C_ERR;
      }
 
+     dupcmd = sdsdup(finalcmd);
+
      while (finalcmd && sdslen(finalcmd) > 0) {
          nwritten = write(c->context->fd, finalcmd, sdslen(finalcmd));
          if (nwritten == -1) {
@@ -691,6 +694,10 @@ int sendCommandToSSDB(client *c, sds finalcmd) {
                     }
                }
           }
+
+     /* TODO: call feedReplicationBacklog before finalcmd is consumed. */
+     if (server.repl_backlog) feedReplicationBacklog((void *)dupcmd, sdslen(dupcmd));
+     sdsfree(dupcmd);
 
      return C_OK;
 }
