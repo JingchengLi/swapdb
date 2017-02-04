@@ -301,6 +301,8 @@ struct redisCommand redisCommandTable[] = {
     {"post",securityWarningCommand,-1,"lt",0,NULL,0,0,0,0,0},
     {"host:",securityWarningCommand,-1,"lt",0,NULL,0,0,0,0,0},
     {"latency",latencyCommand,-2,"aslt",0,NULL,0,0,0,0,0},
+
+    /* Interfaces called by SSDB. */
     {"customized-del",customizedDelCommand,-2,"w",0,NULL,1,-1,1,0,0},
     {"customized-restore",customizedRestoreCommand,-4,"wm",0,NULL,1,1,1,0,0},
 
@@ -2429,19 +2431,23 @@ int processCommandMaybeInSSDB(client *c) {
                 blockClient(c, BLOCKED_VISITING_SSDB);
             }
 
-            serverAssert(server.maxmemory_policy & MAXMEMORY_FLAG_LFU);
-
             /* TODO: temporary code. Using the distribute of lfu counter to
-                determine if the key is to load to redis. */
-            int counter = val->lru & 255;
+               determine if the key is to load to redis. */
+            {
+                if (c->cmd->proc == delCommand) return C_OK;
 
-            if (counter > LFU_INIT_VAL - 2) {
-                listAddNodeHead(server.hot_keys, dupStringObject(c->argv[1]));
-                serverLog(LL_DEBUG, "key: %s is added to server.hot_keys, client fd: %d.",
-                          (char *)c->argv[1]->ptr, c->fd);
+                serverAssert(server.maxmemory_policy & MAXMEMORY_FLAG_LFU);
+
+                int counter = val->lru & 255;
+
+                if (counter > LFU_INIT_VAL - 2) {
+                    listAddNodeHead(server.hot_keys, dupStringObject(c->argv[1]));
+                    serverLog(LL_DEBUG, "key: %s is added to server.hot_keys, client fd: %d.",
+                              (char *)c->argv[1]->ptr, c->fd);
+                }
+                return C_OK;
             }
 
-            return C_OK;
         }
     }
 

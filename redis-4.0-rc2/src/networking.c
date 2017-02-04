@@ -824,6 +824,7 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
     void *aux = NULL;
     redisReply *reply = NULL;
     int ssdb_client_fd = -1;
+    int j;
 
     if (server.ssdb_client) ssdb_client_fd = server.ssdb_client->fd;
 
@@ -833,6 +834,42 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
 
     redisReader *r = c->context->reader;
 
+    /* TODO: Considering redis pipeline. */
+    do {
+        int oldlen = r->len;
+        if (redisBufferRead(c->context) == REDIS_OK
+            && fd != ssdb_client_fd)
+            addReplyString(c, r->buf + oldlen, r->len - oldlen);
+
+        /* Return early when the context has seen an error. */
+        if (c->context->err) {
+            serverLog(LL_WARNING, "Redis Client has an error.");
+            break;
+        }
+
+        if (redisGetReplyFromReader(c->context, &aux) == REDIS_ERR)
+            break;
+    } while (aux == NULL);
+
+    reply = (redisReply *)aux;
+
+    /* TODO: process error reply for RR_DUMP/RR_RESTORE key and remove the key
+       from transferring/loading dict. */
+    if (reply && reply->type == REDIS_REPLY_ERROR)
+        serverLog(LL_WARNING, "Reply from SSDB is ERROR.");
+
+    if (reply) freeReplyObject(reply);
+
+    /* Maintain the EVICTED_DATA_DB. */
+    if (c->cmd && (c->cmd->proc == delCommand)) {
+        if (c->btype != BLOCKED_VISITING_SSDB)
+            serverLog(LL_WARNING, "Client btype should be 'BLOCKED_VISITING_SSDB'");
+
+        for (j = 1; j < c->argc; j ++)
+            dictDelete(EVICTED_DATA_DB->dict, c->argv[j]->ptr);
+    }
+
+    /* Unblock the current client. */
     if (c->btype == BLOCKED_VISITING_SSDB) {
         int *keys = NULL, numkeys = 0, j;
         serverAssert(c->cmd && c->argc);
@@ -852,31 +889,6 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
         c->btype = BLOCKED_VISITING_SSDB_TIMEOUT;
         resetClient(c);
     }
-
-    /* TODO: Considering redis pipeline. */
-    do {
-        int oldlen = r->len;
-        if (redisBufferRead(c->context) == REDIS_OK
-            && fd != ssdb_client_fd)
-            addReplyString(c, r->buf + oldlen, r->len - oldlen);
-
-        /* Return early when the context has seen an error. */
-        if (c->context->err) {
-            serverLog(LL_WARNING, "Redis Client has an error.");
-            return;
-        }
-
-        if (redisGetReplyFromReader(c->context, &aux) == REDIS_ERR)
-            break;
-    } while (aux == NULL);
-
-    reply = (redisReply *)aux;
-    /* todo: process error reply for RR_DUMP/RR_RESTORE key and remove the key
-       from transferring/loading dict. */
-    if (reply->type == REDIS_REPLY_ERROR)
-        serverLog(LL_WARNING, "Reply from SSDB is ERROR.");
-
-    if (reply) freeReplyObject(reply);
 }
 
 /* Create a client for evciting data to SSDB. */
