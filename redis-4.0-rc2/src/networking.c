@@ -834,7 +834,6 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
 
     redisReader *r = c->context->reader;
 
-    /* TODO: Considering redis pipeline. */
     do {
         int oldlen = r->len;
         if (redisBufferRead(c->context) == REDIS_OK
