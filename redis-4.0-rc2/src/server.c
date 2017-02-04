@@ -2435,6 +2435,8 @@ int processCommandMaybeInSSDB(client *c) {
             /* TODO: temporary code. Using the distribute of lfu counter to
                determine if the key is to load to redis. */
             {
+                if (!server.load_from_ssdb) return C_OK;
+
                 if (c->cmd->proc == delCommand) return C_OK;
 
                 serverAssert(server.maxmemory_policy & MAXMEMORY_FLAG_LFU);
