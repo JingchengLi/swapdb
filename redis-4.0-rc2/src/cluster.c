@@ -4633,9 +4633,12 @@ void customizedRestoreCommand(client *c) {
 
     /* Delete key from EVICTED_DATA_DB if restoreCommand is OK. */
     if (server.dirty == old_dirty + 1) {
-        serverAssertWithInfo(c, key, dictDelete(EVICTED_DATA_DB->loading_hot_keys,
-                                                key->ptr) == DICT_OK);
-        serverLog(LL_DEBUG, "key: %s is deleted from loading_hot_keys.", (char *)key->ptr);
+        if (server.load_from_ssdb) {
+            serverAssertWithInfo(c, key, dictDelete(EVICTED_DATA_DB->loading_hot_keys,
+                                                    key->ptr) == DICT_OK);
+
+            serverLog(LL_DEBUG, "key: %s is deleted from loading_hot_keys.", (char *)key->ptr);
+        }
 
         /* TODO: using new arg to customize the way to free. */
         dictDelete(EVICTED_DATA_DB->dict, key->ptr);
