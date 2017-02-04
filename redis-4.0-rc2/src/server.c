@@ -1183,7 +1183,8 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
 #define EVICTING_TO_SSDB_KEYS_MAX_NUM 50
 void startToEvictIfNeeded() {
     int mem_tofree, old_mem_tofree = 0;
-    if (!(server.maxmemory_policy & (MAXMEMORY_FLAG_LRU|MAXMEMORY_FLAG_LFU)))
+    if (server.maxmemory == 0
+        || !(server.maxmemory_policy & (MAXMEMORY_FLAG_LRU|MAXMEMORY_FLAG_LFU)))
         return;
 
     /* TODO: make the strategy to evict keys to SSDB.
