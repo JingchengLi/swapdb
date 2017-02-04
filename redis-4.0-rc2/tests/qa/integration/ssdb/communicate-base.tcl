@@ -41,13 +41,15 @@ start_server {tags {"ssdb"}} {
         $redis set fooxxx barxxx
 
         #wait key dumped to ssdb
-        wait_for_condition 100 10 {
+        wait_for_condition 100 1 {
             [ $ssdb get foo ] eq {bar}
         } else {
             fail "key foo be dumptossdb failed"
         }
 
         $redis bgsave
+        #wait bgsave complete
+        after 200
         #start a test redis-server not connect to ssdb.
         set nossdbpid [exec ../../../src/redis-server $nossdbcfgfile > /dev/null &]
         after 1000
@@ -68,7 +70,7 @@ start_server {tags {"ssdb"}} {
         $redis dumptossdb foo
 
         #wait key dumped to ssdb
-        wait_for_condition 100 10 {
+        wait_for_condition 100 1 {
             [ $ssdb get foo ] eq {bar}
         } else {
             fail "key foo be dumptossdb failed"
@@ -93,7 +95,7 @@ start_server {tags {"ssdb"}} {
         $redis dumptossdb foo
 
         #wait key dumped to ssdb
-        wait_for_condition 100 10 {
+        wait_for_condition 100 1 {
             [ $ssdb get foo ] eq {bar}
         } else {
             fail "key foo be dumptossdb failed"
