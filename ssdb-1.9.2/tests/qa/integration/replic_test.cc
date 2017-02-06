@@ -236,7 +236,7 @@ TEST_F(ReplicTest, Test_replic_expire_keys) {
     sclient = new SlaveClient(slave_ip, slave_port);
 
     int16_t etime = 10;
-    for (key : keys) {
+    for (auto key : keys) {
         client->expire(key, etime);
     }
     time_t pre_seconds = time((time_t*)NULL);
