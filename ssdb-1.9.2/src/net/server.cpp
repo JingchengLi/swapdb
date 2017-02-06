@@ -290,14 +290,6 @@ void NetworkServer::serve(){
 				}
 
                 int len = link->read();
-                if(len <= 0){
-                    double serv_time = millitime() - link->create_time;
-                    log_debug("fd: %d, read: %d, delete link, s:%.3f", link->fd(), len, serv_time);
-                    this->link_count--;
-                    fdes->del(link->fd());
-                    delete link;
-                    continue;
-                }
 				int ret = link->parse_sync_data();
 				if (ret == -1){
 					log_fatal("parse sync data error!");
@@ -307,6 +299,14 @@ void NetworkServer::serve(){
                     proc_t p = cmd->proc;
                     const Request req;
                     int result = (*p)(this, link, req, NULL);
+                }
+                if(len <= 0){
+                    double serv_time = millitime() - link->create_time;
+                    log_debug("fd: %d, read: %d, delete link, s:%.3f", link->fd(), len, serv_time);
+                    this->link_count--;
+                    fdes->del(link->fd());
+                    delete link;
+                    continue;
                 }
             } else{
 				proc_client_event(fde, &ready_list);

@@ -1203,7 +1203,7 @@ int SSDBImpl::parse_replic(const std::vector<std::string> &kvs) {
 
     leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
     if(!s.ok()){
-        log_error("del error: %s", s.ToString().c_str());
+        log_error("write leveldb error: %s", s.ToString().c_str());
         return -1;
     }
 

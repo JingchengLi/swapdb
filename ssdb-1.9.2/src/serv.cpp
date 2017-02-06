@@ -703,8 +703,6 @@ void* thread_replic(void *arg){
 	const leveldb::Snapshot *snapshot = serv->snapshot;
 	auto fit = std::unique_ptr<Iterator>(serv->ssdb->iterator("", "", -1, snapshot));
 	while (fit->next()) {
-		std::string key = fit->key().String();
-		std::string val = fit->val().String();
         it = serv->slave_infos.begin();
 		for (; it != serv->slave_infos.end(); ++it) {
 			if (it->link != NULL) {
@@ -716,10 +714,8 @@ void* thread_replic(void *arg){
 				ssdb_save_len((uint64_t)(fit->val().size()), res);
 				it->link->output->append(res.c_str(), (int)res.size());
 				it->link->output->append(fit->val());
-
 				if (it->link->output->size() > 512){
 					it->link->flush();
-                    it->link->response();
 				}
 			}
 		}
@@ -730,8 +726,6 @@ void* thread_replic(void *arg){
         if (it->link != NULL ){
             if (it->link->output->size() > 0){
                 it->link->flush();
-                it->link->response();
-                log_debug("flush data to slave via tcp");
             }
             delete it->link;
         }
@@ -740,12 +734,12 @@ void* thread_replic(void *arg){
 
 	serv->ssdb->ReleaseSnapshot(snapshot);
 
-    if (serv->master_link != NULL){
-        std::vector<std::string> response;
-        response.push_back("replic finish");
-        serv->master_link->send(response);
-        serv->master_link->flush();
-    }
+//    if (serv->master_link != NULL){
+//        std::vector<std::string> response;
+//        response.push_back("replic finish");
+//        serv->master_link->send(response);
+//        serv->master_link->flush();
+//    }
 
 	return (void *)NULL;
 }
@@ -784,11 +778,6 @@ int proc_sync150(NetworkServer *net, Link *link, const Request &req, Response *r
 		link->sync_data.clear();
 	}
 
-    std::vector<std::string> request;
-    request.push_back(std::string("ok"));
-    link->send(request);
-    link->flush();
-    log_debug("slave response ok ");
 	return 0;
 }
 
