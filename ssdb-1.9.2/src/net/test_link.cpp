@@ -7,35 +7,22 @@
 int main(int argc, char **argv) {
 
 
-    Link* link = Link::connect("127.0.0.1" , 6379);
+    Link *link = Link::connect("127.0.0.1", 6379);
 
-    std::vector<std::string> req;
-    req.push_back("DEL");
-    req.push_back("a");
+    std::vector<std::string> req = {"DEL", "a"};
 
     std::string res = link->redisRequest(req)->toString();
-    dump(res.data(),res.size());
+    dump(res.data(), res.size());
 
 
-
-
-    req.clear();
-    req.push_back("set");
-    req.push_back("a");
-    req.push_back("a1");
-
+    req = {"set", "a", "a1"};
     res = link->redisRequest(req)->toString();
-    dump(res.data(),res.size());
+    dump(res.data(), res.size());
 
 
-    req.clear();
-    req.push_back("dump");
-    req.push_back("a");
-
+    req = {"dump", "a"};
     res = link->redisRequest(req)->toString();
-    dump(res.data(),res.size());
-
-
+    dump(res.data(), res.size());
 
 
     req.clear();
@@ -43,7 +30,7 @@ int main(int argc, char **argv) {
     req.push_back("b");
 
     res = link->redisRequest(req)->toString();
-    dump(res.data(),res.size());
+    dump(res.data(), res.size());
 
 
     req.clear();
@@ -54,7 +41,7 @@ int main(int argc, char **argv) {
     req.push_back("3");
 
     res = link->redisRequest(req)->toString();
-    dump(res.data(),res.size());
+    dump(res.data(), res.size());
 
 
     req.clear();
@@ -62,9 +49,7 @@ int main(int argc, char **argv) {
     req.push_back("b");
 
     res = link->redisRequest(req)->toString();
-    dump(res.data(),res.size());
-
-
+    dump(res.data(), res.size());
 
 
     delete link;
