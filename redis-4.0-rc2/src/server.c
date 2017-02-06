@@ -1206,7 +1206,7 @@ void startToLoadIfNeeded() {
 
     int mem_free = server.maxmemory - zmalloc_used_memory();
 
-    if (mem_free < 0) return;
+    if (server.maxmemory > 0 && mem_free < 0) return;
 
     if (!server.hot_keys || !listLength(server.hot_keys))
         return;
@@ -1238,7 +1238,7 @@ void startToLoadIfNeeded() {
         serverAssert(de);
         serverAssert(getLongLongFromObject(dictGetVal(de), &keyusage) == C_OK);
 
-        if (mem_free < keyusage) {
+        if (server.maxmemory > 0 && mem_free < keyusage) {
             serverLog(LL_DEBUG, "No more memory to load key: %s from SSDB to redis.",
                       (char *)keyobj->ptr);
             /* Try to load the keys in the next loop. */
@@ -1430,6 +1430,7 @@ void initServerConfig(void) {
     server.ssdb_client = NULL;
     server.protected_mode = CONFIG_DEFAULT_PROTECTED_MODE;
     server.jdjr_mode = CONFIG_DEFAULT_JDJR_MODE;
+    server.load_from_ssdb = CONFIG_DEFAULT_LOAD_FROM_SSDB;
     server.dbnum = CONFIG_DEFAULT_DBNUM;
     server.verbosity = CONFIG_DEFAULT_VERBOSITY;
     server.maxidletime = CONFIG_DEFAULT_CLIENT_TIMEOUT;
