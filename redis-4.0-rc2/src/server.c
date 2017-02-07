@@ -2415,9 +2415,9 @@ int processCommandMaybeInSSDB(client *c) {
     if (c->cmd->flags & (CMD_READONLY | CMD_WRITE | CMD_JDJR_MODE)) {
         robj* val = lookupKey(EVICTED_DATA_DB, c->argv[1], LOOKUP_NONE);
         if (val) {
-            if (sendCommandToSSDB(c, NULL) != C_OK) {
-                return C_ERR;
-            }
+            int ret = sendCommandToSSDB(c, NULL);
+            if (ret == C_ERR) return C_ERR;
+            if (ret == C_FD_ERR) return C_OK;
 
             /* Record the keys visting SSDB. */
             {
@@ -2652,7 +2652,9 @@ int processCommand(client *c) {
 
     if (server.jdjr_mode
         && processCommandMaybeInSSDB(c) == C_OK)
-        /* Return C_ERR to avoid calling resetClient,
+        /* The client will be reseted in sendCommandToSSDB if C_FD_ERR
+           is returned in sendCommandToSSDB.
+           Otherwise, return C_ERR to avoid calling resetClient,
            the resetClient is delayed to ssdbClientUnixHandler. */
         return C_ERR;
 

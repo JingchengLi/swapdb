@@ -683,7 +683,8 @@ int sendCommandToSSDB(client *c, sds finalcmd) {
                  serverLog(LL_WARNING,
                            "Error writing to SSDB server: %s", strerror(errno));
                  if (finalcmd) sdsfree(finalcmd);
-                 return C_ERR;
+                 resetClient(c);
+                 return C_FD_ERR;
              }
           } else if (nwritten > 0) {
                     if (nwritten == (signed)sdslen(finalcmd)) {

@@ -76,6 +76,7 @@ typedef long long mstime_t; /* millisecond time type. */
 /* Error codes */
 #define C_OK                    0
 #define C_ERR                   -1
+#define C_FD_ERR                -2
 
 /* Static server configuration */
 #define CONFIG_DEFAULT_HZ        10      /* Time interrupt calls/sec. */
