@@ -641,7 +641,7 @@ int prologOfEvictingToSSDB(robj *keyobj, redisDb *db) {
         return C_ERR;
     }
 
-    serverLog(LL_DEBUG, "Evicting key: %s to SSDB, maxmemory: %lld, zmalloc_used_memory: %lud.",
+    serverLog(LL_DEBUG, "Evicting key: %s to SSDB, maxmemory: %lld, zmalloc_used_memory: %lu.",
               (char *)(keyobj->ptr), server.maxmemory, zmalloc_used_memory());
 
     server.evicting_keys_num += 1;
@@ -710,7 +710,7 @@ int tryEvictingKeysToSSDB(int *mem_tofree) {
             /* Estimate the memory usage of the bestkey. */
             usage = estimateKeyMemoryUsage(de);
 
-            serverLog(LL_DEBUG, "The best key size: %lud", usage);
+            serverLog(LL_DEBUG, "The best key size: %lu", usage);
             *mem_tofree = *mem_tofree - usage;
             break;
         }
