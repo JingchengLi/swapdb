@@ -1516,6 +1516,16 @@ void processInputBuffer(client *c) {
             break;
         }
 
+        if (server.jdjr_mode && (c->flags & CLIENT_DELAY_PSYNC)) {
+            if (processCommand(c) == C_OK)
+                resetClient(c);
+
+            c->flags &= ~CLIENT_DELAY_PSYNC;
+
+            serverLog(LL_DEBUG, "Delayed psync is processed, fd: %d", c->fd);
+            break;
+        }
+
         /* Determine request type when unknown. */
         if (!c->reqtype) {
             if (c->querybuf[0] == '*') {

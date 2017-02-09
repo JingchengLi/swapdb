@@ -1623,6 +1623,10 @@ void initServerConfig(void) {
     server.assert_line = 0;
     server.bug_report_start = 0;
     server.watchdog_period = 0;
+
+    /* no_writing_ssdb status. */
+    if (server.jdjr_mode)
+        server.no_writing_ssdb = SSDB_WRITE;
 }
 
 extern char **environ;
@@ -2053,6 +2057,9 @@ void initServer(void) {
     latencyMonitorInit();
     bioInit();
     server.initial_memory_usage = zmalloc_used_memory();
+
+    if (server.jdjr_mode)
+        server.no_writing_ssdb_blocked_clients = listCreate();
 }
 
 /* Populates the Redis Command Table starting from the hard coded list
@@ -2466,6 +2473,17 @@ int processCommandMaybeInSSDB(client *c) {
 
     serverAssert(c->cmd);
 
+    if ((server.no_writing_ssdb == SSDB_NO_WRITE)
+        && (c->cmd->flags & (CMD_WRITE | CMD_JDJR_MODE))) {
+        listAddNodeTail(server.no_writing_ssdb_blocked_clients, c);
+        c->flags &= CLIENT_DELAY_PSYNC;
+        /* TODO: use a suitable timeout. */
+        c->bpop.timeout = 5000 + mstime();
+        blockClient(c, BLOCKED_NO_WRITE_TO_SSDB);
+
+        return C_OK;
+    }
+
     if (c->cmd->flags & (CMD_READONLY | CMD_WRITE | CMD_JDJR_MODE)) {
         robj* val = lookupKey(EVICTED_DATA_DB, c->argv[1], LOOKUP_NONE);
         if (val) {
@@ -2717,6 +2735,21 @@ int processCommand(client *c) {
         return C_ERR;
     }
 
+    if (server.jdjr_mode
+        && c->cmd->proc == syncCommand) {
+        sds finalcmd = sdsnew("*1\r\n$16\r\ncustomized-psync\r\n");
+
+        if (sendCommandToSSDB(c, finalcmd) != C_OK)
+            serverLog(LL_WARNING, "Sending customized-psync to SSDB failed.");
+
+        c->flags &= CLIENT_DELAY_PSYNC;
+        blockClient(c, BLOCKED_PSYNC);
+
+        /* Forbbid sending the writing cmds to SSDB. */
+        server.no_writing_ssdb = SSDB_NO_WRITE;
+        return C_ERR;
+    }
+
     /* Exec the command */
     if (c->flags & CLIENT_MULTI &&
         c->cmd->proc != execCommand && c->cmd->proc != discardCommand &&
@@ -2731,6 +2764,10 @@ int processCommand(client *c) {
             handleClientsBlockedOnLists();
         if (server.jdjr_mode && listLength(server.ssdb_ready_keys))
             handleClientsBlockedOnSSDB();
+        if (server.jdjr_mode
+            && (server.no_writing_ssdb == SSDB_WRITE)
+            && listLength(server.no_writing_ssdb_blocked_clients))
+            handleClientsBlockedOnCustomizedPsync();
     }
 
     serverLog(LL_DEBUG, "processing %s, fd: %d in redis: %s",

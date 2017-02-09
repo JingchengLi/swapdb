@@ -961,8 +961,6 @@ static void removeClientFromListForBlockedKey(client* c, robj* key) {
     }
 }
 
-
-
 void handleClientsBlockedOnSSDB(void) {
     while(listLength(server.ssdb_ready_keys) != 0) {
         list *l;
@@ -1029,6 +1027,21 @@ void handleClientsBlockedOnSSDB(void) {
             listDelNode(l,ln);
         }
         listRelease(l); /* We have the new list on place at this point. */
+    }
+}
+
+/* TODO: move all the jdjr-mode code to a separated file. */
+void handleClientsBlockedOnCustomizedPsync(void) {
+    listIter li;
+    listNode *ln;
+
+    listRewind(server.no_writing_ssdb_blocked_clients, &li);
+    while((ln = listNext(&li))) {
+        client *c = listNodeValue(ln);
+        c->flags &= ~CLIENT_DELAY_PSYNC;
+        listDelNode(server.no_writing_ssdb_blocked_clients, ln);
+
+        unblockClient(c);
     }
 }
 

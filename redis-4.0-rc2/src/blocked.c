@@ -141,7 +141,8 @@ void unblockClient(client *c) {
         unblockClientFromModule(c);
     } else if (server.jdjr_mode
                && (c->btype == BLOCKED_SSDB_LOADING_OR_TRANSFER
-                   || c->btype == BLOCKED_VISITING_SSDB)) {
+                   || c->btype == BLOCKED_VISITING_SSDB
+                   || c->btype == BLOCKED_PSYNC)) {
         /* Doing nothing. */
     } else {
         serverPanic("Unknown btype in unblockClient().");
@@ -173,7 +174,9 @@ void replyToBlockedClientTimedOut(client *c) {
         transferringOrLoadingBlockedClientTimeOut(c);
     } else if (server.jdjr_mode
                && (c->btype == BLOCKED_VISITING_SSDB_TIMEOUT
-                   || c->btype == BLOCKED_VISITING_SSDB)) {
+                   || c->btype == BLOCKED_VISITING_SSDB
+                   || c->btype == BLOCKED_PSYNC
+                   || c->btype == BLOCKED_NO_WRITE_TO_SSDB)) {
         addReplyString(c, "-Err timeout", 13);
     } else {
         serverPanic("Unknown btype in replyToBlockedClientTimedOut().");

@@ -78,6 +78,10 @@ typedef long long mstime_t; /* millisecond time type. */
 #define C_ERR                   -1
 #define C_FD_ERR                -2
 
+/* no_writing_ssdb codes */
+#define SSDB_NO_WRITE 0
+#define SSDB_WRITE 1
+
 /* Static server configuration */
 #define CONFIG_DEFAULT_HZ        10      /* Time interrupt calls/sec. */
 #define CONFIG_MIN_HZ            1
@@ -251,6 +255,7 @@ typedef long long mstime_t; /* millisecond time type. */
 #define CLIENT_MODULE (1<<27) /* Non connected client used by some module. */
 
 #define CLIENT_BLOCKED_KEY_SSDB (1<<30) /* Client is blocking when loading/transferring ssdb key.*/
+#define CLIENT_DELAY_PSYNC (1<<31) /* Delay psync to the tail of current loop. */
 
 /* Client block type (btype field in client structure)
  * if CLIENT_BLOCKED flag is set. */
@@ -262,6 +267,8 @@ typedef long long mstime_t; /* millisecond time type. */
                                     * or transferring a key becomes cold to SSDB. */
 #define BLOCKED_VISITING_SSDB 11   /* Client is visiting SSDB. */
 #define BLOCKED_VISITING_SSDB_TIMEOUT 12 /* Client is visiting SSDB and may be out of time. */
+#define BLOCKED_PSYNC 13 /* Client is delaying psync to the tail of current loop. */
+#define BLOCKED_NO_WRITE_TO_SSDB 14 /* Client is blocked as during the process of psync. */
 
 /* Client request types */
 #define PROTO_REQ_INLINE 1
@@ -1194,6 +1201,10 @@ struct redisServer {
 
     /* Record the number of keys in the process of evicting to SSDB. */
     long long evicting_keys_num;
+
+    /* Forbbid sending the writing cmds to SSDB. */
+    int no_writing_ssdb;
+    list *no_writing_ssdb_blocked_clients;
 };
 
 typedef struct pubsubPattern {
@@ -1600,6 +1611,7 @@ void blockForLoadingkey(client *c, robj **keys, int numkeys, mstime_t timeout);
 void signalBlockingKeyAsReady(redisDb *db, robj* key);
 int blockForLoadingkeys(client *c, robj **keys, int numkeys, mstime_t timeout);
 void handleClientsBlockedOnSSDB(void);
+void handleClientsBlockedOnCustomizedPsync(void);
 int tryEvictingKeysToSSDB(int *mem_tofree);
 size_t objectComputeSize(robj *o, size_t sample_size);
 size_t estimateKeyMemoryUsage(dictEntry *de);
