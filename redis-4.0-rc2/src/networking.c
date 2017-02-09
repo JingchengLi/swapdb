@@ -827,6 +827,7 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
     redisReply *reply = NULL;
     int ssdb_client_fd = -1;
     int j;
+    sds replyString = NULL;
 
     if (server.ssdb_client) ssdb_client_fd = server.ssdb_client->fd;
 
@@ -839,8 +840,13 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
     do {
         int oldlen = r->len;
         if (redisBufferRead(c->context) == REDIS_OK
-            && fd != ssdb_client_fd)
-            addReplyString(c, r->buf + oldlen, r->len - oldlen);
+            && fd != ssdb_client_fd) {
+            if (c->cmd && (c->cmd->proc != syncCommand))
+                addReplyString(c, r->buf + oldlen, r->len - oldlen);
+            else
+                /* The length of customized-psync's response is short than 1024*16. */
+                replyString = sdsnewlen(r->buf + oldlen, r->len -oldlen);
+        }
 
         /* Return early when the context has seen an error. */
         if (c->context->err) {
@@ -873,6 +879,32 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
             else
                 dbSyncDelete(EVICTED_DATA_DB, c->argv[j]);
         }
+    }
+
+    if (c->cmd && (c->cmd->proc == syncCommand)) {
+        sds tmp_ok = sdsnew("ok");
+        sds tmp_fail = sdsnew("nok");
+
+        if (c->btype != BLOCKED_PSYNC)
+            serverLog(LL_WARNING, "Client btype should be 'BLOCKED_PSYNC'");
+
+        sdstolower(replyString);
+
+        unblockClient(c);
+
+        if (!sdscmp(replyString, tmp_ok)) {
+            /* Do nothing. */
+        } else if (!sdscmp(replyString, tmp_fail)) {
+            addReplyError(c, "snapshot nok");
+            resetClient(c);
+            listDelNode(server.unblocked_clients, server.unblocked_clients->tail);
+        } else {
+            serverPanic("Snapshot unrecognized response.");
+        }
+
+        sdsfree(tmp_ok);
+        sdsfree(tmp_fail);
+        sdsfree(replyString);
     }
 
     /* Unblock the current client. */
