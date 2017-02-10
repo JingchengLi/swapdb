@@ -10,6 +10,8 @@
 #include "gtest/gtest.h"
 #include "ssdb_test.h"
 #include <time.h>
+#include <util/strings.h>
+
 using namespace std;
 #undef NDEBUG
 class SlaveClient{
@@ -34,11 +36,11 @@ private:
 class ReplicTest : public SSDBTest {
 public:
     ReplicTest(){
-        keysNum = 100;
+        keysNum = 1000;
         val = "val";
         field = "field";
         score = 0;
-        counts = 10;
+        counts = 100;
         slave_ip = "127.0.0.1";
         slave_port = 8889;
     }
@@ -66,8 +68,8 @@ void ReplicTest::fillMasterData(){
         //string type
         key = "kkey_"+itoa(n);
         for (int m = 0; m < keysNum; ++m) {
-            client->set(key+itoa(m), val+itoa(m));
-            keys.push_back(key+itoa(m));
+            client->set(key + "_" +itoa(m), val+itoa(m));
+            keys.push_back(key+ "_"+itoa(m));
         }
 
         //hash type
@@ -102,10 +104,78 @@ void ReplicTest::fillMasterData(){
 
 void ReplicTest::checkSlaveDataOK(int times=10) {
     for (int t = 0; t < times; t++) {
-        s = sclient->client()->get("kkey_00", &getVal);
+        s = sclient->client()->get("kkey_"+ itoa(counts -1 )+ "_"+itoa(keysNum -1) , &getVal);
         if (s.ok())
             break;
         else sleep(1);
+    }
+
+
+    bool b = true;
+    while (b) {
+        b = false;
+        ssdb::Status s;
+        for (int n = 0; n < counts; ++n) {
+            //string type
+            key = "kkey_"+itoa(n);
+            for (int m = 0; m < keysNum; ++m) {
+                s = sclient->client()->get(key + "_" +itoa(m), &getVal);
+                if (!s.ok()) {
+                    std::cout << "wait for " << hexstr(key + "_" +itoa(m)) << std::endl;
+                    sleep(2);
+                    b = true;
+                    break;
+                }
+            }
+
+            //hash type
+            key = "hkey_"+itoa(n);
+            for (int m = 0; m < keysNum; ++m) {
+                s = sclient->client()->hget(key, field+itoa(m), &getVal);
+                if (!s.ok()) {
+                    std::cout << "wait for " << hexstr(key) << std::endl;
+                    sleep(1);
+                    b = true;
+                    break;
+                }
+            }
+
+            //list type
+            key = "lkey_"+itoa(n);
+            for (int m = 0; m < keysNum; ++m) {
+                s = sclient->client()->qget(key, m, &getVal);
+                if (!s.ok()) {
+                    std::cout << "wait for " << hexstr(key) << std::endl;
+                    sleep(1);
+                    b = true;
+                    break;
+                }
+            }
+
+            //set type
+            key = "skey_"+itoa(n);
+            for (int m = 0; m < keysNum; ++m) {
+                s =  sclient->client()->sismember(key, val+itoa(m), &ret);
+                if (!s.ok()) {
+                    std::cout << "wait for " << hexstr(key) << std::endl;
+                    sleep(1);
+                    b = true;
+                    break;
+                }
+            }
+
+            //zset type
+            key = "zkey_"+itoa(n);
+            for (int m = 0; m < keysNum; ++m) {
+                s =  sclient->client()->zget(key, field+itoa(m), &getScore);
+                if (!s.ok()) {
+                    std::cout << "wait for " << hexstr(key) << std::endl;
+                    sleep(1);
+                    b = true;
+                    break;
+                }
+            }
+        }
     }
 
     ASSERT_TRUE(s.ok())<<"replic not finish in "<<times<<" secs."<<s.code()<<endl;
@@ -114,7 +184,7 @@ void ReplicTest::checkSlaveDataOK(int times=10) {
         //string type
         key = "kkey_"+itoa(n);
         for (int m = 0; m < keysNum; ++m) {
-            sclient->client()->get(key+itoa(m), &getVal);
+            sclient->client()->get(key+ "_"+itoa(m), &getVal);
             ASSERT_EQ(val+itoa(m), getVal)<<m;
         }
 
@@ -165,7 +235,7 @@ void ReplicTest::checkSlaveDataNotFound() {
         //string type
         key = "kkey_"+itoa(n);
         for (int m = 0; m < keysNum; ++m) {
-            s = sclient->client()->get(key+itoa(m), &getVal);
+            s = sclient->client()->get(key+ "_"+itoa(m), &getVal);
             ASSERT_TRUE(s.not_found())<<s.code();
         }
 
@@ -235,7 +305,7 @@ TEST_F(ReplicTest, Test_replic_expire_keys) {
     fillMasterData();
     sclient = new SlaveClient(slave_ip, slave_port);
 
-    int16_t etime = 10;
+    int16_t etime =60;
     for (auto key : keys) {
         client->expire(key, etime);
     }
@@ -247,10 +317,11 @@ TEST_F(ReplicTest, Test_replic_expire_keys) {
     time_t post_seconds = time((time_t*)NULL);
     while(post_seconds-pre_seconds<etime) {
         checkSlaveDataOK();
+        break;
         sleep(1);
         post_seconds = time((time_t*)NULL);
     }
-    sleep(1);
+    sleep(etime);
     checkSlaveDataNotFound();
     sclient->client()->multi_del(keys);
     delete sclient;

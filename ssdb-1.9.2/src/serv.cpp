@@ -715,7 +715,10 @@ void* thread_replic(void *arg){
 				it->link->output->append(res.c_str(), (int)res.size());
 				it->link->output->append(fit->val());
 				if (it->link->output->size() > 512){
-					it->link->flush();
+                     if(it->link->flush() == -1){
+                        log_error("fd: %d, send error: %s", it->link->fd(), strerror(errno));
+                        break;
+                    }
 				}
 			}
 		}
@@ -727,7 +730,7 @@ void* thread_replic(void *arg){
             if (it->link->output->size() > 0){
                 it->link->flush();
             }
-            delete it->link;
+//            delete it->link;
         }
     }
     serv->slave_infos.clear();

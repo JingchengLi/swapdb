@@ -93,7 +93,6 @@ class Link{
 			return &recv_data;
 		}
 
-		Buffer	*input_buffer;
 		std::vector<std::string> sync_data;
 		int parse_sync_data();
 

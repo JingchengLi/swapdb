@@ -1196,8 +1196,8 @@ int SSDBImpl::parse_replic(const std::vector<std::string> &kvs) {
     leveldb::WriteBatch batch;
     auto it = kvs.begin();
     for(; it != kvs.end(); it += 2){
-        std::string key = *it;
-        std::string val = *(it+1);
+        const std::string& key = *it;
+        const std::string& val = *(it+1);
         batch.Put(key, val);
     }
 

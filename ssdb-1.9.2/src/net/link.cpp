@@ -37,7 +37,6 @@ Link::Link(bool is_server) {
     } else {
         input = new Buffer(INIT_BUFFER_SIZE);
         output = new Buffer(INIT_BUFFER_SIZE);
-        input_buffer = new Buffer(INIT_BUFFER_SIZE);
     }
 }
 
@@ -50,9 +49,6 @@ Link::~Link() {
     }
     if (output) {
         delete output;
-    }
-    if (input_buffer) {
-        delete input_buffer;
     }
     this->close();
 }
@@ -487,46 +483,32 @@ static int ssdb_load_len(const char *data, int *offset, uint64_t *lenptr){
 }
 
 int Link::parse_sync_data() {
-    input_buffer->nice();
-    if (input_buffer->size() == 0 && input_buffer->total() > BEST_BUFFER_SIZE) {
-        input_buffer->shrink(BEST_BUFFER_SIZE);
-    }
-    if (input_buffer->space() < input->size()) {
-        input_buffer->grow();
-    }
-    if (input_buffer->space() < input->size()) {
-        memcpy(input_buffer->slot(), input->data(), input_buffer->space());
-        input_buffer->incr(input_buffer->space());
-        input->decr(input_buffer->space());
-    } else{
-        memcpy(input_buffer->slot(), input->data(), input->size());
-        input_buffer->incr(input->size());
-        input->decr(input->size());
-    }
 
-    while (input_buffer->size() > 0){
+    while (input->size() > 0){
         int key_offset = 0, val_offset = 0;
         uint64_t key_len = 0, val_len = 0;
-        if (ssdb_load_len(input_buffer->data(), &key_offset, &key_len) == -1){
+        if (ssdb_load_len(input->data(), &key_offset, &key_len) == -1){
             return -1;
         }
-        if (input_buffer->size() < (int)key_len){
+        if (input->size() < ((int)key_len + key_offset)){
+            input->grow();
             break;
         }
         std::string key;
-        key.append(input_buffer->data()+key_offset, key_len);
-        input_buffer->decr(key_offset + (int)key_len);
+        key.append(input->data()+key_offset, key_len);
+        input->decr(key_offset + (int)key_len);
 
-        if (ssdb_load_len(input_buffer->data(), &val_offset, &val_len) == -1){
+        if (ssdb_load_len(input->data(), &val_offset, &val_len) == -1){
             return -1;
         }
-        if (input_buffer->size() < (int)val_len){
-            input_buffer->rdec(key_offset + (int)key_len);
+        if (input->size() < ((int)val_len + val_offset)){
+            input->rdec(key_offset + (int)key_len);
+            input->grow();
             break;
         }
         std::string value;
-        value.append(input_buffer->data()+val_offset, val_len);
-        input_buffer->decr(val_offset + (int)val_len);
+        value.append(input->data()+val_offset, val_len);
+        input->decr(val_offset + (int)val_len);
         sync_data.push_back(key);
         sync_data.push_back(value);
     }
