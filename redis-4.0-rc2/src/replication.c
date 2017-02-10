@@ -919,6 +919,7 @@ void sendBulkToSlave(aeEventLoop *el, int fd, void *privdata, int mask) {
         slave->repldbfd = -1;
         aeDeleteFileEvent(server.el,slave->fd,AE_WRITABLE);
         putSlaveOnline(slave);
+
     }
 }
 
@@ -988,10 +989,14 @@ void updateSlavesWaitingBgsave(int bgsaveerr, int type) {
                 slave->replpreamble = sdscatprintf(sdsempty(),"$%lld\r\n",
                     (unsigned long long) slave->repldbsize);
 
-                aeDeleteFileEvent(server.el,slave->fd,AE_WRITABLE);
-                if (aeCreateFileEvent(server.el, slave->fd, AE_WRITABLE, sendBulkToSlave, slave) == AE_ERR) {
-                    freeClient(slave);
-                    continue;
+                if (server.jdjr_mode) {
+                    slave->ssdb_status = SSDB_SNAPSHOT_TRANSFER_PRE;
+                } else {
+                    aeDeleteFileEvent(server.el,slave->fd,AE_WRITABLE);
+                    if (aeCreateFileEvent(server.el, slave->fd, AE_WRITABLE, sendBulkToSlave, slave) == AE_ERR) {
+                        freeClient(slave);
+                        continue;
+                    }
                 }
             }
         }
@@ -2559,6 +2564,26 @@ void replicationCron(void) {
                 /* Don't worry about socket errors, it's just a ping. */
             }
         }
+
+        if (server.jdjr_mode
+            && (slave->ssdb_status == SSDB_SNAPSHOT_TRANSFER_PRE)) {
+                sds cmdsds = sdsnew("*1\r\n$28\r\ncustomized-transfer-snapshot\r\n");
+
+                /* TODO: block current slave. */
+                if (sendCommandToSSDB(slave, cmdsds) != C_OK) {
+                    serverLog(LL_WARNING,
+                              "Sending customized-transfer-snapshot to SSDB failed.");
+                    freeClient(slave);
+                }
+        }
+
+        if (server.jdjr_mode
+            && (slave->ssdb_status == SSDB_SNAPSHOT_TRANSFER_START)) {
+                aeDeleteFileEvent(server.el, slave->fd, AE_WRITABLE);
+                if (aeCreateFileEvent(server.el, slave->fd, AE_WRITABLE,
+                                      sendBulkToSlave, slave) == AE_ERR)
+                    freeClient(slave);
+            }
     }
 
     /* Disconnect timedout slaves. */

@@ -1625,8 +1625,11 @@ void initServerConfig(void) {
     server.watchdog_period = 0;
 
     /* no_writing_ssdb status. */
-    if (server.jdjr_mode)
+    if (server.jdjr_mode) {
         server.no_writing_ssdb = SSDB_WRITE;
+        server.ssdb_status = SSDB_NONE;
+    }
+
 }
 
 extern char **environ;
@@ -2747,6 +2750,8 @@ int processCommand(client *c) {
 
         /* Forbbid sending the writing cmds to SSDB. */
         server.no_writing_ssdb = SSDB_NO_WRITE;
+
+        c->ssdb_status = SSDB_SNAPSHOT_PRE;
         return C_ERR;
     }
 

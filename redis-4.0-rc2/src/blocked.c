@@ -178,6 +178,10 @@ void replyToBlockedClientTimedOut(client *c) {
                    || c->btype == BLOCKED_PSYNC
                    || c->btype == BLOCKED_NO_WRITE_TO_SSDB)) {
         addReplyString(c, "-Err timeout", 13);
+    } else if (server.jdjr_mode
+               && c->btype == BLOCKED_PSYNC) {
+        /* TODO: Set server.no_writing_ssdb to SSDB_WRITE ??? */
+        server.no_writing_ssdb = SSDB_WRITE;
     } else {
         serverPanic("Unknown btype in replyToBlockedClientTimedOut().");
     }

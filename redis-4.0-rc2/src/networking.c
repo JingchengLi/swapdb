@@ -120,8 +120,10 @@ client *createClient(int fd) {
     c->btype = BLOCKED_NONE;
     c->bpop.timeout = 0;
     c->bpop.keys = dictCreate(&objectKeyPointerValueDictType,NULL);
-    if (server.jdjr_mode)
+    if (server.jdjr_mode) {
+        c->ssdb_status = SSDB_NONE;
         c->bpop.loading_or_transfer_keys = dictCreate(&objectKeyPointerValueDictType,NULL);
+    }
     c->bpop.target = NULL;
     c->bpop.numreplicas = 0;
     c->bpop.reploffset = 0;
@@ -841,11 +843,12 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
         int oldlen = r->len;
         if (redisBufferRead(c->context) == REDIS_OK
             && fd != ssdb_client_fd) {
-            if (c->cmd && (c->cmd->proc != syncCommand))
-                addReplyString(c, r->buf + oldlen, r->len - oldlen);
-            else
+            if ((c->cmd && (c->cmd->proc == syncCommand))
+                || (c->lastcmd && (c->lastcmd->proc == syncCommand)))
                 /* The length of customized-psync's response is short than 1024*16. */
                 replyString = sdsnewlen(r->buf + oldlen, r->len -oldlen);
+            else
+                addReplyString(c, r->buf + oldlen, r->len - oldlen);
         }
 
         /* Return early when the context has seen an error. */
@@ -881,9 +884,12 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
         }
     }
 
-    if (c->cmd && (c->cmd->proc == syncCommand)) {
+    if (c->cmd && (c->cmd->proc == syncCommand)
+        && c->lastcmd && (c->lastcmd->proc == syncCommand)) {
         sds tmp_ok = sdsnew("ok");
         sds tmp_fail = sdsnew("nok");
+
+        serverAssert(c->ssdb_status == SSDB_SNAPSHOT_PRE);
 
         if (c->btype != BLOCKED_PSYNC)
             serverLog(LL_WARNING, "Client btype should be 'BLOCKED_PSYNC'");
@@ -893,11 +899,14 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
         unblockClient(c);
 
         if (!sdscmp(replyString, tmp_ok)) {
-            /* Do nothing. */
+            server.ssdb_status = SSDB_SNAPSHOT_OK;
+            server.no_writing_ssdb = SSDB_WRITE;
         } else if (!sdscmp(replyString, tmp_fail)) {
             addReplyError(c, "snapshot nok");
             resetClient(c);
             listDelNode(server.unblocked_clients, server.unblocked_clients->tail);
+
+            server.ssdb_status = SSDB_NONE;
         } else {
             serverPanic("Snapshot unrecognized response.");
         }
@@ -905,6 +914,27 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
         sdsfree(tmp_ok);
         sdsfree(tmp_fail);
         sdsfree(replyString);
+    }
+
+    if (c->cmd == NULL
+        && c->lastcmd
+        && c->lastcmd->proc == syncCommand) {
+        sds tmp_ok = sdsnew("ok");
+        sds tmp_fail = sdsnew("nok");
+
+        serverAssert(c->ssdb_status == SSDB_SNAPSHOT_TRANSFER_PRE);
+
+        sdstolower(replyString);
+
+        if (!sdscmp(replyString, tmp_ok)) {
+            c->ssdb_status = SSDB_SNAPSHOT_TRANSFER_START;
+        } else if (!sdscmp(replyString, tmp_fail)) {
+            addReplyError(c, "snapshot transfer nok");
+            /* TODO: call resetClient ???*/
+            c->ssdb_status = SSDB_NONE;
+        } else {
+            serverPanic("Snapshot transfer unrecognized reponse.");
+        }
     }
 
     /* Unblock the current client. */

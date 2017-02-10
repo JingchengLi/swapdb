@@ -314,6 +314,16 @@ typedef long long mstime_t; /* millisecond time type. */
 #define SLAVE_STATE_SEND_BULK 8 /* Sending RDB file to slave. */
 #define SLAVE_STATE_ONLINE 9 /* RDB file transmitted, sending just updates. */
 
+/* Use by server.ssdb_status and client.ssdb_status. */
+#define SSDB_NONE 0
+/* Server state of SSDB. */
+#define SSDB_SNAPSHOT_PRE 1
+#define SSDB_SNAPSHOT_OK 2
+/* Client state of SSDB. */
+#define SSDB_SNAPSHOT_TRANSFER_PRE 3
+#define SSDB_SNAPSHOT_TRANSFER_START 4
+#define SSDB_SNAPSHOT_TRANSFER_END 5
+
 /* Slave capabilities. */
 #define SLAVE_CAPA_NONE 0
 #define SLAVE_CAPA_EOF (1<<0)    /* Can parse the RDB EOF streaming format. */
@@ -734,6 +744,7 @@ typedef struct client {
     char buf[PROTO_REPLY_CHUNK_BYTES];
 
     redisContext *context;  /* Used by redis client in jdjr-mode. */
+    int ssdb_status; /* Record the ssdb state. */
 } client;
 
 struct saveparam {
@@ -1205,6 +1216,7 @@ struct redisServer {
     /* Forbbid sending the writing cmds to SSDB. */
     int no_writing_ssdb;
     list *no_writing_ssdb_blocked_clients;
+    int ssdb_status;
 };
 
 typedef struct pubsubPattern {
