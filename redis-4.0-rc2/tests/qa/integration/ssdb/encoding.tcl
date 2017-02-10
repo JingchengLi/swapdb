@@ -1,7 +1,7 @@
 #verify redis be cold(dumptossdb) and be hot(read) function
 start_server {tags {"redis-ssdb"}} {
-    set ssdb [redis 127.0.0.1 8889]
-    set redis [redis 127.0.0.1 6380]
+    set ssdb [redis $::host 8888]
+    set redis [redis $::host 6379]
 
 #string type
     foreach valtype {string-encoded integer-encoded mix-encoded} {

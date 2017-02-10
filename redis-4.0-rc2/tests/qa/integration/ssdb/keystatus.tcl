@@ -1,13 +1,6 @@
-# exec killall -9 redis-server
-# should start a ssdb-server first.
 start_server {tags {"ssdb"}} {
-    #TODO ssdb should start when redis start
-    set ssdbcfgfile ./ssdb/redis_with_ssdb.conf
-    set ssdbpid [exec ../../../src/redis-server $ssdbcfgfile > /dev/null &]
-
-    after 1000
-    set ssdb [redis 127.0.0.1 8888]
-    set redis [redis 127.0.0.1 6379]
+    set ssdb [redis $::host 8888]
+    set redis [redis $::host 6379]
 
     test "ssdb status key is in ssdb" {
         $redis set foo bar
@@ -68,5 +61,4 @@ start_server {tags {"ssdb"}} {
         }
         list [$ssdb get foo] [ $redis get foo ]
     } {{} bar}
-    catch {exec kill -9 $ssdbpid}
 }

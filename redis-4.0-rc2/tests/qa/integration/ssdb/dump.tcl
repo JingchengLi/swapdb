@@ -1,7 +1,7 @@
-#current need to start redis and ssdb manually, wait Dev can start ssdb when redis start
+#verify redis/ssdb's dump/restore API
 start_server {tags {"redis-ssdb"}} {
-    set ssdb [redis 127.0.0.1 8888]
-    set redis [redis 127.0.0.1 6379]
+    set ssdb [redis $::host 8888]
+    set redis [redis $::host 6379]
 
 #string type
     foreach valtype {string-encoded integer-encoded mix-encoded} {
@@ -238,7 +238,6 @@ start_server {tags {"redis-ssdb"}} {
             $ssdb restore foobusy 0 $redisEncoded replace
             assert_equal [lsort $list] [lsort [$ssdb lrange foobusy 0 -1]]
         }
-        #TODO redis cannot del key stored in ssdb currently.
         $redis del foobusy
     }
 }

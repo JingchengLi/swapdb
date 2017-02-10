@@ -1,16 +1,6 @@
-# exec killall -9 redis-server
-# should start a ssdb-server first.
 start_server {tags {"ssdb"}} {
-    #TODO ssdb should start when redis start
-    set ssdbcfgfile ./ssdb/redis_with_ssdb.conf
-    set nossdbcfgfile ./ssdb/redis_without_ssdb.conf
-    set ssdbpid [exec ../../../src/redis-server $ssdbcfgfile > /dev/null &]
-    set nossdbpid 0
-    set redis_no_ssdb {}
-
-    after 1000
-    set ssdb [redis 127.0.0.1 8888]
-    set redis [redis 127.0.0.1 6379]
+    set ssdb [redis $::host 8888]
+    set redis [redis $::host 6379]
 
     proc get_total_calls { s ssdb } {
         set info [$ssdb info]
@@ -31,6 +21,7 @@ start_server {tags {"ssdb"}} {
 
     foreach ttl {0 1000} {
         test "Hot key only store in redis with ttl($ttl)" {
+            $redis flushall
             $redis del foo
 
             if {$ttl > 0} {
@@ -51,19 +42,13 @@ start_server {tags {"ssdb"}} {
             } else {
                 fail "key foo be dumptossdb failed"
             }
+            $redis config set jdjr-mode no
 
-            $redis bgsave
-            #wait bgsave complete
-            after 200
-            #start a test redis-server not connect to ssdb.
-            set nossdbpid [exec ../../../src/redis-server $nossdbcfgfile > /dev/null &]
-            after 1000
-            set redis_no_ssdb [redis 127.0.0.1 6389]
-            assert_equal "barxxx" [$redis_no_ssdb get fooxxx] "fooxxx stored in redis"
-            list [$redis locatekey foo] [ $redis_no_ssdb get foo ] [ $ssdb get foo ]
-        } {ssdb {} bar}
+            list [$redis get fooxxx] [ $redis get foo ]
+        } {barxxx {}}
 
         test "Redis can read key stored in ssdb with ttl($ttl)" {
+            $redis config set jdjr-mode yes
             $redis get foo
         } {bar}
 
@@ -147,15 +132,13 @@ start_server {tags {"ssdb"}} {
         $redis del foo
 
         if {$ttl > 0} {
-            test "key store in ssdb with ttl(5) will expire" {
-                $redis setex foo 5 bar
+            test "key store in ssdb with ttl(3) will expire" {
+                $redis setex foo 3 bar
                 $redis dumptossdb foo
                 assert {[$redis locatekey foo] eq {ssdb}}
-                after 5100
+                after 3100
                 list [$redis locatekey foo] [$redis get foo]
             } {none {}}
         }
     }
-    catch {exec kill -9 $nossdbpid}
-    catch {exec kill -9 $ssdbpid}
 }
