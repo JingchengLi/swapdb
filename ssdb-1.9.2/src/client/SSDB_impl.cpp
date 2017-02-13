@@ -179,6 +179,18 @@ const std::vector<std::string>* ClientImpl::request(const std::string &cmd, cons
 	return request(req);
 }
 
+const std::string ClientImpl::response() {
+	int ret = link->read();
+	if(ret <= 0){
+		return "";
+	}
+
+    const std::vector<Bytes> *resp = link->recv();
+    std::vector<Bytes>::const_iterator it = resp->begin();
+	std::string result(it->data(), it->size());
+	return result;
+}
+
 /******************** misc *************************/
 Status ClientImpl::dump(const std::string &key, std::string *val){
 	const std::vector<std::string> *resp;

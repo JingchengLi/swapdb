@@ -731,18 +731,28 @@ void* thread_replic(void *arg){
                 it->link->flush();
             }
 //            delete it->link;
+			std::string finish_flag = "abcdefghijklmnopqrstuvwxyzfinishtranslate!!!";//todo
+			std::string res;
+			ssdb_save_len((uint64_t)(finish_flag.size()), res);
+			it->link->output->append(res.c_str(), (int)res.size());
+			it->link->output->append(finish_flag);
+			it->link->flush();
+			it->link->read();
+			delete it->link;
         }
     }
     serv->slave_infos.clear();
 
 	serv->ssdb->ReleaseSnapshot(snapshot);
 
-//    if (serv->master_link != NULL){
-//        std::vector<std::string> response;
-//        response.push_back("replic finish");
-//        serv->master_link->send(response);
-//        serv->master_link->flush();
-//    }
+    if (serv->master_link != NULL){
+        std::vector<std::string> response;
+        response.push_back("replic finish");
+        serv->master_link->send(response);
+        serv->master_link->flush();
+		log_debug("send replic finish!!");
+    }
+	log_debug("replic procedure finish!");
 
 	return (void *)NULL;
 }

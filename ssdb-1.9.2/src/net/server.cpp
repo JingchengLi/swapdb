@@ -300,6 +300,11 @@ void NetworkServer::serve(){
                     const Request req;
                     int result = (*p)(this, link, req, NULL);
                 }
+				if (ret == 2){
+					link->output->append("ok");
+					link->flush();
+					log_debug("reply replic finish ok!");
+				}
                 if(len <= 0){
                     double serv_time = millitime() - link->create_time;
                     log_debug("fd: %d, read: %d, delete link, s:%.3f", link->fd(), len, serv_time);

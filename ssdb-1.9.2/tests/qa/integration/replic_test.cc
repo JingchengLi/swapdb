@@ -103,7 +103,7 @@ void ReplicTest::fillMasterData(){
 }
 
 void ReplicTest::checkSlaveDataOK(int times=10) {
-    for (int t = 0; t < times; t++) {
+   /* for (int t = 0; t < times; t++) {
         s = sclient->client()->get("kkey_"+ itoa(counts -1 )+ "_"+itoa(keysNum -1) , &getVal);
         if (s.ok())
             break;
@@ -179,7 +179,7 @@ void ReplicTest::checkSlaveDataOK(int times=10) {
     }
 
     ASSERT_TRUE(s.ok())<<"replic not finish in "<<times<<" secs."<<s.code()<<endl;
-
+*/
     for (int n = 0; n < counts; ++n) {
         //string type
         key = "kkey_"+itoa(n);
@@ -268,9 +268,13 @@ TEST_F(ReplicTest, Test_replic_types) {
     s = client->replic(slave_ip, slave_port);
     // ASSERT_TRUE(s.ok())<<"replic fail!"<<s.code()<<endl;
 
+    std::string result = client->response();
+    ASSERT_EQ("replic finish", result);
+
     checkSlaveDataOK();
     client->multi_del(keys);
     sclient->client()->multi_del(keys);
+    sleep(5);
     delete sclient;
 }
 

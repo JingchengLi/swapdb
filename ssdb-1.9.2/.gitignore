@@ -19,6 +19,7 @@ dev_slave.conf
 *_cpy_*
 *.dSYM*
 ssdb-server
+test_link
 tools/ssdb-dump
 tools/ssdb-bench
 tools/ssdb-repair

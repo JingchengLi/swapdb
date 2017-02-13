@@ -484,7 +484,7 @@ static int ssdb_load_len(const char *data, int *offset, uint64_t *lenptr){
 
 int Link::parse_sync_data() {
 
-    while (input->size() > 0){
+    while (input->size() > 1){
         int key_offset = 0, val_offset = 0;
         uint64_t key_len = 0, val_len = 0;
         if (ssdb_load_len(input->data(), &key_offset, &key_len) == -1){
@@ -497,6 +497,16 @@ int Link::parse_sync_data() {
         std::string key;
         key.append(input->data()+key_offset, key_len);
         input->decr(key_offset + (int)key_len);
+
+        std::string finish_flag = "abcdefghijklmnopqrstuvwxyzfinishtranslate!!!";
+        if (key == finish_flag){
+            return 2;
+        }
+
+        if (input->size() < 2){
+            input->rdec(key_offset + (int)key_len);
+            break;
+        }
 
         if (ssdb_load_len(input->data(), &val_offset, &val_len) == -1){
             return -1;

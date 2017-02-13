@@ -25,6 +25,7 @@ public:
 	virtual const std::vector<std::string>* request(const std::string &cmd, const std::string &s2, const std::string &s3, const std::string &s4, const std::string &s5, const std::string &s6);
 	virtual const std::vector<std::string>* request(const std::string &cmd, const std::vector<std::string> &s2);
 	virtual const std::vector<std::string>* request(const std::string &cmd, const std::string &s2, const std::vector<std::string> &s3);
+	virtual const std::string  response();
 
 	virtual Status dbsize(int64_t *ret);
 	virtual Status get_kv_range(std::string *start, std::string *end);
