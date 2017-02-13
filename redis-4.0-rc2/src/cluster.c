@@ -4640,11 +4640,11 @@ void customizedRestoreCommand(client *c) {
             serverLog(LL_DEBUG, "key: %s is deleted from loading_hot_keys.", (char *)key->ptr);
         }
 
-        /* TODO: using new arg to customize the way to free. */
-        dictDelete(EVICTED_DATA_DB->dict, key->ptr);
-
         if (getExpire(EVICTED_DATA_DB, key) != -1)
             dictDelete(EVICTED_DATA_DB->expires, key->ptr);
+
+        /* TODO: using new arg to customize the way to free. */
+        dictDelete(EVICTED_DATA_DB->dict, key->ptr);
 
         propagateExpire(EVICTED_DATA_DB, key, server.lazyfree_lazy_eviction);
 
