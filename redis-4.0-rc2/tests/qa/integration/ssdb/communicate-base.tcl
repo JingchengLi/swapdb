@@ -20,25 +20,35 @@ start_server {tags {"ssdb"}} {
     }
 
     foreach ttl {0 1000} {
-        test "Hot key only store in redis with ttl($ttl)" {
+        test "Initialize Hot key only store in redis with ttl($ttl)" {
             $redis flushall
             $redis del foo
+            $ssdb flushdb
 
             if {$ttl > 0} {
                 $redis setex foo $ttl bar
             } else {
                 $redis set foo bar
             }
-            list [$redis locatekey foo] [ $ssdb get foo ] [ $redis get foo ]
-        } {redis {} bar}
 
-        test "Key(become cold) move from redis to ssdb with ttl($ttl)" {
+            #wait key restore to redis
+            wait_for_condition 100 1 {
+                [$redis locatekey foo] eq {redis}
+            } else {
+                fail "key foo restore redis failed"
+            }
+
+            assert {[$ssdb get foo] eq {}}
+            $redis get foo
+        } {bar}
+
+        test "Key(become cold) with ttl($ttl) check with jdjr-mode" {
             $redis dumptossdb foo
             $redis set fooxxx barxxx
 
             #wait key dumped to ssdb
             wait_for_condition 100 1 {
-                [ $ssdb get foo ] eq {bar}
+                [ $redis locatekey foo ] eq {ssdb}
             } else {
                 fail "key foo be dumptossdb failed"
             }
@@ -52,38 +62,49 @@ start_server {tags {"ssdb"}} {
             $redis get foo
         } {bar}
 
-        test "GET Key(become hot) move from ssdb to redis with ttl($ttl)" {
-            list [$redis locatekey foo] [ $ssdb get foo ]
-        } {redis {}}
+        test "GET Key(become hot) - 1 move from ssdb to redis with ttl($ttl)" {
+            #wait key restore to redis
+            wait_for_condition 100 1 {
+                [$redis locatekey foo] eq {redis}
+            } else {
+                fail "key foo restore redis failed"
+            }
+            $ssdb get foo
+        } {}
 
-        test "Key(become cold) move from redis to ssdb with ttl($ttl)" {
+        test "Key(become cold) - 2 move from redis to ssdb with ttl($ttl)" {
             $redis dumptossdb foo
 
             #wait key dumped to ssdb
             wait_for_condition 100 1 {
-                [ $ssdb get foo ] eq {bar}
+                [$redis locatekey foo] eq {ssdb}
             } else {
                 fail "key foo be dumptossdb failed"
             }
+            $ssdb get foo
+        } {bar}
 
-            $redis locatekey foo
-        } {ssdb}
-
-        test "SET Key(become hot) move from ssdb to redis with ttl($ttl)" {
+        test "SET Key(become hot) - 3 move from ssdb to redis with ttl($ttl)" {
             if {$ttl > 0} {
                 $redis setex foo $ttl bar1
             } else {
                 $redis set foo bar1
             }
-            list [$redis locatekey foo] [$ssdb get foo] [$redis get foo]
-        } {redis {} bar1}
+            #wait key restore to redis
+            wait_for_condition 100 1 {
+                [$redis locatekey foo] eq {redis}
+            } else {
+                fail "key foo restore redis failed"
+            }
+            list [$ssdb get foo] [$redis get foo]
+        } {{} bar1}
 
         test "Redis can DEL key loaded from ssdb to redis with ttl($ttl)" {
             $redis del foo
             list [$redis locatekey foo] [$ssdb get foo] [$redis get foo]
         } {none {} {}}
 
-        test "Key(become cold) move from redis to ssdb with ttl($ttl)" {
+        test "Key(become cold) - 4 move from redis to ssdb with ttl($ttl)" {
             # TODO
             if {$ttl > 0} {
                 $redis setex foo $ttl bar
@@ -94,13 +115,13 @@ start_server {tags {"ssdb"}} {
 
             #wait key dumped to ssdb
             wait_for_condition 100 1 {
-                [ $ssdb get foo ] eq {bar}
+                [$redis locatekey foo] eq {ssdb}
             } else {
                 fail "key foo be dumptossdb failed"
             }
 
-            $redis locatekey foo
-        } {ssdb}
+            $ssdb get foo
+        } {bar}
 
         test "Redis can DEL key stored in ssdb with ttl($ttl)" {
             $redis del foo
@@ -112,6 +133,12 @@ start_server {tags {"ssdb"}} {
                 $redis setex foo $ttl bar
             } else {
                 $redis set foo bar
+            }
+            #wait key restore to redis
+            wait_for_condition 100 1 {
+                [$redis locatekey foo] eq {redis}
+            } else {
+                fail "key foo restore redis failed"
             }
             list [$ssdb get foo] [$redis get foo]
         } {{} bar}
@@ -135,7 +162,13 @@ start_server {tags {"ssdb"}} {
             test "key store in ssdb with ttl(3) will expire" {
                 $redis setex foo 3 bar
                 $redis dumptossdb foo
-                assert {[$redis locatekey foo] eq {ssdb}}
+
+                #wait key dumped to ssdb
+                wait_for_condition 100 1 {
+                    [$redis locatekey foo] eq {ssdb}
+                } else {
+                    fail "key foo be dumptossdb failed"
+                }
                 after 3100
                 list [$redis locatekey foo] [$redis get foo]
             } {none {}}
