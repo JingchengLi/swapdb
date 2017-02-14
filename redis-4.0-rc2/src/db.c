@@ -1444,6 +1444,9 @@ void customizedDelCommand(client *c) {
 
     for (j = 1; j < c->argc; j ++) {
         keyobj = c->argv[j];
+
+        serverAssert(getExpire(EVICTED_DATA_DB, keyobj) == -1);
+
         if (epilogOfEvictingToSSDB(keyobj) == C_OK) {
             serverLog(LL_DEBUG, "customizedDelCommand fd:%d key: %s dictDelete ok.",
                       c->fd, (char *)keyobj->ptr);

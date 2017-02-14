@@ -2645,10 +2645,11 @@ int processCommand(client *c) {
     /* Check if current cmd contains blocked keys. */
     if (server.jdjr_mode
         && c->argc > 1
-        && !(c->flags & CLIENT_BLOCKED_KEY_SSDB)
-        && checkKeysInMediateState(c) == C_ERR)
+        && checkKeysInMediateState(c) == C_ERR) {
+        serverAssert(!(c->flags & CLIENT_BLOCKED_KEY_SSDB));
         /* Return C_ERR to keep client info for delayed handling. */
         return C_ERR;
+    }
 
     if (server.jdjr_mode
         && processCommandMaybeInSSDB(c) == C_OK)
@@ -2674,7 +2675,7 @@ int processCommand(client *c) {
             handleClientsBlockedOnSSDB();
     }
 
-    serverLog(LL_DEBUG, "processing %s, fd: %d", c->cmd->name, c->fd);
+    serverLog(LL_DEBUG, "processing %s, fd: %d in redis finished.", c->cmd->name, c->fd);
 
     return C_OK;
 }

@@ -866,8 +866,10 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
         if (c->btype != BLOCKED_VISITING_SSDB)
             serverLog(LL_WARNING, "Client btype should be 'BLOCKED_VISITING_SSDB'");
 
-        for (j = 1; j < c->argc; j ++)
+        for (j = 1; j < c->argc; j ++) {
             dictDelete(EVICTED_DATA_DB->dict, c->argv[j]->ptr);
+            dictDelete(EVICTED_DATA_DB->expires, c->argv[j]->ptr);
+        }
     }
 
     /* Unblock the current client. */

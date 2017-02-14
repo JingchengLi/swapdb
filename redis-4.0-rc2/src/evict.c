@@ -587,7 +587,7 @@ int prologOfLoadingFromSSDB(robj *keyobj) {
         return C_ERR;
     }
 
-    serverLog(LL_DEBUG, "Loading key: %s to SSDB started.", (char *)(keyobj->ptr));
+    serverLog(LL_DEBUG, "Loading key: %s from SSDB started.", (char *)(keyobj->ptr));
     return C_OK;
 }
 
@@ -1095,6 +1095,8 @@ int blockForLoadingkeys(client *c, robj **keys, int numkeys, mstime_t timeout) {
                           c->fd, c->cmd->name, (char *)keys[j]->ptr);
             } else {
                 l = dictGetVal(de);
+                serverLog(LL_DEBUG, "client fd: %d, cmd: %s, key: %s is already blocked.",
+                                             c->fd, c->cmd->name, (char *)keys[j]->ptr);
             }
 
             listAddNodeTail(l, c);
