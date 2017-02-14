@@ -46,7 +46,8 @@ struct RedisCommand_raw
 };
 
 static RedisCommand_raw cmds_raw[] = {
-	{STRATEGY_PING, "ping",		"ping",			REPLY_STATUS},
+	{STRATEGY_PING, "ping",		 "ping",		REPLY_STATUS},
+	{STRATEGY_PING, "checkpoint","ping",		REPLY_STATUS},
 
 	{STRATEGY_AUTO, "dump",		"dump",			REPLY_BULK},
 	{STRATEGY_AUTO, "restore",	"restore",  	REPLY_STATUS},
