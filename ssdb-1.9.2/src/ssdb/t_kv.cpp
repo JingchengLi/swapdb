@@ -286,7 +286,7 @@ int SSDBImpl::del(const Bytes &key){
 
 	leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
     if(!s.ok()){
-        log_error("set error: %s", s.ToString().c_str());
+        log_error("[del] update error: %s", s.ToString().c_str());
         return -1;
     }
 

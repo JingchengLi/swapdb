@@ -12,6 +12,7 @@ found in the LICENSE file.
 #include <string>
 #include <ssdb/background_job.h>
 #include <util/blocking_queue.h>
+#include <ssdb/redis_stream.h>
 #include "ssdb/ssdb_impl.h"
 #include "ssdb/ttl.h"
 #include "backend_dump.h"

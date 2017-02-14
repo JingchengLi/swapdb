@@ -24,6 +24,11 @@ class SSDBServer;
 #define COMMAND_DATA_DUMP 2
 #define COMMAND_SYNC_PREPARE1 3
 
+#define COMMAND_MAX 3
+//change when add new command
+
+
+
 DEF_BPROC(COMMAND_DATA_SAVE);
 DEF_BPROC(COMMAND_DATA_DUMP);
 DEF_BPROC(COMMAND_SYNC_PREPARE1);
@@ -73,6 +78,7 @@ private:
     void loop(const BQueue<BTask> &queue);
 
     void regType();
+
 
 };
 

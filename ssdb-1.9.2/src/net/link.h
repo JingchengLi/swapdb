@@ -22,8 +22,6 @@ class Link{
 		bool noblock_;
 		bool error_;
 		std::vector<Bytes> recv_data;
-
-		RedisLink *redis;
 	public:
 		const static int MAX_PACKET_SIZE = 128 * 1024 * 1024;
 
@@ -35,6 +33,8 @@ class Link{
 
 		Buffer *input;
 		Buffer *output;
+
+		RedisLink *redis;
 
 		double create_time;
 		double active_time;
@@ -108,11 +108,6 @@ class Link{
 		const std::vector<Bytes>* request(const Bytes &s1, const Bytes &s2, const Bytes &s3, const Bytes &s4, const Bytes &s5);
 
 
-		RedisResponse* redisResponse();
-
-		int redisRequestSend(const std::vector<std::string>& args);
-
-		RedisResponse* redisRequest(const std::vector<std::string>& args);
 
 };
 

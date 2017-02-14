@@ -94,7 +94,9 @@ src/ssdb/ttl.cpp
 src/ssdb/t_list.cpp
 src/ssdb/t_set.cpp
 src/ssdb/t_eset.cpp
-        src/ssdb/background_job.cpp
+
+src/ssdb/redis_stream.cpp
+src/ssdb/background_job.cpp
 )
 
 
@@ -163,6 +165,7 @@ src/net/proc.cpp
 src/net/worker.cpp
 src/net/fde.cpp
 src/net/link.cpp
+src/net/redis_client.cpp
 )
 
 ADD_LIBRARY(libnet-static STATIC ${NET_OBJS})                                                                                                                                                  

@@ -446,10 +446,13 @@ int proc_restore(NetworkServer *net, Link *link, const Request &req, Response *r
 	if (ret > 0 && ttl > 0) {
 		Locking l(&serv->expiration->mutex);
 		ret = serv->expiration->expire(req[1], ttl, TimeUnit::Millisecond);
+		if (ret < 0) {
+			serv->ssdb->del(req[1]);
+		}
 	}
 
 	if (ret < 0) {
-		log_info("%s : %s", hexmem(req[1].data(),req[1].size()).c_str(), hexmem(req[3].data(),req[3].size()).c_str());
+		log_error("%s : %s", hexmem(req[1].data(),req[1].size()).c_str(), hexmem(req[3].data(),req[3].size()).c_str());
 	}
 
     resp->reply_get(ret, &val);

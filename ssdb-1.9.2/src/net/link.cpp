@@ -657,66 +657,6 @@ Link::request(const Bytes &s1, const Bytes &s2, const Bytes &s3, const Bytes &s4
 }
 
 
-RedisResponse *Link::redisResponse() {
-    // Redis protocol supports
-    // - + : $
-    if (redis == NULL) {
-        redis = new RedisLink();
-    }
-
-    RedisResponse *resp = new RedisResponse();
-
-    while (1) {
-        int parsed = redis->recv_res(input, resp, 0);
-        if (resp->status == REDIS_RESPONSE_ERR) {
-            input->decr(parsed);
-            return resp;
-        } else if (resp->status == REDIS_RESPONSE_RETRY) { //retry
-            resp->reset();
-            if (this->read() <= 0) {
-                delete resp;
-                return NULL;
-            }
-        } else {
-            input->decr(parsed);
-            return resp;
-        }
-    }
-
-    delete resp;
-    return NULL;
-}
-
-int Link::redisRequestSend(const std::vector<std::string> &args) {
-    std::string tmp;
-    tmp.append("*");
-    tmp.append(str(args.size()));
-    tmp.append("\r\n");
-    for (const std::string &s: args) {
-        tmp.append("$");
-        tmp.append(str(s.size()));
-        tmp.append("\r\n");
-        tmp.append(s);
-        tmp.append("\r\n");
-    }
-    tmp.append("\r\n");
-    return output->append(tmp.data(), tmp.size());
-}
-
-RedisResponse *Link::redisRequest(const std::vector<std::string> &args) {
-    if (this->redisRequestSend(args) == -1) {
-        log_error("redisRequestSend error");
-        return NULL;
-    }
-
-    if (this->flush() == -1) {
-        log_error("redisRequest flush error");
-        return NULL;
-    }
-
-    return this->redisResponse();
-}
-
 #if 0
 int main(){
     //Link link;

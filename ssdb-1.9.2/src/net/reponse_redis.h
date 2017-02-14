@@ -88,6 +88,10 @@ public:
 
     }
 
+    bool isOk(){
+        return (status == 1 && str == "OK");
+    }
+
 };
 
 #endif //SSDB_REPONSE_REDIS_H
