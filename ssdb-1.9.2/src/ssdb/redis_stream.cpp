@@ -3,7 +3,6 @@
 //
 
 #include "redis_stream.h"
-#include "../util/log.h"
 
 RedisUpstream::RedisUpstream(const std::string &ip, int port) : ip(ip), port(port) {
     client = getNewLink();
