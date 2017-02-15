@@ -3,25 +3,29 @@
 //
 
 #include "link.h"
+#include "redis_client.h"
 
 int main(int argc, char **argv) {
 
 
     Link *link = Link::connect("127.0.0.1", 6379);
 
+    RedisClient redisClient(link);
+    
+    
     std::vector<std::string> req = {"DEL", "a"};
 
-    std::string res = link->redisRequest(req)->toString();
+    std::string res = redisClient.redisRequest(req)->toString();
     dump(res.data(), res.size());
 
 
     req = {"set", "a", "a1"};
-    res = link->redisRequest(req)->toString();
+    res = redisClient.redisRequest(req)->toString();
     dump(res.data(), res.size());
 
 
     req = {"dump", "a"};
-    res = link->redisRequest(req)->toString();
+    res = redisClient.redisRequest(req)->toString();
     dump(res.data(), res.size());
 
 
@@ -29,7 +33,7 @@ int main(int argc, char **argv) {
     req.push_back("DEL");
     req.push_back("b");
 
-    res = link->redisRequest(req)->toString();
+    res = redisClient.redisRequest(req)->toString();
     dump(res.data(), res.size());
 
 
@@ -40,7 +44,7 @@ int main(int argc, char **argv) {
     req.push_back("2");
     req.push_back("3");
 
-    res = link->redisRequest(req)->toString();
+    res = redisClient.redisRequest(req)->toString();
     dump(res.data(), res.size());
 
 
@@ -48,12 +52,11 @@ int main(int argc, char **argv) {
     req.push_back("smembers");
     req.push_back("b");
 
-    res = link->redisRequest(req)->toString();
+    res = redisClient.redisRequest(req)->toString();
     dump(res.data(), res.size());
 
 
-    delete link;
-
+ 
     return 0;
 
 }
