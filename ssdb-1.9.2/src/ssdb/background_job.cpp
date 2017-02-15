@@ -62,7 +62,10 @@ void BackgroundJob::loop(const BQueue<BTask> &queue) {
         log_error("unknown command %s", bTask.dump().c_str());
     }
     if (bTask.retry > MAX_RETRY) {
+        free(bTask.value);
+        bTask.value = nullptr;
         log_error("max retry limit reached task %s ", bTask.dump().c_str());
+        return;
     }
 
     int64_t current = time_ms();
@@ -70,15 +73,12 @@ void BackgroundJob::loop(const BQueue<BTask> &queue) {
     int res = bproc_map[bTask.type](serv, bTask.data_key, bTask.value);
     if (res != 0) {
         log_error("bg_restore data failed %s ", bTask.dump().c_str());
-        if (res == -2) {
-            //retry when res == -2
-            bTask.retry++;
-            serv->bqueue.push(bTask);
-        }
-    }
-
-    if (bTask.value != nullptr) {
-        free(bTask.value);
+//        if (res == -2) {
+//            //retry when res == -2
+//            bTask.retry++;
+//            serv->bqueue.push(bTask);
+//            return;
+//        }
     }
 
     avg_wait = ((current - bTask.ts) * 1.0 - avg_wait) * 1.0 / count * 1.0 + avg_wait;
@@ -109,6 +109,12 @@ void BackgroundJob::loop(const BQueue<BTask> &queue) {
         }
     }
 
+
+
+    if (bTask.value != nullptr) {
+        free(bTask.value);
+        bTask.value = nullptr;
+    }
 
 }
 
@@ -141,7 +147,7 @@ int bproc_COMMAND_DATA_SAVE(SSDBServer *serv, const std::string &data_key, void 
     if (t_res == nullptr) {
         log_error("[%s %s] redis response is null", req[0].c_str(), req[1].c_str());
         //redis res failed
-        return -2;
+        return -1;
     }
 
     std::string res = t_res->toString();
@@ -156,7 +162,7 @@ int notifyFailedToRedis(RedisUpstream *redisUpstream, std::string responseComman
     std::vector<std::string> req = {"customized-fail", responseCommand, dataKey};
     RedisResponse *t_res = redisUpstream->sendCommand(req);
     if (t_res == nullptr) {
-        log_error("[%s %s] redis response is null", req[0].c_str(), req[1].c_str());
+        log_error("[%s %s %s] redis response is null", req[0].c_str(), req[1].c_str(), req[2].c_str());
         //redis res failed
         return -1;
     }
@@ -192,7 +198,7 @@ int bproc_COMMAND_DATA_DUMP(SSDBServer *serv, const std::string &data_key, void 
         if (t_res == nullptr) {
             log_error("[%s %s] redis response is null", req[0].c_str(), req[1].c_str());
             //redis res failed
-            return -2;
+            return -1;
         }
 
         if (t_res->isOk()) {
