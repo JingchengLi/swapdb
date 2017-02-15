@@ -28,12 +28,14 @@ class BTask {
 public:
     uint16_t type;
     int64_t ts;
+    int retry;
 
     std::string data_key;
     void *value;
 
     BTask(uint16_t type, const std::string &key, void *value = nullptr) : type(type), data_key(key), value(value) {
         ts = time_ms();
+        retry = 0;
     }
 
     virtual ~BTask() {
@@ -41,7 +43,8 @@ public:
 
     std::string dump() {
         std::ostringstream stringStream;
-        stringStream << " task_type:" << type << " data_key: "<< hexmem(data_key.data(), data_key.size()).c_str();
+        stringStream << " task_type:" << type
+                     << " data_key: "<< hexmem(data_key.data(), data_key.size()).c_str();
         return stringStream.str();
     }
 
