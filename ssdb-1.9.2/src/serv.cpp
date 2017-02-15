@@ -7,6 +7,7 @@ found in the LICENSE file.
 #include "util/log.h"
 #include "util/strings.h"
 #include "serv.h"
+#include "util/bytes.h"
 #include "net/proc.h"
 #include "net/server.h"
 #include "ssdb/background_job.h"
@@ -703,42 +704,85 @@ void* thread_replic(void *arg){
 		it->link->response();
 	}
 
+	Buffer *buffer = new Buffer(8*1024);
+	std::string oper = "mset";
+	std::string oper_len;
+	ssdb_save_len((uint64_t)oper.size(), oper_len);
 	const leveldb::Snapshot *snapshot = serv->snapshot;
 	auto fit = std::unique_ptr<Iterator>(serv->ssdb->iterator("", "", -1, snapshot));
 	while (fit->next()) {
-        it = serv->slave_infos.begin();
+		std::string key_len, val_len;
+		ssdb_save_len((uint64_t)(fit->key().size()), key_len);
+		ssdb_save_len((uint64_t)(fit->val().size()), val_len);
+
+		buffer->append(key_len.c_str(), (int)key_len.size());
+		buffer->append(fit->key());
+		buffer->append(val_len.c_str(), (int)val_len.size());
+		buffer->append(fit->val());
+
+		if (buffer->size() > 1024) {
+			it = serv->slave_infos.begin();
+			for (; it != serv->slave_infos.end(); ++it) {
+				if (it->link != NULL) {
+					it->link->output->append(oper_len.c_str(), (int)oper_len.size());
+					it->link->output->append(oper.c_str(), (int)oper.size());
+
+					char buf[32] = {0};
+					ll2string(buf, sizeof(buf)-1, (long long)buffer->size());
+					std::string buffer_size(buf);
+					std::string buffer_len;
+					ssdb_save_len((uint64_t)buffer_size.size(), buffer_len);
+					it->link->output->append(buffer_len.c_str(), (int)buffer_len.size());
+					it->link->output->append(buffer_size.c_str(), (int)buffer_size.size());
+
+					it->link->output->append(buffer->data(), buffer->size());
+
+					if(it->link->flush() == -1){
+						log_error("fd: %d, send error: %s", it->link->fd(), strerror(errno));
+						break;
+					}
+				}
+			}
+			buffer->decr(buffer->size());
+		}
+	}
+
+	if (buffer->size() > 0) {
+		it = serv->slave_infos.begin();
 		for (; it != serv->slave_infos.end(); ++it) {
 			if (it->link != NULL) {
-				std::string res;
-				ssdb_save_len((uint64_t)(fit->key().size()), res);
-				it->link->output->append(res.c_str(), (int)res.size());
-				it->link->output->append(fit->key());
-				res.clear();
-				ssdb_save_len((uint64_t)(fit->val().size()), res);
-				it->link->output->append(res.c_str(), (int)res.size());
-				it->link->output->append(fit->val());
-				if (it->link->output->size() > 512){
-                     if(it->link->flush() == -1){
-                        log_error("fd: %d, send error: %s", it->link->fd(), strerror(errno));
-                        break;
-                    }
+				it->link->output->append(oper_len.c_str(), (int)oper_len.size());
+				it->link->output->append(oper.c_str(), (int)oper.size());
+
+				char buf[32] = {0};
+				ll2string(buf, sizeof(buf)-1, (long long)buffer->size());
+				std::string buffer_size(buf);
+				std::string buffer_len;
+				ssdb_save_len((uint64_t)buffer_size.size(), buffer_len);
+				it->link->output->append(buffer_len.c_str(), (int)buffer_len.size());
+				it->link->output->append(buffer_size.c_str(), (int)buffer_size.size());
+
+				it->link->output->append(buffer->data(), buffer->size());
+
+				if(it->link->flush() == -1){
+					log_error("fd: %d, send error: %s", it->link->fd(), strerror(errno));
+					break;
 				}
 			}
 		}
+		buffer->decr(buffer->size());
+		delete buffer;
 	}
+
+	oper = "complete";
+	oper_len.clear();
+	ssdb_save_len((uint64_t)oper.size(), oper_len);
 
     it = serv->slave_infos.begin();
     for(; it != serv->slave_infos.end(); ++it){
         if (it->link != NULL ){
-            if (it->link->output->size() > 0){
-                it->link->flush();
-            }
-//            delete it->link;
-			std::string finish_flag = "abcdefghijklmnopqrstuvwxyzfinishtranslate!!!";//todo
-			std::string res;
-			ssdb_save_len((uint64_t)(finish_flag.size()), res);
-			it->link->output->append(res.c_str(), (int)res.size());
-			it->link->output->append(finish_flag);
+			it->link->output->append(oper_len.c_str(), (int)oper_len.size());
+			it->link->output->append(oper.c_str(), (int)oper.size());
 			it->link->flush();
 			it->link->read();
 			delete it->link;

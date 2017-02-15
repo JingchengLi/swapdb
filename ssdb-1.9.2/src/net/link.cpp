@@ -13,6 +13,7 @@ found in the LICENSE file.
 #include <sys/ioctl.h>
 
 #include "link.h"
+#include "util/strings.h"
 
 #include "link_redis.cpp"
 #include "redis/rdb.h"
@@ -483,44 +484,74 @@ static int ssdb_load_len(const char *data, int *offset, uint64_t *lenptr){
 }
 
 int Link::parse_sync_data() {
-
-    while (input->size() > 1){
-        int key_offset = 0, val_offset = 0;
-        uint64_t key_len = 0, val_len = 0;
-        if (ssdb_load_len(input->data(), &key_offset, &key_len) == -1){
+    while (input->size() > 1){ ;
+        char* data = input->data();
+        int size = input->size();
+        int oper_offset = 0, size_offset = 0;
+        uint64_t oper_len = 0, size_len = 0;
+        if (ssdb_load_len(data, &oper_offset, &oper_len) == -1){
             return -1;
-        }
-        if (input->size() < ((int)key_len + key_offset)){
+        } else if (size < ((int)oper_len + oper_offset)) {
             input->grow();
             break;
         }
-        std::string key;
-        key.append(input->data()+key_offset, key_len);
-        input->decr(key_offset + (int)key_len);
+        std::string oper;
+        oper.append(data+oper_offset, oper_len);
+        data += (oper_offset+(int)oper_len);
+        size -= (oper_offset+(int)oper_len);
 
-        std::string finish_flag = "abcdefghijklmnopqrstuvwxyzfinishtranslate!!!";
-        if (key == finish_flag){
+        if (oper == "mset") {
+            if (ssdb_load_len(data, &size_offset, &size_len) == -1){
+                return -1;
+            } else if (size < ((int)size_offset + size_len)) {
+                input->grow();
+                break;
+            }
+
+            std::string str_local_size;
+            str_local_size.append(data+size_offset, size_len);
+            data += (size_offset+(int)size_len);
+            size -= (size_offset+(int)size_len);
+
+            long long n_local_size = 0;
+            string2ll(str_local_size.c_str(), str_local_size.size(), &n_local_size);
+
+            if (size < (int)n_local_size){
+                input->grow();
+                break;
+            }
+
+            while (n_local_size > 0) {
+                int key_offset = 0, val_offset = 0;
+                uint64_t key_len = 0, val_len = 0;
+
+                if (ssdb_load_len(data, &key_offset, &key_len) == -1){
+                    return -1;
+                }
+                std::string key;
+                key.append(data+key_offset, key_len);
+                data += (key_offset + (int)key_len);
+                size -= (key_offset + (int)key_len);
+                n_local_size -= (key_offset + (int)key_len);
+
+                if (ssdb_load_len(data, &val_offset, &val_len) == -1){
+                    return -1;
+                }
+                std::string value;
+                value.append(data+val_offset, val_len);
+                data += (val_offset + (int)val_len);
+                size -= (val_offset + (int)val_len);
+                n_local_size -= (val_offset + (int)val_len);
+
+                sync_data.push_back(key);
+                sync_data.push_back(value);
+            }
+            input->decr(input->size() - size);
+
+        } else if (oper == "complete") {
+            input->decr(input->size() - size);
             return 2;
         }
-
-        if (input->size() < 2){
-            input->rdec(key_offset + (int)key_len);
-            break;
-        }
-
-        if (ssdb_load_len(input->data(), &val_offset, &val_len) == -1){
-            return -1;
-        }
-        if (input->size() < ((int)val_len + val_offset)){
-            input->rdec(key_offset + (int)key_len);
-            input->grow();
-            break;
-        }
-        std::string value;
-        value.append(input->data()+val_offset, val_len);
-        input->decr(val_offset + (int)val_len);
-        sync_data.push_back(key);
-        sync_data.push_back(value);
     }
     return 0;
 }
