@@ -72,7 +72,7 @@ void BackgroundJob::loop(const BQueue<BTask> &queue) {
 
     int res = bproc_map[bTask.type](serv, bTask.data_key, bTask.value);
     if (res != 0) {
-        log_error("bg_restore data failed %s ", bTask.dump().c_str());
+        log_error("bg_job failed %s ", bTask.dump().c_str());
 //        if (res == -2) {
 //            //retry when res == -2
 //            bTask.retry++;
