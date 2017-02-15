@@ -110,7 +110,6 @@ void BackgroundJob::loop(const BQueue<BTask> &queue) {
     }
 
 
-
     if (bTask.value != nullptr) {
         free(bTask.value);
         bTask.value = nullptr;
@@ -140,9 +139,9 @@ int bproc_COMMAND_DATA_SAVE(SSDBServer *serv, const std::string &data_key, void 
         return notifyFailedToRedis(serv->redisUpstream, "customized-dump", data_key);
     }
 
-    log_debug("[request2redis] : customized-del %s", hexstr<std::string>(dumpData->key).c_str());
-
     std::vector<std::string> req = {"customized-del", data_key};
+    log_debug("[request->redis] : %s %s", req[0].c_str(), req[1].c_str());
+
     RedisResponse *t_res = serv->redisUpstream->sendCommand(req);
     if (t_res == nullptr) {
         log_error("[%s %s] redis response is null", req[0].c_str(), req[1].c_str());
@@ -150,7 +149,7 @@ int bproc_COMMAND_DATA_SAVE(SSDBServer *serv, const std::string &data_key, void 
         return -1;
     }
 
-    std::string res = t_res->toString();
+    log_debug("[response<-redis] : %s %s %s", req[0].c_str(), req[1].c_str(), t_res->toString().c_str());
 
     delete t_res;
 
@@ -160,12 +159,17 @@ int bproc_COMMAND_DATA_SAVE(SSDBServer *serv, const std::string &data_key, void 
 
 int notifyFailedToRedis(RedisUpstream *redisUpstream, std::string responseCommand, std::string dataKey) {
     std::vector<std::string> req = {"customized-fail", responseCommand, dataKey};
+    log_debug("[request->redis] : %s %s %s", req[0].c_str(), req[1].c_str(), req[2].c_str());
+
     RedisResponse *t_res = redisUpstream->sendCommand(req);
     if (t_res == nullptr) {
         log_error("[%s %s %s] redis response is null", req[0].c_str(), req[1].c_str(), req[2].c_str());
         //redis res failed
         return -1;
     }
+
+    log_debug("[response<-redis] : %s %s  %s %s", req[0].c_str(), req[1].c_str(), req[2].c_str(), t_res->toString().c_str());
+
     delete t_res;
     return -1;
 }
@@ -191,15 +195,19 @@ int bproc_COMMAND_DATA_DUMP(SSDBServer *serv, const std::string &data_key, void 
             pttl = 0; //not sure
         }
 
-        log_debug("[request2redis] : customized-restore %s", data_key.c_str());
 
         std::vector<std::string> req = {"customized-restore", data_key, str(pttl), val, "replace"};
+        log_debug("[request->redis] : %s %s", req[0].c_str(), req[1].c_str());
+
         RedisResponse *t_res = serv->redisUpstream->sendCommand(req);
         if (t_res == nullptr) {
             log_error("[%s %s] redis response is null", req[0].c_str(), req[1].c_str());
             //redis res failed
             return -1;
         }
+
+        log_debug("[response<-redis] : %s %s %s", req[0].c_str(), req[1].c_str(), t_res->toString().c_str());
+
 
         if (t_res->isOk()) {
             serv->ssdb->del(data_key);
@@ -216,7 +224,7 @@ int bproc_COMMAND_SYNC_PREPARE1(SSDBServer *serv, const std::string &data_key, v
 
     std::vector<std::string> req = {"customized-sync1", "done"};
 
-    log_debug("[request2redis] : customized-sync1");
+    log_debug("[request->redis] : customized-sync1");
 
     auto t_res = serv->redisUpstream->sendCommand(req);
     if (t_res == nullptr) {
