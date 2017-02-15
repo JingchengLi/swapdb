@@ -4634,10 +4634,13 @@ void customizedRestoreCommand(client *c) {
     /* Delete key from EVICTED_DATA_DB if restoreCommand is OK. */
     if (server.dirty == old_dirty + 1) {
         if (server.load_from_ssdb) {
-            serverAssertWithInfo(c, key, dictDelete(EVICTED_DATA_DB->loading_hot_keys,
-                                                    key->ptr) == DICT_OK);
-
-            serverLog(LL_DEBUG, "key: %s is deleted from loading_hot_keys.", (char *)key->ptr);
+            /* Restart redis will lose data in loading_hot_keys. */
+            if (dictDelete(EVICTED_DATA_DB->loading_hot_keys,
+                           key->ptr) == DICT_OK)
+                serverLog(LL_DEBUG, "key: %s is deleted from loading_hot_keys.", (char *)key->ptr);
+            else
+                serverLog(LL_WARNING, "key: %s failed to be deleted from loading_hot_keys.",
+                          (char *)key->ptr);
         }
 
         if (getExpire(EVICTED_DATA_DB, key) != -1)

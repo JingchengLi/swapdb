@@ -1214,7 +1214,7 @@ void startToLoadIfNeeded() {
     listRewind(server.hot_keys, &li);
 
     tmp = listCreate();
-    listSetFreeMethod(tmp, (void (*)(void*))freeStringObject);
+    listSetFreeMethod(tmp, (void (*)(void*))decrRefCount);
 
     while((ln = listNext(&li))) {
         robj *keyobj = (robj *)(ln->value);
@@ -1235,7 +1235,10 @@ void startToLoadIfNeeded() {
             continue;
 
         de = dictFind(EVICTED_DATA_DB->dict, keyobj->ptr);
-        serverAssert(de);
+
+        /* key is not existed any more. */
+        if (!de) continue;
+
         serverAssert(getLongLongFromObject(dictGetVal(de), &keyusage) == C_OK);
 
         if (server.maxmemory > 0 && mem_free < keyusage) {
@@ -1249,7 +1252,6 @@ void startToLoadIfNeeded() {
         serverLog(LL_DEBUG, "Try loading key: %s from SSDB.", (char *)keyobj->ptr);
         setLoadingDB(keyobj);
         prologOfLoadingFromSSDB(keyobj);
-        decrRefCount(keyobj);
     }
 
     listRelease(server.hot_keys);
@@ -1864,7 +1866,7 @@ void initServer(void) {
     server.monitors = listCreate();
     server.clients_pending_write = listCreate();
     server.hot_keys = listCreate();
-    listSetFreeMethod(server.hot_keys, (void (*)(void*))freeStringObject);
+    listSetFreeMethod(server.hot_keys, (void (*)(void*))decrRefCount);
     server.slaveseldb = -1; /* Force to emit the first SELECT command. */
     server.unblocked_clients = listCreate();
     server.ready_keys = listCreate();
@@ -2652,12 +2654,15 @@ int processCommand(client *c) {
     }
 
     if (server.jdjr_mode
-        && processCommandMaybeInSSDB(c) == C_OK)
+        && processCommandMaybeInSSDB(c) == C_OK) {
         /* The client will be reseted in sendCommandToSSDB if C_FD_ERR
            is returned in sendCommandToSSDB.
            Otherwise, return C_ERR to avoid calling resetClient,
            the resetClient is delayed to ssdbClientUnixHandler. */
+        serverLog(LL_DEBUG, "processing %s, fd: %d in ssdb: %s",
+                  c->cmd->name, c->fd, (char *)c->argv[1]->ptr);
         return C_ERR;
+    }
 
     /* Exec the command */
     if (c->flags & CLIENT_MULTI &&
@@ -2675,7 +2680,8 @@ int processCommand(client *c) {
             handleClientsBlockedOnSSDB();
     }
 
-    serverLog(LL_DEBUG, "processing %s, fd: %d in redis finished.", c->cmd->name, c->fd);
+    serverLog(LL_DEBUG, "processing %s, fd: %d in redis: %s",
+              c->cmd->name, c->fd, c->argc > 1 ? (char *)c->argv[1]->ptr : "");
 
     return C_OK;
 }
