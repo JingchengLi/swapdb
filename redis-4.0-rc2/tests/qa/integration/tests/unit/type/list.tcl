@@ -4,7 +4,7 @@ start_server {
         "list-max-ziplist-size" 5
     }
 } {
-    source "unit/type/list-common.tcl"
+    source "tests/unit/type/list-common.tcl"
 
     test {LPUSH, RPUSH, LLENGTH, LINDEX, LPOP - ziplist} {
         # first lpush then rpush

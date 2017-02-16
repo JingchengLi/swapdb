@@ -15,4 +15,4 @@ fi
 mkdir -p ../jenkins/report/integration
 
 cd tests/qa/integration
-$TCLSH test_helper.tcl $*
+$TCLSH tests/test_helper.tcl $*

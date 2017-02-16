@@ -145,7 +145,7 @@ proc start_server {options {code undefined}} {
             set srv {}
             dict set srv "host" $::host
             dict set srv "port" $::port
-            set ::port 8888 
+            set ::port 6379 
             set client [redis $::host $::port]
             dict set srv "client" $client
             $client select 9
@@ -177,7 +177,7 @@ proc start_server {options {code undefined}} {
         }
     }
 
-    set data [split [exec cat "assets/$baseconfig"] "\n"]
+    set data [split [exec cat "tests/assets/$baseconfig"] "\n"]
     set config {}
     foreach line $data {
         if {[string length $line] > 0 && [string index $line 0] ne "#"} {
@@ -279,7 +279,7 @@ proc start_server {options {code undefined}} {
 
         while 1 {
             # check that the server actually started and is ready for connections
-            if {[exec grep -i "ready to accept" | wc -l < $stdout] > 0} {
+            if {[exec grep -i "Ready to accept" | wc -l < $stdout] > 0} {
                 break
             }
             after 10

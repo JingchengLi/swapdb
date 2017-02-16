@@ -1,6 +1,6 @@
 proc start_bg_complex_data {host port db ops} {
     set tclsh [info nameofexecutable]
-    exec $tclsh helpers/bg_complex_data.tcl $host $port $db $ops &
+    exec $tclsh tests/helpers/bg_complex_data.tcl $host $port $db $ops &
 }
 
 proc stop_bg_complex_data {handle} {
@@ -85,7 +85,6 @@ proc test_psync {descr duration backlog_size backlog_ttl delay cond diskless rec
                     after 1000
                     incr retry -1
                 }
-                puts "dbsize:[$master dbsize]"
                 assert {[$master dbsize] > 0}
 
                 if {[$master debug digest] ne [$slave debug digest]} {

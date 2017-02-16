@@ -1,7 +1,7 @@
 set server_path [tmpdir "server.rdb-encoding-test"]
 
 # Copy RDB with different encodings in server path
-exec cp assets/encodings.rdb $server_path
+exec cp tests/assets/encodings.rdb $server_path
 
 start_server [list overrides [list "dir" $server_path "dbfilename" "encodings.rdb"]] {
   test "RDB encoding loading test" {

@@ -5,11 +5,11 @@
 package require Tcl 8.5
 
 set tcl_precision 17
-source support/redis.tcl
-source support/server.tcl
-source support/tmpfile.tcl
-source support/test.tcl
-source support/util.tcl
+source tests/support/redis.tcl
+source tests/support/server.tcl
+source tests/support/tmpfile.tcl
+source tests/support/test.tcl
+source tests/support/util.tcl
 
 set ::all_tests {
     ssdb/dump
@@ -116,7 +116,7 @@ set ::client 0
 set ::numclients 16
 
 proc execute_tests name {
-    set path "$name.tcl"
+    set path "tests/$name.tcl"
     set ::curfile $path
     source $path
     send_data_packet $::test_server_fd done "$name"
@@ -201,8 +201,8 @@ proc s {args} {
 proc cleanup {} {
     if {!$::quiet} {puts -nonewline "Cleanup: may take some time... "}
     flush stdout
-    catch {exec rm -rf {*}[glob tmp/redis.conf.*]}
-    catch {exec rm -rf {*}[glob tmp/server.*]}
+    catch {exec rm -rf {*}[glob tests/tmp/redis.conf.*]}
+    catch {exec rm -rf {*}[glob tests/tmp/server.*]}
     if {!$::quiet} {puts "OK"}
 }
 

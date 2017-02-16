@@ -1,4 +1,4 @@
-source support/redis.tcl
+source tests/support/redis.tcl
 
 proc gen_write_load {host port seconds} {
     set start_time [clock seconds]
