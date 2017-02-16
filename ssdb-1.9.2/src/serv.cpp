@@ -141,10 +141,9 @@ DEF_PROC(rr_restore);
 DEF_BPROC(COMMAND_DATA_SAVE);
 DEF_BPROC(COMMAND_DATA_DUMP);
 
-
-#define _STRING(x) x
-
 #define REG_PROC(c, f)     net->proc_map.set_proc(#c, f, proc_##c)
+
+#define BPROC(c)  bproc_##c
 
 void SSDBServer::reg_procs(NetworkServer *net){
 	REG_PROC(get, "rt");
@@ -504,7 +503,7 @@ int proc_rr_restore(NetworkServer *net, Link *link, const Request &req, Response
 	}
 
 	TransferJob* job = new TransferJob(serv, COMMAND_DATA_SAVE, req[1].String(), new DumpData(req[1].String(), req[3].String(), ttl, replace));
-	job->proc = bproc_COMMAND_DATA_SAVE;
+	job->proc = BPROC(COMMAND_DATA_SAVE);
 
 	net->redis->push(job);
 
@@ -519,7 +518,7 @@ int proc_rr_dump(NetworkServer *net, Link *link, const Request &req, Response *r
 	CHECK_NUM_PARAMS(2);
 
 	TransferJob* job = new TransferJob(serv, COMMAND_DATA_DUMP, req[1].String());
-	job->proc = bproc_COMMAND_DATA_DUMP;
+	job->proc = BPROC(COMMAND_DATA_DUMP);
 
 	//TODO push1st
 	net->redis->push(job);
