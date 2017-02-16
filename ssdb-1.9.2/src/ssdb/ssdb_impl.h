@@ -107,6 +107,7 @@ public:
 	virtual int getset(const Bytes &key, std::string *val, const Bytes &newval);
 	virtual int getrange(const Bytes &key, int64_t start, int64_t end, std::string *res);
 	// return (start, end]
+	virtual int setrange(const Bytes &key, int64_t start, const Bytes &value, uint64_t *new_len);
 
 	/* hash */
 
@@ -224,10 +225,7 @@ private:
 	int _qpop(const Bytes &name, std::string *item, uint64_t front_or_back_seq);
 
 	int SetGeneric(leveldb::WriteBatch &batch, const Bytes &key, const Bytes &val, int flags, const int64_t expire);
-    int KDel(const Bytes &key);
-	int KDelNoLock(leveldb::WriteBatch &batch, const Bytes &key);
     int GetKvMetaVal(const std::string &meta_key, KvMetaVal &kv);
-
 
     int del_key_internal(leveldb::WriteBatch &batch, const Bytes &key);
     int mark_key_deleted(leveldb::WriteBatch &batch, const Bytes &key, const std::string &meta_key, std::string &meta_val);

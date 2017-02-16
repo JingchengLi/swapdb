@@ -402,7 +402,7 @@ int SSDBImpl::append(const Bytes &key, const Bytes &value, uint64_t *llen) {
 int SSDBImpl::setbit(const Bytes &key, int64_t bitoffset, int on){
 	RecordLock l(&mutex_record_, key.String());
 	leveldb::WriteBatch batch;
-	
+
 	std::string val;
 	uint16_t version = 0;
 	std::string meta_key = encode_meta_key(key);
@@ -461,6 +461,70 @@ int SSDBImpl::getbit(const Bytes &key, int64_t bitoffset) {
     return (val[len] & (1 << bit)) == 0 ? 0 : 1;
 }
 
+int SSDBImpl::setrange(const Bytes &key, int64_t start, const Bytes &value, uint64_t *new_len) {
+    RecordLock l(&mutex_record_, key.String());
+    leveldb::WriteBatch batch;
+
+    std::string val;
+    uint16_t version = 0;
+    std::string meta_key = encode_meta_key(key);
+    KvMetaVal kv;
+    int ret = GetKvMetaVal(meta_key, kv);
+    if(ret == -1){
+        return -1;
+    }else if(ret == 0){
+        if (kv.del == KEY_DELETE_MASK){
+            if (kv.version == UINT16_MAX){
+                version = 0;
+            } else{
+                version = (uint16_t)(kv.version+1);
+            }
+        }
+    }else{
+        version = kv.version;
+        val = kv.value;
+    }
+
+    int64_t padding = start - val.size();
+
+    if (padding < 0) {
+
+        std::string head = val.substr(0 ,start);
+        head.append(value.data(), value.size());
+
+        if ((start + value.size()) < val.size()) {
+            std::string tail = val.substr(start + value.size(), val.size());
+            head.append(tail);
+        }
+
+        val = head;
+
+    } else {
+
+
+        for (size_t i = 0; i < padding; ++i) {
+            val.append(sizeof(char), '\0');
+        }
+
+        val.append(value.data(), value.size());
+
+    }
+
+    //to do unit int size int64_t
+
+    *new_len = val.size();
+
+    std::string meta_val = encode_kv_val(Bytes(val), version);
+    batch.Put(meta_key, meta_val);
+
+    leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
+    if(!s.ok()){
+        log_error("set error: %s", s.ToString().c_str());
+        return -1;
+    }
+    return 1;
+}
+
 int SSDBImpl::getrange(const Bytes &key, int64_t start, int64_t end, std::string *res) {
     std::string val;
     *res = "";
@@ -489,41 +553,6 @@ int SSDBImpl::getrange(const Bytes &key, int64_t start, int64_t end, std::string
     }
 }
 
-
-int SSDBImpl::KDel(const Bytes &key){
-	RecordLock l(&mutex_record_, key.String());
-	leveldb::WriteBatch batch;
-
-    int num = KDelNoLock(batch, key);
-    if (num != 1){
-        return num;
-    }
-
-	leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
-    if(!s.ok()){
-        log_error("set error: %s", s.ToString().c_str());
-        return -1;
-    }
-    return 1;
-}
-
-int SSDBImpl::KDelNoLock(leveldb::WriteBatch &batch, const Bytes &key){
-	std::string buf = encode_meta_key(key);
-    std::string en_val;
-    leveldb::Status s = ldb->Get(leveldb::ReadOptions(), buf, &en_val);
-    if (s.IsNotFound()) {
-        return 0;
-    } else if (!s.ok()) {
-        log_error("get error: %s", s.ToString().c_str());
-        return -1;
-    } else {
-        if (en_val[0] != DataType::KV) {
-            return 0;
-        }
-    }
-	batch.Delete(buf);
-	return 1;
-}
 
 /*
  * General API

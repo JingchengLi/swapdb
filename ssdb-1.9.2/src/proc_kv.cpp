@@ -571,6 +571,29 @@ int proc_getrange(NetworkServer *net, Link *link, const Request &req, Response *
 	return 0;
 }
 
+int proc_setrange(NetworkServer *net, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *)net->data;
+	CHECK_NUM_PARAMS(4);
+
+ 	int64_t start = req[2].Int64();
+	if (start < 0) {
+		resp->push_back("error");
+		resp->push_back("offset is out of range");
+		return 0;
+	}
+
+	uint64_t new_len = 0;
+
+	int ret = serv->ssdb->setrange(req[1], start, req[3], &new_len);
+	if(ret == -1){
+		resp->push_back("error");
+	}else{
+		resp->push_back("ok");
+		resp->push_back(str(new_len));
+	}
+	return 0;
+}
+
 int proc_strlen(NetworkServer *net, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(2);
