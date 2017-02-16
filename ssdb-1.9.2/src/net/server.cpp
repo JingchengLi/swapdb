@@ -290,21 +290,18 @@ void NetworkServer::serve(){
 				}
 
                 int len = link->read();
-				int ret = link->parse_sync_data();
-				if (ret == -1){
-					log_fatal("parse sync data error!");
-					exit(0);
-				}
-                if (link->sync_data.size() > 0) {
+                if (link->input->size() > 0) {
                     proc_t p = cmd->proc;
                     const Request req;
-                    int result = (*p)(this, link, req, NULL);
+					Response resp;
+                    int result = (*p)(this, link, req, &resp);
+					if (resp.size() > 0) {
+						link->output->append(resp.resp[0]);
+						link->write();
+						log_debug("reply replic finish ok!");
+					}
                 }
-				if (ret == 2){
-					link->output->append("ok");
-					link->flush();
-					log_debug("reply replic finish ok!");
-				}
+
                 if(len <= 0){
                     double serv_time = millitime() - link->create_time;
                     log_debug("fd: %d, read: %d, delete link, s:%.3f", link->fd(), len, serv_time);

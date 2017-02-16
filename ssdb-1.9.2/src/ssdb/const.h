@@ -9,11 +9,6 @@ found in the LICENSE file.
 static const int SSDB_SCORE_WIDTH		= 9;
 static const int SSDB_KEY_LEN_MAX		= 255;
 
-#define RDB_6BITLEN 0
-#define RDB_14BITLEN 1
-#define RDB_32BITLEN 0x80
-#define RDB_64BITLEN 0x81
-
 class DataType{
 public:
 	static const char SYNCLOG	= 1;

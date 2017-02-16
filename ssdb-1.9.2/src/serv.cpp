@@ -7,6 +7,7 @@ found in the LICENSE file.
 #include "util/log.h"
 #include "util/strings.h"
 #include "serv.h"
+#include "redis/rdb.h"
 #include "util/bytes.h"
 #include "net/proc.h"
 #include "net/server.h"
@@ -830,14 +831,120 @@ int proc_replic(NetworkServer *net, Link *link, const Request &req, Response *re
 	return 0;
 }
 
+static int ssdb_load_len(const char *data, int *offset, uint64_t *lenptr){
+    unsigned char buf[2];
+    buf[0] = (unsigned char)data[0];
+    buf[1] = (unsigned char)data[1];
+    int type;
+    type = (buf[0]&0xC0)>>6;
+    if (type == RDB_ENCVAL) {
+        /* Read a 6 bit encoding type. */
+        *lenptr = buf[0]&0x3F;
+        *offset = 1;
+    } else if (type == RDB_6BITLEN) {
+        /* Read a 6 bit len. */
+        *lenptr = buf[0]&0x3F;
+        *offset = 1;
+    } else if (type == RDB_14BITLEN) {
+        /* Read a 14 bit len. */
+        *lenptr = ((buf[0]&0x3F)<<8)|buf[1];
+        *offset = 2;
+    } else if (buf[0] == RDB_32BITLEN) {
+        /* Read a 32 bit len. */
+        uint32_t len;
+        len = *(uint32_t*)(data+1);
+        *lenptr = be32toh(len);
+        *offset = 1 + sizeof(uint32_t);
+    } else if (buf[0] == RDB_64BITLEN) {
+        /* Read a 64 bit len. */
+        uint64_t len;
+        len = *(uint64_t*)(data+1);
+        *lenptr = be64toh(len);
+        *offset = 1 + sizeof(uint64_t);
+    } else {
+        printf("Unknown length encoding %d in rdbLoadLen()",type);
+        return -1; /* Never reached. */
+    }
+    return 0;
+}
+
 int proc_sync150(NetworkServer *net, Link *link, const Request &req, Response *resp) {
 	SSDBServer *serv = (SSDBServer *)net->data;
+	std::vector<std::string> kvs;
+	int ret = 0;
 
-    int ret = serv->ssdb->parse_replic(link->sync_data);
-	if (ret != -1){
-		link->sync_data.clear();
-	}
+    while (link->input->size() > 1){
+        char* data = link->input->data();
+        int size = link->input->size();
+        int oper_offset = 0, size_offset = 0;
+        uint64_t oper_len = 0, size_len = 0;
+        if (ssdb_load_len(data, &oper_offset, &oper_len) == -1){
+            return -1;
+        } else if (size < ((int)oper_len + oper_offset)) {
+			link->input->grow();
+            break;
+        }
+        std::string oper;
+        oper.append(data+oper_offset, oper_len);
+        data += (oper_offset+(int)oper_len);
+        size -= (oper_offset+(int)oper_len);
 
-	return 0;
+        if (oper == "mset") {
+            if (ssdb_load_len(data, &size_offset, &size_len) == -1){
+                return -1;
+            } else if (size < ((int)size_offset + size_len)) {
+				link->input->grow();
+                break;
+            }
+
+            std::string str_local_size;
+            str_local_size.append(data+size_offset, size_len);
+            data += (size_offset+(int)size_len);
+            size -= (size_offset+(int)size_len);
+
+            long long n_local_size = 0;
+            string2ll(str_local_size.c_str(), str_local_size.size(), &n_local_size);
+
+            if (size < (int)n_local_size){
+				link->input->grow();
+                break;
+            }
+
+            while (n_local_size > 0) {
+                int key_offset = 0, val_offset = 0;
+                uint64_t key_len = 0, val_len = 0;
+
+                if (ssdb_load_len(data, &key_offset, &key_len) == -1){
+                    return -1;
+                }
+                std::string key;
+                key.append(data+key_offset, key_len);
+                data += (key_offset + (int)key_len);
+                size -= (key_offset + (int)key_len);
+                n_local_size -= (key_offset + (int)key_len);
+
+                if (ssdb_load_len(data, &val_offset, &val_len) == -1){
+                    return -1;
+                }
+                std::string value;
+                value.append(data+val_offset, val_len);
+                data += (val_offset + (int)val_len);
+                size -= (val_offset + (int)val_len);
+                n_local_size -= (val_offset + (int)val_len);
+
+                kvs.push_back(key);
+                kvs.push_back(value);
+            }
+			link->input->decr(link->input->size() - size);
+
+        } else if (oper == "complete") {
+			link->input->decr(link->input->size() - size);
+            resp->push_back("ok");
+        }
+    }
+
+    ret = serv->ssdb->parse_replic(kvs);
+
+	return ret;
 }
 
