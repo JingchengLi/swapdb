@@ -12,6 +12,7 @@ found in the LICENSE file.
 #include "net/proc.h"
 #include "net/server.h"
 
+DEF_PROC(type);
 DEF_PROC(get);
 DEF_PROC(set);
 DEF_PROC(append);
@@ -147,6 +148,7 @@ DEF_BPROC(COMMAND_DATA_DUMP);
 #define BPROC(c)  bproc_##c
 
 void SSDBServer::reg_procs(NetworkServer *net){
+	REG_PROC(type, "rt");
 	REG_PROC(get, "rt");
 	REG_PROC(set, "wt");
 	REG_PROC(append, "wt");

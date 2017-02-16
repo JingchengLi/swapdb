@@ -8,6 +8,17 @@ found in the LICENSE file.
 #include "net/proc.h"
 #include "net/server.h"
 
+int proc_type(NetworkServer *net, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *)net->data;
+	CHECK_NUM_PARAMS(2);
+
+	std::string val;
+	int ret = serv->ssdb->type(req[1], &val);
+	resp->reply_get(1, &val);
+
+	return 0;
+}
+
 int proc_get(NetworkServer *net, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(2);
