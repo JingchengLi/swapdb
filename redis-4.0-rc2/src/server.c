@@ -2411,7 +2411,22 @@ int processCommandMaybeInSSDB(client *c) {
     if (c->argc <= 1 || !lookupKey(EVICTED_DATA_DB, c->argv[1], LOOKUP_NONE))
         return C_ERR;
 
-    serverAssert(!dictFind(c->db->dict, c->argv[1]->ptr));
+    /* Handle the exception caused by restart redis,
+       due to the async operations between SSDB. */
+    if (dictFind(c->db->dict, c->argv[1]->ptr)) {
+        propagateExpire(EVICTED_DATA_DB, c->argv[1], server.lazyfree_lazy_eviction);
+        if (server.lazyfree_lazy_eviction)
+            dbAsyncDelete(EVICTED_DATA_DB, c->argv[1]);
+        else
+            dbSyncDelete(EVICTED_DATA_DB, c->argv[1]);
+
+        /* Undo the slotToKeyDel in dbAsyncDelete or dbSyncDelete. */
+        if (server.cluster_enabled) slotToKeyAdd(c->argv[1]);
+
+        /* Exec the cmd in redis. */
+        return C_ERR;
+    }
+
     serverAssert(c->cmd);
 
     if (c->cmd->flags & (CMD_READONLY | CMD_WRITE | CMD_JDJR_MODE)) {

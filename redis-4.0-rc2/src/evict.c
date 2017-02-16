@@ -488,6 +488,10 @@ int epilogOfEvictingToSSDB(robj *keyobj) {
     /* Record the evicted keys in an extra redis db. */
 
     de = dictFind(db->dict, keyobj->ptr);
+
+    /* The key may be deleted before the callback customized-del. */
+    if (!de) return C_ERR;
+
     usage = (long long)estimateKeyMemoryUsage(de);
     usage_obj = createStringObjectFromLongLong(usage);
     setKey(evicteddb, keyobj, usage_obj);
