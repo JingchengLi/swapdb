@@ -24,6 +24,8 @@ class SSDBServer;
 
 class TransferJob {
 public:
+    SSDBServer *serv;
+
     uint16_t type;
     int64_t ts;
     int retry;
@@ -31,7 +33,6 @@ public:
     std::string data_key;
     void *value;
 
-    SSDBServer *serv;
 
     bproc_t proc;
 
