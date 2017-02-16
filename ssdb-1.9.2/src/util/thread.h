@@ -248,6 +248,7 @@ class WorkerPool{
 		int start(int num_workers);
 		int stop();
 		
+		int queued();
 		int push(JOB job);
 		int pop(JOB *job);
 };
@@ -425,6 +426,11 @@ WorkerPool<W, JOB>::~WorkerPool(){
 template<class W, class JOB>
 int WorkerPool<W, JOB>::push(JOB job){
 	return this->jobs.push(job);
+}
+
+template<class W, class JOB>
+int WorkerPool<W, JOB>::queued(){
+	return this->jobs.size();
 }
 
 template<class W, class JOB>

@@ -95,9 +95,7 @@ src/ssdb/t_list.cpp
 src/ssdb/t_set.cpp
 src/ssdb/t_eset.cpp
 
-src/ssdb/redis_stream.cpp
-src/ssdb/background_job.cpp
-)
+        )
 
 
 ADD_LIBRARY(libssdb-static STATIC ${SSDB_OBJS})                                                                                                                                                  
@@ -165,7 +163,9 @@ src/net/proc.cpp
 src/net/worker.cpp
 src/net/fde.cpp
 src/net/link.cpp
-src/net/redis_client.cpp
+src/net/redis/redis_client.cpp
+src/net/redis/redis_stream.cpp
+src/net/redis/transfer.cpp
 )
 
 ADD_LIBRARY(libnet-static STATIC ${NET_OBJS})                                                                                                                                                  
@@ -216,6 +216,7 @@ src/redis/rdb_decoder.cpp
 SET( SRC_OBJS
 src/ssdb-server.cpp
 src/client/SSDB_impl.cpp
+src/bproc_data.cpp
 src/proc_kv.cpp
 src/proc_hash.cpp
 src/proc_set.cpp

@@ -11,7 +11,6 @@ found in the LICENSE file.
 #include "util/bytes.h"
 #include "net/proc.h"
 #include "net/server.h"
-#include "ssdb/background_job.h"
 
 DEF_PROC(get);
 DEF_PROC(set);
@@ -136,9 +135,14 @@ DEF_PROC(sync150);
 
 DEF_PROC(rr_dump);
 DEF_PROC(rr_restore);
-DEF_PROC(rr_prepare1);
-DEF_PROC(rr_prepare2);
 
+
+
+DEF_BPROC(COMMAND_DATA_SAVE);
+DEF_BPROC(COMMAND_DATA_DUMP);
+
+
+#define _STRING(x) x
 
 #define REG_PROC(c, f)     net->proc_map.set_proc(#c, f, proc_##c)
 
@@ -252,8 +256,6 @@ void SSDBServer::reg_procs(NetworkServer *net){
 	REG_PROC(restore, "wt");
 	REG_PROC(rr_dump, "wt"); //auctual read but ...
 	REG_PROC(rr_restore, "wt");
-	REG_PROC(rr_prepare1, "wt");
-	REG_PROC(rr_prepare2, "wt");
 
 	REG_PROC(select, "rt");
 	REG_PROC(client, "r");
@@ -275,6 +277,10 @@ void SSDBServer::reg_procs(NetworkServer *net){
 	REG_PROC(compact, "rt");
 
 }
+
+#define COMMAND_DATA_SAVE 1
+#define COMMAND_DATA_DUMP 2
+
 
 
 SSDBServer::SSDBServer(SSDB *ssdb, SSDB *meta, const Config &conf, NetworkServer *net){
@@ -301,10 +307,11 @@ SSDBServer::SSDBServer(SSDB *ssdb, SSDB *meta, const Config &conf, NetworkServer
 
 			log_info("upstream: %s:%d", ip.c_str(), port);
 
-			redisUpstream = new RedisUpstream(ip ,port);
-			backgroundJob = new BackgroundJob(this);
-
+			redisConf = new RedisConf(ip, port);
 		}
+
+
+
 	}
 
 	{ // slaves
@@ -362,11 +369,8 @@ SSDBServer::~SSDBServer(){
 	delete backend_sync;
 	delete expiration;
 
-	if (backgroundJob != nullptr) {
-		delete backgroundJob;
-	}
-	if (redisUpstream != nullptr) {
-		delete redisUpstream;
+	if (redisConf != nullptr) {
+		delete redisConf;
 	}
 
 	log_debug("SSDBServer finalized");
@@ -499,8 +503,10 @@ int proc_rr_restore(NetworkServer *net, Link *link, const Request &req, Response
 		}
 	}
 
-    BTask bTask(COMMAND_DATA_SAVE, req[1].String(), new DumpData(req[1].String(), req[3].String(), ttl, replace));
-    serv->bqueue.push(bTask);
+	TransferJob* job = new TransferJob(serv, COMMAND_DATA_SAVE, req[1].String(), new DumpData(req[1].String(), req[3].String(), ttl, replace));
+	job->proc = bproc_COMMAND_DATA_SAVE;
+
+	net->redis->push(job);
 
 	std::string val = "OK";
 	resp->reply_get(1, &val);
@@ -512,35 +518,11 @@ int proc_rr_dump(NetworkServer *net, Link *link, const Request &req, Response *r
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(2);
 
+	TransferJob* job = new TransferJob(serv, COMMAND_DATA_DUMP, req[1].String());
+	job->proc = bproc_COMMAND_DATA_DUMP;
 
-    BTask bTask(COMMAND_DATA_DUMP, req[1].String());
-    serv->bqueue.push1st(bTask);
-
-	std::string val = "OK";
-	resp->reply_get(1, &val);
-	return 0;
-}
-
-int proc_rr_prepare1(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
-	CHECK_NUM_PARAMS(1);
-
-	BTask bTask(COMMAND_SYNC_PREPARE1, "");
-	serv->bqueue.push(bTask);
-
-	std::string val = "OK";
-	resp->reply_get(1, &val);
-	return 0;
-}
-
-int proc_rr_prepare2(NetworkServer *net, Link *link, const Request &req, Response *resp) {
-	SSDBServer *serv = (SSDBServer *)net->data;
-	CHECK_NUM_PARAMS(1);
-
-
-
-//	const leveldb::Snapshot* sp = serv->ssdb->GetSnapshot();
-
+	//TODO push1st
+	net->redis->push(job);
 
 	std::string val = "OK";
 	resp->reply_get(1, &val);

@@ -6,7 +6,6 @@ found in the LICENSE file.
 #ifndef SSDB_OPTION_H_
 #define SSDB_OPTION_H_
 
-#include <net/redis_client.h>
 #include "../util/config.h"
 
 #ifdef USE_LEVELDB

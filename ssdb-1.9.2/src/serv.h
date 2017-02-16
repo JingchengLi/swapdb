@@ -10,9 +10,7 @@ found in the LICENSE file.
 #include <map>
 #include <vector>
 #include <string>
-#include <ssdb/background_job.h>
-#include <util/blocking_queue.h>
-#include <ssdb/redis_stream.h>
+#include <util/dump_data.h>
 #include "ssdb/ssdb_impl.h"
 #include "ssdb/ttl.h"
 #include "backend_dump.h"
@@ -32,7 +30,7 @@ class SSDBServer
 {
 private:
 	void reg_procs(NetworkServer *net);
-	
+
 	SSDB *meta;
 
 public:
@@ -41,12 +39,11 @@ public:
 	BackendSync *backend_sync;
 	ExpirationHandler *expiration;
 
-	BQueue<BTask> bqueue;
+    RedisConf *redisConf;
 
-	BackgroundJob *backgroundJob = nullptr;
-	RedisUpstream *redisUpstream = nullptr;
 
-	std::vector<Slave *> slaves;
+
+    std::vector<Slave *> slaves;
 	std::vector<Slave_info> slave_infos;
 	Link*	master_link;
 	const leveldb::Snapshot* snapshot;

@@ -6,7 +6,7 @@
 #define SSDB_REDISUPSTREAM_H
 
 
-#include <net/redis_client.h>
+#include <net/redis/redis_client.h>
 
 class RedisUpstream {
 public:

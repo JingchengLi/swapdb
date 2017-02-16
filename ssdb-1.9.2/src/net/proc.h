@@ -6,12 +6,15 @@ found in the LICENSE file.
 #ifndef NET_PROC_H_
 #define NET_PROC_H_
 
+#include <string>
 #include <vector>
 #include "resp.h"
 #include "../util/bytes.h"
 
 class Link;
 class NetworkServer;
+class SSDBServer;
+class TransferWorker;
 
 #define PROC_OK			0
 #define PROC_ERROR		-1
@@ -19,6 +22,7 @@ class NetworkServer;
 #define PROC_BACKEND	100
 
 #define DEF_PROC(f) int proc_##f(NetworkServer *net, Link *link, const Request &req, Response *resp)
+#define DEF_BPROC(c) int bproc_##c(SSDBServer *serv, TransferWorker *worker, const std::string &data_key, void* value)
 
 typedef std::vector<Bytes> Request;
 typedef int (*proc_t)(NetworkServer *net, Link *link, const Request &req, Response *resp);

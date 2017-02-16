@@ -13,6 +13,7 @@ found in the LICENSE file.
 #include "fde.h"
 #include "proc.h"
 #include "worker.h"
+#include "redis/transfer.h"
 
 class Link;
 class Config;
@@ -49,6 +50,8 @@ protected:
 	void usage(int argc, char **argv);
 
 public:
+	TransferWorkerPool *redis;
+
 	IpFilter *ip_filter;
 	void *data;
 	ProcMap proc_map;

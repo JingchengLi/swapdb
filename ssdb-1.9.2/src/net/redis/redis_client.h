@@ -6,7 +6,8 @@
 #define SSDB_LINK_REDIS_CLIENT_H
 
 
-#include "link.h"
+#include <net/link.h>
+#include "reponse_redis.h"
 
 class RedisClient {
 public:
@@ -27,6 +28,19 @@ private:
 
 
 };
+
+
+
+struct RedisConf {
+public:
+
+    std::string ip;
+    int port;
+
+    RedisConf(const std::string &ip, int port) : ip(ip), port(port) {}
+
+};
+
 
 
 #endif //SSDB_LINK_REDIS_CLIENT_H

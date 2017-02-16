@@ -12,6 +12,7 @@ found in the LICENSE file.
 #include "link.h"
 #include "fde.h"
 #include <vector>
+#include <net/redis/transfer.h>
 
 static DEF_PROC(ping);
 static DEF_PROC(info);
@@ -90,6 +91,9 @@ NetworkServer::~NetworkServer(){
 	delete writer;
 	reader->stop();
 	delete reader;
+
+	redis->stop();
+	delete redis;
 }
 
 NetworkServer* NetworkServer::init(const char *conf_file, int num_readers, int num_writers){
@@ -211,6 +215,9 @@ void NetworkServer::serve(){
 	reader = new ProcWorkerPool("reader");
 	reader->start(num_readers);
 
+	redis = new TransferWorkerPool("redis");
+	redis->start(10);
+
 	ready_list_t ready_list;
 	ready_list_t ready_list_2;
 	ready_list_t::iterator it;
@@ -222,7 +229,8 @@ void NetworkServer::serve(){
 	}
 	fdes->set(this->reader->fd(), FDEVENT_IN, 0, this->reader);
 	fdes->set(this->writer->fd(), FDEVENT_IN, 0, this->writer);
-	
+	fdes->set(this->redis->fd(), FDEVENT_IN, 0, this->redis);
+
 	uint32_t last_ticks = g_ticks;
 	
 	while(!quit){
@@ -270,6 +278,29 @@ void NetworkServer::serve(){
 				}else{
 					log_debug("accept return NULL");
 				}
+			}else if(fde->data.ptr == this->redis){
+					TransferWorkerPool *worker = (TransferWorkerPool *)fde->data.ptr;
+					TransferJob *job = NULL;
+					if(worker->pop(&job) == 0){
+						log_fatal("reading result from workers error!");
+						exit(0);
+					}
+//
+//					int qsize = worker->queued();
+//					if (qsize > 500) {
+//						log_error("BackgroundJob queue size is now : %d", qsize);
+//					} else if (qsize > 218) {
+//						log_warn("BackgroundJob queue size is now : %d", qsize);
+//					} else if (qsize > 50) {
+//						log_info("BackgroundJob queue size is now : %d", qsize);
+//					} else if (qsize > 6) {
+//						log_debug("BackgroundJob queue size is now : %d", qsize);
+//					}
+//
+//					log_debug("job process done %s", job->dump().c_str());
+
+					delete job;
+
 			}else if(fde->data.ptr == this->reader || fde->data.ptr == this->writer){
 				ProcWorkerPool *worker = (ProcWorkerPool *)fde->data.ptr;
 				ProcJob *job = NULL;

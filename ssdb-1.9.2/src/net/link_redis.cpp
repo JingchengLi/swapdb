@@ -6,6 +6,7 @@ found in the LICENSE file.
 #include "link_redis.h"
 #include <map>
 #include <cstring>
+#include <net/redis/reponse_redis.h>
 
 enum REPLY{
 	REPLY_BULK = 0,
