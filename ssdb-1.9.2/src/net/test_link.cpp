@@ -3,7 +3,7 @@
 //
 
 #include "link.h"
-#include "redis_client.h"
+#include "redis/redis_client.h"
 
 int main(int argc, char **argv) {
 

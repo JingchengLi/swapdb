@@ -54,6 +54,8 @@ public:
 	virtual int set(const Bytes &key, const Bytes &val) = 0;
 	virtual int setnx(const Bytes &key, const Bytes &val) = 0;
 	virtual int del(const Bytes &key) = 0;
+	virtual int append(const Bytes &key, const Bytes &value, uint64_t *llen) = 0;
+
 	// -1: error, 1: ok, 0: value is not an integer or out of range
 	virtual int incr(const Bytes &key, int64_t by, int64_t *new_val) = 0;
 	virtual int multi_set(const std::vector<Bytes> &kvs, int offset=0) = 0;

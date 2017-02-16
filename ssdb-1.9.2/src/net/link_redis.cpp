@@ -77,6 +77,8 @@ static RedisCommand_raw cmds_raw[] = {
 	{STRATEGY_AUTO, "pexpireat","pexpireat",    REPLY_INT},
 	{STRATEGY_AUTO, "persist","persist",    REPLY_INT},
 
+	{STRATEGY_AUTO, "append",	"append",     REPLY_INT},
+
 
 	{STRATEGY_AUTO, "getbit",	"getbit",		REPLY_INT},
 	{STRATEGY_AUTO, "setbit",	"setbit",		REPLY_INT},

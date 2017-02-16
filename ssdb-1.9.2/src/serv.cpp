@@ -14,6 +14,7 @@ found in the LICENSE file.
 
 DEF_PROC(get);
 DEF_PROC(set);
+DEF_PROC(append);
 DEF_PROC(setx);
 DEF_PROC(psetx);
 DEF_PROC(setnx);
@@ -148,6 +149,7 @@ DEF_BPROC(COMMAND_DATA_DUMP);
 void SSDBServer::reg_procs(NetworkServer *net){
 	REG_PROC(get, "rt");
 	REG_PROC(set, "wt");
+	REG_PROC(append, "wt");
 	REG_PROC(del, "wt");
 	REG_PROC(setx, "wt");
 	REG_PROC(psetx, "wt");

@@ -353,6 +353,52 @@ int SSDBImpl::get(const Bytes &key, std::string *val) {
 }
 
 
+
+int SSDBImpl::append(const Bytes &key, const Bytes &value, uint64_t *llen) {
+    RecordLock l(&mutex_record_, key.String());
+    leveldb::WriteBatch batch;
+
+    std::string val;
+    uint16_t version = 0;
+    std::string meta_key = encode_meta_key(key);
+    KvMetaVal kv;
+    int ret = GetKvMetaVal(meta_key, kv);
+    if(ret == -1){
+        return -1;
+    }else if(ret == 0){
+        if (kv.del == KEY_DELETE_MASK){
+            if (kv.version == UINT16_MAX){
+                version = 0;
+            } else{
+                version = (uint16_t)(kv.version+1);
+            }
+        }
+
+        val = value.String();
+
+        *llen = val.size();
+
+    }else{
+        version = kv.version;
+        val = kv.value.append(value.data(), value.size());
+
+        *llen = val.size();
+
+    }
+
+    std::string meta_val = encode_kv_val(Bytes(val), version);
+    batch.Put(meta_key, meta_val);
+
+    leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
+    if(!s.ok()){
+        log_error("set error: %s", s.ToString().c_str());
+        return -1;
+    }
+    return 1;
+}
+
+
+
 int SSDBImpl::setbit(const Bytes &key, int64_t bitoffset, int on){
 	RecordLock l(&mutex_record_, key.String());
 	leveldb::WriteBatch batch;
@@ -389,9 +435,8 @@ int SSDBImpl::setbit(const Bytes &key, int64_t bitoffset, int on){
         val[len] &= ~(1 << bit);
     }
 
-    std::string buf = encode_meta_key(key);
     std::string meta_val = encode_kv_val(Bytes(val), version);
-	batch.Put(buf, meta_val);
+	batch.Put(meta_key, meta_val);
 
 	leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
 	if(!s.ok()){

@@ -28,6 +28,21 @@ int proc_getset(NetworkServer *net, Link *link, const Request &req, Response *re
 	return 0;
 }
 
+int proc_append(NetworkServer *net, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *)net->data;
+	CHECK_NUM_PARAMS(3);
+
+	uint64_t newlen = 0;
+	int ret = serv->ssdb->append(req[1], req[2], &newlen);
+	if(ret == -1){
+		resp->push_back("error");
+	}else{
+		resp->push_back("ok");
+		resp->push_back(str(newlen));
+	}
+	return 0;
+}
+
 int proc_set(NetworkServer *net, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(3);
