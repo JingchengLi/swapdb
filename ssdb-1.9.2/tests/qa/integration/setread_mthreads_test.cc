@@ -116,7 +116,7 @@ void* SetReadMthreadsTest::read_thread_func(void *arg) {
             size_before = 0;
             mthreadsTest->s = tmpclient->multi_get(mthreadsTest->keys, &tmplist);
             s_after = tmpclient->get(randkey, &mthreadsTest->getVal);
-            size_before = mthreadsTest->keysNum;
+            size_after = mthreadsTest->keysNum;
             break;
         case Type::HASH:
             dflag = 2;
@@ -428,6 +428,7 @@ TEST_F(SetReadMthreadsTest, Test_mset_get_mget_mthreads) {
             break;
         }
     }
+
     s = client->multi_del(keys);
     ASSERT_EQ(keysNum, list.size()/2)<<"Write fail at last:"<<list.size()/2<<endl;
 }
