@@ -20,7 +20,9 @@ TransferWorker::~TransferWorker() {
 void TransferWorker::init() {
     log_debug("%s %d init", this->name.c_str(), this->id);
     this->avg_wait = 0.0;
+    this->avg_process = 0.0;
     this->count = 1;
+    this->last = 0;
 }
 
 int TransferWorker::proc(TransferJob *job) {
@@ -48,7 +50,7 @@ int TransferWorker::proc(TransferJob *job) {
         count = 0; //reset count.
     }
 
-    if ((current - last) > 100) {
+    if ((current - last) > 2000) {
          last = time_ms();
 
         log_info("task avg wait %f ms", avg_wait);

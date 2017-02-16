@@ -215,7 +215,7 @@ void NetworkServer::serve(){
 	reader = new ProcWorkerPool("reader");
 	reader->start(num_readers);
 
-	redis = new TransferWorkerPool("redis");
+	redis = new TransferWorkerPool("transfer");
 	redis->start(10);
 
 	ready_list_t ready_list;
