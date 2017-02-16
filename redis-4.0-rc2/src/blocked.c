@@ -123,7 +123,8 @@ void processUnblockedClients(void) {
          * the code is conceptually more correct this way. */
         if (!(c->flags & CLIENT_BLOCKED)) {
             if ((c->querybuf && sdslen(c->querybuf) > 0) ||
-                (server.jdjr_mode && (c->flags & CLIENT_BLOCKED_KEY_SSDB))) {
+                (server.jdjr_mode &&
+                    (c->flags & (CLIENT_DELAYED_BY_LOADING_SSDB_KEY | CLIENT_DELAYED_BY_PSYNC)))) {
                 processInputBuffer(c);
             }
         }
@@ -180,8 +181,8 @@ void replyToBlockedClientTimedOut(client *c) {
         addReplyString(c, "-Err timeout", 13);
     } else if (server.jdjr_mode
                && c->btype == BLOCKED_PSYNC) {
-        /* TODO: Set server.no_writing_ssdb to SSDB_WRITE ??? */
-        server.no_writing_ssdb = SSDB_WRITE;
+        /* TODO: Set server.is_allow_ssdb_write to ALLOW_SSDB_WRITE ??? */
+        server.is_allow_ssdb_write = ALLOW_SSDB_WRITE;
     } else {
         serverPanic("Unknown btype in replyToBlockedClientTimedOut().");
     }

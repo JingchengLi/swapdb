@@ -78,9 +78,9 @@ typedef long long mstime_t; /* millisecond time type. */
 #define C_ERR                   -1
 #define C_FD_ERR                -2
 
-/* no_writing_ssdb codes */
-#define SSDB_NO_WRITE 0
-#define SSDB_WRITE 1
+/* is_allow_ssdb_write codes */
+#define ALLOW_SSDB_WRITE 1
+#define DISALLOW_SSDB_WRITE 0
 
 /* Static server configuration */
 #define CONFIG_DEFAULT_HZ        10      /* Time interrupt calls/sec. */
@@ -254,8 +254,11 @@ typedef long long mstime_t; /* millisecond time type. */
 #define CLIENT_LUA_DEBUG_SYNC (1<<26)  /* EVAL debugging without fork() */
 #define CLIENT_MODULE (1<<27) /* Non connected client used by some module. */
 
-#define CLIENT_BLOCKED_KEY_SSDB (1<<30) /* Client is blocking when loading/transferring ssdb key.*/
-#define CLIENT_DELAY_PSYNC (1<<31) /* Delay psync to the tail of current loop. */
+#define CLIENT_DELAYED_BY_LOADING_SSDB_KEY (1<<30) /*
+ * A read or write command is delayed because the key to be processed is loading-from-ssdb state.
+ * or a write command is delayed because the key to be processed is in transferring-to-ssdb state. */
+#define CLIENT_DELAYED_BY_PSYNC (1<<31) /* A write command is delayed because we need to prohibid write
+ * operations for ssdb when receive a psync from my slave. */
 
 /* Client block type (btype field in client structure)
  * if CLIENT_BLOCKED flag is set. */
@@ -1214,7 +1217,7 @@ struct redisServer {
     long long evicting_keys_num;
 
     /* Forbbid sending the writing cmds to SSDB. */
-    int no_writing_ssdb;
+    int is_allow_ssdb_write;
     list *no_writing_ssdb_blocked_clients;
     int ssdb_status;
 };

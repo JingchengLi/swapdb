@@ -1038,7 +1038,6 @@ void handleClientsBlockedOnCustomizedPsync(void) {
     listRewind(server.no_writing_ssdb_blocked_clients, &li);
     while((ln = listNext(&li))) {
         client *c = listNodeValue(ln);
-        c->flags &= ~CLIENT_DELAY_PSYNC;
         listDelNode(server.no_writing_ssdb_blocked_clients, ln);
 
         unblockClient(c);
@@ -1112,7 +1111,7 @@ int blockForLoadingkeys(client *c, robj **keys, int numkeys, mstime_t timeout) {
     }
 
     if (blockednum) {
-        c->flags |= CLIENT_BLOCKED_KEY_SSDB;
+        c->flags |= CLIENT_DELAYED_BY_LOADING_SSDB_KEY;
         blockClient(c, BLOCKED_SSDB_LOADING_OR_TRANSFER);
     }
 

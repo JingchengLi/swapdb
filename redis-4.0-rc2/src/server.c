@@ -1624,9 +1624,9 @@ void initServerConfig(void) {
     server.bug_report_start = 0;
     server.watchdog_period = 0;
 
-    /* no_writing_ssdb status. */
+    /* is_allow_ssdb_write status. */
     if (server.jdjr_mode) {
-        server.no_writing_ssdb = SSDB_WRITE;
+        server.is_allow_ssdb_write = ALLOW_SSDB_WRITE;
         server.ssdb_status = SSDB_NONE;
     }
 
@@ -2476,10 +2476,10 @@ int processCommandMaybeInSSDB(client *c) {
 
     serverAssert(c->cmd);
 
-    if ((server.no_writing_ssdb == SSDB_NO_WRITE)
+    if ((server.is_allow_ssdb_write == DISALLOW_SSDB_WRITE)
         && (c->cmd->flags & (CMD_WRITE | CMD_JDJR_MODE))) {
         listAddNodeTail(server.no_writing_ssdb_blocked_clients, c);
-        c->flags &= CLIENT_DELAY_PSYNC;
+        c->flags |= CLIENT_DELAYED_BY_PSYNC;
         /* TODO: use a suitable timeout. */
         c->bpop.timeout = 5000 + mstime();
         blockClient(c, BLOCKED_NO_WRITE_TO_SSDB);
@@ -2721,7 +2721,7 @@ int processCommand(client *c) {
     /* Check if current cmd contains blocked keys. */
     if (server.jdjr_mode
         && c->argc > 1
-        && !(c->flags & CLIENT_BLOCKED_KEY_SSDB)
+        && !(c->flags & CLIENT_DELAYED_BY_LOADING_SSDB_KEY)
         && checkKeysInMediateState(c) == C_ERR) {
         /* Return C_ERR to keep client info for delayed handling. */
         return C_ERR;
@@ -2745,11 +2745,11 @@ int processCommand(client *c) {
         if (sendCommandToSSDB(c, finalcmd) != C_OK)
             serverLog(LL_WARNING, "Sending customized-psync to SSDB failed.");
 
-        c->flags &= CLIENT_DELAY_PSYNC;
+        c->flags |= CLIENT_DELAYED_BY_PSYNC;
         blockClient(c, BLOCKED_PSYNC);
 
         /* Forbbid sending the writing cmds to SSDB. */
-        server.no_writing_ssdb = SSDB_NO_WRITE;
+        server.is_allow_ssdb_write = DISALLOW_SSDB_WRITE;
 
         c->ssdb_status = SSDB_SNAPSHOT_PRE;
         return C_ERR;
@@ -2770,7 +2770,7 @@ int processCommand(client *c) {
         if (server.jdjr_mode && listLength(server.ssdb_ready_keys))
             handleClientsBlockedOnSSDB();
         if (server.jdjr_mode
-            && (server.no_writing_ssdb == SSDB_WRITE)
+            && (server.is_allow_ssdb_write == ALLOW_SSDB_WRITE)
             && listLength(server.no_writing_ssdb_blocked_clients))
             handleClientsBlockedOnCustomizedPsync();
     }

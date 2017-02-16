@@ -900,7 +900,7 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
 
         if (!sdscmp(replyString, tmp_ok)) {
             server.ssdb_status = SSDB_SNAPSHOT_OK;
-            server.no_writing_ssdb = SSDB_WRITE;
+            server.is_allow_ssdb_write = ALLOW_SSDB_WRITE;
         } else if (!sdscmp(replyString, tmp_fail)) {
             addReplyError(c, "snapshot nok");
             resetClient(c);
@@ -1548,7 +1548,8 @@ int processMultibulkBuffer(client *c) {
 void processInputBuffer(client *c) {
     server.current_client = c;
     /* Keep processing while there is something in the input buffer */
-    while(sdslen(c->querybuf) || (server.jdjr_mode && (c->flags & CLIENT_BLOCKED_KEY_SSDB))) {
+    while(sdslen(c->querybuf) || (server.jdjr_mode &&
+            (c->flags & (CLIENT_DELAYED_BY_LOADING_SSDB_KEY | CLIENT_DELAYED_BY_PSYNC)))) {
         /* Return if clients are paused. */
         if (!(c->flags & CLIENT_SLAVE) && clientsArePaused()) break;
 
@@ -1562,7 +1563,7 @@ void processInputBuffer(client *c) {
          * The same applies for clients we want to terminate ASAP. */
         if (c->flags & (CLIENT_CLOSE_AFTER_REPLY|CLIENT_CLOSE_ASAP)) break;
 
-        if (server.jdjr_mode && (c->flags & CLIENT_BLOCKED_KEY_SSDB)) {
+        if (server.jdjr_mode && (c->flags & CLIENT_DELAYED_BY_LOADING_SSDB_KEY)) {
             /* Process blocked command because of ssdb loading/transferring. */
             serverAssert(c->argc > 1);
             serverLog(LL_DEBUG, "blocked client fd: %d, key: %s is processing.",
@@ -1571,18 +1572,18 @@ void processInputBuffer(client *c) {
             if (processCommand(c) == C_OK)
                 resetClient(c);
 
-            c->flags &= ~CLIENT_BLOCKED_KEY_SSDB;
+            c->flags &= ~CLIENT_DELAYED_BY_LOADING_SSDB_KEY;
 
             serverLog(LL_DEBUG, "blocked client fd: %d, key: %s is finished.",
                       c->fd, (char*)c->argv[1]->ptr);
             break;
         }
 
-        if (server.jdjr_mode && (c->flags & CLIENT_DELAY_PSYNC)) {
+        if (server.jdjr_mode && (c->flags & CLIENT_DELAYED_BY_PSYNC)) {
             if (processCommand(c) == C_OK)
                 resetClient(c);
 
-            c->flags &= ~CLIENT_DELAY_PSYNC;
+            c->flags &= ~CLIENT_DELAYED_BY_PSYNC;
 
             serverLog(LL_DEBUG, "Delayed psync is processed, fd: %d", c->fd);
             break;
