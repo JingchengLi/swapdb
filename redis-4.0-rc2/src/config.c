@@ -1023,7 +1023,7 @@ void configSetCommand(client *c) {
     } config_set_bool_field(
       "slave-lazy-flush",server.repl_slave_lazy_flush) {
     } config_set_bool_field(
-      "no-appenb-dfsync-on-rewrite",server.aof_no_fsync_on_rewrite) {
+      "no-appendfsync-on-rewrite",server.aof_no_fsync_on_rewrite) {
 
     /* Numerical fields.
      * config_set_numerical_field(name,var,min,max) */
