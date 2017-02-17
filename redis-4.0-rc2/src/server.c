@@ -1231,6 +1231,7 @@ void startToEvictIfNeeded() {
     }
 }
 
+#define RESERVED_MEMORY_WHEN_LOAD (1024*1024*2)
 void startToLoadIfNeeded() {
     listIter li;
     listNode *ln;
@@ -1254,7 +1255,6 @@ void startToLoadIfNeeded() {
 
     while((ln = listNext(&li))) {
         robj *keyobj = (robj *)(ln->value);
-        long long keyusage;
         dictEntry *de;
 
         if (dictFind(EVICTED_DATA_DB->transferring_keys, keyobj->ptr))
@@ -1262,7 +1262,8 @@ void startToLoadIfNeeded() {
 
         /* Try to load the keys in the next loop. */
         if (dictFind(EVICTED_DATA_DB->visiting_ssdb_keys, keyobj->ptr)) {
-            listAddNodeTail(tmp, dupStringObject(keyobj));
+            incrRefCount(keyobj);
+            listAddNodeTail(tmp, keyobj);
             continue;
         }
 
@@ -1275,15 +1276,13 @@ void startToLoadIfNeeded() {
         /* key is not existed any more. */
         if (!de) continue;
 
-        serverAssert(getLongLongFromObject(dictGetVal(de), &keyusage) == C_OK);
-
-        if (server.maxmemory > 0 &&
-                (memoryReachLoadUpperLimit() ||
-                        (server.ssdb_load_upper_limit == 0 && mem_free < keyusage))) {
+        if (server.maxmemory > 0 && (memoryReachLoadUpperLimit() ||
+                (server.maxmemory - RESERVED_MEMORY_WHEN_LOAD <= zmalloc_used_memory()))) {
             serverLog(LL_DEBUG, "No more memory to load key: %s from SSDB to redis.",
                       (char *)keyobj->ptr);
             /* Try to load the keys in the next loop. */
-            listAddNodeTail(tmp, dupStringObject(keyobj));
+            incrRefCount(keyobj);
+            listAddNodeTail(tmp, keyobj);
             continue;
         }
 
@@ -2501,7 +2500,8 @@ int processCommandMaybeInSSDB(client *c) {
 
                 int counter = val->lru & 255;
 
-                if (counter > LFU_INIT_VAL - 2) {
+                // todo: add config option for LFU value
+                if ((counter > LFU_INIT_VAL) && !memoryReachLoadUpperLimit()) {
                     listAddNodeHead(server.hot_keys, dupStringObject(c->argv[1]));
                     serverLog(LL_DEBUG, "key: %s is added to server.hot_keys, client fd: %d.",
                               (char *)c->argv[1]->ptr, c->fd);
