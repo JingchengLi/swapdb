@@ -135,6 +135,8 @@ typedef long long mstime_t; /* millisecond time type. */
 #define CONFIG_DEFAULT_SLAVE_ANNOUNCE_IP NULL
 #define CONFIG_DEFAULT_SLAVE_ANNOUNCE_PORT 0
 #define CONFIG_DEFAULT_REPL_DISABLE_TCP_NODELAY 0
+#define CONFIG_DEFAULT_SSDB_LOAD_UPPER_LIMIT 0
+#define CONFIG_DEFAULT_SSDB_TRANSFER_LOWER_LIMIT 0
 #define CONFIG_DEFAULT_MAXMEMORY 0
 #define CONFIG_DEFAULT_MAXMEMORY_SAMPLES 5
 #define CONFIG_DEFAULT_LFU_LOG_FACTOR 10
@@ -1106,6 +1108,11 @@ struct redisServer {
     /* Limits */
     unsigned int maxclients;            /* Max number of simultaneous clients */
     unsigned long long maxmemory;   /* Max number of memory bytes to use */
+    unsigned int ssdb_load_upper_limit; /* the upper threshold for load keys
+        from ssdb. valid range:[0,100]. ssdb_load_upper_limit must be greater
+        than ssdb_transfer_lower_limit. */
+    unsigned int ssdb_transfer_lower_limit; /* the lower threshold for transfer
+        keys to ssdb. valid range:[0,100]*/
     int maxmemory_policy;           /* Policy for key eviction */
     int maxmemory_samples;          /* Pricision of random sampling */
     unsigned int lfu_log_factor;    /* LFU logarithmic counter factor. */

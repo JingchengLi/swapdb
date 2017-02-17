@@ -224,6 +224,16 @@ void loadServerConfigFromString(char *config) {
             if ((server.load_from_ssdb = yesnotoi(argv[1])) == -1) {
                 err = "argument must be 'yes' or 'no'"; goto loaderr;
             }
+        } else if (!strcasecmp(argv[0],"ssdb-load-upper-limit") && argc == 2) {
+            server.ssdb_load_upper_limit = atoi(argv[1]);
+            if (server.ssdb_load_upper_limit < 0 || server.ssdb_load_upper_limit > 100 ) {
+                err = "Invalid range, must be [0,100]"; goto loaderr;
+            }
+        } else if (!strcasecmp(argv[0],"ssdb-transfer-lower-limit") && argc == 2) {
+            server.ssdb_transfer_lower_limit = atoi(argv[1]);
+            if (server.ssdb_transfer_lower_limit < 0 || server.ssdb_transfer_lower_limit > 100 ) {
+                err = "Invalid range, must be [0,100]"; goto loaderr;
+            }
         } else if (!strcasecmp(argv[0],"port") && argc == 2) {
             server.port = atoi(argv[1]);
             if (server.port < 0 || server.port > 65535) {
@@ -714,6 +724,15 @@ void loadServerConfigFromString(char *config) {
         sdsfreesplitres(argv,argc);
     }
 
+    if (server.jdjr_mode) {
+        if (server.ssdb_load_upper_limit > 0 &&
+                server.ssdb_transfer_lower_limit >= server.ssdb_load_upper_limit) {
+            err = "ssdb transfer/load will not work, ssdb-load-upper-limit"
+                    " must be greater than ssdb-transfer-lower-limit ";
+            goto loaderr;
+        }
+    }
+
     /* Sanity checks. */
     if (server.cluster_enabled && server.masterhost) {
         linenum = slaveof_linenum;
@@ -990,9 +1009,9 @@ void configSetCommand(client *c) {
     } config_set_bool_field(
       "protected-mode",server.protected_mode) {
     } config_set_bool_field(
-        "jdjr-mode",server.jdjr_mode) {
+      "jdjr-mode",server.jdjr_mode) {
     } config_set_bool_field(
-        "load-from-ssdb",server.load_from_ssdb) {
+      "load-from-ssdb",server.load_from_ssdb) {
     } config_set_bool_field(
       "stop-writes-on-bgsave-error",server.stop_writes_on_bgsave_err) {
     } config_set_bool_field(
@@ -1004,10 +1023,14 @@ void configSetCommand(client *c) {
     } config_set_bool_field(
       "slave-lazy-flush",server.repl_slave_lazy_flush) {
     } config_set_bool_field(
-      "no-appendfsync-on-rewrite",server.aof_no_fsync_on_rewrite) {
+      "no-appenb-dfsync-on-rewrite",server.aof_no_fsync_on_rewrite) {
 
     /* Numerical fields.
      * config_set_numerical_field(name,var,min,max) */
+    } config_set_numerical_field(
+      "ssdb-transfer-lower-limit",server.ssdb_transfer_lower_limit,0,100) {
+    } config_set_numerical_field(
+      "ssdb-load-upper-limit",server.ssdb_load_upper_limit,0,100) {
     } config_set_numerical_field(
       "tcp-keepalive",server.tcpkeepalive,0,LLONG_MAX) {
     } config_set_numerical_field(
@@ -1240,6 +1263,8 @@ void configGetCommand(client *c) {
     config_get_numerical_field("cluster-slave-validity-factor",server.cluster_slave_validity_factor);
     config_get_numerical_field("repl-diskless-sync-delay",server.repl_diskless_sync_delay);
     config_get_numerical_field("tcp-keepalive",server.tcpkeepalive);
+    config_get_numerical_field("ssdb-transfer-lower-limit",server.ssdb_transfer_lower_limit);
+    config_get_numerical_field("ssdb-load-upper-limit",server.ssdb_load_upper_limit);
 
     /* Bool (yes/no) values */
     config_get_bool_field("cluster-require-full-coverage",
@@ -1998,6 +2023,8 @@ int rewriteConfig(char *path) {
     rewriteConfigYesNoOption(state,"lazyfree-lazy-expire",server.lazyfree_lazy_expire,CONFIG_DEFAULT_LAZYFREE_LAZY_EXPIRE);
     rewriteConfigYesNoOption(state,"lazyfree-lazy-server-del",server.lazyfree_lazy_server_del,CONFIG_DEFAULT_LAZYFREE_LAZY_SERVER_DEL);
     rewriteConfigYesNoOption(state,"slave-lazy-flush",server.repl_slave_lazy_flush,CONFIG_DEFAULT_SLAVE_LAZY_FLUSH);
+    rewriteConfigNumericalOption(state,"ssdb-transfer-lower-limit",server.ssdb_transfer_lower_limit,CONFIG_DEFAULT_SSDB_TRANSFER_LOWER_LIMIT);
+    rewriteConfigNumericalOption(state,"ssdb-load-upper-limit",server.ssdb_load_upper_limit,CONFIG_DEFAULT_SSDB_LOAD_UPPER_LIMIT);
 
     /* Rewrite Sentinel config if in Sentinel mode. */
     if (server.sentinel_mode) rewriteConfigSentinelOption(state);

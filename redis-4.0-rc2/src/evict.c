@@ -687,7 +687,7 @@ int tryEvictingKeysToSSDB(int *mem_tofree) {
             total_keys += keys;
         }
     }
-    if (!total_keys) return C_ERR; /* No keys to evict. */
+    if (!total_keys || !ColdKeyPool[0].key) return C_ERR; /* No keys to evict. */
 
     /* Go backward from best to worst element to evict. */
     for (k = EVPOOL_SIZE-1; k >= 0; k--) {

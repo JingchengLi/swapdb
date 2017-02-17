@@ -1179,23 +1179,55 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
     return 1000/server.hz;
 }
 
-#define EVICTED_TO_SSDB_SCALE_THREHOLD 0.9
-#define EVICTING_TO_SSDB_KEYS_MAX_NUM 50
+int memoryReachTransferLowerLimit() {
+    if (server.maxmemory == 0 || server.ssdb_transfer_lower_limit == 0) {
+        return 0;
+    }
+    float transfer_lower_threshold = 1.0*server.ssdb_transfer_lower_limit/100;
+    float used_percent = 1.0*zmalloc_used_memory()/server.maxmemory;
+    if (used_percent <= transfer_lower_threshold) {
+        return 1;
+    }
+    return 0;
+}
+
+int memoryReachLoadUpperLimit() {
+    if (server.maxmemory == 0 || server.ssdb_load_upper_limit == 0) {
+        return 0;
+    }
+    float load_upper_threshold = 1.0*server.ssdb_load_upper_limit/100;
+    float used_percent = 1.0*zmalloc_used_memory()/server.maxmemory;
+    if (used_percent >= load_upper_threshold) {
+        return 1;
+    }
+    return 0;
+}
+
+#define EVICTING_TO_SSDB_KEYS_MAX_NUM 10
 void startToEvictIfNeeded() {
     int mem_tofree, old_mem_tofree = 0;
+    float transfer_lower_threshold;
+
     if (server.maxmemory == 0
         || !(server.maxmemory_policy & (MAXMEMORY_FLAG_LRU|MAXMEMORY_FLAG_LFU)))
         return;
 
+    if (memoryReachTransferLowerLimit()) {
+        return;
+    }
+
     /* TODO: make the strategy to evict keys to SSDB.
        factors: serve.maxmemory, zmalloc_used_memory, etc.*/
-
-    mem_tofree = zmalloc_used_memory() - server.maxmemory * EVICTED_TO_SSDB_SCALE_THREHOLD;
+    transfer_lower_threshold = 1.0 * server.ssdb_transfer_lower_limit/100;
+    mem_tofree = zmalloc_used_memory() - server.maxmemory * transfer_lower_threshold;
 
     while (server.evicting_keys_num <= EVICTING_TO_SSDB_KEYS_MAX_NUM
            && mem_tofree > 0 && mem_tofree != old_mem_tofree) {
         old_mem_tofree = mem_tofree;
-        tryEvictingKeysToSSDB(&mem_tofree);
+        if (C_ERR == tryEvictingKeysToSSDB(&mem_tofree)) {
+            /* there are no keys in ColdKeyPool to evict. */
+            break;
+        }
     }
 }
 
@@ -1206,10 +1238,14 @@ void startToLoadIfNeeded() {
 
     int mem_free = server.maxmemory - zmalloc_used_memory();
 
-    if (server.maxmemory > 0 && mem_free < 0) return;
+    if (server.maxmemory > 0 && mem_free <= 0) return;
 
     if (!server.hot_keys || !listLength(server.hot_keys))
         return;
+
+    if (memoryReachLoadUpperLimit()) {
+        return;
+    }
 
     listRewind(server.hot_keys, &li);
 
@@ -1241,7 +1277,9 @@ void startToLoadIfNeeded() {
 
         serverAssert(getLongLongFromObject(dictGetVal(de), &keyusage) == C_OK);
 
-        if (server.maxmemory > 0 && mem_free < keyusage) {
+        if (server.maxmemory > 0 &&
+                (memoryReachLoadUpperLimit() ||
+                        (server.ssdb_load_upper_limit == 0 && mem_free < keyusage))) {
             serverLog(LL_DEBUG, "No more memory to load key: %s from SSDB to redis.",
                       (char *)keyobj->ptr);
             /* Try to load the keys in the next loop. */
@@ -1477,6 +1515,8 @@ void initServerConfig(void) {
     server.notify_keyspace_events = 0;
     server.maxclients = CONFIG_DEFAULT_MAX_CLIENTS;
     server.bpop_blocked_clients = 0;
+    server.ssdb_load_upper_limit = 0;
+    server.ssdb_transfer_lower_limit = 0;
     server.maxmemory = CONFIG_DEFAULT_MAXMEMORY;
     server.maxmemory_policy = CONFIG_DEFAULT_MAXMEMORY_POLICY;
     server.maxmemory_samples = CONFIG_DEFAULT_MAXMEMORY_SAMPLES;
