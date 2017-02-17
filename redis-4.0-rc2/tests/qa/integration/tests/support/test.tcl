@@ -37,7 +37,7 @@ proc assert_error {pattern code} {
 }
 
 proc assert_encoding {enc key} {
-    set dbg [r debug object $key]
+    set dbg [ssdbr debug object $key]
     assert_match "* encoding:$enc *" $dbg
 }
 
