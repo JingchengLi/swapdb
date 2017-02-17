@@ -103,13 +103,6 @@ int proc_hmget(NetworkServer *net, Link *link, const Request &req, Response *res
 
 		}
 
-//		for(std::map<std::string, std::string>::const_iterator mit = resMap.begin();
-//			mit != resMap.end(); ++mit)
-//		{
-//			resp->push_back(mit->first);
-//			resp->push_back(mit->second);
-//		}
-
     } else if (ret == 0) {
 		//nothing
 	} else {
@@ -134,6 +127,15 @@ int proc_hset(NetworkServer *net, Link *link, const Request &req, Response *resp
 	SSDBServer *serv = (SSDBServer *)net->data;
 
 	int ret = serv->ssdb->hset(req[1], req[2], req[3]);
+	resp->reply_bool(ret);
+	return 0;
+}
+
+int proc_hsetnx(NetworkServer *net, Link *link, const Request &req, Response *resp){
+	CHECK_NUM_PARAMS(4);
+	SSDBServer *serv = (SSDBServer *)net->data;
+
+	int ret = serv->ssdb->hsetnx(req[1], req[2], req[3]);
 	resp->reply_bool(ret);
 	return 0;
 }
@@ -225,25 +227,52 @@ int proc_hvals(NetworkServer *net, Link *link, const Request &req, Response *res
 	return 0;
 }
 
-// dir := +1|-1
-static int _hincr(SSDB *ssdb, const Request &req, Response *resp, int dir){
-	CHECK_NUM_PARAMS(3);
+//TODO [err]: HINCRBYFLOAT fails against hash value with spaces (left) in tests/unit/type/hash.tcl
+int proc_hincrbyfloat(NetworkServer *net, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *)net->data;
+	CHECK_NUM_PARAMS(4);
 
-	int64_t by = 1;
-	if(req.size() > 3){
-		by = req[3].Int64();
+	double by = req[3].Double();
+	if (errno == EINVAL){
+		resp->push_back("error");
+		resp->push_back("value is not a valid float");
+		return 0;
 	}
-	int64_t new_val;
-	int ret = ssdb->hincr(req[1], req[2], dir * by, &new_val);
-	if(ret == 0){
+
+	double new_val;
+	int ret = serv->ssdb->hincrbyfloat(req[1], req[2], by, &new_val);
+	if(ret == -1){
+		resp->reply_status(-1, "server err");
+	} else if(ret == 0){
 		resp->reply_status(-1, "value is not an integer or out of range");
-	}else{
-		resp->reply_int(ret, new_val);
+	} else{
+		resp->reply_double(ret, new_val);
 	}
 	return 0;
+
 }
 
 int proc_hincr(NetworkServer *net, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *)net->data;
-	return _hincr(serv->ssdb, req, resp, 1);
+	CHECK_NUM_PARAMS(4);
+
+	int64_t by = req[3].Int64();
+
+	if (errno == EINVAL){
+		resp->push_back("error");
+		resp->push_back("value is not an integer or out of range");
+		return 0;
+	}
+
+	int64_t new_val;
+	int ret = serv->ssdb->hincr(req[1], req[2], by, &new_val);
+	if(ret == -1){
+		resp->reply_status(-1, "server err");
+	} else if(ret == 0){
+		resp->reply_status(-1, "value is not an integer or out of range or overflow");
+	} else{
+		resp->reply_int(ret, new_val);
+	}
+	return 0;
+
 }

@@ -100,13 +100,13 @@ static RedisCommand_raw cmds_raw[] = {
 	{STRATEGY_AUTO, "hget",		"hget",			REPLY_BULK},
 	{STRATEGY_HGETALL,"hgetall","hgetall",		REPLY_MULTI_BULK},
 	{STRATEGY_AUTO,  "hincrby",	"hincr",		REPLY_INT},
-	//TODO HINCRBYFLOAT
+	{STRATEGY_AUTO,  "hincrbyfloat","hincrbyfloat",	REPLY_BULK},
 	{STRATEGY_HKEYS, "hkeys", 	"hkeys", 		REPLY_MULTI_BULK},
 	{STRATEGY_AUTO,  "hlen",	"hsize",		REPLY_INT},
 	{STRATEGY_HMGET, "hmget",	"hmget",	REPLY_MULTI_BULK},
 	{STRATEGY_AUTO,  "hmset",	"hmset",	REPLY_STATUS},
 	{STRATEGY_AUTO,  "hset",	"hset",			REPLY_INT},
-	//TODO HSETNX
+	{STRATEGY_AUTO,  "hsetnx",	"hsetnx",		REPLY_INT},
 	//TODO HSTRLEN since 3.2
 	{STRATEGY_HVALS, "hvals", 		"hvals", 		REPLY_MULTI_BULK},
 	//TODO HSCAN

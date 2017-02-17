@@ -3,11 +3,11 @@ Copyright (c) 2012-2014 The SSDB Authors. All rights reserved.
 Use of this source code is governed by a BSD-style license that can be
 found in the LICENSE file.
 */
+#include <cfloat>
 #include "ssdb_impl.h"
 
 static int hset_one(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const HashMetaVal &hv, bool check_exists,const Bytes &name, const Bytes &key, const Bytes &val);
-static int hset_one(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &name, const Bytes &key, const Bytes &val);
-static int incr_hsize(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &name, int64_t incr);
+static int incr_hsize(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const std::string &size_key, HashMetaVal &hv, const Bytes &name, int64_t incr);
 
 /**
  * @return -1: error, 0: item updated, 1: new item inserted
@@ -28,16 +28,6 @@ int SSDBImpl::hmsetNoLock(const Bytes &name, const std::map<Bytes ,Bytes> &kvs) 
 
 	if (ret == -1){
 		return -1;
-	} else if (ret == 0){
-		if (hv.del == KEY_DELETE_MASK) {
-			if (hv.version == UINT16_MAX){
-				hv.version = 0;
-			} else{
-				hv.version = (uint16_t)(hv.version+1);
-			}
-		} else {
-			hv.version = 0;
-		}
 	}
 
 	int sum = 0;
@@ -60,7 +50,7 @@ int SSDBImpl::hmsetNoLock(const Bytes &name, const std::map<Bytes ,Bytes> &kvs) 
 	}
 
  	if(sum != 0) {
-		if (incr_hsize(this, batch, name, sum) == -1) {
+		if (incr_hsize(this, batch, meta_key , hv, name, sum) == -1) {
 			return -1;
 		}
 	}
@@ -78,10 +68,55 @@ int SSDBImpl::hset(const Bytes &name, const Bytes &key, const Bytes &val){
 	RecordLock l(&mutex_record_, name.String());
 	leveldb::WriteBatch batch;
 
-	int ret = hset_one(this, batch, name, key, val);
+    int ret = 0;
+    HashMetaVal hv;
+    std::string meta_key = encode_meta_key(name);
+    ret = GetHashMetaVal(meta_key, hv);
+    if(ret < 0) {
+        return ret;
+    }
+
+    ret = hset_one(this ,batch, hv, true, name, key, val);
 	if(ret >= 0){
 		if(ret > 0){
-			if(incr_hsize(this, batch, name, ret) == -1){
+			if(incr_hsize(this, batch, meta_key, hv, name, ret) == -1){
+				return -1;
+			}
+		}
+		leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
+		if(!s.ok()){
+			return -1;
+		}
+	}
+	return ret;
+}
+
+int SSDBImpl::hsetnx(const Bytes &name, const Bytes &key, const Bytes &val){
+	RecordLock l(&mutex_record_, name.String());
+	leveldb::WriteBatch batch;
+
+    int ret = 0;
+    HashMetaVal hv;
+    std::string meta_key = encode_meta_key(name);
+    ret = GetHashMetaVal(meta_key, hv);
+    if(ret < 0) {
+        return ret;
+    } else if (ret == 1) {
+        std::string dbval;
+        std::string hkey = encode_hash_key(name, key, hv.version);
+
+        ret = GetHashItemValInternal(hkey, &dbval);
+        if (ret !=0 ){
+            return ret;
+        }
+    }
+
+    //ret == 0
+
+    ret = hset_one(this ,batch, hv, false, name, key, val);
+    if(ret >= 0){
+		if(ret > 0){
+			if(incr_hsize(this, batch, meta_key, hv, name, ret) == -1){
 				return -1;
 			}
 		}
@@ -120,7 +155,7 @@ int SSDBImpl::hdel(const Bytes &name, const std::set<Bytes> &fields) {
 	}
 
 	if (deleted > 0) {
-		if(incr_hsize(this, batch, name, -deleted) == -1){
+		if(incr_hsize(this, batch, meta_key , hv, name, -deleted) == -1){
 			return -1;
 		}
 	}
@@ -134,36 +169,104 @@ int SSDBImpl::hdel(const Bytes &name, const std::set<Bytes> &fields) {
 }
 
 
+int SSDBImpl::hincrbyfloat(const Bytes &name, const Bytes &key, double by, double *new_val){
+    RecordLock l(&mutex_record_, name.String());
+    leveldb::WriteBatch batch;
+
+    int ret = 0;
+    HashMetaVal hv;
+    std::string meta_key = encode_meta_key(name);
+    ret = GetHashMetaVal(meta_key, hv);
+    if(ret < 0) {
+        return ret;
+    }
+
+    std::string old;
+    if (ret > 0) {
+        std::string hkey = encode_hash_key(name, key, hv.version);
+        ret = GetHashItemValInternal(hkey, &old);
+    }
+
+    if(ret < 0) {
+        return ret;
+    }
+
+    if (ret == 0) {
+        *new_val = by;
+    } else {
+        double oldvalue = str_to_double(old.c_str(), old.size());
+
+        if ((by < 0 && oldvalue < 0 && by < (DBL_MAX -oldvalue)) ||
+            (by > 0 && oldvalue > 0 && by > (DBL_MAX -oldvalue))) {
+            return 0;
+        }
+
+        *new_val = oldvalue + by;
+    }
+
+
+    ret = hset_one(this ,batch, hv, false, name, key, str(*new_val));
+    if(ret == -1){
+        return -1;
+    }
+    if(ret >= 0){
+        if(ret > 0){
+            if(incr_hsize(this, batch, meta_key, hv, name, ret) == -1){
+                return -1;
+            }
+        }
+        leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
+        if(!s.ok()){
+            return -1;
+        }
+    }
+    return 1;
+}
+
 int SSDBImpl::hincr(const Bytes &name, const Bytes &key, int64_t by, int64_t *new_val){
 	RecordLock l(&mutex_record_, name.String());
 	leveldb::WriteBatch batch;
 
-	std::string old;
-	int ret = this->hget(name, key, &old);
-	if(ret == -1){
-		return -1;
-	}else if(ret == 0){
-		*new_val = by;
-	}else{
-//        int64_t oldvalue = str_to_int64(old);
-		long long oldvalue;
-		if (string2ll(old.c_str(), old.size(), &oldvalue) == 0) {
-			return 0;
-		}
+    int ret = 0;
+    HashMetaVal hv;
+    std::string meta_key = encode_meta_key(name);
+    ret = GetHashMetaVal(meta_key, hv);
+    if(ret < 0) {
+        return ret;
+    }
+
+    std::string old;
+    if (ret > 0) {
+        std::string hkey = encode_hash_key(name, key, hv.version);
+        ret = GetHashItemValInternal(hkey, &old);
+    }
+
+    if(ret < 0) {
+        return ret;
+    }
+
+    if (ret == 0) {
+        *new_val = by;
+    } else {
+        long long oldvalue;
+        if (string2ll(old.c_str(), old.size(), &oldvalue) == 0) {
+            return 0;
+        }
         if ((by < 0 && oldvalue < 0 && by < (LLONG_MIN-oldvalue)) ||
             (by > 0 && oldvalue > 0 && by > (LLONG_MAX-oldvalue))) {
             return 0;
         }
         *new_val = oldvalue + by;
-	}
+    }
 
-	ret = hset_one(this, batch, name, key, str(*new_val));
+
+	ret = hset_one(this ,batch, hv, false, name, key, str(*new_val));
 	if(ret == -1){
 		return -1;
 	}
 	if(ret >= 0){
 		if(ret > 0){
-			if(incr_hsize(this, batch, name, ret) == -1){
+			if(incr_hsize(this, batch, meta_key, hv, name, ret) == -1){
 				return -1;
 			}
 		}
@@ -239,8 +342,8 @@ HIterator* SSDBImpl::hscan(const Bytes &name, const Bytes &start, const Bytes &e
 
 	std::string meta_key = encode_meta_key(name);
     int ret = GetHashMetaVal(meta_key, hv);
-	if (0 == ret && hv.del == KEY_DELETE_MASK){
-		version = hv.version+(uint16_t)1;
+	if (0 == ret){
+		version = hv.version;
 	} else if (ret > 0){
 		version = hv.version;
 	} else{
@@ -258,8 +361,8 @@ HIterator* SSDBImpl::hscan(const Bytes &name, const Bytes &start, const Bytes &e
 		RecordLock l(&mutex_record_, name.String());
 		std::string meta_key = encode_meta_key(name);
 		int ret = GetHashMetaVal(meta_key, hv);
-		if (0 == ret && hv.del == KEY_DELETE_MASK){
-			version = hv.version+(uint16_t)1;
+		if (0 == ret){
+			version = hv.version;
 		} else if (ret > 0){
 			version = hv.version;
 		} else{
@@ -290,21 +393,33 @@ int SSDBImpl::GetHashMetaVal(const std::string &meta_key, HashMetaVal &hv){
 	std::string meta_val;
 	leveldb::Status s = ldb->Get(leveldb::ReadOptions(), meta_key, &meta_val);
 	if (s.IsNotFound()){
+        //not found
 		hv.length = 0;
 		hv.del = KEY_ENABLED_MASK;
 		hv.type = DataType::HSIZE;
 		hv.version = 0;
 		return 0;
 	} else if (!s.ok() && !s.IsNotFound()){
+        //error
 		return -1;
 	} else{
 		int ret = hv.DecodeMetaVal(meta_val);
 		if (ret == -1){
-			return -1;
+            //error
+            return -1;
 		} else if (hv.del == KEY_DELETE_MASK){
-			return 0;
+            //deleted , reset hv
+            if (hv.version == UINT16_MAX){
+                hv.version = 0;
+            } else{
+                hv.version = (uint16_t)(hv.version+1);
+            }
+            hv.length = 0;
+            hv.del = KEY_ENABLED_MASK;
+            return 0;
 		} else if (hv.type != DataType::HSIZE){
-			return -1;
+            //error
+            return -1;
 		}
 	}
 	return 1;
@@ -321,56 +436,12 @@ int SSDBImpl::GetHashItemValInternal(const std::string &item_key, std::string *v
 	return 1;
 }
 
-// returns the number of newly added items
-static int hset_one(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &name, const Bytes &key, const Bytes &val){
-	int ret = 0;
-	HashMetaVal hv;
-	std::string meta_key = encode_meta_key(name);
-	ret = ssdb->GetHashMetaVal(meta_key, hv);
 
-	if (ret == -1){
-		return -1;
-	} else if (ret == 0){
-		if (hv.del == KEY_DELETE_MASK) {
-			if (hv.version == UINT16_MAX){
-				hv.version = 0;
-			} else{
-				hv.version = (uint16_t)(hv.version+1);
-			}
-		} else {
-			hv.version = 0;
-		}
+static int incr_hsize(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const std::string &size_key, HashMetaVal &hv, const Bytes &name, int64_t incr) {
 
-		return hset_one(ssdb ,batch, hv, false, name, key, val);
-	} else{
-
-		return hset_one(ssdb ,batch, hv, true, name, key, val);
-	}
-}
-
-
-static int incr_hsize(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &name, int64_t incr){
-	HashMetaVal hv;
-	std::string size_key = encode_meta_key(name);
-	int ret = ssdb->GetHashMetaVal(size_key, hv);
-	if (ret == -1){
-		return ret;
-	} else if (ret == 0 && hv.del == KEY_DELETE_MASK){
+    if (hv.length == 0){
 		if (incr > 0){
-            uint16_t version;
-            if (hv.version == UINT16_MAX){
-                version = 0;
-            } else{
-                version = (uint16_t)(hv.version+1);
-            }
-			std::string size_val = encode_hash_meta_val((uint64_t)incr, version);
-			batch.Put(size_key, size_val);
-		} else{
-			return -1;
-		}
-	} else if (ret == 0){
-		if (incr > 0){
-			std::string size_val = encode_hash_meta_val((uint64_t)incr);
+			std::string size_val = encode_hash_meta_val((uint64_t)incr, hv.version);
 			batch.Put(size_key, size_val);
 		} else{
 			return -1;

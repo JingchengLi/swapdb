@@ -5,6 +5,8 @@ found in the LICENSE file.
 */
 #include "resp.h"
 #include <stdio.h>
+#include <sstream>
+#include <iomanip>
 
 int Response::size() const{
 	return (int)resp.size();
@@ -31,9 +33,15 @@ void Response::add(uint64_t s){
 }
 
 void Response::add(double s){
-	char buf[30];
-	snprintf(buf, sizeof(buf), "%f", s);
-	resp.push_back(buf);
+//	char buf[30];
+//	snprintf(buf, sizeof(buf), "%f", s);
+//
+	std::ostringstream strs;
+	strs << std::setprecision(64) << s;
+	std::string str = strs.str();
+//	std::string str = std::to_string(s);
+
+	resp.push_back(str);
 }
 
 void Response::add(const std::string &s){

@@ -357,7 +357,22 @@ uint64_t str_to_uint64(const char *p, int size){
 
 static inline
 double str_to_double(const char *p, int size){
-	return atof(std::string(p, size).c_str());
+	std::string str(p, size);
+	const char *start = str.c_str();
+	char *end;
+	double ret = (double)strtod(start, &end);
+	// the WHOLE string must be string represented integer
+	if(*end == '\0' && size_t(end - start) == str.size()){
+		errno = 0;
+	}else{
+		// strtoxx do not set errno all the time!
+		if(errno == 0){
+			errno = EINVAL;
+		}
+	}
+	return ret;
+
+//	return atof(std::string(p, size).c_str());
 }
 
 static inline
