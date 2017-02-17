@@ -227,12 +227,12 @@ void loadServerConfigFromString(char *config) {
         } else if (!strcasecmp(argv[0],"ssdb-load-upper-limit") && argc == 2) {
             server.ssdb_load_upper_limit = atoi(argv[1]);
             if (server.ssdb_load_upper_limit < 0 || server.ssdb_load_upper_limit > 100 ) {
-                err = "Invalid range, must be [0,100]"; goto loaderr;
+                err = "Invalid value, must be an integer between [0,100]"; goto loaderr;
             }
         } else if (!strcasecmp(argv[0],"ssdb-transfer-lower-limit") && argc == 2) {
             server.ssdb_transfer_lower_limit = atoi(argv[1]);
             if (server.ssdb_transfer_lower_limit < 0 || server.ssdb_transfer_lower_limit > 100 ) {
-                err = "Invalid range, must be [0,100]"; goto loaderr;
+                err = "Invalid value, must be an integer between [0,100]"; goto loaderr;
             }
         } else if (!strcasecmp(argv[0],"port") && argc == 2) {
             server.port = atoi(argv[1]);
