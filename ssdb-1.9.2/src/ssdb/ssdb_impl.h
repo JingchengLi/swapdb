@@ -135,8 +135,10 @@ public:
     virtual int LLen(const Bytes &key, uint64_t *llen);
     virtual int LPop(const Bytes &key, std::string *val);
     virtual int LPush(const Bytes &key, const std::vector<Bytes> &val, int offset, uint64_t *llen);
+    virtual int LPushX(const Bytes &key, const std::vector<Bytes> &val, int offset, uint64_t *llen);
 	virtual int RPop(const Bytes &key, std::string *val);
 	virtual int RPush(const Bytes &key, const std::vector<Bytes> &val, int offset, uint64_t *llen);
+	virtual int RPushX(const Bytes &key, const std::vector<Bytes> &val, int offset, uint64_t *llen);
 	virtual int LSet(const Bytes &key, const int64_t index, const Bytes &val);
 	virtual int lrange(const Bytes &key, int64_t start, int64_t end, std::vector<std::string> *list);
     int     GetListMetaVal(const std::string& meta_key, ListMetaVal& lv);

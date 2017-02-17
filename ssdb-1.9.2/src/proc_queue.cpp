@@ -19,17 +19,39 @@ int proc_qsize(NetworkServer *net, Link *link, const Request &req, Response *res
 }
 
 
+int proc_qpush_frontx(NetworkServer *net, Link *link, const Request &req, Response *resp){
+	CHECK_NUM_PARAMS(3);
+	SSDBServer *serv = (SSDBServer *)net->data;
+
+	const Bytes &name = req[1];
+	uint64_t len;
+	int ret = serv->ssdb->LPushX(name, req, 2, &len);
+	resp->reply_int(ret, len);
+	return 0;
+}
+
+
 int proc_qpush_front(NetworkServer *net, Link *link, const Request &req, Response *resp){
 	CHECK_NUM_PARAMS(3);
 	SSDBServer *serv = (SSDBServer *)net->data;
 
 	const Bytes &name = req[1];
-//	const Bytes &val = req[2];
-	uint64_t len;
+ 	uint64_t len;
 	int ret = serv->ssdb->LPush(name, req, 2, &len);
 	resp->reply_int(ret, len);
 	return 0;
 }
+
+int proc_qpush_backx(NetworkServer *net, Link *link, const Request &req, Response *resp){
+	CHECK_NUM_PARAMS(3);
+	SSDBServer *serv = (SSDBServer *)net->data;
+
+	uint64_t len;
+	int ret = serv->ssdb->RPushX(req[1], req, 2, &len);
+	resp->reply_int(ret, len);
+	return 0;
+}
+
 
 int proc_qpush_back(NetworkServer *net, Link *link, const Request &req, Response *resp){
     CHECK_NUM_PARAMS(3);

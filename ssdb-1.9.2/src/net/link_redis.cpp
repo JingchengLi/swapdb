@@ -145,8 +145,8 @@ static RedisCommand_raw cmds_raw[] = {
 
 	{STRATEGY_AUTO,		"lpush",		"qpush_front", 		REPLY_INT},
 	{STRATEGY_AUTO,		"rpush",		"qpush_back", 		REPLY_INT},
-	{STRATEGY_AUTO,		"lpushx",		"qpush_front", 		REPLY_INT}, //TODO
-	{STRATEGY_AUTO,		"rpushx",		"qpush_back", 		REPLY_INT}, //TODO
+	{STRATEGY_AUTO,		"lpushx",		"qpush_frontx", 	REPLY_INT},
+	{STRATEGY_AUTO,		"rpushx",		"qpush_backx", 		REPLY_INT},
 
 
 	{STRATEGY_AUTO,		"lpop",			"qpop_front", 		REPLY_BULK},

@@ -226,6 +226,35 @@ int SSDBImpl::DoFirstLPush(leveldb::WriteBatch &batch, const Bytes &key, const s
     return size-offset;
 }
 
+int SSDBImpl::LPushX(const Bytes &key, const std::vector<Bytes> &val, int offset, uint64_t *llen) {
+    RecordLock l(&mutex_record_, key.String());
+    leveldb::WriteBatch batch;
+
+    uint64_t old_len = 0;
+    ListMetaVal meta_val;
+    std::string meta_key = encode_meta_key(key);
+    int ret = GetListMetaVal(meta_key, meta_val);
+    if (-1 == ret){
+        return -1;
+    } else if (1 == ret) {
+        old_len = meta_val.length;
+        ret = DoLPush(batch, meta_val, key, val, offset, meta_key);
+        if (-1 == ret){
+            return -1;
+        }
+    } else if (0 == ret && meta_val.del == KEY_DELETE_MASK) {
+        *llen = 0;
+        return 1;
+    }
+
+    leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
+    if(!s.ok()){
+        return -1;
+    }
+    *llen = old_len + ret;
+    return 1;
+}
+
 int SSDBImpl::LPush(const Bytes &key, const std::vector<Bytes> &val, int offset, uint64_t *llen) {
     RecordLock l(&mutex_record_, key.String());
     leveldb::WriteBatch batch;
@@ -378,6 +407,35 @@ int SSDBImpl::DoRPush(leveldb::WriteBatch &batch, const Bytes &key, const std::v
     return num;
 }
 
+int SSDBImpl::RPushX(const Bytes &key, const std::vector<Bytes> &val, int offset, uint64_t *llen) {
+    RecordLock l(&mutex_record_, key.String());
+    leveldb::WriteBatch batch;
+
+    *llen = 0;
+    ListMetaVal meta_val;
+    std::string meta_key = encode_meta_key(key);
+
+    int ret = lGetCurrentMetaVal(meta_key, meta_val, llen);
+    if (-1 == ret){
+        return -1;
+    } else if (ret == 0){
+        *llen = 0;
+        return 1;
+    }
+
+    ret = DoRPush(batch, key, val, offset, meta_key, meta_val);
+    if (ret <= 0){
+        return ret;
+    }
+
+    leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
+    if(!s.ok()){
+        return -1;
+    }
+    *llen = meta_val.length;
+    return 1;
+}
+
 int SSDBImpl::RPush(const Bytes &key, const std::vector<Bytes> &val, int offset, uint64_t *llen) {
     RecordLock l(&mutex_record_, key.String());
     leveldb::WriteBatch batch;
@@ -429,7 +487,7 @@ int SSDBImpl::lGetCurrentMetaVal(const std::string &meta_key, ListMetaVal &meta_
         meta_val.version = 0;
     }
 
-    return 1;
+    return ret;
 };
 
 int SSDBImpl::rpushNoLock(const Bytes &key, const std::vector<Bytes> &val, int offset, uint64_t *llen) {
