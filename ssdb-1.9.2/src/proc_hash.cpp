@@ -264,7 +264,7 @@ int proc_hincr(NetworkServer *net, Link *link, const Request &req, Response *res
 		return 0;
 	}
 
-	int64_t new_val;
+	int64_t new_val = 0;
 	int ret = serv->ssdb->hincr(req[1], req[2], by, &new_val);
 	if(ret == -1){
 		resp->reply_status(-1, "server err");

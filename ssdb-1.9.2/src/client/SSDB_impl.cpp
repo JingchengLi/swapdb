@@ -533,7 +533,7 @@ Status ClientImpl::hrscan(const std::string &name,
 Status ClientImpl::multi_hget(const std::string &name, const std::vector<std::string> &keys,
 	std::vector<std::string> *ret){
 	const std::vector<std::string> *resp;
-	resp = this->request("multi_hget", name, keys);
+	resp = this->request("hmget", name, keys);
 	return _read_list(resp, ret);
 }
 
@@ -546,21 +546,21 @@ Status ClientImpl::multi_hset(const std::string &name, const std::map<std::strin
 		list.push_back(it->first);
 		list.push_back(it->second);
 	}
-	resp = this->request("multi_hset", name, list);
+	resp = this->request("hmset", name, list);
 	Status s(resp);
 	return s;
 }
 
 Status ClientImpl::multi_hset(const std::string &name, const std::vector<std::string> &kvs){
 	const std::vector<std::string> *resp;
-	resp = this->request("multi_hset", name, kvs);
+	resp = this->request("hmset", name, kvs);
 	Status s(resp);
 	return s;
 }
 
 Status ClientImpl::multi_hdel(const std::string &name, const std::vector<std::string> &keys, int64_t *ret_size){
 	const std::vector<std::string> *resp;
-	resp = this->request("multi_hdel", name, keys);
+	resp = this->request("hdel", name, keys);
 	Status s(resp);
 	if(ret_size != NULL && s.ok()){
 		if(resp->size() > 1){
@@ -576,7 +576,7 @@ Status ClientImpl::multi_hdel(const std::string &name, const std::string &key, i
 	const std::vector<std::string> *resp;
 	std::vector<std::string> keys;
 	keys.push_back(key);
-	resp = this->request("multi_hdel", name, keys);
+	resp = this->request("hdel", name, keys);
 	Status s(resp);
 	if(ret_size != NULL && s.ok()){
 		if(resp->size() > 1){

@@ -178,6 +178,8 @@ TEST_F(HashTest, Test_hash_hincrby) {
 
     s = client->multi_del(key);
     s = client->hincr(key, field, MAX_INT64, &ret);
+    s = client->hget(key, field, &getVal);
+    ASSERT_EQ(i64toa(MAX_INT64), getVal);
     s = client->hincr(key, field, 1, &ret);
     ASSERT_TRUE(s.error());
     s = client->hget(key, field, &getVal);
@@ -185,6 +187,10 @@ TEST_F(HashTest, Test_hash_hincrby) {
 
     s = client->multi_del(key);
     s = client->hincr(key, field, MIN_INT64, &ret);
+    ASSERT_EQ((MIN_INT64), ret);
+
+    s = client->hget(key, field, &getVal);
+    ASSERT_EQ(i64toa(MIN_INT64), getVal);
     s = client->hincr(key, field, -1, &ret);
     ASSERT_TRUE(s.error());
     s = client->hget(key, field, &getVal);
@@ -213,31 +219,32 @@ TEST_F(HashTest, Test_hash_hincrby) {
     client->multi_del(key);
 }
 
-TEST_F(HashTest, Test_hash_hdecrby) {
-#define OKHdecr decr = GetRandomInt64_();\
-    s = client->multi_del(key);\
-    s = client->hdecr(key, field, decr, &ret);\
-    ASSERT_TRUE(s.ok());\
-    s = client->hget(key, field, &getVal);\
-    ASSERT_EQ(to_string(-1*decr), getVal);\
-    \
-    s = client->hdecr(key, field, n, &ret);\
-    ASSERT_TRUE(s.ok());\
-    s = client->hget(key, field, &getVal);\
-    ASSERT_EQ(to_string(-1*(decr+n)), getVal);\
-    s = client->multi_hdel(key, field);
-
-    int64_t decr, ret, n = 0;
-    //Some special keys
-    for(vector<string>::iterator it = Keys.begin(); it != Keys.end(); it++)
-    {
-        n++;
-        key = *it;
-        field = GetRandomField_();
-        OKHdecr
-        client->multi_del(key);
-    }
-}
+//hdecr removed
+//TEST_F(HashTest, Test_hash_hdecrby) {
+//#define OKHdecr decr = GetRandomInt64_();\
+//    s = client->multi_del(key);\
+//    s = client->hdecr(key, field, decr, &ret);\
+//    ASSERT_TRUE(s.ok());\
+//    s = client->hget(key, field, &getVal);\
+//    ASSERT_EQ(to_string(-1*decr), getVal);\
+//    \
+//    s = client->hdecr(key, field, n, &ret);\
+//    ASSERT_TRUE(s.ok());\
+//    s = client->hget(key, field, &getVal);\
+//    ASSERT_EQ(to_string(-1*(decr+n)), getVal);\
+//    s = client->multi_hdel(key, field);
+//
+//    int64_t decr, ret, n = 0;
+//    //Some special keys
+//    for(vector<string>::iterator it = Keys.begin(); it != Keys.end(); it++)
+//    {
+//        n++;
+//        key = *it;
+//        field = GetRandomField_();
+//        OKHdecr
+//        client->multi_del(key);
+//    }
+//}
 
 TEST_F(HashTest, Test_hash_hgetall) {
 #define NotExsitHgetall s = client->hgetall(key, &list);\
