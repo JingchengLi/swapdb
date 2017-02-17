@@ -438,9 +438,9 @@ int Slave::proc_sync(const Binlog &log, const std::vector<Bytes> &req){
 				log_trace("hdel %s %s",
 					hexmem(name.data(), name.size()).c_str(),
 					hexmem(key.data(), key.size()).c_str());
-				if(ssdb->hdel(name, key) == -1){
-					return -1;
-				}
+//				if(ssdb->hdel(name, key) == -1){
+//					return -1;
+//				}
 			}
 			break;
         case BinlogCommand::SSET:

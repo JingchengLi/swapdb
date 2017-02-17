@@ -67,6 +67,9 @@ static RedisCommand_raw cmds_raw[] = {
 	{STRATEGY_AUTO, "getset",	"getset",		REPLY_BULK},
 	{STRATEGY_AUTO, "set",		"set",			REPLY_STATUS},
 	{STRATEGY_AUTO, "setnx",	"setnx",		REPLY_INT},
+	{STRATEGY_MGET, "mget",		"multi_get",	REPLY_MULTI_BULK},
+	{STRATEGY_SETEX,"setex",	"setx", 		REPLY_STATUS},
+	{STRATEGY_SETEX,"psetex",	"psetx", 		REPLY_STATUS},
 	{STRATEGY_AUTO, "exists",	"exists",		REPLY_INT},
 	{STRATEGY_AUTO, "incr",		"incr",			REPLY_INT},
 	{STRATEGY_AUTO, "decr",		"decr",			REPLY_INT},
@@ -77,10 +80,7 @@ static RedisCommand_raw cmds_raw[] = {
 	{STRATEGY_AUTO, "expireat",	"expireat",		REPLY_INT},
 	{STRATEGY_AUTO, "pexpireat","pexpireat",    REPLY_INT},
 	{STRATEGY_AUTO, "persist","persist",    REPLY_INT},
-
 	{STRATEGY_AUTO, "append",	"append",     REPLY_INT},
-
-
 	{STRATEGY_AUTO, "getbit",	"getbit",		REPLY_INT},
 	{STRATEGY_AUTO, "setbit",	"setbit",		REPLY_INT},
 	{STRATEGY_AUTO, "strlen",	"strlen",		REPLY_INT},
@@ -89,21 +89,27 @@ static RedisCommand_raw cmds_raw[] = {
 	{STRATEGY_AUTO, "getrange",	"getrange",		REPLY_BULK},
 	{STRATEGY_AUTO, "setrange",	"setrange",		REPLY_INT},
 	{STRATEGY_AUTO, "keys", 	"keys", 		REPLY_MULTI_BULK},
-
-	{STRATEGY_AUTO, "hset",		"hset",			REPLY_INT},
-	{STRATEGY_AUTO, "hget",		"hget",			REPLY_BULK},
-	{STRATEGY_AUTO, "hexists",	"hexists",		REPLY_INT},
-
 	{STRATEGY_AUTO, "del",		"multi_del",	REPLY_INT},
 	{STRATEGY_AUTO, "mset",		"multi_set",	REPLY_STATUS},
 	{STRATEGY_AUTO, "incrby",	"incr",			REPLY_INT},
 	{STRATEGY_AUTO, "decrby",	"decr",			REPLY_INT},
 
-	{STRATEGY_AUTO, "hmset",	"multi_hset",	REPLY_STATUS},
-	{STRATEGY_AUTO, "hdel",		"multi_hdel",	REPLY_INT},
-	{STRATEGY_AUTO, "hmdel",	"multi_hdel",	REPLY_INT},
-	{STRATEGY_AUTO, "hlen",		"hsize",		REPLY_INT},
-	{STRATEGY_AUTO, "hincrby",	"hincr",		REPLY_INT},
+
+	{STRATEGY_AUTO, "hdel",		"hdel",			REPLY_INT},
+	{STRATEGY_AUTO, "hexists",	"hexists",		REPLY_INT},
+	{STRATEGY_AUTO, "hget",		"hget",			REPLY_BULK},
+	{STRATEGY_HGETALL,"hgetall","hgetall",		REPLY_MULTI_BULK},
+	{STRATEGY_AUTO,  "hincrby",	"hincr",		REPLY_INT},
+	//TODO HINCRBYFLOAT
+	{STRATEGY_HKEYS, "hkeys", 	"hkeys", 		REPLY_MULTI_BULK},
+	{STRATEGY_AUTO,  "hlen",	"hsize",		REPLY_INT},
+	{STRATEGY_HMGET, "hmget",	"hmget",	REPLY_MULTI_BULK},
+	{STRATEGY_AUTO,  "hmset",	"hmset",	REPLY_STATUS},
+	{STRATEGY_AUTO,  "hset",	"hset",			REPLY_INT},
+	//TODO HSETNX
+	//TODO HSTRLEN since 3.2
+	{STRATEGY_HVALS, "hvals", 		"hvals", 		REPLY_MULTI_BULK},
+	//TODO HSCAN
 
 	{STRATEGY_AUTO, "sadd",		    "sadd",			REPLY_INT},
 	{STRATEGY_AUTO, "srem",		    "srem",			REPLY_INT},
@@ -129,22 +135,13 @@ static RedisCommand_raw cmds_raw[] = {
 	{STRATEGY_AUTO, "zcount",	"zcount",		REPLY_INT},
 	{STRATEGY_REMRANGEBYRANK, "zremrangebyrank",	"zremrangebyrank",		REPLY_INT},
 	{STRATEGY_REMRANGEBYSCORE, "zremrangebyscore",	"zremrangebyscore",		REPLY_INT},
-	
-	/////////////////////////////////////
-	{STRATEGY_MGET, "mget",		"multi_get",	REPLY_MULTI_BULK},
-	{STRATEGY_HMGET, "hmget",	"multi_hget",	REPLY_MULTI_BULK},
-	
-	{STRATEGY_HGETALL,	"hgetall",		"hgetall",		REPLY_MULTI_BULK},
-	{STRATEGY_HKEYS,	"hkeys", 		"hkeys", 		REPLY_MULTI_BULK},
-	{STRATEGY_HVALS,	"hvals", 		"hvals", 		REPLY_MULTI_BULK},
-	{STRATEGY_SETEX,	"setex",		"setx", 		REPLY_STATUS},
-	{STRATEGY_SETEX,	"psetex",		"psetx", 		REPLY_STATUS},
 	{STRATEGY_ZRANGE,	"zrange",		"zrange",		REPLY_MULTI_BULK},
 	{STRATEGY_ZREVRANGE,"zrevrange",	"zrrange",		REPLY_MULTI_BULK},
 	{STRATEGY_ZADD,		"zadd",			"multi_zset", 	REPLY_INT},
 	{STRATEGY_ZINCRBY,	"zincrby",		"zincr", 		REPLY_BULK},
 	{STRATEGY_ZRANGEBYSCORE,	"zrangebyscore",	"zscan",	REPLY_MULTI_BULK},
 	{STRATEGY_ZREVRANGEBYSCORE,	"zrevrangebyscore",	"zrscan",	REPLY_MULTI_BULK},
+
 
 	{STRATEGY_AUTO,		"lpush",		"qpush_front", 		REPLY_INT},
 	{STRATEGY_AUTO,		"rpush",		"qpush_back", 		REPLY_INT},
@@ -157,7 +154,7 @@ static RedisCommand_raw cmds_raw[] = {
 	{STRATEGY_AUTO,		"lrange",		"qslice",			REPLY_MULTI_BULK},
 
 
-	{STRATEGY_AUTO, 	"linsert",			"qsize",			REPLY_INT},//TODO
+	{STRATEGY_AUTO, 	"linsert",		"qsize",			REPLY_INT},//TODO
 	{STRATEGY_AUTO, 	"lrem",			"qsize",			REPLY_INT},//TODO
 	{STRATEGY_AUTO, 	"ltrim",		"qsize",			REPLY_INT},//TODO
 	{STRATEGY_AUTO,		"lpushx",		"qpush_front", 		REPLY_INT}, //TODO

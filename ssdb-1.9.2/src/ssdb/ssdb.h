@@ -74,7 +74,8 @@ public:
 
 	virtual int hmset(const Bytes &name, const std::map<Bytes, Bytes> &kvs) = 0;
 	virtual int hset(const Bytes &name, const Bytes &key, const Bytes &val) = 0;
-	virtual int hdel(const Bytes &name, const Bytes &key) = 0;
+	virtual int hdel(const Bytes &name, const std::set<Bytes>& fields) = 0;
+
 	// -1: error, 1: ok, 0: value is not an integer or out of range
 	virtual int hincr(const Bytes &name, const Bytes &key, int64_t by, int64_t *new_val) = 0;
 

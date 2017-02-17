@@ -7,7 +7,6 @@ found in the LICENSE file.
 
 static int hset_one(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const HashMetaVal &hv, bool check_exists,const Bytes &name, const Bytes &key, const Bytes &val);
 static int hset_one(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &name, const Bytes &key, const Bytes &val);
-static int hdel_one(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &name, const Bytes &key);
 static int incr_hsize(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &name, int64_t incr);
 
 /**
@@ -94,24 +93,46 @@ int SSDBImpl::hset(const Bytes &name, const Bytes &key, const Bytes &val){
 	return ret;
 }
 
-int SSDBImpl::hdel(const Bytes &name, const Bytes &key){
+
+int SSDBImpl::hdel(const Bytes &name, const std::set<Bytes> &fields) {
 	RecordLock l(&mutex_record_, name.String());
 	leveldb::WriteBatch batch;
+	HashMetaVal hv;
+	std::string meta_key = encode_meta_key(name);
 
-	int ret = hdel_one(this, batch, name, key);
-	if(ret >= 0){
-		if(ret > 0){
-			if(incr_hsize(this, batch, name, -ret) == -1){
-				return -1;
-			}
+	int ret = this->GetHashMetaVal(meta_key, hv);
+	if (ret != 1){
+		return ret;
+	}
+
+	int deleted = 0;
+
+	for (auto const &key : fields) {
+
+		std::string dbval;
+		std::string hkey = encode_hash_key(name, key, hv.version);
+
+		ret = GetHashItemValInternal(hkey, &dbval);
+		if (ret == 1){
+			batch.Delete(hkey);
+			deleted++;
 		}
-		leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
-		if(!s.ok()){
+	}
+
+	if (deleted > 0) {
+		if(incr_hsize(this, batch, name, -deleted) == -1){
 			return -1;
 		}
 	}
-	return ret;
+
+	leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
+	if(!s.ok()){
+		return -1;
+	}
+
+	return deleted;
 }
+
 
 int SSDBImpl::hincr(const Bytes &name, const Bytes &key, int64_t by, int64_t *new_val){
 	RecordLock l(&mutex_record_, name.String());
@@ -267,21 +288,6 @@ HIterator* SSDBImpl::hscan_internal(const Bytes &name, const Bytes &start, const
 }
 
 
-/*// todo r2m adaptation //编码规则决定无法支持该操作，redis也不支持该操作
-static void get_hnames(Iterator *it, std::vector<std::string> *list){
-	while(it->next()){
-		Bytes ks = it->key();
-		if(ks.data()[0] != DataType::HSIZE){
-			break;
-		}
-		std::string n;
-		if(decode_hsize_key(ks, &n) == -1){
-			continue;
-		}
-		list->push_back(n);
-	}
-}*/
-
 int SSDBImpl::GetHashMetaVal(const std::string &meta_key, HashMetaVal &hv){
 	std::string meta_val;
 	leveldb::Status s = ldb->Get(leveldb::ReadOptions(), meta_key, &meta_val);
@@ -339,25 +345,6 @@ static int hset_one(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &nam
 	}
 }
 
-
-static int hdel_one(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &name, const Bytes &key){
-	int ret = 0;
-	std::string dbval;
-	HashMetaVal hv;
-	std::string meta_key = encode_meta_key(name);
-	ret = ssdb->GetHashMetaVal(meta_key, hv);
-	if (ret != 1){
-		return ret;
-	}
-	std::string hkey = encode_hash_key(name, key, hv.version);
-	ret = ssdb->GetHashItemValInternal(hkey, &dbval);
-	if (ret != 1){
-		return ret;
-	}
-	batch.Delete(hkey);
-	
-	return 1;
-}
 
 static int incr_hsize(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &name, int64_t incr){
 	HashMetaVal hv;
