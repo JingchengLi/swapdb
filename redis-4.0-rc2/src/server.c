@@ -1628,6 +1628,8 @@ void initServerConfig(void) {
     if (server.jdjr_mode) {
         server.is_allow_ssdb_write = ALLOW_SSDB_WRITE;
         server.ssdb_status = SSDB_NONE;
+        server.check_write_unresponse_num = -1;
+        server.current_repl_slave = NULL;
     }
 
 }
@@ -2728,6 +2730,55 @@ int processCommand(client *c) {
     }
 
     if (server.jdjr_mode
+        && (c->cmd->proc == syncCommand)
+        && (c->flags & CLIENT_SLAVE)) {
+        c->ssdb_status = SLAVE_SSDB_SNAPSHOT_IN_PROCESS;
+    }
+
+    /* TODO: handle the case that
+       server.current_repl_slave is not null. */
+
+    if (server.jdjr_mode
+        && (c->cmd->proc == syncCommand)
+        && !(c->flags & CLIENT_DELAYED_BY_PSYNC)
+        && (c->flags & CLIENT_SLAVE)
+        && !server.current_repl_slave) {
+        listIter li;
+        listNode *ln;
+        client *tc;
+
+        /* Update the server's status. */
+        server.check_write_unresponse_num = listLength(server.clients);
+        server.ssdb_status = MASTER_SSDB_SNAPSHOT_CHECK_WRITE;
+
+        /* Block the current client(slave), waiting to be awaked. */
+        /* TODO: set a reasonable timeout. */
+        c->bpop.timeout = 5000 + mstime();
+
+        /* TODO: optimize not to use the flag. */
+        c->flags |= CLIENT_DELAYED_BY_PSYNC;
+        blockClient(c, BLOCKED_SLAVE_BY_PSYNC);
+        server.current_repl_slave = c;
+
+        /* Force all the clients to check the write cmd. */
+        listRewind(server.clients, &li);
+        while((ln = listNext(&li)) != NULL) {
+            tc = listNodeValue(ln);
+
+            tc->client_before_cpsync = CLIENT_IS_BEFORE_CPSYNC;
+            c->need_ssdbClientUnixHandler_reply = SSDB_CLIENT_KEEP_REPLY;
+
+            /* TODO: To abort the current psync ASAP,
+               record the num of clients that sucessfully exec sendCommandToSSDB. */
+            if (aeCreateFileEvent(server.el, tc->fd, AE_WRITABLE,
+                              sendCheckWriteCommandToSSDB, tc) == AE_ERR)
+                freeClientAsync(tc);
+        }
+
+        return C_ERR;
+    }
+
+    if (server.jdjr_mode
         && processCommandMaybeInSSDB(c) == C_OK) {
         /* The client will be reseted in sendCommandToSSDB if C_FD_ERR
            is returned in sendCommandToSSDB.
@@ -2735,23 +2786,6 @@ int processCommand(client *c) {
            the resetClient is delayed to ssdbClientUnixHandler. */
         serverLog(LL_DEBUG, "processing %s, fd: %d in ssdb: %s",
                   c->cmd->name, c->fd, (char *)c->argv[1]->ptr);
-        return C_ERR;
-    }
-
-    if (server.jdjr_mode
-        && c->cmd->proc == syncCommand) {
-        sds finalcmd = sdsnew("*1\r\n$16\r\ncustomized-psync\r\n");
-
-        if (sendCommandToSSDB(c, finalcmd) != C_OK)
-            serverLog(LL_WARNING, "Sending customized-psync to SSDB failed.");
-
-        c->flags |= CLIENT_DELAYED_BY_PSYNC;
-        blockClient(c, BLOCKED_PSYNC);
-
-        /* Forbbid sending the writing cmds to SSDB. */
-        server.is_allow_ssdb_write = DISALLOW_SSDB_WRITE;
-
-        c->ssdb_status = SSDB_SNAPSHOT_PRE;
         return C_ERR;
     }
 

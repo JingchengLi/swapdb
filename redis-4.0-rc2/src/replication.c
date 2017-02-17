@@ -990,7 +990,7 @@ void updateSlavesWaitingBgsave(int bgsaveerr, int type) {
                     (unsigned long long) slave->repldbsize);
 
                 if (server.jdjr_mode) {
-                    slave->ssdb_status = SSDB_SNAPSHOT_TRANSFER_PRE;
+                    slave->ssdb_status = SLAVE_SSDB_SNAPSHOT_TRANSFER_PRE;
                 } else {
                     aeDeleteFileEvent(server.el,slave->fd,AE_WRITABLE);
                     if (aeCreateFileEvent(server.el, slave->fd, AE_WRITABLE, sendBulkToSlave, slave) == AE_ERR) {
@@ -2566,7 +2566,7 @@ void replicationCron(void) {
         }
 
         if (server.jdjr_mode
-            && (slave->ssdb_status == SSDB_SNAPSHOT_TRANSFER_PRE)) {
+            && (slave->ssdb_status == MASTER_SSDB_SNAPSHOT_OK)) {
                 sds cmdsds = sdsnew("*1\r\n$28\r\ncustomized-transfer-snapshot\r\n");
 
                 /* TODO: block current slave. */
@@ -2578,7 +2578,7 @@ void replicationCron(void) {
         }
 
         if (server.jdjr_mode
-            && (slave->ssdb_status == SSDB_SNAPSHOT_TRANSFER_START)) {
+            && (slave->ssdb_status == SLAVE_SSDB_SNAPSHOT_TRANSFER_START)) {
                 aeDeleteFileEvent(server.el, slave->fd, AE_WRITABLE);
                 if (aeCreateFileEvent(server.el, slave->fd, AE_WRITABLE,
                                       sendBulkToSlave, slave) == AE_ERR)

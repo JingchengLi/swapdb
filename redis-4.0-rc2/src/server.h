@@ -78,6 +78,12 @@ typedef long long mstime_t; /* millisecond time type. */
 #define C_ERR                   -1
 #define C_FD_ERR                -2
 
+/* ssdbClientUnixHandler reply string codes. */
+#define SSDB_CLIENT_KEEP_REPLY 0
+#define SSDB_CLIENT_IGNORE_REPLY 1
+
+#define CLIENT_IS_BEFORE_CPSYNC 1
+
 /* is_allow_ssdb_write codes */
 #define ALLOW_SSDB_WRITE 1
 #define DISALLOW_SSDB_WRITE 0
@@ -260,6 +266,8 @@ typedef long long mstime_t; /* millisecond time type. */
 #define CLIENT_DELAYED_BY_PSYNC (1<<31) /* A write command is delayed because we need to prohibid write
  * operations for ssdb when receive a psync from my slave. */
 
+
+
 /* Client block type (btype field in client structure)
  * if CLIENT_BLOCKED flag is set. */
 #define BLOCKED_NONE 0    /* Not blocked, no CLIENT_BLOCKED flag set. */
@@ -272,6 +280,7 @@ typedef long long mstime_t; /* millisecond time type. */
 #define BLOCKED_VISITING_SSDB_TIMEOUT 12 /* Client is visiting SSDB and may be out of time. */
 #define BLOCKED_PSYNC 13 /* Client is delaying psync to the tail of current loop. */
 #define BLOCKED_NO_WRITE_TO_SSDB 14 /* Client is blocked as during the process of psync. */
+#define BLOCKED_SLAVE_BY_PSYNC 15 /* Slave is blocked when interacts with SSDB. */
 
 /* Client request types */
 #define PROTO_REQ_INLINE 1
@@ -317,15 +326,19 @@ typedef long long mstime_t; /* millisecond time type. */
 #define SLAVE_STATE_SEND_BULK 8 /* Sending RDB file to slave. */
 #define SLAVE_STATE_ONLINE 9 /* RDB file transmitted, sending just updates. */
 
-/* Use by server.ssdb_status and client.ssdb_status. */
+/* Use by server.ssdb_status(master) and client.ssdb_status(slave). */
 #define SSDB_NONE 0
-/* Server state of SSDB. */
-#define SSDB_SNAPSHOT_PRE 1
-#define SSDB_SNAPSHOT_OK 2
-/* Client state of SSDB. */
-#define SSDB_SNAPSHOT_TRANSFER_PRE 3
-#define SSDB_SNAPSHOT_TRANSFER_START 4
-#define SSDB_SNAPSHOT_TRANSFER_END 5
+/* Master state of SSDB. */
+#define MASTER_SSDB_SNAPSHOT_CHECK_WRITE 1
+#define MASTER_SSDB_SNAPSHOT_PRE 2
+#define MASTER_SSDB_SNAPSHOT_OK 3
+
+/* Slave state of SSDB. */
+#define SLAVE_SSDB_SNAPSHOT_IN_PROCESS 1
+#define SLAVE_SSDB_SNAPSHOT_TRANSFER_PRE 2
+#define SLAVE_SSDB_SNAPSHOT_TRANSFER_START 3
+#define SLAVE_SSDB_SNAPSHOT_TRANSFER_END 4
+
 
 /* Slave capabilities. */
 #define SLAVE_CAPA_NONE 0
@@ -748,6 +761,8 @@ typedef struct client {
 
     redisContext *context;  /* Used by redis client in jdjr-mode. */
     int ssdb_status; /* Record the ssdb state. */
+    int client_before_cpsync; /* Used to flag the existed clients when customized-psync is called. */
+    int need_ssdbClientUnixHandler_reply; /* Need to use the reply string in ssdbClientUnixHandler. */
 } client;
 
 struct saveparam {
@@ -1220,6 +1235,9 @@ struct redisServer {
     int is_allow_ssdb_write;
     list *no_writing_ssdb_blocked_clients;
     int ssdb_status;
+    /* Calculate the num of unresponsed clients. */
+    int check_write_unresponse_num;
+    client *current_repl_slave;
 };
 
 typedef struct pubsubPattern {
@@ -1403,6 +1421,7 @@ int processEventsWhileBlocked(void);
 int handleClientsWithPendingWrites(void);
 int clientHasPendingReplies(client *c);
 int sendCommandToSSDB(client *c, sds finalcmd);
+void sendCheckWriteCommandToSSDB(aeEventLoop *el, int fd, void *privdata, int mask);
 void unlinkClient(client *c);
 int writeToClient(int fd, client *c, int handler_installed);
 

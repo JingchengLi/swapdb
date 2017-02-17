@@ -123,6 +123,8 @@ client *createClient(int fd) {
     if (server.jdjr_mode) {
         c->ssdb_status = SSDB_NONE;
         c->bpop.loading_or_transfer_keys = dictCreate(&objectKeyPointerValueDictType,NULL);
+        c->need_ssdbClientUnixHandler_reply = SSDB_CLIENT_IGNORE_REPLY;
+        c->client_before_cpsync = 0;
     }
     c->bpop.target = NULL;
     c->bpop.numreplicas = 0;
@@ -706,6 +708,25 @@ int sendCommandToSSDB(client *c, sds finalcmd) {
      return C_OK;
 }
 
+void sendCheckWriteCommandToSSDB(aeEventLoop *el, int fd, void *privdata, int mask) {
+    client *c = (client *)privdata;
+    UNUSED(mask);
+    UNUSED(el);
+    UNUSED(fd);
+
+    /* Expect the response of customized-check-write as
+       'customized-check-write ok/nok'. */
+    sds finalcmd = sdsnew("*1\r\n$22\r\ncustomized-check-write\r\n");
+
+    if (sendCommandToSSDB(c, finalcmd) != C_OK)
+        serverLog(LL_WARNING, "Sending customized-check-write to SSDB failed.");
+
+    aeDeleteFileEvent(server.el, c->fd, AE_WRITABLE);
+
+    c->need_ssdbClientUnixHandler_reply = SSDB_CLIENT_KEEP_REPLY;
+}
+
+
 #define MAX_ACCEPTS_PER_CALL 1000
 static void acceptCommonHandler(int fd, int flags, char *ip) {
     client *c;
@@ -844,7 +865,8 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
         if (redisBufferRead(c->context) == REDIS_OK
             && fd != ssdb_client_fd) {
             if ((c->cmd && (c->cmd->proc == syncCommand))
-                || (c->lastcmd && (c->lastcmd->proc == syncCommand)))
+                || (c->lastcmd && (c->lastcmd->proc == syncCommand))
+                || c->need_ssdbClientUnixHandler_reply == SSDB_CLIENT_KEEP_REPLY)
                 /* The length of customized-psync's response is short than 1024*16. */
                 replyString = sdsnewlen(r->buf + oldlen, r->len -oldlen);
             else
@@ -884,57 +906,104 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
         }
     }
 
-    if (c->cmd && (c->cmd->proc == syncCommand)
-        && c->lastcmd && (c->lastcmd->proc == syncCommand)) {
-        sds tmp_ok = sdsnew("ok");
-        sds tmp_fail = sdsnew("nok");
+    if (server.ssdb_status == MASTER_SSDB_SNAPSHOT_CHECK_WRITE
+        && c->need_ssdbClientUnixHandler_reply == SSDB_CLIENT_KEEP_REPLY) {
+        sds tmp_ok = sdsnew("customized-check-write ok");
+        sds tmp_nok = sdsnew("customized-check-write nok");
 
-        serverAssert(c->ssdb_status == SSDB_SNAPSHOT_PRE);
+        if (!sdscmp(replyString, tmp_ok)) {
+            /* Update check_write_unresponse_num. */
+            server.check_write_unresponse_num -= 1;
 
-        if (c->btype != BLOCKED_PSYNC)
-            serverLog(LL_WARNING, "Client btype should be 'BLOCKED_PSYNC'");
+            if (server.check_write_unresponse_num == 0) {
+                server.check_write_unresponse_num = -1;
+                server.ssdb_status = MASTER_SSDB_SNAPSHOT_PRE;
+
+                sds finalcmd = sdsnew("*1\r\n$16\r\ncustomized-psync\r\n");
+                if (sendCommandToSSDB(server.current_repl_slave, finalcmd) != C_OK)
+                    serverLog(LL_WARNING, "Sending customized-psync to SSDB failed.");
+
+                /* Forbbid sending the writing cmds to SSDB. */
+                server.is_allow_ssdb_write = DISALLOW_SSDB_WRITE;
+
+                {
+                    listIter li;
+                    listNode *ln;
+                    client *slave;
+                    listRewind(server.clients, &li);
+                    while((ln = listNext(&li)) != NULL) {
+                        slave = listNodeValue(ln);
+                        if (slave->ssdb_status == SLAVE_SSDB_SNAPSHOT_IN_PROCESS) {
+                            slave->ssdb_status = SLAVE_SSDB_SNAPSHOT_TRANSFER_PRE;
+                        }
+                    }
+                }
+            }
+        }
+        else if (!sdscmp(replyString, tmp_nok))
+            serverLog(LL_WARNING, "SSDB returns 'customized-check-write nok'.");
+        else {
+            /* Do nothing. */;
+        }
+ }
+
+    if ((c->flags & CLIENT_SLAVE)
+        && c->cmd && (c->cmd->proc == syncCommand)
+        && c->lastcmd && (c->lastcmd->proc == syncCommand)
+        && server.ssdb_status == MASTER_SSDB_SNAPSHOT_PRE) {
+        sds tmp_ok = sdsnew("customized-psync ok");
+        sds tmp_nok = sdsnew("customized-psync nok");
+
+        serverAssert(c == server.current_repl_slave);
+
+        if (c->btype != BLOCKED_SLAVE_BY_PSYNC)
+            serverLog(LL_WARNING, "Client btype should be 'BLOCKED_SLAVE_BY_PSYNC'");
 
         sdstolower(replyString);
 
         unblockClient(c);
 
         if (!sdscmp(replyString, tmp_ok)) {
-            server.ssdb_status = SSDB_SNAPSHOT_OK;
+            server.ssdb_status = MASTER_SSDB_SNAPSHOT_OK;
             server.is_allow_ssdb_write = ALLOW_SSDB_WRITE;
-        } else if (!sdscmp(replyString, tmp_fail)) {
+        } else if (!sdscmp(replyString, tmp_nok)) {
             addReplyError(c, "snapshot nok");
             resetClient(c);
-            listDelNode(server.unblocked_clients, server.unblocked_clients->tail);
-
+            c->flags &= ~ CLIENT_DELAYED_BY_PSYNC;
             server.ssdb_status = SSDB_NONE;
         } else {
             serverPanic("Snapshot unrecognized response.");
         }
 
         sdsfree(tmp_ok);
-        sdsfree(tmp_fail);
+        sdsfree(tmp_nok);
         sdsfree(replyString);
     }
 
-    if (c->cmd == NULL
+    if ((c->flags & CLIENT_SLAVE)
+        && !c->cmd
         && c->lastcmd
         && c->lastcmd->proc == syncCommand) {
-        sds tmp_ok = sdsnew("ok");
-        sds tmp_fail = sdsnew("nok");
+        sds tmp_ok = sdsnew("customized-transfer-snapshot ok");
+        sds tmp_nok = sdsnew("customized-transfer-snapshot nok");
 
-        serverAssert(c->ssdb_status == SSDB_SNAPSHOT_TRANSFER_PRE);
+        serverAssert(c->ssdb_status == SLAVE_SSDB_SNAPSHOT_TRANSFER_PRE);
 
         sdstolower(replyString);
 
         if (!sdscmp(replyString, tmp_ok)) {
-            c->ssdb_status = SSDB_SNAPSHOT_TRANSFER_START;
-        } else if (!sdscmp(replyString, tmp_fail)) {
+            c->ssdb_status = SLAVE_SSDB_SNAPSHOT_TRANSFER_START;
+        } else if (!sdscmp(replyString, tmp_nok)) {
             addReplyError(c, "snapshot transfer nok");
             /* TODO: call resetClient ???*/
             c->ssdb_status = SSDB_NONE;
         } else {
             serverPanic("Snapshot transfer unrecognized reponse.");
         }
+
+        sdsfree(tmp_ok);
+        sdsfree(tmp_nok);
+        sdsfree(replyString);
     }
 
     /* Unblock the current client. */
@@ -1313,6 +1382,9 @@ void resetClient(client *c) {
         c->flags |= CLIENT_REPLY_SKIP;
         c->flags &= ~CLIENT_REPLY_SKIP_NEXT;
     }
+
+    if (server.jdjr_mode)
+        c->need_ssdbClientUnixHandler_reply = SSDB_CLIENT_IGNORE_REPLY;
 }
 
 int processInlineBuffer(client *c) {
