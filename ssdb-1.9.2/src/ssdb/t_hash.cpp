@@ -204,10 +204,16 @@ int SSDBImpl::hmget(const Bytes &name, const std::vector<std::string> &reqKeys, 
 
 	for (const std::string &reqKey : reqKeys) {
 		std::string val;
-		std::string dbkey = encode_hash_key(name, reqKey, hv.version);
-		leveldb::Status s = ldb->Get(leveldb::ReadOptions(), dbkey, &val);
-		if(s.ok()){
+		std::string hkey = encode_hash_key(name, reqKey, hv.version);
+
+		int ret = GetHashItemValInternal(hkey, &val);
+		if (ret == 1) {
 			(*resMap)[reqKey] = val;
+
+		} else if (ret == 0) {
+			continue;
+		} else {
+			return ret;
 		}
 
 	}
@@ -223,16 +229,8 @@ int SSDBImpl::hget(const Bytes &name, const Bytes &key, std::string *val){
 		return ret;
 	}
 
-	std::string dbkey = encode_hash_key(name, key, hv.version);
-	leveldb::Status s = ldb->Get(leveldb::ReadOptions(), dbkey, val);
-	if(s.IsNotFound()){
-		return 0;
-	}
-	if(!s.ok()){
-		log_error("%s", s.ToString().c_str());
-		return -1;
-	}
-	return 1;
+	std::string hkey = encode_hash_key(name, key, hv.version);
+	return GetHashItemValInternal(hkey, val);
 }
 
 HIterator* SSDBImpl::hscan(const Bytes &name, const Bytes &start, const Bytes &end, uint64_t limit){
@@ -292,6 +290,10 @@ int SSDBImpl::GetHashMetaVal(const std::string &meta_key, HashMetaVal &hv){
 	std::string meta_val;
 	leveldb::Status s = ldb->Get(leveldb::ReadOptions(), meta_key, &meta_val);
 	if (s.IsNotFound()){
+		hv.length = 0;
+		hv.del = KEY_ENABLED_MASK;
+		hv.type = DataType::HSIZE;
+		hv.version = 0;
 		return 0;
 	} else if (!s.ok() && !s.IsNotFound()){
 		return -1;
@@ -313,6 +315,7 @@ int SSDBImpl::GetHashItemValInternal(const std::string &item_key, std::string *v
 	if (s.IsNotFound()){
 		return 0;
 	} else if (!s.ok() && !s.IsNotFound()){
+		log_error("%s", s.ToString().c_str());
 		return -1;
 	}
 	return 1;
