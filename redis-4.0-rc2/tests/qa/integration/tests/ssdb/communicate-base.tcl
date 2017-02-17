@@ -31,12 +31,7 @@ start_server {tags {"ssdb"}} {
                 $redis set foo bar
             }
 
-            #wait key restore to redis
-            wait_for_condition 100 1 {
-                [$redis locatekey foo] eq {redis}
-            } else {
-                fail "key foo restore redis failed"
-            }
+            wait_for_restoreto_redis $redis foo
 
             assert {[$ssdb get foo] eq {}}
             $redis get foo
@@ -46,12 +41,7 @@ start_server {tags {"ssdb"}} {
             $redis dumptossdb foo
             $redis set fooxxx barxxx
 
-            #wait key dumped to ssdb
-            wait_for_condition 100 1 {
-                [ $redis locatekey foo ] eq {ssdb}
-            } else {
-                fail "key foo be dumptossdb failed"
-            }
+            wait_for_dumpto_ssdb $redis foo
             $redis config set jdjr-mode no
 
             list [$redis get fooxxx] [ $redis get foo ]
@@ -63,24 +53,14 @@ start_server {tags {"ssdb"}} {
         } {bar}
 
         test "GET Key(become hot) - 1 move from ssdb to redis with ttl($ttl)" {
-            #wait key restore to redis
-            wait_for_condition 100 1 {
-                [$redis locatekey foo] eq {redis}
-            } else {
-                fail "key foo restore redis failed"
-            }
+            wait_for_restoreto_redis $redis foo
             $ssdb get foo
         } {}
 
         test "Key(become cold) - 2 move from redis to ssdb with ttl($ttl)" {
             $redis dumptossdb foo
 
-            #wait key dumped to ssdb
-            wait_for_condition 100 1 {
-                [$redis locatekey foo] eq {ssdb}
-            } else {
-                fail "key foo be dumptossdb failed"
-            }
+            wait_for_dumpto_ssdb $redis foo
             $ssdb get foo
         } {bar}
 
@@ -90,12 +70,8 @@ start_server {tags {"ssdb"}} {
             } else {
                 $redis set foo bar1
             }
-            #wait key restore to redis
-            wait_for_condition 100 1 {
-                [$redis locatekey foo] eq {redis}
-            } else {
-                fail "key foo restore redis failed"
-            }
+            wait_for_restoreto_redis $redis foo
+
             list [$ssdb get foo] [$redis get foo]
         } {{} bar1}
 
@@ -113,12 +89,7 @@ start_server {tags {"ssdb"}} {
             }
             $redis dumptossdb foo
 
-            #wait key dumped to ssdb
-            wait_for_condition 100 1 {
-                [$redis locatekey foo] eq {ssdb}
-            } else {
-                fail "key foo be dumptossdb failed"
-            }
+            wait_for_dumpto_ssdb $redis foo
 
             $ssdb get foo
         } {bar}
@@ -134,12 +105,8 @@ start_server {tags {"ssdb"}} {
             } else {
                 $redis set foo bar
             }
-            #wait key restore to redis
-            wait_for_condition 100 1 {
-                [$redis locatekey foo] eq {redis}
-            } else {
-                fail "key foo restore redis failed"
-            }
+            wait_for_restoreto_redis $redis foo
+
             list [$ssdb get foo] [$redis get foo]
         } {{} bar}
 
@@ -152,23 +119,19 @@ start_server {tags {"ssdb"}} {
 
         test "GET key(not exist) not operate ssdb with ttl($ttl)" {
             set precalls [ get_total_calls "total_calls" $ssdb]
+            $redis del fooxxx
             $redis get fooxxx
             set nowcalls [ get_total_calls "total_calls" $ssdb]
             expr $nowcalls-$precalls
         } 1
-        $redis del foo
 
         if {$ttl > 0} {
             test "key store in ssdb with ttl(3) will expire" {
                 $redis setex foo 3 bar
                 $redis dumptossdb foo
 
-                #wait key dumped to ssdb
-                wait_for_condition 100 1 {
-                    [$redis locatekey foo] eq {ssdb}
-                } else {
-                    fail "key foo be dumptossdb failed"
-                }
+                wait_for_dumpto_ssdb $redis foo
+
                 after 3100
                 list [$redis locatekey foo] [$redis get foo]
             } {none {}}

@@ -89,5 +89,6 @@ start_server {tags {"ssdb"}} {
             $redis del foo3
             list [$redis get foo1] [$redis get foo2] [$redis get foo3] [$redis locatekey foo1] [$redis locatekey foo2] [$redis locatekey foo3]
         } {{} {} {} none none none}
+        $redis config set load-from-ssdb yes
     }
 }

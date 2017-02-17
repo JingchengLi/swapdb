@@ -240,4 +240,5 @@ start_server {tags {"redis-ssdb"}} {
         }
         $redis del foobusy
     }
+    $ssdb flushdb
 }

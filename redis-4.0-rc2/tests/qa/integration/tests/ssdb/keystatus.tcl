@@ -54,11 +54,14 @@ start_server {tags {"ssdb"}} {
             $redis get foo
         }
 
-        wait_for_condition 200 1 {
-            [ $redis locatekey foo ] eq {redis}
-        } else {
-            fail "key foo be hot failed"
+        after 100
+
+        assert { [$redis locatekey foo] ne {none} }
+        if {[$redis locatekey foo] eq {redis}} {
+            assert_equal [ $ssdb exists foo ] 0
+        } elseif {[$redis locatekey foo] eq {ssdb}} {
+            assert_equal [ $ssdb exists foo ] 1
         }
-        list [$ssdb get foo] [ $redis get foo ]
-    } {{} bar}
+    }
+    $redis del foo
 }

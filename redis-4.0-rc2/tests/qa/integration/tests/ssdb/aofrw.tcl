@@ -8,12 +8,8 @@ overrides {save ""}} {
         $redis set hello world
         $redis dumptossdb foo
 
-        #wait key dumped to ssdb
-        wait_for_condition 100 1 {
-            [ $ssdb exists foo ] eq 1
-        } else {
-            fail "key foo be dumptossdb failed"
-        }
+        wait_for_dumpto_ssdb $redis foo
+
         # Get the data set digest
         set d1 [$redis debug digest]
 
@@ -24,8 +20,8 @@ overrides {save ""}} {
         # Make sure they are the same
         assert {$d1 eq $d2}
 
-        list [$redis locatekey foo] [$redis get foo] [$redis locatekey hello] [$redis get hello]
-    } {ssdb bar redis world}
+        list [$ssdb exists foo] [$redis get foo] [$redis locatekey hello] [$redis get hello]
+    } {1 bar redis world}
 
     foreach d {string int} {
         foreach e {quicklist} {
@@ -51,14 +47,7 @@ overrides {save ""}} {
                    $redis lpush ssdbkey $data
                 }
                 set d3 [$redis debug digest]
-                $redis dumptossdb ssdbkey
-
-                #wait key dumped to ssdb
-                wait_for_condition 100 1 {
-                    [ $redis locatekey ssdbkey ] eq {ssdb}
-                } else {
-                    fail "key ssdbkey be dumptossdb failed"
-                }
+                dumpto_ssdb_and_wait $redis ssdbkey
 
                 assert_equal [$redis object encoding key] $e
                 set d1 [$redis debug digest]
@@ -71,12 +60,8 @@ overrides {save ""}} {
                 }
 
                 assert {[$redis llen ssdbkey] eq $len}
-                #wait key restore to redis
-                wait_for_condition 100 1 {
-                    [ $redis locatekey ssdbkey ] eq {redis}
-                } else {
-                    fail "key ssdbkey restored failed"
-                }
+                wait_for_restoreto_redis $redis ssdbkey
+
                 set d4 [$redis debug digest]
                 assert {$d1 ne $d3}
                 if {$d3 ne $d4} {
@@ -91,6 +76,8 @@ overrides {save ""}} {
         foreach e {intset hashtable} {
             test "AOF rewrite of set with $e encoding, $d data" {
                 $redis flushall
+                #TODO del flushdb after flushall issue fixed
+                $ssdb flushdb
                 # $redis del ssdbkey key
                 if {$e eq {intset}} {set len 10} else {set len 1000}
                 for {set j 0} {$j < $len} {incr j} {
@@ -100,12 +87,9 @@ overrides {save ""}} {
                         set data [randomInt 4000000000]
                     }
                     if {0 eq [ $redis sadd key $data ]} {
-                        # incr j -1
+                        incr j -1
                     }
                 }
-                # if {$d eq "int" && $e eq "intset"} {
-                    # return
-# }
 
                 for {set j 0} {$j < $len} {incr j} {
                     if {$d eq {string}} {
@@ -114,7 +98,7 @@ overrides {save ""}} {
                         set data [randomInt 4000000000]
                     }
                     if {0 eq [ $redis sadd ssdbkey $data ]} {
-                        # incr j -1
+                        incr j -1
                     }
                 }
                 set d3 [$redis debug digest]
@@ -155,7 +139,6 @@ overrides {save ""}} {
             }
         }
     }
-    return
 
     foreach d {string int} {
         foreach e {ziplist hashtable} {
@@ -168,7 +151,9 @@ overrides {save ""}} {
                     } else {
                         set data [randomInt 4000000000]
                     }
-                    $redis hset key $data $data
+                    if {0 eq [ $redis hset key $data $data]} {
+                        incr j -1
+                    }
                 }
 
                 for {set j 0} {$j < $len} {incr j} {
@@ -177,7 +162,9 @@ overrides {save ""}} {
                     } else {
                         set data [randomInt 4000000000]
                     }
-                    $redis hset ssdbkey $data $data
+                    if {0 eq [ $redis hset ssdbkey $data $data]} {
+                        incr j -1
+                    }
                 }
                 set d3 [$redis debug digest]
                 $redis dumptossdb ssdbkey
@@ -219,6 +206,7 @@ overrides {save ""}} {
         foreach e {ziplist skiplist} {
             test "AOF rewrite of zset with $e encoding, $d data" {
                 $redis flushall
+                $ssdb flushdb
                 if {$e eq {ziplist}} {set len 10} else {set len 1000}
                 for {set j 0} {$j < $len} {incr j} {
                     if {$d eq {string}} {
@@ -226,7 +214,9 @@ overrides {save ""}} {
                     } else {
                         set data [randomInt 4000000000]
                     }
-                    $redis zadd key [expr rand()] $data
+                    if {0 eq [ $redis zadd key [expr rand()] $data]} {
+                        incr j -1
+                    }
                 }
 
                 for {set j 0} {$j < $len} {incr j} {
@@ -235,17 +225,15 @@ overrides {save ""}} {
                     } else {
                         set data [randomInt 4000000000]
                     }
-                    $redis zadd ssdbkey [expr rand()] $data
+                    #Score accuracy in ssdb is limited to 4bits after dot.
+                    #rand()*100000000 to avoid error
+                    if {0 eq [ $redis zadd ssdbkey [expr int( rand()*100000000 )] $data]} {
+                        incr j -1
+                    }
                 }
-                set d3 [$redis debug digest]
-                $redis dumptossdb ssdbkey
 
-                #wait key dumped to ssdb
-                wait_for_condition 100 1 {
-                    [ $redis locatekey ssdbkey ] eq {ssdb}
-                } else {
-                    fail "key ssdbkey be dumptossdb failed"
-                }
+                set d3 [$redis debug digest]
+                dumpto_ssdb_and_wait $redis ssdbkey
 
                 assert_equal [$redis object encoding key] $e
                 set d1 [$redis debug digest]
@@ -253,21 +241,13 @@ overrides {save ""}} {
                 waitForBgrewriteaof $redis
                 $redis debug loadaof
                 set d2 [$redis debug digest]
-                if {$d1 ne $d2} {
-                    error "some key in ssdb assertion:$d1 is not equal to $d2"
-                }
+                assert_equal $d1 $d2 "some key in ssdb assertion:$d1 is not equal to $d2"
                 assert {[$redis zcard ssdbkey] eq $len}
-                #wait key restore to redis
-                wait_for_condition 100 1 {
-                    [ $redis locatekey ssdbkey ] eq {redis}
-                } else {
-                    fail "key ssdbkey restored failed"
-                }
+                wait_for_restoreto_redis $redis ssdbkey
+
                 set d4 [$redis debug digest]
                 assert {$d1 ne $d3}
-                if {$d3 ne $d4} {
-                    error "some key restore to redis assertion:$d3 is not equal to $d4"
-                }
+                assert_equal $d3 $d4 "some key restore to redis assertion:$d3 is not equal to $d4"
                 $redis del ssdbkey key
             }
         }

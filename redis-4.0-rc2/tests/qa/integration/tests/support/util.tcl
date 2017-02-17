@@ -375,3 +375,31 @@ proc start_write_load {host port seconds} {
 proc stop_write_load {handle} {
     catch {exec /bin/kill -9 $handle}
 }
+
+proc wait_for_dumpto_ssdb {r key} {
+    #wait key dumped to ssdb
+    wait_for_condition 100 1 {
+        [ $r locatekey $key ] eq {ssdb}
+    } else {
+        fail "key $key be dumptossdb failed"
+    }
+}
+
+proc wait_for_restoreto_redis {r key} {
+    #wait key restore to redis
+    wait_for_condition 100 1 {
+        [$r locatekey $key] eq {redis}
+    } else {
+        fail "key $key restore redis failed"
+    }
+}
+
+proc dumpto_ssdb_and_wait {r key} {
+    $r dumptossdb $key
+    #wait key dumped to ssdb
+    wait_for_condition 100 1 {
+        [ $r locatekey $key ] eq {ssdb}
+    } else {
+        fail "key $key be dumptossdb failed"
+    }
+}

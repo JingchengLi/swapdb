@@ -17,20 +17,17 @@ start_server {tags {"redis-ssdb"}} {
             $redis del foo
             $redis set foo $bar
             $redis dumptossdb foo
-            #wait key dumped to ssdb
-            wait_for_condition 100 1 {
-                [ $ssdb exists foo ] eq 1 
-            } else {
-                fail "key foo be dumptossdb failed"
-            }
-            assert_equal [$redis locatekey foo] {ssdb}
+            wait_for_dumpto_ssdb $redis foo
+
+            assert_equal [$ssdb get foo] $bar
         }
 
         test "string $valtype Be Hot store in redis" {
             assert_equal $bar [ $redis get foo ]
-            assert_equal [$redis locatekey foo] {redis}
+            wait_for_restoreto_redis $redis foo
             assert_equal {} [ $ssdb get foo ]
         }
+        $redis del foo
     }
 
 #hash type
@@ -61,14 +58,9 @@ start_server {tags {"redis-ssdb"}} {
         test "hash ($encoding) Be Cold store in ssdb" {
             $redis dumptossdb myhash
 
-            #wait key dumped to ssdb
-            wait_for_condition 100 5 {
-                [ $ssdb exists myhash ] eq 1 
-            } else {
-                fail "key myhash be dumptossdb failed"
-            }
+            wait_for_dumpto_ssdb $redis myhash
 
-            assert_equal [$redis locatekey myhash] {ssdb}
+            assert_equal [$ssdb exists myhash] {1}
             set err {}
             foreach k [array names myhash *] {
                 if {$myhash($k) ne [$ssdb hget myhash $k]} {
@@ -121,35 +113,25 @@ start_server {tags {"redis-ssdb"}} {
         test "set ($encoding) $valtype Be Cold store in ssdb" {
             $redis dumptossdb myset
 
-            #wait key dumped to ssdb
-            wait_for_condition 100 5 {
-                [ $ssdb exists myset ] eq 1 
-            } else {
-                fail "key myset be dumptossdb failed"
-            }
+            wait_for_dumpto_ssdb $redis myset
 
-            assert_equal [$redis locatekey myset] {ssdb}
+            assert_equal [$ssdb exists myset] {1}
             assert_equal [lsort $list] [lsort [$ssdb smembers myset]]
         }
 
         test "set ($encoding) $valtype Be Hot store in redis" {
             assert_equal [lsort $list] [lsort [$redis smembers myset]]
             assert_equal [$redis locatekey myset] {redis}
-            assert_equal 0 [ $ssdb exists myset ]
+            assert_equal [ $ssdb exists myset ] 0
         }
 
         test {Be Cold/Hot with an expire key} {
             $redis expire myset 3
             $redis dumptossdb myset
 
-            #wait key dumped to ssdb
-            wait_for_condition 100 5 {
-                [ $ssdb exists myset ] eq 1 
-            } else {
-                fail "key myset be dumptossdb failed"
-            }
+            wait_for_dumpto_ssdb $redis myset
 
-            assert_equal [$redis locatekey myset] {ssdb}
+            assert_equal [$ssdb exists myset] {1}
             assert_equal [lsort $list] [lsort [$ssdb smembers myset]]
             set ttl [$redis ttl myset]
             assert {$ttl >= 1 && $ttl <= 3}
@@ -184,14 +166,9 @@ start_server {tags {"redis-ssdb"}} {
         test "zset ($encoding) Be Cold store in ssdb" {
             $redis dumptossdb myzset
 
-            #wait key dumped to ssdb
-            wait_for_condition 100 5 {
-                [ $ssdb exists myzset ] eq 1 
-            } else {
-                fail "key myzset be dumptossdb failed"
-            }
+            wait_for_dumpto_ssdb $redis myzset
 
-            assert_equal [$redis locatekey myzset] {ssdb}
+            assert_equal [$ssdb exists myzset] {1}
             assert_equal $list [$ssdb zrange myzset 0 -1 withscores]
         }
 
@@ -201,20 +178,15 @@ start_server {tags {"redis-ssdb"}} {
             assert_equal 0 [ $ssdb exists myzset ]
         }
 
-        test {Be Cold/Hot with an expire overflows a 32 bit integer key} {
+        test {Be Cold/Hot with an expire overflows a 32 bit integer key ($encoding)} {
             $redis pexpire myzset 2569591501
             set pttl [$redis pttl foottl]
 
             $redis dumptossdb myzset
 
-            #wait key dumped to ssdb
-            wait_for_condition 100 5 {
-                [ $ssdb exists myzset ] eq 1 
-            } else {
-                fail "key myzset be dumptossdb failed"
-            }
+            wait_for_dumpto_ssdb $redis myzset
 
-            assert_equal [$redis locatekey myzset] {ssdb}
+            assert_equal [$ssdb exists myzset] {1}
             assert_equal $list [$ssdb zrange myzset 0 -1 withscores]
             set pttl [$redis pttl myzset]
             assert {$pttl >= 2569591501-3000 && $pttl <= 2569591501}
@@ -249,14 +221,9 @@ start_server {tags {"redis-ssdb"}} {
         test "list (quicklist) $valtype Be Cold store in ssdb" {
             $redis dumptossdb mylist
 
-            #wait key dumped to ssdb
-            wait_for_condition 100 5 {
-                [ $ssdb exists mylist ] eq 1 
-            } else {
-                fail "key mylist be dumptossdb failed"
-            }
+            wait_for_dumpto_ssdb $redis mylist
 
-            assert_equal [$redis locatekey mylist] {ssdb}
+            assert_equal [$ssdb exists mylist] {1}
             assert_equal [lsort $list] [lsort [$ssdb lrange mylist 0 -1]]
         }
 
@@ -264,7 +231,7 @@ start_server {tags {"redis-ssdb"}} {
             assert_equal [lsort $list] [lsort [$redis lrange mylist 0 -1]]
 
             assert_equal [$redis locatekey mylist] {redis}
-            assert_equal 0 [ $ssdb exists mylist ]
+            assert_equal [ $ssdb exists mylist ] 0
         }
 
         test {Override an key already exists in ssdb} {
@@ -272,15 +239,11 @@ start_server {tags {"redis-ssdb"}} {
 
             $redis dumptossdb mylist
 
-            #wait key dumped to ssdb
-            wait_for_condition 100 5 {
-                [ $ssdb exists mylist ] eq 1 
-            } else {
-                fail "key mylist be dumptossdb failed"
-            }
+            wait_for_dumpto_ssdb $redis mylist
 
-            assert_equal [$redis locatekey mylist] {ssdb}
+            assert_equal [$ssdb exists mylist] {1}
             assert_equal [lsort $list] [lsort [$ssdb lrange mylist 0 -1]]
         }
+        $redis del mylist
     }
 }
