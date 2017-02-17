@@ -59,6 +59,21 @@ char *trim(char *str){
 }
 
 inline static
+std::string strtrim(const std::string& str) {
+	std::string::size_type pos = str.find_first_not_of(' ');
+	if (pos == std::string::npos)
+	{
+		return str;
+	}
+	std::string::size_type pos2 = str.find_last_not_of(' ');
+	if (pos2 != std::string::npos)
+	{
+		return str.substr(pos, pos2 - pos + 1);
+	}
+	return str.substr(pos);
+}
+
+inline static
 void strtolower(std::string *str){
 	std::transform(str->begin(), str->end(), str->begin(), ::tolower);
 }
@@ -356,21 +371,42 @@ uint64_t str_to_uint64(const char *p, int size){
 }
 
 static inline
-double str_to_double(const char *p, int size){
-	std::string str(p, size);
-	const char *start = str.c_str();
-	char *end;
-	double ret = (double)strtod(start, &end);
-	// the WHOLE string must be string represented integer
-	if(*end == '\0' && size_t(end - start) == str.size()){
-		errno = 0;
-	}else{
-		// strtoxx do not set errno all the time!
-		if(errno == 0){
-			errno = EINVAL;
-		}
+double str_to_double(const char *s, int slen){
+	char buf[256];
+	double value;
+	char *eptr;
+
+	if (slen >= sizeof(buf)) return 0;
+	memcpy(buf,s,slen);
+	buf[slen] = '\0';
+
+	errno = 0;
+	value = strtod(buf, &eptr);
+	if (isspace(buf[0]) || eptr[0] != '\0' ||
+		(errno == ERANGE &&
+		 (value == HUGE_VAL || value == -HUGE_VAL || value == 0)) ||
+		errno == EINVAL ||
+		std::isnan(value)) {
+		errno = EINVAL; //we set all err  EINVAL here
+		return 0;
 	}
-	return ret;
+
+	return value;
+
+//	std::string str(p, size);
+//	const char *start = str.c_str();
+//	char *end;
+//	double ret = (double)strtod(start, &end);
+//	// the WHOLE string must be string represented integer
+//	if((str.size()> 0 && isspace(str[0])) || *end == '\0' && size_t(end - start) == str.size()){
+//		errno = 0;
+//	}else{
+//		// strtoxx do not set errno all the time!
+//		if(errno == 0){
+//			errno = EINVAL;
+//		}
+//	}
+//	return ret;
 
 //	return atof(std::string(p, size).c_str());
 }

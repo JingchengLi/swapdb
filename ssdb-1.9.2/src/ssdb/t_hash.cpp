@@ -194,7 +194,11 @@ int SSDBImpl::hincrbyfloat(const Bytes &name, const Bytes &key, double by, doubl
     if (ret == 0) {
         *new_val = by;
     } else {
+
         double oldvalue = str_to_double(old.c_str(), old.size());
+		if (errno == EINVAL){
+			return 0;
+		}
 
         if ((by < 0 && oldvalue < 0 && by < (DBL_MAX -oldvalue)) ||
             (by > 0 && oldvalue > 0 && by > (DBL_MAX -oldvalue))) {

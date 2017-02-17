@@ -244,7 +244,7 @@ int proc_hincrbyfloat(NetworkServer *net, Link *link, const Request &req, Respon
 	if(ret == -1){
 		resp->reply_status(-1, "server err");
 	} else if(ret == 0){
-		resp->reply_status(-1, "value is not an integer or out of range");
+		resp->reply_status(-1, "value is not an integer or out of range or value is not a valid float");
 	} else{
 		resp->reply_double(ret, new_val);
 	}
