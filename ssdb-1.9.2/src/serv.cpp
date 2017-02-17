@@ -923,6 +923,12 @@ int proc_sync150(NetworkServer *net, Link *link, const Request &req, Response *r
     }
 
     ret = serv->ssdb->parse_replic(kvs);
+	if (resp->size() > 0) {
+		if (serv->expiration != NULL) {
+			delete serv->expiration;
+			serv->expiration = new ExpirationHandler(serv->ssdb);
+		}
+	}
 
 	return ret;
 }
