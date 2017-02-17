@@ -512,50 +512,13 @@ int Slave::proc_sync(const Binlog &log, const std::vector<Bytes> &req){
 		case BinlogCommand::QPUSH_BACK:
 		case BinlogCommand::QPUSH_FRONT:
 			{
-				if(req.size() != 2){
-					break;
-				}
-				std::string name;
-				uint64_t seq;
-				ListItemKey lk;
-				if (lk.DecodeItemKey(log.key()) == -1){
-					break;
-				}
-				name = lk.key;
-				seq  = lk.seq;
-
-				int ret;
-				if(log.cmd() == BinlogCommand::QSET){
-					log_trace("qset %s %" PRIu64 "", hexmem(name.data(), name.size()).c_str(), seq);
-					ret = ssdb->qset_by_seq(name, seq, req[1]);
-				}else if(log.cmd() == BinlogCommand::QPUSH_BACK){
-					log_trace("qpush_back %s", hexmem(name.data(), name.size()).c_str());
-					ret = ssdb->qpush_back(name, req[1]);
-				}else{
-					log_trace("qpush_front %s", hexmem(name.data(), name.size()).c_str());
-					ret = ssdb->qpush_front(name, req[1]);
-				}
-				if(ret == -1){
-					return -1;
-				}
+				//TODO
 			}
 			break;
 		case BinlogCommand::QPOP_BACK:
 		case BinlogCommand::QPOP_FRONT:
 			{
-				int ret;
-				const Bytes name = log.key();
-				std::string tmp;
-				if(log.cmd() == BinlogCommand::QPOP_BACK){
-					log_trace("qpop_back %s", hexmem(name.data(), name.size()).c_str());
-					ret = ssdb->qpop_back(name, &tmp);
-				}else{
-					log_trace("qpop_front %s", hexmem(name.data(), name.size()).c_str());
-					ret = ssdb->qpop_front(name, &tmp);
-				}
-				if(ret == -1){
-					return -1;
-				}
+				//TODO
 			}
 			break;
         case BinlogCommand::DEL_KEY:

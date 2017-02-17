@@ -88,7 +88,6 @@ src/ssdb/options.cpp
 src/ssdb/t_kv.cpp
 src/ssdb/t_hash.cpp
 src/ssdb/t_zset.cpp
-src/ssdb/t_queue.cpp
 src/ssdb/binlog.cpp
 src/ssdb/ttl.cpp
 src/ssdb/t_list.cpp

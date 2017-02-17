@@ -100,20 +100,12 @@ DEF_PROC(multi_zset);
 DEF_PROC(multi_zdel);
 	
 DEF_PROC(qsize);
-DEF_PROC(qfront);
-DEF_PROC(qback);
-DEF_PROC(qpush);
 DEF_PROC(qpush_front);
 DEF_PROC(qpush_back);
-DEF_PROC(qpop);
 DEF_PROC(qpop_front);
 DEF_PROC(qpop_back);
-DEF_PROC(qtrim_front);
-DEF_PROC(qtrim_back);
 DEF_PROC(qfix);
-DEF_PROC(qclear);
 DEF_PROC(qslice);
-DEF_PROC(qrange);
 DEF_PROC(qget);
 DEF_PROC(qset);
 
@@ -236,20 +228,12 @@ void SSDBServer::reg_procs(NetworkServer *net){
 	REG_PROC(multi_zdel, "wt");
 
 	REG_PROC(qsize, "rt");
-	REG_PROC(qfront, "rt");
-	REG_PROC(qback, "rt");
-	REG_PROC(qpush, "wt");
 	REG_PROC(qpush_front, "wt");
 	REG_PROC(qpush_back, "wt");
-	REG_PROC(qpop, "wt");
 	REG_PROC(qpop_front, "wt");
 	REG_PROC(qpop_back, "wt");
-	REG_PROC(qtrim_front, "wt");
-	REG_PROC(qtrim_back, "wt");
 	REG_PROC(qfix, "wt");
-	REG_PROC(qclear, "wt");
 	REG_PROC(qslice, "rt");
-	REG_PROC(qrange, "rt");
 	REG_PROC(qget, "rt");
 	REG_PROC(qset, "wt");
 

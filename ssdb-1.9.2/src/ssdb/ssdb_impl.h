@@ -194,25 +194,6 @@ public:
 
 	virtual int GetZSetMetaVal(const std::string &meta_key, ZSetMetaVal &zv);
 
-    virtual int64_t qsize(const Bytes &name);
-	// @return 0: empty queue, 1: item peeked, -1: error
-	virtual int qfront(const Bytes &name, std::string *item);
-	// @return 0: empty queue, 1: item peeked, -1: error
-	virtual int qback(const Bytes &name, std::string *item);
-	// @return -1: error, other: the new length of the queue
-	virtual int64_t qpush_front(const Bytes &name, const Bytes &item);
-	virtual int64_t qpush_back(const Bytes &name, const Bytes &item);
-	// @return 0: empty queue, 1: item popped, -1: error
-	virtual int qpop_front(const Bytes &name, std::string *item);
-	virtual int qpop_back(const Bytes &name, std::string *item);
-	virtual int qfix(const Bytes &name);
-
-	virtual int qslice(const Bytes &name, int64_t offset, int64_t limit,
-			std::vector<std::string> *list);
-	virtual int qget(const Bytes &name, int64_t index, std::string *item);
-	virtual int qset(const Bytes &name, int64_t index, const Bytes &item);
-	virtual int qset_by_seq(const Bytes &name, uint64_t seq, const Bytes &item);
-
 
 	/* eset */
 	virtual int eset(const Bytes &key, int64_t ts);
@@ -224,8 +205,6 @@ public:
 
 
 private:
-	int64_t _qpush(const Bytes &name, const Bytes &item, uint64_t front_or_back_seq);
-	int _qpop(const Bytes &name, std::string *item, uint64_t front_or_back_seq);
 
 	int SetGeneric(leveldb::WriteBatch &batch, const Bytes &key, const Bytes &val, int flags, const int64_t expire);
     int GetKvMetaVal(const std::string &meta_key, KvMetaVal &kv);

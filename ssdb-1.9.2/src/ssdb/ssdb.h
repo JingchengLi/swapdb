@@ -133,27 +133,6 @@ public:
 
 	virtual int64_t zfix(const Bytes &name) = 0;
 
-
-	virtual int64_t qsize(const Bytes &name) = 0;
-	// @return 0: empty queue, 1: item peeked, -1: error
-	virtual int qfront(const Bytes &name, std::string *item) = 0;
-	// @return 0: empty queue, 1: item peeked, -1: error
-	virtual int qback(const Bytes &name, std::string *item) = 0;
-	// @return -1: error, other: the new length of the queue
-	virtual int64_t qpush_front(const Bytes &name, const Bytes &item) = 0;
-	virtual int64_t qpush_back(const Bytes &name, const Bytes &item) = 0;
-	// @return 0: empty queue, 1: item popped, -1: error
-	virtual int qpop_front(const Bytes &name, std::string *item) = 0;
-	virtual int qpop_back(const Bytes &name, std::string *item) = 0;
-	virtual int qfix(const Bytes &name) = 0;
-
-	virtual int qslice(const Bytes &name, int64_t offset, int64_t limit,
-			std::vector<std::string> *list) = 0;
-	virtual int qget(const Bytes &name, int64_t index, std::string *item) = 0;
-	virtual int qset(const Bytes &name, int64_t index, const Bytes &item) = 0;
-	virtual int qset_by_seq(const Bytes &name, uint64_t seq, const Bytes &item) = 0;
-
-
 	/* eset */
 	virtual int eset(const Bytes &key, int64_t ts) = 0;
 	virtual int esetNoLock(const Bytes &key, int64_t ts) = 0;
