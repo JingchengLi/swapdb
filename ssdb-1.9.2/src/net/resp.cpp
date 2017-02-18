@@ -74,9 +74,12 @@ void Response::reply_bool(int status, const char *errmsg){
 	}
 }
 
-void Response::reply_int(int status, int64_t val){
+void Response::reply_int(int status, int64_t val, const char *errmsg){
 	if(status == -1){
 		resp.push_back("error");
+		if(errmsg){
+			resp.push_back(errmsg);
+		}
 	}else{
 		resp.push_back("ok");
 		this->add(val);

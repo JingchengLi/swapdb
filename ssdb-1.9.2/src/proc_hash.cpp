@@ -16,7 +16,13 @@ int proc_hexists(NetworkServer *net, Link *link, const Request &req, Response *r
 	const Bytes &key = req[2];
 	std::string val;
 	int ret = serv->ssdb->hget(name, key, &val);
-	resp->reply_bool(ret);
+
+	if (ret < 0) {
+		resp->reply_bool(-1, GetErrorInfo(ret).c_str());
+	} else {
+		resp->reply_bool(ret);
+	}
+
 	return 0;
 }
 
@@ -39,8 +45,9 @@ int proc_hmset(NetworkServer *net, Link *link, const Request &req, Response *res
 		}
 
 		int ret = serv->ssdb->hmset(name, kvs);
-		if(ret == -1){
+		if(ret < 0){
 			resp->push_back("error");
+			resp->push_back(GetErrorInfo(ret));
 			return 0;
 		}
 
@@ -62,8 +69,9 @@ int proc_hdel(NetworkServer *net, Link *link, const Request &req, Response *resp
 	}
 
 	int ret = serv->ssdb->hdel(key, fields);
-	if(ret == -1){
+	if(ret < 0){
 		resp->push_back("error");
+		resp->push_back(GetErrorInfo(ret));
 		return 0;
 	}
 
@@ -108,6 +116,8 @@ int proc_hmget(NetworkServer *net, Link *link, const Request &req, Response *res
 	} else {
 		resp->resp.clear();
 		resp->push_back("error");
+		resp->push_back(GetErrorInfo(ret));
+		return 0;
 	}
 
 	return 0;
@@ -118,7 +128,13 @@ int proc_hsize(NetworkServer *net, Link *link, const Request &req, Response *res
 	SSDBServer *serv = (SSDBServer *)net->data;
 
 	int64_t ret = serv->ssdb->hsize(req[1]);
-	resp->reply_int(ret, ret);
+
+	if (ret < 0) {
+		resp->reply_int(-1, ret, GetErrorInfo(ret).c_str());
+	} else {
+		resp->reply_int(ret, ret);
+	}
+
 	return 0;
 }
 
@@ -127,7 +143,13 @@ int proc_hset(NetworkServer *net, Link *link, const Request &req, Response *resp
 	SSDBServer *serv = (SSDBServer *)net->data;
 
 	int ret = serv->ssdb->hset(req[1], req[2], req[3]);
-	resp->reply_bool(ret);
+
+	if (ret < 0) {
+		resp->reply_bool(-1, GetErrorInfo(ret).c_str());
+	} else {
+		resp->reply_bool(ret);
+	}
+
 	return 0;
 }
 
@@ -136,7 +158,13 @@ int proc_hsetnx(NetworkServer *net, Link *link, const Request &req, Response *re
 	SSDBServer *serv = (SSDBServer *)net->data;
 
 	int ret = serv->ssdb->hsetnx(req[1], req[2], req[3]);
-	resp->reply_bool(ret);
+
+	if (ret < 0) {
+		resp->reply_bool(-1, GetErrorInfo(ret).c_str());
+	} else {
+		resp->reply_bool(ret);
+	}
+
 	return 0;
 }
 
@@ -146,7 +174,13 @@ int proc_hget(NetworkServer *net, Link *link, const Request &req, Response *resp
 
 	std::string val;
 	int ret = serv->ssdb->hget(req[1], req[2], &val);
-	resp->reply_get(ret, &val);
+
+	if (ret < 0) {
+		resp->reply_get(-1, &val, GetErrorInfo(ret).c_str());
+	} else {
+		resp->reply_get(ret, &val);
+	}
+
 	return 0;
 }
 
@@ -241,10 +275,8 @@ int proc_hincrbyfloat(NetworkServer *net, Link *link, const Request &req, Respon
 
 	double new_val;
 	int ret = serv->ssdb->hincrbyfloat(req[1], req[2], by, &new_val);
-	if(ret == -1){
-		resp->reply_status(-1, "server err");
-	} else if(ret == 0){
-		resp->reply_status(-1, "value is not an integer or out of range or value is not a valid float");
+	if(ret  < 0){
+		resp->reply_status(-1, GetErrorInfo(ret).c_str());
 	} else{
 		resp->reply_double(ret, new_val);
 	}
@@ -266,10 +298,8 @@ int proc_hincr(NetworkServer *net, Link *link, const Request &req, Response *res
 
 	int64_t new_val = 0;
 	int ret = serv->ssdb->hincr(req[1], req[2], by, &new_val);
-	if(ret == -1){
-		resp->reply_status(-1, "server err");
-	} else if(ret == 0){
-		resp->reply_status(-1, "value is not an integer or out of range or overflow");
+	if(ret < 0) {
+		resp->reply_status(-1, GetErrorInfo(ret).c_str());
 	} else{
 		resp->reply_int(ret, new_val);
 	}

@@ -4,6 +4,7 @@ Use of this source code is governed by a BSD-style license that can be
 found in the LICENSE file.
 */
 #include <cfloat>
+#include <util/error.h>
 #include "ssdb_impl.h"
 #include "../../tests/qa/integration/include/ssdb_test.h"
 
@@ -26,41 +27,38 @@ int SSDBImpl::hmsetNoLock(const Bytes &name, const std::map<Bytes ,Bytes> &kvs) 
 	HashMetaVal hv;
 	std::string meta_key = encode_meta_key(name);
 	ret = this->GetHashMetaVal(meta_key, hv);
-
-	if (ret == -1){
-		return -1;
+	if (ret < 0){
+		return ret;
 	}
 
 	int sum = 0;
 
 	for(auto const &it : kvs)
 	{
-
 		const Bytes &key = it.first;
 		const Bytes &val = it.second;
 
-		ret = hset_one(this ,batch, hv, true, name, key, val);
-		if(ret < 0){
-			return -1;
+		int added = hset_one(this ,batch, hv, true, name, key, val);
+		if(added < 0){
+			return added;
 		}
 
-		if(ret >= 0){
-			sum = sum + ret;
+		if(added > 0){
+			sum = sum + added;
 		}
 
 	}
 
  	if(sum != 0) {
-		if (incr_hsize(this, batch, meta_key , hv, name, sum) == -1) {
-			return -1;
+		if ((ret = incr_hsize(this, batch, meta_key , hv, name, sum)) < 0) {
+			return ret;
 		}
 	}
 
 	leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
 	if(!s.ok()){
-		return -1;
+		return STORAGE_ERR;
 	}
-
 
 	return 1;
 }
@@ -77,18 +75,22 @@ int SSDBImpl::hset(const Bytes &name, const Bytes &key, const Bytes &val){
         return ret;
     }
 
-    ret = hset_one(this ,batch, hv, true, name, key, val);
-	if(ret >= 0){
-		if(ret > 0){
-			if(incr_hsize(this, batch, meta_key, hv, name, ret) == -1){
-				return -1;
-			}
-		}
-		leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
-		if(!s.ok()){
-			return -1;
+    int added = hset_one(this ,batch, hv, true, name, key, val);
+	if(added < 0) {
+		return added;
+	}
+
+	if(added > 0){
+		if ((ret = incr_hsize(this, batch, meta_key , hv, name, added)) < 0) {
+			return ret;
 		}
 	}
+
+	leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
+	if(!s.ok()){
+		return STORAGE_ERR;
+	}
+
 	return ret;
 }
 
@@ -114,18 +116,22 @@ int SSDBImpl::hsetnx(const Bytes &name, const Bytes &key, const Bytes &val){
 
     //ret == 0
 
-    ret = hset_one(this ,batch, hv, false, name, key, val);
-    if(ret >= 0){
-		if(ret > 0){
-			if(incr_hsize(this, batch, meta_key, hv, name, ret) == -1){
-				return -1;
-			}
-		}
-		leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
-		if(!s.ok()){
-			return -1;
+	int added = hset_one(this ,batch, hv, false, name, key, val);
+	if(added < 0) {
+		return added;
+	}
+
+	if(added > 0){
+		if ((ret = incr_hsize(this, batch, meta_key , hv, name, added)) < 0) {
+			return ret;
 		}
 	}
+
+	leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
+	if(!s.ok()){
+		return STORAGE_ERR;
+	}
+
 	return ret;
 }
 
@@ -149,21 +155,23 @@ int SSDBImpl::hdel(const Bytes &name, const std::set<Bytes> &fields) {
 		std::string hkey = encode_hash_key(name, key, hv.version);
 
 		ret = GetHashItemValInternal(hkey, &dbval);
-		if (ret == 1){
+		if (ret < 0){
+			return ret;
+		} else if (ret == 1){
 			batch.Delete(hkey);
 			deleted++;
 		}
 	}
 
 	if (deleted > 0) {
-		if(incr_hsize(this, batch, meta_key , hv, name, -deleted) == -1){
-			return -1;
+		if ((ret = incr_hsize(this, batch, meta_key , hv, name, -deleted)) < 0) {
+			return ret;
 		}
 	}
 
 	leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
 	if(!s.ok()){
-		return -1;
+		return STORAGE_ERR;
 	}
 
 	return deleted;
@@ -188,43 +196,42 @@ int SSDBImpl::hincrbyfloat(const Bytes &name, const Bytes &key, double by, doubl
         ret = GetHashItemValInternal(hkey, &old);
     }
 
-    if(ret < 0) {
-        return ret;
-    }
-
-    if (ret == 0) {
+	if(ret < 0) {
+		return ret;
+	} else if (ret == 0) {
         *new_val = by;
     } else {
 
         double oldvalue = str_to_double(old.c_str(), old.size());
 		if (errno == EINVAL){
-			return 0;
+			return INVALID_DBL;
 		}
 
         if ((by < 0 && oldvalue < 0 && by < (DBL_MAX -oldvalue)) ||
             (by > 0 && oldvalue > 0 && by > (DBL_MAX -oldvalue))) {
-            return 0;
+            return DBL_OVERFLOW;
         }
 
         *new_val = oldvalue + by;
     }
 
 
-    ret = hset_one(this ,batch, hv, false, name, key, str(*new_val));
-    if(ret == -1){
-        return -1;
+    int added = hset_one(this ,batch, hv, false, name, key, str(*new_val));
+    if(added < 0){
+        return added;
     }
-    if(ret >= 0){
-        if(ret > 0){
-            if(incr_hsize(this, batch, meta_key, hv, name, ret) == -1){
-                return -1;
-            }
-        }
-        leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
-        if(!s.ok()){
-            return -1;
-        }
+
+    if(added > 0){
+		if ((ret = incr_hsize(this, batch, meta_key , hv, name, added)) < 0) {
+			return ret;
+		}
     }
+
+	leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
+	if(!s.ok()){
+		return STORAGE_ERR;
+	}
+
     return 1;
 }
 
@@ -255,31 +262,32 @@ int SSDBImpl::hincr(const Bytes &name, const Bytes &key, int64_t by, int64_t *ne
     } else {
         long long oldvalue;
         if (string2ll(old.c_str(), old.size(), &oldvalue) == 0) {
-            return 0;
+            return INVALID_INT;
         }
         if ((by < 0 && oldvalue < 0 && by < (MIN_INT64-oldvalue)) ||
             (by > 0 && oldvalue > 0 && by > (MAX_INT64-oldvalue))) {
-            return 0;
+            return INT_OVERFLOW;
         }
         *new_val = oldvalue + by;
     }
 
 
-	ret = hset_one(this ,batch, hv, false, name, key, str(*new_val));
-	if(ret == -1){
-		return -1;
+	int added = hset_one(this ,batch, hv, false, name, key, str(*new_val));
+	if(added < 0){
+		return added;
 	}
-	if(ret >= 0){
-		if(ret > 0){
-			if(incr_hsize(this, batch, meta_key, hv, name, ret) == -1){
-				return -1;
-			}
-		}
-		leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
-		if(!s.ok()){
-			return -1;
+
+	if(added > 0){
+		if ((ret = incr_hsize(this, batch, meta_key , hv, name, added)) < 0) {
+			return ret;
 		}
 	}
+
+	leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
+	if(!s.ok()){
+		return STORAGE_ERR;
+	}
+
 	return 1;
 }
 
@@ -406,12 +414,12 @@ int SSDBImpl::GetHashMetaVal(const std::string &meta_key, HashMetaVal &hv){
 		return 0;
 	} else if (!s.ok() && !s.IsNotFound()){
         //error
-		return -1;
+		return STORAGE_ERR;
 	} else{
 		int ret = hv.DecodeMetaVal(meta_val);
-		if (ret == -1){
+		if (ret < 0){
             //error
-            return -1;
+            return ret;
 		} else if (hv.del == KEY_DELETE_MASK){
             //deleted , reset hv
             if (hv.version == UINT16_MAX){
@@ -424,7 +432,7 @@ int SSDBImpl::GetHashMetaVal(const std::string &meta_key, HashMetaVal &hv){
             return 0;
 		} else if (hv.type != DataType::HSIZE){
             //error
-            return -1;
+            return WRONG_TYPE_ERR;
 		}
 	}
 	return 1;
@@ -436,7 +444,7 @@ int SSDBImpl::GetHashItemValInternal(const std::string &item_key, std::string *v
 		return 0;
 	} else if (!s.ok() && !s.IsNotFound()){
 		log_error("%s", s.ToString().c_str());
-		return -1;
+		return STORAGE_ERR;
 	}
 	return 1;
 }
@@ -449,7 +457,7 @@ static int incr_hsize(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const std::str
 			std::string size_val = encode_hash_meta_val((uint64_t)incr, hv.version);
 			batch.Put(size_key, size_val);
 		} else{
-			return -1;
+			return INVALID_INCR;
 		}
 	} else{
 		uint64_t len = hv.length;
@@ -458,7 +466,7 @@ static int incr_hsize(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const std::str
 		} else if (incr < 0) {
 			uint64_t u64 = static_cast<uint64_t>(-incr);
 			if (len < u64) {
-				return -1;
+				return INVALID_INCR; //?
 			}
 			len = len - u64;
 		}
@@ -485,8 +493,8 @@ int hset_one(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const HashMetaVal &hv, 
 	if (check_exists) {
 		std::string item_key = encode_hash_key(name, key, hv.version);
 		ret = ssdb->GetHashItemValInternal(item_key, &dbval);
-		if (ret == -1){
-			return -1;
+		if (ret < 0){
+			return ret;
 		} else if (ret == 0){
 			batch.Put(item_key, slice(val));
 			ret = 1;

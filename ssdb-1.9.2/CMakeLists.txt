@@ -93,6 +93,7 @@ src/ssdb/ttl.cpp
 src/ssdb/t_list.cpp
 src/ssdb/t_set.cpp
 src/ssdb/t_eset.cpp
+src/ssdb/internal_error.cpp
 
         )
 

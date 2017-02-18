@@ -1,6 +1,7 @@
 //
 // Created by a1 on 16-11-3.
 //
+#include <util/error.h>
 #include "decode.h"
 #include "util/bytes.h"
 
@@ -178,7 +179,7 @@ int MetaVal::DecodeMetaVal(const Bytes &str) {
         return 0;
     }
     if ((type != DataType::HSIZE) && (type != DataType::SSIZE) && (type != DataType::ZSIZE)){
-        return -1;
+        return WRONG_TYPE_ERR;
     }
 
     if (decoder.read_uint64(&length) == -1){

@@ -26,7 +26,7 @@ public:
 
 	void reply_status(int status, const char *errmsg=NULL);
 	void reply_bool(int status, const char *errmsg=NULL);
-	void reply_int(int status, int64_t val);
+	void reply_int(int status, int64_t val, const char *errmsg=NULL);
 	void reply_double(int status, double val);
 	// the same as Redis.REPLY_BULK
 	void reply_get(int status, const std::string *val=NULL, const char *errmsg=NULL);

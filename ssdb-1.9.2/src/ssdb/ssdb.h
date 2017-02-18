@@ -14,6 +14,7 @@ found in the LICENSE file.
 #include "const.h"
 #include "options.h"
 #include "iterator.h"
+#include "internal_error.h"
 
 class Bytes;
 class Config;

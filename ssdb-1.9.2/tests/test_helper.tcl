@@ -13,11 +13,6 @@ source tests/support/util.tcl
 
 
 
-set ::all_tests {
-
-}
-
-
 
 set ::all_tests {
    unit/type/string
@@ -33,11 +28,20 @@ set ::all_tests {
 }
 
 
+
+set ::all_tests {
+   unit/type/hash
+
+
+
+   }
+
+
 # Index to the next test to run in the ::all_tests list.
 set ::next_test 0
 
 set ::host 127.0.0.1
-set ::port 6379
+set ::port 8888
 set ::traceleaks 0
 set ::valgrind 0
 set ::verbose 0
@@ -161,7 +165,7 @@ proc test_server_main {} {
 
     # Start the client instances
     set ::clients_pids {}
-    set start_port 6379
+    set start_port 8888
 
         set p [exec $tclsh [info script] {*}$::argv \
             --client $port --port $start_port &]
