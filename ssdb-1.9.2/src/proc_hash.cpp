@@ -32,27 +32,27 @@ int proc_hmset(NetworkServer *net, Link *link, const Request &req, Response *res
 	if(req.size() < 4 || req.size() % 2 != 0){
 		resp->push_back("client_error");
 		resp->push_back("wrong number of arguments for 'hmset' command");
-	}else{
+		return 0;
 
-		std::map<Bytes,Bytes> kvs;
-
-		const Bytes &name = req[1];
-		std::vector<Bytes>::const_iterator it = req.begin() + 2;
-		for(; it != req.end(); it += 2){
-			const Bytes &key = *it;
-			const Bytes &val = *(it + 1);
-			kvs[key] = val;
-		}
-
-		int ret = serv->ssdb->hmset(name, kvs);
-		if(ret < 0){
-			resp->push_back("error");
-			resp->push_back(GetErrorInfo(ret));
-			return 0;
-		}
-
-		resp->reply_int(0, 1);
 	}
+
+	std::map<Bytes,Bytes> kvs;
+	const Bytes &name = req[1];
+	std::vector<Bytes>::const_iterator it = req.begin() + 2;
+	for(; it != req.end(); it += 2){
+		const Bytes &key = *it;const Bytes &val = *(it + 1);
+		kvs[key] = val;
+	}
+
+	int ret = serv->ssdb->hmset(name, kvs);
+	if(ret < 0){
+		resp->push_back("error");
+		resp->push_back(GetErrorInfo(ret));
+		return 0;
+	}
+
+	resp->reply_int(0, 1);
+
 	return 0;
 }
 

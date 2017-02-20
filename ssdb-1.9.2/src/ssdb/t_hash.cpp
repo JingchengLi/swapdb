@@ -91,7 +91,7 @@ int SSDBImpl::hset(const Bytes &name, const Bytes &key, const Bytes &val){
 		return STORAGE_ERR;
 	}
 
-	return ret;
+	return added;
 }
 
 int SSDBImpl::hsetnx(const Bytes &name, const Bytes &key, const Bytes &val){
@@ -109,7 +109,9 @@ int SSDBImpl::hsetnx(const Bytes &name, const Bytes &key, const Bytes &val){
         std::string hkey = encode_hash_key(name, key, hv.version);
 
         ret = GetHashItemValInternal(hkey, &dbval);
-        if (ret !=0 ){
+        if (ret == 1) {
+			return 0;
+		} else if (ret < 0) {
             return ret;
         }
     }
@@ -132,7 +134,7 @@ int SSDBImpl::hsetnx(const Bytes &name, const Bytes &key, const Bytes &val){
 		return STORAGE_ERR;
 	}
 
-	return ret;
+	return added;
 }
 
 
