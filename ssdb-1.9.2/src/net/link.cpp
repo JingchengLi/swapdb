@@ -6,17 +6,11 @@ found in the LICENSE file.
 #include <errno.h>
 #include <fcntl.h>
 #include <string.h>
-#include <stdarg.h>
 #include <sys/socket.h>
 #include <netdb.h>
 #include <sys/un.h>
-#include <sys/ioctl.h>
-
 #include "link.h"
-#include "util/strings.h"
-
 #include "link_redis.cpp"
-#include "redis/rdb.h"
 
 #define INIT_BUFFER_SIZE  1024
 #define BEST_BUFFER_SIZE  (8 * 1024)
