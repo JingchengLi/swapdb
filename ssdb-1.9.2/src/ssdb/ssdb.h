@@ -100,10 +100,8 @@ public:
 	virtual int lrange(const Bytes &key, int64_t start, int64_t end, std::vector<std::string> *list) = 0;
 
 	/* set */
-	virtual int sadd(const Bytes &key, const Bytes &member) = 0;
-	virtual int multi_sadd(const Bytes &key, const std::set<Bytes> &members, int64_t *num) = 0;
-    virtual int multi_srem(const Bytes &key, const std::vector<Bytes> &members, int64_t *num) = 0;
-	virtual int srem(const Bytes &key, const Bytes &member) = 0;
+	virtual int sadd(const Bytes &key, const std::set<Bytes> &members, int64_t *num) = 0;
+    virtual int srem(const Bytes &key, const std::vector<Bytes> &members, int64_t *num) = 0;
     virtual int scard(const Bytes &key, uint64_t *llen) = 0;
 	virtual int sismember(const Bytes &key, const Bytes &member) = 0;
 	virtual int smembers(const Bytes &key, std::vector<std::string> &members) = 0;
