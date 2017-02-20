@@ -570,9 +570,11 @@ int RedisLink::send_resp(Buffer *output, const std::vector<std::string> &resp){
 	}
 	if(resp[0] != "ok"){
 		if(resp[0] == "error" || resp[0] == "fail" || resp[0] == "client_error"){
-			output->append("-ERR ");
 			if(resp.size() >= 2){
+				output->append("-");
 				output->append(resp[1]);
+			} else {
+				output->append("-ERR ");
 			}
 			output->append("\r\n");
 		}else if(resp[0] == "not_found"){

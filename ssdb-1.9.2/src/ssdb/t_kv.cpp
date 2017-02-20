@@ -3,6 +3,7 @@ Copyright (c) 2012-2014 The SSDB Authors. All rights reserved.
 Use of this source code is governed by a BSD-style license that can be
 found in the LICENSE file.
 */
+#include <util/error.h>
 #include "ssdb_impl.h"
 #include "redis/rdb_encoder.h"
 #include "redis/rdb_decoder.h"
@@ -485,6 +486,18 @@ int SSDBImpl::setrange(const Bytes &key, int64_t start, const Bytes &value, uint
         val = kv.value;
     }
 
+    if (ret == 0 && value.size() == 0) {
+        *new_len = 0;
+        return 1;
+    }
+
+
+    if ((start + value.size()) > 512*1024*1024) {
+        //string exceeds maximum allowed size (512MB)
+        return STRING_OVERMAX;
+    }
+
+
     int64_t padding = start - val.size();
 
     if (padding < 0) {
@@ -501,13 +514,11 @@ int SSDBImpl::setrange(const Bytes &key, int64_t start, const Bytes &value, uint
 
     } else {
 
+        val.reserve(start + value.size());
+        string zero_str(padding, '\0');
 
-        for (size_t i = 0; i < padding; ++i) {
-            val.append(sizeof(char), '\0');
-        }
-
+        val.append(zero_str.data(), zero_str.size());
         val.append(value.data(), value.size());
-
     }
 
     //to do unit int size int64_t
@@ -522,6 +533,7 @@ int SSDBImpl::setrange(const Bytes &key, int64_t start, const Bytes &value, uint
         log_error("set error: %s", s.ToString().c_str());
         return -1;
     }
+
     return 1;
 }
 
@@ -563,12 +575,26 @@ int SSDBImpl::type(const Bytes &key, std::string *type) {
     std::string val;
     std::string meta_key = encode_meta_key(key);
     leveldb::Status s = ldb->Get(leveldb::ReadOptions(), meta_key, &val);
+
     if (s.IsNotFound()) {
         return 0;
     }
     if (!s.ok()) {
         log_error("get error: %s", s.ToString().c_str());
         return -1;
+    }
+
+    //decodeMetaVal
+    if(val.size()<4) {
+        //invalid
+        log_error("invalid MetaVal: %s", s.ToString().c_str());
+        return -1;
+    }
+
+    char del = val[POS_DEL];
+    if (del != KEY_ENABLED_MASK){
+        //deleted
+        return 0;
     }
 
     if (val[0] == DataType::KV) {

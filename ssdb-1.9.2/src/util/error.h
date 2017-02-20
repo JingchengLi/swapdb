@@ -19,5 +19,6 @@
 #define INVALID_INT      -8
 #define INVALID_DBL      -9
 #define INVALID_INCR      -10
+#define STRING_OVERMAX      -11
 
 #endif //SSDB_INTERNAL_ERROR_H

@@ -585,8 +585,9 @@ int proc_setrange(NetworkServer *net, Link *link, const Request &req, Response *
 	uint64_t new_len = 0;
 
 	int ret = serv->ssdb->setrange(req[1], start, req[3], &new_len);
-	if(ret == -1){
+	if(ret < 0){
 		resp->push_back("error");
+		resp->push_back(GetErrorInfo(ret));
 	}else{
 		resp->push_back("ok");
 		resp->push_back(str(new_len));
