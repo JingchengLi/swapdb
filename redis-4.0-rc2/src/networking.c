@@ -687,7 +687,6 @@ int sendCommandToSSDB(client *c, sds finalcmd) {
                  serverLog(LL_WARNING,
                            "Error writing to SSDB server: %s", strerror(errno));
                  if (finalcmd) sdsfree(finalcmd);
-                 resetClient(c);
                  freeClient(c);
                  return C_FD_ERR;
              }
@@ -875,8 +874,9 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
 
         /* Return early when the context has seen an error. */
         if (c->context->err) {
-            serverLog(LL_WARNING, "Redis Client has an error.");
-            break;
+            serverLog(LL_WARNING, "Error: Could not connect to SSDB, %s ", c->context->errstr);
+            freeClient(c);
+            return;
         }
 
         if (redisGetReplyFromReader(c->context, &aux) == REDIS_ERR)
@@ -922,15 +922,11 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
                 sds finalcmd = sdsnew("*1\r\n$16\r\ncustomized-psync\r\n");
                 if (sendCommandToSSDB(server.current_repl_slave, finalcmd) != C_OK)
                     serverLog(LL_WARNING, "Sending customized-psync to SSDB failed.");
-
-                /* Forbbid sending the writing cmds to SSDB. */
-                server.is_allow_ssdb_write = DISALLOW_SSDB_WRITE;
-
                 {
                     listIter li;
                     listNode *ln;
                     client *slave;
-                    listRewind(server.clients, &li);
+                    listRewind(server.slaves, &li);
                     while((ln = listNext(&li)) != NULL) {
                         slave = listNodeValue(ln);
                         if (slave->ssdb_status == SLAVE_SSDB_SNAPSHOT_IN_PROCESS) {
@@ -939,8 +935,7 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
                     }
                 }
             }
-        }
-        else if (!sdscmp(replyString, tmp_nok))
+        } else if (!sdscmp(replyString, tmp_nok))
             serverLog(LL_WARNING, "SSDB returns 'customized-check-write nok'.");
         else {
             /* Do nothing. */;

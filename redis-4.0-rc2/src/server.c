@@ -2760,13 +2760,15 @@ int processCommand(client *c) {
         blockClient(c, BLOCKED_SLAVE_BY_PSYNC);
         server.current_repl_slave = c;
 
+        /* Forbbid sending the writing cmds to SSDB. */
+        server.is_allow_ssdb_write = DISALLOW_SSDB_WRITE;
+
         /* Force all the clients to check the write cmd. */
         listRewind(server.clients, &li);
         while((ln = listNext(&li)) != NULL) {
             tc = listNodeValue(ln);
 
             tc->client_before_cpsync = CLIENT_IS_BEFORE_CPSYNC;
-            c->need_ssdbClientUnixHandler_reply = SSDB_CLIENT_KEEP_REPLY;
 
             /* TODO: To abort the current psync ASAP,
                record the num of clients that sucessfully exec sendCommandToSSDB. */
