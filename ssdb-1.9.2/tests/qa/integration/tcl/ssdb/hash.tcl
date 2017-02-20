@@ -20,6 +20,10 @@ start_server {tags {"ssdb"}} {
         assert_encoding ziplist smallhash
     }
 
+    test {Is the small hash type 'hash'?} {
+        assert_type hash smallhash
+    }
+
     test {HSET/HLEN - Big hash creation} {
         array set bighash {}
         for {set i 0} {$i < 1024} {incr i} {
@@ -37,6 +41,10 @@ start_server {tags {"ssdb"}} {
 
     test {Is the big hash encoded with an hash table?} {
         assert_encoding hashtable bighash
+    }
+
+    test {Is the big hash type 'hash'?} {
+        assert_type hash bighash
     }
 
     test {HGET against the small hash} {
@@ -85,10 +93,34 @@ start_server {tags {"ssdb"}} {
         set _ $rv
     } {0 newval1 1 0 newval2 1 1 1}
 
+    test {HSETNX target key missing - small hash} {
+        r hsetnx smallhash __123123123__ foo
+        r hget smallhash __123123123__
+    } {foo}
+
+    test {HSETNX target key exists - small hash} {
+        r hsetnx smallhash __123123123__ bar
+        set result [r hget smallhash __123123123__]
+        r hdel smallhash __123123123__
+        set _ $result
+    } {foo}
+
+    test {HSETNX target key missing - big hash} {
+        r hsetnx bighash __123123123__ foo
+        r hget bighash __123123123__
+    } {foo}
+
+    test {HSETNX target key exists - big hash} {
+        r hsetnx bighash __123123123__ bar
+        set result [r hget bighash __123123123__]
+        r hdel bighash __123123123__
+        set _ $result
+    } {foo}
+
     test {HMSET wrong number of args} {
         catch {r hmset smallhash key1 val1 key2} err
         format $err
-    } {ERR*}
+    } {*wrong number*}
 
     test {HMSET - small hash} {
         set args {}
@@ -120,7 +152,7 @@ start_server {tags {"ssdb"}} {
 
     test {HMGET against wrong type} {
         r set wrongtype somevalue
-        assert_error "ERR*" {r hmget wrongtype field1 field2}
+        assert_error "*wrong*" {r hmget wrongtype field1 field2}
     }
 
     test {HMGET - small hash} {
@@ -230,6 +262,12 @@ start_server {tags {"ssdb"}} {
         lappend rv [r hexists bighash nokey]
     } {1 0 1 0}
 
+    test {Is a ziplist encoded Hash promoted on big payload?} {
+        r hset smallhash foo [string repeat a 1024]
+        # r debug object smallhash
+        set _ "hashtable"
+    } {*hashtable*}
+
     test {HINCRBY against non existing database key} {
         r del htest
         list [r hincrby htest foo 2]
@@ -277,8 +315,8 @@ start_server {tags {"ssdb"}} {
         catch {r hincrby smallhash str 1} smallerr
         catch {r hincrby bighash str 1} bigerr
         set rv {}
-        lappend rv [string match "ERR*" $smallerr]
-        lappend rv [string match "ERR*" $bigerr]
+        lappend rv [string match "ERR*not an integer*" $smallerr]
+        lappend rv [string match "ERR*not an integer*" $bigerr]
     } {1 1}
 
     test {HINCRBY fails against hash value with spaces (right)} {
@@ -287,8 +325,8 @@ start_server {tags {"ssdb"}} {
         catch {r hincrby smallhash str 1} smallerr
         catch {r hincrby bighash str 1} bigerr
         set rv {}
-        lappend rv [string match "ERR*" $smallerr]
-        lappend rv [string match "ERR*" $bigerr]
+        lappend rv [string match "ERR*not an integer*" $smallerr]
+        lappend rv [string match "ERR*not an integer*" $bigerr]
     } {1 1}
 
     test {HINCRBY can detect overflows} {
@@ -297,11 +335,124 @@ start_server {tags {"ssdb"}} {
         assert {[r hincrby hash n -1] == -9223372036854775485}
         catch {r hincrby hash n -10000} e
         set e
-    } {ERR*}
+    } {*overflow*}
+
+    test {HINCRBYFLOAT against non existing database key} {
+        r del htest
+        list [r hincrbyfloat htest foo 2.5]
+    } {2.5}
+
+    test {HINCRBYFLOAT against non existing hash key} {
+        set rv {}
+        r hdel smallhash tmp
+        r hdel bighash tmp
+        lappend rv [roundFloat [r hincrbyfloat smallhash tmp 2.5]]
+        lappend rv [roundFloat [r hget smallhash tmp]]
+        lappend rv [roundFloat [r hincrbyfloat bighash tmp 2.5]]
+        lappend rv [roundFloat [r hget bighash tmp]]
+    } {2.5 2.5 2.5 2.5}
+
+    test {HINCRBYFLOAT against hash key created by hincrby itself} {
+        set rv {}
+        lappend rv [roundFloat [r hincrbyfloat smallhash tmp 3.5]]
+        lappend rv [roundFloat [r hget smallhash tmp]]
+        lappend rv [roundFloat [r hincrbyfloat bighash tmp 3.5]]
+        lappend rv [roundFloat [r hget bighash tmp]]
+    } {6 6 6 6}
+
+    test {HINCRBYFLOAT against hash key originally set with HSET} {
+        r hset smallhash tmp 100
+        r hset bighash tmp 100
+        list [roundFloat [r hincrbyfloat smallhash tmp 2.5]] \
+             [roundFloat [r hincrbyfloat bighash tmp 2.5]]
+    } {102.5 102.5}
+
+    test {HINCRBYFLOAT over 32bit value} {
+        r hset smallhash tmp 17179869184
+        r hset bighash tmp 17179869184
+        list [r hincrbyfloat smallhash tmp 1] \
+             [r hincrbyfloat bighash tmp 1]
+    } {17179869185 17179869185}
+
+    test {HINCRBYFLOAT over 32bit value with over 32bit increment} {
+        r hset smallhash tmp 17179869184
+        r hset bighash tmp 17179869184
+        list [r hincrbyfloat smallhash tmp 17179869184] \
+             [r hincrbyfloat bighash tmp 17179869184]
+    } {34359738368 34359738368}
+
+    test {HINCRBYFLOAT fails against hash value with spaces (left)} {
+        r hset smallhash str " 11"
+        r hset bighash str " 11"
+        catch {r hincrbyfloat smallhash str 1} smallerr
+        catch {r hincrbyfloat smallhash str 1} bigerr
+        set rv {}
+        lappend rv [string match "ERR*not*float*" $smallerr]
+        lappend rv [string match "ERR*not*float*" $bigerr]
+    } {1 1}
+
+    test {HINCRBYFLOAT fails against hash value with spaces (right)} {
+        r hset smallhash str "11 "
+        r hset bighash str "11 "
+        catch {r hincrbyfloat smallhash str 1} smallerr
+        catch {r hincrbyfloat smallhash str 1} bigerr
+        set rv {}
+        lappend rv [string match "ERR*not*float*" $smallerr]
+        lappend rv [string match "ERR*not*float*" $bigerr]
+    } {1 1}
+
+#    test {HSTRLEN against the small hash} {
+#        set err {}
+#        foreach k [array names smallhash *] {
+#            if {[string length $smallhash($k)] ne [r hstrlen smallhash $k]} {
+#                set err "[string length $smallhash($k)] != [r hstrlen smallhash $k]"
+#                break
+#            }
+#        }
+#        set _ $err
+#    } {}
+#
+#    test {HSTRLEN against the big hash} {
+#        set err {}
+#        foreach k [array names bighash *] {
+#            if {[string length $bighash($k)] ne [r hstrlen bighash $k]} {
+#                set err "[string length $bighash($k)] != [r hstrlen bighash $k]"
+#                puts "HSTRLEN and logical length mismatch:"
+#                puts "key: $k"
+#                puts "Logical content: $bighash($k)"
+#                puts "Server  content: [r hget bighash $k]"
+#            }
+#        }
+#        set _ $err
+#    } {}
+#
+#    test {HSTRLEN against non existing field} {
+#        set rv {}
+#        lappend rv [r hstrlen smallhash __123123123__]
+#        lappend rv [r hstrlen bighash __123123123__]
+#        set _ $rv
+#    } {0 0}
+#
+#    test {HSTRLEN corner cases} {
+#        set vals {
+#            -9223372036854775808 9223372036854775807 9223372036854775808
+#            {} 0 -1 x
+#        }
+#        foreach v $vals {
+#            r hmset smallhash field $v
+#            r hmset bighash field $v
+#            set len1 [string length $v]
+#            set len2 [r hstrlen smallhash field]
+#            set len3 [r hstrlen bighash field]
+#            assert {$len1 == $len2}
+#            assert {$len2 == $len3}
+#        }
+#    }
 
     test {Hash ziplist regression test for large keys} {
         r hset hash kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk a
         r hset hash kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk b
+        assert_type hash hash
         r hget hash kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
     } {b}
 
@@ -363,6 +514,35 @@ start_server {tags {"ssdb"}} {
                 }
                 assert_equal [array size hash] [r hlen hash]
             }
+        }
+    }
+
+#    test {Stress test the hash ziplist -> hashtable encoding conversion} {
+#        r config set hash-max-ziplist-entries 32
+#        for {set j 0} {$j < 100} {incr j} {
+#            r del myhash
+#            for {set i 0} {$i < 64} {incr i} {
+#                r hset myhash [randomValue] [randomValue]
+#            }
+#            assert {[r object encoding myhash] eq {hashtable}}
+#        }
+#    }
+#
+    # The following test can only be executed if we don't use Valgrind, and if
+    # we are using x86_64 architecture, because:
+    #
+    # 1) Valgrind has floating point limitations, no support for 80 bits math.
+    # 2) Other archs may have the same limits.
+    #
+    # 1.23 cannot be represented correctly with 64 bit doubles, so we skip
+    # the test, since we are only testing pretty printing here and is not
+    # a bug if the program outputs things like 1.299999...
+    if {!$::valgrind || ![string match *x86_64* [exec uname -a]]} {
+        test {Test HINCRBYFLOAT for correct float representation (issue #2846)} {
+            r del myhash
+            assert {[r hincrbyfloat myhash float 1.23] eq {1.23}}
+            assert {[r hincrbyfloat myhash float 0.77] eq {2}}
+            assert {[r hincrbyfloat myhash float -0.1] eq {1.9}}
         }
     }
 }

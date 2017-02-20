@@ -13,6 +13,7 @@ start_server {
     test {SADD, SCARD, SISMEMBER, SMEMBERS basics - regular set} {
         create_set myset {foo}
         assert_encoding hashtable myset
+        assert_type set myset
         assert_equal 1 [r sadd myset bar]
         assert_equal 0 [r sadd myset bar]
         assert_equal 2 [r scard myset]
@@ -25,6 +26,7 @@ start_server {
     test {SADD, SCARD, SISMEMBER, SMEMBERS basics - intset} {
         create_set myset {17}
         assert_encoding intset myset
+        assert_type set myset
         assert_equal 1 [r sadd myset 16]
         assert_equal 0 [r sadd myset 16]
         assert_equal 2 [r scard myset]

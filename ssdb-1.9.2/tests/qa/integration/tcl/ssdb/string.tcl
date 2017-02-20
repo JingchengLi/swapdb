@@ -1,7 +1,6 @@
 source "./ssdb/init_ssdb.tcl"
 start_server {tags {"ssdb"}} {
     test {SET and GET an item} {
-        # after 100000
         r set x foobar
         r get x
     } {foobar}
@@ -40,7 +39,7 @@ start_server {tags {"ssdb"}} {
         } {}
 
         test {SET 10000 numeric keys and access all them in reverse order} {
-            # r flushdb
+            r flushdb
             set err {}
             for {set x 0} {$x < 10000} {incr x} {
                 r set $x $x
@@ -101,7 +100,7 @@ start_server {tags {"ssdb"}} {
     }
 
     test {MGET} {
-        # r flushdb
+        r flushdb
         r set foo BAR
         r set bar FOO
         r mget foo bar
@@ -135,7 +134,15 @@ start_server {tags {"ssdb"}} {
     test {MSET wrong number of args} {
         catch {r mset x 10 y "foo bar" z} err
         format $err
-    } {ERR*}
+    } {*wrong number*}
+
+#    test {MSETNX with already existent key} {
+#        list [r msetnx x1 xxx y2 yyy x 20] [r exists x1] [r exists y2]
+#    } {0 0 0}
+#
+#    test {MSETNX with not existing keys} {
+#        list [r msetnx x1 xxx y2 yyy] [r get x1] [r get y2]
+#    } {1 xxx yyy}
 
     test "STRLEN against non-existing key" {
         assert_equal 0 [r strlen notakey]
@@ -160,6 +167,7 @@ start_server {tags {"ssdb"}} {
     test "SETBIT against string-encoded key" {
         # Ascii "@" is integer 64 = 01 00 00 00
         r set mykey "@"
+        assert_type string mykey
 
         assert_equal 0 [r setbit mykey 2 1]
         assert_equal [binary format B* 01100000] [r get mykey]
@@ -171,6 +179,7 @@ start_server {tags {"ssdb"}} {
         # Ascii "1" is integer 49 = 00 11 00 01
         r set mykey 1
         assert_encoding int mykey
+        assert_type string mykey
 
         assert_equal 0 [r setbit mykey 6 1]
         assert_equal [binary format B* 00110011] [r get mykey]
@@ -181,21 +190,21 @@ start_server {tags {"ssdb"}} {
     test "SETBIT against key with wrong type" {
         r del mykey
         r lpush mykey "foo"
-        assert_error "ERR*" {r setbit mykey 0 1}
+        assert_error "WRONGTYPE*" {r setbit mykey 0 1}
     }
 
     test "SETBIT with out of range bit offset" {
         r del mykey
-        assert_error "ERR*" {r setbit mykey [expr 4*1024*1024*1024] 1}
-        assert_error "ERR*" {r setbit mykey -1 1}
+        assert_error "*out of range*" {r setbit mykey [expr 4*1024*1024*1024] 1}
+        assert_error "*out of range*" {r setbit mykey -1 1}
     }
 
     test "SETBIT with non-bit argument" {
         r del mykey
-        assert_error "ERR*" {r setbit mykey 0 -1}
-        assert_error "ERR*" {r setbit mykey 0  2}
-        assert_error "ERR*" {r setbit mykey 0 10}
-        assert_error "ERR*" {r setbit mykey 0 20}
+        assert_error "*out of range*" {r setbit mykey 0 -1}
+        assert_error "*out of range*" {r setbit mykey 0  2}
+        assert_error "*out of range*" {r setbit mykey 0 10}
+        assert_error "*out of range*" {r setbit mykey 0 20}
     }
 
     test "SETBIT fuzzing" {
@@ -264,6 +273,80 @@ start_server {tags {"ssdb"}} {
         assert_equal 10 [r bitcount mykey 0 1]
     }
 
+    test "SETRANGE against non-existing key" {
+        r del mykey
+        assert_equal 3 [r setrange mykey 0 foo]
+        assert_equal "foo" [r get mykey]
+
+        r del mykey
+        assert_equal 0 [r setrange mykey 0 ""]
+        assert_equal 0 [r exists mykey]
+
+        r del mykey
+        assert_equal 4 [r setrange mykey 1 foo]
+        assert_equal "\000foo" [r get mykey]
+    }
+
+    test "SETRANGE against string-encoded key" {
+        r set mykey "foo"
+        assert_equal 3 [r setrange mykey 0 b]
+        assert_equal "boo" [r get mykey]
+
+        r set mykey "foo"
+        assert_equal 3 [r setrange mykey 0 ""]
+        assert_equal "foo" [r get mykey]
+
+        r set mykey "foo"
+        assert_equal 3 [r setrange mykey 1 b]
+        assert_equal "fbo" [r get mykey]
+
+        r set mykey "foo"
+        assert_equal 7 [r setrange mykey 4 bar]
+        assert_equal "foo\000bar" [r get mykey]
+    }
+
+    test "SETRANGE against integer-encoded key" {
+        r set mykey 1234
+        assert_encoding int mykey
+        assert_equal 4 [r setrange mykey 0 2]
+        assert_encoding raw mykey
+        assert_equal 2234 [r get mykey]
+
+        # Shouldn't change encoding when nothing is set
+        r set mykey 1234
+        assert_encoding int mykey
+        assert_equal 4 [r setrange mykey 0 ""]
+        assert_encoding int mykey
+        assert_equal 1234 [r get mykey]
+
+        r set mykey 1234
+        assert_encoding int mykey
+        assert_equal 4 [r setrange mykey 1 3]
+        assert_encoding raw mykey
+        assert_equal 1334 [r get mykey]
+
+        r set mykey 1234
+        assert_encoding int mykey
+        assert_equal 6 [r setrange mykey 5 2]
+        assert_encoding raw mykey
+        assert_equal "1234\0002" [r get mykey]
+    }
+
+    test "SETRANGE against key with wrong type" {
+        r del mykey
+        r lpush mykey "foo"
+        assert_error "WRONGTYPE*" {r setrange mykey 0 bar}
+    }
+
+    test "SETRANGE with out of range offset" {
+        r del mykey
+        assert_error "*maximum allowed size*" {r setrange mykey [expr 512*1024*1024-4] world}
+
+        r set mykey "hello"
+        assert_error "*out of range*" {r setrange mykey -1 world}
+        assert_error "*maximum allowed size*" {r setrange mykey [expr 512*1024*1024-4] world}
+    }
+
     test "GETRANGE against non-existing key" {
         r del mykey
         assert_equal "" [r getrange mykey 0 -1]
@@ -304,7 +387,7 @@ start_server {tags {"ssdb"}} {
         set e {}
         catch {r set foo bar non-existing-option} e
         set e
-    } {ERR*}
+    } {*syntax*}
 
     test {Extended SET NX option} {
         r del foo

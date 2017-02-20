@@ -548,6 +548,7 @@ start_server {tags {"ssdb"}} {
             }
 
             assert_encoding $encoding zset
+            assert_type zset zset
             for {set i 0} {$i < 1} {incr i} {
                 set min [expr rand()]
                 set max [expr rand()]

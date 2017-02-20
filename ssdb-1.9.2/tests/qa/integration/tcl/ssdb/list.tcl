@@ -21,6 +21,7 @@ start_server {
         assert_equal cc [r rpop myziplist1]
         assert_equal aa [r lpop myziplist1]
         assert_encoding quicklist myziplist1
+        assert_type list myziplist1
 
         # first rpush then lpush
         r del myziplist2
@@ -167,8 +168,8 @@ start_server {
 
     test {LPOP/RPOP against non list value} {
         r set notalist foo
-        assert_error ERR* {r lpop notalist}
-        assert_error ERR* {r rpop notalist}
+        assert_error WRONGTYPE* {r lpop notalist}
+        assert_error WRONGTYPE* {r rpop notalist}
     }
 
     foreach {type num} {quicklist 250 quicklist 500} {
@@ -199,7 +200,6 @@ start_server {
 
         test "LRANGE inverted indexes - $type" {
             create_list mylist "$large 1 2 3 4 5 6 7 8 9"
-
             assert_equal {} [r lrange mylist 6 2]
         }
 
@@ -211,7 +211,6 @@ start_server {
         test "LRANGE out of range negative end index - $type" {
             create_list mylist "$large 1 2 3"
             assert_equal $large [r lrange mylist 0 -4]
-
             assert_equal {} [r lrange mylist 0 -5]
         }
     }
