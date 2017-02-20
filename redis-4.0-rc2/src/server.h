@@ -2127,7 +2127,7 @@ uint8_t LFULogIncr(uint8_t value);
 unsigned long KeyLFUDecrAndReturn(sds key);
 
 /* Keys hashing / comparison functions for dict.c hash tables. */
-unsigned int dictSdsHash(const void *key);
+uint64_t dictSdsHash(const void *key);
 int dictSdsKeyCompare(void *privdata, const void *key1, const void *key2);
 void dictSdsDestructor(void *privdata, void *val);
 void *dictSdsDup(void *privdata, const void *val);
