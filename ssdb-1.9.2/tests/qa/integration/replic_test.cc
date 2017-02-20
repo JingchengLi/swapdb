@@ -36,7 +36,7 @@ private:
 class ReplicTest : public SSDBTest {
 public:
     ReplicTest(){
-        keysNum = 1000;
+        keysNum = 100;
         val = "val";
         field = "field";
         score = 0;
@@ -56,6 +56,8 @@ public:
     void fillMasterData();
     void checkSlaveDataOK(int);
     void checkSlaveDataNotFound();
+    void replic(const string &slaveip, int slaveport);
+    void replic(const std::vector<std::string> &items);
 
 protected:
     string slave_ip;
@@ -103,12 +105,20 @@ void ReplicTest::fillMasterData(){
 }
 
 void ReplicTest::checkSlaveDataOK(int times=10) {
+    for (int t = 0; t < times; t++) { s = sclient->client()->get("kkey_0_0", &getVal);
+        if (s.ok())
+            break;
+        else sleep(1);
+    }
+
+    ASSERT_TRUE(s.ok())<<"replic not finish in "<<times<<" secs."<<s.code()<<endl;
+
     for (int n = 0; n < counts; ++n) {
         //string type
         key = "kkey_"+itoa(n);
         for (int m = 0; m < keysNum; ++m) {
             sclient->client()->get(key+ "_"+itoa(m), &getVal);
-            ASSERT_EQ(val+itoa(m), getVal)<<m;
+            ASSERT_EQ(val+itoa(m), getVal)<<key+"_"+itoa(m);
         }
 
         //hash type
@@ -184,20 +194,33 @@ void ReplicTest::checkSlaveDataNotFound() {
     }
 }
 
+void ReplicTest::replic(const string &slave_ip, int slave_port) {
+    SlaveClient* replicClient = new SlaveClient(ip, port);;
+    s = replicClient->client()->replic(slave_ip, slave_port);
+
+    std::string result = replicClient->client()->response();
+    ASSERT_EQ("replic finish", result);
+    delete replicClient;
+}
+
+void ReplicTest::replic(const std::vector<std::string> &items) {
+    SlaveClient* replicClient = new SlaveClient(ip, port);;
+    s = replicClient->client()->replic(items);
+
+    std::string result = replicClient->client()->response();
+    ASSERT_EQ("replic finish", result);
+    delete replicClient;
+}
+
 TEST_F(ReplicTest, Test_replic_types) {
     fillMasterData();
     sclient = new SlaveClient(slave_ip, slave_port);
 
-    s = client->replic(slave_ip, slave_port);
-    // ASSERT_TRUE(s.ok())<<"replic fail!"<<s.code()<<endl;
-
-    std::string result = client->response();
-    ASSERT_EQ("replic finish", result);
+    replic(slave_ip, slave_port);
 
     checkSlaveDataOK();
     client->multi_del(keys);
     sclient->client()->multi_del(keys);
-    sleep(5);
     delete sclient;
 }
 
@@ -212,8 +235,7 @@ TEST_F(ReplicTest, Test_replic_lens) {
         val.append(l, 'a');
         client->set(key, val);
 
-        s = client->replic(slave_ip, slave_port);
-        // ASSERT_TRUE(s.ok())<<"replic fail!"<<s.code()<<l<<endl;
+        replic(slave_ip, slave_port);
 
         for (int t = 0; t < 10; t++) {
             if (sclient->client()->get(key, &getVal).ok())
@@ -229,29 +251,32 @@ TEST_F(ReplicTest, Test_replic_lens) {
 }
 
 TEST_F(ReplicTest, Test_replic_expire_keys) {
+    keysNum = 10;
     fillMasterData();
     sclient = new SlaveClient(slave_ip, slave_port);
 
-    int16_t etime =60;
+    int16_t etime = 10;
     for (auto key : keys) {
         client->expire(key, etime);
     }
     time_t pre_seconds = time((time_t*)NULL);
 
-    s = client->replic(slave_ip, slave_port);
-    // ASSERT_TRUE(s.ok())<<"replic fail!"<<s.code()<<endl;
+    replic(slave_ip, slave_port);
 
     time_t post_seconds = time((time_t*)NULL);
-    while(post_seconds-pre_seconds<etime) {
+    while(post_seconds-pre_seconds<etime/4) {
         checkSlaveDataOK();
-        break;
         sleep(1);
         post_seconds = time((time_t*)NULL);
     }
-    sleep(etime);
+
+    if(etime>post_seconds-pre_seconds)
+        sleep(etime-(post_seconds-pre_seconds)+1);
+
     checkSlaveDataNotFound();
     sclient->client()->multi_del(keys);
     delete sclient;
+    client->multi_del(keys);
 }
 
 TEST_F(ReplicTest, Test_replic_multi_slaves) {
@@ -263,8 +288,7 @@ TEST_F(ReplicTest, Test_replic_multi_slaves) {
         items.push_back(slave_ip);
         items.push_back(itoa(port));
     }
-    s = client->replic(items);
-    // ASSERT_TRUE(s.ok())<<"replic fail!"<<s.code()<<endl;
+    replic(items);
 
     for (auto port : slave_ports) {
         sclient = new SlaveClient(slave_ip, port);
