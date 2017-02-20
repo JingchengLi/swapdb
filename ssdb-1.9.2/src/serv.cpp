@@ -72,8 +72,8 @@ DEF_PROC(smembers);
 DEF_PROC(smove);
 DEF_PROC(spop);
 DEF_PROC(srandmember);
-DEF_PROC(sunion);
-DEF_PROC(sunionstore);
+//DEF_PROC(sunion);
+//DEF_PROC(sunionstore);
 DEF_PROC(sscan);
 
 DEF_PROC(zrank);
@@ -201,8 +201,8 @@ void SSDBServer::reg_procs(NetworkServer *net){
     REG_PROC(smove, "wt");
     REG_PROC(spop, "wt");
     REG_PROC(srandmember, "rt");
-    REG_PROC(sunion, "rt");
-    REG_PROC(sunionstore, "wt");
+//    REG_PROC(sunion, "rt");
+//    REG_PROC(sunionstore, "wt");
     REG_PROC(sscan, "rt");
 
 	// because zrank may be extremly slow, execute in a seperate thread
