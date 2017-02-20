@@ -119,10 +119,57 @@ int proc_smove(NetworkServer *net, Link *link, const Request &req, Response *res
 }
 
 int proc_spop(NetworkServer *net, Link *link, const Request &req, Response *resp){
+    CHECK_NUM_PARAMS(2);
+    SSDBServer *serv = (SSDBServer *)net->data;
+
+    uint64_t pop_count = 1;
+    if (req.size() >2) {
+        pop_count = req[2].Uint64();
+    }
+
+    std::vector<std::string> members;
+    int ret = serv->ssdb->spop(req[1], members, pop_count);
+    if (ret < 0){
+        resp->resp.push_back("error");
+        resp->resp.push_back(GetErrorInfo(ret).c_str());
+    } else if (ret == 0){
+        resp->resp.push_back("ok");
+    } else{
+        resp->resp.push_back("ok");
+        std::vector<std::string>::const_iterator it = members.begin();
+        for (;  it != members.end(); ++it) {
+            resp->push_back(*it);
+        }
+    }
+
+
     return 0;
 }
 
 int proc_srandmember(NetworkServer *net, Link *link, const Request &req, Response *resp){
+    CHECK_NUM_PARAMS(2);
+    SSDBServer *serv = (SSDBServer *)net->data;
+
+    int64_t count = 1;
+    if (req.size() >2) {
+        count = req[2].Int64();
+    }
+
+    std::vector<std::string> members;
+    int ret = serv->ssdb->srandmember(req[1], members, count);
+    if (ret < 0){
+        resp->resp.push_back("error");
+        resp->resp.push_back(GetErrorInfo(ret).c_str());
+    } else if (ret == 0){
+        resp->resp.push_back("ok");
+    } else{
+        resp->resp.push_back("ok");
+        std::vector<std::string>::const_iterator it = members.begin();
+        for (;  it != members.end(); ++it) {
+            resp->push_back(*it);
+        }
+    }
+
     return 0;
 }
 

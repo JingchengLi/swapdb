@@ -144,13 +144,12 @@ start_server {
             assert_equal 0 [r scard myset]
         }
 
-#redis-3.2+
-#      test "SPOP with <count>=1 - $type" {
-#          create_set myset $contents
-#          assert_encoding $type myset
-#          assert_equal $contents [lsort [list [r spop myset 1] [r spop myset 1] [r spop myset 1]]]
-#          assert_equal 0 [r scard myset]
-#      }
+      test "SPOP with <count>=1 - $type" {
+          create_set myset $contents
+          assert_encoding $type myset
+          assert_equal $contents [lsort [list [r spop myset 1] [r spop myset 1] [r spop myset 1]]]
+          assert_equal 0 [r scard myset]
+      }
 
         test "SRANDMEMBER - $type" {
             create_set myset $contents
