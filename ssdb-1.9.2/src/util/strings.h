@@ -9,7 +9,7 @@ found in the LICENSE file.
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
-#include <math.h>
+#include <cmath>
 #include <stdio.h>
 #include <stdlib.h>
 #include <inttypes.h>
