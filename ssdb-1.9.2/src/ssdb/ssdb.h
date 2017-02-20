@@ -105,7 +105,7 @@ public:
     virtual int scard(const Bytes &key, uint64_t *llen) = 0;
 	virtual int sismember(const Bytes &key, const Bytes &member) = 0;
 	virtual int smembers(const Bytes &key, std::vector<std::string> &members) = 0;
-	virtual int spop(const Bytes &key, std::vector<std::string> &members, uint64_t popcnt) = 0;
+	virtual int spop(const Bytes &key, std::vector<std::string> &members, int64_t popcnt) = 0;
 	virtual int srandmember(const Bytes &key, std::vector<std::string> &members, int64_t cnt) = 0;
 	virtual int sunion(const std::vector<Bytes> &keys, std::set<std::string>& members) = 0;
 	virtual SIterator* sscan(const Bytes &key, const Bytes &start, const Bytes &end, uint64_t limit) = 0;

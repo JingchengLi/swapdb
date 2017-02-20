@@ -30,11 +30,10 @@ set ::all_tests {
 
 
 set ::all_tests {
+   unit/type/hash
    unit/type/set
 
-
-
-   }
+}
 
 
 # Index to the next test to run in the ::all_tests list.

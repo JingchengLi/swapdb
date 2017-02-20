@@ -158,7 +158,7 @@ public:
 	virtual int scard(const Bytes &key, uint64_t *llen);
     virtual int sismember(const Bytes &key, const Bytes &member);
     virtual int smembers(const Bytes &key, std::vector<std::string> &members);
-	virtual int spop(const Bytes &key, std::vector<std::string> &members, uint64_t popcnt);
+	virtual int spop(const Bytes &key, std::vector<std::string> &members, int64_t popcnt);
 	virtual int srandmember(const Bytes &key, std::vector<std::string> &members, int64_t cnt);
     virtual int sunion(const std::vector<Bytes> &keys, std::set<std::string>& members);
     virtual int sunionstore(const Bytes &destination, const std::vector<Bytes> &keys, int64_t *num);

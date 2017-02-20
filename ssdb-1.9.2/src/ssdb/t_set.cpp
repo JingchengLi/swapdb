@@ -289,7 +289,7 @@ int SSDBImpl::srandmember(const Bytes &key, std::vector<std::string> &members, i
     return 1;
 }
 
-int SSDBImpl::spop(const Bytes &key, std::vector<std::string> &members, uint64_t popcnt) {
+int SSDBImpl::spop(const Bytes &key, std::vector<std::string> &members, int64_t popcnt) {
     members.clear();
     leveldb::WriteBatch batch;
 
@@ -312,6 +312,11 @@ int SSDBImpl::spop(const Bytes &key, std::vector<std::string> &members, uint64_t
     std::set<uint64_t> random_set;
     /* we random key by random index :)
      * in ssdb we only commit once , so make sure not to make same random num */
+
+    if (popcnt < 0) {
+        return INDEX_OUT_OF_RANGE;
+    }
+
     if (sv.length == 0) {
         return 0;
     } else if (popcnt >= sv.length) {

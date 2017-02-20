@@ -2,11 +2,8 @@
 // Created by zts on 17-2-17.
 //
 
-#ifndef SSDB_INTERNAL_ERROR_H
-#define SSDB_INTERNAL_ERROR_H
-
-#include "map"
-#include "string"
+#ifndef SSDB_REDIS_ERROR_H
+#define SSDB_REDIS_ERROR_H
 
 #define SUCCESS           0
 #define ERR               -1
@@ -20,5 +17,6 @@
 #define INVALID_DBL      -9
 #define INVALID_INCR      -10
 #define STRING_OVERMAX      -11
+#define INDEX_OUT_OF_RANGE      -12
 
-#endif //SSDB_INTERNAL_ERROR_H
+#endif //SSDB_REDIS_ERROR_H
