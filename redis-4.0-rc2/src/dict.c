@@ -1115,7 +1115,7 @@ void dictGetStats(char *buf, size_t bufsize, dict *d) {
 
 #include "sds.h"
 
-unsigned int hashCallback(const void *key) {
+uint64_t hashCallback(const void *key) {
     return dictGenHashFunction((unsigned char*)key, sdslen((char*)key));
 }
 
