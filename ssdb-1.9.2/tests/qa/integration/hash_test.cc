@@ -346,6 +346,7 @@ TEST_F(HashTest, Test_hash_hkeys) {
     client->hset(key, "000000001","");
     client->hset(key, "000000002","");
     client->hset(key, "000000003","");
+    //TODO HKEYS command changed
     s = client->hkeys(key, "000000000", "000000002", 5, &list);
     ASSERT_TRUE(s.ok() && list.size() == 2);
     ASSERT_EQ("000000001", list[0]);

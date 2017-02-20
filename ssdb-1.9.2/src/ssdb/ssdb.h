@@ -84,8 +84,8 @@ public:
 
 	virtual int64_t hsize(const Bytes &name) = 0;
 	virtual int hget(const Bytes &name, const Bytes &key, std::string *val) = 0;
+	virtual int hgetall(const Bytes &name, std::map<std::string, std::string> &val) = 0;
 	virtual int hmget(const Bytes &name, const std::vector<std::string> &reqKeys, std::map<std::string, std::string> *val) = 0;
-	virtual HIterator* hscan(const Bytes &name, const Bytes &start, const Bytes &end, uint64_t limit, const leveldb::Snapshot** snapshot) = 0;
 
 	/*  list  */
 	virtual int LIndex(const Bytes &key, const int64_t index, std::string *val) = 0;

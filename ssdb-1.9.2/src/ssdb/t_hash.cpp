@@ -351,6 +351,37 @@ int SSDBImpl::hget(const Bytes &name, const Bytes &key, std::string *val){
 	return GetHashItemValInternal(hkey, val);
 }
 
+
+int SSDBImpl::hgetall(const Bytes &name, std::map<std::string, std::string> &val) {
+
+	HashMetaVal hv;
+	const leveldb::Snapshot* snapshot = nullptr;
+
+	{
+		RecordLock l(&mutex_record_, name.String());
+		std::string meta_key = encode_meta_key(name);
+		int ret = GetHashMetaVal(meta_key, hv);
+		if (ret != 1){
+			return ret;
+		}
+		snapshot = ldb->GetSnapshot();
+	}
+
+	SnapshotPtr spl(ldb, snapshot);
+
+	HIterator* hi = hscan_internal(name, "", "", hv.version, -1, snapshot);
+	if (hi == nullptr) {
+		return -1;
+	}
+	auto it = std::unique_ptr<HIterator>(hi);
+
+	while(it->next()){
+		val[it->key] = it->val;
+ 	}
+
+	return 1;
+}
+
 HIterator* SSDBImpl::hscan(const Bytes &name, const Bytes &start, const Bytes &end, uint64_t limit){
     HashMetaVal hv;
 	uint16_t version;
@@ -368,28 +399,6 @@ HIterator* SSDBImpl::hscan(const Bytes &name, const Bytes &start, const Bytes &e
 	return hscan_internal(name, start, end, version, limit);
 }
 
-HIterator* SSDBImpl::hscan(const Bytes &name, const Bytes &start, const Bytes &end, uint64_t limit, const leveldb::Snapshot** snapshot){
-    HashMetaVal hv;
-	uint16_t version;
-
-	{
-		RecordLock l(&mutex_record_, name.String());
-		std::string meta_key = encode_meta_key(name);
-		int ret = GetHashMetaVal(meta_key, hv);
-		if (0 == ret){
-			version = hv.version;
-		} else if (ret > 0){
-			version = hv.version;
-		} else{
-			version = 0;
-		}
-
-	     *snapshot = ldb->GetSnapshot();
-
-	}
-
-    return hscan_internal(name, start, end, version, limit, *snapshot);
-}
 
 HIterator* SSDBImpl::hscan_internal(const Bytes &name, const Bytes &start, const Bytes &end, uint16_t version, uint64_t limit,
 									const leveldb::Snapshot *snapshot){

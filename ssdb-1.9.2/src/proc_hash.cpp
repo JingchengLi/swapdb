@@ -189,16 +189,27 @@ int proc_hgetall(NetworkServer *net, Link *link, const Request &req, Response *r
 	CHECK_NUM_PARAMS(2);
 	SSDBServer *serv = (SSDBServer *)net->data;
 
-	const leveldb::Snapshot* snapshot = nullptr;
 
-	auto it = std::unique_ptr<HIterator>(serv->ssdb->hscan(req[1], "", "", -1, &snapshot));
-	resp->push_back("ok");
-	while(it->next()){
-		resp->push_back(it->key);
-		resp->push_back(it->val);
+	std::map<std::string, std::string> resMap;
+	int ret = serv->ssdb->hgetall(req[1], resMap);
+
+    if (ret < 0) {
+        resp->push_back("error");
+        resp->push_back(GetErrorInfo(ret));
+        return 0;
+    } else if (ret == 0) {
+        resp->push_back("ok");
+
+        //nothing
+    } else {
+        resp->push_back("ok");
+
+		for (const auto& res : resMap) {
+			resp->push_back(res.first);
+			resp->push_back(res.second);
+		}
+
 	}
-
-	serv->ssdb->ReleaseSnapshot(snapshot);
 
 	return 0;
 }
@@ -224,39 +235,59 @@ int proc_hkeys(NetworkServer *net, Link *link, const Request &req, Response *res
 	CHECK_NUM_PARAMS(5);
 	SSDBServer *serv = (SSDBServer *)net->data;
 
-	uint64_t limit = req[4].Uint64();
+//	uint64_t limit = req[4].Uint64();
 
-	const leveldb::Snapshot* snapshot = nullptr;
+    std::map<std::string, std::string> resMap;
+    int ret = serv->ssdb->hgetall(req[1], resMap);
 
-	auto it = std::unique_ptr<HIterator>(serv->ssdb->hscan(req[1], req[2], req[3], limit, &snapshot));
-	it->return_val(false);
+    if (ret < 0) {
+        resp->push_back("error");
+        resp->push_back(GetErrorInfo(ret));
+        return 0;
+    } else if (ret == 0) {
+        resp->push_back("ok");
 
-	resp->push_back("ok");
-	while(it->next()){
-		resp->push_back(it->key);
-	}
+        //nothing
+    } else {
+        resp->push_back("ok");
 
-	serv->ssdb->ReleaseSnapshot(snapshot);
+        for (const auto& res : resMap) {
+            //TODO 这里同时处理了kv 只是没有返回.
+            resp->push_back(res.first);
+//            resp->push_back(res.second);
+        }
+    }
 
-	return 0;
+
+    return 0;
 }
 
 int proc_hvals(NetworkServer *net, Link *link, const Request &req, Response *resp){
 	CHECK_NUM_PARAMS(5);
 	SSDBServer *serv = (SSDBServer *)net->data;
 
-	uint64_t limit = req[4].Uint64();
+//	uint64_t limit = req[4].Uint64();
 
-	const leveldb::Snapshot* snapshot = nullptr;
+    std::map<std::string, std::string> resMap;
+    int ret = serv->ssdb->hgetall(req[1], resMap);
 
-	auto it = std::unique_ptr<HIterator>(serv->ssdb->hscan(req[1], req[2], req[3], limit, &snapshot));
+    if (ret < 0) {
+        resp->push_back("error");
+        resp->push_back(GetErrorInfo(ret));
+        return 0;
+    } else if (ret == 0) {
+        resp->push_back("ok");
 
-	resp->push_back("ok");
-	while(it->next()){
-		resp->push_back(it->val);
-	}
+        //nothing
+    } else {
+        resp->push_back("ok");
 
-	serv->ssdb->ReleaseSnapshot(snapshot);
+        for (const auto& res : resMap) {
+            //TODO 这里同时处理了kv 只是没有返回.
+//            resp->push_back(res.first);
+            resp->push_back(res.second);
+        }
+    }
 
 	return 0;
 }
