@@ -224,6 +224,10 @@ void loadServerConfigFromString(char *config) {
             if ((server.load_from_ssdb = yesnotoi(argv[1])) == -1) {
                 err = "argument must be 'yes' or 'no'"; goto loaderr;
             }
+        } else if (!strcasecmp(argv[0],"use-customized-replication") && argc == 2) {
+            if ((server.use_customized_replication = yesnotoi(argv[1])) == -1) {
+                err = "argument must be 'yes' or 'no'"; goto loaderr;
+            }
         } else if (!strcasecmp(argv[0],"ssdb-load-upper-limit") && argc == 2) {
             server.ssdb_load_upper_limit = atoi(argv[1]);
             if (server.ssdb_load_upper_limit < 0 || server.ssdb_load_upper_limit > 100 ) {
@@ -1013,6 +1017,8 @@ void configSetCommand(client *c) {
     } config_set_bool_field(
       "load-from-ssdb",server.load_from_ssdb) {
     } config_set_bool_field(
+        "use-customized-replication",server.use_customized_replication) {
+    } config_set_bool_field(
       "stop-writes-on-bgsave-error",server.stop_writes_on_bgsave_err) {
     } config_set_bool_field(
       "lazyfree-lazy-eviction",server.lazyfree_lazy_eviction) {
@@ -1284,6 +1290,7 @@ void configGetCommand(client *c) {
     config_get_bool_field("protected-mode", server.protected_mode);
     config_get_bool_field("jdjr-mode", server.jdjr_mode);
     config_get_bool_field("load-from-ssdb", server.load_from_ssdb);
+    config_get_bool_field("use-customized-replication", server.use_customized_replication);
     config_get_bool_field("repl-disable-tcp-nodelay",
             server.repl_disable_tcp_nodelay);
     config_get_bool_field("repl-diskless-sync",
@@ -2013,6 +2020,7 @@ int rewriteConfig(char *path) {
     rewriteConfigYesNoOption(state,"protected-mode",server.protected_mode,CONFIG_DEFAULT_PROTECTED_MODE);
     rewriteConfigYesNoOption(state,"jdjr-mode",server.jdjr_mode,CONFIG_DEFAULT_JDJR_MODE);
     rewriteConfigYesNoOption(state,"load-from-ssdb",server.load_from_ssdb,CONFIG_DEFAULT_LOAD_FROM_SSDB);
+    rewriteConfigYesNoOption(state,"use-customized-replication",server.use_customized_replication,CONFIG_DEFAULT_USE_CUSTOMIZED_REPLICATION);
     rewriteConfigClientoutputbufferlimitOption(state);
     rewriteConfigNumericalOption(state,"hz",server.hz,CONFIG_DEFAULT_HZ);
     rewriteConfigYesNoOption(state,"aof-rewrite-incremental-fsync",server.aof_rewrite_incremental_fsync,CONFIG_DEFAULT_AOF_REWRITE_INCREMENTAL_FSYNC);

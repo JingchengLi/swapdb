@@ -929,7 +929,8 @@ int handleResponseOfPsync(client *c, sds replyString) {
 }
 
 int handleResponseOfTransferSnapshot(client *c, sds replyString) {
-    sds tmp_ok = NULL, tmp_nok = NULL, process_status;
+    sds tmp_ok = NULL, tmp_nok = NULL;
+    int process_status;
 
     if (c->ssdb_status == SLAVE_SSDB_SNAPSHOT_TRANSFER_PRE) {
         tmp_ok = sdsnew("customized-transfer-snapshot ok");
@@ -952,7 +953,6 @@ int handleResponseOfTransferSnapshot(client *c, sds replyString) {
     } else if (c->ssdb_status == SLAVE_SSDB_SNAPSHOT_TRANSFER_START) {
         tmp_ok = sdsnew("customized-transfer-snapshot finished");
         tmp_nok = sdsnew("customized-transfer-snapshot unfinished");
-        process_status;
 
         sdstolower(replyString);
 

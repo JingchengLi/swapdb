@@ -1468,6 +1468,7 @@ void initServerConfig(void) {
     server.protected_mode = CONFIG_DEFAULT_PROTECTED_MODE;
     server.jdjr_mode = CONFIG_DEFAULT_JDJR_MODE;
     server.load_from_ssdb = CONFIG_DEFAULT_LOAD_FROM_SSDB;
+    server.use_customized_replication = CONFIG_DEFAULT_USE_CUSTOMIZED_REPLICATION;
     server.dbnum = CONFIG_DEFAULT_DBNUM;
     server.verbosity = CONFIG_DEFAULT_VERBOSITY;
     server.maxidletime = CONFIG_DEFAULT_CLIENT_TIMEOUT;
@@ -2730,6 +2731,7 @@ int processCommand(client *c) {
     }
 
     if (server.jdjr_mode
+        && server.use_customized_replication
         && (c->cmd->proc == syncCommand)
         && (c->flags & CLIENT_SLAVE)) {
         c->ssdb_status = SLAVE_SSDB_SNAPSHOT_IN_PROCESS;
@@ -2739,6 +2741,7 @@ int processCommand(client *c) {
        server.current_repl_slave is not null. */
 
     if (server.jdjr_mode
+        && server.use_customized_replication
         && (c->cmd->proc == syncCommand)
         && !(c->flags & CLIENT_DELAYED_BY_PSYNC)
         && (c->flags & CLIENT_SLAVE)

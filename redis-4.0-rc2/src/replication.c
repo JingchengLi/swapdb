@@ -989,7 +989,7 @@ void updateSlavesWaitingBgsave(int bgsaveerr, int type) {
                 slave->replpreamble = sdscatprintf(sdsempty(),"$%lld\r\n",
                     (unsigned long long) slave->repldbsize);
 
-                if (server.jdjr_mode) {
+                if (server.jdjr_mode && server.use_customized_replication) {
                     slave->ssdb_status = SLAVE_SSDB_SNAPSHOT_TRANSFER_PRE;
                 } else {
                     aeDeleteFileEvent(server.el,slave->fd,AE_WRITABLE);

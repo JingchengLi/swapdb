@@ -130,6 +130,7 @@ typedef long long mstime_t; /* millisecond time type. */
 #define CONFIG_DEFAULT_PROTECTED_MODE 1
 #define CONFIG_DEFAULT_JDJR_MODE 0
 #define CONFIG_DEFAULT_LOAD_FROM_SSDB 1
+#define CONFIG_DEFAULT_USE_CUSTOMIZED_REPLICATION 1
 #define CONFIG_DEFAULT_LOGFILE ""
 #define CONFIG_DEFAULT_SYSLOG_ENABLED 0
 #define CONFIG_DEFAULT_STOP_WRITES_ON_BGSAVE_ERROR 1
@@ -956,6 +957,7 @@ struct redisServer {
     int protected_mode;         /* Don't accept external connections. */
     int jdjr_mode;              /* Tag for using jdjr customized mode. */
     int load_from_ssdb;         /* Option for supporting whether loading from SSDB. */
+    int use_customized_replication; /* Option for use customized replication. */
     /* RDB / AOF loading information */
     int loading;                /* We are loading data from disk if true */
     off_t loading_total_bytes;
