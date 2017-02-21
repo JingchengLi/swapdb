@@ -83,7 +83,6 @@ int proc_hmget(NetworkServer *net, Link *link, const Request &req, Response *res
 	CHECK_NUM_PARAMS(3);
 	SSDBServer *serv = (SSDBServer *)net->data;
 
-	resp->push_back("ok");
 	Request::const_iterator it=req.begin() + 1;
 	const Bytes name = *it;
 	it ++;
@@ -98,6 +97,7 @@ int proc_hmget(NetworkServer *net, Link *link, const Request &req, Response *res
 
 	int ret = serv->ssdb->hmget(name, reqKeys, &resMap);
     if (ret == 1) {
+		resp->push_back("ok");
 
 		for (const auto& reqKey : reqKeys) {
 
@@ -112,9 +112,10 @@ int proc_hmget(NetworkServer *net, Link *link, const Request &req, Response *res
 		}
 
     } else if (ret == 0) {
+		resp->push_back("ok");
+
 		//nothing
 	} else {
-		resp->resp.clear();
 		resp->push_back("error");
 		resp->push_back(GetErrorInfo(ret));
 		return 0;
