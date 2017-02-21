@@ -6,7 +6,7 @@
 #define SSDB_REDIS_ERROR_H
 
 #define SUCCESS           0
-#define ERR               -1
+//#define ERR               -1
 #define STORAGE_ERR       -2
 #define WRONG_TYPE_ERR    -3
 #define MKEY_DECODEC_ERR  -4
@@ -20,5 +20,6 @@
 #define INDEX_OUT_OF_RANGE      -12
 #define INVALID_METAVAL      -13
 #define SYNTAX_ERR      -14
+#define INVALID_EX_TIME  -15
 
 #endif //SSDB_REDIS_ERROR_H

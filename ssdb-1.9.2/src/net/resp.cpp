@@ -96,7 +96,7 @@ void Response::reply_double(int status, double val){
 }
 
 void Response::reply_get(int status, const std::string *val, const char *errmsg){
-	if(status == -1){
+	if(status < 0){
 		resp.push_back("error");
 	}else if(status == 0){
 		resp.push_back("not_found");

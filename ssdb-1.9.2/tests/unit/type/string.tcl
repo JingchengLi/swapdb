@@ -195,7 +195,7 @@ start_server {tags {"string"}} {
     test "SETBIT against key with wrong type" {
         r del mykey
         r lpush mykey "foo"
-        assert_error "ERR*" {r setbit mykey 0 1}
+        assert_error "WRONGTYPE*" {r setbit mykey 0 1}
     }
 
     test "SETBIT with out of range bit offset" {

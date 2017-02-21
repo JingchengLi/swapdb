@@ -3,12 +3,13 @@
 //
 
 
+#include <sstream>
 #include "internal_error.h"
 
 
 std::map<int, std::string> SSDBErrMap = {
         {SUCCESS,          "success"},
-        {ERR,              "ERR              "},
+//        {ERR,              "ERR              "},
         {STORAGE_ERR,      "ERR STORAGE_ERR      "},
         {WRONG_TYPE_ERR,   "WRONGTYPE Operation against a key holding the wrong kind of value"},
         {MKEY_DECODEC_ERR, "ERR MKEY_DECODEC_ERR "},
@@ -22,6 +23,7 @@ std::map<int, std::string> SSDBErrMap = {
         {STRING_OVERMAX,   "ERR string exceeds maximum allowed size (512MB)"},
         {INDEX_OUT_OF_RANGE,"ERR index out of range"},
         {SYNTAX_ERR,       "ERR syntax error"},
+        {INVALID_EX_TIME,  "ERR invalid expire time"},
 
 };
 
@@ -30,8 +32,9 @@ std::string GetErrorInfo(int ret) {
 
     auto pos = SSDBErrMap.find(ret);
     if (pos == SSDBErrMap.end()) {
-        return "error";
-
+        std::stringstream convert;
+        convert << ret;
+        return "ERR server error with error code : " +  convert.str();
     } else {
         return pos->second;
     }

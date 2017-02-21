@@ -149,7 +149,7 @@ int KvMetaVal::DecodeMetaVal(const Bytes &str) {
         return 0;
     }
     if (type != DataType::KV){
-        return -1;
+        return WRONG_TYPE_ERR;
     }
 
     decoder.read_data(&value);

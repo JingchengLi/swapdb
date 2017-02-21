@@ -18,19 +18,37 @@ static bool getNextString(unsigned char *zl, unsigned char **p, std::string &ret
 int SSDBImpl::GetKvMetaVal(const std::string &meta_key, KvMetaVal &kv) {
     std::string meta_val;
     leveldb::Status s = ldb->Get(leveldb::ReadOptions(), meta_key, &meta_val);
+    int ret = 0;
     if (s.IsNotFound()) {
-        return 0;
+        ret = 0;
+        kv.version = 0;
+        kv.del = KEY_ENABLED_MASK;
+        kv.type = DataType::KV;
+        return ret;
+
     } else if (!s.ok()) {
-        return -1;
+        return STORAGE_ERR;
     } else {
-        int ret = kv.DecodeMetaVal(meta_val);
+
+        ret = kv.DecodeMetaVal(meta_val);
         if (ret < 0) {
             return ret;
         } else if (kv.del == KEY_DELETE_MASK) {
-            return 0;
+            ret = 0;
+
+            if (kv.version == UINT16_MAX) {
+                kv.version = 0;
+            } else {
+                kv.version = (uint16_t) (kv.version + 1);
+            }
+
+            kv.del = KEY_ENABLED_MASK;
+            kv.type = DataType::KV;
+        } else {
+            ret = 1;
         }
     }
-    return 1;
+    return ret;
 }
 
 int SSDBImpl::SetGeneric(leveldb::WriteBatch &batch, const Bytes &key, const Bytes &val, int flags, const int64_t expire){
@@ -48,17 +66,7 @@ int SSDBImpl::SetGeneric(leveldb::WriteBatch &batch, const Bytes &key, const Byt
         if (flags & OBJ_SET_XX) {
             return 0;
         }
-        if (kv.del == KEY_DELETE_MASK) {
-            uint16_t version;
-            if (kv.version == UINT16_MAX) {
-                version = 0;
-            } else {
-                version = (uint16_t) (kv.version + 1);
-            }
-            meta_val = encode_kv_val(val, version);
-        } else {
-            meta_val = encode_kv_val(val);
-        }
+        meta_val = encode_kv_val(val, kv.version);
     } else {
         if (flags & OBJ_SET_NX) {
             return 0;
@@ -207,18 +215,8 @@ int SSDBImpl::getset(const Bytes &key, std::string *val, const Bytes &newval){
 	if (ret < 0){
 		return ret;
 	} else if(ret == 0){
-		if (kv.del == KEY_DELETE_MASK){
-			uint16_t version;
-			if (kv.version == UINT16_MAX){
-				version = 0;
-			} else{
-				version = (uint16_t)(kv.version+1);
-			}
-			meta_val = encode_kv_val(newval, version);
-		} else{
-			meta_val = encode_kv_val(newval);
-		}
-	} else{
+        meta_val = encode_kv_val(newval, kv.version);
+    } else{
 		meta_val = encode_kv_val(newval, kv.version);
 		*val = kv.value;
         this->edel_one(batch, key); //del expire ET key
@@ -228,8 +226,9 @@ int SSDBImpl::getset(const Bytes &key, std::string *val, const Bytes &newval){
 	leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
 	if(!s.ok()){
 		log_error("set error: %s", s.ToString().c_str());
-		return -1;
+		return STORAGE_ERR;
 	}
+
 	return ret;
 }
 
@@ -293,37 +292,29 @@ int SSDBImpl::incr(const Bytes &key, int64_t by, int64_t *new_val){
 	leveldb::WriteBatch batch;
 
     std::string old;
-    uint16_t version = 0;
+
     std::string meta_key = encode_meta_key(key);
     KvMetaVal kv;
     int ret = GetKvMetaVal(meta_key, kv);
-    if (ret == -1) {
-        return -1;
+    if (ret < 0){
+        return ret;
     } else if (ret == 0) {
         *new_val = by;
-        if (kv.del == KEY_DELETE_MASK) {
-            if (kv.version == UINT16_MAX) {
-                version = 0;
-            } else {
-                version = (uint16_t) (kv.version + 1);
-            }
-        }
     } else {
         old = kv.value;
-        version = kv.version;
         long long oldvalue;
         if (string2ll(old.c_str(), old.size(), &oldvalue) == 0) {
-            return 0;
+            return INVALID_INT;
         }
         if ((by < 0 && oldvalue < 0 && by < (LLONG_MIN - oldvalue)) ||
             (by > 0 && oldvalue > 0 && by > (LLONG_MAX - oldvalue))) {
-            return 0;
+            return INT_OVERFLOW;
         }
         *new_val = oldvalue + by;
     }
 
     std::string buf = encode_meta_key(key);
-    std::string meta_val = encode_kv_val(Bytes(str(*new_val)), version);
+    std::string meta_val = encode_kv_val(Bytes(str(*new_val)), kv.version);
 	batch.Put(buf, meta_val);
 
 	leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
@@ -354,40 +345,30 @@ int SSDBImpl::append(const Bytes &key, const Bytes &value, uint64_t *llen) {
     leveldb::WriteBatch batch;
 
     std::string val;
-    uint16_t version = 0;
+
     std::string meta_key = encode_meta_key(key);
     KvMetaVal kv;
     int ret = GetKvMetaVal(meta_key, kv);
-    if(ret == -1){
-        return -1;
+    if(ret < 0){
+        return ret;
     }else if(ret == 0){
-        if (kv.del == KEY_DELETE_MASK){
-            if (kv.version == UINT16_MAX){
-                version = 0;
-            } else{
-                version = (uint16_t)(kv.version+1);
-            }
-        }
 
         val = value.String();
-
         *llen = val.size();
 
     }else{
-        version = kv.version;
+
         val = kv.value.append(value.data(), value.size());
-
         *llen = val.size();
-
     }
 
-    std::string meta_val = encode_kv_val(Bytes(val), version);
+    std::string meta_val = encode_kv_val(Bytes(val), kv.version);
     batch.Put(meta_key, meta_val);
 
     leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
     if(!s.ok()){
         log_error("set error: %s", s.ToString().c_str());
-        return -1;
+        return STORAGE_ERR;
     }
     return 1;
 }
@@ -399,22 +380,15 @@ int SSDBImpl::setbit(const Bytes &key, int64_t bitoffset, int on){
 	leveldb::WriteBatch batch;
 
 	std::string val;
-	uint16_t version = 0;
-	std::string meta_key = encode_meta_key(key);
+
+    std::string meta_key = encode_meta_key(key);
 	KvMetaVal kv;
 	int ret = GetKvMetaVal(meta_key, kv);
-	if(ret == -1){
-		return -1;
+	if(ret < 0){
+		return ret;
 	}else if(ret == 0){
-		if (kv.del == KEY_DELETE_MASK){
-			if (kv.version == UINT16_MAX){
-				version = 0;
-			} else{
-				version = (uint16_t)(kv.version+1);
-			}
-		}
+		//nothing
 	}else{
-		version = kv.version;
 		val = kv.value;
 	}
 
@@ -430,13 +404,13 @@ int SSDBImpl::setbit(const Bytes &key, int64_t bitoffset, int on){
         val[len] &= ~(1 << bit);
     }
 
-    std::string meta_val = encode_kv_val(Bytes(val), version);
+    std::string meta_val = encode_kv_val(Bytes(val), kv.version);
 	batch.Put(meta_key, meta_val);
 
 	leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
 	if(!s.ok()){
 		log_error("set error: %s", s.ToString().c_str());
-		return -1;
+		return STORAGE_ERR;
 	}
 	return orig;
 }
@@ -461,22 +435,15 @@ int SSDBImpl::setrange(const Bytes &key, int64_t start, const Bytes &value, uint
     leveldb::WriteBatch batch;
 
     std::string val;
-    uint16_t version = 0;
+
     std::string meta_key = encode_meta_key(key);
     KvMetaVal kv;
     int ret = GetKvMetaVal(meta_key, kv);
     if(ret == -1){
         return -1;
     }else if(ret == 0){
-        if (kv.del == KEY_DELETE_MASK){
-            if (kv.version == UINT16_MAX){
-                version = 0;
-            } else{
-                version = (uint16_t)(kv.version+1);
-            }
-        }
+        //nothing
     }else{
-        version = kv.version;
         val = kv.value;
     }
 
@@ -519,13 +486,13 @@ int SSDBImpl::setrange(const Bytes &key, int64_t start, const Bytes &value, uint
 
     *new_len = val.size();
 
-    std::string meta_val = encode_kv_val(Bytes(val), version);
+    std::string meta_val = encode_kv_val(Bytes(val), kv.version);
     batch.Put(meta_key, meta_val);
 
     leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
     if(!s.ok()){
         log_error("set error: %s", s.ToString().c_str());
-        return -1;
+        return STORAGE_ERR;
     }
 
     return 1;
