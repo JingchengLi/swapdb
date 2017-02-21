@@ -301,7 +301,7 @@ int proc_hincrbyfloat(NetworkServer *net, Link *link, const Request &req, Respon
 	double by = req[3].Double();
 	if (errno == EINVAL){
 		resp->push_back("error");
-		resp->push_back("value is not a valid float");
+		resp->push_back(GetErrorInfo(INVALID_DBL));
 		return 0;
 	}
 
@@ -324,7 +324,7 @@ int proc_hincr(NetworkServer *net, Link *link, const Request &req, Response *res
 
 	if (errno == EINVAL){
 		resp->push_back("error");
-		resp->push_back("value is not an integer or out of range");
+		resp->push_back(GetErrorInfo(INVALID_INT));
 		return 0;
 	}
 
