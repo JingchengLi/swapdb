@@ -20,7 +20,8 @@ std::map<int, std::string> SSDBErrMap = {
         {INVALID_DBL,      "ERR value is not a valid float or out of range"},
         {INVALID_INCR,     "ERR INVALID_INCR     "},
         {STRING_OVERMAX,   "ERR string exceeds maximum allowed size (512MB)"},
-        {INDEX_OUT_OF_RANGE,   "ERR index out of range"},
+        {INDEX_OUT_OF_RANGE,"ERR index out of range"},
+        {SYNTAX_ERR,       "ERR syntax error"},
 
 };
 

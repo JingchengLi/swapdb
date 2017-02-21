@@ -91,8 +91,7 @@ public:
 
 	/* key value */
 
-	virtual int set(const Bytes &key, const Bytes &val);
-	virtual int setnx(const Bytes &key, const Bytes &val);
+	virtual int set(const Bytes &key, const Bytes &val, int flags);
 	virtual int del(const Bytes &key);
 	virtual int append(const Bytes &key, const Bytes &value, uint64_t *llen);
 

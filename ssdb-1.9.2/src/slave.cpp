@@ -387,7 +387,7 @@ int Slave::proc_sync(const Binlog &log, const std::vector<Bytes> &req){
 				if (kv.DecodeMetaVal(req[1]) == -1){
 					return -1;
 				}
-				if(ssdb->set(key, kv.value) == -1){
+				if(ssdb->set(key, kv.value, 0) == -1){
 					return -1;
 				}
 			}

@@ -65,13 +65,104 @@ int proc_set(NetworkServer *net, Link *link, const Request &req, Response *resp)
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(3);
 
-	int ret = serv->ssdb->set(req[1], req[2]);
-	if(ret == -1){
-		resp->push_back("error");
-	}else{
-		resp->push_back("ok");
-		resp->push_back("1");
+	long long when = 0;
+
+	TimeUnit tu = TimeUnit::Second;
+	int flags = OBJ_SET_NO_FLAGS;
+	if (req.size() > 3) {
+		for (int i = 3; i < req.size(); ++i) {
+			std::string key = req[i].String();
+			strtolower(&key);
+
+			if (key=="nx") {
+				flags |= OBJ_SET_NX;
+			} else if (key=="xx") {
+				flags |= OBJ_SET_XX;
+			} else if (key=="ex") {
+				flags |= OBJ_SET_EX;
+				tu = TimeUnit::Second;
+			} else if (key=="px") {
+				flags |= OBJ_SET_PX;
+				tu = TimeUnit::Millisecond;
+			}
+
+			if (key=="nx" || key=="xx") {
+				//nothing
+			} else if (key=="ex" || key=="px") {
+				i++;
+				if (i >= req.size()) {
+					resp->push_back("error");
+					resp->push_back(GetErrorInfo(SYNTAX_ERR));
+					return 0;
+
+				} else {
+					when = req[i].Int64();
+					if (errno == EINVAL){
+						resp->push_back("error");
+						resp->push_back(GetErrorInfo(INVALID_INT));
+						return 0;
+					}
+
+					if (when <= 0) {
+						resp->push_back("error");
+						resp->push_back("ERR: invalid expire time");
+						return 0;
+					}
+
+				}
+			} else {
+				resp->push_back("error");
+				resp->push_back(GetErrorInfo(SYNTAX_ERR));
+				return 0;
+
+			}
+		}
 	}
+
+	if (when > 0) {
+
+		Locking l(&serv->expiration->mutex);
+		int ret;
+		ret = serv->ssdb->set(req[1], req[2], flags);
+		if(ret < 0){
+			resp->push_back("error");
+			resp->push_back(GetErrorInfo(ret));
+			return 0;
+		} else if (ret == 0) {
+			resp->push_back("ok");
+			resp->push_back("0");
+			return 0;
+		}
+
+
+		ret = serv->expiration->expire(req[1], (int64_t)when, tu);
+		if(ret < 0){
+			serv->ssdb->del(req[1]);
+			resp->push_back("error");
+			resp->push_back(GetErrorInfo(ret));
+			return 0;
+		} else {
+			resp->push_back("ok");
+			resp->push_back("1");
+			return 0;
+		}
+
+
+	} else {
+
+		int ret = serv->ssdb->set(req[1], req[2], flags);
+		if(ret == -1){
+			resp->push_back("error");
+		} else if (ret == 0) {
+			resp->push_back("ok");
+			resp->push_back("0");
+		} else{
+			resp->push_back("ok");
+			resp->push_back("1");
+		}
+
+	}
+
 	return 0;
 }
 
@@ -79,7 +170,7 @@ int proc_setnx(NetworkServer *net, Link *link, const Request &req, Response *res
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(3);
 
-	int ret = serv->ssdb->setnx(req[1], req[2]);
+	int ret = serv->ssdb->set(req[1], req[2], OBJ_SET_NX);
 	resp->reply_bool(ret);
 	return 0;
 }
@@ -100,7 +191,7 @@ int proc_setx(NetworkServer *net, Link *link, const Request &req, Response *resp
 
 	Locking l(&serv->expiration->mutex);
 	int ret;
-	ret = serv->ssdb->set(req[1], req[2]);
+	ret = serv->ssdb->set(req[1], req[2], OBJ_SET_NO_FLAGS);
 	if(ret == -1){
 		resp->push_back("error");
 		return 0;
@@ -132,7 +223,7 @@ int proc_psetx(NetworkServer *net, Link *link, const Request &req, Response *res
 
 	Locking l(&serv->expiration->mutex);
 	int ret;
-	ret = serv->ssdb->set(req[1], req[2]);
+	ret = serv->ssdb->set(req[1], req[2], OBJ_SET_NO_FLAGS);
 	if(ret == -1){
 		resp->push_back("error");
 		return 0;

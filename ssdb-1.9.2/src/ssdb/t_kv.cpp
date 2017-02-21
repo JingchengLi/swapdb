@@ -46,7 +46,7 @@ int SSDBImpl::SetGeneric(leveldb::WriteBatch &batch, const Bytes &key, const Byt
         return ret;
     } else if (ret == 0) {
         if (flags & OBJ_SET_XX) {
-            return -1;
+            return 0;
         }
         if (kv.del == KEY_DELETE_MASK) {
             uint16_t version;
@@ -190,16 +190,10 @@ int SSDBImpl::setNoLock(const Bytes &key, const Bytes &val, int flags) {
     return 1;
 }
 
-int SSDBImpl::set(const Bytes &key, const Bytes &val){
+int SSDBImpl::set(const Bytes &key, const Bytes &val, int flags){
 	RecordLock l(&mutex_record_, key.String());
 
-    return setNoLock(key, val, OBJ_SET_NO_FLAGS);
-}
-
-int SSDBImpl::setnx(const Bytes &key, const Bytes &val){
-	RecordLock l(&mutex_record_, key.String());
-
-    return setNoLock(key, val, OBJ_SET_NX);
+    return setNoLock(key, val, flags);
 }
 
 int SSDBImpl::getset(const Bytes &key, std::string *val, const Bytes &newval){

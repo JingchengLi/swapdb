@@ -14,6 +14,7 @@ enum REPLY{
 	REPLY_INT,
 	REPLY_OK_STATUS,
 	REPLY_CUSTOM_STATUS,
+	REPLY_SET_STATUS,
 };
 
 enum STRATEGY{
@@ -66,7 +67,7 @@ static RedisCommand_raw cmds_raw[] = {
 	{STRATEGY_AUTO, "type",		"type",			REPLY_CUSTOM_STATUS},
 	{STRATEGY_AUTO, "get",		"get",			REPLY_BULK},
 	{STRATEGY_AUTO, "getset",	"getset",		REPLY_BULK},
-	{STRATEGY_AUTO, "set",		"set",			REPLY_OK_STATUS},
+	{STRATEGY_AUTO, "set",		"set",			REPLY_SET_STATUS},
 	{STRATEGY_AUTO, "setnx",	"setnx",		REPLY_INT},
 	{STRATEGY_MGET, "mget",		"multi_get",	REPLY_MULTI_BULK},
 	{STRATEGY_SETEX,"setex",	"setx", 		REPLY_OK_STATUS},
@@ -623,6 +624,21 @@ int RedisLink::send_resp(Buffer *output, const std::vector<std::string> &resp){
 			output->append("+");
 			output->append(resp[1]);
 			output->append("\r\n");
+		} else {
+			output->append("+OK\r\n");
+		}
+
+		return 0;
+	}
+	if(req_desc->reply_type == REPLY_SET_STATUS){
+		if(resp.size() >= 2) {
+			if (resp[1] == "1") {
+				output->append("+OK\r\n");
+			} else if (resp[1] == "0") {
+				output->append("$-1\r\n");
+			} else {
+				output->append("-ERR server error, check REPLY_SET_STATUS\r\n");
+			}
 		} else {
 			output->append("+OK\r\n");
 		}
