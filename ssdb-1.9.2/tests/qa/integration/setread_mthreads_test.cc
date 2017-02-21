@@ -775,7 +775,7 @@ TEST_F(SetReadMthreadsTest, Test_sadd_sismember_scard_smembers_mthreads) {
     ASSERT_EQ(keysNum, list.size())<<"Write fail at last:"<<list.size()<<endl;
 }
 
-TEST_F(SetReadMthreadsTest, Test_sadd_sunion_mthreads) {
+TEST_F(SetReadMthreadsTest, DISABLED_Test_sadd_sunion_mthreads) {
     type = Type::SET;
     key = "sunionkey";
     val = "val";
@@ -827,7 +827,7 @@ TEST_F(SetReadMthreadsTest, Test_sadd_sunion_mthreads) {
     ASSERT_EQ(keysNum*2, list.size())<<"Write fail at last:"<<list.size()<<endl;
 }
 
-TEST_F(SetReadMthreadsTest, Test_sadd_sunionstore_mthreads) {
+TEST_F(SetReadMthreadsTest, DISABLED_Test_sadd_sunionstore_mthreads) {
     type = Type::SET;
     key = "sunionstorekey";
     val = "val";

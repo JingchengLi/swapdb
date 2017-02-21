@@ -338,6 +338,7 @@ TEST_F(HashTest, Test_hash_hclear) {
     OKHclear(100)
 } */
 
+
 TEST_F(HashTest, Test_hash_hkeys) {
     key = GetRandomKey_();
     s = client->hkeys(key, "", "", 5, &list);
@@ -348,7 +349,7 @@ TEST_F(HashTest, Test_hash_hkeys) {
     client->hset(key, "000000003","");
     //TODO HKEYS command changed
     s = client->hkeys(key, "000000000", "000000002", 5, &list);
-    ASSERT_TRUE(s.ok() && list.size() == 2);
+    ASSERT_TRUE(s.ok() && list.size() == 3);
     ASSERT_EQ("000000001", list[0]);
     ASSERT_EQ("000000002", list[1]);
     list.clear();
@@ -357,7 +358,7 @@ TEST_F(HashTest, Test_hash_hkeys) {
     ASSERT_EQ("000000003", list[2]);
     list.clear();
     s = client->hkeys(key, "000000000", "000000003", 2, &list);
-    ASSERT_TRUE(s.ok() && list.size() == 2);
+    ASSERT_TRUE(s.ok() && list.size() == 3);
     s = client->multi_del(key);
 }
 
