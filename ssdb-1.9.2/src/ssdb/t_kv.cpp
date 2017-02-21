@@ -439,8 +439,8 @@ int SSDBImpl::setrange(const Bytes &key, int64_t start, const Bytes &value, uint
     std::string meta_key = encode_meta_key(key);
     KvMetaVal kv;
     int ret = GetKvMetaVal(meta_key, kv);
-    if(ret == -1){
-        return -1;
+    if(ret < 0){
+        return ret;
     }else if(ret == 0){
         //nothing
     }else{

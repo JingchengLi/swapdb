@@ -435,6 +435,7 @@ int proc_multi_set(NetworkServer *net, Link *link, const Request &req, Response 
 	SSDBServer *serv = (SSDBServer *)net->data;
 	if(req.size() < 3 || req.size() % 2 != 1){
 		resp->push_back("client_error");
+		resp->push_back("ERR wrong number of arguments for MSET");
 	}else{
 		int ret = serv->ssdb->multi_set(req, 1);
 		resp->reply_int(ret, ret);

@@ -54,6 +54,10 @@ start_server {tags {"string"}} {
             set _ $err
         } {}
 
+#TODO mark disable
+#        test {DBSIZE should be 10000 now} {
+#            r dbsize
+#        } {10000}
     }
 
     test "SETNX target key missing" {
@@ -131,25 +135,19 @@ start_server {tags {"string"}} {
         r mget x y z
     } [list 10 {foo bar} "x x x x x x x\n\n\r\n"]
 
-    test {MSET Very big payload} {
-        set buf [string repeat "abcd" 1000000]
-        r mset x 10 y $buf z "x x x x x x x\n\n\r\n"
-        r get y
-    } [string repeat "abcd" 1000000]
-
     test {MSET wrong number of args} {
         catch {r mset x 10 y "foo bar" z} err
         format $err
+    } {*wrong number*}
 
-    } {*ERR*}
+#TODO mark disable
+#   test {MSETNX with already existent key} {
+#       list [r msetnx x1 xxx y2 yyy x 20] [r exists x1] [r exists y2]
+#   } {0 0 0}
 
-#    test {MSETNX with already existent key} {
-#        list [r msetnx x1 xxx y2 yyy x 20] [r exists x1] [r exists y2]
-#    } {0 0 0}
-#
-#    test {MSETNX with not existing keys} {
-#        list [r msetnx x1 xxx y2 yyy] [r get x1] [r get y2]
-#    } {1 xxx yyy}
+#   test {MSETNX with not existing keys} {
+#       list [r msetnx x1 xxx y2 yyy] [r get x1] [r get y2]
+#   } {1 xxx yyy}
 
     test "STRLEN against non-existing key" {
         assert_equal 0 [r strlen notakey]
@@ -267,6 +265,79 @@ start_server {tags {"string"}} {
         assert_equal 0 [r getbit mykey 10000]
     }
 
+    test "SETRANGE against non-existing key" {
+        r del mykey
+        assert_equal 3 [r setrange mykey 0 foo]
+        assert_equal "foo" [r get mykey]
+
+        r del mykey
+        assert_equal 0 [r setrange mykey 0 ""]
+        assert_equal 0 [r exists mykey]
+
+        r del mykey
+        assert_equal 4 [r setrange mykey 1 foo]
+        assert_equal "\000foo" [r get mykey]
+    }
+
+    test "SETRANGE against string-encoded key" {
+        r set mykey "foo"
+        assert_equal 3 [r setrange mykey 0 b]
+        assert_equal "boo" [r get mykey]
+
+        r set mykey "foo"
+        assert_equal 3 [r setrange mykey 0 ""]
+        assert_equal "foo" [r get mykey]
+
+        r set mykey "foo"
+        assert_equal 3 [r setrange mykey 1 b]
+        assert_equal "fbo" [r get mykey]
+
+        r set mykey "foo"
+        assert_equal 7 [r setrange mykey 4 bar]
+        assert_equal "foo\000bar" [r get mykey]
+    }
+
+    test "SETRANGE against integer-encoded key" {
+        r set mykey 1234
+        assert_encoding int mykey
+        assert_equal 4 [r setrange mykey 0 2]
+        assert_encoding raw mykey
+        assert_equal 2234 [r get mykey]
+
+        # Shouldn't change encoding when nothing is set
+        r set mykey 1234
+        assert_encoding int mykey
+        assert_equal 4 [r setrange mykey 0 ""]
+        assert_encoding int mykey
+        assert_equal 1234 [r get mykey]
+
+        r set mykey 1234
+        assert_encoding int mykey
+        assert_equal 4 [r setrange mykey 1 3]
+        assert_encoding raw mykey
+        assert_equal 1334 [r get mykey]
+
+        r set mykey 1234
+        assert_encoding int mykey
+        assert_equal 6 [r setrange mykey 5 2]
+        assert_encoding raw mykey
+        assert_equal "1234\0002" [r get mykey]
+    }
+
+    test "SETRANGE against key with wrong type" {
+        r del mykey
+        r lpush mykey "foo"
+        assert_error "WRONGTYPE*" {r setrange mykey 0 bar}
+    }
+
+    test "SETRANGE with out of range offset" {
+        r del mykey
+        assert_error "*maximum allowed size*" {r setrange mykey [expr 512*1024*1024-4] world}
+
+        r set mykey "hello"
+        assert_error "*out of range*" {r setrange mykey -1 world}
+        assert_error "*maximum allowed size*" {r setrange mykey [expr 512*1024*1024-4] world}
+    }
 
     test "GETRANGE against non-existing key" {
         r del mykey
