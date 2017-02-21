@@ -1,4 +1,6 @@
-##ssdb 存储部分内部接口
+#ssdb 存储部分内部接口
+
+#约定
 
 ###返回值  
 ret < 0 错误, 错误信息从GetErrorInfo中获得  
@@ -14,3 +16,8 @@ ret > 0 变动总数, 原则上不建议使用返回值表示
 ###类名
 强制驼峰命名 BackendDump SortedSet
 
+
+
+#支持情况
+dbsize 不准确  
+msetnx 不支持,暂时没有需求  
