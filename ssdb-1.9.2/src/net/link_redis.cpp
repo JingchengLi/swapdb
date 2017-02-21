@@ -12,7 +12,8 @@ enum REPLY{
 	REPLY_BULK = 0,
 	REPLY_MULTI_BULK,
 	REPLY_INT,
-	REPLY_STATUS
+	REPLY_OK_STATUS,
+	REPLY_CUSTOM_STATUS,
 };
 
 enum STRATEGY{
@@ -47,29 +48,29 @@ struct RedisCommand_raw
 };
 
 static RedisCommand_raw cmds_raw[] = {
-	{STRATEGY_PING, "ping",		 "ping",		REPLY_STATUS},
-	{STRATEGY_PING, "checkpoint","ping",		REPLY_STATUS},
+	{STRATEGY_PING, "ping",		 "ping",		REPLY_OK_STATUS},
+	{STRATEGY_PING, "checkpoint","ping",		REPLY_OK_STATUS},
 
 	{STRATEGY_AUTO, "dump",		"dump",			REPLY_BULK},
-	{STRATEGY_AUTO, "restore",	"restore",  	REPLY_STATUS},
+	{STRATEGY_AUTO, "restore",	"restore",  	REPLY_OK_STATUS},
 
 
-	{STRATEGY_AUTO, "rr_dump",		"rr_dump",			REPLY_STATUS},
-	{STRATEGY_AUTO, "rr_restore",	"rr_restore",  	REPLY_STATUS},
+	{STRATEGY_AUTO, "rr_dump",		"rr_dump",			REPLY_OK_STATUS},
+	{STRATEGY_AUTO, "rr_restore",	"rr_restore",  	REPLY_OK_STATUS},
 
 
-	{STRATEGY_AUTO, "select",	"select",		REPLY_STATUS},
-	{STRATEGY_AUTO, "client",	"client",		REPLY_STATUS},
-	{STRATEGY_AUTO, "quit",		"quit",			REPLY_STATUS},
+	{STRATEGY_AUTO, "select",	"select",		REPLY_OK_STATUS},
+	{STRATEGY_AUTO, "client",	"client",		REPLY_OK_STATUS},
+	{STRATEGY_AUTO, "quit",		"quit",			REPLY_OK_STATUS},
 
-	{STRATEGY_AUTO, "type",		"type",			REPLY_STATUS},
+	{STRATEGY_AUTO, "type",		"type",			REPLY_CUSTOM_STATUS},
 	{STRATEGY_AUTO, "get",		"get",			REPLY_BULK},
 	{STRATEGY_AUTO, "getset",	"getset",		REPLY_BULK},
-	{STRATEGY_AUTO, "set",		"set",			REPLY_STATUS},
+	{STRATEGY_AUTO, "set",		"set",			REPLY_OK_STATUS},
 	{STRATEGY_AUTO, "setnx",	"setnx",		REPLY_INT},
 	{STRATEGY_MGET, "mget",		"multi_get",	REPLY_MULTI_BULK},
-	{STRATEGY_SETEX,"setex",	"setx", 		REPLY_STATUS},
-	{STRATEGY_SETEX,"psetex",	"psetx", 		REPLY_STATUS},
+	{STRATEGY_SETEX,"setex",	"setx", 		REPLY_OK_STATUS},
+	{STRATEGY_SETEX,"psetex",	"psetx", 		REPLY_OK_STATUS},
 	{STRATEGY_AUTO, "exists",	"exists",		REPLY_INT},
 	{STRATEGY_AUTO, "incr",		"incr",			REPLY_INT},
 	{STRATEGY_AUTO, "decr",		"decr",			REPLY_INT},
@@ -90,7 +91,7 @@ static RedisCommand_raw cmds_raw[] = {
 	{STRATEGY_AUTO, "setrange",	"setrange",		REPLY_INT},
 	{STRATEGY_AUTO, "keys", 	"keys", 		REPLY_MULTI_BULK},
 	{STRATEGY_AUTO, "del",		"multi_del",	REPLY_INT},
-	{STRATEGY_AUTO, "mset",		"multi_set",	REPLY_STATUS},
+	{STRATEGY_AUTO, "mset",		"multi_set",	REPLY_OK_STATUS},
 	{STRATEGY_AUTO, "incrby",	"incr",			REPLY_INT},
 	{STRATEGY_AUTO, "decrby",	"decr",			REPLY_INT},
 
@@ -104,7 +105,7 @@ static RedisCommand_raw cmds_raw[] = {
 	{STRATEGY_HKEYS, "hkeys", 	"hkeys", 		REPLY_MULTI_BULK},
 	{STRATEGY_AUTO,  "hlen",	"hsize",		REPLY_INT},
 	{STRATEGY_HMGET, "hmget",	"hmget",	REPLY_MULTI_BULK},
-	{STRATEGY_AUTO,  "hmset",	"hmset",	REPLY_STATUS},
+	{STRATEGY_AUTO,  "hmset",	"hmset",	REPLY_OK_STATUS},
 	{STRATEGY_AUTO,  "hset",	"hset",			REPLY_INT},
 	{STRATEGY_AUTO,  "hsetnx",	"hsetnx",		REPLY_INT},
 	//TODO HSTRLEN since 3.2
@@ -153,7 +154,7 @@ static RedisCommand_raw cmds_raw[] = {
 	{STRATEGY_AUTO,		"rpop",			"qpop_back", 		REPLY_BULK},
 	{STRATEGY_AUTO, 	"llen",			"qsize",			REPLY_INT},
 	{STRATEGY_AUTO,		"lindex",		"qget", 			REPLY_BULK},
-	{STRATEGY_AUTO,		"lset",		    "qset", 			REPLY_STATUS},
+	{STRATEGY_AUTO,		"lset",		    "qset", 			REPLY_OK_STATUS},
 	{STRATEGY_AUTO,		"lrange",		"qslice",			REPLY_MULTI_BULK},
 
 
@@ -613,12 +614,15 @@ int RedisLink::send_resp(Buffer *output, const std::vector<std::string> &resp){
 		output->append("+PONG\r\n");
 		return 0;
 	}
-	if(req_desc->reply_type == REPLY_STATUS){
+	if(req_desc->reply_type == REPLY_OK_STATUS){
+		output->append("+OK\r\n");
+		return 0;
+	}
+	if(req_desc->reply_type == REPLY_CUSTOM_STATUS){
 		if(resp.size() >= 2) {
 			output->append("+");
 			output->append(resp[1]);
 			output->append("\r\n");
-
 		} else {
 			output->append("+OK\r\n");
 		}
