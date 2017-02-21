@@ -12,14 +12,15 @@ source tests/support/test.tcl
 source tests/support/util.tcl
 
 set ::all_tests {
+    ssdb/communicate-base
+    ssdb/encoding
     ssdb/dump
-    ssdb/hash
-    ssdb/list-3
-    ssdb/list
-    ssdb/string
-    ssdb/set
-    ssdb/incr
-    ssdb/zset
+    ssdb/aofrw
+    ssdb/keystatus
+    ssdb/loadconfig
+    ssdb/maxpolicy
+    ssdb/db
+    unit/type/hash
 }
 
 # unit/printver
