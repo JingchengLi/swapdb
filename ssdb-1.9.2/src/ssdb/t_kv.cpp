@@ -581,14 +581,14 @@ int SSDBImpl::type(const Bytes &key, std::string *type) {
     }
     if (!s.ok()) {
         log_error("get error: %s", s.ToString().c_str());
-        return -1;
+        return STORAGE_ERR;
     }
 
     //decodeMetaVal
     if(val.size()<4) {
         //invalid
         log_error("invalid MetaVal: %s", s.ToString().c_str());
-        return -1;
+        return INVALID_METAVAL;
     }
 
     char del = val[POS_DEL];
@@ -596,51 +596,23 @@ int SSDBImpl::type(const Bytes &key, std::string *type) {
         //deleted
         return 0;
     }
+    char mtype = val[POS_TYPE];
 
-    if (val[0] == DataType::KV) {
+    if (mtype == DataType::KV) {
         *type = "string";
-        ret = 1;
-    } else if (val[0] == DataType::HSIZE) {
-        HashMetaVal hv;
-        if (hv.DecodeMetaVal(val) == -1) {
-            return -1;
-        }
-        if (hv.del == KEY_ENABLED_MASK) {
-            *type = "hash";
-            ret = 1;
-        }
-    } else if (val[0] == DataType::SSIZE) {
-        SetMetaVal sv;
-        if (sv.DecodeMetaVal(val) == -1) {
-            return -1;
-        }
-        if (sv.del == KEY_ENABLED_MASK) {
-            *type = "set";
-            ret = 1;
-        }
-    } else if (val[0] == DataType::ZSIZE) {
-        ZSetMetaVal zs;
-        if (zs.DecodeMetaVal(val) == -1) {
-            return -1;
-        }
-        if (zs.del == KEY_ENABLED_MASK) {
-            *type = "zset";
-            ret = 1;
-        }
-    } else if (val[0] == DataType::LSIZE) {
-        ListMetaVal ls;
-        if (ls.DecodeMetaVal(val) == -1) {
-            return -1;
-        }
-        if (ls.del == KEY_ENABLED_MASK) {
-            *type = "list";
-            ret = 1;
-        }
+    } else if (mtype == DataType::HSIZE) {
+        *type = "hash";
+    } else if (mtype == DataType::SSIZE) {
+        *type = "set";
+    } else if (mtype == DataType::ZSIZE) {
+        *type = "zset";
+    } else if (mtype == DataType::LSIZE) {
+        *type = "list";
     } else {
-        return -1;
+        return MKEY_DECODEC_ERR;
     }
 
-    return ret;
+    return 1;
 }
 
 int SSDBImpl::exists(const Bytes &key) {

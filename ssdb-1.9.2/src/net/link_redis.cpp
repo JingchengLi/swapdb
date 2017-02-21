@@ -62,7 +62,7 @@ static RedisCommand_raw cmds_raw[] = {
 	{STRATEGY_AUTO, "client",	"client",		REPLY_STATUS},
 	{STRATEGY_AUTO, "quit",		"quit",			REPLY_STATUS},
 
-	{STRATEGY_AUTO, "type",		"type",			REPLY_BULK},
+	{STRATEGY_AUTO, "type",		"type",			REPLY_STATUS},
 	{STRATEGY_AUTO, "get",		"get",			REPLY_BULK},
 	{STRATEGY_AUTO, "getset",	"getset",		REPLY_BULK},
 	{STRATEGY_AUTO, "set",		"set",			REPLY_STATUS},
@@ -614,7 +614,15 @@ int RedisLink::send_resp(Buffer *output, const std::vector<std::string> &resp){
 		return 0;
 	}
 	if(req_desc->reply_type == REPLY_STATUS){
-		output->append("+OK\r\n");
+		if(resp.size() >= 2) {
+			output->append("+");
+			output->append(resp[1]);
+			output->append("\r\n");
+
+		} else {
+			output->append("+OK\r\n");
+		}
+
 		return 0;
 	}
 	if(req_desc->reply_type == REPLY_BULK){

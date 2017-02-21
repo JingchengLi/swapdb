@@ -18,5 +18,6 @@
 #define INVALID_INCR      -10
 #define STRING_OVERMAX      -11
 #define INDEX_OUT_OF_RANGE      -12
+#define INVALID_METAVAL      -13
 
 #endif //SSDB_REDIS_ERROR_H

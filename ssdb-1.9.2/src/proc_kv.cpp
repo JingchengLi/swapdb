@@ -14,7 +14,14 @@ int proc_type(NetworkServer *net, Link *link, const Request &req, Response *resp
 
 	std::string val;
 	int ret = serv->ssdb->type(req[1], &val);
-	resp->reply_get(1, &val);
+	if(ret < 0){
+		resp->push_back("error");
+		resp->push_back(GetErrorInfo(ret));
+		return 0;
+	}
+
+	resp->push_back("ok");
+	resp->push_back(val);
 
 	return 0;
 }

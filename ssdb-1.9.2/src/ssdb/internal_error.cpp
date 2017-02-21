@@ -13,6 +13,7 @@ std::map<int, std::string> SSDBErrMap = {
         {WRONG_TYPE_ERR,   "WRONGTYPE Operation against a key holding the wrong kind of value"},
         {MKEY_DECODEC_ERR, "ERR MKEY_DECODEC_ERR "},
         {MKEY_RESIZE_ERR,  "ERR MKEY_RESIZE_ERR  "},
+        {INVALID_METAVAL,  "ERR invalid MetaVal"},
         {INT_OVERFLOW,     "ERR increment or decrement would overflow"},
         {DBL_OVERFLOW,     "ERR increment or decrement would overflow"},
         {INVALID_INT,      "ERR value is not an integer or out of range"},
