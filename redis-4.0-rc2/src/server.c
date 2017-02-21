@@ -2768,8 +2768,6 @@ int processCommand(client *c) {
         while((ln = listNext(&li)) != NULL) {
             tc = listNodeValue(ln);
 
-            tc->client_before_cpsync = CLIENT_IS_BEFORE_CPSYNC;
-
             /* TODO: To abort the current psync ASAP,
                record the num of clients that sucessfully exec sendCommandToSSDB. */
             if (aeCreateFileEvent(server.el, tc->fd, AE_WRITABLE,

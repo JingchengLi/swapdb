@@ -124,7 +124,6 @@ client *createClient(int fd) {
         c->ssdb_status = SSDB_NONE;
         c->bpop.loading_or_transfer_keys = dictCreate(&objectKeyPointerValueDictType,NULL);
         c->need_ssdbClientUnixHandler_reply = SSDB_CLIENT_IGNORE_REPLY;
-        c->client_before_cpsync = 0;
     }
     c->bpop.target = NULL;
     c->bpop.numreplicas = 0;
@@ -905,6 +904,8 @@ int handleResponseOfPsync(client *c, sds replyString) {
 
     unblockClient(c);
 
+    /* Reset is_allow_ssdb_write to ALLOW_SSDB_WRITE
+       as soon as customized-psync is responsed. */
     if (!sdscmp(replyString, tmp_ok)) {
         server.ssdb_status = MASTER_SSDB_SNAPSHOT_OK;
         server.is_allow_ssdb_write = ALLOW_SSDB_WRITE;
@@ -915,6 +916,7 @@ int handleResponseOfPsync(client *c, sds replyString) {
         resetClient(c);
         c->flags &= ~ CLIENT_DELAYED_BY_PSYNC;
         server.ssdb_status = SSDB_NONE;
+        server.is_allow_ssdb_write = ALLOW_SSDB_WRITE;
         process_status = C_OK;
     } else
         process_status = C_ERR;
@@ -936,12 +938,12 @@ int handleResponseOfTransferSnapshot(client *c, sds replyString) {
         sdstolower(replyString);
 
         if (!sdscmp(replyString, tmp_ok)) {
-            checkAndUpdateSlaveSsdbStatus(SLAVE_SSDB_SNAPSHOT_TRANSFER_PRE,
-                                          SLAVE_SSDB_SNAPSHOT_TRANSFER_START);
+            c->ssdb_status = SLAVE_SSDB_SNAPSHOT_TRANSFER_START;
             process_status = C_OK;
         } else if (!sdscmp(replyString, tmp_nok)) {
             addReplyError(c, "snapshot transfer nok");
             /* TODO: call resetClient ???*/
+            resetClient(c);
             c->ssdb_status = SSDB_NONE;
             process_status = C_OK;
         } else
@@ -955,13 +957,12 @@ int handleResponseOfTransferSnapshot(client *c, sds replyString) {
         sdstolower(replyString);
 
         if (!sdscmp(replyString, tmp_ok)) {
-            checkAndUpdateSlaveSsdbStatus(SLAVE_SSDB_SNAPSHOT_TRANSFER_START,
-                                          SSDB_NONE);
             c->ssdb_status = SLAVE_SSDB_SNAPSHOT_TRANSFER_END;
             process_status = C_OK;
         } else if (!sdscmp(replyString, tmp_nok)) {
             addReplyError(c, "snapshot transfer unfinished");
             /* TODO: call resetClient ???*/
+            resetClient(c);
             c->ssdb_status = SSDB_NONE;
             process_status = C_OK;
         } else
@@ -1003,10 +1004,11 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
             && fd != ssdb_client_fd) {
             if ((c->cmd && (c->cmd->proc == syncCommand))
                 || (c->lastcmd && (c->lastcmd->proc == syncCommand))
-                || c->need_ssdbClientUnixHandler_reply == SSDB_CLIENT_KEEP_REPLY)
+                || c->need_ssdbClientUnixHandler_reply == SSDB_CLIENT_KEEP_REPLY) {
                 /* The length of customized-psync's response is short than 1024*16. */
-                replyString = sdsnewlen(r->buf + oldlen, r->len -oldlen);
-            else
+                replyString = sdsnewlen(r->buf + oldlen, r->len - oldlen);
+                c->need_ssdbClientUnixHandler_reply = SSDB_CLIENT_IGNORE_REPLY;
+            } else
                 addReplyString(c, r->buf + oldlen, r->len - oldlen);
         }
 

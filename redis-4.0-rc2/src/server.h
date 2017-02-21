@@ -82,8 +82,6 @@ typedef long long mstime_t; /* millisecond time type. */
 #define SSDB_CLIENT_KEEP_REPLY 0
 #define SSDB_CLIENT_IGNORE_REPLY 1
 
-#define CLIENT_IS_BEFORE_CPSYNC 1
-
 /* is_allow_ssdb_write codes */
 #define ALLOW_SSDB_WRITE 1
 #define DISALLOW_SSDB_WRITE 0
@@ -278,7 +276,6 @@ typedef long long mstime_t; /* millisecond time type. */
                                     * or transferring a key becomes cold to SSDB. */
 #define BLOCKED_VISITING_SSDB 11   /* Client is visiting SSDB. */
 #define BLOCKED_VISITING_SSDB_TIMEOUT 12 /* Client is visiting SSDB and may be out of time. */
-#define BLOCKED_PSYNC 13 /* Client is delaying psync to the tail of current loop. */
 #define BLOCKED_NO_WRITE_TO_SSDB 14 /* Client is blocked as during the process of psync. */
 #define BLOCKED_SLAVE_BY_PSYNC 15 /* Slave is blocked when interacts with SSDB. */
 
@@ -761,7 +758,6 @@ typedef struct client {
 
     redisContext *context;  /* Used by redis client in jdjr-mode. */
     int ssdb_status; /* Record the ssdb state. */
-    int client_before_cpsync; /* Used to flag the existed clients when customized-psync is called. */
     int need_ssdbClientUnixHandler_reply; /* Need to use the reply string in ssdbClientUnixHandler. */
 } client;
 
