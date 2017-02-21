@@ -151,8 +151,9 @@ int proc_set(NetworkServer *net, Link *link, const Request &req, Response *resp)
 	} else {
 
 		int ret = serv->ssdb->set(req[1], req[2], flags);
-		if(ret == -1){
+		if(ret < 0){
 			resp->push_back("error");
+			resp->push_back(GetErrorInfo(ret));
 		} else if (ret == 0) {
 			resp->push_back("ok");
 			resp->push_back("0");
