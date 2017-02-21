@@ -51,9 +51,10 @@ void ExpirationHandler::stop() {
 int ExpirationHandler::expire(const Bytes &key, int64_t ttl, TimeUnit tu) {
 
     if (tu == TimeUnit::Second) {
-        if (INT64_MAX / 1000 < ttl) { return -1; }
+        if (INT64_MAX / 1000 <= ttl) { return INVALID_EX_TIME; }
         ttl = ttl * 1000;
     } else if (tu == TimeUnit::Millisecond) {
+        if (INT64_MAX <= ttl) { return INVALID_EX_TIME; }
         //nothing
     } else {
         assert(0);

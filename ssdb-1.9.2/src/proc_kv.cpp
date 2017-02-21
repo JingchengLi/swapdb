@@ -549,11 +549,16 @@ static int _incr(SSDB *ssdb, const Request &req, Response *resp, int dir){
 	int64_t by = 1;
 	if(req.size() > 2){
 		by = req[2].Int64();
+		if (errno == EINVAL){
+			resp->push_back("error");
+			resp->push_back(GetErrorInfo(INVALID_INT));
+			return 0;
+		}
 	}
 	int64_t new_val;
 	int ret = ssdb->incr(req[1], dir * by, &new_val);
-	if(ret == 0){
-		resp->reply_status(-1, "value is not an integer or out of range");
+	if(ret < 0){
+		resp->reply_int(-1, ret, GetErrorInfo(ret).c_str());
 	}else{
 		resp->reply_int(ret, new_val);
 	}
@@ -683,31 +688,6 @@ int proc_bitcount(NetworkServer *net, Link *link, const Request &req, Response *
 	return 0;
 }
 
-int proc_substr(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
-	CHECK_NUM_PARAMS(2);
-
-	const Bytes &key = req[1];
-	int start = 0;
-	if(req.size() > 2){
-		start = req[2].Int();
-	}
-	int size = 2000000000;
-	if(req.size() > 3){
-		size = req[3].Int();
-	}
-	std::string val;
-	int ret = serv->ssdb->get(key, &val);
-	if(ret < 0){
-		resp->push_back("error");
-		resp->push_back(GetErrorInfo(ret));
-	} else{
-		std::string str = substr(val, start, size);
-		resp->push_back("ok");
-		resp->push_back(str);
-	}
-	return 0;
-}
 
 int proc_getrange(NetworkServer *net, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *)net->data;
@@ -715,6 +695,13 @@ int proc_getrange(NetworkServer *net, Link *link, const Request &req, Response *
 
 	const Bytes &key = req[1];
 	int64_t start = req[2].Int64();
+	if (errno == EINVAL){
+		resp->push_back("error");
+		resp->push_back(GetErrorInfo(INVALID_INT));
+		return 0;
+	}
+
+
 	int64_t end = req[3].Int64();
 	if (errno == EINVAL){
 		resp->push_back("error");
@@ -733,6 +720,12 @@ int proc_getrange(NetworkServer *net, Link *link, const Request &req, Response *
 	}
 	return 0;
 }
+
+
+int proc_substr(NetworkServer *net, Link *link, const Request &req, Response *resp){
+	return proc_getrange(net, link, req, resp);
+}
+
 
 int proc_setrange(NetworkServer *net, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *)net->data;
