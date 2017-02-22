@@ -116,18 +116,6 @@ void processUnblockedClients(void) {
         c = ln->value;
         listDelNode(server.unblocked_clients,ln);
         c->flags &= ~CLIENT_UNBLOCKED;
-
-        /* Process remaining data in the input buffer, unless the client
-         * is blocked again. Actually processInputBuffer() checks that the
-         * client is not blocked before to proceed, but things may change and
-         * the code is conceptually more correct this way. */
-        if (!(c->flags & CLIENT_BLOCKED)) {
-            if ((c->querybuf && sdslen(c->querybuf) > 0) ||
-                (server.jdjr_mode &&
-                    (c->flags & (CLIENT_DELAYED_BY_LOADING_SSDB_KEY | CLIENT_DELAYED_BY_PSYNC)))) {
-                processInputBuffer(c);
-            }
-        }
     }
 }
 

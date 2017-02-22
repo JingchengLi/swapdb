@@ -1016,7 +1016,11 @@ void handleClientsBlockedOnSSDB(void) {
                         /* Unblock this client and add it into "server.unblocked_clients",
                          * The blocked command will be executed in "processInputBuffer".*/
                         serverLog(LL_DEBUG, "client fd: %d is unblocked.", c->fd);
+
                         unblockClient(c);
+
+                        if (runCommand(c) == C_OK)
+                            resetClient(c);
                     }
                 }
             }
@@ -1041,6 +1045,9 @@ void handleClientsBlockedOnCustomizedPsync(void) {
         listDelNode(server.no_writing_ssdb_blocked_clients, ln);
 
         unblockClient(c);
+
+        if (runCommand(c) == C_OK)
+            resetClient(c);
     }
 }
 
@@ -1111,7 +1118,6 @@ int blockForLoadingkeys(client *c, robj **keys, int numkeys, mstime_t timeout) {
     }
 
     if (blockednum) {
-        c->flags |= CLIENT_DELAYED_BY_LOADING_SSDB_KEY;
         blockClient(c, BLOCKED_SSDB_LOADING_OR_TRANSFER);
     }
 

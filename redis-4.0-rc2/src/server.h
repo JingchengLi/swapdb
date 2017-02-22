@@ -259,13 +259,6 @@ typedef long long mstime_t; /* millisecond time type. */
 #define CLIENT_LUA_DEBUG_SYNC (1<<26)  /* EVAL debugging without fork() */
 #define CLIENT_MODULE (1<<27) /* Non connected client used by some module. */
 
-#define CLIENT_DELAYED_BY_LOADING_SSDB_KEY (1<<30) /*
- * A read or write command is delayed because the key to be processed is loading-from-ssdb state.
- * or a write command is delayed because the key to be processed is in transferring-to-ssdb state. */
-#define CLIENT_DELAYED_BY_PSYNC (1<<31) /* A write command is delayed because we need to prohibid write
- * operations for ssdb when receive a psync from my slave. */
-
-
 
 /* Client block type (btype field in client structure)
  * if CLIENT_BLOCKED flag is set. */
@@ -1648,6 +1641,7 @@ int tryEvictingKeysToSSDB(int *mem_tofree);
 size_t objectComputeSize(robj *o, size_t sample_size);
 size_t estimateKeyMemoryUsage(dictEntry *de);
 int processCommand(client *c);
+int runCommand(client *c);
 int checkValidCommand(client* c);
 int checkKeysInMediateState(client* c);
 int processCommandMaybeInSSDB(client *c);

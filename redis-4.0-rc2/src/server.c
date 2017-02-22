@@ -1624,15 +1624,6 @@ void initServerConfig(void) {
     server.assert_line = 0;
     server.bug_report_start = 0;
     server.watchdog_period = 0;
-
-    /* is_allow_ssdb_write status. */
-    if (server.jdjr_mode) {
-        server.is_allow_ssdb_write = ALLOW_SSDB_WRITE;
-        server.ssdb_status = SSDB_NONE;
-        server.check_write_unresponse_num = -1;
-        server.current_repl_slave = NULL;
-    }
-
 }
 
 extern char **environ;
@@ -2064,8 +2055,13 @@ void initServer(void) {
     bioInit();
     server.initial_memory_usage = zmalloc_used_memory();
 
-    if (server.jdjr_mode)
+    if (server.jdjr_mode) {
+        server.is_allow_ssdb_write = ALLOW_SSDB_WRITE;
+        server.ssdb_status = SSDB_NONE;
+        server.check_write_unresponse_num = -1;
+        server.current_repl_slave = NULL;
         server.no_writing_ssdb_blocked_clients = listCreate();
+    }
 }
 
 /* Populates the Redis Command Table starting from the hard coded list
@@ -2482,7 +2478,6 @@ int processCommandMaybeInSSDB(client *c) {
     if ((server.is_allow_ssdb_write == DISALLOW_SSDB_WRITE)
         && (c->cmd->flags & (CMD_WRITE | CMD_JDJR_MODE))) {
         listAddNodeTail(server.no_writing_ssdb_blocked_clients, c);
-        c->flags |= CLIENT_DELAYED_BY_PSYNC;
         /* TODO: use a suitable timeout. */
         c->bpop.timeout = 5000 + mstime();
         blockClient(c, BLOCKED_NO_WRITE_TO_SSDB);
@@ -2535,6 +2530,44 @@ int processCommandMaybeInSSDB(client *c) {
     }
 
     return C_ERR;
+}
+
+int runCommand(client *c) {
+    /* Exec the command */
+    if (server.jdjr_mode
+        && processCommandMaybeInSSDB(c) == C_OK) {
+        /* The client will be reseted in sendCommandToSSDB if C_FD_ERR
+           is returned in sendCommandToSSDB.
+           Otherwise, return C_ERR to avoid calling resetClient,
+           the resetClient is delayed to ssdbClientUnixHandler. */
+        serverLog(LL_DEBUG, "processing %s, fd: %d in ssdb: %s",
+                  c->cmd->name, c->fd, (char *)c->argv[1]->ptr);
+        return C_ERR;
+    }
+
+    if (c->flags & CLIENT_MULTI &&
+        c->cmd->proc != execCommand && c->cmd->proc != discardCommand &&
+        c->cmd->proc != multiCommand && c->cmd->proc != watchCommand)
+    {
+        queueMultiCommand(c);
+        addReply(c,shared.queued);
+    } else {
+        call(c,CMD_CALL_FULL);
+        c->woff = server.master_repl_offset;
+        if (listLength(server.ready_keys))
+            handleClientsBlockedOnLists();
+        if (server.jdjr_mode && listLength(server.ssdb_ready_keys))
+            handleClientsBlockedOnSSDB();
+        if (server.jdjr_mode
+            && (server.is_allow_ssdb_write == ALLOW_SSDB_WRITE)
+            && listLength(server.no_writing_ssdb_blocked_clients))
+            handleClientsBlockedOnCustomizedPsync();
+    }
+
+    serverLog(LL_DEBUG, "processing %s, fd: %d in redis: %s",
+              c->cmd->name, c->fd, c->argc > 1 ? (char *)c->argv[1]->ptr : "");
+
+    return C_OK;
 }
 
 /* If this function gets called we already read a whole
@@ -2724,7 +2757,6 @@ int processCommand(client *c) {
     /* Check if current cmd contains blocked keys. */
     if (server.jdjr_mode
         && c->argc > 1
-        && !(c->flags & CLIENT_DELAYED_BY_LOADING_SSDB_KEY)
         && checkKeysInMediateState(c) == C_ERR) {
         /* Return C_ERR to keep client info for delayed handling. */
         return C_ERR;
@@ -2743,7 +2775,6 @@ int processCommand(client *c) {
     if (server.jdjr_mode
         && server.use_customized_replication
         && (c->cmd->proc == syncCommand)
-        && !(c->flags & CLIENT_DELAYED_BY_PSYNC)
         && (c->flags & CLIENT_SLAVE)
         && !server.current_repl_slave) {
         listIter li;
@@ -2758,8 +2789,6 @@ int processCommand(client *c) {
         /* TODO: set a reasonable timeout. */
         c->bpop.timeout = 5000 + mstime();
 
-        /* TODO: optimize not to use the flag. */
-        c->flags |= CLIENT_DELAYED_BY_PSYNC;
         blockClient(c, BLOCKED_SLAVE_BY_PSYNC);
         server.current_repl_slave = c;
 
@@ -2781,41 +2810,7 @@ int processCommand(client *c) {
         return C_ERR;
     }
 
-    if (server.jdjr_mode
-        && processCommandMaybeInSSDB(c) == C_OK) {
-        /* The client will be reseted in sendCommandToSSDB if C_FD_ERR
-           is returned in sendCommandToSSDB.
-           Otherwise, return C_ERR to avoid calling resetClient,
-           the resetClient is delayed to ssdbClientUnixHandler. */
-        serverLog(LL_DEBUG, "processing %s, fd: %d in ssdb: %s",
-                  c->cmd->name, c->fd, (char *)c->argv[1]->ptr);
-        return C_ERR;
-    }
-
-    /* Exec the command */
-    if (c->flags & CLIENT_MULTI &&
-        c->cmd->proc != execCommand && c->cmd->proc != discardCommand &&
-        c->cmd->proc != multiCommand && c->cmd->proc != watchCommand)
-    {
-        queueMultiCommand(c);
-        addReply(c,shared.queued);
-    } else {
-        call(c,CMD_CALL_FULL);
-        c->woff = server.master_repl_offset;
-        if (listLength(server.ready_keys))
-            handleClientsBlockedOnLists();
-        if (server.jdjr_mode && listLength(server.ssdb_ready_keys))
-            handleClientsBlockedOnSSDB();
-        if (server.jdjr_mode
-            && (server.is_allow_ssdb_write == ALLOW_SSDB_WRITE)
-            && listLength(server.no_writing_ssdb_blocked_clients))
-            handleClientsBlockedOnCustomizedPsync();
-    }
-
-    serverLog(LL_DEBUG, "processing %s, fd: %d in redis: %s",
-              c->cmd->name, c->fd, c->argc > 1 ? (char *)c->argv[1]->ptr : "");
-
-    return C_OK;
+    return runCommand(c);
 }
 
 /*================================== Shutdown =============================== */

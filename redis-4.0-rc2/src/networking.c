@@ -914,7 +914,6 @@ int handleResponseOfPsync(client *c, sds replyString) {
         addReplyError(c, "snapshot nok");
         /* TODO: handle the interruption of psync. */
         resetClient(c);
-        c->flags &= ~ CLIENT_DELAYED_BY_PSYNC;
         server.ssdb_status = SSDB_NONE;
         server.is_allow_ssdb_write = ALLOW_SSDB_WRITE;
         process_status = C_OK;
@@ -1683,8 +1682,7 @@ int processMultibulkBuffer(client *c) {
 void processInputBuffer(client *c) {
     server.current_client = c;
     /* Keep processing while there is something in the input buffer */
-    while(sdslen(c->querybuf) || (server.jdjr_mode &&
-            (c->flags & (CLIENT_DELAYED_BY_LOADING_SSDB_KEY | CLIENT_DELAYED_BY_PSYNC)))) {
+    while(sdslen(c->querybuf)) {
         /* Return if clients are paused. */
         if (!(c->flags & CLIENT_SLAVE) && clientsArePaused()) break;
 
@@ -1697,32 +1695,6 @@ void processInputBuffer(client *c) {
          *
          * The same applies for clients we want to terminate ASAP. */
         if (c->flags & (CLIENT_CLOSE_AFTER_REPLY|CLIENT_CLOSE_ASAP)) break;
-
-        if (server.jdjr_mode && (c->flags & CLIENT_DELAYED_BY_LOADING_SSDB_KEY)) {
-            /* Process blocked command because of ssdb loading/transferring. */
-            serverAssert(c->argc > 1);
-            serverLog(LL_DEBUG, "blocked client fd: %d, key: %s is processing.",
-                      c->fd, (char*)c->argv[1]->ptr);
-
-            if (processCommand(c) == C_OK)
-                resetClient(c);
-
-            c->flags &= ~CLIENT_DELAYED_BY_LOADING_SSDB_KEY;
-
-            serverLog(LL_DEBUG, "blocked client fd: %d, key: %s is finished.",
-                      c->fd, (char*)c->argv[1]->ptr);
-            break;
-        }
-
-        if (server.jdjr_mode && (c->flags & CLIENT_DELAYED_BY_PSYNC)) {
-            if (processCommand(c) == C_OK)
-                resetClient(c);
-
-            c->flags &= ~CLIENT_DELAYED_BY_PSYNC;
-
-            serverLog(LL_DEBUG, "Delayed psync is processed, fd: %d", c->fd);
-            break;
-        }
 
         /* Determine request type when unknown. */
         if (!c->reqtype) {
