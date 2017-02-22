@@ -299,7 +299,9 @@ void NetworkServer::serve(){
 //
 //					log_debug("job process done %s", job->dump().c_str());
 
-					delete job;
+					if (job != NULL) {
+						delete job;
+					}
 
 			}else if(fde->data.ptr == this->reader || fde->data.ptr == this->writer){
 				ProcWorkerPool *worker = (ProcWorkerPool *)fde->data.ptr;
