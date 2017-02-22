@@ -2454,7 +2454,7 @@ int checkKeysInMediateState(client* c) {
  The rest cases will be handled by processCommand. */
 int processCommandMaybeInSSDB(client *c) {
     /* Calling lookupKey to update lru or lfu counter. */
-    if (c->argc <= 1 || !lookupKey(EVICTED_DATA_DB, c->argv[1], LOOKUP_NONE))
+    if (c->argc <= 1 || !dictFind(EVICTED_DATA_DB->dict, c->argv[1]->ptr))
         return C_ERR;
 
     /* Handle the exception caused by restart redis,
