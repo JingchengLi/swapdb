@@ -18,10 +18,11 @@ set ::all_tests {
     ssdb/aofrw
     ssdb/keystatus
     ssdb/loadconfig
-    ssdb/maxpolicy
     ssdb/db
     unit/type/hash
 }
+# maxpolicy is a stress test.
+    # ssdb/maxpolicy
 
 # unit/printver
 # unit/dump
@@ -74,6 +75,7 @@ set ::next_test 0
 
 set ::host 127.0.0.1
 set ::port 21111
+set ::ssdbport 8888
 set ::traceleaks 0
 set ::valgrind 0
 set ::stack_logging 0
