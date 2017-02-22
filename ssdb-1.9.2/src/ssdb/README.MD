@@ -20,4 +20,10 @@ ret > 0 变动总数, 原则上不建议使用返回值表示
 
 #支持情况
 dbsize 不准确  
-msetnx 不支持,暂时没有需求  
+msetnx 不支持,(暂时没有需求)  
+mget 没有原子性,(暂时没有需求)  
+
+
+#TODO
+string int double 类型不统一,部分缺少转换结果检查
+MAX 值表示不统一 包括ssdb unit test中 MAX常量
