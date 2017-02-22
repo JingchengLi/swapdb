@@ -150,14 +150,13 @@ void evictionPoolAlloc(void) {
 }
 
 //todo 添加配置参数
-#define COLD_KEY_LRU_IDLE_VAL (5 * 24 * 60 * 60 * 1000)  // 5 days
 #define COLD_KEY_LFU_VAL (255-LFU_INIT_VAL+1)
 void coldKeyPopulate(int dbid, dict *sampledict, dict *keydict, struct evictionPoolEntry *pool) {
     int j, k, count;
     dictEntry *samples[server.maxmemory_samples];
 
-    /* we support cold key transfer to ssdb only if evict algorithm is LRU or LFU */
-    if (!(server.maxmemory_policy & (MAXMEMORY_FLAG_LRU|MAXMEMORY_FLAG_LFU))) {
+    /* we support cold key transfer to ssdb only if evict algorithm is LFU */
+    if (!(server.maxmemory_policy & MAXMEMORY_FLAG_LFU)) {
         return;
     }
     count = dictGetSomeKeys(sampledict,samples,server.maxmemory_samples);
@@ -179,12 +178,7 @@ void coldKeyPopulate(int dbid, dict *sampledict, dict *keydict, struct evictionP
         if (sampledict != keydict) de = dictFind(keydict, key);
         o = dictGetVal(de);
 
-        /* Calculate the idle time according to the policy. This is called
-         * idle just because the code initially handled LRU, but is in fact
-         * just a score where an higher score means better candidate. */
-        if (server.maxmemory_policy & MAXMEMORY_FLAG_LRU) {
-            idle = estimateObjectIdleTime(o);
-        } else if (server.maxmemory_policy & MAXMEMORY_FLAG_LFU) {
+        if (server.maxmemory_policy & MAXMEMORY_FLAG_LFU) {
             /* When we use an LRU policy, we sort the keys by idle time
              * so that we expire keys starting from greater idle time.
              * However when the policy is an LFU one, we have a frequency
@@ -200,10 +194,6 @@ void coldKeyPopulate(int dbid, dict *sampledict, dict *keydict, struct evictionP
         /* TODO: comment the strategy for testing. optimize the strategy later. */
         /* if ((server.maxmemory_policy & MAXMEMORY_FLAG_LFU) && */
         /*         (idle < COLD_KEY_LFU_VAL)) { */
-        /*     continue; */
-        /* } */
-        /* if ((server.maxmemory_policy & MAXMEMORY_FLAG_LFU) && */
-        /*         (idle < COLD_KEY_LRU_IDLE_VAL)) { */
         /*     continue; */
         /* } */
 

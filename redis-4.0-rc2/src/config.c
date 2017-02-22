@@ -1132,7 +1132,7 @@ void configSetCommand(client *c) {
       "maxmemory-policy",server.maxmemory_policy,maxmemory_policy_enum) {
         if (server.jdjr_mode) {
             server.maxmemory_policy |= MAXMEMORY_FLAG_LFU;
-            server.maxmemory_policy &= MAXMEMORY_FLAG_LRU;
+            server.maxmemory_policy &= ~MAXMEMORY_FLAG_LRU;
             serverLog(LL_NOTICE, "Force maxmemory-policy with MAXMEMORY_FLAG_LFU in jdjr-mode. ");
         }
     } config_set_enum_field(

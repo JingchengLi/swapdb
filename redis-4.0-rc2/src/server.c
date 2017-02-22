@@ -1209,15 +1209,13 @@ void startToEvictIfNeeded() {
     float transfer_lower_threshold;
 
     if (server.maxmemory == 0
-        || !(server.maxmemory_policy & (MAXMEMORY_FLAG_LRU|MAXMEMORY_FLAG_LFU)))
+        || !(server.maxmemory_policy & MAXMEMORY_FLAG_LFU))
         return;
 
     if (memoryReachTransferLowerLimit()) {
         return;
     }
 
-    /* TODO: make the strategy to evict keys to SSDB.
-       factors: serve.maxmemory, zmalloc_used_memory, etc.*/
     transfer_lower_threshold = 1.0 * server.ssdb_transfer_lower_limit/100;
     mem_tofree = zmalloc_used_memory() - server.maxmemory * transfer_lower_threshold;
 
