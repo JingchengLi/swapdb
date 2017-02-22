@@ -5,69 +5,69 @@ start_server {
     }
 } {
     proc create_set {key entries} {
-        r del $key
+        ssdbr del $key
         foreach entry $entries { r sadd $key $entry }
     }
 
     test {SADD, SCARD, SISMEMBER, SMEMBERS basics - regular set} {
         create_set myset {foo}
         assert_encoding hashtable myset
-        assert_equal 1 [r sadd myset bar]
-        assert_equal 0 [r sadd myset bar]
-        assert_equal 2 [r scard myset]
-        assert_equal 1 [r sismember myset foo]
-        assert_equal 1 [r sismember myset bar]
-        assert_equal 0 [r sismember myset bla]
-        assert_equal {bar foo} [lsort [r smembers myset]]
+        assert_equal 1 [ssdbr sadd myset bar]
+        assert_equal 0 [ssdbr sadd myset bar]
+        assert_equal 2 [ssdbr scard myset]
+        assert_equal 1 [ssdbr sismember myset foo]
+        assert_equal 1 [ssdbr sismember myset bar]
+        assert_equal 0 [ssdbr sismember myset bla]
+        assert_equal {bar foo} [lsort [ssdbr smembers myset]]
     }
 
     test {SADD, SCARD, SISMEMBER, SMEMBERS basics - intset} {
         create_set myset {17}
         assert_encoding intset myset
-        assert_equal 1 [r sadd myset 16]
-        assert_equal 0 [r sadd myset 16]
-        assert_equal 2 [r scard myset]
-        assert_equal 1 [r sismember myset 16]
-        assert_equal 1 [r sismember myset 17]
-        assert_equal 0 [r sismember myset 18]
-        assert_equal {16 17} [lsort [r smembers myset]]
+        assert_equal 1 [ssdbr sadd myset 16]
+        assert_equal 0 [ssdbr sadd myset 16]
+        assert_equal 2 [ssdbr scard myset]
+        assert_equal 1 [ssdbr sismember myset 16]
+        assert_equal 1 [ssdbr sismember myset 17]
+        assert_equal 0 [ssdbr sismember myset 18]
+        assert_equal {16 17} [lsort [ssdbr smembers myset]]
     }
 
     test {SADD against non set} {
-        r lpush mylist foo
+        ssdbr lpush mylist foo
         assert_error WRONGTYPE* {r sadd mylist bar}
     }
 
     test "SADD a non-integer against an intset" {
         create_set myset {1 2 3}
         assert_encoding intset myset
-        assert_equal 1 [r sadd myset a]
+        assert_equal 1 [ssdbr sadd myset a]
         assert_encoding hashtable myset
     }
 
     test "SADD an integer larger than 64 bits" {
         create_set myset {213244124402402314402033402}
         assert_encoding hashtable myset
-        assert_equal 1 [r sismember myset 213244124402402314402033402]
+        assert_equal 1 [ssdbr sismember myset 213244124402402314402033402]
     }
 
     test "SADD overflows the maximum allowed integers in an intset" {
-        r del myset
+        ssdbr del myset
         for {set i 0} {$i < 512} {incr i} { r sadd myset $i }
         assert_encoding intset myset
-        assert_equal 1 [r sadd myset 512]
+        assert_equal 1 [ssdbr sadd myset 512]
         assert_encoding hashtable myset
     }
 
     test {Variadic SADD} {
-        r del myset
-        assert_equal 3 [r sadd myset a b c]
-        assert_equal 2 [r sadd myset A a b c B]
-        assert_equal [lsort {A a b c B}] [lsort [r smembers myset]]
+        ssdbr del myset
+        assert_equal 3 [ssdbr sadd myset a b c]
+        assert_equal 2 [ssdbr sadd myset A a b c B]
+        assert_equal [lsort {A a b c B}] [lsort [ssdbr smembers myset]]
     }
 
     test "Set encoding after DEBUG RELOAD" {
-        r del myintset myhashset mylargeintset
+        ssdbr del myintset myhashset mylargeintset
         for {set i 0} {$i <  100} {incr i} { r sadd myintset $i }
         for {set i 0} {$i < 1280} {incr i} { r sadd mylargeintset $i }
         for {set i 0} {$i <  256} {incr i} { r sadd myhashset [format "i%03d" $i] }
@@ -75,7 +75,7 @@ start_server {
         assert_encoding hashtable mylargeintset
         assert_encoding hashtable myhashset
 
-        r debug reload
+        ssdbr debug reload
         assert_encoding intset myintset
         assert_encoding hashtable mylargeintset
         assert_encoding hashtable myhashset
@@ -84,48 +84,48 @@ start_server {
     test {SREM basics - regular set} {
         create_set myset {foo bar ciao}
         assert_encoding hashtable myset
-        assert_equal 0 [r srem myset qux]
-        assert_equal 1 [r srem myset foo]
-        assert_equal {bar ciao} [lsort [r smembers myset]]
+        assert_equal 0 [ssdbr srem myset qux]
+        assert_equal 1 [ssdbr srem myset foo]
+        assert_equal {bar ciao} [lsort [ssdbr smembers myset]]
     }
 
     test {SREM basics - intset} {
         create_set myset {3 4 5}
         assert_encoding intset myset
-        assert_equal 0 [r srem myset 6]
-        assert_equal 1 [r srem myset 4]
-        assert_equal {3 5} [lsort [r smembers myset]]
+        assert_equal 0 [ssdbr srem myset 6]
+        assert_equal 1 [ssdbr srem myset 4]
+        assert_equal {3 5} [lsort [ssdbr smembers myset]]
     }
 
     test {SREM with multiple arguments} {
-        r del myset
-        r sadd myset a b c d
-        assert_equal 0 [r srem myset k k k]
-        assert_equal 2 [r srem myset b d x y]
-        lsort [r smembers myset]
+        ssdbr del myset
+        ssdbr sadd myset a b c d
+        assert_equal 0 [ssdbr srem myset k k k]
+        assert_equal 2 [ssdbr srem myset b d x y]
+        lsort [ssdbr smembers myset]
     } {a c}
 
     test {SREM variadic version with more args needed to destroy the key} {
-        r del myset
-        r sadd myset 1 2 3
-        r srem myset 1 2 3 4 5 6 7 8
+        ssdbr del myset
+        ssdbr sadd myset 1 2 3
+        ssdbr srem myset 1 2 3 4 5 6 7 8
     } {3}
 
     foreach {type} {hashtable intset} {
         for {set i 1} {$i <= 5} {incr i} {
-            r del [format "set%d" $i]
+            ssdbr del [format "set%d" $i]
         }
         for {set i 0} {$i < 200} {incr i} {
-            r sadd set1 $i
-            r sadd set2 [expr $i+195]
+            ssdbr sadd set1 $i
+            ssdbr sadd set2 [expr $i+195]
         }
         foreach i {199 195 1000 2000} {
-            r sadd set3 $i
+            ssdbr sadd set3 $i
         }
         for {set i 5} {$i < 200} {incr i} {
-            r sadd set4 $i
+            ssdbr sadd set4 $i
         }
-        r sadd set5 0
+        ssdbr sadd set5 0
 
         # To make sure the sets are encoded as the type we are testing -- also
         # when the VM is enabled and the values may be swapped in and out
@@ -137,7 +137,7 @@ start_server {
         }
 
         for {set i 1} {$i <= 5} {incr i} {
-            r sadd [format "set%d" $i] $large
+            ssdbr sadd [format "set%d" $i] $large
         }
 
         test "Generated sets must be encoded as $type" {
@@ -147,77 +147,77 @@ start_server {
         }
 
         test "SINTER with two sets - $type" {
-            assert_equal [list 195 196 197 198 199 $large] [lsort [r sinter set1 set2]]
+            assert_equal [list 195 196 197 198 199 $large] [lsort [ssdbr sinter set1 set2]]
         }
 
         test "SINTERSTORE with two sets - $type" {
-            r sinterstore setres set1 set2
+            ssdbr sinterstore setres set1 set2
             assert_encoding $type setres
-            assert_equal [list 195 196 197 198 199 $large] [lsort [r smembers setres]]
+            assert_equal [list 195 196 197 198 199 $large] [lsort [ssdbr smembers setres]]
         }
 
         test "SINTERSTORE with two sets, after a DEBUG RELOAD - $type" {
-            r debug reload
-            r sinterstore setres set1 set2
+            ssdbr debug reload
+            ssdbr sinterstore setres set1 set2
             assert_encoding $type setres
-            assert_equal [list 195 196 197 198 199 $large] [lsort [r smembers setres]]
+            assert_equal [list 195 196 197 198 199 $large] [lsort [ssdbr smembers setres]]
         }
 
         test "SUNION with two sets - $type" {
-            set expected [lsort -uniq "[r smembers set1] [r smembers set2]"]
-            assert_equal $expected [lsort [r sunion set1 set2]]
+            set expected [lsort -uniq "[ssdbr smembers set1] [ssdbr smembers set2]"]
+            assert_equal $expected [lsort [ssdbr sunion set1 set2]]
         }
 
         test "SUNIONSTORE with two sets - $type" {
-            r sunionstore setres set1 set2
+            ssdbr sunionstore setres set1 set2
             assert_encoding $type setres
-            set expected [lsort -uniq "[r smembers set1] [r smembers set2]"]
-            assert_equal $expected [lsort [r smembers setres]]
+            set expected [lsort -uniq "[ssdbr smembers set1] [ssdbr smembers set2]"]
+            assert_equal $expected [lsort [ssdbr smembers setres]]
         }
 
         test "SINTER against three sets - $type" {
-            assert_equal [list 195 199 $large] [lsort [r sinter set1 set2 set3]]
+            assert_equal [list 195 199 $large] [lsort [ssdbr sinter set1 set2 set3]]
         }
 
         test "SINTERSTORE with three sets - $type" {
-            r sinterstore setres set1 set2 set3
-            assert_equal [list 195 199 $large] [lsort [r smembers setres]]
+            ssdbr sinterstore setres set1 set2 set3
+            assert_equal [list 195 199 $large] [lsort [ssdbr smembers setres]]
         }
 
         test "SUNION with non existing keys - $type" {
-            set expected [lsort -uniq "[r smembers set1] [r smembers set2]"]
-            assert_equal $expected [lsort [r sunion nokey1 set1 set2 nokey2]]
+            set expected [lsort -uniq "[ssdbr smembers set1] [ssdbr smembers set2]"]
+            assert_equal $expected [lsort [ssdbr sunion nokey1 set1 set2 nokey2]]
         }
 
         test "SDIFF with two sets - $type" {
-            assert_equal {0 1 2 3 4} [lsort [r sdiff set1 set4]]
+            assert_equal {0 1 2 3 4} [lsort [ssdbr sdiff set1 set4]]
         }
 
         test "SDIFF with three sets - $type" {
-            assert_equal {1 2 3 4} [lsort [r sdiff set1 set4 set5]]
+            assert_equal {1 2 3 4} [lsort [ssdbr sdiff set1 set4 set5]]
         }
 
         test "SDIFFSTORE with three sets - $type" {
-            r sdiffstore setres set1 set4 set5
+            ssdbr sdiffstore setres set1 set4 set5
             # When we start with intsets, we should always end with intsets.
             if {$type eq {intset}} {
                 assert_encoding intset setres
             }
-            assert_equal {1 2 3 4} [lsort [r smembers setres]]
+            assert_equal {1 2 3 4} [lsort [ssdbr smembers setres]]
         }
     }
 
     test "SDIFF with first set empty" {
-        r del set1 set2 set3
-        r sadd set2 1 2 3 4
-        r sadd set3 a b c d
-        r sdiff set1 set2 set3
+        ssdbr del set1 set2 set3
+        ssdbr sadd set2 1 2 3 4
+        ssdbr sadd set3 a b c d
+        ssdbr sdiff set1 set2 set3
     } {}
 
     test "SDIFF with same set two times" {
-        r del set1
-        r sadd set1 a b c 1 2 3 4 5 6
-        r sdiff set1 set1
+        ssdbr del set1
+        ssdbr sadd set1 a b c 1 2 3 4 5 6
+        ssdbr sdiff set1 set1
     } {}
 
     test "SDIFF fuzzing" {
@@ -228,11 +228,11 @@ start_server {
             set num_sets [expr {[randomInt 10]+1}]
             for {set i 0} {$i < $num_sets} {incr i} {
                 set num_elements [randomInt 100]
-                r del set_$i
+                ssdbr del set_$i
                 lappend args set_$i
                 while {$num_elements} {
                     set ele [randomValue]
-                    r sadd set_$i $ele
+                    ssdbr sadd set_$i $ele
                     if {$i == 0} {
                         set s($ele) x
                     } else {
@@ -241,63 +241,63 @@ start_server {
                     incr num_elements -1
                 }
             }
-            set result [lsort [r sdiff {*}$args]]
+            set result [lsort [ssdbr sdiff {*}$args]]
             assert_equal $result [lsort [array names s]]
         }
     }
 
     test "SINTER against non-set should throw error" {
-        r set key1 x
+        ssdbr set key1 x
         assert_error "WRONGTYPE*" {r sinter key1 noset}
     }
 
     test "SUNION against non-set should throw error" {
-        r set key1 x
+        ssdbr set key1 x
         assert_error "WRONGTYPE*" {r sunion key1 noset}
     }
 
     test "SINTER should handle non existing key as empty" {
-        r del set1 set2 set3
-        r sadd set1 a b c
-        r sadd set2 b c d
-        r sinter set1 set2 set3
+        ssdbr del set1 set2 set3
+        ssdbr sadd set1 a b c
+        ssdbr sadd set2 b c d
+        ssdbr sinter set1 set2 set3
     } {}
 
     test "SINTER with same integer elements but different encoding" {
-        r del set1 set2
-        r sadd set1 1 2 3
-        r sadd set2 1 2 3 a
-        r srem set2 a
+        ssdbr del set1 set2
+        ssdbr sadd set1 1 2 3
+        ssdbr sadd set2 1 2 3 a
+        ssdbr srem set2 a
         assert_encoding intset set1
         assert_encoding hashtable set2
-        lsort [r sinter set1 set2]
+        lsort [ssdbr sinter set1 set2]
     } {1 2 3}
 
     test "SINTERSTORE against non existing keys should delete dstkey" {
-        r set setres xxx
-        assert_equal 0 [r sinterstore setres foo111 bar222]
-        assert_equal 0 [r exists setres]
+        ssdbr set setres xxx
+        assert_equal 0 [ssdbr sinterstore setres foo111 bar222]
+        assert_equal 0 [ssdbr exists setres]
     }
 
     test "SUNIONSTORE against non existing keys should delete dstkey" {
-        r set setres xxx
-        assert_equal 0 [r sunionstore setres foo111 bar222]
-        assert_equal 0 [r exists setres]
+        ssdbr set setres xxx
+        assert_equal 0 [ssdbr sunionstore setres foo111 bar222]
+        assert_equal 0 [ssdbr exists setres]
     }
 
     foreach {type contents} {hashtable {a b c} intset {1 2 3}} {
         test "SPOP basics - $type" {
             create_set myset $contents
             assert_encoding $type myset
-            assert_equal $contents [lsort [list [r spop myset] [r spop myset] [r spop myset]]]
-            assert_equal 0 [r scard myset]
+            assert_equal $contents [lsort [list [ssdbr spop myset] [ssdbr spop myset] [ssdbr spop myset]]]
+            assert_equal 0 [ssdbr scard myset]
         }
 
         test "SPOP with <count>=1 - $type" {
             create_set myset $contents
             assert_encoding $type myset
-            assert_equal $contents [lsort [list [r spop myset 1] [r spop myset 1] [r spop myset 1]]]
-            assert_equal 0 [r scard myset]
+            assert_equal $contents [lsort [list [ssdbr spop myset 1] [ssdbr spop myset 1] [ssdbr spop myset 1]]]
+            assert_equal 0 [ssdbr scard myset]
         }
 
         test "SRANDMEMBER - $type" {
@@ -305,7 +305,7 @@ start_server {
             unset -nocomplain myset
             array set myset {}
             for {set i 0} {$i < 100} {incr i} {
-                set myset([r srandmember myset]) 1
+                set myset([ssdbr srandmember myset]) 1
             }
             assert_equal $contents [lsort [array names myset]]
         }
@@ -318,8 +318,8 @@ start_server {
         test "SPOP with <count>" {
             create_set myset $contents
             assert_encoding $type myset
-            assert_equal $contents [lsort [concat [r spop myset 11] [r spop myset 9] [r spop myset 0] [r spop myset 4] [r spop myset 1] [r spop myset 0] [r spop myset 1] [r spop myset 0]]]
-            assert_equal 0 [r scard myset]
+            assert_equal $contents [lsort [concat [ssdbr spop myset 11] [ssdbr spop myset 9] [ssdbr spop myset 0] [ssdbr spop myset 4] [ssdbr spop myset 1] [ssdbr spop myset 0] [ssdbr spop myset 1] [ssdbr spop myset 0]]]
+            assert_equal 0 [ssdbr scard myset]
         }
     }
 
@@ -327,54 +327,54 @@ start_server {
     test "SPOP using integers, testing Knuth's and Floyd's algorithm" {
         create_set myset {1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20}
         assert_encoding intset myset
-        assert_equal 20 [r scard myset]
-        r spop myset 1
-        assert_equal 19 [r scard myset]
-        r spop myset 2
-        assert_equal 17 [r scard myset]
-        r spop myset 3
-        assert_equal 14 [r scard myset]
-        r spop myset 10
-        assert_equal 4 [r scard myset]
-        r spop myset 10
-        assert_equal 0 [r scard myset]
-        r spop myset 1
-        assert_equal 0 [r scard myset]
+        assert_equal 20 [ssdbr scard myset]
+        ssdbr spop myset 1
+        assert_equal 19 [ssdbr scard myset]
+        ssdbr spop myset 2
+        assert_equal 17 [ssdbr scard myset]
+        ssdbr spop myset 3
+        assert_equal 14 [ssdbr scard myset]
+        ssdbr spop myset 10
+        assert_equal 4 [ssdbr scard myset]
+        ssdbr spop myset 10
+        assert_equal 0 [ssdbr scard myset]
+        ssdbr spop myset 1
+        assert_equal 0 [ssdbr scard myset]
     } {}
 
     test "SPOP using integers with Knuth's algorithm" {
-        r spop nonexisting_key 100
+        ssdbr spop nonexisting_key 100
     } {}
 
     test "SPOP new implementation: code path #1" {
         set content {1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20}
         create_set myset $content
-        set res [r spop myset 30]
+        set res [ssdbr spop myset 30]
         assert {[lsort $content] eq [lsort $res]}
     }
 
     test "SPOP new implementation: code path #2" {
         set content {1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20}
         create_set myset $content
-        set res [r spop myset 2]
+        set res [ssdbr spop myset 2]
         assert {[llength $res] == 2}
-        assert {[r scard myset] == 18}
-        set union [concat [r smembers myset] $res]
+        assert {[ssdbr scard myset] == 18}
+        set union [concat [ssdbr smembers myset] $res]
         assert {[lsort $union] eq [lsort $content]}
     }
 
     test "SPOP new implementation: code path #3" {
         set content {1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20}
         create_set myset $content
-        set res [r spop myset 18]
+        set res [ssdbr spop myset 18]
         assert {[llength $res] == 18}
-        assert {[r scard myset] == 2}
-        set union [concat [r smembers myset] $res]
+        assert {[ssdbr scard myset] == 2}
+        set union [concat [ssdbr smembers myset] $res]
         assert {[lsort $union] eq [lsort $content]}
     }
 
     test "SRANDMEMBER with <count> against non existing key" {
-        r srandmember nonexisting_key 100
+        ssdbr srandmember nonexisting_key 100
     } {}
 
     foreach {type contents} {
@@ -398,13 +398,13 @@ start_server {
             create_set myset $contents
             unset -nocomplain myset
             array set myset {}
-            foreach ele [r smembers myset] {
+            foreach ele [ssdbr smembers myset] {
                 set myset($ele) 1
             }
             assert_equal [lsort $contents] [lsort [array names myset]]
 
             # Make sure that a count of 0 is handled correctly.
-            assert_equal [r srandmember myset 0] {}
+            assert_equal [ssdbr srandmember myset 0] {}
 
             # We'll stress different parts of the code, see the implementation
             # of SRANDMEMBER for more information, but basically there are
@@ -413,7 +413,7 @@ start_server {
             # PATH 1: Use negative count.
             #
             # 1) Check that it returns repeated elements.
-            set res [r srandmember myset -100]
+            set res [ssdbr srandmember myset -100]
             assert_equal [llength $res] 100
 
             # 2) Check that all the elements actually belong to the
@@ -427,7 +427,7 @@ start_server {
             set iterations 1000
             while {$iterations != 0} {
                 incr iterations -1
-                set res [r srandmember myset -10]
+                set res [ssdbr srandmember myset -10]
                 foreach ele $res {
                     set auxset($ele) 1
                 }
@@ -441,7 +441,7 @@ start_server {
             # PATH 2: positive count (unique behavior) with requested size
             # equal or greater than set size.
             foreach size {50 100} {
-                set res [r srandmember myset $size]
+                set res [ssdbr srandmember myset $size]
                 assert_equal [llength $res] 50
                 assert_equal [lsort $res] [lsort [array names myset]]
             }
@@ -457,7 +457,7 @@ start_server {
             # using the same code.
 
             foreach size {45 5} {
-                set res [r srandmember myset $size]
+                set res [ssdbr srandmember myset $size]
                 assert_equal [llength $res] $size
 
                 # 1) Check that all the elements actually belong to the
@@ -471,7 +471,7 @@ start_server {
                 set iterations 1000
                 while {$iterations != 0} {
                     incr iterations -1
-                    set res [r srandmember myset -10]
+                    set res [ssdbr srandmember myset -10]
                     foreach ele $res {
                         set auxset($ele) 1
                     }
@@ -486,7 +486,7 @@ start_server {
     }
 
     proc setup_move {} {
-        r del myset3 myset4
+        ssdbr del myset3 myset4
         create_set myset1 {1 a b}
         create_set myset2 {2 3 4}
         assert_encoding hashtable myset1
@@ -496,71 +496,71 @@ start_server {
     test "SMOVE basics - from regular set to intset" {
         # move a non-integer element to an intset should convert encoding
         setup_move
-        assert_equal 1 [r smove myset1 myset2 a]
-        assert_equal {1 b} [lsort [r smembers myset1]]
-        assert_equal {2 3 4 a} [lsort [r smembers myset2]]
+        assert_equal 1 [ssdbr smove myset1 myset2 a]
+        assert_equal {1 b} [lsort [ssdbr smembers myset1]]
+        assert_equal {2 3 4 a} [lsort [ssdbr smembers myset2]]
         assert_encoding hashtable myset2
 
         # move an integer element should not convert the encoding
         setup_move
-        assert_equal 1 [r smove myset1 myset2 1]
-        assert_equal {a b} [lsort [r smembers myset1]]
-        assert_equal {1 2 3 4} [lsort [r smembers myset2]]
+        assert_equal 1 [ssdbr smove myset1 myset2 1]
+        assert_equal {a b} [lsort [ssdbr smembers myset1]]
+        assert_equal {1 2 3 4} [lsort [ssdbr smembers myset2]]
         assert_encoding intset myset2
     }
 
     test "SMOVE basics - from intset to regular set" {
         setup_move
-        assert_equal 1 [r smove myset2 myset1 2]
-        assert_equal {1 2 a b} [lsort [r smembers myset1]]
-        assert_equal {3 4} [lsort [r smembers myset2]]
+        assert_equal 1 [ssdbr smove myset2 myset1 2]
+        assert_equal {1 2 a b} [lsort [ssdbr smembers myset1]]
+        assert_equal {3 4} [lsort [ssdbr smembers myset2]]
     }
 
     test "SMOVE non existing key" {
         setup_move
-        assert_equal 0 [r smove myset1 myset2 foo]
-        assert_equal 0 [r smove myset1 myset1 foo]
-        assert_equal {1 a b} [lsort [r smembers myset1]]
-        assert_equal {2 3 4} [lsort [r smembers myset2]]
+        assert_equal 0 [ssdbr smove myset1 myset2 foo]
+        assert_equal 0 [ssdbr smove myset1 myset1 foo]
+        assert_equal {1 a b} [lsort [ssdbr smembers myset1]]
+        assert_equal {2 3 4} [lsort [ssdbr smembers myset2]]
     }
 
     test "SMOVE non existing src set" {
         setup_move
-        assert_equal 0 [r smove noset myset2 foo]
-        assert_equal {2 3 4} [lsort [r smembers myset2]]
+        assert_equal 0 [ssdbr smove noset myset2 foo]
+        assert_equal {2 3 4} [lsort [ssdbr smembers myset2]]
     }
 
     test "SMOVE from regular set to non existing destination set" {
         setup_move
-        assert_equal 1 [r smove myset1 myset3 a]
-        assert_equal {1 b} [lsort [r smembers myset1]]
-        assert_equal {a} [lsort [r smembers myset3]]
+        assert_equal 1 [ssdbr smove myset1 myset3 a]
+        assert_equal {1 b} [lsort [ssdbr smembers myset1]]
+        assert_equal {a} [lsort [ssdbr smembers myset3]]
         assert_encoding hashtable myset3
     }
 
     test "SMOVE from intset to non existing destination set" {
         setup_move
-        assert_equal 1 [r smove myset2 myset3 2]
-        assert_equal {3 4} [lsort [r smembers myset2]]
-        assert_equal {2} [lsort [r smembers myset3]]
+        assert_equal 1 [ssdbr smove myset2 myset3 2]
+        assert_equal {3 4} [lsort [ssdbr smembers myset2]]
+        assert_equal {2} [lsort [ssdbr smembers myset3]]
         assert_encoding intset myset3
     }
 
     test "SMOVE wrong src key type" {
-        r set x 10
+        ssdbr set x 10
         assert_error "WRONGTYPE*" {r smove x myset2 foo}
     }
 
     test "SMOVE wrong dst key type" {
-        r set x 10
+        ssdbr set x 10
         assert_error "WRONGTYPE*" {r smove myset2 x foo}
     }
 
     test "SMOVE with identical source and destination" {
-        r del set
-        r sadd set a b c
-        r smove set set b
-        lsort [r smembers set]
+        ssdbr del set
+        ssdbr sadd set a b c
+        ssdbr smove set set b
+        lsort [ssdbr smembers set]
     } {a b c}
 
     tags {slow} {
@@ -568,7 +568,7 @@ start_server {
             for {set j 0} {$j < 20} {incr j} {
                 unset -nocomplain s
                 array set s {}
-                r del s
+                ssdbr del s
                 set len [randomInt 1024]
                 for {set i 0} {$i < $len} {incr i} {
                     randpath {
@@ -579,21 +579,21 @@ start_server {
                         set data [randomInt 18446744073709551616]
                     }
                     set s($data) {}
-                    r sadd s $data
+                    ssdbr sadd s $data
                 }
-                assert_equal [lsort [r smembers s]] [lsort [array names s]]
+                assert_equal [lsort [ssdbr smembers s]] [lsort [array names s]]
                 set len [array size s]
                 for {set i 0} {$i < $len} {incr i} {
-                    set e [r spop s]
+                    set e [ssdbr spop s]
                     if {![info exists s($e)]} {
                         puts "Can't find '$e' on local array"
-                        puts "Local array: [lsort [r smembers s]]"
+                        puts "Local array: [lsort [ssdbr smembers s]]"
                         puts "Remote array: [lsort [array names s]]"
                         error "exception"
                     }
                     array unset s $e
                 }
-                assert_equal [r scard s] 0
+                assert_equal [ssdbr scard s] 0
                 assert_equal [array size s] 0
             }
         }

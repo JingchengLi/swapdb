@@ -88,35 +88,34 @@ start_server {tags {"hash"}} {
         set _ $rv
     } {0 newval1 1 0 newval2 1 1 1}
 
-#TODO comment HSETNX for not support currently
-#    test {HSETNX target key missing - small hash} {
-#        r hsetnx smallhash __123123123__ foo
-#        r hget smallhash __123123123__
-#    } {foo}
-#
-#    test {HSETNX target key exists - small hash} {
-#        r hsetnx smallhash __123123123__ bar
-#        set result [ssdbr hget smallhash __123123123__]
-#        r hdel smallhash __123123123__
-#        set _ $result
-#    } {foo}
-#
-#    test {HSETNX target key missing - big hash} {
-#        r hsetnx bighash __123123123__ foo
-#        r hget bighash __123123123__
-#    } {foo}
-#
-#    test {HSETNX target key exists - big hash} {
-#        r hsetnx bighash __123123123__ bar
-#        set result [ssdbr hget bighash __123123123__]
-#        r hdel bighash __123123123__
-#        set _ $result
-#    } {foo}
+    test {HSETNX target key missing - small hash} {
+        ssdbr hsetnx smallhash __123123123__ foo
+        ssdbr hget smallhash __123123123__
+    } {foo}
+
+    test {HSETNX target key exists - small hash} {
+        ssdbr hsetnx smallhash __123123123__ bar
+        set result [ssdbr hget smallhash __123123123__]
+        ssdbr hdel smallhash __123123123__
+        set _ $result
+    } {foo}
+
+    test {HSETNX target key missing - big hash} {
+        ssdbr hsetnx bighash __123123123__ foo
+        ssdbr hget bighash __123123123__
+    } {foo}
+
+    test {HSETNX target key exists - big hash} {
+        ssdbr hsetnx bighash __123123123__ bar
+        set result [ssdbr hget bighash __123123123__]
+        ssdbr hdel bighash __123123123__
+        set _ $result
+    } {foo}
 
     test {HMSET wrong number of args} {
         catch {r hmset smallhash key1 val1 key2} err
         format $err
-    } {*ERR*}
+    } {*wrong number*}
 
     test {HMSET - small hash} {
         set args {}
@@ -241,13 +240,12 @@ start_server {tags {"hash"}} {
         ssdbr hgetall myhash
     } {b 2}
 
-    #    TODO avoid timeout exit
-#    test {HDEL - hash becomes empty before deleting all specified fields} {
-#        ssdbr del myhash
-#        ssdbr hmset myhash a 1 b 2 c 3
-#        assert_equal 3 [ssdbr hdel myhash a b c d e]
-#        assert_equal 0 [ssdbr exists myhash]
-#    }
+    test {HDEL - hash becomes empty before deleting all specified fields} {
+        ssdbr del myhash
+        ssdbr hmset myhash a 1 b 2 c 3
+        assert_equal 3 [ssdbr hdel myhash a b c d e]
+        assert_equal 0 [ssdbr exists myhash]
+    }
 
     test {HEXISTS} {
         set rv {}
@@ -397,12 +395,12 @@ start_server {tags {"hash"}} {
         lappend rv [string match "ERR*not*float*" $bigerr]
     } {1 1}
 
-   #    TODO not support HSTRLEN
-    test {HSTRLEN against the small hash} {
-        set err {}
-        foreach k [array names smallhash *] {
-            if {[string length $smallhash($k)] ne [ssdbr hstrlen smallhash $k]} {
-                set err "[string length $smallhash($k)] != [ssdbr hstrlen smallhash $k]"
+   #    not support HSTRLEN
+#    test {HSTRLEN against the small hash} {
+#        set err {}
+#        foreach k [array names smallhash *] {
+#            if {[string length $smallhash($k)] ne [ssdbr hstrlen smallhash $k]} {
+#                set err "[string length $smallhash($k)] != [ssdbr hstrlen smallhash $k]"
                 break
             }
         }
@@ -533,8 +531,6 @@ start_server {tags {"hash"}} {
     # 1.23 cannot be represented correctly with 64 bit doubles, so we skip
     # the test, since we are only testing pretty printing here and is not
     # a bug if the program outputs things like 1.299999...
-
-    #TODO support hincrbyfloat
     if {!$::valgrind || ![string match *x86_64* [exec uname -a]]} {
         test {Test HINCRBYFLOAT for correct float representation (issue #2846)} {
             ssdbr del myhash
