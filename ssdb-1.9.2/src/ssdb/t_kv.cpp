@@ -54,7 +54,7 @@ int SSDBImpl::GetKvMetaVal(const std::string &meta_key, KvMetaVal &kv) {
 
 int SSDBImpl::SetGeneric(leveldb::WriteBatch &batch, const Bytes &key, const Bytes &val, int flags, const int64_t expire){
 	if (expire < 0){
-		return -1;
+		return INVALID_EX_TIME; //NOT USED
 	}
 
     std::string meta_key = encode_meta_key(key);
@@ -100,14 +100,14 @@ int SSDBImpl::multi_set(const std::vector<Bytes> &kvs, int offset){
         }
 		int ret = SetGeneric(batch, key, val, OBJ_SET_NO_FLAGS, 0);
 		if (ret < 0){
-			rval = -1;
+			rval = ret;
 			goto return_err;
 		}
 	}
 	s = ldb->Write(leveldb::WriteOptions(), &(batch));
 	if(!s.ok()){
 		log_error("multi_set error: %s", s.ToString().c_str());
-		rval = -1;
+		rval = STORAGE_ERR;
 		goto return_err;
 	}
 
@@ -169,7 +169,7 @@ int SSDBImpl::multi_del(const std::vector<Bytes> &keys, int offset){ //注：red
 		leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
 		if(!s.ok()){
 			log_error("multi_del error: %s", s.ToString().c_str());
-			num = -1;
+			num = STORAGE_ERR;
 		}
 	}
 
@@ -193,7 +193,7 @@ int SSDBImpl::setNoLock(const Bytes &key, const Bytes &val, int flags) {
     }
     leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
     if (!s.ok()){
-        return -1;
+        return STORAGE_ERR;
     }
 
     return 1;
@@ -240,12 +240,12 @@ int SSDBImpl::del_key_internal(leveldb::WriteBatch &batch, const Bytes &key) {
     if (s.IsNotFound()) {
         return 0;
     } else if (!s.ok()) {
-        return -1;
+        return STORAGE_ERR;
     } else {
         if (meta_val.size() >= 4) {
             return this->mark_key_deleted(batch, key, meta_key, meta_val);
         } else {
-            return -1;
+            return MKEY_DECODEC_ERR;
         }
     }
 }
@@ -265,7 +265,7 @@ int SSDBImpl::mark_key_deleted(leveldb::WriteBatch &batch, const Bytes &key, con
     } else if (meta_val[POS_DEL] == KEY_DELETE_MASK){
         return 0;
     } else {
-        return -1;
+        return MKEY_DECODEC_ERR;
     }
 }
 
@@ -282,7 +282,7 @@ int SSDBImpl::del(const Bytes &key){
 	leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
     if(!s.ok()){
         log_error("[del] update error: %s", s.ToString().c_str());
-        return -1;
+        return STORAGE_ERR;
     }
 
     return 1;

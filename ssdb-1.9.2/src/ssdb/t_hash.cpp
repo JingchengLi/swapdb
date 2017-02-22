@@ -6,7 +6,6 @@ found in the LICENSE file.
 #include <cfloat>
 #include <util/error.h>
 #include "ssdb_impl.h"
-#include "../../tests/qa/integration/include/ssdb_test.h"
 
 static int hset_one(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const HashMetaVal &hv, bool check_exists,const Bytes &name, const Bytes &key, const Bytes &val);
 static int incr_hsize(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const std::string &size_key, HashMetaVal &hv, const Bytes &name, int64_t incr);
@@ -266,8 +265,8 @@ int SSDBImpl::hincr(const Bytes &name, const Bytes &key, int64_t by, int64_t *ne
         if (string2ll(old.c_str(), old.size(), &oldvalue) == 0) {
             return INVALID_INT;
         }
-        if ((by < 0 && oldvalue < 0 && by < (MIN_INT64-oldvalue)) ||
-            (by > 0 && oldvalue > 0 && by > (MAX_INT64-oldvalue))) {
+        if ((by < 0 && oldvalue < 0 && by < (LLONG_MIN-oldvalue)) ||
+            (by > 0 && oldvalue > 0 && by > (LLONG_MAX-oldvalue))) {
             return INT_OVERFLOW;
         }
         *new_val = oldvalue + by;
