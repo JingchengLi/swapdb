@@ -2759,6 +2759,7 @@ int processCommand(client *c) {
         return C_ERR;
     }
 
+    // TODO: move these to syncCommand
     if (server.jdjr_mode
         && server.use_customized_replication
         && (c->cmd->proc == syncCommand)
@@ -2769,6 +2770,7 @@ int processCommand(client *c) {
     /* TODO: handle the case that
        server.current_repl_slave is not null. */
 
+    // TODO: move these to syncCommand
     if (server.jdjr_mode
         && server.use_customized_replication
         && (c->cmd->proc == syncCommand)
