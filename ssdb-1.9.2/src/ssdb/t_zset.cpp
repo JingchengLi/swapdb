@@ -8,53 +8,20 @@ found in the LICENSE file.
 #include "ssdb_impl.h"
 
 
-static int zset_one(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &name, const Bytes &key, double score);
+static int zset_one(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &name, const Bytes &key, double score, uint16_t version);
 
-static int zdel_one(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &name, const Bytes &key);
+static int zdel_one(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &name, const Bytes &key, uint16_t version);
 
-static int incr_zsize(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &name, int64_t incr);
-
-void zset_internal(const SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &name, const Bytes &key, double new_score,
-                   uint16_t cur_version);
+static int incr_zsize(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const ZSetMetaVal &zv, const Bytes &name, int64_t incr);
 
 /**
  * @return -1: error, 0: item updated, 1: new item inserted
  */
-int SSDBImpl::zset(const Bytes &name, const Bytes &key, const Bytes &score) {
-    RecordLock l(&mutex_record_, name.String());
-    leveldb::WriteBatch batch;
-
-    double new_score = score.Double();
-
-    if (new_score > ZSET_SCORE_MAX || new_score < ZSET_SCORE_MIN) {
-        return -1;
-    }
-
-    int ret = zset_one(this, batch, name, key, new_score);
-    if (ret >= 0) {
-        if (ret > 0) {
-            if (incr_zsize(this, batch, name, ret) == -1) {
-                log_error("incr_zsize error");
-
-                return -1;
-            }
-        }
-        leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
-        if (!s.ok()) {
-            log_error("zset error: %s", s.ToString().c_str());
-            return -1;
-        }
-    }
-    return ret;
-}
-
 
 int SSDBImpl::multi_zset(const Bytes &name, const std::map<Bytes ,Bytes> &sortedSet, int flags) {
     RecordLock l(&mutex_record_, name.String());
     return zsetNoLock(name, sortedSet, flags);
 }
-
-
 
 int zsetAdd(SSDBImpl *ssdb, leveldb::WriteBatch &batch, bool needCheck,
              const Bytes &name, const Bytes &key, double score, uint16_t cur_version,
@@ -68,21 +35,22 @@ int zsetAdd(SSDBImpl *ssdb, leveldb::WriteBatch &batch, bool needCheck,
     /* NaN as input is an error regardless of all the other parameters. */
     if (std::isnan(score)) {
         *flags = ZADD_NAN;
-        return -1;
+        return SYNTAX_ERR;
     }
 
     if (needCheck) {
         double old_score = 0;
 
-        int found = ssdb->zget(name, key, &old_score);
-        if (found == -1) {
-            return -1;
+        std::string dbkey = encode_zset_key(name, key, cur_version);
+        int found = ssdb->GetZSetItemVal(dbkey, &old_score);
+        if (found < 0) {
+            return found;
         }
 
         if (found == 0) {
             if (!xx) {
                 if (newscore) *newscore = score;
-                zset_internal(ssdb, batch, name, key, score, cur_version);
+                zset_one(ssdb, batch, name, key, score, cur_version);
                 *flags |= ZADD_ADDED;
             } else {
                 *flags |= ZADD_NOP;
@@ -100,7 +68,7 @@ int zsetAdd(SSDBImpl *ssdb, leveldb::WriteBatch &batch, bool needCheck,
                 score += old_score;
                 if (std::isnan(score)) {
                     *flags |= ZADD_NAN;
-                    return -1;
+                    return INT_OVERFLOW;
                 }
                 if (newscore) *newscore = score;
             }
@@ -112,7 +80,7 @@ int zsetAdd(SSDBImpl *ssdb, leveldb::WriteBatch &batch, bool needCheck,
 
                 string old_score_key = encode_zscore_key(name, key, old_score, cur_version);
                 batch.Delete(old_score_key);
-                zset_internal(ssdb, batch, name, key, score, cur_version);
+                zset_one(ssdb, batch, name, key, score, cur_version);
                 *flags |= ZADD_UPDATED;
             }
             return 1;
@@ -124,7 +92,7 @@ int zsetAdd(SSDBImpl *ssdb, leveldb::WriteBatch &batch, bool needCheck,
 
         if (!xx) {
             if (newscore) *newscore = score;
-            zset_internal(ssdb, batch, name, key, score, cur_version);
+            zset_one(ssdb, batch, name, key, score, cur_version);
             *flags |= ZADD_ADDED;
         } else {
             *flags |= ZADD_NOP;
@@ -134,7 +102,6 @@ int zsetAdd(SSDBImpl *ssdb, leveldb::WriteBatch &batch, bool needCheck,
     }
 }
 
-
 int SSDBImpl::zsetNoLock(const Bytes &name, const std::map<Bytes ,Bytes> &sortedSet, int flags) {
     int incr = (flags & ZADD_INCR) != 0;
     int nx = (flags & ZADD_NX) != 0;
@@ -143,12 +110,12 @@ int SSDBImpl::zsetNoLock(const Bytes &name, const std::map<Bytes ,Bytes> &sorted
 
     /* XX and NX options at the same time are not compatible. */
     if (nx && xx) {
-        return -1;
+        return SYNTAX_ERR;
     }
 
     //INCR option supports a single increment-element pair
     if (incr && sortedSet.size() > 1) {
-        return -1;
+        return SYNTAX_ERR;
     }
 
     /* The following vars are used in order to track what the command actually
@@ -168,8 +135,8 @@ int SSDBImpl::zsetNoLock(const Bytes &name, const std::map<Bytes ,Bytes> &sorted
     uint16_t cur_version = 0;
     bool needCheck = false;
 
-    if (ret == -1) {
-        return -1;
+    if (ret < 0) {
+        return ret;
     } else if (ret == 0) {
         needCheck = false;
         if (zv.del == KEY_DELETE_MASK) {
@@ -180,7 +147,6 @@ int SSDBImpl::zsetNoLock(const Bytes &name, const std::map<Bytes ,Bytes> &sorted
             }
         } else {
             cur_version = 0;
-
         }
     } else {
         needCheck = true;
@@ -204,28 +170,26 @@ int SSDBImpl::zsetNoLock(const Bytes &name, const std::map<Bytes ,Bytes> &sorted
         int retflags = flags;
 
         int retval = zsetAdd(this, batch ,needCheck, name, key, score, cur_version, &retflags, &newscore);
-        if (retval == -1) {
-            return -1;
+        if (retval < 0) {
+            return retval;
         }
 
         if (retflags & ZADD_ADDED) added++;
         if (retflags & ZADD_UPDATED) updated++;
         if (!(retflags & ZADD_NOP)) processed++;
-
     }
 
-
     if (added > 0) {
-        if (incr_zsize(this, batch, name, added) == -1) {
+        if (int rett = incr_zsize(this, batch, zv, name, added) < 0) {
             log_error("incr_zsize error");
-            return -1;
+            return rett;
         }
     }
 
     leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
     if (!s.ok()) {
         log_error("zset error: %s", s.ToString().c_str());
-        return -1;
+        return STORAGE_ERR;
     }
 
     if (ch) {
@@ -234,7 +198,6 @@ int SSDBImpl::zsetNoLock(const Bytes &name, const std::map<Bytes ,Bytes> &sorted
         return added;
     }
 }
-
 
 int64_t SSDBImpl::zcount(const Bytes &name, const Bytes &score_start, const Bytes &score_end) {
     int64_t count = 0;
@@ -246,8 +209,8 @@ int64_t SSDBImpl::zcount(const Bytes &name, const Bytes &score_start, const Byte
         RecordLock l(&mutex_record_, name.String());
         std::string meta_key = encode_meta_key(name);
         int res = GetZSetMetaVal(meta_key, zv);
-        if (res != 1) {
-            return -1;
+        if (res <= 0) {
+            return res;
         }
 
         snapshot = ldb->GetSnapshot();
@@ -265,30 +228,37 @@ int64_t SSDBImpl::zcount(const Bytes &name, const Bytes &score_start, const Byte
 
 int64_t SSDBImpl::zremrangebyscore(const Bytes &name, const Bytes &score_start, const Bytes &score_end) {
     int64_t count = 0;
-
     ZSetMetaVal zv;
-    const leveldb::Snapshot* snapshot = nullptr;
 
-    {
-        RecordLock l(&mutex_record_, name.String());
-        std::string meta_key = encode_meta_key(name);
-        int res = GetZSetMetaVal(meta_key, zv);
-        if (res != 1) {
-            return -1;
-        }
-
-        snapshot = ldb->GetSnapshot();
+    RecordLock l(&mutex_record_, name.String());
+    std::string meta_key = encode_meta_key(name);
+    int res = GetZSetMetaVal(meta_key, zv);
+    if (res <= 0) {
+        return res;
     }
 
-    SnapshotPtr spl(ldb, snapshot); //auto release
-
+    leveldb::WriteBatch batch;
+    const leveldb::Snapshot *snapshot = nullptr;
     auto it = std::unique_ptr<ZIterator>(this->zscan_internal(name, "", score_start, score_end, INT_MAX, Iterator::FORWARD, zv.version, snapshot));
 
     while(it->next()){
+        int ret = zdel_one(this, batch, name, it->key, it->version);
+        if(ret < 0){
+            return ret;
+        }
         count ++;
-        int ret = this->zdel(name, it->key);
-        if(ret == -1){
-            return -1;
+    }
+
+    if (count > 0){
+        int ret = incr_zsize(this, batch, zv, name, count);
+        if (ret < 0){
+            return ret;
+        }
+
+        leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
+        if (!s.ok()) {
+            log_error("zdel error: %s", s.ToString().c_str());
+            return STORAGE_ERR;
         }
     }
 
@@ -297,19 +267,26 @@ int64_t SSDBImpl::zremrangebyscore(const Bytes &name, const Bytes &score_start, 
 
 int SSDBImpl::zdel(const Bytes &name, const Bytes &key) {
     RecordLock l(&mutex_record_, name.String());
+    ZSetMetaVal zv;
     leveldb::WriteBatch batch;
 
-    int ret = zdel_one(this, batch, name, key);
-    if (ret >= 0) {
-        if (ret > 0) {
-            if (incr_zsize(this, batch, name, -ret) == -1) {
-                return -1;
-            }
+    std::string meta_key = encode_meta_key(name);
+    int ret = GetZSetMetaVal(meta_key, zv);
+    if (ret <= 0) {
+        return ret;
+    }
+
+    ret = zdel_one(this, batch, name, key, zv.version);
+    if (ret > 0) {
+        int retval =incr_zsize(this, batch, zv, name, -ret);
+        if (retval < 0) {
+            return retval;
         }
+
         leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
         if (!s.ok()) {
             log_error("zdel error: %s", s.ToString().c_str());
-            return -1;
+            return STORAGE_ERR;
         }
     }
     return ret;
@@ -318,29 +295,47 @@ int SSDBImpl::zdel(const Bytes &name, const Bytes &key) {
 int SSDBImpl::zincr(const Bytes &name, const Bytes &key, double by, double *new_val) {
     RecordLock l(&mutex_record_, name.String());
     leveldb::WriteBatch batch;
-
+    ZSetMetaVal zv;
     double old_score = 0;
-    int ret = this->zget(name, key, &old_score);
 
-    if (ret == -1) {
-        return -1;
-    } else if (ret == 0) {
+    std::string meta_key = encode_meta_key(name);
+    int ret = GetZSetMetaVal(meta_key, zv);
+    if (ret < 0) {
+        return ret;
+    } else if (ret > 0){
+        std::string item_key = encode_zset_key(name, key, zv.version);
+        ret = GetZSetItemVal(item_key, &old_score);
+        if (ret < 0) {
+            return ret;
+        }
+    }
+
+    if (ret == 0) {
         *new_val = by;
     } else {
         *new_val = old_score + by;
     }
 
     if (*new_val > ZSET_SCORE_MAX || *new_val < ZSET_SCORE_MIN) {
-        return -1;
+        return INT_OVERFLOW;
     }
 
-    ret = zset_one(this, batch, name, key, *new_val);
-    if (ret == -1) {
-        return -1;
+    uint16_t cur_version = zv.version;
+    if (ret == 0 && zv.del == KEY_DELETE_MASK) {
+        if (zv.version == UINT16_MAX){
+            cur_version = 0;
+        } else{
+            cur_version = (uint16_t) (zv.version + 1);
+        }
+    }
+
+    ret = zset_one(this, batch, name, key, *new_val, cur_version);
+    if (ret < 0) {
+        return ret;
     }
     if (ret >= 0) {
         if (ret > 0) {
-            if (incr_zsize(this, batch, name, ret) == -1) {
+            if (incr_zsize(this, batch, zv, name, ret) == -1) {
                 return -1;
             }
         }
@@ -368,19 +363,35 @@ int SSDBImpl::GetZSetMetaVal(const std::string &meta_key, ZSetMetaVal &zv) {
     std::string meta_val;
     leveldb::Status s = ldb->Get(leveldb::ReadOptions(), meta_key, &meta_val);
     if (s.IsNotFound()) {
+        zv.length = 0;
         return 0;
     } else if (!s.ok() && !s.IsNotFound()) {
-        return -1;
+        return STORAGE_ERR;
     } else {
         int ret = zv.DecodeMetaVal(meta_val);
-        if (ret == -1) {
-            return -1;
+        if (ret < 0) {
+            return ret;
         } else if (zv.del == KEY_DELETE_MASK) {
             return 0;
         } else if (zv.type != DataType::ZSIZE){
-            return -1;
+            return WRONG_TYPE_ERR;
         }
     }
+    return 1;
+}
+
+int SSDBImpl::GetZSetItemVal(const std::string &item_key, double *score) {
+    std::string str_score;
+    leveldb::Status s = ldb->Get(leveldb::ReadOptions(), item_key, &str_score);
+    if (s.IsNotFound()) {
+        return 0;
+    }
+    if (!s.ok()) {
+        log_error("%s", s.ToString().c_str());
+        return STORAGE_ERR;
+    }
+
+    *score = *((double *) (str_score.data()));
     return 1;
 }
 
@@ -403,7 +414,7 @@ int SSDBImpl::zget(const Bytes &name, const Bytes &key, double *score) {
     }
     if (!s.ok()) {
         log_error("%s", s.ToString().c_str());
-        return -1;
+        return STORAGE_ERR;
     }
 
     *score = *((double *) (str_score.data()));
@@ -607,102 +618,42 @@ ZIterator *SSDBImpl::zscan(const Bytes &name, const Bytes &key,
 
 
 // returns the number of newly added items
-static int zset_one(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &name, const Bytes &key, double score) {
-    ZSetMetaVal zv;
-    std::string meta_key = encode_meta_key(name);
-    int ret = ssdb->GetZSetMetaVal(meta_key, zv);
-    if (ret == -1) {
-        return -1;
-    } else if (ret == 0 && zv.del == KEY_DELETE_MASK) {
-        uint16_t cur_version;
-        if (zv.version == UINT16_MAX){
-            cur_version = 0;
-        } else{
-            cur_version = (uint16_t) (zv.version + 1);
-        }
-        zset_internal(ssdb, batch, name, key, score, cur_version);
-        ret = 1;
-    } else if (ret == 0) {
-        zset_internal(ssdb, batch, name, key, score, 0);
-        ret = 1;
-    } else {
-        double old_score = 0;
+static int zset_one(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &name, const Bytes &key, double score, uint16_t version) {
 
-        int found = ssdb->zget(name, key, &old_score);
-        if (found == -1) {
-            return -1;
-        }
-
-        if (found == 0) {
-            zset_internal(ssdb, batch, name, key, score, zv.version);
-
-        } else if (found == 1) {
-            if (fabs(old_score - score) < eps) {
-                //same
-            } else {
-                string old_score_key = encode_zscore_key(name, key, old_score, zv.version);
-                batch.Delete(old_score_key);
-                zset_internal(ssdb, batch, name, key, score, zv.version);
-            }
-            return 0;
-        } else {
-            //error
-            return -1;
-        }
-    }
-
-    return ret;
-}
-
-void zset_internal(const SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &name, const Bytes &key, double new_score,
-                   uint16_t cur_version) {
-    string zkey = encode_zset_key(name, key, cur_version);
+    string zkey = encode_zset_key(name, key, version);
 
     string buf;
-    buf.append((char *) (&new_score), sizeof(double));
+    buf.append((char *) (&score), sizeof(double));
 
-    string score_key = encode_zscore_key(name, key, new_score, cur_version);
+    string score_key = encode_zscore_key(name, key, score, version);
 
     batch.Put(zkey, buf);
     batch.Put(score_key, "");
+
+    return 1;
 }
 
-static int zdel_one(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &name, const Bytes &key) {
-    ZSetMetaVal zv;
-    std::string meta_key = encode_meta_key(name);
-    int ret = ssdb->GetZSetMetaVal(meta_key, zv);
-    if (ret == -1) {
-        return -1;
-    } else if (ret == 0) {
-        return 0;
+static int zdel_one(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &name, const Bytes &key, uint16_t version) {
+    double old_score = 0;
+    std::string item_key = encode_zset_key(name, key, version);
+    int ret = ssdb->GetZSetItemVal(item_key, &old_score);
+    if (ret <= 0) {
+        return ret;
     } else {
-        double old_score = 0;
-        int found = ssdb->zget(name, key, &old_score);
-        if (found == -1) {
-            return -1;
-        } else if (found == 0) {
-            return 0;
-        } else {
-            //found
+        //found
+        std::string old_score_key = encode_zscore_key(name, key, old_score, version);
+        std::string old_zset_key = encode_zset_key(name, key, version);
 
-            std::string old_score_key = encode_zscore_key(name, key, old_score, zv.version);
-            std::string old_zset_key = encode_zset_key(name, key, zv.version);
-
-            batch.Delete(old_score_key);
-            batch.Delete(old_zset_key);
-        }
+        batch.Delete(old_score_key);
+        batch.Delete(old_zset_key);
     }
 
     return 1;
 }
 
-static int incr_zsize(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &name, int64_t incr) {
-    ZSetMetaVal zv;
+static int incr_zsize(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const ZSetMetaVal &zv, const Bytes &name, int64_t incr) {
     std::string size_key = encode_meta_key(name);
-    int ret = ssdb->GetZSetMetaVal(size_key, zv);
-    if (ret == -1) {
-        return ret;
-    } else if (ret == 0 && zv.del == KEY_DELETE_MASK) {
+    if (zv.del == KEY_DELETE_MASK) {
         if (incr > 0) {
             uint16_t version;
             if (zv.version == UINT16_MAX){
@@ -715,7 +666,7 @@ static int incr_zsize(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &n
         } else {
             return -1;
         }
-    } else if (ret == 0) {
+    } else if (zv.length == 0) {
         if (incr > 0) {
             std::string size_val = encode_zset_meta_val((uint64_t) incr);
             batch.Put(size_key, size_val);
@@ -743,7 +694,6 @@ static int incr_zsize(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &n
             std::string size_val = encode_zset_meta_val(len, zv.version);
             batch.Put(size_key, size_val);
         }
-
     }
     return 0;
 }

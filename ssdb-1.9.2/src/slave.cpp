@@ -488,9 +488,9 @@ int Slave::proc_sync(const Binlog &log, const std::vector<Bytes> &req){
 				log_trace("zset %s %s",
 					hexmem(name.data(), name.size()).c_str(),
 					hexmem(key.data(), key.size()).c_str());
-				if(ssdb->zset(name, key, req[1]) == -1){
-					return -1;
-				}
+//				if(ssdb->multi_zset(name, key, req[1]) == -1){
+//					return -1;
+//				}
 			}
 			break;
 		case BinlogCommand::EDEL:

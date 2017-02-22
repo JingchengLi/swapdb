@@ -192,15 +192,6 @@ int proc_multi_zget(NetworkServer *net, Link *link, const Request &req, Response
 	return 0;
 }
 
-int proc_zset(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
-	CHECK_NUM_PARAMS(4);
-
-	int ret = serv->ssdb->zset(req[1], req[2], req[3]);
-	resp->reply_int(ret, ret);
-	return 0;
-}
-
 int proc_zsize(NetworkServer *net, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(2);

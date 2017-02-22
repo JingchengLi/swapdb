@@ -111,7 +111,6 @@ public:
 	virtual SIterator* sscan(const Bytes &key, const Bytes &start, const Bytes &end, uint64_t limit) = 0;
 
 	/* zset */
-	virtual int zset(const Bytes &name, const Bytes &key, const Bytes &score) = 0;
 	virtual int multi_zset(const Bytes &name, const std::map<Bytes ,Bytes> &sortedSet, int flags) = 0;
 
 	virtual int zdel(const Bytes &name, const Bytes &key) = 0;

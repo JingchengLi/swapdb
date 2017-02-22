@@ -165,7 +165,6 @@ public:
 	virtual SIterator* sscan(const Bytes &key, const Bytes &start, const Bytes &end, uint64_t limit);
 
 	/* zset */
-	virtual int zset(const Bytes &name, const Bytes &key, const Bytes &score);
 	virtual int multi_zset(const Bytes &name, const std::map<Bytes ,Bytes> &sortedSet, int flags);
 	virtual int zdel(const Bytes &name, const Bytes &key);
 	// -1: error, 1: ok, 0: value is not an integer or out of range
@@ -194,7 +193,8 @@ public:
 
 	virtual int64_t zfix(const Bytes &name);
 
-	virtual int GetZSetMetaVal(const std::string &meta_key, ZSetMetaVal &zv);
+	int GetZSetMetaVal(const std::string &meta_key, ZSetMetaVal &zv);
+	int GetZSetItemVal(const std::string &item_key, double *score);
 
 
 	/* eset */

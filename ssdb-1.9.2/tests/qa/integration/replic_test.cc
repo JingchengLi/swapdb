@@ -277,6 +277,7 @@ TEST_F(ReplicTest, Test_replic_expire_keys) {
     sclient->client()->multi_del(keys);
     delete sclient;
     client->multi_del(keys);
+    sleep(5);
 }
 
 TEST_F(ReplicTest, Test_replic_multi_slaves) {
