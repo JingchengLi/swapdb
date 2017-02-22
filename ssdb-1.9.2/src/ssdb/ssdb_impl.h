@@ -97,6 +97,7 @@ public:
 
 	// -1: error, 1: ok, 0: value is not an integer or out of range
 	virtual int incr(const Bytes &key, int64_t by, int64_t *new_val);
+	virtual int incrbyfloat(const Bytes &key, double by, double *new_val);
 	virtual int multi_set(const std::vector<Bytes> &kvs, int offset=0);
 	virtual int multi_del(const std::vector<Bytes> &keys, int offset=0);
 	virtual int setbit(const Bytes &key, int64_t bitoffset, int on);

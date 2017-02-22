@@ -30,6 +30,7 @@ DEF_PROC(strlen);
 DEF_PROC(bitcount);
 DEF_PROC(del);
 DEF_PROC(incr);
+DEF_PROC(incrbyfloat);
 DEF_PROC(decr);
 DEF_PROC(scan);
 DEF_PROC(keys);
@@ -159,6 +160,7 @@ void SSDBServer::reg_procs(NetworkServer *net){
 	REG_PROC(strlen, "rt");
 	REG_PROC(bitcount, "rt");
 	REG_PROC(incr, "wt");
+	REG_PROC(incrbyfloat, "wt");
 	REG_PROC(decr, "wt");
 	REG_PROC(scan, "rt");
 	REG_PROC(keys, "rt");

@@ -33,6 +33,8 @@ set ::all_tests {
    unit/type/hash
    unit/type/set
    unit/type/string
+   unit/type/incr
+   unit/expire
 
 }
 

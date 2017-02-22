@@ -565,6 +565,30 @@ static int _incr(SSDB *ssdb, const Request &req, Response *resp, int dir){
 	return 0;
 }
 
+int proc_incrbyfloat(NetworkServer *net, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *)net->data;
+
+	CHECK_NUM_PARAMS(3);
+	double by = req[2].Double();
+	if (errno == EINVAL){
+		resp->push_back("error");
+		resp->push_back(GetErrorInfo(INVALID_INT));
+		return 0;
+	}
+
+	double new_val = 0.0;
+	int ret = serv->ssdb->incrbyfloat(req[1], by, &new_val);
+	if(ret < 0){
+		resp->push_back("error");
+		resp->push_back(GetErrorInfo(ret));
+	}else{
+		resp->push_back("ok");
+		resp->push_back(str(new_val));
+	}
+
+	return 0;
+}
+
 int proc_incr(NetworkServer *net, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *)net->data;
 	return _incr(serv->ssdb, req, resp, 1);
@@ -670,10 +694,20 @@ int proc_bitcount(NetworkServer *net, Link *link, const Request &req, Response *
 	int start = 0;
 	if(req.size() > 2){
 		start = req[2].Int();
+		if (errno == EINVAL){
+			resp->push_back("error");
+			resp->push_back(GetErrorInfo(INVALID_INT));
+			return 0;
+		}
 	}
 	int end = -1;
 	if(req.size() > 3){
 		end = req[3].Int();
+		if (errno == EINVAL){
+			resp->push_back("error");
+			resp->push_back(GetErrorInfo(INVALID_INT));
+			return 0;
+		}
 	}
 	std::string val;
 	int ret = serv->ssdb->get(key, &val);

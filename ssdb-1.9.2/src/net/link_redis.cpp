@@ -94,6 +94,7 @@ static RedisCommand_raw cmds_raw[] = {
 	{STRATEGY_AUTO, "del",		"multi_del",	REPLY_INT},
 	{STRATEGY_AUTO, "mset",		"multi_set",	REPLY_OK_STATUS},
 	{STRATEGY_AUTO, "incrby",	"incr",			REPLY_INT},
+	{STRATEGY_AUTO, "incrbyfloat","incrbyfloat",REPLY_MULTI_BULK},
 	{STRATEGY_AUTO, "decrby",	"decr",			REPLY_INT},
 
 

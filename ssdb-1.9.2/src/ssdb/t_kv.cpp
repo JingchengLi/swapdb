@@ -4,6 +4,7 @@ Use of this source code is governed by a BSD-style license that can be
 found in the LICENSE file.
 */
 #include <util/error.h>
+#include <cfloat>
 #include "ssdb_impl.h"
 #include "redis/rdb_encoder.h"
 #include "redis/rdb_decoder.h"
@@ -286,6 +287,50 @@ int SSDBImpl::del(const Bytes &key){
 
     return 1;
 }
+
+
+int SSDBImpl::incrbyfloat(const Bytes &key, double by, double *new_val) {
+    RecordLock l(&mutex_record_, key.String());
+    leveldb::WriteBatch batch;
+
+    std::string old;
+
+    std::string meta_key = encode_meta_key(key);
+    KvMetaVal kv;
+    int ret = GetKvMetaVal(meta_key, kv);
+    if (ret < 0){
+        return ret;
+    } else if (ret == 0) {
+        *new_val = by;
+    } else {
+        old = kv.value;
+
+        double oldvalue = str_to_double(old.c_str(), old.size());
+        if (errno == EINVAL){
+            return INVALID_DBL;
+        }
+
+        if ((by < 0 && oldvalue < 0 && by < (DBL_MAX -oldvalue)) ||
+            (by > 0 && oldvalue > 0 && by > (DBL_MAX -oldvalue))) {
+            return DBL_OVERFLOW;
+        }
+
+        *new_val = oldvalue + by;
+
+    }
+
+    std::string buf = encode_meta_key(key);
+    std::string meta_val = encode_kv_val(Bytes(str(*new_val)), kv.version);
+    batch.Put(buf, meta_val);
+
+    leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
+    if(!s.ok()){
+        log_error("del error: %s", s.ToString().c_str());
+        return STORAGE_ERR;
+    }
+    return 1;
+}
+
 
 int SSDBImpl::incr(const Bytes &key, int64_t by, int64_t *new_val){
 	RecordLock l(&mutex_record_, key.String());
