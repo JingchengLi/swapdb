@@ -176,6 +176,7 @@ void replyToBlockedClientTimedOut(client *c) {
                    || c->btype == BLOCKED_VISITING_SSDB
                    || c->btype == BLOCKED_NO_WRITE_TO_SSDB)) {
         addReplyString(c, "-Err timeout", 13);
+        resetClient(c);
     } else if (server.jdjr_mode
                && c->btype == BLOCKED_SLAVE_BY_PSYNC) {
         /* TODO: Set server.is_allow_ssdb_write to ALLOW_SSDB_WRITE ??? */

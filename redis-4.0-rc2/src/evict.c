@@ -1143,4 +1143,5 @@ void transferringOrLoadingBlockedClientTimeOut(client *c) {
     }
 
     addReplyString(c, "-Err timeout", 13);
+    resetClient(c);
 }
