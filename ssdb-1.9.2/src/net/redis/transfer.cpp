@@ -46,7 +46,7 @@ int TransferWorker::proc(TransferJob *job) {
     avg_process = ((time_ms() - current) * 1.0 - avg_process) * 1.0 / count * 1.0 + avg_process;
     count++;
 
-    if (count > 10000) {
+    if (count > 1000) {
         count = 1; //reset count.
         avg_wait = current - job->ts;
         avg_process = time_ms() - current;

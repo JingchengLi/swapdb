@@ -15,6 +15,7 @@ enum REPLY{
 	REPLY_OK_STATUS,
 	REPLY_CUSTOM_STATUS,
 	REPLY_SET_STATUS,
+	REPLY_SPOP_SRANDMEMBER,
 };
 
 enum STRATEGY{
@@ -124,8 +125,8 @@ static RedisCommand_raw cmds_raw[] = {
     {STRATEGY_AUTO, "sismember",	"sismember",	REPLY_INT},
     {STRATEGY_AUTO, "smembers",	    "smembers",		REPLY_MULTI_BULK},
 //    {STRATEGY_AUTO, "smove",	    "smove",		REPLY_INT},
-    {STRATEGY_AUTO, "spop",	        "spop",		    REPLY_MULTI_BULK},
-    {STRATEGY_AUTO, "srandmember",	"srandmember",	REPLY_MULTI_BULK},
+    {STRATEGY_AUTO, "spop",	        "spop",		    REPLY_SPOP_SRANDMEMBER},
+    {STRATEGY_AUTO, "srandmember",	"srandmember",	REPLY_SPOP_SRANDMEMBER},
 //    {STRATEGY_AUTO, "sunion",	    "sunion",		REPLY_MULTI_BULK},
 //    {STRATEGY_AUTO, "sunionstore",	"sunionstore",	REPLY_INT},
 //    {STRATEGY_AUTO, "sscan",	    "sscan",		REPLY_MULTI_BULK},
@@ -716,7 +717,40 @@ int RedisLink::send_resp(Buffer *output, const std::vector<std::string> &resp){
 
 		return 0;
 	}
-	
+
+	if(req_desc->reply_type == REPLY_SPOP_SRANDMEMBER){
+
+		 if (recv_string.size() == 2){
+
+			 if (resp.size() == 1) {
+				 output->append("$-1\r\n");
+			 } else {
+				 const std::string &val = resp[1];
+				 char buf[32];
+				 snprintf(buf, sizeof(buf), "$%d\r\n", (int)val.size());
+				 output->append(buf);
+				 output->append(val.data(), val.size());
+				 output->append("\r\n");
+			 }
+		} else {
+			{
+				char buf[32];
+				snprintf(buf, sizeof(buf), "*%d\r\n", ((int)resp.size() - 1));
+				output->append(buf);
+			}
+			for(int i=1; i<resp.size(); i++){
+				const std::string &val = resp[i];
+				char buf[32];
+				snprintf(buf, sizeof(buf), "$%d\r\n", (int)val.size());
+				output->append(buf);
+				output->append(val.data(), val.size());
+				output->append("\r\n");
+			}
+		}
+
+		return 0;
+	}
+
 	if(req_desc->reply_type == REPLY_MULTI_BULK){
 		bool withscores = true;
 		if(req_desc->strategy == STRATEGY_ZRANGE || req_desc->strategy == STRATEGY_ZREVRANGE){
