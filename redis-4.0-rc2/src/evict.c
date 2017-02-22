@@ -1019,7 +1019,7 @@ void handleClientsBlockedOnSSDB(void) {
 
                         unblockClient(c);
 
-                        if (runCommand(c) == C_OK)
+                        if (runCommand(c, NULL) == C_OK)
                             resetClient(c);
                     }
                 }
@@ -1046,7 +1046,7 @@ void handleClientsBlockedOnCustomizedPsync(void) {
 
         unblockClient(c);
 
-        if (runCommand(c) == C_OK)
+        if (runCommand(c, NULL) == C_OK)
             resetClient(c);
     }
 }

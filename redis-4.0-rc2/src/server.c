@@ -2532,7 +2532,7 @@ int processCommandMaybeInSSDB(client *c) {
     return C_ERR;
 }
 
-int runCommand(client *c) {
+int runCommand(client *c, int* need_return) {
     /* Exec the command */
     if (server.jdjr_mode
         && processCommandMaybeInSSDB(c) == C_OK) {
@@ -2542,6 +2542,7 @@ int runCommand(client *c) {
            the resetClient is delayed to ssdbClientUnixHandler. */
         serverLog(LL_DEBUG, "processing %s, fd: %d in ssdb: %s",
                   c->cmd->name, c->fd, (char *)c->argv[1]->ptr);
+        if (need_return) *need_return = 1;
         return C_ERR;
     }
 
@@ -2551,9 +2552,11 @@ int runCommand(client *c) {
     {
         queueMultiCommand(c);
         addReply(c,shared.queued);
+        if (need_return) *need_return = 1;
     } else {
         call(c,CMD_CALL_FULL);
         c->woff = server.master_repl_offset;
+        if (need_return) *need_return = 0;
     }
 
     serverLog(LL_DEBUG, "processing %s, fd: %d in redis: %s",
@@ -2572,6 +2575,7 @@ int runCommand(client *c) {
  * if C_ERR is returned the client was destroyed (i.e. after QUIT). */
 int processCommand(client *c) {
     int ret;
+    int need_return = 0;
     /* The QUIT command is handled separately. Normal command procs will
      * go through checking for replication and QUIT will cause trouble
      * when FORCE_REPLICATION is enabled and would be implemented in
@@ -2803,7 +2807,10 @@ int processCommand(client *c) {
         return C_ERR;
     }
 
-    ret = runCommand(c);
+    ret = runCommand(c, &need_return);
+    if (need_return) {
+        return ret;
+    }
 
     if (listLength(server.ready_keys))
         handleClientsBlockedOnLists();

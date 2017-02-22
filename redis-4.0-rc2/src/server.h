@@ -1641,7 +1641,7 @@ int tryEvictingKeysToSSDB(int *mem_tofree);
 size_t objectComputeSize(robj *o, size_t sample_size);
 size_t estimateKeyMemoryUsage(dictEntry *de);
 int processCommand(client *c);
-int runCommand(client *c);
+int runCommand(client *c, int* need_return);
 int checkValidCommand(client* c);
 int checkKeysInMediateState(client* c);
 int processCommandMaybeInSSDB(client *c);
