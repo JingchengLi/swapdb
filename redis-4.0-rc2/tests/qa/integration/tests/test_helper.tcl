@@ -413,6 +413,7 @@ proc signal_idle_client fd {
 # executed, so the test finished.
 proc the_end {} {
     if {!$::quiet} {
+        write_redis_test_result_report "</testsuites>"
     # TODO: print the status, exit with the rigth exit code.
         puts "\n                   The End\n"
         puts "Execution time of different units:"
@@ -432,6 +433,7 @@ proc the_end {} {
         exit 0
             
     } else {
+        write_redis_test_result_report "</testsuites>"
         cleanup
         if {[llength $::failed_tests]} {
             exit 1
@@ -439,7 +441,6 @@ proc the_end {} {
             exit 0
         }
     }
-    write_redis_test_result_report "</testsuites>"
 }
 
 # The client is not even driven (the test server is instead) as we just need
