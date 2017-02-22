@@ -2554,14 +2554,6 @@ int runCommand(client *c) {
     } else {
         call(c,CMD_CALL_FULL);
         c->woff = server.master_repl_offset;
-        if (listLength(server.ready_keys))
-            handleClientsBlockedOnLists();
-        if (server.jdjr_mode && listLength(server.ssdb_ready_keys))
-            handleClientsBlockedOnSSDB();
-        if (server.jdjr_mode
-            && (server.is_allow_ssdb_write == ALLOW_SSDB_WRITE)
-            && listLength(server.no_writing_ssdb_blocked_clients))
-            handleClientsBlockedOnCustomizedPsync();
     }
 
     serverLog(LL_DEBUG, "processing %s, fd: %d in redis: %s",
@@ -2579,6 +2571,7 @@ int runCommand(client *c) {
  * other operations can be performed by the caller. Otherwise
  * if C_ERR is returned the client was destroyed (i.e. after QUIT). */
 int processCommand(client *c) {
+    int ret;
     /* The QUIT command is handled separately. Normal command procs will
      * go through checking for replication and QUIT will cause trouble
      * when FORCE_REPLICATION is enabled and would be implemented in
@@ -2810,7 +2803,18 @@ int processCommand(client *c) {
         return C_ERR;
     }
 
-    return runCommand(c);
+    ret = runCommand(c);
+
+    if (listLength(server.ready_keys))
+        handleClientsBlockedOnLists();
+    if (server.jdjr_mode && listLength(server.ssdb_ready_keys))
+        handleClientsBlockedOnSSDB();
+    if (server.jdjr_mode
+        && (server.is_allow_ssdb_write == ALLOW_SSDB_WRITE)
+        && listLength(server.no_writing_ssdb_blocked_clients))
+        handleClientsBlockedOnCustomizedPsync();
+
+    return ret;
 }
 
 /*================================== Shutdown =============================== */
