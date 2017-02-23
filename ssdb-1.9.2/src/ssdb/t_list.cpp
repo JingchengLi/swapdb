@@ -370,39 +370,37 @@ int SSDBImpl::GetListMetaVal(const std::string &meta_key, ListMetaVal &lv) {
     std::string meta_val;
     leveldb::Status s = ldb->Get(leveldb::ReadOptions(), meta_key, &meta_val);
     if (s.IsNotFound()){
-        ret = 0;
+        lv.left_seq = 0;
+        lv.right_seq = UINT64_MAX;
+        lv.length = 0;
+        lv.del = KEY_ENABLED_MASK;
+        lv.version = 0;
+        return 0;
     } else if (!s.ok() && !s.IsNotFound()){
-        ret = STORAGE_ERR;
+        //error
+        return STORAGE_ERR;
     } else{
         ret = lv.DecodeMetaVal(meta_val);
         if (ret < 0){
+            //error
+            return ret;
         } else if (lv.del == KEY_DELETE_MASK){
-            ret = 0;
-        } else if (lv.type != DataType::LSIZE){
-            ret = WRONG_TYPE_ERR;
-        }
-    }
-
-    if (ret < 0){
-        return ret;
-    } else if (1 == ret) {
-    } else if(0 == ret){
-        if (lv.del == KEY_DELETE_MASK) {
             if (lv.version == UINT16_MAX){
                 lv.version = 0;
             } else{
                 lv.version = (uint16_t)(lv.version+1);
             }
-        } else {
-            lv.version = 0;
+            lv.left_seq = 0;
+            lv.right_seq = UINT64_MAX;
+            lv.length = 0;
+            lv.del = KEY_ENABLED_MASK;
+            return 0;
+        } else if (lv.type != DataType::LSIZE){
+            return WRONG_TYPE_ERR;
         }
-        lv.left_seq = 0;
-        lv.right_seq = UINT64_MAX;
-        lv.length = 0;
-        lv.del = KEY_ENABLED_MASK;
-    }
 
-    return ret;
+    }
+    return 1;
 }
 
 int SSDBImpl::rpushNoLock(const Bytes &key, const std::vector<Bytes> &val, int offset, uint64_t *llen) {
