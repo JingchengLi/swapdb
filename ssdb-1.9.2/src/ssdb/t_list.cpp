@@ -447,8 +447,8 @@ int SSDBImpl::LSet(const Bytes &key, const int64_t index, const Bytes &val) {
         }
 
         if (index > max_index || index < max_negative_index) {
-            log_fatal("invalid list index.");
-            return -1;
+//            log_fatal("invalid list index.");
+            return INDEX_OUT_OF_RANGE;
         }
 
         uint64_t seq = getSeqByIndex(index, meta_val);
@@ -457,7 +457,7 @@ int SSDBImpl::LSet(const Bytes &key, const int64_t index, const Bytes &val) {
 
         leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
         if(!s.ok()){
-            return -1;
+            return STORAGE_ERR;
         }
     }
     return ret;

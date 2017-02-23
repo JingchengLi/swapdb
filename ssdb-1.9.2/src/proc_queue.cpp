@@ -196,7 +196,7 @@ int proc_qset(NetworkServer *net, Link *link, const Request &req, Response *resp
 	} else if ( ret == 0) {
 		//???
 		resp->push_back("error");
-		resp->push_back("index out of range");
+		resp->push_back("ERR no such key");
 	} else{
 		resp->push_back("ok");
 	}
