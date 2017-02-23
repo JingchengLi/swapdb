@@ -87,6 +87,10 @@ class Bytes{
 		double Double() const{
 			return str_to_double(data_, size_);
 		}
+
+		long double LDouble() const{
+			return str_to_long_double(data_, size_);
+		}
 };
 
 inline

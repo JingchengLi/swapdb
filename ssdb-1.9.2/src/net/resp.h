@@ -22,11 +22,13 @@ public:
 	void add(int64_t s);
 	void add(uint64_t s);
 	void add(double s);
+	void add(long double s);
 	void add(const std::string &s);
 
 	void reply_status(int status, const char *errmsg=NULL);
 	void reply_bool(int status, const char *errmsg=NULL);
 	void reply_int(int status, int64_t val, const char *errmsg=NULL);
+	void reply_long_double(int status, long double val);
 	void reply_double(int status, double val);
 	// the same as Redis.REPLY_BULK
 	void reply_get(int status, const std::string *val=NULL, const char *errmsg=NULL);

@@ -569,21 +569,21 @@ int proc_incrbyfloat(NetworkServer *net, Link *link, const Request &req, Respons
 	SSDBServer *serv = (SSDBServer *)net->data;
 
 	CHECK_NUM_PARAMS(3);
-	double by = req[2].Double();
+    long double by = req[2].LDouble();
 	if (errno == EINVAL){
 		resp->push_back("error");
 		resp->push_back(GetErrorInfo(INVALID_INT));
 		return 0;
 	}
 
-	double new_val = 0.0;
+	long double new_val = 0.0L;
+
 	int ret = serv->ssdb->incrbyfloat(req[1], by, &new_val);
 	if(ret < 0){
 		resp->push_back("error");
 		resp->push_back(GetErrorInfo(ret));
 	}else{
-		resp->push_back("ok");
-		resp->push_back(str(new_val));
+		resp->reply_long_double(ret, new_val);
 	}
 
 	return 0;

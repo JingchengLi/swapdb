@@ -7,6 +7,7 @@ found in the LICENSE file.
 #include <stdio.h>
 #include <sstream>
 #include <iomanip>
+#include <util/strings.h>
 
 int Response::size() const{
 	return (int)resp.size();
@@ -42,6 +43,10 @@ void Response::add(double s){
 //	std::string str = std::to_string(s);
 
 	resp.push_back(str);
+}
+
+void Response::add(long double s){
+	resp.push_back(str(s));
 }
 
 void Response::add(const std::string &s){
@@ -80,6 +85,15 @@ void Response::reply_int(int status, int64_t val, const char *errmsg){
 		if(errmsg){
 			resp.push_back(errmsg);
 		}
+	}else{
+		resp.push_back("ok");
+		this->add(val);
+	}
+}
+
+void Response::reply_long_double(int status, long double val){
+	if(status == -1){
+		resp.push_back("error");
 	}else{
 		resp.push_back("ok");
 		this->add(val);

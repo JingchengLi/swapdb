@@ -289,7 +289,7 @@ int SSDBImpl::del(const Bytes &key){
 }
 
 
-int SSDBImpl::incrbyfloat(const Bytes &key, double by, double *new_val) {
+int SSDBImpl::incrbyfloat(const Bytes &key, long double by, long double *new_val) {
     RecordLock l(&mutex_record_, key.String());
     leveldb::WriteBatch batch;
 
@@ -305,13 +305,13 @@ int SSDBImpl::incrbyfloat(const Bytes &key, double by, double *new_val) {
     } else {
         old = kv.value;
 
-        double oldvalue = str_to_double(old.c_str(), old.size());
+        long double oldvalue = str_to_long_double(old.c_str(), old.size());
         if (errno == EINVAL){
             return INVALID_DBL;
         }
 
-        if ((by < 0 && oldvalue < 0 && by < (DBL_MAX -oldvalue)) ||
-            (by > 0 && oldvalue > 0 && by > (DBL_MAX -oldvalue))) {
+        if ((by < 0 && oldvalue < 0 && by < (LDBL_MIN -oldvalue)) ||
+            (by > 0 && oldvalue > 0 && by > (LDBL_MAX -oldvalue))) {
             return DBL_OVERFLOW;
         }
 
