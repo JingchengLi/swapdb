@@ -30,7 +30,6 @@ found in the LICENSE file.
 //#include "t_kv.h"
 //#include "t_hash.h"
 //#include "t_zset.h"
-//#include "t_queue.h"
 #include "ssdb/ttl.h"
 #include "codec/decode.h"
 #include "codec/encode.h"
@@ -143,12 +142,9 @@ public:
 	virtual int lrange(const Bytes &key, int64_t start, int64_t end, std::vector<std::string> *list);
     int     GetListMetaVal(const std::string& meta_key, ListMetaVal& lv);
     int     GetListItemVal(const std::string& item_key, std::string* val, const leveldb::ReadOptions& options=leveldb::ReadOptions());
-    int     DoLPush(leveldb::WriteBatch &batch, ListMetaVal &meta_val, const Bytes &key, const Bytes &val, std::string &meta_key);
     int     DoLPush(leveldb::WriteBatch &batch, ListMetaVal &meta_val, const Bytes &key, const std::vector<Bytes> &val, int offset, std::string &meta_key);
     int     DoFirstLPush(leveldb::WriteBatch &batch, const Bytes &key, const std::vector<Bytes> &val, int offset, const std::string &meta_key, uint16_t version);
-    void    PushFirstListItem(leveldb::WriteBatch &batch, const Bytes &key, const Bytes &val, const std::string &meta_key, uint16_t version);
 	int 	DoRPop(leveldb::WriteBatch &batch, ListMetaVal &meta_val, const Bytes &key, std::string &meta_key, std::string *val);
-	int 	DoRPush(leveldb::WriteBatch &batch, ListMetaVal &meta_val, const Bytes &key, const Bytes &val, std::string &meta_key);
 
     int     DoRPush(leveldb::WriteBatch &batch, const Bytes &key, const std::vector<Bytes> &val, int offset, std::string &meta_key, ListMetaVal &meta_val);
 

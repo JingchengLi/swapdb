@@ -33,7 +33,9 @@ int SSDBImpl::GetListItemVal(const std::string &item_key, std::string *val, cons
     return 1;
 }
 
-static std::string EncodeValueListMeta(const ListMetaVal &meta_val) {
+static std::string EncodeValueListMeta(const ListMetaVal &meta_val);
+
+std::string EncodeValueListMeta(const ListMetaVal &meta_val) {
     return encode_list_meta_val(meta_val.length, meta_val.left_seq, meta_val.right_seq, meta_val.version, meta_val.del);
 }
 
@@ -141,30 +143,6 @@ int SSDBImpl::LPop(const Bytes &key, std::string *val) {
     return ret;
 }
 
-int SSDBImpl::DoLPush(leveldb::WriteBatch &batch, ListMetaVal &meta_val, const Bytes &key, const Bytes &val, std::string &meta_key) {
-    uint64_t len, left_seq;
-    if (meta_val.length < UINT64_MAX) {
-        len = meta_val.length + 1;
-    } else {
-        log_fatal("list reach the max length.");
-        return -1;
-    }
-    if (meta_val.left_seq > 0) {
-        left_seq = meta_val.left_seq - 1;
-    } else {
-        left_seq = UINT64_MAX;
-    }
-    meta_val.length = len;
-    meta_val.left_seq = left_seq;
-    std::string new_meta_val = EncodeValueListMeta(meta_val);
-
-    std::string item_key = encode_list_key(key, left_seq, meta_val.version);
-    batch.Put(meta_key, new_meta_val);
-    batch.Put(item_key, val.String());
-
-    return 1;
-}
-
 int SSDBImpl::DoLPush(leveldb::WriteBatch &batch, ListMetaVal &meta_val, const Bytes &key, const std::vector<Bytes> &val, int offset,
                       std::string &meta_key) {
     uint64_t len;
@@ -193,15 +171,6 @@ int SSDBImpl::DoLPush(leveldb::WriteBatch &batch, ListMetaVal &meta_val, const B
     batch.Put(meta_key, new_meta_val);
 
     return size-offset;
-}
-
-void SSDBImpl::PushFirstListItem(leveldb::WriteBatch &batch, const Bytes &key, const Bytes &val, const std::string &meta_key, uint16_t version) {
-    std::string new_meta_val = encode_list_meta_val(1, 0, 0, version);
-
-    std::string item_key = encode_list_key(key, 0, version);
-
-    batch.Put(meta_key, new_meta_val);
-    batch.Put(item_key, val.String());
 }
 
 int SSDBImpl::DoFirstLPush(leveldb::WriteBatch &batch, const Bytes &key, const std::vector<Bytes> &val, int offset, const std::string &meta_key,
@@ -346,32 +315,6 @@ int SSDBImpl::DoRPop(leveldb::WriteBatch &batch, ListMetaVal &meta_val, const By
         }
     }
     return ret;
-}
-
-int SSDBImpl::DoRPush(leveldb::WriteBatch &batch, ListMetaVal &meta_val, const Bytes &key, const Bytes &val, std::string &meta_key) {
-    uint64_t len, right_seq;
-    if (meta_val.length < UINT64_MAX) {
-        len = meta_val.length + 1;
-    } else {
-        log_fatal("list reach the max length.");
-        return -1;
-    }
-
-    if (meta_val.right_seq < UINT64_MAX) {
-        right_seq = meta_val.right_seq + 1;
-    } else {
-        right_seq = 0;
-    }
-
-    meta_val.length = len;
-    meta_val.right_seq = right_seq;
-    std::string new_meta_val = EncodeValueListMeta(meta_val);
-
-    std::string item_key = encode_list_key(key, right_seq, meta_val.version);
-    batch.Put(meta_key, new_meta_val);
-    batch.Put(item_key, val.String());
-
-    return 1;
 }
 
 int SSDBImpl::DoRPush(leveldb::WriteBatch &batch, const Bytes &key, const std::vector<Bytes> &val, int offset, std::string &meta_key,

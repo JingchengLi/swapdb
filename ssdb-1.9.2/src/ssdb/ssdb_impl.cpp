@@ -22,7 +22,6 @@ found in the LICENSE file.
 
 #include "iterator.h"
 #include "ssdb_impl.h"
-#include "t_queue.h"
 
 SSDBImpl::SSDBImpl()
 	: bg_cv_(&mutex_bgtask_){

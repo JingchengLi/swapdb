@@ -4,7 +4,6 @@ Use of this source code is governed by a BSD-style license that can be
 found in the LICENSE file.
 */
 #include "iterator.h"
-#include "t_queue.h"
 #include "../util/log.h"
 #include "../util/config.h"
 #include "codec/decode.h"
