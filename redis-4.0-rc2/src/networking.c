@@ -932,8 +932,8 @@ int handleResponseOfTransferSnapshot(client *c, sds replyString) {
     int process_status;
 
     if (c->ssdb_status == SLAVE_SSDB_SNAPSHOT_TRANSFER_PRE) {
-        tmp_ok = sdsnew("customized-transfer-snapshot ok");
-        tmp_nok = sdsnew("customized-transfer-snapshot nok");
+        tmp_ok = sdsnew("rr_transfer_snapshot ok");
+        tmp_nok = sdsnew("rr_transfer_snapshot nok");
 
         sdstolower(replyString);
 
@@ -950,8 +950,8 @@ int handleResponseOfTransferSnapshot(client *c, sds replyString) {
             process_status = C_ERR;
 
     } else if (c->ssdb_status == SLAVE_SSDB_SNAPSHOT_TRANSFER_START) {
-        tmp_ok = sdsnew("customized-transfer-snapshot finished");
-        tmp_nok = sdsnew("customized-transfer-snapshot unfinished");
+        tmp_ok = sdsnew("rr_transfer_snapshot finished");
+        tmp_nok = sdsnew("rr_transfer_snapshot unfinished");
 
         sdstolower(replyString);
 
@@ -1081,7 +1081,7 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
         && handleResponseOfPsync(c, replyString) == C_OK)
         return;
 
-    /* Handle the response of customized-transfer-snapshot. */
+    /* Handle the response of rr_transfer_snapshot. */
     if ((c->flags & CLIENT_SLAVE)
         && !c->cmd
         && c->lastcmd

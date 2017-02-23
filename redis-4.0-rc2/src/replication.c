@@ -2568,12 +2568,12 @@ void replicationCron(void) {
         if (server.jdjr_mode
             && (server.ssdb_status == MASTER_SSDB_SNAPSHOT_OK)
             && (slave->ssdb_status == SLAVE_SSDB_SNAPSHOT_TRANSFER_PRE)) {
-                sds cmdsds = sdsnew("*1\r\n$28\r\ncustomized-transfer-snapshot\r\n");
+                sds cmdsds = sdsnew("*1\r\n$20\r\nrr_transfer_snapshot\r\n");
 
                 /* TODO: block current slave. */
                 if (sendCommandToSSDB(slave, cmdsds) != C_OK) {
                     serverLog(LL_WARNING,
-                              "Sending customized-transfer-snapshot to SSDB failed.");
+                              "Sending rr_transfer_snapshot to SSDB failed.");
                     freeClient(slave);
                 }
         }
