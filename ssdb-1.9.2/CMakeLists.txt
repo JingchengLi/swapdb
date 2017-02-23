@@ -224,7 +224,6 @@ src/proc_zset.cpp
 src/proc_queue.cpp
 src/backend_dump.cpp
 src/backend_sync.cpp
-src/slave.cpp
 src/serv.cpp
 )
 

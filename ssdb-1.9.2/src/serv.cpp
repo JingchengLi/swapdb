@@ -298,62 +298,10 @@ SSDBServer::SSDBServer(SSDB *ssdb, SSDB *meta, const Config &conf, NetworkServer
 
 			redisConf = new RedisConf(ip, port);
 		}
-
-
-
 	}
-
-	{ // slaves
-		const Config *repl_conf = conf.get("replication");
-		if(repl_conf != NULL){
-			std::vector<Config *> children = repl_conf->children;
-			for(std::vector<Config *>::iterator it = children.begin(); it != children.end(); it++){
-				Config *c = *it;
-				if(c->key != "slaveof"){
-					continue;
-				}
-				std::string ip = c->get_str("ip");
-				int port = c->get_num("port");
-				if(ip == ""){
-					ip = c->get_str("host");
-				}
-				if(ip == "" || port <= 0 || port > 65535){
-					continue;
-				}
-				bool is_mirror = false;
-				std::string type = c->get_str("type");
-				if(type == "mirror"){
-					is_mirror = true;
-				}else{
-					type = "sync";
-					is_mirror = false;
-				}
-				
-				std::string id = c->get_str("id");
-				
-				log_info("slaveof: %s:%d, type: %s", ip.c_str(), port, type.c_str());
-				Slave *slave = new Slave(ssdb, meta, ip.c_str(), port, is_mirror);
-				if(!id.empty()){
-					slave->set_id(id);
-				}
-				slave->auth = c->get_str("auth");
-				slave->start();
-				slaves.push_back(slave);
-			}
-		}
-	}
-
-
 }
 
 SSDBServer::~SSDBServer(){
-	std::vector<Slave *>::iterator it;
-	for(it = slaves.begin(); it != slaves.end(); it++){
-		Slave *slave = *it;
-		slave->stop();
-		delete slave;
-	}
-
 	delete backend_dump;
 	delete backend_sync;
 	delete expiration;
@@ -376,11 +324,7 @@ int proc_clear_binlog(NetworkServer *net, Link *link, const Request &req, Respon
 
 int proc_flushdb(NetworkServer *net, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *)net->data;
-	if(serv->slaves.size() > 0 || serv->backend_sync->stats().size() > 0){
-		resp->push_back("error");
-		resp->push_back("flushdb is not allowed when replication is in use!");
-		return 0;
-	}
+
 	serv->ssdb->flushdb();
 	resp->push_back("ok");
 	return 0;
@@ -584,15 +528,6 @@ int proc_info(NetworkServer *net, Link *link, const Request &req, Response *resp
 		std::vector<std::string>::iterator it;
 		for(it = syncs.begin(); it != syncs.end(); it++){
 			std::string s = *it;
-			resp->push_back("replication");
-			resp->push_back(s);
-		}
-	}
-	{
-		std::vector<Slave *>::iterator it;
-		for(it = serv->slaves.begin(); it != serv->slaves.end(); it++){
-			Slave *slave = *it;
-			std::string s = slave->stats();
 			resp->push_back("replication");
 			resp->push_back(s);
 		}

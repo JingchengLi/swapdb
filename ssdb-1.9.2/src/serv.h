@@ -15,7 +15,6 @@ found in the LICENSE file.
 #include "ssdb/ttl.h"
 #include "backend_dump.h"
 #include "backend_sync.h"
-#include "slave.h"
 #include "net/server.h"
 #include "SSDB_client.h"
 #include "net/link.h"
@@ -43,8 +42,6 @@ public:
     RedisConf *redisConf;
 
 
-
-    std::vector<Slave *> slaves;
 	std::vector<Slave_info> slave_infos;
 	Link*	master_link;
 	const leveldb::Snapshot* snapshot;
