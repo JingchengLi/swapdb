@@ -867,9 +867,9 @@ int handleResponseOfCheckWrite(client *c, sds replyString) {
             server.check_write_unresponse_num = -1;
             server.ssdb_status = MASTER_SSDB_SNAPSHOT_PRE;
 
-            sds finalcmd = sdsnew("*1\r\n$16\r\ncustomized-psync\r\n");
+            sds finalcmd = sdsnew("*1\r\n$8\r\nrr_psync\r\n");
             if (sendCommandToSSDB(server.current_repl_slave, finalcmd) != C_OK)
-                serverLog(LL_WARNING, "Sending customized-psync to SSDB failed.");
+                serverLog(LL_WARNING, "Sending rr_psync to SSDB failed.");
 
             /* TODO: support multiple slaves' replication. */
             checkAndUpdateSlaveSsdbStatus(SLAVE_SSDB_SNAPSHOT_IN_PROCESS,
@@ -893,8 +893,8 @@ int handleResponseOfCheckWrite(client *c, sds replyString) {
  }
 
 int handleResponseOfPsync(client *c, sds replyString) {
-    sds tmp_ok = sdsnew("customized-psync ok");
-    sds tmp_nok = sdsnew("customized-psync nok");
+    sds tmp_ok = sdsnew("rr_psync ok");
+    sds tmp_nok = sdsnew("rr_psync nok");
     int process_status;
 
     if (c->btype != BLOCKED_SLAVE_BY_PSYNC)
@@ -905,7 +905,7 @@ int handleResponseOfPsync(client *c, sds replyString) {
     unblockClient(c);
 
     /* Reset is_allow_ssdb_write to ALLOW_SSDB_WRITE
-       as soon as customized-psync is responsed. */
+       as soon as rr_psync is responsed. */
     if (!sdscmp(replyString, tmp_ok)) {
         server.ssdb_status = MASTER_SSDB_SNAPSHOT_OK;
         server.is_allow_ssdb_write = ALLOW_SSDB_WRITE;
@@ -1004,7 +1004,7 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
             if ((c->cmd && (c->cmd->proc == syncCommand))
                 || (c->lastcmd && (c->lastcmd->proc == syncCommand))
                 || c->need_ssdbClientUnixHandler_reply == SSDB_CLIENT_KEEP_REPLY) {
-                /* The length of customized-psync's response is short than 1024*16. */
+                /* The length of rr_psync's response is short than 1024*16. */
                 replyString = sdsnewlen(r->buf + oldlen, r->len - oldlen);
                 c->need_ssdbClientUnixHandler_reply = SSDB_CLIENT_IGNORE_REPLY;
             } else
@@ -1072,7 +1072,7 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
         && handleResponseOfCheckWrite(c, replyString) == C_OK)
         return;
 
-    /* Handle the response of customized-psync. */
+    /* Handle the response of rr_psync. */
     if ((c->flags & CLIENT_SLAVE)
         && c->cmd && (c->cmd->proc == syncCommand)
         && c->lastcmd && (c->lastcmd->proc == syncCommand)
