@@ -161,9 +161,9 @@ static RedisCommand_raw cmds_raw[] = {
 	{STRATEGY_AUTO,		"lrange",		"qslice",			REPLY_MULTI_BULK},
 
 
-	{STRATEGY_AUTO, 	"linsert",		"qsize",			REPLY_INT},//TODO
-	{STRATEGY_AUTO, 	"lrem",			"qsize",			REPLY_INT},//TODO
-	{STRATEGY_AUTO, 	"ltrim",		"qsize",			REPLY_INT},//TODO
+//	{STRATEGY_AUTO, 	"linsert",		"qsize",			REPLY_INT},//TODO
+//	{STRATEGY_AUTO, 	"lrem",			"qsize",			REPLY_INT},//TODO
+//	{STRATEGY_AUTO, 	"ltrim",		"qsize",			REPLY_INT},//TODO
 
 	{STRATEGY_AUTO, 	NULL,			NULL,			0}
 
