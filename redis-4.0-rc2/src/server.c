@@ -1180,7 +1180,13 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
 }
 
 int memoryReachTransferLowerLimit() {
-    if (server.maxmemory == 0 || server.ssdb_transfer_lower_limit == 0) {
+    /* don't evict cold keys when server.maxmemory is unlimited. so just think
+     * reach the lower limit of cold key transfer. */
+    if (server.maxmemory == 0) {
+        return 1;
+    }
+    /* there is no limit for cold keys transfer.*/
+    if (server.ssdb_transfer_lower_limit == 0) {
         return 0;
     }
     float transfer_lower_threshold = 1.0*server.ssdb_transfer_lower_limit/100;
@@ -2759,6 +2765,7 @@ int processCommand(client *c) {
         return C_ERR;
     }
 
+#if 0
     // TODO: move these to syncCommand
     if (server.jdjr_mode
         && server.use_customized_replication
@@ -2808,10 +2815,17 @@ int processCommand(client *c) {
 
         return C_ERR;
     }
+#endif
 
     ret = runCommand(c, &need_return);
     if (need_return) {
         return ret;
+    }
+
+    /* need to wait check-write ok responses and re-enter 'syncCommand' again,
+     * so return C_ERR to keep client info. */
+    if (server.jdjr_mode && server.ssdb_status == MASTER_SSDB_SNAPSHOT_CHECK_WRITE) {
+        return C_ERR;
     }
 
     if (listLength(server.ready_keys))

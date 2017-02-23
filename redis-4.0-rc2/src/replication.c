@@ -627,52 +627,144 @@ void syncCommand(client *c) {
     /* ignore SYNC if already slave or in monitor mode */
     if (c->flags & CLIENT_SLAVE) return;
 
-    /* Refuse SYNC requests if we are a slave but the link with our master
-     * is not ok... */
-    if (server.masterhost && server.repl_state != REPL_STATE_CONNECTED) {
-        addReplySds(c,sdsnew("-NOMASTERLINK Can't SYNC while not connected with my master\r\n"));
-        return;
-    }
+    if (server.jdjr_mode && server.use_customized_replication &&
+        server.ssdb_status == MASTER_SSDB_SNAPSHOT_OK && c == server.current_repl_slave) {
+        /* this is a pending 'syncCommand' because of check ssdb writes,
+         * and we had received check-write ok and ssdb psync responses from all clients. */
 
-    /* SYNC can't be issued when the server has pending data to send to
-     * the client about already issued commands. We need a fresh reply
-     * buffer registering the differences between the BGSAVE and the current
-     * dataset, so that we can copy to other slaves if needed. */
-    if (clientHasPendingReplies(c)) {
-        addReplyError(c,"SYNC and PSYNC are invalid with pending output");
-        return;
-    }
-
-    serverLog(LL_NOTICE,"Slave %s asks for synchronization",
-        replicationGetSlaveName(c));
-
-    /* Try a partial resynchronization if this is a PSYNC command.
-     * If it fails, we continue with usual full resynchronization, however
-     * when this happens masterTryPartialResynchronization() already
-     * replied with:
-     *
-     * +FULLRESYNC <replid> <offset>
-     *
-     * So the slave knows the new replid and offset to try a PSYNC later
-     * if the connection with the master is lost. */
-    if (!strcasecmp(c->argv[0]->ptr,"psync")) {
-        if (masterTryPartialResynchronization(c) == C_OK) {
-            server.stat_sync_partial_ok++;
-            return; /* No full resync needed, return. */
-        } else {
-            char *master_replid = c->argv[1]->ptr;
-
-            /* Increment stats for failed PSYNCs, but only if the
-             * replid is not "?", as this is used by slaves to force a full
-             * resync on purpose when they are not albe to partially
-             * resync. */
-            if (master_replid[0] != '?') server.stat_sync_partial_err++;
-        }
+        /* do nothing. */
     } else {
-        /* If a slave uses SYNC, we are dealing with an old implementation
-         * of the replication protocol (like redis-cli --slave). Flag the client
-         * so that we don't expect to receive REPLCONF ACK feedbacks. */
-        c->flags |= CLIENT_PRE_PSYNC;
+        /* Refuse SYNC requests if we are a slave but the link with our master
+         * is not ok... */
+        if (server.masterhost && server.repl_state != REPL_STATE_CONNECTED) {
+            addReplySds(c,sdsnew("-NOMASTERLINK Can't SYNC while not connected with my master\r\n"));
+            return;
+        }
+
+        /* SYNC can't be issued when the server has pending data to send to
+         * the client about already issued commands. We need a fresh reply
+         * buffer registering the differences between the BGSAVE and the current
+         * dataset, so that we can copy to other slaves if needed. */
+        if (clientHasPendingReplies(c)) {
+            addReplyError(c,"SYNC and PSYNC are invalid with pending output");
+            return;
+        }
+
+        serverLog(LL_NOTICE,"Slave %s asks for synchronization",
+                  replicationGetSlaveName(c));
+
+        /* Try a partial resynchronization if this is a PSYNC command.
+         * If it fails, we continue with usual full resynchronization, however
+         * when this happens masterTryPartialResynchronization() already
+         * replied with:
+         *
+         * +FULLRESYNC <replid> <offset>
+         *
+         * So the slave knows the new replid and offset to try a PSYNC later
+         * if the connection with the master is lost. */
+        if (!strcasecmp(c->argv[0]->ptr,"psync")) {
+            if (masterTryPartialResynchronization(c) == C_OK) {
+                server.stat_sync_partial_ok++;
+                return; /* No full resync needed, return. */
+            } else {
+                char *master_replid = c->argv[1]->ptr;
+
+                /* Increment stats for failed PSYNCs, but only if the
+                 * replid is not "?", as this is used by slaves to force a full
+                 * resync on purpose when they are not albe to partially
+                 * resync. */
+                if (master_replid[0] != '?') server.stat_sync_partial_err++;
+            }
+        } else {
+            /* If a slave uses SYNC, we are dealing with an old implementation
+             * of the replication protocol (like redis-cli --slave). Flag the client
+             * so that we don't expect to receive REPLCONF ACK feedbacks. */
+            c->flags |= CLIENT_PRE_PSYNC;
+        }
+    }
+
+    if (server.jdjr_mode && server.use_customized_replication) {
+        if (server.current_repl_slave) {
+            if (server.rdb_child_pid != -1 &&
+                server.rdb_child_type == RDB_CHILD_TYPE_DISK &&
+                server.ssdb_status >= MASTER_SSDB_SNAPSHOT_PRE && c != server.current_repl_slave) {
+                /* there is another replication task running, just use the
+                 * same rdb and SSDB snapshot.*/
+
+                c->ssdb_status = SLAVE_SSDB_SNAPSHOT_TRANSFER_PRE;
+
+                // todo: send slave ip and port info when customized-transfer-snapshot
+                sds cmdsds = sdsnew("*1\r\n$28\r\ncustomized-transfer-snapshot\r\n");
+
+                if (sendCommandToSSDB(c, cmdsds) != C_OK) {
+                    serverLog(LL_WARNING,
+                              "Sending customized-transfer-snapshot to SSDB failed.");
+                    freeClientAsync(c);
+                    sdsfree(cmdsds);
+                    return;
+                }
+                sdsfree(cmdsds);
+            } else if (server.ssdb_status == MASTER_SSDB_SNAPSHOT_OK &&
+                    c == server.current_repl_slave) {
+                /* this is a pending 'syncCommand' because of check ssdb writes,
+                 * and we received check write ok responses from all clients. */
+
+                /* do nothing. */
+            } else if (server.ssdb_status == MASTER_SSDB_SNAPSHOT_CHECK_WRITE) {
+                /* wait for another slave to make rdb and SSDB snapshot,
+                 * we just reuse them.*/
+                c->ssdb_status = SLAVE_SSDB_SNAPSHOT_WAIT_ANOTHER_CHECK;
+            } else {
+                // todo check
+                serverLog(LL_WARNING,"ssdb_status is not MASTER_SSDB_SNAPSHOT_CHECK_WRITE"
+                        ", maybe there is a bug!!!");
+                freeClientAsync(c);
+                return;
+            }
+        } else {
+
+            if (server.ssdb_status == SSDB_NONE) {
+                listIter li;
+                listNode *ln;
+                client *tc;
+
+                c->ssdb_status = SLAVE_SSDB_SNAPSHOT_IN_PROCESS;
+
+                /* Update the server's status. */
+                server.check_write_unresponse_num = listLength(server.clients);
+                server.ssdb_status = MASTER_SSDB_SNAPSHOT_CHECK_WRITE;
+
+                /* Block the current client(slave), waiting to be awaked. */
+                /* TODO: set a reasonable timeout. */
+                c->bpop.timeout = 5000 + mstime();
+
+                blockClient(c, BLOCKED_SLAVE_BY_PSYNC);
+
+                server.current_repl_slave = c;
+
+                /* Forbbid sending the writing cmds to SSDB. */
+                server.is_allow_ssdb_write = DISALLOW_SSDB_WRITE;
+
+                /* Force all the clients to check the write cmd. */
+                listRewind(server.clients, &li);
+                while ((ln = listNext(&li)) != NULL) {
+                    tc = listNodeValue(ln);
+
+                    if (aeCreateFileEvent(server.el, tc->fd, AE_WRITABLE,
+                        sendCheckWriteCommandToSSDB, tc) == AE_ERR) {
+                        /* just free this client and ignore it. */
+                        freeClientAsync(tc);
+                        server.check_write_unresponse_num -= 1;
+                    }
+                }
+                /* need call 'syncCommand' again after . */
+                return;
+            } else {
+                serverLog(LL_NOTICE,
+                    "Another replication task is running, and we can't use the same rdb "
+                    "and SSDB snapshot. BGSAVE for replication delayed");
+            }
+        }
     }
 
     /* Full resynchronization. */
