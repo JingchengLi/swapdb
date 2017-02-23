@@ -319,8 +319,8 @@ proc read_from_test_client fd {
     } elseif {$status eq {err}} {
         incr ::steps
         set classname [lindex $::all_tests $::next_test-1]  
-        set testcase [string range $data 0 [string first "in $classname.tcl" $data]-2]
-        set searchStr "in $classname.tcl"
+        set testcase [string range $data 0 [string first "in tests/$classname.tcl" $data]-2]
+        set searchStr "in tests/$classname.tcl"
         set report [string range $data [expr [string first $searchStr $data]+[string length $searchStr]+1 ] [string length $data]]
         set err "\[[colorstr red $status]\]: $data"
         if {!$::quiet} {
