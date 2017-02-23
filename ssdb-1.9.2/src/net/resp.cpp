@@ -112,7 +112,7 @@ void Response::reply_get(int status, const std::string *val, const char *errmsg)
 	}
 } 
 
-void Response::reply_list(int status, const std::vector<std::string> &list){
+void Response::reply_list(int status, const std::vector<std::string> &list, const char *errmsg){
 	if(status == -1){
 		resp.push_back("error");
 	}else{

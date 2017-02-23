@@ -30,7 +30,7 @@ public:
 	void reply_double(int status, double val);
 	// the same as Redis.REPLY_BULK
 	void reply_get(int status, const std::string *val=NULL, const char *errmsg=NULL);
-	void reply_list(int status, const std::vector<std::string> &list);
+	void reply_list(int status, const std::vector<std::string> &list, const char *errmsg=NULL);
 };
 
 #endif
