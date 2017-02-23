@@ -712,12 +712,12 @@ void sendCheckWriteCommandToSSDB(aeEventLoop *el, int fd, void *privdata, int ma
     UNUSED(el);
     UNUSED(fd);
 
-    /* Expect the response of customized-check-write as
-       'customized-check-write ok/nok'. */
-    sds finalcmd = sdsnew("*1\r\n$22\r\ncustomized-check-write\r\n");
+    /* Expect the response of rr_check_write as
+       'rr_check_write ok/nok'. */
+    sds finalcmd = sdsnew("*1\r\n$14\r\nrr_check_write\r\n");
 
     if (sendCommandToSSDB(c, finalcmd) != C_OK)
-        serverLog(LL_WARNING, "Sending customized-check-write to SSDB failed.");
+        serverLog(LL_WARNING, "Sending rr_check_write to SSDB failed.");
 
     aeDeleteFileEvent(server.el, c->fd, AE_WRITABLE);
 
@@ -852,8 +852,8 @@ void checkAndUpdateSlaveSsdbStatus(int checkedStatus, int updatedStatus) {
 
 int handleResponseOfCheckWrite(client *c, sds replyString) {
     /* TODO: make tmp_ok and tmp_nok shared. */
-    sds tmp_ok = sdsnew("customized-check-write ok");
-    sds tmp_nok = sdsnew("customized-check-write nok");
+    sds tmp_ok = sdsnew("rr_check_write ok");
+    sds tmp_nok = sdsnew("rr_check_write nok");
     int process_status;
     UNUSED(c);
 
@@ -880,7 +880,7 @@ int handleResponseOfCheckWrite(client *c, sds replyString) {
     } else if (!sdscmp(replyString, tmp_nok)) {
         /* TODO: 'nok' makes server.check_write_unresponse_num == 0 impossible.
            Wait for the next try ??? */
-        serverLog(LL_WARNING, "SSDB returns 'customized-check-write nok'.");
+        serverLog(LL_WARNING, "SSDB returns 'rr_check_write nok'.");
         process_status = C_OK;
     } else
         process_status = C_ERR;
@@ -1066,7 +1066,7 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
         resetClient(c);
     }
 
-    /* Handle the response of customized-check-write. */
+    /* Handle the response of rr_check_write. */
     if (server.ssdb_status == MASTER_SSDB_SNAPSHOT_CHECK_WRITE
         && c->need_ssdbClientUnixHandler_reply == SSDB_CLIENT_KEEP_REPLY
         && handleResponseOfCheckWrite(c, replyString) == C_OK)
