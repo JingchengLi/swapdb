@@ -902,8 +902,6 @@ int handleResponseOfPsync(client *c, sds replyString) {
 
     sdstolower(replyString);
 
-    unblockClient(c);
-
     /* Reset is_allow_ssdb_write to ALLOW_SSDB_WRITE
        as soon as rr_psync is responsed. */
     if (!sdscmp(replyString, tmp_ok)) {
@@ -923,6 +921,48 @@ int handleResponseOfPsync(client *c, sds replyString) {
     sdsfree(tmp_ok);
     sdsfree(tmp_nok);
     sdsfree(replyString);
+
+    /* TODO: customized replication not support repl_diskless_sync. */
+    serverAssert(!server.repl_diskless_sync);
+    serverAssert(server.current_repl_slave == c);
+
+    if (server.repl_diskless_sync && (c->slave_capa & SLAVE_CAPA_EOF)) {
+        /* Diskless replication RDB child is created inside
+         * replicationCron() since we want to delay its start a
+         * few seconds to wait for more slaves to arrive. */
+        if (server.repl_diskless_sync_delay)
+            serverLog(LL_NOTICE,"Delay next BGSAVE for diskless SYNC");
+    } else {
+        /* Target is disk (or the slave is not capable of supporting
+         * diskless replication) and we don't have a BGSAVE in progress,
+         * let's start one. */
+        if (server.aof_child_pid == -1) {
+            startBgsaveForReplication(c->slave_capa);
+        } else {
+            serverLog(LL_NOTICE,
+                      "No BGSAVE in progress, but an AOF rewrite is active. "
+                      "BGSAVE for replication delayed");
+        }
+    }
+
+    /* Unblock clients blocked by psync. */
+    {
+        listIter li;
+        listNode *ln;
+
+        listRewind(server.slave_blcoked_by_psync, &li);
+        while ((ln = listNext(&li))) {
+            client *c = listNodeValue(ln);
+            if (c->btype == BLOCKED_SLAVE_BY_PSYNC) {
+                unblockClient(c);
+                if (server.current_repl_slave != c) {
+                    if (runCommand(c, NULL) == C_OK)
+                        resetClient(c);
+                } else
+                    resetClient(c);
+            }
+        }
+    }
 
     return process_status;
 }
