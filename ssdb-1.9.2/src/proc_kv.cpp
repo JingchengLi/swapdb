@@ -438,7 +438,12 @@ int proc_multi_set(NetworkServer *net, Link *link, const Request &req, Response 
 		resp->push_back("ERR wrong number of arguments for MSET");
 	}else{
 		int ret = serv->ssdb->multi_set(req, 1);
-		resp->reply_int(ret, ret);
+		if(ret < 0){
+			resp->push_back("error");
+			resp->push_back(GetErrorInfo(ret));
+		} else {
+			resp->reply_int(ret, ret);
+		}
 	}
 	return 0;
 }
