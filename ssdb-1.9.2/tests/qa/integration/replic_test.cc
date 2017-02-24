@@ -199,7 +199,7 @@ void ReplicTest::replic(const string &slave_ip, int slave_port) {
     s = replicClient->client()->replic(slave_ip, slave_port);
 
     std::string result = replicClient->client()->response();
-    ASSERT_EQ("replic finish", result);
+    ASSERT_EQ("rr_transfer_snapshot finished", result);
     delete replicClient;
 }
 
@@ -208,7 +208,7 @@ void ReplicTest::replic(const std::vector<std::string> &items) {
     s = replicClient->client()->replic(items);
 
     std::string result = replicClient->client()->response();
-    ASSERT_EQ("replic finish", result);
+    ASSERT_EQ("rr_transfer_snapshot finished", result);
     delete replicClient;
 }
 
@@ -255,7 +255,7 @@ TEST_F(ReplicTest, Test_replic_expire_keys) {
     fillMasterData();
     sclient = new SlaveClient(slave_ip, slave_port);
 
-    int16_t etime = 10;
+    int16_t etime = 6;
     for (auto key : keys) {
         client->expire(key, etime);
     }
@@ -264,20 +264,41 @@ TEST_F(ReplicTest, Test_replic_expire_keys) {
     replic(slave_ip, slave_port);
 
     time_t post_seconds = time((time_t*)NULL);
-    while(post_seconds-pre_seconds<etime/4) {
+    bool checkOK = false;
+    while(post_seconds-pre_seconds<etime/2) {
         checkSlaveDataOK();
         sleep(1);
         post_seconds = time((time_t*)NULL);
+        checkOK = true;
     }
+    ASSERT_TRUE(checkOK)<<"should check ok at least once."<<endl;
 
     if(etime>post_seconds-pre_seconds)
         sleep(etime-(post_seconds-pre_seconds)+1);
 
     checkSlaveDataNotFound();
-    sclient->client()->multi_del(keys);
     delete sclient;
-    client->multi_del(keys);
-    sleep(5);
+}
+
+//For a replic twice issue
+TEST_F(ReplicTest, Test_replic_expire_keys_override) {
+    int64_t etime = 3;
+    client->setx("key", "val", etime);
+    replic(slave_ip, slave_port);
+    client->set("key", "val");
+    replic(slave_ip, slave_port);
+
+    sclient = new SlaveClient(slave_ip, slave_port);
+
+    sleep(etime);
+    sclient->client()->ttl("key", &ret);
+    ASSERT_EQ(-1, ret)<<"key should be a persist key."<<endl;
+
+    client->multi_del("key");
+    replic(slave_ip, slave_port);
+    sclient->client()->ttl("key", &ret);
+    ASSERT_EQ(-2, ret)<<"key should be deleted."<<endl;
+    delete sclient;
 }
 
 TEST_F(ReplicTest, Test_replic_multi_slaves) {
