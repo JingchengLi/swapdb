@@ -11,11 +11,13 @@ found in the LICENSE file.
 #include "leveldb/cache.h"
 #include "leveldb/filter_policy.h"
 #else
+#include "rocksdb/options.h"
 #include "rocksdb/env.h"
 #include "rocksdb/iterator.h"
 #include "rocksdb/cache.h"
 #include "rocksdb/filter_policy.h"
 #include "rocksdb/table.h"
+#include "rocksdb/convenience.h"
 
 #define leveldb rocksdb
 #endif
@@ -116,6 +118,20 @@ err:
 int SSDBImpl::flushdb(){
 //lock
 
+
+#ifdef USE_LEVELDB
+
+#else
+//	leveldb::CompactRangeOptions compactRangeOptions = leveldb::CompactRangeOptions();
+    //	ldb->CompactRange(compactRangeOptions, nullptr, nullptr);
+
+    leveldb::Slice begin("0");
+    leveldb::Slice end("z");
+    leveldb::DeleteFilesInRange(ldb, ldb->DefaultColumnFamily(), &begin, &end);
+#endif
+
+
+    uint64_t total = 0;
 	int ret = 0;
 	bool stop = false;
 
@@ -137,7 +153,12 @@ int SSDBImpl::flushdb(){
 				break;
 			}
 
-			writeBatch.Delete(it->key());
+            total ++;
+#ifdef USE_LEVELDB
+            writeBatch.Delete(it->key());
+#else
+            writeBatch.SingleDelete(it->key());
+#endif
 			it->Next();
 		}
 
@@ -151,6 +172,8 @@ int SSDBImpl::flushdb(){
 	}
 
 	delete it;
+
+    log_info(" total deleted in flushdb : %d", total);
 
 	return ret;
 }
