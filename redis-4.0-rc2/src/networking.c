@@ -712,7 +712,7 @@ void sendCheckWriteCommandToSSDB(aeEventLoop *el, int fd, void *privdata, int ma
     UNUSED(el);
     UNUSED(fd);
 
-    // todo: customized-check-write id, id自增
+    // todo: rr-check-write id, id自增
     /* Expect the response of rr_check_write as
        'rr_check_write ok/nok'. */
     sds finalcmd = sdsnew("*1\r\n$14\r\nrr_check_write\r\n");

@@ -693,12 +693,12 @@ void syncCommand(client *c) {
 
                 c->ssdb_status = SLAVE_SSDB_SNAPSHOT_TRANSFER_PRE;
 
-                // todo: send slave ip and port info when customized-transfer-snapshot
-                sds cmdsds = sdsnew("*1\r\n$28\r\ncustomized-transfer-snapshot\r\n");
+                // todo: send slave ip and port info when rr-transfer-snapshot
+                sds cmdsds = sdsnew("*1\r\n$20\r\nrr-transfer-snapshot\r\n");
 
                 if (sendCommandToSSDB(c, cmdsds) != C_OK) {
                     serverLog(LL_WARNING,
-                              "Sending customized-transfer-snapshot to SSDB failed.");
+                              "Sending rr-transfer-snapshot to SSDB failed.");
                     freeClientAsync(c);
                     sdsfree(cmdsds);
                     return;
