@@ -643,20 +643,6 @@ void syncCommand(client *c) {
         return;
     }
 
-    /* Block client if server is in MASTER_SSDB_SNAPSHOT_CHECK_WRITE or 
-       MASTER_SSDB_SNAPSHOT_PRE. */
-    if (server.jdjr_mode
-        && server.use_customized_replication
-        && server.current_repl_slave
-        && server.ssdb_status < MASTER_SSDB_SNAPSHOT_OK) {
-        listAddNodeTail(server.slave_blcoked_by_psync, c);
-        /* Block the current client(slave), waiting to be awaked. */
-        /* TODO: set a reasonable timeout. */
-        c->bpop.timeout = 5000 + mstime();
-        blockClient(c, BLOCKED_SLAVE_BY_PSYNC);
-        return;
-    }
-
     serverLog(LL_NOTICE,"Slave %s asks for synchronization",
         replicationGetSlaveName(c));
 
@@ -700,11 +686,6 @@ void syncCommand(client *c) {
     c->repldbfd = -1;
     c->flags |= CLIENT_SLAVE;
     listAddNodeTail(server.slaves,c);
-
-    /* Update ssdb_status. */
-    if (server.jdjr_mode
-        && server.use_customized_replication)
-        c->ssdb_status = SLAVE_SSDB_SNAPSHOT_IN_PROCESS;
 
     /* Create the replication backlog if needed. */
     if (listLength(server.slaves) == 1 && server.repl_backlog == NULL) {
@@ -757,58 +738,22 @@ void syncCommand(client *c) {
 
     /* CASE 3: There is no BGSAVE is progress. */
     } else {
-        if (server.jdjr_mode
-            && server.use_customized_replication) {
-            listIter li;
-            listNode *ln;
-            client *tc;
-
-            serverAssert(!server.current_repl_slave);
-
-            /* Update the server's status. */
-            server.check_write_unresponse_num = listLength(server.clients);
-            server.ssdb_status = MASTER_SSDB_SNAPSHOT_CHECK_WRITE;
-
-            server.current_repl_slave = c;
-
-            /* Forbbid sending the writing cmds to SSDB. */
-            server.is_allow_ssdb_write = DISALLOW_SSDB_WRITE;
-
-            /* Force all the clients to check the write cmd. */
-            listRewind(server.clients, &li);
-            while((ln = listNext(&li)) != NULL) {
-                tc = listNodeValue(ln);
-
-                /* TODO: To abort the current psync ASAP,
-                   record the num of clients that sucessfully exec sendCommandToSSDB. */
-                if (aeCreateFileEvent(server.el, tc->fd, AE_WRITABLE,
-                                      sendCheckWriteCommandToSSDB, tc) == AE_ERR)
-                    freeClientAsync(tc);
-            }
-
-            /* Block the current client(slave), waiting to be awaked. */
-            /* TODO: set a reasonable timeout. */
-            c->bpop.timeout = 5000 + mstime();
-            blockClient(c, BLOCKED_SLAVE_BY_PSYNC);
-
+        if (server.repl_diskless_sync && (c->slave_capa & SLAVE_CAPA_EOF)) {
+            /* Diskless replication RDB child is created inside
+             * replicationCron() since we want to delay its start a
+             * few seconds to wait for more slaves to arrive. */
+            if (server.repl_diskless_sync_delay)
+                serverLog(LL_NOTICE,"Delay next BGSAVE for diskless SYNC");
         } else {
-            if (server.repl_diskless_sync && (c->slave_capa & SLAVE_CAPA_EOF)) {
-                /* Diskless replication RDB child is created inside
-                 * replicationCron() since we want to delay its start a
-                 * few seconds to wait for more slaves to arrive. */
-                if (server.repl_diskless_sync_delay)
-                    serverLog(LL_NOTICE,"Delay next BGSAVE for diskless SYNC");
+            /* Target is disk (or the slave is not capable of supporting
+             * diskless replication) and we don't have a BGSAVE in progress,
+             * let's start one. */
+            if (server.aof_child_pid == -1) {
+                startBgsaveForReplication(c->slave_capa);
             } else {
-                /* Target is disk (or the slave is not capable of supporting
-                 * diskless replication) and we don't have a BGSAVE in progress,
-                 * let's start one. */
-                if (server.aof_child_pid == -1) {
-                    startBgsaveForReplication(c->slave_capa);
-                } else {
-                    serverLog(LL_NOTICE,
-                              "No BGSAVE in progress, but an AOF rewrite is active. "
-                              "BGSAVE for replication delayed");
-                }
+                serverLog(LL_NOTICE,
+                    "No BGSAVE in progress, but an AOF rewrite is active. "
+                    "BGSAVE for replication delayed");
             }
         }
     }
@@ -973,11 +918,8 @@ void sendBulkToSlave(aeEventLoop *el, int fd, void *privdata, int mask) {
         close(slave->repldbfd);
         slave->repldbfd = -1;
         aeDeleteFileEvent(server.el,slave->fd,AE_WRITABLE);
+        putSlaveOnline(slave);
 
-        if (server.jdjr_mode && server.use_customized_replication)
-            slave->replstate = SLAVE_STATE_SEND_BULK_FINISHED;
-        else
-            putSlaveOnline(slave);
     }
 }
 
@@ -2609,10 +2551,6 @@ void replicationCron(void) {
      * ping period and refresh the connection once per second since certain
      * timeouts are set at a few seconds (example: PSYNC response). */
     listRewind(server.slaves,&li);
-
-    /* Check if ssdb_snapshot is to be deleted. */
-    int need_ssdb_snapshot = 0;
-
     while((ln = listNext(&li))) {
         client *slave = ln->value;
 
@@ -2647,37 +2585,7 @@ void replicationCron(void) {
                                       sendBulkToSlave, slave) == AE_ERR)
                     freeClient(slave);
             }
-
-        if (server.jdjr_mode && server.use_customized_replication
-            && slave->replstate == SLAVE_STATE_SEND_BULK_FINISHED
-            && slave->ssdb_status == SLAVE_SSDB_SNAPSHOT_TRANSFER_END) {
-            putSlaveOnline(slave);
-            slave->ssdb_status = SSDB_NONE;
-        }
-
-        if (server.current_repl_slave
-            && slave->ssdb_status != SSDB_NONE
-            && !need_ssdb_snapshot)
-            need_ssdb_snapshot = 1;
     }
-
-    /* Notify ssdb to release snapshot. */
-    if (server.jdjr_mode && server.use_customized_replication
-        && server.current_repl_slave
-        &&!need_ssdb_snapshot) {
-
-        sds cmdsds = sdsnew("*1\r\n$15\r\nrr_del_snapshot\r\n");
-
-        /* TODO: retry if rr_del_snapshot fails. */
-        if (sendCommandToSSDB(server.current_repl_slave, cmdsds) == C_OK) {
-            serverLog(LL_WARNING,
-                      "Sending rr_del_snapshot to SSDB failed.");
-        }
-
-        server.current_repl_slave = NULL;
-        server.ssdb_status = SSDB_NONE;
-    }
-
 
     /* Disconnect timedout slaves. */
     if (listLength(server.slaves)) {

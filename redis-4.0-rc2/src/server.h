@@ -316,7 +316,6 @@ typedef long long mstime_t; /* millisecond time type. */
 #define SLAVE_STATE_WAIT_BGSAVE_END 7 /* Waiting RDB file creation to finish. */
 #define SLAVE_STATE_SEND_BULK 8 /* Sending RDB file to slave. */
 #define SLAVE_STATE_ONLINE 9 /* RDB file transmitted, sending just updates. */
-#define SLAVE_STATE_SEND_BULK_FINISHED 10 /* Finish sending RDB file to slave in jdjr_mode. */
 
 /* Use by server.ssdb_status(master) and client.ssdb_status(slave). */
 #define SSDB_NONE 0
@@ -1226,7 +1225,6 @@ struct redisServer {
     /* Forbbid sending the writing cmds to SSDB. */
     int is_allow_ssdb_write;
     list *no_writing_ssdb_blocked_clients;
-    list *slave_blcoked_by_psync;
     int ssdb_status;
     /* Calculate the num of unresponsed clients. */
     int check_write_unresponse_num;
@@ -1538,7 +1536,6 @@ void clearReplicationId2(void);
 void chopReplicationBacklog(void);
 void replicationCacheMasterUsingMyself(void);
 void feedReplicationBacklog(void *ptr, size_t len);
-int startBgsaveForReplication(int mincapa);
 
 /* Generic persistence functions */
 void startLoading(FILE *fp);
