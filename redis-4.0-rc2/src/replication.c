@@ -1014,8 +1014,11 @@ void sendBulkToSlave(aeEventLoop *el, int fd, void *privdata, int mask) {
         close(slave->repldbfd);
         slave->repldbfd = -1;
         aeDeleteFileEvent(server.el,slave->fd,AE_WRITABLE);
-        putSlaveOnline(slave);
 
+        if (server.jdjr_mode && server.use_customized_replication)
+            slave->replstate = SLAVE_STATE_SEND_BULK_FINISHED;
+        else
+            putSlaveOnline(slave);
     }
 }
 
@@ -2646,6 +2649,10 @@ void replicationCron(void) {
      * last interaction timer preventing a timeout. In this case we ignore the
      * ping period and refresh the connection once per second since certain
      * timeouts are set at a few seconds (example: PSYNC response). */
+
+    /* Check if ssdb_snapshot is to be deleted. */
+    int need_ssdb_snapshot = 0;
+
     listRewind(server.slaves,&li);
     while((ln = listNext(&li))) {
         client *slave = ln->value;
@@ -2676,11 +2683,37 @@ void replicationCron(void) {
 
         if (server.jdjr_mode
             && (slave->ssdb_status == SLAVE_SSDB_SNAPSHOT_TRANSFER_START)) {
-                aeDeleteFileEvent(server.el, slave->fd, AE_WRITABLE);
-                if (aeCreateFileEvent(server.el, slave->fd, AE_WRITABLE,
-                                      sendBulkToSlave, slave) == AE_ERR)
-                    freeClient(slave);
-            }
+            aeDeleteFileEvent(server.el, slave->fd, AE_WRITABLE);
+            if (aeCreateFileEvent(server.el, slave->fd, AE_WRITABLE,
+                                  sendBulkToSlave, slave) == AE_ERR)
+                freeClient(slave);
+        }
+
+        if (server.jdjr_mode && server.use_customized_replication
+            && slave->replstate == SLAVE_STATE_SEND_BULK_FINISHED
+            && slave->ssdb_status == SLAVE_SSDB_SNAPSHOT_TRANSFER_END) {
+            putSlaveOnline(slave);
+            slave->ssdb_status = SSDB_NONE;
+        }
+
+        if (server.current_repl_slave
+            && slave->ssdb_status != SSDB_NONE
+            && !need_ssdb_snapshot)
+            need_ssdb_snapshot = 1;
+    }
+
+    /* Notify ssdb to release snapshot. */
+    if (server.jdjr_mode && server.use_customized_replication
+        && server.current_repl_slave &&!need_ssdb_snapshot) {
+        sds cmdsds = sdsnew("*1\r\n$15\r\nrr_del_snapshot\r\n");
+
+        /* TODO: retry if rr_del_snapshot fails. */
+        if (sendCommandToSSDB(server.current_repl_slave, cmdsds) == C_OK) {
+            serverLog(LL_WARNING, "Sending rr_del_snapshot to SSDB failed.");
+        }
+
+        server.current_repl_slave = NULL;
+        server.ssdb_status = SSDB_NONE;
     }
 
     /* Disconnect timedout slaves. */

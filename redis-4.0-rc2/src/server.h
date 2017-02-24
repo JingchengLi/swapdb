@@ -316,6 +316,7 @@ typedef long long mstime_t; /* millisecond time type. */
 #define SLAVE_STATE_WAIT_BGSAVE_END 7 /* Waiting RDB file creation to finish. */
 #define SLAVE_STATE_SEND_BULK 8 /* Sending RDB file to slave. */
 #define SLAVE_STATE_ONLINE 9 /* RDB file transmitted, sending just updates. */
+#define SLAVE_STATE_SEND_BULK_FINISHED 10 /* Finish sending RDB file to slave in jdjr_mode. */
 
 /* Use by server.ssdb_status(master) and client.ssdb_status(slave). */
 #define SSDB_NONE 0
