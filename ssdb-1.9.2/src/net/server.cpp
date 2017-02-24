@@ -558,6 +558,18 @@ int NetworkServer::proc(ProcJob *job){
 			int sock = job->link->fd();
 			fdes->del(sock);
 			fdes->set(sock, FDEVENT_IN, 150, job->link);
+
+			Command *cmd = proc_map.get_proc("flushdb");
+			if(!cmd){
+				job->link->output->append("flushdb error");
+				job->link->flush();
+				continue;
+			}
+			proc_t p = cmd->proc;
+			const Request req;
+			Response resp;
+			int result = (*p)(this, job->link, req, &resp);
+
 			job->resp.push_back("ok");
 			break;
 		}
