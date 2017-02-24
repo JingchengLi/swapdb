@@ -122,9 +122,6 @@ int SSDBImpl::flushdb(){
 #ifdef USE_LEVELDB
 
 #else
-//	leveldb::CompactRangeOptions compactRangeOptions = leveldb::CompactRangeOptions();
-    //	ldb->CompactRange(compactRangeOptions, nullptr, nullptr);
-
     leveldb::Slice begin("0");
     leveldb::Slice end("z");
     leveldb::DeleteFilesInRange(ldb, ldb->DefaultColumnFamily(), &begin, &end);
@@ -154,11 +151,7 @@ int SSDBImpl::flushdb(){
 			}
 
             total ++;
-#ifdef USE_LEVELDB
             writeBatch.Delete(it->key());
-#else
-            writeBatch.SingleDelete(it->key());
-#endif
 			it->Next();
 		}
 
@@ -171,9 +164,18 @@ int SSDBImpl::flushdb(){
 
 	}
 
+
 	delete it;
 
-    log_info(" total deleted in flushdb : %d", total);
+//#ifdef USE_LEVELDB
+//
+//#else
+//	leveldb::CompactRangeOptions compactRangeOptions = leveldb::CompactRangeOptions();
+//	ldb->CompactRange(compactRangeOptions, &begin, &end);
+//#endif
+
+
+	log_info("[flushdb] %d keys deleted by iteration", total);
 
 	return ret;
 }
