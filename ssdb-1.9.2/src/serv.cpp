@@ -131,7 +131,10 @@ DEF_PROC(sync150);
 DEF_PROC(rr_dump);
 DEF_PROC(rr_restore);
 
-
+DEF_PROC(rr_check_write);
+DEF_PROC(rr_psync);
+DEF_PROC(rr_transfer_snapshot);
+DEF_PROC(rr_del_snapshot);
 
 DEF_BPROC(COMMAND_DATA_SAVE);
 DEF_BPROC(COMMAND_DATA_DUMP);
@@ -265,6 +268,10 @@ void SSDBServer::reg_procs(NetworkServer *net){
 	// writer thread(for performance reason); we don't want to block writes
 	REG_PROC(compact, "rt");
 
+    REG_PROC(rr_check_write, "wt");
+    REG_PROC(rr_psync, "w");
+    REG_PROC(rr_transfer_snapshot, "w");
+    REG_PROC(rr_del_snapshot, "r");
 }
 
 #define COMMAND_DATA_SAVE 1
@@ -697,11 +704,11 @@ void* thread_replic(void *arg){
     }
     serv->slave_infos.clear();
 
-	serv->ssdb->ReleaseSnapshot(snapshot);
+//	serv->ssdb->ReleaseSnapshot(snapshot);
 
     if (serv->master_link != NULL){
         std::vector<std::string> response;
-        response.push_back("replic finish");
+        response.push_back("rr_transfer_snapshot finished");
         serv->master_link->send(response);
         serv->master_link->flush();
 		log_debug("send replic finish!!");
@@ -860,3 +867,56 @@ int proc_sync150(NetworkServer *net, Link *link, const Request &req, Response *r
 	return ret;
 }
 
+int proc_rr_check_write(NetworkServer *net, Link *link, const Request &req, Response *resp){
+    resp->push_back("ok");
+    resp->push_back("rr_check_write ok");
+    return 0;
+}
+
+int proc_rr_psync(NetworkServer *net, Link *link, const Request &req, Response *resp){
+    SSDBServer *serv = (SSDBServer *)net->data;
+
+    if (serv->snapshot != nullptr){
+        serv->ssdb->ReleaseSnapshot(serv->snapshot);
+    }
+    serv->snapshot = serv->ssdb->GetSnapshot();
+    resp->push_back("ok");
+    resp->push_back("rr_psync ok");
+    return 0;
+}
+
+int proc_rr_transfer_snapshot(NetworkServer *net, Link *link, const Request &req, Response *resp){
+    SSDBServer *serv = (SSDBServer *)net->data;
+    CHECK_NUM_PARAMS(3);
+    if ((req.size() - 1) % 2 != 0){
+        resp->push_back("wrong number of arguments");
+        return 0;
+    }
+    for (int i = 1; i < req.size(); i += 2) {
+        std::string ip = req[i].String();
+        int port = req[i+1].Int();
+        serv->slave_infos.push_back(Slave_info{ip, port, NULL});
+    }
+    serv->master_link = link;
+
+    pthread_t tid;
+    int err = pthread_create(&tid, NULL, &thread_replic, serv);
+    if(err != 0){
+        log_fatal("can't create thread: %s", strerror(err));
+        exit(0);
+    }
+    resp->push_back("ok");
+    resp->push_back("rr_transfer_snapshot ok");
+    return 0;
+}
+
+int proc_rr_del_snapshot(NetworkServer *net, Link *link, const Request &req, Response *resp){
+    SSDBServer *serv = (SSDBServer *)net->data;
+    if (serv->snapshot != nullptr){
+        serv->ssdb->ReleaseSnapshot(serv->snapshot);
+        serv->snapshot = nullptr;
+    }
+    resp->push_back("ok");
+    resp->push_back("rr_del_snapshot ok");
+    return 0;
+}
