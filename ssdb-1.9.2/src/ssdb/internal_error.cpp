@@ -24,6 +24,7 @@ std::map<int, std::string> SSDBErrMap = {
         {INDEX_OUT_OF_RANGE,"ERR index out of range"},
         {SYNTAX_ERR,       "ERR syntax error"},
         {INVALID_EX_TIME,  "ERR invalid expire time"},
+        {INVALID_INCR_PDC_NAN_OR_INF,  "ERR increment would produce NaN or Infinity"},
 
 };
 

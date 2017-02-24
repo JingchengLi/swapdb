@@ -317,6 +317,10 @@ int SSDBImpl::incrbyfloat(const Bytes &key, long double by, long double *new_val
 
         *new_val = oldvalue + by;
 
+        if (std::isnan(*new_val) || std::isinf(*new_val)) {
+            return INVALID_INCR_PDC_NAN_OR_INF;
+        }
+
     }
 
     std::string buf = encode_meta_key(key);

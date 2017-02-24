@@ -214,6 +214,10 @@ int SSDBImpl::hincrbyfloat(const Bytes &name, const Bytes &key, long double by, 
         }
 
         *new_val = oldvalue + by;
+
+		if (std::isnan(*new_val) || std::isinf(*new_val)) {
+			return INVALID_INCR_PDC_NAN_OR_INF;
+		}
     }
 
 
