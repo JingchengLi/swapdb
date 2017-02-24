@@ -18,8 +18,9 @@ set ::all_tests {
     ssdb/string
     ssdb/set
     ssdb/incr
-    ssdb/zset
     ssdb/expire
+    ssdb/other
+    ssdb/zset
 }
 # need run with redis
 # ssdb/dump

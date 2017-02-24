@@ -91,7 +91,24 @@ start_server {
         assert_encoding quicklist $key
     }
 
+    test {LPUSHX, RPUSHX - generic} {
+        r del xlist
+        assert_equal 0 [r lpushx xlist a]
+        assert_equal 0 [r llen xlist]
+        assert_equal 0 [r rpushx xlist a]
+        assert_equal 0 [r llen xlist]
+    }
 
+    foreach {type large} [array get largevalue] {
+        test "LPUSHX, RPUSHX - $type" {
+            create_list xlist "$large c"
+            assert_equal 3 [r rpushx xlist d]
+            assert_equal 4 [r lpushx xlist a]
+            assert_equal 6 [r rpushx xlist 42 x]
+            assert_equal 9 [r lpushx xlist y3 y2 y1]
+            assert_equal "y1 y2 y3 a $large c d 42 x" [r lrange xlist 0 -1]
+        }
+    }
 
     foreach {type num} {quicklist 250 quicklist 500} {
         proc check_numbered_list_consistency {key} {
@@ -129,7 +146,7 @@ start_server {
     test {LLEN against non-list value error} {
         r del mylist
         r set mylist foobar
-        assert_error ERR* {r llen mylist}
+        assert_error WRONGTYPE* {r llen mylist}
     }
 
     test {LLEN against non existing key} {
@@ -137,7 +154,7 @@ start_server {
     }
 
     test {LINDEX against non-list value error} {
-        assert_error ERR* {r lindex mylist 0}
+        assert_error WRONGTYPE* {r lindex mylist 0}
     }
 
     test {LINDEX against non existing key} {
@@ -145,11 +162,11 @@ start_server {
     }
 
     test {LPUSH against non-list value error} {
-        assert_error ERR* {r lpush mylist 0}
+        assert_error WRONGTYPE* {r lpush mylist 0}
     }
 
     test {RPUSH against non-list value error} {
-        assert_error ERR* {r rpush mylist 0}
+        assert_error WRONGTYPE* {r rpush mylist 0}
     }
 
     foreach {type large} [array get largevalue] {
@@ -228,17 +245,17 @@ start_server {
         }
 
         test "LSET out of range index - $type" {
-            assert_error ERR* {r lset mylist 10 foo}
+            assert_error ERR*range* {r lset mylist 10 foo}
         }
     }
 
     test {LSET against non existing key} {
-        assert_error ERR* {r lset nosuchkey 10 foo}
+        assert_error ERR*key* {r lset nosuchkey 10 foo}
     }
 
     test {LSET against non list value} {
         r set nolist foobar
-        assert_error ERR* {r lset nolist 0 foo}
+        assert_error WRONGTYPE* {r lset nolist 0 foo}
     }
     r del mylist
 }

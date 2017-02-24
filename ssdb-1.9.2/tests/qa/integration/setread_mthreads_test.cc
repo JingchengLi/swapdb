@@ -76,6 +76,7 @@ void* SetReadMthreadsTest::write_thread_func(void *arg) {
         case Type::ZSET:
             mthreadsTest->s = tmpclient->zset(mthreadsTest->key, mthreadsTest->items);
             break;
+        default: cout<<"invaild type:"<<mthreadsTest->type<<endl;
     }
 
     if(!mthreadsTest->s.ok()) {
@@ -150,6 +151,7 @@ void* SetReadMthreadsTest::read_thread_func(void *arg) {
             s_after = tmpclient->zget(mthreadsTest->key, randfield, &mthreadsTest->getScore);
             tmpclient->zsize(mthreadsTest->key, &size_after);
             break;
+        default: cout<<"invaild type:"<<mthreadsTest->type<<endl;
     }
 
     switch (mthreadsTest->type){
@@ -253,6 +255,7 @@ void* SetReadMthreadsTest::read_thread_func_2(void *arg) {
         case Type::SET:
             mthreadsTest->s = tmpclient->sunion(mthreadsTest->keys, &tmplist);
             break;
+        default: cout<<"invaild type:"<<mthreadsTest->type<<endl;
     }
 
     switch (mthreadsTest->type){
@@ -282,6 +285,7 @@ void* SetReadMthreadsTest::read_thread_func_2(void *arg) {
                 }
             }
             break;
+        default: cout<<"invaild type:"<<mthreadsTest->type<<endl;
     }
 
     if(LDEBUG) cout<<"Get list size is:"<<tmplist.size()/dflag<<endl;
@@ -311,7 +315,7 @@ void* SetReadMthreadsTest::read_thread_func_3(void *arg) {
     }
 
     std::vector<std::string> tmplist;
-    int64_t ret, isflag, dflag = 1;//some return list size is twice than elements number.
+    int64_t ret, dflag = 1;//some return list size is twice than elements number.
     int randno = rand()%mthreadsTest->keysNum;
     string randkey = mthreadsTest->key+itoa(randno);
     string randfield = mthreadsTest->field+itoa(randno);
@@ -325,6 +329,7 @@ void* SetReadMthreadsTest::read_thread_func_3(void *arg) {
         case Type::SET:
             mthreadsTest->s = tmpclient->sunionstore(mthreadsTest->key, mthreadsTest->keys, &ret);
             break;
+        default: cout<<"invaild type:"<<mthreadsTest->type<<endl;
     }
 
     if(LDEBUG) cout<<"Get list size is:"<<ret/dflag<<endl;
@@ -354,7 +359,7 @@ void* SetReadMthreadsTest::read_thread_func_4(void *arg) {
     }
 
     std::vector<std::string> tmplist;
-    int64_t isflag, dflag = 1;//some return list size is twice than elements number.
+    int64_t dflag = 1;//some return list size is twice than elements number.
     int randno = rand()%mthreadsTest->keysNum;
     string randkey = mthreadsTest->key+itoa(randno);
     string randfield = mthreadsTest->field+itoa(randno);
@@ -365,6 +370,7 @@ void* SetReadMthreadsTest::read_thread_func_4(void *arg) {
             dflag = 1;
             mthreadsTest->s = tmpclient->hvals(mthreadsTest->key, "", "", 20000000, &tmplist);
             break;
+        default: cout<<"invaild type:"<<mthreadsTest->type<<endl;
     }
 
     if(LDEBUG) cout<<"Get list size is:"<<tmplist.size()/dflag<<endl;
@@ -381,7 +387,8 @@ void* SetReadMthreadsTest::read_thread_func_4(void *arg) {
     return (void *)NULL;
 }
 
-TEST_F(SetReadMthreadsTest, Test_mset_get_mget_mthreads) {
+//Disable:mset/mget no need to support atomicity in ssdb, and actually mget not.
+TEST_F(SetReadMthreadsTest, DISABLED_Test_mset_get_mget_mthreads) {
     type = Type::STRING;
     key = "{key}";
     val = "val";
