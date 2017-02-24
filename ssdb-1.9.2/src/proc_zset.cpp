@@ -139,8 +139,9 @@ int proc_multi_zset(NetworkServer *net, Link *link, const Request &req, Response
     }
 
     int ret = serv->ssdb->multi_zset(name, sortedSet, flags);
-    if(ret == -1){
+    if(ret < 0){
         resp->push_back("error");
+        resp->push_back(GetErrorInfo(ret));
         return 0;
     }else{
         num += ret;
