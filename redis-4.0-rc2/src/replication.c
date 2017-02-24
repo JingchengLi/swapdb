@@ -628,9 +628,13 @@ void syncCommand(client *c) {
     if (c->flags & CLIENT_SLAVE) return;
 
     if (server.jdjr_mode && server.use_customized_replication &&
-        server.ssdb_status == MASTER_SSDB_SNAPSHOT_OK && c == server.current_repl_slave) {
-        /* this is a pending 'syncCommand' because of check ssdb writes,
-         * and we had received check-write ok and ssdb psync responses from all clients. */
+        ((server.ssdb_status == MASTER_SSDB_SNAPSHOT_OK && c == server.current_repl_slave) ||
+         c->ssdb_status == SLAVE_SSDB_SNAPSHOT_WAIT_ANOTHER_CHECK)) {
+        /* There are two cases:
+         * 1.this is a re-entered 'syncCommand' because of check ssdb writes,
+         * and we had received check-write ok and ssdb psync responses from all clients.
+         * 2.this is a re-entered 'syncCommand' because of another slave was checking
+         * ssdb writes. */
 
         /* do nothing. */
     } else {
@@ -681,49 +685,83 @@ void syncCommand(client *c) {
              * so that we don't expect to receive REPLCONF ACK feedbacks. */
             c->flags |= CLIENT_PRE_PSYNC;
         }
+
+        /* Full resynchronization. */
+        server.stat_sync_full++;
+
+        /* Setup the slave as one waiting for BGSAVE to start. The following code
+         * paths will change the state if we handle the slave differently. */
+        c->replstate = SLAVE_STATE_WAIT_BGSAVE_START;
+        if (server.repl_disable_tcp_nodelay)
+            anetDisableTcpNoDelay(NULL, c->fd); /* Non critical if it fails. */
+        c->repldbfd = -1;
+        c->flags |= CLIENT_SLAVE;
+        listAddNodeTail(server.slaves,c);
+
+        /* Create the replication backlog if needed. */
+        if (listLength(server.slaves) == 1 && server.repl_backlog == NULL) {
+            /* When we create the backlog from scratch, we always use a new
+             * replication ID and clear the ID2, since there is no valid
+             * past history. */
+            changeReplicationId();
+            clearReplicationId2();
+            createReplicationBacklog();
+        }
     }
 
     if (server.jdjr_mode && server.use_customized_replication) {
         if (server.current_repl_slave) {
-            if (server.rdb_child_pid != -1 &&
-                server.rdb_child_type == RDB_CHILD_TYPE_DISK &&
-                server.ssdb_status >= MASTER_SSDB_SNAPSHOT_PRE && c != server.current_repl_slave) {
-                /* there is another replication task running, just use the
-                 * same rdb and SSDB snapshot.*/
+            if (c == server.current_repl_slave) {
+                serverAssert(server.ssdb_status == MASTER_SSDB_SNAPSHOT_OK);
+                if (server.ssdb_status == MASTER_SSDB_SNAPSHOT_OK) {
+                    /* this is a re-entered 'syncCommand' because of check ssdb writes,
+                     * and we received check write ok responses from all clients. */
 
-                c->ssdb_status = SLAVE_SSDB_SNAPSHOT_TRANSFER_PRE;
-
-                // todo: send slave ip and port info when rr-transfer-snapshot
-                sds cmdsds = sdsnew("*1\r\n$20\r\nrr-transfer-snapshot\r\n");
-
-                if (sendCommandToSSDB(c, cmdsds) != C_OK) {
-                    serverLog(LL_WARNING,
-                              "Sending rr-transfer-snapshot to SSDB failed.");
-                    freeClientAsync(c);
-                    sdsfree(cmdsds);
-                    return;
+                    /* do nothing. */
                 }
-                sdsfree(cmdsds);
-            } else if (server.ssdb_status == MASTER_SSDB_SNAPSHOT_OK &&
-                    c == server.current_repl_slave) {
-                /* this is a pending 'syncCommand' because of check ssdb writes,
-                 * and we received check write ok responses from all clients. */
-
-                /* do nothing. */
-            } else if (server.ssdb_status == MASTER_SSDB_SNAPSHOT_CHECK_WRITE &&
-                    c != server.current_repl_slave) {
-                /* wait for another slave to make rdb and SSDB snapshot,
-                 * we just reuse them.*/
-                c->ssdb_status = SLAVE_SSDB_SNAPSHOT_WAIT_ANOTHER_CHECK;
             } else {
-                // todo check
-                serverLog(LL_WARNING,"ssdb_status is not MASTER_SSDB_SNAPSHOT_CHECK_WRITE"
-                        ", maybe there is a bug!!!");
-                freeClientAsync(c);
-                return;
+                if (c->ssdb_status == SLAVE_SSDB_SNAPSHOT_WAIT_ANOTHER_CHECK) {
+                    /* this is a re-entered 'syncCommand' because of another slave
+                     * was checking ssdb writes. */
+
+                    /* do nothing. */
+                } else if (server.ssdb_status <= MASTER_SSDB_SNAPSHOT_PRE &&
+                           server.ssdb_status > SSDB_NONE) {
+                    /* wait for another slave to make rdb and SSDB snapshot,
+                     * we just reuse them.*/
+                    c->ssdb_status = SLAVE_SSDB_SNAPSHOT_WAIT_ANOTHER_CHECK;
+
+                    /* will re-enter 'syncCommand' again later. */
+                    return;
+                } else if (server.rdb_child_pid != -1 &&
+                    server.rdb_child_type == RDB_CHILD_TYPE_DISK &&
+                    server.ssdb_status == MASTER_SSDB_SNAPSHOT_OK) {
+                    // todo: to improve
+
+                    /* there is another replication task running, just use the
+                     * same rdb and SSDB snapshot.*/
+                    c->ssdb_status = SLAVE_SSDB_SNAPSHOT_TRANSFER_PRE;
+
+                    // todo: send slave ip and port info when rr_transfer_snapshot
+                    sds cmdsds = sdsnew("*1\r\n$20\r\nrr_transfer_snapshot\r\n");
+
+                    if (sendCommandToSSDB(c, cmdsds) != C_OK) {
+                        serverLog(LL_WARNING,
+                                  "Sending rr_transfer_snapshot to SSDB failed.");
+                        freeClientAsync(c);
+                        sdsfree(cmdsds);
+                        return;
+                    }
+                    sdsfree(cmdsds);
+                } else {
+                    // todo
+                    serverLog(LL_NOTICE,
+                              "Another replication task is running, and we can't use the same rdb "
+                                      "and SSDB snapshot. BGSAVE for replication delayed");
+                }
             }
         } else {
-
+            serverAssert(server.ssdb_status == SSDB_NONE);
             if (server.ssdb_status == SSDB_NONE) {
                 listIter li;
                 listNode *ln;
@@ -761,39 +799,13 @@ void syncCommand(client *c) {
                         server.check_write_unresponse_num -= 1;
                     }
                 }
-                /* will re-enter 'syncCommand' again after . */
+                /* will re-enter 'syncCommand' again later. */
                 return;
-            } else {
-                serverLog(LL_NOTICE,
-                    "Another replication task is running, and we can't use the same rdb "
-                    "and SSDB snapshot. BGSAVE for replication delayed");
             }
         }
     }
 
-    /* Full resynchronization. */
-    server.stat_sync_full++;
-
-    /* Setup the slave as one waiting for BGSAVE to start. The following code
-     * paths will change the state if we handle the slave differently. */
-    c->replstate = SLAVE_STATE_WAIT_BGSAVE_START;
-    if (server.repl_disable_tcp_nodelay)
-        anetDisableTcpNoDelay(NULL, c->fd); /* Non critical if it fails. */
-    c->repldbfd = -1;
-    c->flags |= CLIENT_SLAVE;
-    listAddNodeTail(server.slaves,c);
-
-    /* Create the replication backlog if needed. */
-    if (listLength(server.slaves) == 1 && server.repl_backlog == NULL) {
-        /* When we create the backlog from scratch, we always use a new
-         * replication ID and clear the ID2, since there is no valid
-         * past history. */
-        changeReplicationId();
-        clearReplicationId2();
-        createReplicationBacklog();
-    }
-
-    /* CASE 1: BGSAVE is in progress, with disk target. */
+   /* CASE 1: BGSAVE is in progress, with disk target. */
     if (server.rdb_child_pid != -1 &&
         server.rdb_child_type == RDB_CHILD_TYPE_DISK)
     {

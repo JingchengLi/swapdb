@@ -2459,6 +2459,9 @@ int checkKeysInMediateState(client* c) {
 /* Process keys may be in SSDB, only handle the command jdjr_mode supported.
  The rest cases will be handled by processCommand. */
 int processCommandMaybeInSSDB(client *c) {
+    if ( !c->cmd ||
+         ((c->cmd->flags & (CMD_READONLY | CMD_WRITE)) && (c->cmd->flags & CMD_JDJR_MODE)) ) {
+        return C_ERR;
     /* Calling lookupKey to update lru or lfu counter. */
     if (c->argc <= 1 || !dictFind(EVICTED_DATA_DB->dict, c->argv[1]->ptr))
         return C_ERR;
@@ -2482,7 +2485,7 @@ int processCommandMaybeInSSDB(client *c) {
     serverAssert(c->cmd);
 
     if ((server.is_allow_ssdb_write == DISALLOW_SSDB_WRITE)
-        && (c->cmd->flags & (CMD_WRITE | CMD_JDJR_MODE))) {
+        && (c->cmd->flags & CMD_WRITE) && (c->cmd->flags & CMD_JDJR_MODE)) {
         listAddNodeTail(server.no_writing_ssdb_blocked_clients, c);
         /* TODO: use a suitable timeout. */
         c->bpop.timeout = 5000 + mstime();
@@ -2491,7 +2494,8 @@ int processCommandMaybeInSSDB(client *c) {
         return C_OK;
     }
 
-    if (c->cmd->flags & (CMD_READONLY | CMD_WRITE | CMD_JDJR_MODE)) {
+    if ((c->cmd->flags & (CMD_READONLY | CMD_WRITE)) &&
+         (c->cmd->flags & CMD_JDJR_MODE)) {
         robj* val = lookupKey(EVICTED_DATA_DB, c->argv[1], LOOKUP_NONE);
         if (val) {
             int ret = sendCommandToSSDB(c, NULL);
@@ -2824,7 +2828,8 @@ int processCommand(client *c) {
 
     /* need to wait check-write ok responses and re-enter 'syncCommand' again,
      * so return C_ERR to keep client info. */
-    if (server.jdjr_mode && server.ssdb_status == MASTER_SSDB_SNAPSHOT_CHECK_WRITE) {
+    if (server.jdjr_mode && (server.ssdb_status == MASTER_SSDB_SNAPSHOT_CHECK_WRITE ||
+                             c->ssdb_status == SLAVE_SSDB_SNAPSHOT_WAIT_ANOTHER_CHECK)) {
         return C_ERR;
     }
 
