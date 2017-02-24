@@ -293,24 +293,23 @@ int proc_hvals(NetworkServer *net, Link *link, const Request &req, Response *res
 	return 0;
 }
 
-//TODO [err]: HINCRBYFLOAT fails against hash value with spaces (left) in tests/unit/type/hash.tcl
 int proc_hincrbyfloat(NetworkServer *net, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(4);
 
-	double by = req[3].Double();
+	long double by = req[3].LDouble();
 	if (errno == EINVAL){
 		resp->push_back("error");
 		resp->push_back(GetErrorInfo(INVALID_DBL));
 		return 0;
 	}
 
-	double new_val;
+	long double new_val;
 	int ret = serv->ssdb->hincrbyfloat(req[1], req[2], by, &new_val);
 	if(ret  < 0){
 		resp->reply_status(-1, GetErrorInfo(ret).c_str());
 	} else{
-		resp->reply_double(ret, new_val);
+		resp->reply_long_double(ret, new_val);
 	}
 	return 0;
 

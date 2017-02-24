@@ -124,7 +124,7 @@ public:
 
 	// -1: error, 1: ok, 0: value is not an integer or out of range
 	virtual int hincr(const Bytes &name, const Bytes &key, int64_t by, int64_t *new_val);
-	virtual int hincrbyfloat(const Bytes &name, const Bytes &key, double by, double *new_val);
+	virtual int hincrbyfloat(const Bytes &name, const Bytes &key, long double by, long double *new_val);
 	//int multi_hset(const Bytes &name, const std::vector<Bytes> &kvs, int offset=0);
 	//int multi_hdel(const Bytes &name, const std::vector<Bytes> &keys, int offset=0);
 

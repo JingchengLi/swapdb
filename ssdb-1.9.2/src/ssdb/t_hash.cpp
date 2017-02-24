@@ -179,7 +179,7 @@ int SSDBImpl::hdel(const Bytes &name, const std::set<Bytes> &fields) {
 }
 
 
-int SSDBImpl::hincrbyfloat(const Bytes &name, const Bytes &key, double by, double *new_val){
+int SSDBImpl::hincrbyfloat(const Bytes &name, const Bytes &key, long double by, long double *new_val){
     RecordLock l(&mutex_record_, name.String());
     leveldb::WriteBatch batch;
 
@@ -203,7 +203,7 @@ int SSDBImpl::hincrbyfloat(const Bytes &name, const Bytes &key, double by, doubl
         *new_val = by;
     } else {
 
-        double oldvalue = str_to_double(old.c_str(), old.size());
+        long double oldvalue = str_to_long_double(old.c_str(), old.size());
 		if (errno == EINVAL){
 			return INVALID_DBL;
 		}
