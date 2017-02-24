@@ -22,5 +22,6 @@
 #define SYNTAX_ERR      -14
 #define INVALID_EX_TIME  -15
 #define INVALID_INCR_PDC_NAN_OR_INF  -16
+#define NAN_SCORE   -17
 
 #endif //SSDB_REDIS_ERROR_H

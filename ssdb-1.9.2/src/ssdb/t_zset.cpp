@@ -35,7 +35,7 @@ int zsetAdd(SSDBImpl *ssdb, leveldb::WriteBatch &batch, bool needCheck,
     /* NaN as input is an error regardless of all the other parameters. */
     if (std::isnan(score)) {
         *flags = ZADD_NAN;
-        return SYNTAX_ERR;
+        return NAN_SCORE;
     }
 
     if (needCheck) {
@@ -68,7 +68,7 @@ int zsetAdd(SSDBImpl *ssdb, leveldb::WriteBatch &batch, bool needCheck,
                 score += old_score;
                 if (std::isnan(score)) {
                     *flags |= ZADD_NAN;
-                    return INT_OVERFLOW;
+                    return NAN_SCORE;
                 }
                 if (newscore) *newscore = score;
             }
@@ -316,6 +316,9 @@ int SSDBImpl::zincr(const Bytes &name, const Bytes &key, double by, double *new_
         *new_val = old_score + by;
     }
 
+    if (std::isnan(*new_val) || std::isinf(*new_val)){
+        return NAN_SCORE;
+    }
     if (*new_val > ZSET_SCORE_MAX || *new_val < ZSET_SCORE_MIN) {
         return INT_OVERFLOW;
     }

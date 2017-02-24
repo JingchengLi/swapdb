@@ -55,7 +55,7 @@ public:
 #define CHECK_NUM_PARAMS(n) do{ \
 		if(req.size() < n){ \
 			resp->push_back("client_error"); \
-			resp->push_back("wrong number of arguments"); \
+			resp->push_back("ERR wrong number of arguments"); \
 			return 0; \
 		} \
 	}while(0)

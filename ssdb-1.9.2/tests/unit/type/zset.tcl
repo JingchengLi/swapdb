@@ -113,7 +113,7 @@ start_server {tags {"zset"}} {
         }
 
         test "ZINCRBY calls leading to NaN result in error" {
-            r zincrby myzset +inf abc
+            assert_error "*NaN*" {r zincrby myzset +inf abc}
             assert_error "*NaN*" {r zincrby myzset -inf abc}
         }
 

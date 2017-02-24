@@ -62,12 +62,8 @@ int proc_multi_zset(NetworkServer *net, Link *link, const Request &req, Response
 	SSDBServer *serv = (SSDBServer *)net->data;
 	int flags = ZADD_NONE;
 
-	if(req.size() < 4){
-		resp->push_back("client_error");
-		return 0;
-	}
-
 	int num = 0;
+    int elements;
 	const Bytes &name = req[1];
 
 	int scoreidx = 2;
@@ -84,19 +80,23 @@ int proc_multi_zset(NetworkServer *net, Link *link, const Request &req, Response
             flags |= ZADD_CH;
         } else if (key=="incr") {
             flags |= ZADD_INCR;
-        }
-
-        if (key=="nx" || key=="xx" || key=="ch" || key=="incr") {
-            scoreidx++;
-        } else break;
-
+        } else
+            break;
+        scoreidx++;
     }
 
-	if((req.size() - 2 + scoreidx) % 2 != 0){
+    elements = (int)req.size() - scoreidx;
+    if(elements <= 0){
+        resp->push_back("error");
+        resp->push_back("ERR syntax error wrong number of arguments");
+        return 0;
+    } else if(elements % 2 != 0){
 		//wrong args
 		resp->push_back("client_error");
+        resp->push_back("ERR syntax error");
 		return 0;
 	}
+    elements /= 2;
 
     int incr = (flags & ZADD_INCR) != 0;
     int nx = (flags & ZADD_NX) != 0;
@@ -105,6 +105,13 @@ int proc_multi_zset(NetworkServer *net, Link *link, const Request &req, Response
     /* XX and NX options at the same time are not compatible. */
     if (nx && xx) {
         resp->push_back("error");
+        resp->push_back("ERR XX and NX options at the same time are not compatible");
+        return 0;
+    }
+
+    if (incr && elements > 1){
+        resp->push_back("error");
+        resp->push_back("ERR INCR option supports a single increment-element pair");
         return 0;
     }
 
@@ -120,6 +127,7 @@ int proc_multi_zset(NetworkServer *net, Link *link, const Request &req, Response
 		if (eptr[0] != '\n' ) {  // skip for ssdb protocol
 			if (eptr[0] != '\0' || errno!= 0 || std::isnan(score)) {
 				resp->push_back("error");
+                resp->push_back("ERR value is not a valid float");
 				return 0;
 			}
 
@@ -132,16 +140,10 @@ int proc_multi_zset(NetworkServer *net, Link *link, const Request &req, Response
         }
 	}
 
-    //INCR option supports a single increment-element pair
-    if (incr && sortedSet.size() > 1) {
-        resp->push_back("error");
-        return 0;
-    }
-
     int ret = serv->ssdb->multi_zset(name, sortedSet, flags);
     if(ret < 0){
         resp->push_back("error");
-        resp->push_back(GetErrorInfo(ret));
+		resp->push_back(GetErrorInfo(ret));
         return 0;
     }else{
         num += ret;
@@ -342,6 +344,11 @@ static int _zincr(SSDB *ssdb, const Request &req, Response *resp, int dir){
 	}
 	double new_val;
 	int ret = ssdb->zincr(req[1], req[2], dir * by, &new_val);
+	if (ret < 0) {
+		resp->push_back("error");
+		resp->push_back(GetErrorInfo(ret));
+		return 0;
+	}
 	resp->reply_double(ret, new_val);
 	return 0;
 }
