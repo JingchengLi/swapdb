@@ -608,7 +608,6 @@ int startBgsaveForReplication(int mincapa) {
         listRewind(server.slaves,&li);
         while((ln = listNext(&li))) {
             client *slave = ln->value;
-
             if (slave->replstate == SLAVE_STATE_WAIT_BGSAVE_START) {
                     replicationSetupSlaveForFullResync(slave,
                             getPsyncInitialOffset());
@@ -627,117 +626,92 @@ void syncCommand(client *c) {
     /* ignore SYNC if already slave or in monitor mode */
     if (c->flags & CLIENT_SLAVE) return;
 
-    if (server.jdjr_mode && server.use_customized_replication &&
-        ((server.ssdb_status == MASTER_SSDB_SNAPSHOT_OK && c == server.current_repl_slave) ||
-         c->ssdb_status == SLAVE_SSDB_SNAPSHOT_WAIT_ANOTHER_CHECK)) {
-        /* There are two cases:
-         * 1.this is a re-entered 'syncCommand' because of check ssdb writes,
-         * and we had received check-write ok and ssdb psync responses from all clients.
-         * 2.this is a re-entered 'syncCommand' because of another slave was checking
-         * ssdb writes. */
+    /* Refuse SYNC requests if we are a slave but the link with our master
+     * is not ok... */
+    if (server.masterhost && server.repl_state != REPL_STATE_CONNECTED) {
+        addReplySds(c,sdsnew("-NOMASTERLINK Can't SYNC while not connected with my master\r\n"));
+        return;
+    }
 
-        /* do nothing. */
-    } else {
-        /* Refuse SYNC requests if we are a slave but the link with our master
-         * is not ok... */
-        if (server.masterhost && server.repl_state != REPL_STATE_CONNECTED) {
-            addReplySds(c,sdsnew("-NOMASTERLINK Can't SYNC while not connected with my master\r\n"));
-            return;
-        }
+    /* SYNC can't be issued when the server has pending data to send to
+     * the client about already issued commands. We need a fresh reply
+     * buffer registering the differences between the BGSAVE and the current
+     * dataset, so that we can copy to other slaves if needed. */
+    if (clientHasPendingReplies(c)) {
+        addReplyError(c,"SYNC and PSYNC are invalid with pending output");
+        return;
+    }
 
-        /* SYNC can't be issued when the server has pending data to send to
-         * the client about already issued commands. We need a fresh reply
-         * buffer registering the differences between the BGSAVE and the current
-         * dataset, so that we can copy to other slaves if needed. */
-        if (clientHasPendingReplies(c)) {
-            addReplyError(c,"SYNC and PSYNC are invalid with pending output");
-            return;
-        }
+    serverLog(LL_NOTICE,"Slave %s asks for synchronization",
+              replicationGetSlaveName(c));
 
-        serverLog(LL_NOTICE,"Slave %s asks for synchronization",
-                  replicationGetSlaveName(c));
-
-        /* Try a partial resynchronization if this is a PSYNC command.
-         * If it fails, we continue with usual full resynchronization, however
-         * when this happens masterTryPartialResynchronization() already
-         * replied with:
-         *
-         * +FULLRESYNC <replid> <offset>
-         *
-         * So the slave knows the new replid and offset to try a PSYNC later
-         * if the connection with the master is lost. */
-        if (!strcasecmp(c->argv[0]->ptr,"psync")) {
-            if (masterTryPartialResynchronization(c) == C_OK) {
-                server.stat_sync_partial_ok++;
-                return; /* No full resync needed, return. */
-            } else {
-                char *master_replid = c->argv[1]->ptr;
-
-                /* Increment stats for failed PSYNCs, but only if the
-                 * replid is not "?", as this is used by slaves to force a full
-                 * resync on purpose when they are not albe to partially
-                 * resync. */
-                if (master_replid[0] != '?') server.stat_sync_partial_err++;
-            }
+    /* Try a partial resynchronization if this is a PSYNC command.
+     * If it fails, we continue with usual full resynchronization, however
+     * when this happens masterTryPartialResynchronization() already
+     * replied with:
+     *
+     * +FULLRESYNC <replid> <offset>
+     *
+     * So the slave knows the new replid and offset to try a PSYNC later
+     * if the connection with the master is lost. */
+    if (!strcasecmp(c->argv[0]->ptr,"psync")) {
+        if (masterTryPartialResynchronization(c) == C_OK) {
+            server.stat_sync_partial_ok++;
+            return; /* No full resync needed, return. */
         } else {
-            /* If a slave uses SYNC, we are dealing with an old implementation
-             * of the replication protocol (like redis-cli --slave). Flag the client
-             * so that we don't expect to receive REPLCONF ACK feedbacks. */
-            c->flags |= CLIENT_PRE_PSYNC;
+            char *master_replid = c->argv[1]->ptr;
+
+            /* Increment stats for failed PSYNCs, but only if the
+             * replid is not "?", as this is used by slaves to force a full
+             * resync on purpose when they are not albe to partially
+             * resync. */
+            if (master_replid[0] != '?') server.stat_sync_partial_err++;
         }
+    } else {
+        /* If a slave uses SYNC, we are dealing with an old implementation
+         * of the replication protocol (like redis-cli --slave). Flag the client
+         * so that we don't expect to receive REPLCONF ACK feedbacks. */
+        c->flags |= CLIENT_PRE_PSYNC;
+    }
 
-        /* Full resynchronization. */
-        server.stat_sync_full++;
+    /* Full resynchronization. */
+    server.stat_sync_full++;
 
-        /* Setup the slave as one waiting for BGSAVE to start. The following code
-         * paths will change the state if we handle the slave differently. */
-        c->replstate = SLAVE_STATE_WAIT_BGSAVE_START;
-        if (server.repl_disable_tcp_nodelay)
-            anetDisableTcpNoDelay(NULL, c->fd); /* Non critical if it fails. */
-        c->repldbfd = -1;
-        c->flags |= CLIENT_SLAVE;
-        listAddNodeTail(server.slaves,c);
+    /* Setup the slave as one waiting for BGSAVE to start. The following code
+     * paths will change the state if we handle the slave differently. */
+    c->replstate = SLAVE_STATE_WAIT_BGSAVE_START;
+    if (server.repl_disable_tcp_nodelay)
+        anetDisableTcpNoDelay(NULL, c->fd); /* Non critical if it fails. */
+    c->repldbfd = -1;
+    c->flags |= CLIENT_SLAVE;
+    listAddNodeTail(server.slaves,c);
 
-        /* Create the replication backlog if needed. */
-        if (listLength(server.slaves) == 1 && server.repl_backlog == NULL) {
-            /* When we create the backlog from scratch, we always use a new
-             * replication ID and clear the ID2, since there is no valid
-             * past history. */
-            changeReplicationId();
-            clearReplicationId2();
-            createReplicationBacklog();
-        }
+    /* Create the replication backlog if needed. */
+    if (listLength(server.slaves) == 1 && server.repl_backlog == NULL) {
+        /* When we create the backlog from scratch, we always use a new
+         * replication ID and clear the ID2, since there is no valid
+         * past history. */
+        changeReplicationId();
+        clearReplicationId2();
+        createReplicationBacklog();
     }
 
     if (server.jdjr_mode && server.use_customized_replication) {
         if (server.current_repl_slave) {
             if (c == server.current_repl_slave) {
-                serverAssert(server.ssdb_status == MASTER_SSDB_SNAPSHOT_OK);
-                if (server.ssdb_status == MASTER_SSDB_SNAPSHOT_OK) {
-                    /* this is a re-entered 'syncCommand' because of check ssdb writes,
-                     * and we received check write ok responses from all clients. */
-
-                    /* do nothing. */
-                }
+                /* this is impossible actually.*/
+                return;
             } else {
-                if (c->ssdb_status == SLAVE_SSDB_SNAPSHOT_WAIT_ANOTHER_CHECK) {
-                    /* this is a re-entered 'syncCommand' because of another slave
-                     * was checking ssdb writes. */
-
-                    /* do nothing. */
-                } else if (server.ssdb_status <= MASTER_SSDB_SNAPSHOT_PRE &&
-                           server.ssdb_status > SSDB_NONE) {
+                serverAssert(server.ssdb_status > SSDB_NONE);
+                serverAssert(c->ssdb_status == SSDB_NONE);
+                if (server.ssdb_status > SSDB_NONE &&
+                    server.ssdb_status <= MASTER_SSDB_SNAPSHOT_PRE) {
                     /* wait for another slave to make rdb and SSDB snapshot,
-                     * we just reuse them.*/
-                    c->ssdb_status = SLAVE_SSDB_SNAPSHOT_WAIT_ANOTHER_CHECK;
-
-                    /* will re-enter 'syncCommand' again later. */
+                     * we just reuse them later.*/
                     return;
                 } else if (server.rdb_child_pid != -1 &&
-                    server.rdb_child_type == RDB_CHILD_TYPE_DISK &&
-                    server.ssdb_status == MASTER_SSDB_SNAPSHOT_OK) {
-                    // todo: to improve
-
+                           server.rdb_child_type == RDB_CHILD_TYPE_DISK) {
+                    serverAssert(server.ssdb_status == MASTER_SSDB_SNAPSHOT_OK);
                     /* there is another replication task running, just use the
                      * same rdb and SSDB snapshot.*/
                     c->ssdb_status = SLAVE_SSDB_SNAPSHOT_TRANSFER_PRE;
@@ -753,15 +727,17 @@ void syncCommand(client *c) {
                         return;
                     }
                     sdsfree(cmdsds);
+                    /* don't return because we need to copy client output buffer. */
                 } else {
-                    // todo
+                    //todo check
                     serverLog(LL_NOTICE,
                               "Another replication task is running, and we can't use the same rdb "
                                       "and SSDB snapshot. BGSAVE for replication delayed");
+                    return;
                 }
             }
         } else {
-            serverAssert(server.ssdb_status == SSDB_NONE);
+            serverAssert(c->ssdb_status == SSDB_NONE);
             if (server.ssdb_status == SSDB_NONE) {
                 listIter li;
                 listNode *ln;
@@ -799,7 +775,11 @@ void syncCommand(client *c) {
                         server.check_write_unresponse_num -= 1;
                     }
                 }
-                /* will re-enter 'syncCommand' again later. */
+                return;
+            } else {
+                // todo
+                /* there is an replication task in transferring snapshot and rdb state.
+                 * so delay our replication.*/
                 return;
             }
         }
@@ -846,7 +826,9 @@ void syncCommand(client *c) {
 
     /* CASE 3: There is no BGSAVE is progress. */
     } else {
-        if (server.repl_diskless_sync && (c->slave_capa & SLAVE_CAPA_EOF)) {
+        if (server.jdjr_mode && server.use_customized_replication) {
+            /* start BGSAVE in replicationCron. do nothing here*/
+        } else if (server.repl_diskless_sync && (c->slave_capa & SLAVE_CAPA_EOF)) {
             /* Diskless replication RDB child is created inside
              * replicationCron() since we want to delay its start a
              * few seconds to wait for more slaves to arrive. */
@@ -860,8 +842,8 @@ void syncCommand(client *c) {
                 startBgsaveForReplication(c->slave_capa);
             } else {
                 serverLog(LL_NOTICE,
-                    "No BGSAVE in progress, but an AOF rewrite is active. "
-                    "BGSAVE for replication delayed");
+                          "No BGSAVE in progress, but an AOF rewrite is active. "
+                                  "BGSAVE for replication delayed");
             }
         }
     }
@@ -2803,10 +2785,16 @@ void replicationCron(void) {
             }
         }
 
-        if (slaves_waiting &&
+        /* todo process the case (server.ssdb_status == SSDB_NONE and
+        slave->replstate == SLAVE_STATE_WAIT_BGSAVE_START) */
+        if (server.jdjr_mode && server.use_customized_replication) {
+            if (slaves_waiting &&
+                server.ssdb_status == MASTER_SSDB_SNAPSHOT_OK) {
+                startBgsaveForReplication(mincapa);
+            }
+        } else if (slaves_waiting &&
             (!server.repl_diskless_sync ||
-             max_idle > server.repl_diskless_sync_delay))
-        {
+             max_idle > server.repl_diskless_sync_delay)) {
             /* Start the BGSAVE. The called function may start a
              * BGSAVE with socket target or disk target depending on the
              * configuration and slaves capabilities. */

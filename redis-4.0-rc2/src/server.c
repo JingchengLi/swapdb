@@ -1166,6 +1166,7 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
      * Note: this code must be after the replicationCron() call above so
      * make sure when refactoring this file to keep this order. This is useful
      * because we want to give priority to RDB savings for replication. */
+    // todo process for replication in jdjr mode.
     if (server.rdb_child_pid == -1 && server.aof_child_pid == -1 &&
         server.rdb_bgsave_scheduled &&
         (server.unixtime-server.lastbgsave_try > CONFIG_BGSAVE_RETRY_DELAY ||
@@ -2826,13 +2827,6 @@ int processCommand(client *c) {
         return ret;
     }
 
-    /* need to wait check-write ok responses and re-enter 'syncCommand' again,
-     * so return C_ERR to keep client info. */
-    if (server.jdjr_mode && (server.ssdb_status == MASTER_SSDB_SNAPSHOT_CHECK_WRITE ||
-                             c->ssdb_status == SLAVE_SSDB_SNAPSHOT_WAIT_ANOTHER_CHECK)) {
-        return C_ERR;
-    }
-
     if (listLength(server.ready_keys))
         handleClientsBlockedOnLists();
     if (server.jdjr_mode && listLength(server.ssdb_ready_keys))
@@ -3551,6 +3545,9 @@ sds genRedisInfoString(char *section) {
                     break;
                 case SLAVE_STATE_SEND_BULK:
                     state = "send_bulk";
+                    break;
+                case SLAVE_STATE_SEND_BULK_FINISHED:
+                    state = "send_buld_finished";
                     break;
                 case SLAVE_STATE_ONLINE:
                     state = "online";

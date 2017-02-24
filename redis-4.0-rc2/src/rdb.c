@@ -1072,6 +1072,9 @@ int rdbSaveBackground(char *filename, rdbSaveInfo *rsi) {
         server.stat_fork_rate = (double) zmalloc_used_memory() * 1000000 / server.stat_fork_time / (1024*1024*1024); /* GB per second. */
         latencyAddSampleIfNeeded("fork",server.stat_fork_time/1000);
         if (childpid == -1) {
+            if (server.jdjr_mode && server.use_customized_replication) {
+                server.current_repl_slave = NULL;
+            }
             closeChildInfoPipe();
             server.lastbgsave_status = C_ERR;
             serverLog(LL_WARNING,"Can't save in background: fork: %s",
@@ -1624,6 +1627,10 @@ void backgroundSaveDoneHandlerDisk(int exitcode, int bysignal) {
         if (bysignal != SIGUSR1)
             server.lastbgsave_status = C_ERR;
     }
+    // todo review
+    if (server.jdjr_mode)
+        server.current_repl_slave = NULL;
+
     server.rdb_child_pid = -1;
     server.rdb_child_type = RDB_CHILD_TYPE_NONE;
     server.rdb_save_time_last = time(NULL)-server.rdb_save_time_start;

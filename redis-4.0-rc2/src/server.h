@@ -315,8 +315,8 @@ typedef long long mstime_t; /* millisecond time type. */
 #define SLAVE_STATE_WAIT_BGSAVE_START 6 /* We need to produce a new RDB file. */
 #define SLAVE_STATE_WAIT_BGSAVE_END 7 /* Waiting RDB file creation to finish. */
 #define SLAVE_STATE_SEND_BULK 8 /* Sending RDB file to slave. */
-#define SLAVE_STATE_ONLINE 9 /* RDB file transmitted, sending just updates. */
-#define SLAVE_STATE_SEND_BULK_FINISHED 10 /* Finish sending RDB file to slave in jdjr_mode. */
+#define SLAVE_STATE_SEND_BULK_FINISHED 9 /* Finish sending RDB file to slave in jdjr_mode. */
+#define SLAVE_STATE_ONLINE 10 /* RDB file transmitted, sending just updates. */
 
 /* Use by server.ssdb_status(master) and client.ssdb_status(slave). */
 #define SSDB_NONE 0
@@ -327,10 +327,9 @@ typedef long long mstime_t; /* millisecond time type. */
 
 /* Slave state of SSDB. */
 #define SLAVE_SSDB_SNAPSHOT_IN_PROCESS 4
-#define SLAVE_SSDB_SNAPSHOT_WAIT_ANOTHER_CHECK 5
-#define SLAVE_SSDB_SNAPSHOT_TRANSFER_PRE 6
-#define SLAVE_SSDB_SNAPSHOT_TRANSFER_START 7
-#define SLAVE_SSDB_SNAPSHOT_TRANSFER_END 8
+#define SLAVE_SSDB_SNAPSHOT_TRANSFER_PRE 5
+#define SLAVE_SSDB_SNAPSHOT_TRANSFER_START 6
+#define SLAVE_SSDB_SNAPSHOT_TRANSFER_END 7
 
 
 /* Slave capabilities. */

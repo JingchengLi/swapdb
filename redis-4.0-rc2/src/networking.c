@@ -921,9 +921,6 @@ int handleResponseOfPsync(client *c, sds replyString) {
     } else
         process_status = C_ERR;
 
-    if (runCommand(c, NULL) == C_OK)
-        resetClient(c);
-
     sdsfree(tmp_ok);
     sdsfree(tmp_nok);
     sdsfree(replyString);
