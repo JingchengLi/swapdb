@@ -710,7 +710,8 @@ void syncCommand(client *c) {
                  * and we received check write ok responses from all clients. */
 
                 /* do nothing. */
-            } else if (server.ssdb_status == MASTER_SSDB_SNAPSHOT_CHECK_WRITE) {
+            } else if (server.ssdb_status == MASTER_SSDB_SNAPSHOT_CHECK_WRITE &&
+                    c != server.current_repl_slave) {
                 /* wait for another slave to make rdb and SSDB snapshot,
                  * we just reuse them.*/
                 c->ssdb_status = SLAVE_SSDB_SNAPSHOT_WAIT_ANOTHER_CHECK;
@@ -749,15 +750,18 @@ void syncCommand(client *c) {
                 listRewind(server.clients, &li);
                 while ((ln = listNext(&li)) != NULL) {
                     tc = listNodeValue(ln);
-
+                    if (c == tc) {
+                        server.check_write_unresponse_num -= 1;
+                        continue;
+                    }
                     if (aeCreateFileEvent(server.el, tc->fd, AE_WRITABLE,
                         sendCheckWriteCommandToSSDB, tc) == AE_ERR) {
-                        /* just free this client and ignore it. */
+                        /* just free disconnected client and ignore it. */
                         freeClientAsync(tc);
                         server.check_write_unresponse_num -= 1;
                     }
                 }
-                /* need call 'syncCommand' again after . */
+                /* will re-enter 'syncCommand' again after . */
                 return;
             } else {
                 serverLog(LL_NOTICE,
