@@ -838,19 +838,6 @@ void acceptUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
     }
 }
 
-void checkAndUpdateSlaveSsdbStatus(int checkedStatus, int updatedStatus) {
-    listIter li;
-    listNode *ln;
-    client *slave;
-    listRewind(server.slaves, &li);
-    while((ln = listNext(&li)) != NULL) {
-        slave = listNodeValue(ln);
-        if (slave->ssdb_status == checkedStatus) {
-            slave->ssdb_status = updatedStatus;
-        }
-    }
-}
-
 int handleResponseOfCheckWrite(client *c, sds replyString) {
     /* TODO: make tmp_ok and tmp_nok shared. */
     sds tmp_ok = sdsnew("rr_check_write ok");
@@ -868,13 +855,9 @@ int handleResponseOfCheckWrite(client *c, sds replyString) {
             server.check_write_unresponse_num = -1;
             server.ssdb_status = MASTER_SSDB_SNAPSHOT_PRE;
 
-            sds finalcmd = sdsnew("*1\r\n$8\r\nrr_psync\r\n");
-            if (sendCommandToSSDB(server.current_repl_slave, finalcmd) != C_OK)
-                serverLog(LL_WARNING, "Sending rr_psync to SSDB failed.");
-
-            /* TODO: support multiple slaves' replication. */
-            checkAndUpdateSlaveSsdbStatus(SLAVE_SSDB_SNAPSHOT_IN_PROCESS,
-                                          SLAVE_SSDB_SNAPSHOT_TRANSFER_PRE);
+            sds finalcmd = sdsnew("*1\r\n$16\r\nrr_make_snapshot\r\n");
+            if (sendCommandToSSDB(server.keepalive_client, finalcmd) != C_OK)
+                serverLog(LL_WARNING, "Sending rr_make_snapshot to SSDB failed.");
         }
 
         process_status = C_OK;
@@ -894,10 +877,11 @@ int handleResponseOfCheckWrite(client *c, sds replyString) {
  }
 
 int handleResponseOfPsync(client *c, sds replyString) {
-    sds tmp_ok = sdsnew("rr_psync ok");
-    sds tmp_nok = sdsnew("rr_psync nok");
+    sds tmp_ok = sdsnew("rr_make_snapshot ok");
+    sds tmp_nok = sdsnew("rr_make_snapshot nok");
     int process_status;
 
+    // todo don't use blocked client
     if (c->btype != BLOCKED_SLAVE_BY_PSYNC)
         serverLog(LL_WARNING, "Client btype should be 'BLOCKED_SLAVE_BY_PSYNC'");
 
@@ -906,7 +890,7 @@ int handleResponseOfPsync(client *c, sds replyString) {
     unblockClient(c);
 
     /* Reset is_allow_ssdb_write to ALLOW_SSDB_WRITE
-       as soon as rr_psync is responsed. */
+       as soon as rr_make_snapshot is responsed. */
     if (!sdscmp(replyString, tmp_ok)) {
         server.ssdb_status = MASTER_SSDB_SNAPSHOT_OK;
         server.is_allow_ssdb_write = ALLOW_SSDB_WRITE;
@@ -1005,7 +989,7 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
             if ((c->cmd && (c->cmd->proc == syncCommand))
                 || (c->lastcmd && (c->lastcmd->proc == syncCommand))
                 || c->need_ssdbClientUnixHandler_reply == SSDB_CLIENT_KEEP_REPLY) {
-                /* The length of rr_psync's response is short than 1024*16. */
+                /* The length of rr_make_snapshot's response is short than 1024*16. */
                 replyString = sdsnewlen(r->buf + oldlen, r->len - oldlen);
                 c->need_ssdbClientUnixHandler_reply = SSDB_CLIENT_IGNORE_REPLY;
             } else
@@ -1073,12 +1057,9 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
         && handleResponseOfCheckWrite(c, replyString) == C_OK)
         return;
 
-    /* Handle the response of rr_psync. */
-    if ((c->flags & CLIENT_SLAVE)
-        && c->cmd && (c->cmd->proc == syncCommand)
-        && c->lastcmd && (c->lastcmd->proc == syncCommand)
+    /* Handle the response of rr_make_snapshot. */
+    if (c == server.keepalive_client
         && server.ssdb_status == MASTER_SSDB_SNAPSHOT_PRE
-        && c == server.current_repl_slave
         && handleResponseOfPsync(c, replyString) == C_OK)
         return;
 
@@ -1089,6 +1070,28 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
         && (c->lastcmd->proc == syncCommand)
         && handleResponseOfTransferSnapshot(c, replyString) == C_OK)
         return;
+}
+
+/* Create a client for keepalive with SSDB. */
+int createClientForKeepalive() {
+    if (server.keepalive_client && server.keepalive_client->fd != -1)
+        unlinkClient(server.keepalive_client);
+
+    server.keepalive_client = createClient(-1);
+    if (!server.keepalive_client) {
+        serverLog(LL_WARNING, "Error creating new client.");
+        return C_ERR;
+    }
+
+    if (nonBlockConnectToSsdbServer(server.keepalive_client) == C_OK) {
+        // todo review
+        server.keepalive_client->fd = server.keepalive_client->context->fd;
+        listAddNodeTail(server.clients, server.keepalive_client);
+    } else
+        return C_ERR;
+
+    serverLog(LL_NOTICE, "create SSDB keepalive socket success.");
+    return C_OK;
 }
 
 /* Create a client for evciting data to SSDB. */
@@ -1103,12 +1106,13 @@ int createClientForEvicting() {
     }
 
     if (nonBlockConnectToSsdbServer(server.ssdb_client) == C_OK) {
+        // todo review
         server.ssdb_client->fd = server.ssdb_client->context->fd;
         listAddNodeTail(server.clients, server.ssdb_client);
     } else
         return C_ERR;
 
-    serverLog(LL_NOTICE, "Connecting to SSDB Unix socket succeeded.");
+    serverLog(LL_NOTICE, "Connecting to SSDB Unix socket success.");
     return C_OK;
 }
 

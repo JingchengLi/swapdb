@@ -314,7 +314,8 @@ typedef long long mstime_t; /* millisecond time type. */
  * to start the next background saving in order to send updates to it. */
 #define SLAVE_STATE_WAIT_BGSAVE_START 6 /* We need to produce a new RDB file. */
 #define SLAVE_STATE_WAIT_BGSAVE_END 7 /* Waiting RDB file creation to finish. */
-#define SLAVE_STATE_SEND_BULK 8 /* Sending RDB file to slave. */
+#define SLAVE_STATE_SEND_BULK 8 /* Sending RDB file to slave. but for jdjr_mode, this
+ * indicates RDB file is ready and we can send RDB. */
 #define SLAVE_STATE_SEND_BULK_FINISHED 9 /* Finish sending RDB file to slave in jdjr_mode. */
 #define SLAVE_STATE_ONLINE 10 /* RDB file transmitted, sending just updates. */
 
@@ -935,6 +936,8 @@ struct redisServer {
     int ipfd_count;             /* Used slots in ipfd[] */
     int sofd;                   /* Unix socket file descriptor */
     client *ssdb_client;        /* client for ssdb_client_sofd. */
+    client *keepalive_client;   /* client for keepalive, and send replication
+                                 * command by this client. */
     int cfd[CONFIG_BINDADDR_MAX];/* Cluster bus listening socket */
     int cfd_count;              /* Used slots in cfd[] */
     list *clients;              /* List of active clients */
@@ -1229,7 +1232,6 @@ struct redisServer {
     int ssdb_status;
     /* Calculate the num of unresponsed clients. */
     int check_write_unresponse_num;
-    client *current_repl_slave;
 };
 
 typedef struct pubsubPattern {
@@ -1371,6 +1373,7 @@ void acceptTcpHandler(aeEventLoop *el, int fd, void *privdata, int mask);
 void acceptUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask);
 void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *private, int mask);
 int createClientForEvicting();
+int createClientForKeepalive();
 void readQueryFromClient(aeEventLoop *el, int fd, void *privdata, int mask);
 void addReplyString(client *c, const char *s, size_t len);
 void addReplyBulk(client *c, robj *obj);

@@ -599,6 +599,9 @@ int startBgsaveForReplication(int mincapa) {
                 slave->flags |= CLIENT_CLOSE_AFTER_REPLY;
             }
         }
+        if (server.jdjr_mode && server.use_customized_replication) {
+            server.ssdb_status = SSDB_NONE;
+        }
         return retval;
     }
 
@@ -697,91 +700,88 @@ void syncCommand(client *c) {
     }
 
     if (server.jdjr_mode && server.use_customized_replication) {
-        if (server.current_repl_slave) {
-            if (c == server.current_repl_slave) {
-                /* this is impossible actually.*/
+        if (server.ssdb_status > SSDB_NONE) {
+            /* one slave is doing replication at lease.*/
+            client *slave;
+            listNode *ln;
+            listIter li;
+
+            int max_replstate = SLAVE_STATE_WAIT_BGSAVE_START;
+            listRewind(server.slaves,&li);
+            while((ln = listNext(&li))) {
+                slave = ln->value;
+                /* skip online slave. */
+                if (slave->replstate != SLAVE_STATE_ONLINE && slave->replstate > max_replstate)
+                    max_replstate = slave->replstate;
+            }
+
+            if (max_replstate < SLAVE_STATE_WAIT_BGSAVE_END) {
+                /* wait for another slave to make rdb and SSDB snapshot,
+                * we just reuse them later.*/
                 return;
-            } else {
-                serverAssert(server.ssdb_status > SSDB_NONE);
-                serverAssert(c->ssdb_status == SSDB_NONE);
-                if (server.ssdb_status > SSDB_NONE &&
-                    server.ssdb_status <= MASTER_SSDB_SNAPSHOT_PRE) {
-                    /* wait for another slave to make rdb and SSDB snapshot,
-                     * we just reuse them later.*/
-                    return;
-                } else if (server.rdb_child_pid != -1 &&
-                           server.rdb_child_type == RDB_CHILD_TYPE_DISK) {
-                    serverAssert(server.ssdb_status == MASTER_SSDB_SNAPSHOT_OK);
-                    /* there is another replication task running, just use the
-                     * same rdb and SSDB snapshot.*/
-                    c->ssdb_status = SLAVE_SSDB_SNAPSHOT_TRANSFER_PRE;
+            } else if (max_replstate == SLAVE_STATE_WAIT_BGSAVE_END &&
+                       server.rdb_child_pid != -1 &&
+                       server.rdb_child_type == RDB_CHILD_TYPE_DISK ) {
+                c->ssdb_status = SLAVE_SSDB_SNAPSHOT_TRANSFER_PRE;
 
-                    // todo: send slave ip and port info when rr_transfer_snapshot
-                    sds cmdsds = sdsnew("*1\r\n$20\r\nrr_transfer_snapshot\r\n");
+                // todo: send slave ip and port info when rr_transfer_snapshot
+                sds cmdsds = sdsnew("*1\r\n$20\r\nrr_transfer_snapshot\r\n");
 
-                    if (sendCommandToSSDB(c, cmdsds) != C_OK) {
-                        serverLog(LL_WARNING,
-                                  "Sending rr_transfer_snapshot to SSDB failed.");
-                        freeClientAsync(c);
-                        sdsfree(cmdsds);
-                        return;
-                    }
+                if (sendCommandToSSDB(c, cmdsds) != C_OK) {
+                    serverLog(LL_WARNING,
+                              "Sending rr_transfer_snapshot to SSDB failed.");
+                    freeClientAsync(c);
                     sdsfree(cmdsds);
-                    /* don't return because we need to copy client output buffer. */
-                } else {
-                    //todo check
-                    serverLog(LL_NOTICE,
-                              "Another replication task is running, and we can't use the same rdb "
-                                      "and SSDB snapshot. BGSAVE for replication delayed");
                     return;
                 }
+                sdsfree(cmdsds);
+                /* don't return because we need to copy client output buffer. */
+            } else {
+                /* RDB file maybe is a new one so we can't reuse. */
+                serverLog(LL_NOTICE,
+                          "Another replication task is running, and we can't use the same rdb "
+                                  "and SSDB snapshot. BGSAVE for replication delayed");
+                // todo
+                return;
             }
         } else {
-            serverAssert(c->ssdb_status == SSDB_NONE);
-            if (server.ssdb_status == SSDB_NONE) {
-                listIter li;
-                listNode *ln;
-                client *tc;
+            listIter li;
+            listNode *ln;
+            client *tc;
 
-                c->ssdb_status = SLAVE_SSDB_SNAPSHOT_IN_PROCESS;
+            serverAssert(server.ssdb_status == SSDB_NONE && c->ssdb_status == SSDB_NONE);
+            c->ssdb_status = SLAVE_SSDB_SNAPSHOT_IN_PROCESS;
 
-                /* Update the server's status. */
-                server.check_write_unresponse_num = listLength(server.clients);
-                server.ssdb_status = MASTER_SSDB_SNAPSHOT_CHECK_WRITE;
+            /* Update the server's status. */
+            server.check_write_unresponse_num = listLength(server.clients);
+            server.ssdb_status = MASTER_SSDB_SNAPSHOT_CHECK_WRITE;
 
-                /* Block the current client(slave), waiting to be awaked. */
-                /* TODO: set a reasonable timeout. */
-                c->bpop.timeout = 5000 + mstime();
+            // todo remove these and use server.unixtime to replace blocked.
+            /* Block the current client(slave), waiting to be awaked. */
+            /* TODO: set a reasonable timeout. */
+            c->bpop.timeout = 5000 + mstime();
 
-                blockClient(c, BLOCKED_SLAVE_BY_PSYNC);
+            blockClient(c, BLOCKED_SLAVE_BY_PSYNC);
 
-                server.current_repl_slave = c;
+            /* Forbbid sending the writing cmds to SSDB. */
+            server.is_allow_ssdb_write = DISALLOW_SSDB_WRITE;
 
-                /* Forbbid sending the writing cmds to SSDB. */
-                server.is_allow_ssdb_write = DISALLOW_SSDB_WRITE;
-
-                /* Force all the clients to check the write cmd. */
-                listRewind(server.clients, &li);
-                while ((ln = listNext(&li)) != NULL) {
-                    tc = listNodeValue(ln);
-                    if (c == tc) {
-                        server.check_write_unresponse_num -= 1;
-                        continue;
-                    }
-                    if (aeCreateFileEvent(server.el, tc->fd, AE_WRITABLE,
-                        sendCheckWriteCommandToSSDB, tc) == AE_ERR) {
-                        /* just free disconnected client and ignore it. */
-                        freeClientAsync(tc);
-                        server.check_write_unresponse_num -= 1;
-                    }
+            /* Force all the clients to check the write cmd. */
+            listRewind(server.clients, &li);
+            while ((ln = listNext(&li)) != NULL) {
+                tc = listNodeValue(ln);
+                if (c == tc) {
+                    server.check_write_unresponse_num -= 1;
+                    continue;
                 }
-                return;
-            } else {
-                // todo
-                /* there is an replication task in transferring snapshot and rdb state.
-                 * so delay our replication.*/
-                return;
+                if (aeCreateFileEvent(server.el, tc->fd, AE_WRITABLE,
+                                      sendCheckWriteCommandToSSDB, tc) == AE_ERR) {
+                    /* just free disconnected client and ignore it. */
+                    freeClientAsync(tc);
+                    server.check_write_unresponse_num -= 1;
+                }
             }
+            return;
         }
     }
 
@@ -2664,7 +2664,7 @@ void replicationCron(void) {
 
         if (server.jdjr_mode
             && (server.ssdb_status == MASTER_SSDB_SNAPSHOT_OK)
-            && (slave->ssdb_status == SLAVE_SSDB_SNAPSHOT_TRANSFER_PRE)) {
+            && (slave->replstate == SLAVE_STATE_SEND_BULK)) {
                 sds cmdsds = sdsnew("*1\r\n$20\r\nrr_transfer_snapshot\r\n");
 
                 /* TODO: block current slave. */
@@ -2690,25 +2690,27 @@ void replicationCron(void) {
             slave->ssdb_status = SSDB_NONE;
         }
 
-        if (server.current_repl_slave
-            && slave->ssdb_status != SSDB_NONE
-            && !need_ssdb_snapshot)
-            need_ssdb_snapshot = 1;
+        // todo
+    //    if (server.current_repl_slave
+    //        && slave->ssdb_status != SSDB_NONE
+    //        && !need_ssdb_snapshot)
+    //        need_ssdb_snapshot = 1;
+
     }
 
     /* Notify ssdb to release snapshot. */
-    if (server.jdjr_mode && server.use_customized_replication
-        && server.current_repl_slave &&!need_ssdb_snapshot) {
-        sds cmdsds = sdsnew("*1\r\n$15\r\nrr_del_snapshot\r\n");
+    //if (server.jdjr_mode && server.use_customized_replication
+    //    && server.current_repl_slave &&!need_ssdb_snapshot) {
+    //    sds cmdsds = sdsnew("*1\r\n$15\r\nrr_del_snapshot\r\n");
 
-        /* TODO: retry if rr_del_snapshot fails. */
-        if (sendCommandToSSDB(server.current_repl_slave, cmdsds) == C_OK) {
-            serverLog(LL_WARNING, "Sending rr_del_snapshot to SSDB failed.");
-        }
+    //    /* TODO: retry if rr_del_snapshot fails. */
+    //    if (sendCommandToSSDB(server.current_repl_slave, cmdsds) == C_OK) {
+    //        serverLog(LL_WARNING, "Sending rr_del_snapshot to SSDB failed.");
+    //    }
 
-        server.current_repl_slave = NULL;
-        server.ssdb_status = SSDB_NONE;
-    }
+    //    server.current_repl_slave = NULL;
+    //    server.ssdb_status = SSDB_NONE;
+    //}
 
     /* Disconnect timedout slaves. */
     if (listLength(server.slaves)) {
@@ -2766,7 +2768,12 @@ void replicationCron(void) {
      * In case of diskless replication, we make sure to wait the specified
      * number of seconds (according to configuration) so that other slaves
      * have the time to arrive before we start streaming. */
-    if (server.rdb_child_pid == -1 && server.aof_child_pid == -1) {
+
+    /* in jdjr_mode, we delay BGSAVE til the redis RDB and ssdb data send
+     * completely, to avoid high network overload. */
+    /* todo process the case (server.ssdb_status == MASTER_SSDB_SNAPSHOT_OK */
+    if (server.rdb_child_pid == -1 && server.aof_child_pid == -1
+            && (!server.jdjr_mode || server.ssdb_status == SSDB_NONE)) {
         time_t idle, max_idle = 0;
         int slaves_waiting = 0;
         int mincapa = -1;
@@ -2785,11 +2792,9 @@ void replicationCron(void) {
             }
         }
 
-        /* todo process the case (server.ssdb_status == SSDB_NONE and
-        slave->replstate == SLAVE_STATE_WAIT_BGSAVE_START) */
+        /* todo process the case (server.ssdb_status == MASTER_SSDB_SNAPSHOT_OK */
         if (server.jdjr_mode && server.use_customized_replication) {
-            if (slaves_waiting &&
-                server.ssdb_status == MASTER_SSDB_SNAPSHOT_OK) {
+            if (slaves_waiting && server.ssdb_status == SSDB_NONE) {
                 startBgsaveForReplication(mincapa);
             }
         } else if (slaves_waiting &&

@@ -1472,6 +1472,7 @@ void initServerConfig(void) {
     server.ipfd_count = 0;
     server.sofd = -1;
     server.ssdb_client = NULL;
+    server.keepalive_client = NULL;
     server.protected_mode = CONFIG_DEFAULT_PROTECTED_MODE;
     server.jdjr_mode = CONFIG_DEFAULT_JDJR_MODE;
     server.load_from_ssdb = CONFIG_DEFAULT_LOAD_FROM_SSDB;
@@ -1950,6 +1951,10 @@ void initServer(void) {
         exit(1);
     }
 
+    if (server.jdjr_mode && createClientForKeepalive() != C_OK) {
+        serverLog(LL_WARNING, "create SSDB keepalive socket failed.");
+        exit(1);
+    }
 
     /* Abort if there are no listening sockets at all. */
     if (server.ipfd_count == 0 && server.sofd < 0) {
@@ -2066,7 +2071,6 @@ void initServer(void) {
         server.is_allow_ssdb_write = ALLOW_SSDB_WRITE;
         server.ssdb_status = SSDB_NONE;
         server.check_write_unresponse_num = -1;
-        server.current_repl_slave = NULL;
         server.no_writing_ssdb_blocked_clients = listCreate();
     }
 }
@@ -2769,58 +2773,6 @@ int processCommand(client *c) {
         /* Return C_ERR to keep client info for delayed handling. */
         return C_ERR;
     }
-
-#if 0
-    // TODO: move these to syncCommand
-    if (server.jdjr_mode
-        && server.use_customized_replication
-        && (c->cmd->proc == syncCommand)
-        && (c->flags & CLIENT_SLAVE)) {
-        c->ssdb_status = SLAVE_SSDB_SNAPSHOT_IN_PROCESS;
-    }
-
-    /* TODO: handle the case that
-       server.current_repl_slave is not null. */
-
-    // TODO: move these to syncCommand
-    if (server.jdjr_mode
-        && server.use_customized_replication
-        && (c->cmd->proc == syncCommand)
-        && (c->flags & CLIENT_SLAVE)
-        && !server.current_repl_slave) {
-        listIter li;
-        listNode *ln;
-        client *tc;
-
-        /* Update the server's status. */
-        server.check_write_unresponse_num = listLength(server.clients);
-        server.ssdb_status = MASTER_SSDB_SNAPSHOT_CHECK_WRITE;
-
-        /* Block the current client(slave), waiting to be awaked. */
-        /* TODO: set a reasonable timeout. */
-        c->bpop.timeout = 5000 + mstime();
-
-        blockClient(c, BLOCKED_SLAVE_BY_PSYNC);
-        server.current_repl_slave = c;
-
-        /* Forbbid sending the writing cmds to SSDB. */
-        server.is_allow_ssdb_write = DISALLOW_SSDB_WRITE;
-
-        /* Force all the clients to check the write cmd. */
-        listRewind(server.clients, &li);
-        while((ln = listNext(&li)) != NULL) {
-            tc = listNodeValue(ln);
-
-            /* TODO: To abort the current psync ASAP,
-               record the num of clients that sucessfully exec sendCommandToSSDB. */
-            if (aeCreateFileEvent(server.el, tc->fd, AE_WRITABLE,
-                              sendCheckWriteCommandToSSDB, tc) == AE_ERR)
-                freeClientAsync(tc);
-        }
-
-        return C_ERR;
-    }
-#endif
 
     ret = runCommand(c, &need_return);
     if (need_return) {
