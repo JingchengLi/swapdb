@@ -1166,7 +1166,6 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
      * Note: this code must be after the replicationCron() call above so
      * make sure when refactoring this file to keep this order. This is useful
      * because we want to give priority to RDB savings for replication. */
-    // todo process for replication in jdjr mode.
     if (server.rdb_child_pid == -1 && server.aof_child_pid == -1 &&
         server.rdb_bgsave_scheduled &&
         (server.unixtime-server.lastbgsave_try > CONFIG_BGSAVE_RETRY_DELAY ||
@@ -1472,7 +1471,7 @@ void initServerConfig(void) {
     server.ipfd_count = 0;
     server.sofd = -1;
     server.ssdb_client = NULL;
-    server.keepalive_client = NULL;
+    server.ssdb_replication_client = NULL;
     server.protected_mode = CONFIG_DEFAULT_PROTECTED_MODE;
     server.jdjr_mode = CONFIG_DEFAULT_JDJR_MODE;
     server.load_from_ssdb = CONFIG_DEFAULT_LOAD_FROM_SSDB;
@@ -1951,8 +1950,8 @@ void initServer(void) {
         exit(1);
     }
 
-    if (server.jdjr_mode && createClientForKeepalive() != C_OK) {
-        serverLog(LL_WARNING, "create SSDB keepalive socket failed.");
+    if (server.jdjr_mode && createClientForReplicate() != C_OK) {
+        serverLog(LL_WARNING, "create SSDB replication socket failed.");
         exit(1);
     }
 
@@ -2070,6 +2069,8 @@ void initServer(void) {
     if (server.jdjr_mode) {
         server.is_allow_ssdb_write = ALLOW_SSDB_WRITE;
         server.ssdb_status = SSDB_NONE;
+        server.ssdb_make_snapshot_status = C_OK;
+        server.check_write_begin_time = -1;
         server.check_write_unresponse_num = -1;
         server.no_writing_ssdb_blocked_clients = listCreate();
     }

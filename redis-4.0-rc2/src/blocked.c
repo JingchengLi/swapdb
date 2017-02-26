@@ -140,7 +140,6 @@ void unblockClient(client *c) {
     } else if (server.jdjr_mode
                && (c->btype == BLOCKED_SSDB_LOADING_OR_TRANSFER
                    || c->btype == BLOCKED_VISITING_SSDB
-                   || c->btype == BLOCKED_SLAVE_BY_PSYNC
                    || c->btype == BLOCKED_NO_WRITE_TO_SSDB)) {
         /* Doing nothing. */
     } else {
@@ -177,12 +176,6 @@ void replyToBlockedClientTimedOut(client *c) {
                    || c->btype == BLOCKED_NO_WRITE_TO_SSDB)) {
         addReplyString(c, "-Err timeout", 13);
         resetClient(c);
-    } else if (server.jdjr_mode
-               && c->btype == BLOCKED_SLAVE_BY_PSYNC) {
-        // todo remove these and don't use this way.
-        /* TODO: Set server.is_allow_ssdb_write to ALLOW_SSDB_WRITE ??? */
-        //if (server.current_repl_slave == c)
-        //    server.is_allow_ssdb_write = ALLOW_SSDB_WRITE;
     } else {
         serverPanic("Unknown btype in replyToBlockedClientTimedOut().");
     }

@@ -78,9 +78,10 @@ typedef long long mstime_t; /* millisecond time type. */
 #define C_ERR                   -1
 #define C_FD_ERR                -2
 
-/* ssdbClientUnixHandler reply string codes. */
-#define SSDB_CLIENT_KEEP_REPLY 0
-#define SSDB_CLIENT_IGNORE_REPLY 1
+/* replication flags in jdjr_mode */
+#define SSDB_CLIENT_KEEP_REPLY (1<<0)
+#define SSDB_CLIENT_TRANSFER_SNAPSHOT_ERR (1<<1)
+#define SSDB_CLIENT_FINISHED_TRANSFER_SNAPSHOT_ERR (1<<2)
 
 /* is_allow_ssdb_write codes */
 #define ALLOW_SSDB_WRITE 1
@@ -270,8 +271,7 @@ typedef long long mstime_t; /* millisecond time type. */
                                     * or transferring a key becomes cold to SSDB. */
 #define BLOCKED_VISITING_SSDB 11   /* Client is visiting SSDB. */
 #define BLOCKED_VISITING_SSDB_TIMEOUT 12 /* Client is visiting SSDB and may be out of time. */
-#define BLOCKED_NO_WRITE_TO_SSDB 14 /* Client is blocked as during the process of psync. */
-#define BLOCKED_SLAVE_BY_PSYNC 15 /* Slave is blocked when interacts with SSDB. */
+#define BLOCKED_NO_WRITE_TO_SSDB 13 /* Client is blocked as during the process of psync. */
 
 /* Client request types */
 #define PROTO_REQ_INLINE 1
@@ -753,8 +753,8 @@ typedef struct client {
     char buf[PROTO_REPLY_CHUNK_BYTES];
 
     redisContext *context;  /* Used by redis client in jdjr-mode. */
-    int ssdb_status; /* Record the ssdb state. */
-    int need_ssdbClientUnixHandler_reply; /* Need to use the reply string in ssdbClientUnixHandler. */
+    int replication_flags;
+    char ssdb_status; /* Record the ssdb state. */
 } client;
 
 struct saveparam {
@@ -936,8 +936,8 @@ struct redisServer {
     int ipfd_count;             /* Used slots in ipfd[] */
     int sofd;                   /* Unix socket file descriptor */
     client *ssdb_client;        /* client for ssdb_client_sofd. */
-    client *keepalive_client;   /* client for keepalive, and send replication
-                                 * command by this client. */
+    client *ssdb_replication_client;   /* client for interaction with SSDB in
+                                 * replication state. */
     int cfd[CONFIG_BINDADDR_MAX];/* Cluster bus listening socket */
     int cfd_count;              /* Used slots in cfd[] */
     list *clients;              /* List of active clients */
@@ -1230,6 +1230,8 @@ struct redisServer {
     int is_allow_ssdb_write;
     list *no_writing_ssdb_blocked_clients;
     int ssdb_status;
+    time_t check_write_begin_time;
+    int ssdb_make_snapshot_status;
     /* Calculate the num of unresponsed clients. */
     int check_write_unresponse_num;
 };
@@ -1373,7 +1375,7 @@ void acceptTcpHandler(aeEventLoop *el, int fd, void *privdata, int mask);
 void acceptUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask);
 void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *private, int mask);
 int createClientForEvicting();
-int createClientForKeepalive();
+int createClientForReplicate();
 void readQueryFromClient(aeEventLoop *el, int fd, void *privdata, int mask);
 void addReplyString(client *c, const char *s, size_t len);
 void addReplyBulk(client *c, robj *obj);

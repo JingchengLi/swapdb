@@ -123,7 +123,7 @@ client *createClient(int fd) {
     if (server.jdjr_mode) {
         c->ssdb_status = SSDB_NONE;
         c->bpop.loading_or_transfer_keys = dictCreate(&objectKeyPointerValueDictType,NULL);
-        c->need_ssdbClientUnixHandler_reply = SSDB_CLIENT_IGNORE_REPLY;
+        c->replication_flags = 0;
     }
     c->bpop.target = NULL;
     c->bpop.numreplicas = 0;
@@ -722,7 +722,7 @@ void sendCheckWriteCommandToSSDB(aeEventLoop *el, int fd, void *privdata, int ma
 
     aeDeleteFileEvent(server.el, c->fd, AE_WRITABLE);
 
-    c->need_ssdbClientUnixHandler_reply = SSDB_CLIENT_KEEP_REPLY;
+    c->replication_flags |= SSDB_CLIENT_KEEP_REPLY;
 }
 
 
@@ -852,22 +852,26 @@ int handleResponseOfCheckWrite(client *c, sds replyString) {
         server.check_write_unresponse_num -= 1;
 
         if (server.check_write_unresponse_num == 0) {
+            server.check_write_begin_time = -1;
             server.check_write_unresponse_num = -1;
             server.ssdb_status = MASTER_SSDB_SNAPSHOT_PRE;
 
             sds finalcmd = sdsnew("*1\r\n$16\r\nrr_make_snapshot\r\n");
-            if (sendCommandToSSDB(server.keepalive_client, finalcmd) != C_OK)
+            if (sendCommandToSSDB(server.ssdb_replication_client, finalcmd) != C_OK)
                 serverLog(LL_WARNING, "Sending rr_make_snapshot to SSDB failed.");
         }
 
         process_status = C_OK;
     } else if (!sdscmp(replyString, tmp_nok)) {
-        /* TODO: 'nok' makes server.check_write_unresponse_num == 0 impossible.
-           Wait for the next try ??? */
+        /* set to 0 so ssdb write check will be timeout. exception case
+         * of ssdb write check will be processed in replicationCron.*/
+        server.check_write_begin_time = 0;
         serverLog(LL_WARNING, "SSDB returns 'rr_check_write nok'.");
         process_status = C_OK;
     } else
         process_status = C_ERR;
+
+    c->replication_flags &= ~SSDB_CLIENT_KEEP_REPLY;
 
     sdsfree(tmp_ok);
     sdsfree(tmp_nok);
@@ -881,13 +885,7 @@ int handleResponseOfPsync(client *c, sds replyString) {
     sds tmp_nok = sdsnew("rr_make_snapshot nok");
     int process_status;
 
-    // todo don't use blocked client
-    if (c->btype != BLOCKED_SLAVE_BY_PSYNC)
-        serverLog(LL_WARNING, "Client btype should be 'BLOCKED_SLAVE_BY_PSYNC'");
-
     sdstolower(replyString);
-
-    unblockClient(c);
 
     /* Reset is_allow_ssdb_write to ALLOW_SSDB_WRITE
        as soon as rr_make_snapshot is responsed. */
@@ -896,11 +894,10 @@ int handleResponseOfPsync(client *c, sds replyString) {
         server.is_allow_ssdb_write = ALLOW_SSDB_WRITE;
         process_status = C_OK;
     } else if (!sdscmp(replyString, tmp_nok)) {
-        addReplyError(c, "snapshot nok");
-        /* TODO: handle the interruption of psync. */
-        resetClient(c);
-        server.ssdb_status = SSDB_NONE;
-        server.is_allow_ssdb_write = ALLOW_SSDB_WRITE;
+        addReplyError(c, "make snapshot nok");
+        /* exception case of making snapshot will be processed
+         * in replicationCron. */
+        server.ssdb_make_snapshot_status = C_ERR;
         process_status = C_OK;
     } else
         process_status = C_ERR;
@@ -927,9 +924,9 @@ int handleResponseOfTransferSnapshot(client *c, sds replyString) {
             process_status = C_OK;
         } else if (!sdscmp(replyString, tmp_nok)) {
             addReplyError(c, "snapshot transfer nok");
-            /* TODO: call resetClient ???*/
-            resetClient(c);
-            c->ssdb_status = SSDB_NONE;
+            /* exception case of transfer snapshot will be processed
+             * in replicationCron. */
+            c->replication_flags |= SSDB_CLIENT_TRANSFER_SNAPSHOT_ERR;
             process_status = C_OK;
         } else
             process_status = C_ERR;
@@ -945,9 +942,9 @@ int handleResponseOfTransferSnapshot(client *c, sds replyString) {
             process_status = C_OK;
         } else if (!sdscmp(replyString, tmp_nok)) {
             addReplyError(c, "snapshot transfer unfinished");
-            /* TODO: call resetClient ???*/
-            resetClient(c);
-            c->ssdb_status = SSDB_NONE;
+            /* exception case of finish response about snapshot transfer
+             * will be processed in replicationCron. */
+            c->replication_flags |= SSDB_CLIENT_FINISHED_TRANSFER_SNAPSHOT_ERR;
             process_status = C_OK;
         } else
             process_status = C_ERR;
@@ -988,10 +985,9 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
             && fd != ssdb_client_fd) {
             if ((c->cmd && (c->cmd->proc == syncCommand))
                 || (c->lastcmd && (c->lastcmd->proc == syncCommand))
-                || c->need_ssdbClientUnixHandler_reply == SSDB_CLIENT_KEEP_REPLY) {
-                /* The length of rr_make_snapshot's response is short than 1024*16. */
+                || (c->replication_flags & SSDB_CLIENT_KEEP_REPLY)) {
+                /* The length of rr_check_write's response is short than 1024*16. */
                 replyString = sdsnewlen(r->buf + oldlen, r->len - oldlen);
-                c->need_ssdbClientUnixHandler_reply = SSDB_CLIENT_IGNORE_REPLY;
             } else
                 addReplyString(c, r->buf + oldlen, r->len - oldlen);
         }
@@ -1053,12 +1049,12 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
 
     /* Handle the response of rr_check_write. */
     if (server.ssdb_status == MASTER_SSDB_SNAPSHOT_CHECK_WRITE
-        && c->need_ssdbClientUnixHandler_reply == SSDB_CLIENT_KEEP_REPLY
+        && (c->replication_flags & SSDB_CLIENT_KEEP_REPLY)
         && handleResponseOfCheckWrite(c, replyString) == C_OK)
         return;
 
     /* Handle the response of rr_make_snapshot. */
-    if (c == server.keepalive_client
+    if (c == server.ssdb_replication_client
         && server.ssdb_status == MASTER_SSDB_SNAPSHOT_PRE
         && handleResponseOfPsync(c, replyString) == C_OK)
         return;
@@ -1073,24 +1069,24 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
 }
 
 /* Create a client for keepalive with SSDB. */
-int createClientForKeepalive() {
-    if (server.keepalive_client && server.keepalive_client->fd != -1)
-        unlinkClient(server.keepalive_client);
+int createClientForReplicate() {
+    if (server.ssdb_replication_client && server.ssdb_replication_client->fd != -1)
+        unlinkClient(server.ssdb_replication_client);
 
-    server.keepalive_client = createClient(-1);
-    if (!server.keepalive_client) {
+    server.ssdb_replication_client = createClient(-1);
+    if (!server.ssdb_replication_client) {
         serverLog(LL_WARNING, "Error creating new client.");
         return C_ERR;
     }
 
-    if (nonBlockConnectToSsdbServer(server.keepalive_client) == C_OK) {
+    if (nonBlockConnectToSsdbServer(server.ssdb_replication_client) == C_OK) {
         // todo review
-        server.keepalive_client->fd = server.keepalive_client->context->fd;
-        listAddNodeTail(server.clients, server.keepalive_client);
+        server.ssdb_replication_client->fd = server.ssdb_replication_client->context->fd;
+        listAddNodeTail(server.clients, server.ssdb_replication_client);
     } else
         return C_ERR;
 
-    serverLog(LL_NOTICE, "create SSDB keepalive socket success.");
+    serverLog(LL_NOTICE, "create SSDB replication socket success.");
     return C_OK;
 }
 
@@ -1451,7 +1447,7 @@ void resetClient(client *c) {
     }
 
     if (server.jdjr_mode)
-        c->need_ssdbClientUnixHandler_reply = SSDB_CLIENT_IGNORE_REPLY;
+        c->replication_flags &= ~SSDB_CLIENT_KEEP_REPLY;
 }
 
 int processInlineBuffer(client *c) {
