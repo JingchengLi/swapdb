@@ -1927,6 +1927,8 @@ void initServer(void) {
     server.el = aeCreateEventLoop(server.maxclients+CONFIG_FDSET_INCR);
     server.db = zmalloc(sizeof(redisDb)* server_dbnum);
 
+    if (server.jdjr_mode) server.special_clients_num = 0;
+
     /* Open the TCP listening socket for the user commands. */
     if (server.port != 0 &&
         listenToPort(server.port,server.ipfd,&server.ipfd_count) == C_ERR)
@@ -2089,7 +2091,6 @@ void initServer(void) {
         server.check_write_begin_time = -1;
         server.check_write_unresponse_num = -1;
         server.no_writing_ssdb_blocked_clients = listCreate();
-        server.special_clients_num = 0;
     }
 }
 
