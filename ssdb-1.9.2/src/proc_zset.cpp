@@ -332,20 +332,34 @@ int proc_zkeys(NetworkServer *net, Link *link, const Request &req, Response *res
 
 // dir := +1|-1
 static int _zincr(SSDB *ssdb, const Request &req, Response *resp, int dir){
-	CHECK_NUM_PARAMS(3);
+	CHECK_NUM_PARAMS(4);
+    int flags = ZADD_NONE;
+    flags |= ZADD_INCR;
+    int num = 0;
 
-	double by = 1;
-	if(req.size() > 3){
-		by = req[3].Double();
-	}
-	double new_val;
-	int ret = ssdb->zincr(req[1], req[2], dir * by, &new_val);
-	if (ret < 0) {
-		resp->push_back("error");
-		resp->push_back(GetErrorInfo(ret));
-		return 0;
-	}
-	resp->reply_double(ret, new_val);
+    char* eptr;
+    double score = strtod(req[3].data(), &eptr); //check double
+    if (eptr[0] != '\n' ) {  // skip for ssdb protocol
+        if (eptr[0] != '\0' || errno!= 0 || std::isnan(score) || std::isinf(score)) {
+            resp->push_back("error");
+            resp->push_back("ERR value is not a valid float or a NaN data");
+            return 0;
+        }
+    }
+
+    std::map<Bytes,Bytes> sortedSet;
+    sortedSet.insert(make_pair(req[2], req[3]));
+    int ret = ssdb->multi_zset(req[1], sortedSet, flags);
+    if(ret < 0){
+        resp->push_back("error");
+        resp->push_back(GetErrorInfo(ret));
+        return 0;
+    }else{
+        num += ret;
+    }
+
+    resp->reply_int(0, num);
+
 	return 0;
 }
 
