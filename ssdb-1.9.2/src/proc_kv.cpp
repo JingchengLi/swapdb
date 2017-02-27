@@ -8,6 +8,10 @@ found in the LICENSE file.
 #include "net/proc.h"
 #include "net/server.h"
 
+extern "C" {
+#include "redis/util.h"
+}
+
 int proc_type(NetworkServer *net, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(2);
@@ -522,27 +526,27 @@ int proc_scan(NetworkServer *net, Link *link, const Request &req, Response *resp
 
 int proc_keys(NetworkServer *net, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *)net->data;
-	CHECK_NUM_PARAMS(4);
-//
-	uint64_t limit = req[3].Uint64();
-//	KIterator *it = serv->ssdb->scan(req[1], req[2], limit);
-//    resp->push_back("ok");
-//	if (it != NULL){
-//        it->return_val(false);
-//        while(it->next()){
-//            resp->push_back(it->key);
-//        }
-//        delete it;
-//    }
 
-    //TODO range
+
+	std::string pattern = "*";
+	if (req.size() > 1) {
+		pattern = req[1].String();
+	}
+
+	bool fulliter = (pattern == "*");
+
 	std::string start;
 	start.append(1, DataType::META);
 
-	auto mit = std::unique_ptr<MIterator>(new MIterator(serv->ssdb->iterator(start, "", limit)));
+	auto mit = std::unique_ptr<MIterator>(new MIterator(serv->ssdb->iterator(start, "", -1)));
     resp->push_back("ok");
     while(mit->next()){
-        resp->push_back(mit->key);
+		if (fulliter || stringmatchlen(pattern.data(), pattern.length(), mit->key.data(), mit->key.length(), 0)) {
+			resp->push_back(mit->key);
+		} else {
+			//skip
+		}
+
     }
 
 	return 0;
