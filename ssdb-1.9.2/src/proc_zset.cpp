@@ -158,20 +158,21 @@ int proc_multi_zdel(NetworkServer *net, Link *link, const Request &req, Response
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(3);
 
-	int num = 0;
 	const Bytes &name = req[1];
+    std::set<Bytes> keys;
 	std::vector<Bytes>::const_iterator it = req.begin() + 2;
 	for(; it != req.end(); it += 1){
 		const Bytes &key = *it;
-		int ret = serv->ssdb->zdel(name, key);
-		if(ret == -1){
-			resp->push_back("error");
-			return 0;
-		}else{
-			num += ret;
-		}
+        keys.insert(key);
 	}
-	resp->reply_int(0, num);
+    int ret = serv->ssdb->multi_zdel(name, keys);
+    if(ret < 0){
+        resp->push_back("error");
+        resp->push_back(GetErrorInfo(ret));
+        return 0;
+    }
+
+	resp->reply_int(0, ret);
 	return 0;
 }
 
@@ -215,15 +216,6 @@ int proc_zget(NetworkServer *net, Link *link, const Request &req, Response *resp
 	}else{
 		resp->reply_double(ret, score);
 	}
-	return 0;
-}
-
-int proc_zdel(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
-	CHECK_NUM_PARAMS(3);
-
-	int ret = serv->ssdb->zdel(req[1], req[2]);
-	resp->reply_bool(ret);
 	return 0;
 }
 
@@ -395,21 +387,32 @@ int proc_zremrangebyrank(NetworkServer *net, Link *link, const Request &req, Res
 	int64_t start = req[2].Int64();
 	int64_t end = req[3].Int64();
 
+    std::set<Bytes>  keys;
+    std::set<string> _keys;
 	const leveldb::Snapshot* snapshot = nullptr;
 
 	auto it = std::unique_ptr<ZIterator>(serv->ssdb->zrange(req[1], start, end, &snapshot));
 	int64_t count = 0;
     while (it->next()) {
         count++;
-        int ret = serv->ssdb->zdel(req[1], it->key);
-        if (ret == -1) {
-            resp->push_back("error");
-			serv->ssdb->ReleaseSnapshot(snapshot);
-			return 0;
-        }
+        _keys.insert(it->key);
     }
 
-	serv->ssdb->ReleaseSnapshot(snapshot);
+    if (snapshot != nullptr){
+        serv->ssdb->ReleaseSnapshot(snapshot);
+    }
+
+    for (auto iter = _keys.begin(); iter != _keys.end(); ++iter) {
+        keys.insert(*iter);
+    }
+
+    int ret = serv->ssdb->multi_zdel(req[1], keys);
+    if (ret < 0) {
+        resp->push_back("error");
+        resp->push_back(GetErrorInfo(ret));
+        return 0;
+    }
+
 	resp->reply_int(0, count);
 
 	return 0;

@@ -23,6 +23,11 @@ int SSDBImpl::multi_zset(const Bytes &name, const std::map<Bytes ,Bytes> &sorted
     return zsetNoLock(name, sortedSet, flags);
 }
 
+int SSDBImpl::multi_zdel(const Bytes &name, const std::set<Bytes> &keys) {
+    RecordLock l(&mutex_record_, name.String());
+    return zdelNoLock(name, keys);
+}
+
 int zsetAdd(SSDBImpl *ssdb, leveldb::WriteBatch &batch, bool needCheck,
              const Bytes &name, const Bytes &key, double score, uint16_t cur_version,
             int *flags, double *newscore) {
@@ -199,6 +204,42 @@ int SSDBImpl::zsetNoLock(const Bytes &name, const std::map<Bytes ,Bytes> &sorted
     }
 }
 
+int SSDBImpl::zdelNoLock(const Bytes &name, const std::set<Bytes> &keys) {
+    ZSetMetaVal zv;
+    leveldb::WriteBatch batch;
+
+    std::string meta_key = encode_meta_key(name);
+    int ret = GetZSetMetaVal(meta_key, zv);
+    if (ret <= 0) {
+        return ret;
+    }
+
+    int count = 0;
+    for (auto it = keys.begin(); it != keys.end() ; ++it) {
+        const Bytes &key = *it;
+        ret = zdel_one(this, batch, name, key, zv.version);
+        if (ret < 0) {
+            return ret;
+        }
+        count += ret;
+    }
+
+    if (count > 0) {
+        ret = incr_zsize(this, batch, zv, name, -count);
+        if (ret < 0) {
+            return ret;
+        }
+
+        leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
+        if (!s.ok()) {
+            log_error("zdel error: %s", s.ToString().c_str());
+            return STORAGE_ERR;
+        }
+    }
+
+    return count;
+}
+
 int64_t SSDBImpl::zcount(const Bytes &name, const Bytes &score_start, const Bytes &score_end) {
     int64_t count = 0;
 
@@ -263,33 +304,6 @@ int64_t SSDBImpl::zremrangebyscore(const Bytes &name, const Bytes &score_start, 
     }
 
     return count;
-}
-
-int SSDBImpl::zdel(const Bytes &name, const Bytes &key) {
-    RecordLock l(&mutex_record_, name.String());
-    ZSetMetaVal zv;
-    leveldb::WriteBatch batch;
-
-    std::string meta_key = encode_meta_key(name);
-    int ret = GetZSetMetaVal(meta_key, zv);
-    if (ret <= 0) {
-        return ret;
-    }
-
-    ret = zdel_one(this, batch, name, key, zv.version);
-    if (ret > 0) {
-        int retval =incr_zsize(this, batch, zv, name, -ret);
-        if (retval < 0) {
-            return retval;
-        }
-
-        leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
-        if (!s.ok()) {
-            log_error("zdel error: %s", s.ToString().c_str());
-            return STORAGE_ERR;
-        }
-    }
-    return ret;
 }
 
 int SSDBImpl::zincr(const Bytes &name, const Bytes &key, double by, double *new_val) {

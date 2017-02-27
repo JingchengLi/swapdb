@@ -83,7 +83,6 @@ DEF_PROC(zrange);
 DEF_PROC(zrrange);
 DEF_PROC(zsize);
 DEF_PROC(zget);
-DEF_PROC(zdel);
 DEF_PROC(zincr);
 DEF_PROC(zdecr);
 DEF_PROC(zfix);
@@ -216,7 +215,6 @@ void SSDBServer::reg_procs(NetworkServer *net){
 	REG_PROC(zrrange, "rt");
 	REG_PROC(zsize, "rt");
 	REG_PROC(zget, "rt");
-	REG_PROC(zdel, "wt");
 	REG_PROC(zincr, "wt");
 	REG_PROC(zdecr, "wt");
 	REG_PROC(zfix, "wt");
