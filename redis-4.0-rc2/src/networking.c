@@ -719,6 +719,7 @@ void sendCheckWriteCommandToSSDB(aeEventLoop *el, int fd, void *privdata, int ma
 
     if (sendCommandToSSDB(c, finalcmd) != C_OK)
         serverLog(LL_WARNING, "Sending rr_check_write to SSDB failed.");
+    sdsfree(finalcmd);
 
     aeDeleteFileEvent(server.el, c->fd, AE_WRITABLE);
 
@@ -859,6 +860,7 @@ int handleResponseOfCheckWrite(client *c, sds replyString) {
             sds finalcmd = sdsnew("*1\r\n$16\r\nrr_make_snapshot\r\n");
             if (sendCommandToSSDB(server.ssdb_replication_client, finalcmd) != C_OK)
                 serverLog(LL_WARNING, "Sending rr_make_snapshot to SSDB failed.");
+            sdsfree(finalcmd);
         }
 
         process_status = C_OK;
