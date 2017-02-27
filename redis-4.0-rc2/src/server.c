@@ -2466,7 +2466,7 @@ int checkKeysInMediateState(client* c) {
  The rest cases will be handled by processCommand. */
 int processCommandMaybeInSSDB(client *c) {
     if ( !c->cmd ||
-         ((c->cmd->flags & (CMD_READONLY | CMD_WRITE)) && (c->cmd->flags & CMD_JDJR_MODE)) )
+         !((c->cmd->flags & (CMD_READONLY | CMD_WRITE)) && (c->cmd->flags & CMD_JDJR_MODE)) )
         return C_ERR;
     /* Calling lookupKey to update lru or lfu counter. */
     if (c->argc <= 1 || !dictFind(EVICTED_DATA_DB->dict, c->argv[1]->ptr))
