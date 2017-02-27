@@ -279,12 +279,16 @@ int proc_zrrange(NetworkServer *net, Link *link, const Request &req, Response *r
 	auto it = std::unique_ptr<ZIterator>(serv->ssdb->zrrange(req[1], offset, limit, &snapshot));
 	resp->push_back("ok");
 
-    while(it->next()){
-        resp->push_back(it->key);
-        resp->push_back(str(it->score));
+    if (it != NULL) {
+        while(it->next()){
+            resp->push_back(it->key);
+            resp->push_back(str(it->score));
+        }
     }
 
-	serv->ssdb->ReleaseSnapshot(snapshot);
+	if (snapshot != nullptr) {
+        serv->ssdb->ReleaseSnapshot(snapshot);
+    }
 
 	return 0;
 }

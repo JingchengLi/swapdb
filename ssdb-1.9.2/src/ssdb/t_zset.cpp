@@ -586,27 +586,35 @@ ZIterator *SSDBImpl::zrange(const Bytes &name, int64_t offset, int64_t end, cons
 ZIterator *SSDBImpl::zrrange(const Bytes &name, uint64_t offset, uint64_t limit, const leveldb::Snapshot** snapshot) {
     uint16_t version = 0;
     ZSetMetaVal zv;
+    int llen = 0;
+    long start = offset;
+    long end = limit;
 
     {
         RecordLock l(&mutex_record_, name.String());
         std::string meta_key = encode_meta_key(name);
         int ret = GetZSetMetaVal(meta_key, zv);
-        if (0 == ret && zv.del == KEY_DELETE_MASK){
-            version = zv.version+(uint16_t)1;
-        } else if (ret > 0){
-            version = zv.version;
-        } else{
-            version = 0;
+        if (ret <= 0) {
+            return NULL;
         }
+
+        llen = (int)zv.length;
+        if (start < 0) start = llen+start;
+        if (end < 0) end = llen+end;
+        if (start < 0) start = 0;
+
+        /* Invariant: start >= 0, so this test will be true when end < 0.
+         * The range is empty when start > end or start >= length. */
+        if (start > end || start >= llen) {
+            return NULL;
+        }
+        if (end >= llen) end = llen-1;
 
         *snapshot = ldb->GetSnapshot();
     }
 
-    if (offset + limit > limit) {
-        limit = offset + limit;
-    }
-    ZIterator *it = this->zscan_internal(name, "", "", "", limit, Iterator::BACKWARD, version, *snapshot);
-    it->skip(offset);
+    ZIterator *it = this->zscan_internal(name, "", "", "", end+1, Iterator::BACKWARD, version, *snapshot);
+    it->skip(start);
     return it;
 }
 
