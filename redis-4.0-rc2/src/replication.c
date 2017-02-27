@@ -2625,7 +2625,7 @@ void replicationCron(void) {
     }
 
     /* process the case of ssdb write check timeout or ssdb make snapshot failed. */
-    if (server.jdjr_mode) {
+    if (server.jdjr_mode && server.use_customized_replication) {
         // todo : use a reasonable timeout to replace 5 seconds.
         if (C_ERR == server.ssdb_make_snapshot_status ||
             (server.check_write_begin_time != -1
@@ -2664,9 +2664,6 @@ void replicationCron(void) {
      * ping period and refresh the connection once per second since certain
      * timeouts are set at a few seconds (example: PSYNC response). */
 
-    /* Check if ssdb_snapshot is to be deleted. */
-    int need_ssdb_snapshot = 0;
-
     listRewind(server.slaves,&li);
     while((ln = listNext(&li))) {
         client *slave = ln->value;
@@ -2682,15 +2679,16 @@ void replicationCron(void) {
             }
         }
 
-        if ((slave->replication_flags & SSDB_CLIENT_TRANSFER_SNAPSHOT_ERR) ||
-            (slave->replication_flags & SSDB_CLIENT_FINISHED_TRANSFER_SNAPSHOT_ERR)) {
+        if (server.jdjr_mode && server.use_customized_replication &&
+            ((slave->replication_flags & SSDB_CLIENT_TRANSFER_SNAPSHOT_ERR) ||
+             (slave->replication_flags & SSDB_CLIENT_FINISHED_TRANSFER_SNAPSHOT_ERR))) {
             serverAssert(server.ssdb_status == MASTER_SSDB_SNAPSHOT_OK);
             freeClient(slave);
             /* continue to avoid acess invalid slave pointer later. */
             continue;
         }
 
-        if (server.jdjr_mode
+        if (server.jdjr_mode && server.use_customized_replication
             && (server.ssdb_status == MASTER_SSDB_SNAPSHOT_OK)
             && (slave->ssdb_status == SLAVE_SSDB_SNAPSHOT_TRANSFER_PRE)) {
                 sds cmdsds = sdsnew("*1\r\n$20\r\nrr_transfer_snapshot\r\n");
@@ -2705,7 +2703,7 @@ void replicationCron(void) {
                 }
         }
 
-        if (server.jdjr_mode
+        if (server.jdjr_mode && server.use_customized_replication
             && (slave->ssdb_status == SLAVE_SSDB_SNAPSHOT_TRANSFER_START)) {
             aeDeleteFileEvent(server.el, slave->fd, AE_WRITABLE);
             if (aeCreateFileEvent(server.el, slave->fd, AE_WRITABLE,
@@ -2724,7 +2722,8 @@ void replicationCron(void) {
         }
     }
 
-    if (server.ssdb_status == MASTER_SSDB_SNAPSHOT_OK) {
+    if (server.jdjr_mode && server.use_customized_replication
+        && server.ssdb_status == MASTER_SSDB_SNAPSHOT_OK) {
         int has_slave_in_transfer = 0;
         listRewind(server.slaves,&li);
         while((ln = listNext(&li))) {

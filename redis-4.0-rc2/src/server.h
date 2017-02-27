@@ -1234,6 +1234,7 @@ struct redisServer {
     int ssdb_make_snapshot_status;
     /* Calculate the num of unresponsed clients. */
     int check_write_unresponse_num;
+    int special_clients_num;
 };
 
 typedef struct pubsubPattern {

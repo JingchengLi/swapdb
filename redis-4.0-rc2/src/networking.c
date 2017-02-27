@@ -1086,6 +1086,8 @@ int createClientForReplicate() {
     } else
         return C_ERR;
 
+    server.special_clients_num ++;
+
     serverLog(LL_NOTICE, "create SSDB replication socket success.");
     return C_OK;
 }
@@ -1107,6 +1109,8 @@ int createClientForEvicting() {
         listAddNodeTail(server.clients, server.ssdb_client);
     } else
         return C_ERR;
+
+    server.special_clients_num ++;
 
     serverLog(LL_NOTICE, "Connecting to SSDB Unix socket success.");
     return C_OK;

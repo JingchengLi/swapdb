@@ -1024,7 +1024,8 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
         run_with_period(5000) {
             serverLog(LL_VERBOSE,
                 "%lu clients connected (%lu slaves), %zu bytes in use",
-                listLength(server.clients)-listLength(server.slaves)-(server.jdjr_mode?1:0),
+                      listLength(server.clients)-listLength(server.slaves)
+                      - (server.jdjr_mode ? server.special_clients_num : 0),
                 listLength(server.slaves),
                 zmalloc_used_memory());
             if (server.jdjr_mode)
@@ -1950,9 +1951,24 @@ void initServer(void) {
         exit(1);
     }
 
-    if (server.jdjr_mode && createClientForReplicate() != C_OK) {
+    if (server.jdjr_mode && server.use_customized_replication
+        && createClientForReplicate() != C_OK) {
         serverLog(LL_WARNING, "create SSDB replication socket failed.");
         exit(1);
+    }
+
+    if (server.jdjr_mode && server.special_clients_num) {
+        server.maxclients += server.special_clients_num;
+        adjustOpenFilesLimit();
+
+        if ((unsigned int) aeGetSetSize(server.el) <
+            server.maxclients + CONFIG_FDSET_INCR) {
+            if (aeResizeSetSize(server.el,
+                                server.maxclients + CONFIG_FDSET_INCR) == AE_ERR) {
+                serverLog(LL_WARNING, "The event loop API used by Redis is not able to handle the specified number of clients");
+                server.maxclients = server.maxclients - server.special_clients_num;
+            }
+        }
     }
 
     /* Abort if there are no listening sockets at all. */
@@ -2073,6 +2089,7 @@ void initServer(void) {
         server.check_write_begin_time = -1;
         server.check_write_unresponse_num = -1;
         server.no_writing_ssdb_blocked_clients = listCreate();
+        server.special_clients_num = 0;
     }
 }
 
