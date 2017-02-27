@@ -722,20 +722,11 @@ void syncCommand(client *c) {
             } else if (max_replstate == SLAVE_STATE_WAIT_BGSAVE_END &&
                        server.rdb_child_pid != -1 &&
                        server.rdb_child_type == RDB_CHILD_TYPE_DISK ) {
-                c->ssdb_status = SLAVE_SSDB_SNAPSHOT_TRANSFER_PRE;
+                c->ssdb_status = SLAVE_SSDB_SNAPSHOT_IN_PROCESS;
 
-                // todo: send slave ip and port info when rr_transfer_snapshot
-                sds cmdsds = sdsnew("*1\r\n$20\r\nrr_transfer_snapshot\r\n");
-
-                if (sendCommandToSSDB(c, cmdsds) != C_OK) {
-                    serverLog(LL_WARNING,
-                              "Sending rr_transfer_snapshot to SSDB failed.");
-                    freeClientAsync(c);
-                    sdsfree(cmdsds);
-                    return;
-                }
-                sdsfree(cmdsds);
-                /* don't return because we need to copy client output buffer. */
+                /* don't return because we need to copy client output buffer
+                 * and call replicationSetupSlaveForFullResync so c->replstate
+                 * will be SLAVE_STATE_WAIT_BGSAVE_END. */
             } else {
                 serverAssert(c->ssdb_status == SSDB_NONE);
                 /* RDB file maybe is a new one and we can't reuse it. */
@@ -2698,9 +2689,11 @@ void replicationCron(void) {
                     serverLog(LL_WARNING,
                               "Sending rr_transfer_snapshot to SSDB failed.");
                     freeClient(slave);
+                    sdsfree(cmdsds);
                     /* continue to avoid acess invalid slave pointer later. */
                     continue;
                 }
+                sdsfree(cmdsds);
         }
 
         if (server.jdjr_mode && server.use_customized_replication
@@ -2741,9 +2734,10 @@ void replicationCron(void) {
 
             /* TODO: maybe we can retry if rr_del_snapshot fails. but it's also
              * the duty of SSDB party to delete snapshot by rule.*/
-            if (sendCommandToSSDB(server.ssdb_replication_client, cmdsds) == C_OK) {
+            if (sendCommandToSSDB(server.ssdb_replication_client, cmdsds) != C_OK) {
                 serverLog(LL_WARNING, "Sending rr_del_snapshot to SSDB failed.");
             }
+            sdsfree(cmdsds);
         }
     }
 
