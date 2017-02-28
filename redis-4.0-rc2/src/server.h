@@ -2046,6 +2046,7 @@ void moduleCommand(client *c);
 void securityWarningCommand(client *c);
 void customizedDelCommand(client *c);
 void customizedRestoreCommand(client *c);
+void customizedFailCommand(client *c);
 void dumptossdbCommand(client *c);
 void locatekeyCommand(client *c);
 void restorefromssdbCommand(client *c);

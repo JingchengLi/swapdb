@@ -4664,6 +4664,42 @@ void customizedRestoreCommand(client *c) {
 
 }
 
+
+void customizedFailCommand(client *c) {
+    robj *cmd = c->argv[1];
+    robj *keyobj = c->argv[2];
+
+    /* TODO: make sds vars shared. */
+    sds fail_restore = sdsnew("customized-restore");
+    sds fail_dump = sdsnew("customized-dump");
+    sds fail_not_found = sdsnew("not-found");
+
+    serverAssert(c->db->id == 0);
+
+    if (!sdscmp(cmd->ptr, fail_restore)) {
+        if (dictDelete(EVICTED_DATA_DB->loading_hot_keys, keyobj->ptr) == DICT_OK)
+            serverLog(LL_DEBUG, "key: %s is deleted from loading_hot_keys.", (char *)keyobj->ptr);
+    } else if (!sdscmp(cmd->ptr, fail_dump)) {
+        if (dictDelete(EVICTED_DATA_DB->transferring_keys, keyobj->ptr) == DICT_OK)
+            serverLog(LL_DEBUG, "key: %s is deleted from transferring_keys.", (char *)keyobj->ptr);
+    } else if (!sdscmp(cmd->ptr, fail_not_found)) {
+        if (dictDelete(EVICTED_DATA_DB->loading_hot_keys, keyobj->ptr) == DICT_OK)
+            serverLog(LL_DEBUG, "key: %s is deleted from loading_hot_keys.", (char *)keyobj->ptr);
+        if (dictDelete(EVICTED_DATA_DB->dict, keyobj->ptr) == DICT_OK)
+            serverLog(LL_DEBUG, "key: %s is deleted from EVICTED_DATA_DB->db.", (char *)keyobj->ptr);
+        if (getExpire(EVICTED_DATA_DB, keyobj) != -1)
+            dictDelete(EVICTED_DATA_DB->expires, keyobj->ptr);
+    } else {
+        serverPanic("cmd is not supported.");
+    }
+
+    addReply(c, shared.ok);
+
+    sdsfree(fail_restore);
+    sdsfree(fail_dump);
+    sdsfree(fail_not_found);
+}
+
 void dumptossdbCommand(client *c) {
     if (!server.jdjr_mode) {
         addReplyErrorFormat(c,"Command only supported in jdjr-mode '%s'",

@@ -305,6 +305,7 @@ struct redisCommand redisCommandTable[] = {
     /* Interfaces called by SSDB. */
     {"customized-del",customizedDelCommand,-2,"w",0,NULL,1,-1,1,0,0},
     {"customized-restore",customizedRestoreCommand,-4,"wm",0,NULL,1,1,1,0,0},
+    {"customized-fail",customizedFailCommand,3,"w",0,NULL,1,1,1,0,0},
 
     /* Interfaces for testing. */
     {"dumptossdb",dumptossdbCommand,2,"w",0,NULL,1,1,1,0,0},
