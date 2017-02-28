@@ -41,6 +41,7 @@ public:
 
     RedisConf *redisConf;
 
+	RecordMutex transfer_mutex_record_;
 
 	std::vector<Slave_info> slave_infos;
 	Link*	master_link;

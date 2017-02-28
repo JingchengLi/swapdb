@@ -9,6 +9,7 @@ int notifyFailedToRedis(RedisUpstream *redisUpstream, std::string responseComman
 
 
 int bproc_COMMAND_DATA_SAVE(SSDBServer *serv, TransferWorker *worker, const std::string &data_key, void *value) {
+    RecordLock l(&serv->transfer_mutex_record_, data_key);
 
     DumpData *dumpData = (DumpData *) value;
 
@@ -48,6 +49,7 @@ int bproc_COMMAND_DATA_SAVE(SSDBServer *serv, TransferWorker *worker, const std:
 }
 
 int bproc_COMMAND_DATA_DUMP(SSDBServer *serv, TransferWorker *worker, const std::string &data_key, void *value) {
+    RecordLock l(&serv->transfer_mutex_record_, data_key);
 
     std::string val;
     int ret = serv->ssdb->dump(data_key, &val);
