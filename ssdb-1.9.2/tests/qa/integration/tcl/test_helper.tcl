@@ -312,6 +312,7 @@ proc read_from_test_client fd {
         if {!$::quiet} {
             puts "\[[colorstr green $status]\]: $data"
         }
+        set data [string map {& &amp; \" &quot; ' &apos; < &lt; > &gt;} $data]
         write_redis_test_result_report "[format {<testcase name="%02d-%s" classname="%s" time="%d"/>} \
         $::steps $data [lindex $::all_tests $::next_test-1] [expr [clock seconds]-$::last_test]]"
         set ::last_test [expr [clock seconds]]
@@ -321,6 +322,7 @@ proc read_from_test_client fd {
         incr ::steps
         set classname [lindex $::all_tests $::next_test-1]  
         set testcase [string range $data 0 [string first "in $classname.tcl" $data]-2]
+        set testcase [string map {& &amp; \" &quot; ' &apos; < &lt; > &gt;} $testcase]
         set searchStr "in $classname.tcl"
         set report [string range $data [expr [string first $searchStr $data]+[string length $searchStr]+1 ] [string length $data]]
         # replace for xml parse

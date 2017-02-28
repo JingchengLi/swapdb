@@ -267,14 +267,16 @@ start_server {tags {"ssdb"}} {
         }
 
         test "ZINCRBY - increment and decrement - $encoding" {
-            r zincrby zset 2 foo
-            r zincrby zset 1 bar
+            assert_equal [ r zincrby zset 2 foo ] 3
+            assert_equal [ r zincrby zset 1 bar ] 1
             assert_equal {bar foo} [r zrange zset 0 -1]
 
-            r zincrby zset 10 bar
-            r zincrby zset -5 foo
-            r zincrby zset -5 bar
+            assert_equal [ r zincrby zset 10 bar ] 11
+
+            assert_equal [ r zincrby zset -5 foo ] -2
+            assert_equal [ r zincrby zset -5 bar ] 6
             assert_equal {foo bar} [r zrange zset 0 -1]
+            assert_equal [r zcard zset] 2
 
             assert_equal -2 [r zscore zset foo]
             assert_equal  6 [r zscore zset bar]
@@ -566,34 +568,21 @@ start_server {tags {"ssdb"}} {
 
                 #remove inf
                 set inf 1000
-                puts "[r zcount zset -$inf $min]"
-                puts "[llength $low]"
                 if {[r zcount zset -$inf $min] != [llength $low]} {
                     append err "Error, len does not match zcount\n"
                 }
-                puts "[r zcount zset $min $max]"
-                puts "[llength $ok]"
                 if {[r zcount zset $min $max] != [llength $ok]} {
                     append err "Error, len does not match zcount\n"
                 }
-                puts "[r zcount zset $max +$inf]"
-                puts "[llength $high]"
                 if {[r zcount zset $max +$inf] != [llength $high]} {
                     append err "Error, len does not match zcount\n"
                 }
-                puts "[r zcount zset -$inf ($min]"
-                puts "[llength $lowx]"
                 if {[r zcount zset -$inf ($min] != [llength $lowx]} {
                     append err "Error, len does not match zcount\n"
                 }
-                puts "[r zcount zset ($min ($max]"
-                puts "[llength $okx]"
                 if {[r zcount zset ($min ($max] != [llength $okx]} {
                     append err "Error, len does not match zcount\n"
                 }
-                puts "[r zcount zset ($max +$inf]"
-                puts "[llength $highx]"
-                puts $max
                 if {[r zcount zset ($max +$inf] != [llength $highx]} {
                     append err "Error, len does not match zcount\n"
                 }

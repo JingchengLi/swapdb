@@ -273,6 +273,10 @@ start_server {tags {"ssdb"}} {
         list [r hincrby htest foo 2]
     } {2}
 
+    test {For incrby will incr len #issue} {
+        list [r hincrby htest foo 2] [r hlen htest]
+    } {4 1}
+
     test {HINCRBY against non existing hash key} {
         set rv {}
         r hdel smallhash tmp
@@ -341,6 +345,10 @@ start_server {tags {"ssdb"}} {
         r del htest
         list [r hincrbyfloat htest foo 2.5]
     } {2.5}
+
+    test {For incrby will incr len #issue} {
+        list [r hincrbyfloat htest foo 2.5] [r hlen htest]
+    } {5 1}
 
     test {HINCRBYFLOAT against non existing hash key} {
         set rv {}
