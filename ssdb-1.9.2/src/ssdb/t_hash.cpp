@@ -15,10 +15,10 @@ static int incr_hsize(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const std::str
  */
 int SSDBImpl::hmset(const Bytes &name, const std::map<Bytes ,Bytes> &kvs) {
 	RecordLock l(&mutex_record_, name.String());
-	return hmsetNoLock(name, kvs);
+	return hmsetNoLock(name, kvs, true);
 }
 
-int SSDBImpl::hmsetNoLock(const Bytes &name, const std::map<Bytes ,Bytes> &kvs) {
+int SSDBImpl::hmsetNoLock(const Bytes &name, const std::map<Bytes ,Bytes> &kvs, bool check_exists) {
 
 	leveldb::WriteBatch batch;
 
@@ -37,7 +37,7 @@ int SSDBImpl::hmsetNoLock(const Bytes &name, const std::map<Bytes ,Bytes> &kvs) 
 		const Bytes &key = it.first;
 		const Bytes &val = it.second;
 
-		int added = hset_one(this ,batch, hv, true, name, key, val);
+		int added = hset_one(this ,batch, hv, check_exists, name, key, val);
 		if(added < 0){
 			return added;
 		}
@@ -197,11 +197,15 @@ int SSDBImpl::hincrbyfloat(const Bytes &name, const Bytes &key, long double by, 
         ret = GetHashItemValInternal(hkey, &old);
     }
 
+	int added = 0;
+
 	if(ret < 0) {
 		return ret;
 	} else if (ret == 0) {
         *new_val = by;
-    } else {
+		added = hset_one(this ,batch, hv, false, name, key, str(*new_val));
+
+	} else {
 
         long double oldvalue = str_to_long_double(old.c_str(), old.size());
 		if (errno == EINVAL){
@@ -218,10 +222,11 @@ int SSDBImpl::hincrbyfloat(const Bytes &name, const Bytes &key, long double by, 
 		if (std::isnan(*new_val) || std::isinf(*new_val)) {
 			return INVALID_INCR_PDC_NAN_OR_INF;
 		}
-    }
+
+		hset_one(this ,batch, hv, false, name, key, str(*new_val));
+	}
 
 
-    int added = hset_one(this ,batch, hv, false, name, key, str(*new_val));
     if(added < 0){
         return added;
     }
@@ -262,9 +267,13 @@ int SSDBImpl::hincr(const Bytes &name, const Bytes &key, int64_t by, int64_t *ne
         return ret;
     }
 
+	int added = 0;
+
     if (ret == 0) {
         *new_val = by;
-    } else {
+		added = hset_one(this ,batch, hv, false, name, key, str(*new_val));
+
+	} else {
         long long oldvalue;
         if (string2ll(old.c_str(), old.size(), &oldvalue) == 0) {
             return INVALID_INT;
@@ -274,10 +283,9 @@ int SSDBImpl::hincr(const Bytes &name, const Bytes &key, int64_t by, int64_t *ne
             return INT_OVERFLOW;
         }
         *new_val = oldvalue + by;
-    }
+		hset_one(this ,batch, hv, false, name, key, str(*new_val));
+	}
 
-
-	int added = hset_one(this ,batch, hv, false, name, key, str(*new_val));
 	if(added < 0){
 		return added;
 	}

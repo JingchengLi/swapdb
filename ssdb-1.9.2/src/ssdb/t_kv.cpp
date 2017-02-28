@@ -1014,7 +1014,7 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
                 kvs[Bytes(field_key)] = Bytes(field_value);
             }
 
-            ret = this->hmsetNoLock(key, kvs);
+            ret = this->hmsetNoLock(key, kvs, false);
 
             break;
         }
@@ -1193,7 +1193,7 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
                 kvs[Bytes(field_key)] = Bytes(field_value);
             }
 
-            ret = this->hmsetNoLock(key, kvs);
+            ret = this->hmsetNoLock(key, kvs, false);
 
             break;
         }

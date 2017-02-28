@@ -234,7 +234,7 @@ private:
 										const leveldb::Snapshot *snapshot=nullptr);
 
 	int setNoLock(const Bytes &key, const Bytes &val, int flags);
-	int hmsetNoLock(const Bytes &name, const std::map<Bytes,Bytes> &kvs);
+	int hmsetNoLock(const Bytes &name, const std::map<Bytes,Bytes> &kvs, bool check_exists);
 	int rpushNoLock(const Bytes &key, const std::vector<Bytes> &val, int offset, uint64_t *llen);
 	int zsetNoLock(const Bytes &name, const std::map<Bytes ,Bytes> &sortedSet, int flags);
 	int zdelNoLock(const Bytes &name, const std::set<Bytes> &keys);
