@@ -58,7 +58,7 @@ int bproc_COMMAND_DATA_DUMP(SSDBServer *serv, TransferWorker *worker, const std:
 
     } else if (ret == 0) {
         //notify key not found
-        notifyFailedToRedis(worker->redisUpstream, "customized-restore", data_key);
+        notifyFailedToRedis(worker->redisUpstream, "not-found", data_key);
         return 0;
 
     } else {
