@@ -732,9 +732,17 @@ int SSDBImpl::dump(const Bytes &key, std::string *res) {
 
             auto it = std::unique_ptr<HIterator>(this->hscan_internal(key, "", "", hv.version, -1, snapshot));
 
+
+            uint64_t cnt = 0;
             while (it->next()) {
                 rdbEncoder.saveRawString(it->key);
                 rdbEncoder.saveRawString(it->val);
+                cnt ++;
+            }
+
+            if (cnt != hv.length) {
+                log_error("hash metakey length dismatch !!!!! found %d, length %d, key %s", cnt, hv.length, hexstr(key).c_str());
+                return MKEY_DECODEC_ERR;
             }
 
             break;
@@ -751,8 +759,15 @@ int SSDBImpl::dump(const Bytes &key, std::string *res) {
 
             auto it = std::unique_ptr<SIterator>(this->sscan_internal(key, "", "", sv.version, -1, snapshot));
 
+            uint64_t cnt = 0;
             while (it->next()) {
                 rdbEncoder.saveRawString(it->key);
+                cnt ++;
+            }
+
+            if (cnt != sv.length) {
+                log_error("set metakey length dismatch !!!!! found %d, length %d, key %s", cnt, sv.length, hexstr(key).c_str());
+                return MKEY_DECODEC_ERR;
             }
 
             break;
@@ -770,9 +785,16 @@ int SSDBImpl::dump(const Bytes &key, std::string *res) {
 
             auto it = std::unique_ptr<ZIterator>(this->zscan_internal(key, "", "", "", -1, Iterator::FORWARD, zv.version, snapshot));
 
+            uint64_t cnt = 0;
             while (it->next()) {
                 rdbEncoder.saveRawString(it->key);
                 rdbEncoder.saveDoubleValue(it->score);
+                cnt ++;
+            }
+
+            if (cnt != zv.length) {
+                log_error("zset metakey length dismatch !!!!! found %d, length %d, key %s", cnt, zv.length, hexstr(key).c_str());
+                return MKEY_DECODEC_ERR;
             }
 
             break;
@@ -792,7 +814,7 @@ int SSDBImpl::dump(const Bytes &key, std::string *res) {
             readOptions.fill_cache = false;
             readOptions.snapshot = snapshot;
 
-            int64_t rangelen = (int64_t) lv.length;
+            uint64_t rangelen = lv.length;
             uint64_t begin_seq = getSeqByIndex(0, lv);
             uint64_t cur_seq = begin_seq;
 
