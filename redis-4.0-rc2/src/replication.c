@@ -2689,11 +2689,9 @@ void replicationCron(void) {
                     serverLog(LL_WARNING,
                               "Sending rr_transfer_snapshot to SSDB failed.");
                     freeClient(slave);
-                    sdsfree(cmdsds);
                     /* continue to avoid acess invalid slave pointer later. */
                     continue;
                 }
-                sdsfree(cmdsds);
         }
 
         if (server.jdjr_mode && server.use_customized_replication
@@ -2737,7 +2735,6 @@ void replicationCron(void) {
             if (sendCommandToSSDB(server.ssdb_replication_client, cmdsds) != C_OK) {
                 serverLog(LL_WARNING, "Sending rr_del_snapshot to SSDB failed.");
             }
-            sdsfree(cmdsds);
         }
     }
 
