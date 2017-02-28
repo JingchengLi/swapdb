@@ -541,61 +541,32 @@ int64_t SSDBImpl::zrrank(const Bytes &name, const Bytes &key) {
     return found ? ret : -1;
 }
 
-ZIterator *SSDBImpl::zrange(const Bytes &name, int64_t offset, int64_t end, const leveldb::Snapshot** snapshot) {
-    uint16_t version = 0;
-    ZSetMetaVal zv;
-
-    {
-        RecordLock l(&mutex_record_, name.String());
-
-        std::string meta_key = encode_meta_key(name);
-        int ret = GetZSetMetaVal(meta_key, zv);
-        if (0 == ret && zv.del == KEY_DELETE_MASK){
-            version = zv.version+(uint16_t)1;
-            zv.length = 0;
-        } else if (ret > 0){
-            version = zv.version;
-        } else{
-            version = 0;
-            zv.length = 0;
-        }
-        *snapshot = ldb->GetSnapshot();
+int SSDBImpl::zrangeGeneric(const Bytes &name, const Bytes &begin, const Bytes &limit, std::vector<string> &key_score,
+                            int reverse) {
+    long long start, end;
+    if (string2ll(begin.data(), (size_t)begin.size(), &start) == 0) {
+        return INVALID_INT;
+    } else if (start < LONG_MIN || start > LONG_MAX) {
+        return INVALID_INT;
+    }
+    if (string2ll(limit.data(), (size_t)limit.size(), &end) == 0) {
+        return INVALID_INT;
+    } else if (end < LONG_MIN || end > LONG_MAX) {
+        return INVALID_INT;
     }
 
-    if (offset < 0) {
-        offset = offset + zv.length;
-        if (offset < 0) {
-            offset = 0;
-        }
-    }
-
-    if (end < 0) {
-        end = end + zv.length +1;
-        if (end < 0) {
-            end = 0;
-        }
-    } else {
-        end = end + 1;
-    }
-
-    ZIterator *it = this->zscan_internal(name, "", "",  "", end, Iterator::FORWARD, version, *snapshot);
-    it->skip(offset);
-    return it;
-}
-
-ZIterator *SSDBImpl::zrrange(const Bytes &name, uint64_t offset, uint64_t limit, const leveldb::Snapshot** snapshot) {
     uint16_t version = 0;
     ZSetMetaVal zv;
     int llen = 0;
-    long start = offset;
-    long end = limit;
+    const leveldb::Snapshot* snapshot = nullptr;
+    ZIterator *it = NULL;
 
     {
         RecordLock l(&mutex_record_, name.String());
         std::string meta_key = encode_meta_key(name);
         int ret = GetZSetMetaVal(meta_key, zv);
         if (ret <= 0) {
-            return NULL;
+            return ret;
         }
 
         llen = (int)zv.length;
@@ -606,16 +577,43 @@ ZIterator *SSDBImpl::zrrange(const Bytes &name, uint64_t offset, uint64_t limit,
         /* Invariant: start >= 0, so this test will be true when end < 0.
          * The range is empty when start > end or start >= length. */
         if (start > end || start >= llen) {
-            return NULL;
+            return 0;
         }
         if (end >= llen) end = llen-1;
 
-        *snapshot = ldb->GetSnapshot();
+        version = zv.version;
+        snapshot = ldb->GetSnapshot();
     }
 
-    ZIterator *it = this->zscan_internal(name, "", "", "", end+1, Iterator::BACKWARD, version, *snapshot);
-    it->skip(start);
-    return it;
+    if (reverse) {
+        it = this->zscan_internal(name, "", "", "", end+1, Iterator::BACKWARD, version, snapshot);
+    } else {
+        it = this->zscan_internal(name, "", "",  "", end+1, Iterator::FORWARD, version, snapshot);
+    }
+
+    if (it != NULL) {
+        it->skip(start);
+        while(it->next()){
+            key_score.push_back(it->key);
+            key_score.push_back(str(it->score));
+        }
+        delete it;
+        it = NULL;
+    }
+
+    if (snapshot != nullptr) {
+        ldb->ReleaseSnapshot(snapshot);
+    }
+
+    return 1;
+}
+
+int SSDBImpl::zrange(const Bytes &name, const Bytes &begin, const Bytes &limit, std::vector<std::string> &key_score) {
+    return zrangeGeneric(name, begin, limit, key_score, 0);
+}
+
+int SSDBImpl::zrrange(const Bytes &name, const Bytes &begin, const Bytes &limit, std::vector<std::string> &key_score) {
+    return zrangeGeneric(name, begin, limit, key_score, 1);
 }
 
 ZIterator *SSDBImpl::zscan(const Bytes &name, const Bytes &key,

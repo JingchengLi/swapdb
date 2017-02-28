@@ -124,8 +124,8 @@ public:
 	virtual int zget(const Bytes &name, const Bytes &key, double *score) = 0;
 	virtual int64_t zrank(const Bytes &name, const Bytes &key) = 0;
 	virtual int64_t zrrank(const Bytes &name, const Bytes &key) = 0;
-	virtual ZIterator* zrange(const Bytes &name, int64_t offset, int64_t limit, const leveldb::Snapshot** snapshot) = 0;
-	virtual ZIterator* zrrange(const Bytes &name, uint64_t offset, uint64_t limit, const leveldb::Snapshot** snapshot) = 0;
+    virtual int zrange(const Bytes &name, const Bytes &begin, const Bytes &limit, std::vector<std::string> &key_score) = 0;
+    virtual int zrrange(const Bytes &name, const Bytes &begin, const Bytes &limit, std::vector<std::string> &key_score) = 0;
 	/**
 	 * scan by score, but won't return @key if key.score=score_start.
 	 * return (score_start, score_end]

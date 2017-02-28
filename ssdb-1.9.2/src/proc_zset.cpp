@@ -249,20 +249,14 @@ int proc_zrange(NetworkServer *net, Link *link, const Request &req, Response *re
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(4);
 
-	int64_t offset = req[2].Int64();
-	int64_t limit = req[3].Int64();
-
-	const leveldb::Snapshot* snapshot = nullptr;
-
-	auto it = std::unique_ptr<ZIterator>(serv->ssdb->zrange(req[1], offset, limit, &snapshot));
-	resp->push_back("ok");
-
-    while(it->next()){
-        resp->push_back(it->key);
-        resp->push_back(str(it->score));
+    resp->push_back("ok");
+    int ret = serv->ssdb->zrange(req[1], req[2], req[3], resp->resp);
+    if (ret < 0){
+        resp->resp.clear();
+        resp->push_back("error");
+        resp->push_back(GetErrorInfo(ret));
+        return 0;
     }
-
-	serv->ssdb->ReleaseSnapshot(snapshot);
 
 	return 0;
 }
@@ -271,23 +265,13 @@ int proc_zrrange(NetworkServer *net, Link *link, const Request &req, Response *r
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(4);
 
-	uint64_t offset = req[2].Uint64();
-	uint64_t limit = req[3].Uint64();
-
-	const leveldb::Snapshot* snapshot = nullptr;
-
-	auto it = std::unique_ptr<ZIterator>(serv->ssdb->zrrange(req[1], offset, limit, &snapshot));
-	resp->push_back("ok");
-
-    if (it != NULL) {
-        while(it->next()){
-            resp->push_back(it->key);
-            resp->push_back(str(it->score));
-        }
-    }
-
-	if (snapshot != nullptr) {
-        serv->ssdb->ReleaseSnapshot(snapshot);
+    resp->push_back("ok");
+    int ret = serv->ssdb->zrrange(req[1], req[2], req[3], resp->resp);
+    if (ret < 0){
+        resp->resp.clear();
+        resp->push_back("error");
+        resp->push_back(GetErrorInfo(ret));
+        return 0;
     }
 
 	return 0;
@@ -402,36 +386,30 @@ int proc_zremrangebyrank(NetworkServer *net, Link *link, const Request &req, Res
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(4);
 
-	int64_t start = req[2].Int64();
-	int64_t end = req[3].Int64();
+    std::vector<std::string> key_score;
+    int ret = serv->ssdb->zrange(req[1], req[2], req[3], key_score);
+    if (ret < 0) {
+        resp->push_back("error");
+        resp->push_back(GetErrorInfo(ret));
+        return 0;
+    } else if (ret == 0) {
+        resp->push_back("ok");
+        return 0;
+    }
 
     std::set<Bytes>  keys;
-    std::set<string> _keys;
-	const leveldb::Snapshot* snapshot = nullptr;
-
-	auto it = std::unique_ptr<ZIterator>(serv->ssdb->zrange(req[1], start, end, &snapshot));
-	int64_t count = 0;
-    while (it->next()) {
-        count++;
-        _keys.insert(it->key);
+    for (int i = 0; i < key_score.size(); i += 2) {
+        keys.insert(key_score[i]);
     }
 
-    if (snapshot != nullptr){
-        serv->ssdb->ReleaseSnapshot(snapshot);
-    }
-
-    for (auto iter = _keys.begin(); iter != _keys.end(); ++iter) {
-        keys.insert(*iter);
-    }
-
-    int ret = serv->ssdb->multi_zdel(req[1], keys);
+    ret = serv->ssdb->multi_zdel(req[1], keys);
     if (ret < 0) {
         resp->push_back("error");
         resp->push_back(GetErrorInfo(ret));
         return 0;
     }
 
-	resp->reply_int(0, count);
+	resp->reply_int(0, ret);
 
 	return 0;
 }

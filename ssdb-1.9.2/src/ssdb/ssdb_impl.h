@@ -185,8 +185,8 @@ public:
 	virtual int zget(const Bytes &name, const Bytes &key, double *score);
 	virtual int64_t zrank(const Bytes &name, const Bytes &key);
 	virtual int64_t zrrank(const Bytes &name, const Bytes &key);
-	virtual ZIterator* zrange(const Bytes &name, int64_t offset, int64_t limit, const leveldb::Snapshot** snapshot);
-	virtual ZIterator* zrrange(const Bytes &name, uint64_t offset, uint64_t limit, const leveldb::Snapshot** snapshot);
+	virtual int zrange(const Bytes &name, const Bytes &begin, const Bytes &limit, std::vector<std::string> &key_score);
+	virtual int zrrange(const Bytes &name, const Bytes &begin, const Bytes &limit, std::vector<std::string> &key_score);
 	/**
 	 * scan by score, but won't return @key if key.score=score_start.
 	 * return (score_start, score_end]
@@ -238,6 +238,7 @@ private:
 	int rpushNoLock(const Bytes &key, const std::vector<Bytes> &val, int offset, uint64_t *llen);
 	int zsetNoLock(const Bytes &name, const std::map<Bytes ,Bytes> &sortedSet, int flags);
 	int zdelNoLock(const Bytes &name, const std::set<Bytes> &keys);
+    int zrangeGeneric(const Bytes &name, const Bytes &begin, const Bytes &limit, std::vector<string> &key_score, int reverse);
 
 private:
 	//    pthread_mutex_t mutex_bgtask_;
