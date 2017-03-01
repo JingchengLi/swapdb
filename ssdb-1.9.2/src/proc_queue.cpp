@@ -141,14 +141,14 @@ int proc_qslice(NetworkServer *net, Link *link, const Request &req, Response *re
 
 	int64_t begin = req[2].Int64();
 	int64_t end = req[3].Int64();
-	std::vector<std::string> list;
-	int ret = serv->ssdb->lrange(req[1], begin, end, &list);
 
-
-	if (ret < 0) {
-		resp->reply_list(-1, list, GetErrorInfo(ret).c_str());
-	} else {
-		resp->reply_list(ret, list);
+	resp->push_back("ok");
+	int ret = serv->ssdb->lrange(req[1], begin, end, &resp->resp);
+	if (ret < 0){
+		resp->resp.clear();
+		resp->push_back("error");
+		resp->push_back(GetErrorInfo(ret));
+		return 0;
 	}
 
 	return 0;
