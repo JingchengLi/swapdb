@@ -67,11 +67,11 @@ start_server {tags {"incr"}} {
 
     test {INCR can modify objects in-place} {
         ssdbr set foo 20000
-        ssdbr incr foo
-        assert {[ssdbr object refcount foo] == 1}
-        set old [lindex [split [ssdbr debug object foo]] 1]
-        ssdbr incr foo
-        set new [lindex [split [ssdbr debug object foo]] 1]
+        r incr foo
+        assert {[r object refcount foo] == 1}
+        set old [lindex [split [r debug object foo]] 1]
+        r incr foo
+        set new [lindex [split [r debug object foo]] 1]
         assert {[string range $old 0 2] eq "at:"}
         assert {[string range $new 0 2] eq "at:"}
         assert {$old eq $new}

@@ -239,5 +239,45 @@ start_server {tags {"redis-ssdb"}} {
         }
         r del foobusy
     }
+
+    # add to verify dump/restore directly for fuzzing test fail issue
+    foreach size {10 512} {
+        test "Hash fuzzing #1 - $size fields" {
+            for {set times 0} {$times < 10} {incr times} {
+                catch {unset hash}
+                array set hash {}
+                r del hash
+
+                # Create
+                for {set j 0} {$j < $size} {incr j} {
+                    set field [randomValue]
+                    set value [randomValue]
+                    r hset hash $field $value
+                    set hash($field) $value
+                }
+
+                set redisEncoded [r dump hash]
+                r del hash
+                $ssdb restore hash 0 $redisEncoded replace
+
+                foreach {k v} [array get hash] {
+                    # puts "$k $v"
+                    assert_equal $v [$ssdb hget hash $k]
+                }
+                assert_equal [array size hash] [$ssdb hlen hash]
+
+                set ssdbEncoded [$ssdb dump hash]
+                r restore hash 0 $ssdbEncoded replace
+                $ssdb del hash
+
+                # Verify
+                foreach {k v} [array get hash] {
+                    assert_equal $v [r hget hash $k]
+                }
+                assert_equal [array size hash] [r hlen hash]
+            }
+            r del hash
+        }
+    }
     $ssdb flushdb
 }

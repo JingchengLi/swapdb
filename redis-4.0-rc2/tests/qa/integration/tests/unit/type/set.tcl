@@ -111,179 +111,179 @@ start_server {
         ssdbr srem myset 1 2 3 4 5 6 7 8
     } {3}
 
-    foreach {type} {hashtable intset} {
-        for {set i 1} {$i <= 5} {incr i} {
-            ssdbr del [format "set%d" $i]
-        }
-        for {set i 0} {$i < 200} {incr i} {
-            ssdbr sadd set1 $i
-            ssdbr sadd set2 [expr $i+195]
-        }
-        foreach i {199 195 1000 2000} {
-            ssdbr sadd set3 $i
-        }
-        for {set i 5} {$i < 200} {incr i} {
-            ssdbr sadd set4 $i
-        }
-        ssdbr sadd set5 0
+#    foreach {type} {hashtable intset} {
+#        for {set i 1} {$i <= 5} {incr i} {
+#            ssdbr del [format "set%d" $i]
+#        }
+#        for {set i 0} {$i < 200} {incr i} {
+#            ssdbr sadd set1 $i
+#            ssdbr sadd set2 [expr $i+195]
+#        }
+#        foreach i {199 195 1000 2000} {
+#            ssdbr sadd set3 $i
+#        }
+#        for {set i 5} {$i < 200} {incr i} {
+#            ssdbr sadd set4 $i
+#        }
+#        ssdbr sadd set5 0
+#
+#        # To make sure the sets are encoded as the type we are testing -- also
+#        # when the VM is enabled and the values may be swapped in and out
+#        # while the tests are running -- an extra element is added to every
+#        # set that determines its encoding.
+#        set large 200
+#        if {$type eq "hashtable"} {
+#            set large foo
+#        }
+#
+#        for {set i 1} {$i <= 5} {incr i} {
+#            ssdbr sadd [format "set%d" $i] $large
+#        }
+#
+#        test "Generated sets must be encoded as $type" {
+#            for {set i 1} {$i <= 5} {incr i} {
+#                assert_encoding $type [format "set%d" $i]
+#            }
+#        }
+#
+#        test "SINTER with two sets - $type" {
+#            assert_equal [list 195 196 197 198 199 $large] [lsort [ssdbr sinter set1 set2]]
+#        }
+#
+#        test "SINTERSTORE with two sets - $type" {
+#            ssdbr sinterstore setres set1 set2
+#            assert_encoding $type setres
+#            assert_equal [list 195 196 197 198 199 $large] [lsort [ssdbr smembers setres]]
+#        }
+#
+#        test "SINTERSTORE with two sets, after a DEBUG RELOAD - $type" {
+#            ssdbr debug reload
+#            ssdbr sinterstore setres set1 set2
+#            assert_encoding $type setres
+#            assert_equal [list 195 196 197 198 199 $large] [lsort [ssdbr smembers setres]]
+#        }
+#
+#        test "SUNION with two sets - $type" {
+#            set expected [lsort -uniq "[ssdbr smembers set1] [ssdbr smembers set2]"]
+#            assert_equal $expected [lsort [ssdbr sunion set1 set2]]
+#        }
+#
+#        test "SUNIONSTORE with two sets - $type" {
+#            ssdbr sunionstore setres set1 set2
+#            assert_encoding $type setres
+#            set expected [lsort -uniq "[ssdbr smembers set1] [ssdbr smembers set2]"]
+#            assert_equal $expected [lsort [ssdbr smembers setres]]
+#        }
+#
+#        test "SINTER against three sets - $type" {
+#            assert_equal [list 195 199 $large] [lsort [ssdbr sinter set1 set2 set3]]
+#        }
+#
+#        test "SINTERSTORE with three sets - $type" {
+#            ssdbr sinterstore setres set1 set2 set3
+#            assert_equal [list 195 199 $large] [lsort [ssdbr smembers setres]]
+#        }
+#
+#        test "SUNION with non existing keys - $type" {
+#            set expected [lsort -uniq "[ssdbr smembers set1] [ssdbr smembers set2]"]
+#            assert_equal $expected [lsort [ssdbr sunion nokey1 set1 set2 nokey2]]
+#        }
+#
+#        test "SDIFF with two sets - $type" {
+#            assert_equal {0 1 2 3 4} [lsort [ssdbr sdiff set1 set4]]
+#        }
+#
+#        test "SDIFF with three sets - $type" {
+#            assert_equal {1 2 3 4} [lsort [ssdbr sdiff set1 set4 set5]]
+#        }
+#
+#        test "SDIFFSTORE with three sets - $type" {
+#            ssdbr sdiffstore setres set1 set4 set5
+#            # When we start with intsets, we should always end with intsets.
+#            if {$type eq {intset}} {
+#                assert_encoding intset setres
+#            }
+#            assert_equal {1 2 3 4} [lsort [ssdbr smembers setres]]
+#        }
+#    }
 
-        # To make sure the sets are encoded as the type we are testing -- also
-        # when the VM is enabled and the values may be swapped in and out
-        # while the tests are running -- an extra element is added to every
-        # set that determines its encoding.
-        set large 200
-        if {$type eq "hashtable"} {
-            set large foo
-        }
-
-        for {set i 1} {$i <= 5} {incr i} {
-            ssdbr sadd [format "set%d" $i] $large
-        }
-
-        test "Generated sets must be encoded as $type" {
-            for {set i 1} {$i <= 5} {incr i} {
-                assert_encoding $type [format "set%d" $i]
-            }
-        }
-
-        test "SINTER with two sets - $type" {
-            assert_equal [list 195 196 197 198 199 $large] [lsort [ssdbr sinter set1 set2]]
-        }
-
-        test "SINTERSTORE with two sets - $type" {
-            ssdbr sinterstore setres set1 set2
-            assert_encoding $type setres
-            assert_equal [list 195 196 197 198 199 $large] [lsort [ssdbr smembers setres]]
-        }
-
-        test "SINTERSTORE with two sets, after a DEBUG RELOAD - $type" {
-            ssdbr debug reload
-            ssdbr sinterstore setres set1 set2
-            assert_encoding $type setres
-            assert_equal [list 195 196 197 198 199 $large] [lsort [ssdbr smembers setres]]
-        }
-
-        test "SUNION with two sets - $type" {
-            set expected [lsort -uniq "[ssdbr smembers set1] [ssdbr smembers set2]"]
-            assert_equal $expected [lsort [ssdbr sunion set1 set2]]
-        }
-
-        test "SUNIONSTORE with two sets - $type" {
-            ssdbr sunionstore setres set1 set2
-            assert_encoding $type setres
-            set expected [lsort -uniq "[ssdbr smembers set1] [ssdbr smembers set2]"]
-            assert_equal $expected [lsort [ssdbr smembers setres]]
-        }
-
-        test "SINTER against three sets - $type" {
-            assert_equal [list 195 199 $large] [lsort [ssdbr sinter set1 set2 set3]]
-        }
-
-        test "SINTERSTORE with three sets - $type" {
-            ssdbr sinterstore setres set1 set2 set3
-            assert_equal [list 195 199 $large] [lsort [ssdbr smembers setres]]
-        }
-
-        test "SUNION with non existing keys - $type" {
-            set expected [lsort -uniq "[ssdbr smembers set1] [ssdbr smembers set2]"]
-            assert_equal $expected [lsort [ssdbr sunion nokey1 set1 set2 nokey2]]
-        }
-
-        test "SDIFF with two sets - $type" {
-            assert_equal {0 1 2 3 4} [lsort [ssdbr sdiff set1 set4]]
-        }
-
-        test "SDIFF with three sets - $type" {
-            assert_equal {1 2 3 4} [lsort [ssdbr sdiff set1 set4 set5]]
-        }
-
-        test "SDIFFSTORE with three sets - $type" {
-            ssdbr sdiffstore setres set1 set4 set5
-            # When we start with intsets, we should always end with intsets.
-            if {$type eq {intset}} {
-                assert_encoding intset setres
-            }
-            assert_equal {1 2 3 4} [lsort [ssdbr smembers setres]]
-        }
-    }
-
-    test "SDIFF with first set empty" {
-        ssdbr del set1 set2 set3
-        ssdbr sadd set2 1 2 3 4
-        ssdbr sadd set3 a b c d
-        ssdbr sdiff set1 set2 set3
-    } {}
-
-    test "SDIFF with same set two times" {
-        ssdbr del set1
-        ssdbr sadd set1 a b c 1 2 3 4 5 6
-        ssdbr sdiff set1 set1
-    } {}
-
-    test "SDIFF fuzzing" {
-        for {set j 0} {$j < 100} {incr j} {
-            unset -nocomplain s
-            array set s {}
-            set args {}
-            set num_sets [expr {[randomInt 10]+1}]
-            for {set i 0} {$i < $num_sets} {incr i} {
-                set num_elements [randomInt 100]
-                ssdbr del set_$i
-                lappend args set_$i
-                while {$num_elements} {
-                    set ele [randomValue]
-                    ssdbr sadd set_$i $ele
-                    if {$i == 0} {
-                        set s($ele) x
-                    } else {
-                        unset -nocomplain s($ele)
-                    }
-                    incr num_elements -1
-                }
-            }
-            set result [lsort [ssdbr sdiff {*}$args]]
-            assert_equal $result [lsort [array names s]]
-        }
-    }
-
-    test "SINTER against non-set should throw error" {
-        ssdbr set key1 x
-        assert_error "WRONGTYPE*" {r sinter key1 noset}
-    }
-
-    test "SUNION against non-set should throw error" {
-        ssdbr set key1 x
-        assert_error "WRONGTYPE*" {r sunion key1 noset}
-    }
-
-    test "SINTER should handle non existing key as empty" {
-        ssdbr del set1 set2 set3
-        ssdbr sadd set1 a b c
-        ssdbr sadd set2 b c d
-        ssdbr sinter set1 set2 set3
-    } {}
-
-    test "SINTER with same integer elements but different encoding" {
-        ssdbr del set1 set2
-        ssdbr sadd set1 1 2 3
-        ssdbr sadd set2 1 2 3 a
-        ssdbr srem set2 a
-        assert_encoding intset set1
-        assert_encoding hashtable set2
-        lsort [ssdbr sinter set1 set2]
-    } {1 2 3}
-
-    test "SINTERSTORE against non existing keys should delete dstkey" {
-        ssdbr set setres xxx
-        assert_equal 0 [ssdbr sinterstore setres foo111 bar222]
-        assert_equal 0 [ssdbr exists setres]
-    }
-
-    test "SUNIONSTORE against non existing keys should delete dstkey" {
-        ssdbr set setres xxx
-        assert_equal 0 [ssdbr sunionstore setres foo111 bar222]
-        assert_equal 0 [ssdbr exists setres]
-    }
+#    test "SDIFF with first set empty" {
+#        ssdbr del set1 set2 set3
+#        ssdbr sadd set2 1 2 3 4
+#        ssdbr sadd set3 a b c d
+#        ssdbr sdiff set1 set2 set3
+#    } {}
+#
+#    test "SDIFF with same set two times" {
+#        ssdbr del set1
+#        ssdbr sadd set1 a b c 1 2 3 4 5 6
+#        ssdbr sdiff set1 set1
+#    } {}
+#
+#    test "SDIFF fuzzing" {
+#        for {set j 0} {$j < 100} {incr j} {
+#            unset -nocomplain s
+#            array set s {}
+#            set args {}
+#            set num_sets [expr {[randomInt 10]+1}]
+#            for {set i 0} {$i < $num_sets} {incr i} {
+#                set num_elements [randomInt 100]
+#                ssdbr del set_$i
+#                lappend args set_$i
+#                while {$num_elements} {
+#                    set ele [randomValue]
+#                    ssdbr sadd set_$i $ele
+#                    if {$i == 0} {
+#                        set s($ele) x
+#                    } else {
+#                        unset -nocomplain s($ele)
+#                    }
+#                    incr num_elements -1
+#                }
+#            }
+#            set result [lsort [ssdbr sdiff {*}$args]]
+#            assert_equal $result [lsort [array names s]]
+#        }
+#    }
+#
+#    test "SINTER against non-set should throw error" {
+#        ssdbr set key1 x
+#        assert_error "WRONGTYPE*" {r sinter key1 noset}
+#    }
+#
+#    test "SUNION against non-set should throw error" {
+#        ssdbr set key1 x
+#        assert_error "WRONGTYPE*" {r sunion key1 noset}
+#    }
+#
+#    test "SINTER should handle non existing key as empty" {
+#        ssdbr del set1 set2 set3
+#        ssdbr sadd set1 a b c
+#        ssdbr sadd set2 b c d
+#        ssdbr sinter set1 set2 set3
+#    } {}
+#
+#    test "SINTER with same integer elements but different encoding" {
+#        ssdbr del set1 set2
+#        ssdbr sadd set1 1 2 3
+#        ssdbr sadd set2 1 2 3 a
+#        ssdbr srem set2 a
+#        assert_encoding intset set1
+#        assert_encoding hashtable set2
+#        lsort [ssdbr sinter set1 set2]
+#    } {1 2 3}
+#
+#    test "SINTERSTORE against non existing keys should delete dstkey" {
+#        ssdbr set setres xxx
+#        assert_equal 0 [ssdbr sinterstore setres foo111 bar222]
+#        assert_equal 0 [ssdbr exists setres]
+#    }
+#
+#    test "SUNIONSTORE against non existing keys should delete dstkey" {
+#        ssdbr set setres xxx
+#        assert_equal 0 [ssdbr sunionstore setres foo111 bar222]
+#        assert_equal 0 [ssdbr exists setres]
+#    }
 
     foreach {type contents} {hashtable {a b c} intset {1 2 3}} {
         test "SPOP basics - $type" {
@@ -485,84 +485,84 @@ start_server {
         }
     }
 
-    proc setup_move {} {
-        ssdbr del myset3 myset4
-        create_set myset1 {1 a b}
-        create_set myset2 {2 3 4}
-        assert_encoding hashtable myset1
-        assert_encoding intset myset2
-    }
-
-    test "SMOVE basics - from regular set to intset" {
-        # move a non-integer element to an intset should convert encoding
-        setup_move
-        assert_equal 1 [ssdbr smove myset1 myset2 a]
-        assert_equal {1 b} [lsort [ssdbr smembers myset1]]
-        assert_equal {2 3 4 a} [lsort [ssdbr smembers myset2]]
-        assert_encoding hashtable myset2
-
-        # move an integer element should not convert the encoding
-        setup_move
-        assert_equal 1 [ssdbr smove myset1 myset2 1]
-        assert_equal {a b} [lsort [ssdbr smembers myset1]]
-        assert_equal {1 2 3 4} [lsort [ssdbr smembers myset2]]
-        assert_encoding intset myset2
-    }
-
-    test "SMOVE basics - from intset to regular set" {
-        setup_move
-        assert_equal 1 [ssdbr smove myset2 myset1 2]
-        assert_equal {1 2 a b} [lsort [ssdbr smembers myset1]]
-        assert_equal {3 4} [lsort [ssdbr smembers myset2]]
-    }
-
-    test "SMOVE non existing key" {
-        setup_move
-        assert_equal 0 [ssdbr smove myset1 myset2 foo]
-        assert_equal 0 [ssdbr smove myset1 myset1 foo]
-        assert_equal {1 a b} [lsort [ssdbr smembers myset1]]
-        assert_equal {2 3 4} [lsort [ssdbr smembers myset2]]
-    }
-
-    test "SMOVE non existing src set" {
-        setup_move
-        assert_equal 0 [ssdbr smove noset myset2 foo]
-        assert_equal {2 3 4} [lsort [ssdbr smembers myset2]]
-    }
-
-    test "SMOVE from regular set to non existing destination set" {
-        setup_move
-        assert_equal 1 [ssdbr smove myset1 myset3 a]
-        assert_equal {1 b} [lsort [ssdbr smembers myset1]]
-        assert_equal {a} [lsort [ssdbr smembers myset3]]
-        assert_encoding hashtable myset3
-    }
-
-    test "SMOVE from intset to non existing destination set" {
-        setup_move
-        assert_equal 1 [ssdbr smove myset2 myset3 2]
-        assert_equal {3 4} [lsort [ssdbr smembers myset2]]
-        assert_equal {2} [lsort [ssdbr smembers myset3]]
-        assert_encoding intset myset3
-    }
-
-    test "SMOVE wrong src key type" {
-        ssdbr set x 10
-        assert_error "WRONGTYPE*" {r smove x myset2 foo}
-    }
-
-    test "SMOVE wrong dst key type" {
-        ssdbr set x 10
-        assert_error "WRONGTYPE*" {r smove myset2 x foo}
-    }
-
-    test "SMOVE with identical source and destination" {
-        ssdbr del set
-        ssdbr sadd set a b c
-        ssdbr smove set set b
-        lsort [ssdbr smembers set]
-    } {a b c}
-
+#    proc setup_move {} {
+#        ssdbr del myset3 myset4
+#        create_set myset1 {1 a b}
+#        create_set myset2 {2 3 4}
+#        assert_encoding hashtable myset1
+#        assert_encoding intset myset2
+#    }
+#
+#    test "SMOVE basics - from regular set to intset" {
+#        # move a non-integer element to an intset should convert encoding
+#        setup_move
+#        assert_equal 1 [ssdbr smove myset1 myset2 a]
+#        assert_equal {1 b} [lsort [ssdbr smembers myset1]]
+#        assert_equal {2 3 4 a} [lsort [ssdbr smembers myset2]]
+#        assert_encoding hashtable myset2
+#
+#        # move an integer element should not convert the encoding
+#        setup_move
+#        assert_equal 1 [ssdbr smove myset1 myset2 1]
+#        assert_equal {a b} [lsort [ssdbr smembers myset1]]
+#        assert_equal {1 2 3 4} [lsort [ssdbr smembers myset2]]
+#        assert_encoding intset myset2
+#    }
+#
+#    test "SMOVE basics - from intset to regular set" {
+#        setup_move
+#        assert_equal 1 [ssdbr smove myset2 myset1 2]
+#        assert_equal {1 2 a b} [lsort [ssdbr smembers myset1]]
+#        assert_equal {3 4} [lsort [ssdbr smembers myset2]]
+#    }
+#
+#    test "SMOVE non existing key" {
+#        setup_move
+#        assert_equal 0 [ssdbr smove myset1 myset2 foo]
+#        assert_equal 0 [ssdbr smove myset1 myset1 foo]
+#        assert_equal {1 a b} [lsort [ssdbr smembers myset1]]
+#        assert_equal {2 3 4} [lsort [ssdbr smembers myset2]]
+#    }
+#
+#    test "SMOVE non existing src set" {
+#        setup_move
+#        assert_equal 0 [ssdbr smove noset myset2 foo]
+#        assert_equal {2 3 4} [lsort [ssdbr smembers myset2]]
+#    }
+#
+#    test "SMOVE from regular set to non existing destination set" {
+#        setup_move
+#        assert_equal 1 [ssdbr smove myset1 myset3 a]
+#        assert_equal {1 b} [lsort [ssdbr smembers myset1]]
+#        assert_equal {a} [lsort [ssdbr smembers myset3]]
+#        assert_encoding hashtable myset3
+#    }
+#
+#    test "SMOVE from intset to non existing destination set" {
+#        setup_move
+#        assert_equal 1 [ssdbr smove myset2 myset3 2]
+#        assert_equal {3 4} [lsort [ssdbr smembers myset2]]
+#        assert_equal {2} [lsort [ssdbr smembers myset3]]
+#        assert_encoding intset myset3
+#    }
+#
+#    test "SMOVE wrong src key type" {
+#        ssdbr set x 10
+#        assert_error "WRONGTYPE*" {r smove x myset2 foo}
+#    }
+#
+#    test "SMOVE wrong dst key type" {
+#        ssdbr set x 10
+#        assert_error "WRONGTYPE*" {r smove myset2 x foo}
+#    }
+#
+#    test "SMOVE with identical source and destination" {
+#        ssdbr del set
+#        ssdbr sadd set a b c
+#        ssdbr smove set set b
+#        lsort [ssdbr smembers set]
+#    } {a b c}
+#
     tags {slow} {
         test {intsets implementation stress testing} {
             for {set j 0} {$j < 20} {incr j} {

@@ -125,7 +125,7 @@ start_server {tags {"ssdb"}} {
         ssdbr del mykey
         ssdbr restore mykey 0 $dumpkey
         assert_equal [ssdbr get mykey] 10 "dump/restore"
-        assert_equal [ssdbr del mykey] 0 "del mykey"
+        assert_equal [ssdbr del mykey] 1 "del mykey"
     }
 
     test {basic commands - zset} {

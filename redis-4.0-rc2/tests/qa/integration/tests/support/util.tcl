@@ -414,3 +414,12 @@ proc ssdbr {args} {
     }
     r {*}$args
 }
+
+proc wait_memory_stable {} {
+    set current_mem 0
+
+    while {[expr { [s used_memory] - $current_mem } ] != 0} {
+        after 30
+        set current_mem [s used_memory]
+    }
+}
