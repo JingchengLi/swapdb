@@ -174,7 +174,7 @@ void replyToBlockedClientTimedOut(client *c) {
                && (c->btype == BLOCKED_VISITING_SSDB_TIMEOUT
                    || c->btype == BLOCKED_VISITING_SSDB
                    || c->btype == BLOCKED_NO_WRITE_TO_SSDB)) {
-        addReplyString(c, "-Err timeout", 13);
+        addReplyError(c, "timeout");
         resetClient(c);
     } else {
         serverPanic("Unknown btype in replyToBlockedClientTimedOut().");

@@ -1142,6 +1142,6 @@ void transferringOrLoadingBlockedClientTimeOut(client *c) {
         serverLog(LL_DEBUG, "client: %d key: %s is timeout.", c->fd, (char *)keyobj->ptr);
     }
 
-    addReplyString(c, "-Err timeout", 13);
+    addReplyError(c, "timeout");
     resetClient(c);
 }

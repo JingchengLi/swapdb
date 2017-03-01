@@ -4693,6 +4693,8 @@ void customizedFailCommand(client *c) {
         serverPanic("cmd is not supported.");
     }
 
+    signalBlockingKeyAsReady(c->db, keyobj);
+
     addReply(c, shared.ok);
 
     sdsfree(fail_restore);
