@@ -652,13 +652,19 @@ int sendCommandToSSDB(client *c, sds finalcmd) {
             return C_ERR;
         }
 
-        const char **argv = zmalloc(sizeof(char *) * c->argc);
+        /* TODO: pre-allocate and reuse the mem to avoid allocating
+           and destroying the mem frequently. */
+        char ** const argv = zmalloc(sizeof(char *) * c->argc);
+        size_t * const argvlen = zmalloc(sizeof(size_t) * c->argc);
 
-        for (i = 0; i < c->argc; i ++)
-            argv[i] = (char*)c->argv[i]->ptr;
+        for (i = 0; i < c->argc; i ++) {
+            argv[i] = c->argv[i]->ptr;
+            argvlen[i] = sdslen((sds)(c->argv[i]->ptr));
+        }
 
-        len = redisFormatCommandArgv(&cmd, c->argc, argv, NULL);
+        len = redisFormatCommandArgv(&cmd, c->argc, (const char **)argv, (const size_t *)argvlen);
         zfree(argv);
+        zfree(argvlen);
 
         if (len == -1) {
             serverLog(LL_WARNING, "Out of Memory for redisFormatCommandArgv.");
