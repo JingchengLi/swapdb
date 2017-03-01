@@ -2682,16 +2682,22 @@ void replicationCron(void) {
         if (server.jdjr_mode && server.use_customized_replication
             && (server.ssdb_status == MASTER_SSDB_SNAPSHOT_OK)
             && (slave->ssdb_status == SLAVE_SSDB_SNAPSHOT_TRANSFER_PRE)) {
-                sds cmdsds = sdsnew("*1\r\n$20\r\nrr_transfer_snapshot\r\n");
+            char buf[64];
+            int len;
+            len = ll2string(buf, 64, slave->slave_listening_port + SSDB_SLAVE_PORT_INCR);
 
-                /* TODO: block current slave. */
-                if (sendCommandToSSDB(slave, cmdsds) != C_OK) {
-                    serverLog(LL_WARNING,
-                              "Sending rr_transfer_snapshot to SSDB failed.");
-                    freeClient(slave);
-                    /* continue to avoid acess invalid slave pointer later. */
-                    continue;
-                }
+            sds cmdsds = sdscatfmt(sdsempty(),
+                                   "*3\r\n$20\r\nrr_transfer_snapshot\r\n$%d\r\n%s\r\n$%d\r\n%s\r\n",
+                                   strlen(slave->slave_ip), slave->slave_ip, len, buf);
+
+            /* TODO: block current slave. */
+            if (sendCommandToSSDB(slave, cmdsds) != C_OK) {
+                serverLog(LL_WARNING,
+                          "Sending rr_transfer_snapshot to SSDB failed.");
+                freeClient(slave);
+                /* continue to avoid acess invalid slave pointer later. */
+                continue;
+            }
         }
 
         if (server.jdjr_mode && server.use_customized_replication
