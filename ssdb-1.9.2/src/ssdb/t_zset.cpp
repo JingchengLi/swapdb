@@ -306,62 +306,51 @@ int64_t SSDBImpl::zremrangebyscore(const Bytes &name, const Bytes &score_start, 
     return count;
 }
 
-int SSDBImpl::zincr(const Bytes &name, const Bytes &key, double by, double *new_val) {
+int SSDBImpl::zincr(const Bytes &name, const Bytes &key, double by, int flags, double *new_val) {
     RecordLock l(&mutex_record_, name.String());
     leveldb::WriteBatch batch;
     ZSetMetaVal zv;
-    double old_score = 0;
+    uint16_t cur_version = 0;
+    bool needCheck = false;
 
     std::string meta_key = encode_meta_key(name);
     int ret = GetZSetMetaVal(meta_key, zv);
     if (ret < 0) {
         return ret;
-    } else if (ret > 0){
-        std::string item_key = encode_zset_key(name, key, zv.version);
-        ret = GetZSetItemVal(item_key, &old_score);
+    } else if (ret == 0) {
+        needCheck = false;
+        if (zv.del == KEY_DELETE_MASK) {
+            if (zv.version == UINT16_MAX){
+                cur_version = 0;
+            } else{
+                cur_version = (uint16_t) (zv.version + 1);
+            }
+        } else {
+            cur_version = 0;
+        }
+    } else {
+        needCheck = true;
+        cur_version = zv.version;
+    }
+
+    int retflags = flags;
+    int retval = zsetAdd(this, batch ,needCheck, name, key, by, cur_version, &retflags, new_val);
+    if (retval < 0) {
+        return retval;
+    }
+
+    if (retflags & ZADD_ADDED) {
+        ret = incr_zsize(this, batch, zv, name, 1);
         if (ret < 0) {
             return ret;
         }
     }
-
-    if (ret == 0) {
-        *new_val = by;
-    } else {
-        *new_val = old_score + by;
+    leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
+    if (!s.ok()) {
+        log_error("zset error: %s", s.ToString().c_str());
+        return STORAGE_ERR;
     }
 
-    if (std::isnan(*new_val) || std::isinf(*new_val)){
-        return NAN_SCORE;
-    }
-    if (*new_val > ZSET_SCORE_MAX || *new_val < ZSET_SCORE_MIN) {
-        return INT_OVERFLOW;
-    }
-
-    uint16_t cur_version = zv.version;
-    if (ret == 0 && zv.del == KEY_DELETE_MASK) {
-        if (zv.version == UINT16_MAX){
-            cur_version = 0;
-        } else{
-            cur_version = (uint16_t) (zv.version + 1);
-        }
-    }
-
-    ret = zset_one(this, batch, name, key, *new_val, cur_version);
-    if (ret < 0) {
-        return ret;
-    }
-    if (ret >= 0) {
-        if (ret > 0) {
-            if (incr_zsize(this, batch, zv, name, ret) == -1) {
-                return -1;
-            }
-        }
-        leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
-        if (!s.ok()) {
-            log_error("zset error: %s", s.ToString().c_str());
-            return -1;
-        }
-    }
     return 1;
 }
 
