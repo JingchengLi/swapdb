@@ -6,55 +6,12 @@ start_server {
 } {
     test {Explicit regression for a list bug} {
         set mylist {49376042582 {BkG2o\pIC]4YYJa9cJ4GWZalG[4tin;1D2whSkCOW`mX;SFXGyS8sedcff3fQI^tgPCC@^Nu1J6o]meM@Lko]t_jRyo<xSJ1oObDYd`ppZuW6P@fS278YaOx=s6lvdFlMbP0[SbkI^Kr\HBXtuFaA^mDx:yzS4a[skiiPWhT<nNfAf=aQVfclcuwDrfe;iVuKdNvB9kbfq>tK?tH[\EvWqS]b`o2OCtjg:?nUTwdjpcUm]y:pg5q24q7LlCOwQE^}}
-        ssdbr del l
-        ssdbr rpush l [lindex $mylist 0]
-        ssdbr rpush l [lindex $mylist 1]
-        assert_equal [ssdbr lindex l 0] [lindex $mylist 0]
-        assert_equal [ssdbr lindex l 1] [lindex $mylist 1]
-    }
-
-    test {Regression for quicklist #3343 bug} {
-        ssdbr del mylist
-        ssdbr lpush mylist 401
-        ssdbr lpush mylist 392
-        ssdbr rpush mylist [string repeat x 5105]"799"
-        ssdbr lset mylist -1 [string repeat x 1014]"702"
-        ssdbr lpop mylist
-        ssdbr lset mylist -1 [string repeat x 4149]"852"
-        ssdbr linsert mylist before 401 [string repeat x 9927]"12"
-        ssdbr lrange mylist 0 -1
-        ssdbr ping ; # It's enough if the server is still alive
-    } {PONG}
-
-    test {Stress tester for #3343-alike bugs} {
-        ssdbr del key
-        for {set j 0} {$j < 10000} {incr j} {
-            set op [randomInt 6]
-            set small_signed_count [expr 5-[randomInt 10]]
-            if {[randomInt 2] == 0} {
-                set ele [randomInt 1000]
-            } else {
-                set ele [string repeat x [randomInt 10000]][randomInt 1000]
-            }
-            switch $op {
-                0 {r lpush key $ele}
-                1 {r rpush key $ele}
-                2 {r lpop key}
-                3 {r rpop key}
-                4 {
-                    catch {r lset key $small_signed_count $ele}
-                }
-                5 {
-                    set otherele [randomInt 1000]
-                    if {[randomInt 2] == 0} {
-                        set where before
-                    } else {
-                        set where after
-                    }
-                    ssdbr linsert key $where $otherele $ele
-                }
-            }
-        }
+        r del l
+        r rpush l [lindex $mylist 0]
+        r rpush l [lindex $mylist 1]
+        assert_equal [r lindex l 0] [lindex $mylist 0]
+        assert_equal [r lindex l 1] [lindex $mylist 1]
+        r del mylist
     }
 
     tags {slow} {

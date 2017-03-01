@@ -189,6 +189,8 @@ start_server {tags {"redis-ssdb"}} {
         }
         r del foottl
     }
+    r config set zset-max-ziplist-entries 128
+    r config set zset-max-ziplist-value 64
 
 #list type
     foreach valtype {string-encoded integer-encoded mix-encoded} {

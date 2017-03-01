@@ -98,7 +98,7 @@ start_server {tags {"string"}} {
         # Wait for the key to expire
         after 2000
 
-        assert_equal 1 [ssdbr setnx x 20]
+        assert_equal 1 [r setnx x 20]
         assert_equal 20 [ssdbr get x]
     }
 

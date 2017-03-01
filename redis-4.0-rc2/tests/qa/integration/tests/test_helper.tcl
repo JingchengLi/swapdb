@@ -17,12 +17,21 @@ set ::all_tests {
     ssdb/dump
     ssdb/aofrw
     ssdb/keystatus
-    ssdb/loadconfig
-    ssdb/db
+    ssdb/basecommands
+
     unit/type/hash
+    unit/type/incr
+    unit/type/string
+    unit/type/list
+    unit/type/set
+    unit/type/zset
+    unit/type/list-3
 }
+#need update
+    #ssdb/loadconfig
 # maxpolicy is a stress test.
     # ssdb/maxpolicy
+    # ssdb/db
 
 # unit/printver
 # unit/dump

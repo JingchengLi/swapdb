@@ -29,7 +29,6 @@ class TestPipeline(unittest.TestCase):
         for key in self.R.keys():
             self.R.execute_command("dumptossdb "+key)
 
-    @unittest.skip("test_pipleline_set_get")
     def test_pipleline_set_get(self, r=RedisPool().Redis_Pool()):
         self.R.set("foo", 'ssdbbar')
         self.dumpKeys()
@@ -41,7 +40,6 @@ class TestPipeline(unittest.TestCase):
             result = pipe.execute()
             self.assertEqual(expect, result)
 
-    @unittest.skip("test_pipelineResponse")
     def test_pipelineResponse(self, r=RedisPool().Redis_Pool()):
         self.R.set("stringkey", "foo")
         self.R.lpush("listkey", "foo")
@@ -77,7 +75,6 @@ class TestPipeline(unittest.TestCase):
             result = pipe.execute()
             self.assertEqual(expect, result)
 
-    @unittest.skip("test_pipelineResponseWithData")
     def test_pipelineResponseWithData(self, r=RedisPool().Redis_Pool()):
         self.R.zadd("zset", 1, "foo")
         self.dumpKeys()
@@ -87,8 +84,7 @@ class TestPipeline(unittest.TestCase):
             result = pipe.execute()
             self.assertEqual(expect, result)
 
-    @unittest.skip("test_pipeline")
-    def test_pipeline(self, r=RedisPool().Redis_Pool()):
+    def test_basepipeline(self, r=RedisPool().Redis_Pool()):
         with r.pipeline(False) as pipe:
             pipe.set('a', 'a1').get('a').zadd('z', z1=1).zadd('z', z2=4)
             pipe.zincrby('z', 'z1').zrange('z', 0, 5, withscores=True)
@@ -116,7 +112,6 @@ class TestPipeline(unittest.TestCase):
             result = pipe.execute()
             self.assertEqual(expect, result)
 
-    @unittest.skip("test_pipeline_length")
     def test_pipeline_length(self, r=RedisPool().Redis_Pool()):
         with r.pipeline(False) as pipe:
             # Initially empty.
@@ -140,7 +135,6 @@ class TestPipeline(unittest.TestCase):
             assert len(pipe) == 0
             assert not pipe
 
-    @unittest.skip("test_exec_error_in_response")
     def test_exec_error_in_response(self, r=RedisPool().Redis_Pool()):
         """
         an invalid pipeline command at exec time adds the exception instance
@@ -157,7 +151,6 @@ class TestPipeline(unittest.TestCase):
             self.assertEqual('2', result[1])
             self.assertEqual('4', result[3])
 
-    @unittest.skip("test_exec_error_raised")
     def test_exec_error_raised(self, r=RedisPool().Redis_Pool()):
         with r.pipeline(False) as pipe:
             pipe.set('a', 1).set('b', 2).lpush('c', 3).set('d', 4).execute()
@@ -169,5 +162,7 @@ class TestPipeline(unittest.TestCase):
             # make sure the pipe was restored to a working state
             assert pipe.set('z', 'zzz').execute() == [True]
 
-if __name__=='__main__':
-    unittest.main(verbosity=2)
+suite = unittest.TestLoader().loadTestsFromTestCase(TestPipeline)
+unittest.TextTestRunner(verbosity=2).run(suite)
+#  if __name__=='__main__':
+    #  unittest.main(verbosity=2)
