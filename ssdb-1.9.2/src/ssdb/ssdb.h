@@ -127,8 +127,10 @@ public:
 	virtual int64_t zrrank(const Bytes &name, const Bytes &key) = 0;
     virtual int zrange(const Bytes &name, const Bytes &begin, const Bytes &limit, std::vector<std::string> &key_score) = 0;
     virtual int zrrange(const Bytes &name, const Bytes &begin, const Bytes &limit, std::vector<std::string> &key_score) = 0;
-    virtual int zrangebyscore(const Bytes &name, const Bytes &start_score, const Bytes &end_score, std::vector<std::string> &key_score) = 0;
-    virtual int zrevrangebyscore(const Bytes &name, const Bytes &start_score, const Bytes &end_score, std::vector<std::string> &key_score) = 0;
+    virtual int zrangebyscore(const Bytes &name, const Bytes &start_score, const Bytes &end_score, std::vector<std::string> &key_score,
+				int withscores, long offset, long limit) = 0;
+    virtual int zrevrangebyscore(const Bytes &name, const Bytes &start_score, const Bytes &end_score, std::vector<std::string> &key_score,
+				int withscores, long offset, long limit) = 0;
 	/**
 	 * scan by score, but won't return @key if key.score=score_start.
 	 * return (score_start, score_end]

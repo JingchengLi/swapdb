@@ -299,12 +299,54 @@ int proc_zrrange(NetworkServer *net, Link *link, const Request &req, Response *r
 	return 0;
 }
 
-int proc_zrangebyscore(NetworkServer *net, Link *link, const Request &req, Response *resp){
-    SSDBServer *serv = (SSDBServer *)net->data;
+int string2ld(const char *s, size_t slen, long *value) {
+    long long lvalue;
+    if (string2ll(s,slen,&lvalue) == 0)
+        return NAN_SCORE;
+    if (lvalue < LONG_MIN || lvalue > LONG_MAX) {
+        return NAN_SCORE;
+    }
+    if (value) *value = lvalue;
+
+    return 1;
+}
+
+static int _zrangebyscore(SSDB *ssdb, const Request &req, Response *resp, int reverse){
     CHECK_NUM_PARAMS(4);
+    long offset = 0, limit = -1;
+    int withscores = 0;
+    int ret = 0;
+
+    if (req.size() > 4) {
+        int remaining = req.size() - 4;
+        int pos = 4;
+
+        while (remaining) {
+            if (remaining >= 1 && !strcasecmp(req[pos].data(),"withscores")) {
+                pos++; remaining--;
+                withscores = 1;
+            } else if (remaining >= 3 && !strcasecmp(req[pos].data(),"limit")) {
+                if ( (string2ld(req[pos+1].data(),req[pos+1].size(),&offset) < 0) ||
+                     (string2ld(req[pos+2].data(),req[pos+2].size(),&limit) < 0) ){
+                    resp->push_back("error");
+                    resp->push_back(GetErrorInfo(NAN_SCORE));
+                    return 0;
+                }
+                pos += 3; remaining -= 3;
+            } else {
+                resp->push_back("error");
+                resp->push_back("ERR syntax error");
+                return 0;
+            }
+        }
+    }
 
     resp->push_back("ok");
-    int ret = serv->ssdb->zrangebyscore(req[1], req[2], req[3], resp->resp);
+    if (reverse){
+        ret = ssdb->zrevrangebyscore(req[1], req[2], req[3], resp->resp, withscores, offset, limit);
+    } else{
+        ret = ssdb->zrangebyscore(req[1], req[2], req[3], resp->resp, withscores, offset, limit);
+    }
     if (ret < 0){
         resp->resp.clear();
         resp->push_back("error");
@@ -315,20 +357,14 @@ int proc_zrangebyscore(NetworkServer *net, Link *link, const Request &req, Respo
     return 0;
 }
 
+int proc_zrangebyscore(NetworkServer *net, Link *link, const Request &req, Response *resp){
+    SSDBServer *serv = (SSDBServer *)net->data;
+    return _zrangebyscore(serv->ssdb, req, resp, 0);
+}
+
 int proc_zrevrangebyscore(NetworkServer *net, Link *link, const Request &req, Response *resp){
     SSDBServer *serv = (SSDBServer *)net->data;
-    CHECK_NUM_PARAMS(4);
-
-    resp->push_back("ok");
-    int ret = serv->ssdb->zrevrangebyscore(req[1], req[2], req[3], resp->resp);
-    if (ret < 0){
-        resp->resp.clear();
-        resp->push_back("error");
-        resp->push_back(GetErrorInfo(ret));
-        return 0;
-    }
-
-    return 0;
+    return _zrangebyscore(serv->ssdb, req, resp, 1);
 }
 
 int proc_zscan(NetworkServer *net, Link *link, const Request &req, Response *resp){

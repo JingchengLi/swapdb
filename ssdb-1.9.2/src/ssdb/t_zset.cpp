@@ -651,7 +651,7 @@ int zslValueLteMax(double value, zrangespec *spec) {
 }
 
 int SSDBImpl::genericZrangebyscore(const Bytes &name, const Bytes &start_score, const Bytes &end_score,
-                                   std::vector<std::string> &key_score, int reverse) {
+                                   std::vector<std::string> &key_score, int withscores, long offset, long limit, int reverse) {
     zrangespec range;
     unsigned long rangelen = 0;
     std::string score_start;
@@ -708,8 +708,17 @@ int SSDBImpl::genericZrangebyscore(const Bytes &name, const Bytes &start_score, 
                 if (zslValueLteMax(it->score,&range)) {
                     /* Check if score >= min. */
                     if (zslValueGteMin(it->score,&range)){
-                        key_score.push_back(it->key);
-                        key_score.push_back(str(it->score));
+                        if (!offset){
+                            if (limit--){
+                                key_score.push_back(it->key);
+                                if (withscores){
+                                    key_score.push_back(str(it->score));
+                                }
+                            } else
+                                break;
+                        } else{
+                            offset--;
+                        }
                     } else{
                         break;
                     }
@@ -725,8 +734,17 @@ int SSDBImpl::genericZrangebyscore(const Bytes &name, const Bytes &start_score, 
                 if (zslValueGteMin(it->score,&range)) {
                     /* Check if score <= max. */
                     if (zslValueLteMax(it->score,&range)){
-                        key_score.push_back(it->key);
-                        key_score.push_back(str(it->score));
+                        if (!offset){
+                            if (limit--){
+                                key_score.push_back(it->key);
+                                if (withscores){
+                                    key_score.push_back(str(it->score));
+                                }
+                            } else
+                                break;
+                        } else{
+                            offset--;
+                        }
                     } else{
                         break;
                     }
@@ -745,13 +763,13 @@ int SSDBImpl::genericZrangebyscore(const Bytes &name, const Bytes &start_score, 
 }
 
 int SSDBImpl::zrangebyscore(const Bytes &name, const Bytes &start_score, const Bytes &end_score,
-                            std::vector<std::string> &key_score) {
-    return genericZrangebyscore(name, start_score, end_score, key_score, 0);
+                            std::vector<std::string> &key_score, int withscores, long offset, long limit) {
+    return genericZrangebyscore(name, start_score, end_score, key_score, withscores, offset, limit, 0);
 }
 
 int SSDBImpl::zrevrangebyscore(const Bytes &name, const Bytes &start_score, const Bytes &end_score,
-                               std::vector<std::string> &key_score) {
-    return genericZrangebyscore(name, start_score, end_score, key_score, 1);
+                               std::vector<std::string> &key_score, int withscores, long offset, long limit) {
+    return genericZrangebyscore(name, start_score, end_score, key_score, withscores, offset, limit, 1);
 }
 
 ZIterator *SSDBImpl::zscan(const Bytes &name, const Bytes &key,
