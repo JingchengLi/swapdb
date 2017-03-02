@@ -510,6 +510,71 @@ int proc_del(NetworkServer *net, Link *link, const Request &req, Response *resp)
 
 int proc_scan(NetworkServer *net, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *)net->data;
+	CHECK_NUM_PARAMS(2);
+
+	uint64_t cursor = req[1].Uint64();
+	if (errno == EINVAL){
+		resp->push_back("error");
+		resp->push_back(GetErrorInfo(INVALID_INT));
+		return 0;
+	}
+
+	std::string pattern = "*";
+	uint64_t limit = 10;
+
+	std::vector<Bytes>::const_iterator it = req.begin() + 2;
+	for(; it != req.end(); it += 2){
+		std::string key = (*it).String();
+		strtolower(&key);
+
+		if (key=="match") {
+			pattern = (*(it+1)).String();
+		} else if (key=="count") {
+			limit =  (*(it+1)).Uint64();
+			if (errno == EINVAL){
+				resp->push_back("error");
+				resp->push_back(GetErrorInfo(INVALID_INT));
+				return 0;
+			}
+		} else {
+			resp->push_back("error");
+			resp->push_back(GetErrorInfo(SYNTAX_ERR));
+			return 0;
+		}
+	}
+
+	bool fulliter = (pattern == "*");
+
+	Iterator* iter = serv->ssdb->iterator("", "", -1);
+	if(cursor >0) iter->skip(cursor);
+
+	auto mit = std::unique_ptr<MIterator>(new MIterator(iter));
+	resp->push_back("ok");
+	resp->push_back(str(cursor+limit));
+
+	while(mit->next()){
+		if (limit == 0) {
+			break;
+		}
+
+		if (fulliter || stringmatchlen(pattern.data(), pattern.length(), mit->key.data(), mit->key.length(), 0)) {
+			resp->push_back(mit->key);
+		} else {
+			//skip
+		}
+
+		limit --;
+	}
+
+	if (limit != 0) {
+		resp->resp[1] = "0";
+	}
+
+	return 0;
+}
+
+int proc_scanall(NetworkServer *net, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *)net->data;
 //	CHECK_NUM_PARAMS(4);
 
 //	uint64_t limit = req[3].Uint64();
