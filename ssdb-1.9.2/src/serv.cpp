@@ -134,7 +134,7 @@ DEF_PROC(rr_dump);
 DEF_PROC(rr_restore);
 
 DEF_PROC(rr_check_write);
-DEF_PROC(rr_psync);
+DEF_PROC(rr_make_snapshot);
 DEF_PROC(rr_transfer_snapshot);
 DEF_PROC(rr_del_snapshot);
 
@@ -273,7 +273,7 @@ void SSDBServer::reg_procs(NetworkServer *net){
 	REG_PROC(compact, "rt");
 
     REG_PROC(rr_check_write, "wt");
-    REG_PROC(rr_psync, "w");
+    REG_PROC(rr_make_snapshot, "w");
     REG_PROC(rr_transfer_snapshot, "w");
     REG_PROC(rr_del_snapshot, "r");
 }
@@ -877,7 +877,7 @@ int proc_rr_check_write(NetworkServer *net, Link *link, const Request &req, Resp
     return 0;
 }
 
-int proc_rr_psync(NetworkServer *net, Link *link, const Request &req, Response *resp){
+int proc_rr_make_snapshot(NetworkServer *net, Link *link, const Request &req, Response *resp){
     SSDBServer *serv = (SSDBServer *)net->data;
 
     if (serv->snapshot != nullptr){
@@ -885,7 +885,7 @@ int proc_rr_psync(NetworkServer *net, Link *link, const Request &req, Response *
     }
     serv->snapshot = serv->ssdb->GetSnapshot();
     resp->push_back("ok");
-    resp->push_back("rr_psync ok");
+    resp->push_back("rr_make_snapshot ok");
     return 0;
 }
 
