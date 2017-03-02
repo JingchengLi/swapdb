@@ -653,7 +653,6 @@ int zslValueLteMax(double value, zrangespec *spec) {
 int SSDBImpl::genericZrangebyscore(const Bytes &name, const Bytes &start_score, const Bytes &end_score,
                                    std::vector<std::string> &key_score, int withscores, long offset, long limit, int reverse) {
     zrangespec range;
-    unsigned long rangelen = 0;
     std::string score_start;
     std::string score_end;
 
@@ -698,61 +697,67 @@ int SSDBImpl::genericZrangebyscore(const Bytes &name, const Bytes &start_score, 
         }
         snapshot = ldb->GetSnapshot();
     }
-    uint16_t version = zv.version;
-    int llen = (int)zv.length;
 
     if (reverse) {
-        it = this->zscan_internal(name, "", score_start, score_end, -1, Iterator::BACKWARD, version, snapshot);
-        if (it != NULL) {
-            while (it->next()) {
-                if (zslValueLteMax(it->score,&range)) {
-                    /* Check if score >= min. */
-                    if (zslValueGteMin(it->score,&range)){
-                        if (!offset){
-                            if (limit--){
-                                key_score.push_back(it->key);
-                                if (withscores){
-                                    key_score.push_back(str(it->score));
-                                }
-                            } else
-                                break;
-                        } else{
-                            offset--;
-                        }
-                    } else{
-                        break;
-                    }
-                }
+        it = this->zscan_internal(name, "", score_start, score_end, -1, Iterator::BACKWARD, zv.version, snapshot);
+        if (it == NULL) {
+            if (snapshot != nullptr) {
+                ldb->ReleaseSnapshot(snapshot);
             }
-            delete it;
-            it = NULL;
+            return 1;
         }
+
+        while (it->next()) {
+            if (!zslValueLteMax(it->score,&range))
+                continue;
+            /* Check if score >= min. */
+            if (!zslValueGteMin(it->score,&range))
+                break;
+
+            if (!offset){
+                if (limit--){
+                    key_score.push_back(it->key);
+                    if (withscores){
+                        key_score.push_back(str(it->score));
+                    }
+                } else
+                    break;
+            } else{
+                offset--;
+            }
+        }
+        delete it;
+        it = NULL;
     } else {
-        it = this->zscan_internal(name, "", score_start, score_end, -1, Iterator::FORWARD, version, snapshot);
-        if (it != NULL) {
-            while (it->next()) {
-                if (zslValueGteMin(it->score,&range)) {
-                    /* Check if score <= max. */
-                    if (zslValueLteMax(it->score,&range)){
-                        if (!offset){
-                            if (limit--){
-                                key_score.push_back(it->key);
-                                if (withscores){
-                                    key_score.push_back(str(it->score));
-                                }
-                            } else
-                                break;
-                        } else{
-                            offset--;
-                        }
-                    } else{
-                        break;
-                    }
-                }
+        it = this->zscan_internal(name, "", score_start, score_end, -1, Iterator::FORWARD, zv.version, snapshot);
+        if (it == NULL) {
+            if (snapshot != nullptr) {
+                ldb->ReleaseSnapshot(snapshot);
             }
-            delete it;
-            it = NULL;
+            return 1;
         }
+
+        while (it->next()) {
+            if (!zslValueGteMin(it->score,&range))
+                continue;
+                /* Check if score <= max. */
+            if (!zslValueLteMax(it->score,&range))
+                break;
+
+            if (!offset){
+                if (limit--){
+                    key_score.push_back(it->key);
+                    if (withscores){
+                        key_score.push_back(str(it->score));
+                    }
+                } else
+                    break;
+            } else{
+                offset--;
+            }
+        }
+        delete it;
+        it = NULL;
     }
 
     if (snapshot != nullptr) {
