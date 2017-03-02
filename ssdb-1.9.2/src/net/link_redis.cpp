@@ -143,8 +143,10 @@ static RedisCommand_raw cmds_raw[] = {
 	{STRATEGY_ZREVRANGE,"zrevrange",	"zrrange",		REPLY_MULTI_BULK},
 	{STRATEGY_ZADD,		"zadd",			"multi_zset", 	REPLY_INT},
 	{STRATEGY_ZINCRBY,	"zincrby",		"zincr", 		REPLY_BULK},
-	{STRATEGY_ZRANGEBYSCORE,	"zrangebyscore",	"zscan",	REPLY_MULTI_BULK},
-	{STRATEGY_ZREVRANGEBYSCORE,	"zrevrangebyscore",	"zrscan",	REPLY_MULTI_BULK},
+//	{STRATEGY_ZRANGEBYSCORE,	"zrangebyscore",	"zscan",	REPLY_MULTI_BULK},
+//	{STRATEGY_ZREVRANGEBYSCORE,	"zrevrangebyscore",	"zrscan",	REPLY_MULTI_BULK},
+	{STRATEGY_AUTO,	"zrangebyscore",	"zrangebyscore",	REPLY_MULTI_BULK},
+	{STRATEGY_AUTO,	"zrevrangebyscore",	"zrevrangebyscore",	REPLY_MULTI_BULK},
 
 
 	{STRATEGY_AUTO,		"lpush",		"qpush_front", 		REPLY_INT},

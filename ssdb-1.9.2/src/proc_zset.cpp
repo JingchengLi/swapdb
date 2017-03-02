@@ -299,6 +299,38 @@ int proc_zrrange(NetworkServer *net, Link *link, const Request &req, Response *r
 	return 0;
 }
 
+int proc_zrangebyscore(NetworkServer *net, Link *link, const Request &req, Response *resp){
+    SSDBServer *serv = (SSDBServer *)net->data;
+    CHECK_NUM_PARAMS(4);
+
+    resp->push_back("ok");
+    int ret = serv->ssdb->zrangebyscore(req[1], req[2], req[3], resp->resp);
+    if (ret < 0){
+        resp->resp.clear();
+        resp->push_back("error");
+        resp->push_back(GetErrorInfo(ret));
+        return 0;
+    }
+
+    return 0;
+}
+
+int proc_zrevrangebyscore(NetworkServer *net, Link *link, const Request &req, Response *resp){
+    SSDBServer *serv = (SSDBServer *)net->data;
+    CHECK_NUM_PARAMS(4);
+
+    resp->push_back("ok");
+    int ret = serv->ssdb->zrevrangebyscore(req[1], req[2], req[3], resp->resp);
+    if (ret < 0){
+        resp->resp.clear();
+        resp->push_back("error");
+        resp->push_back(GetErrorInfo(ret));
+        return 0;
+    }
+
+    return 0;
+}
+
 int proc_zscan(NetworkServer *net, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(6);
