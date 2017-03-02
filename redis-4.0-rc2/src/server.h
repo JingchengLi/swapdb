@@ -757,6 +757,7 @@ typedef struct client {
     redisContext *context;  /* Used by redis client in jdjr-mode. */
     int replication_flags;
     char ssdb_status; /* Record the ssdb state. */
+    char client_ip[NET_IP_STR_LEN]; /* Used by customized-replication in jdjr-mode. */
 } client;
 
 struct saveparam {
@@ -784,6 +785,9 @@ struct sharedObjectsStruct {
     *mbulkhdr[OBJ_SHARED_BULKHDR_LEN], /* "*<value>\r\n" */
     *bulkhdr[OBJ_SHARED_BULKHDR_LEN];  /* "$<value>\r\n" */
     sds minstring, maxstring;
+    /* jdjr-mdoe shared sds. */
+    sds checkwriteok, checkwritenok, makesnapshotok, makesnapshotnok,
+        transfersnapshotok, transfersnapshotnok, transfersnapshotfinished, transfersnapshotunfinished;
 };
 
 /* ZSETs use a specialized version of Skiplists */
@@ -1421,6 +1425,7 @@ int processEventsWhileBlocked(void);
 int handleClientsWithPendingWrites(void);
 int clientHasPendingReplies(client *c);
 int sendCommandToSSDB(client *c, sds finalcmd);
+sds composeRedisCmd(int argc, const char **argv, const size_t *argvlen);
 void sendCheckWriteCommandToSSDB(aeEventLoop *el, int fd, void *privdata, int mask);
 void unlinkClient(client *c);
 int writeToClient(int fd, client *c, int handler_installed);

@@ -1451,6 +1451,17 @@ void createSharedObjects(void) {
      * string in string comparisons for the ZRANGEBYLEX command. */
     shared.minstring = sdsnew("minstring");
     shared.maxstring = sdsnew("maxstring");
+
+    if (server.jdjr_mode) {
+        shared.checkwriteok = sdsnew("rr_check_write ok");
+        shared.checkwritenok = sdsnew("rr_check_write nok");
+        shared.makesnapshotok = sdsnew("rr_make_snapshot ok");
+        shared.makesnapshotnok = sdsnew("rr_make_snapshot nok");
+        shared.transfersnapshotok = sdsnew("rr_transfer_snapshot ok");
+        shared.transfersnapshotnok = sdsnew("rr_transfer_snapshot nok");
+        shared.transfersnapshotfinished = sdsnew("rr_transfer_snapshot finished");
+        shared.transfersnapshotunfinished = sdsnew("rr_transfer_snapshot unfinished");
+    }
 }
 
 void initServerConfig(void) {

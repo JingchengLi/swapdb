@@ -631,6 +631,25 @@ static int nonBlockConnectToSsdbServer(client *c) {
     return C_ERR;
 }
 
+/* Caller should free finalcmd. */
+sds composeRedisCmd(int argc, const char **argv, const size_t *argvlen) {
+    char *cmd = NULL;
+    sds finalcmd = NULL;
+    int len = 0;
+
+    len = redisFormatCommandArgv(&cmd, argc, argv, argvlen);
+
+    if (len == -1) {
+        serverLog(LL_WARNING, "Out of Memory for redisFormatCommandArgv.");
+        return NULL;
+    }
+
+    finalcmd = sdsnewlen(cmd, len);
+    free(cmd);
+
+    return finalcmd;
+}
+
 /* TODO: Implement sendCommandToSSDB. Querying SSDB server if querying redis fails. */
 /* Compose the finalcmd if finalcmd is NULL. */
 int sendCommandToSSDB(client *c, sds finalcmd) {
@@ -725,6 +744,8 @@ void sendCheckWriteCommandToSSDB(aeEventLoop *el, int fd, void *privdata, int ma
 
     if (sendCommandToSSDB(c, finalcmd) != C_OK)
         serverLog(LL_WARNING, "Sending rr_check_write to SSDB failed.");
+    else
+        serverLog(LL_DEBUG, "Sending rr_check_write to SSDB, fd: %d.", fd);
 
     aeDeleteFileEvent(server.el, c->fd, AE_WRITABLE);
 
@@ -802,7 +823,10 @@ static void acceptCommonHandler(int fd, int flags, char *ip) {
     server.stat_numconnections++;
     c->flags |= flags;
 
-    if (server.jdjr_mode) nonBlockConnectToSsdbServer(c);
+    if (server.jdjr_mode) {
+        strncpy(c->client_ip, ip, NET_IP_STR_LEN);
+        nonBlockConnectToSsdbServer(c);
+    }
 }
 
 void acceptTcpHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
@@ -845,15 +869,12 @@ void acceptUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
 }
 
 int handleResponseOfCheckWrite(client *c, sds replyString) {
-    /* TODO: make tmp_ok and tmp_nok shared. */
-    sds tmp_ok = sdsnew("rr_check_write ok");
-    sds tmp_nok = sdsnew("rr_check_write nok");
     int process_status;
     UNUSED(c);
 
     sdstolower(replyString);
 
-    if (!sdscmp(replyString, tmp_ok)) {
+    if (!sdscmp(replyString, shared.checkwriteok)) {
         /* Update check_write_unresponse_num. */
         server.check_write_unresponse_num -= 1;
 
@@ -868,7 +889,7 @@ int handleResponseOfCheckWrite(client *c, sds replyString) {
         }
 
         process_status = C_OK;
-    } else if (!sdscmp(replyString, tmp_nok)) {
+    } else if (!sdscmp(replyString, shared.checkwritenok)) {
         /* set to 0 so ssdb write check will be timeout. exception case
          * of ssdb write check will be processed in replicationCron.*/
         server.check_write_begin_time = 0;
@@ -879,27 +900,21 @@ int handleResponseOfCheckWrite(client *c, sds replyString) {
 
     c->replication_flags &= ~SSDB_CLIENT_KEEP_REPLY;
 
-    sdsfree(tmp_ok);
-    sdsfree(tmp_nok);
-    sdsfree(replyString);
-
     return process_status;
  }
 
 int handleResponseOfPsync(client *c, sds replyString) {
-    sds tmp_ok = sdsnew("rr_make_snapshot ok");
-    sds tmp_nok = sdsnew("rr_make_snapshot nok");
     int process_status;
 
     sdstolower(replyString);
 
     /* Reset is_allow_ssdb_write to ALLOW_SSDB_WRITE
        as soon as rr_make_snapshot is responsed. */
-    if (!sdscmp(replyString, tmp_ok)) {
+    if (!sdscmp(replyString, shared.makesnapshotok)) {
         server.ssdb_status = MASTER_SSDB_SNAPSHOT_OK;
         server.is_allow_ssdb_write = ALLOW_SSDB_WRITE;
         process_status = C_OK;
-    } else if (!sdscmp(replyString, tmp_nok)) {
+    } else if (!sdscmp(replyString, shared.makesnapshotnok)) {
         addReplyError(c, "make snapshot nok");
         /* exception case of making snapshot will be processed
          * in replicationCron. */
@@ -908,27 +923,18 @@ int handleResponseOfPsync(client *c, sds replyString) {
     } else
         process_status = C_ERR;
 
-    sdsfree(tmp_ok);
-    sdsfree(tmp_nok);
-    sdsfree(replyString);
-
     return process_status;
 }
 
 int handleResponseOfTransferSnapshot(client *c, sds replyString) {
-    sds tmp_ok = NULL, tmp_nok = NULL;
     int process_status;
+    sdstolower(replyString);
 
     if (c->ssdb_status == SLAVE_SSDB_SNAPSHOT_TRANSFER_PRE) {
-        tmp_ok = sdsnew("rr_transfer_snapshot ok");
-        tmp_nok = sdsnew("rr_transfer_snapshot nok");
-
-        sdstolower(replyString);
-
-        if (!sdscmp(replyString, tmp_ok)) {
+        if (!sdscmp(replyString, shared.transfersnapshotok)) {
             c->ssdb_status = SLAVE_SSDB_SNAPSHOT_TRANSFER_START;
             process_status = C_OK;
-        } else if (!sdscmp(replyString, tmp_nok)) {
+        } else if (!sdscmp(replyString, shared.transfersnapshotnok)) {
             addReplyError(c, "snapshot transfer nok");
             /* exception case of transfer snapshot will be processed
              * in replicationCron. */
@@ -938,15 +944,10 @@ int handleResponseOfTransferSnapshot(client *c, sds replyString) {
             process_status = C_ERR;
 
     } else if (c->ssdb_status == SLAVE_SSDB_SNAPSHOT_TRANSFER_START) {
-        tmp_ok = sdsnew("rr_transfer_snapshot finished");
-        tmp_nok = sdsnew("rr_transfer_snapshot unfinished");
-
-        sdstolower(replyString);
-
-        if (!sdscmp(replyString, tmp_ok)) {
+        if (!sdscmp(replyString, shared.transfersnapshotfinished)) {
             c->ssdb_status = SLAVE_SSDB_SNAPSHOT_TRANSFER_END;
             process_status = C_OK;
-        } else if (!sdscmp(replyString, tmp_nok)) {
+        } else if (!sdscmp(replyString, shared.transfersnapshotunfinished)) {
             addReplyError(c, "snapshot transfer unfinished");
             /* exception case of finish response about snapshot transfer
              * will be processed in replicationCron. */
@@ -956,10 +957,6 @@ int handleResponseOfTransferSnapshot(client *c, sds replyString) {
             process_status = C_ERR;
     } else
         process_status = C_ERR;
-
-    sdsfree(tmp_ok);
-    sdsfree(tmp_nok);
-    sdsfree(replyString);
 
     return process_status;
 }
@@ -973,29 +970,19 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
     client * c = (client *)privdata;
     void *aux = NULL;
     redisReply *reply = NULL;
-    int ssdb_client_fd = -1;
-    int j;
+    int j, add_reply_len = 0;
     sds replyString = NULL;
 
-    if (server.ssdb_client) ssdb_client_fd = server.ssdb_client->fd;
-
-    if (!c || !c->context
-        || (!c->lastcmd && fd != ssdb_client_fd))
+    if (!c || !c->context)
         return;
 
     redisReader *r = c->context->reader;
 
     do {
         int oldlen = r->len;
-        if (redisBufferRead(c->context) == REDIS_OK
-            && fd != ssdb_client_fd) {
-            if ((c->cmd && (c->cmd->proc == syncCommand))
-                || (c->lastcmd && (c->lastcmd->proc == syncCommand))
-                || (c->replication_flags & SSDB_CLIENT_KEEP_REPLY)) {
-                /* The length of rr_check_write's response is short than 1024*16. */
-                replyString = sdsnewlen(r->buf + oldlen, r->len - oldlen);
-            } else
-                addReplyString(c, r->buf + oldlen, r->len - oldlen);
+        if (redisBufferRead(c->context) == REDIS_OK) {
+            add_reply_len = r->len - oldlen;
+            addReplyString(c, r->buf + oldlen, add_reply_len);
         }
 
         /* Return early when the context has seen an error. */
@@ -1011,12 +998,8 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
 
     reply = (redisReply *)aux;
 
-    /* TODO: process error reply for RR_DUMP/RR_RESTORE key and remove the key
-       from transferring/loading dict. */
     if (reply && reply->type == REDIS_REPLY_ERROR)
-        serverLog(LL_WARNING, "Reply from SSDB is ERROR.");
-
-    if (reply) freeReplyObject(reply);
+        serverLog(LL_WARNING, "Reply from SSDB is ERROR: %s", reply->str);
 
     /* Maintain the EVICTED_DATA_DB. */
     if (c->cmd && (c->cmd->proc == delCommand)) {
@@ -1056,22 +1039,41 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
     /* Handle the response of rr_check_write. */
     if (server.ssdb_status == MASTER_SSDB_SNAPSHOT_CHECK_WRITE
         && (c->replication_flags & SSDB_CLIENT_KEEP_REPLY)
-        && handleResponseOfCheckWrite(c, replyString) == C_OK)
-        return;
+        && (reply && reply->type == REDIS_REPLY_STRING)
+        && (replyString = sdsnew(reply->str))
+        && handleResponseOfCheckWrite(c, replyString) == C_OK) {
+        serverAssert(c->bufpos >= add_reply_len);
+        c->bufpos -= add_reply_len;
+        goto cleanup;
+    }
 
     /* Handle the response of rr_make_snapshot. */
     if (c == server.ssdb_replication_client
         && server.ssdb_status == MASTER_SSDB_SNAPSHOT_PRE
-        && handleResponseOfPsync(c, replyString) == C_OK)
-        return;
+        && (reply && reply->type == REDIS_REPLY_STRING)
+        && (replyString = sdsnew(reply->str))
+        && handleResponseOfPsync(c, replyString) == C_OK) {
+        serverAssert(c->bufpos >= add_reply_len);
+        c->bufpos -= add_reply_len;
+        goto cleanup;
+    }
 
     /* Handle the response of rr_transfer_snapshot. */
     if ((c->flags & CLIENT_SLAVE)
         && !c->cmd
         && c->lastcmd
         && (c->lastcmd->proc == syncCommand)
-        && handleResponseOfTransferSnapshot(c, replyString) == C_OK)
-        return;
+        && (reply && reply->type == REDIS_REPLY_STRING)
+        && (replyString = sdsnew(reply->str))
+        && handleResponseOfTransferSnapshot(c, replyString) == C_OK) {
+        serverAssert(c->bufpos >= add_reply_len);
+        c->bufpos -= add_reply_len;
+        goto cleanup;
+    }
+
+cleanup:
+    if (reply) freeReplyObject(reply);
+    if (replyString) sdsfree(replyString);
 }
 
 /* Create a client for keepalive with SSDB. */

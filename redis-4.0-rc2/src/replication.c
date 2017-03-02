@@ -756,10 +756,6 @@ void syncCommand(client *c) {
             listRewind(server.clients, &li);
             while ((ln = listNext(&li)) != NULL) {
                 tc = listNodeValue(ln);
-                if (c == tc) {
-                    server.check_write_unresponse_num -= 1;
-                    continue;
-                }
                 if (aeCreateFileEvent(server.el, tc->fd, AE_WRITABLE,
                                       sendCheckWriteCommandToSSDB, tc) == AE_ERR) {
                     /* just free disconnected client and ignore it. */
@@ -2684,14 +2680,19 @@ void replicationCron(void) {
             && (slave->ssdb_status == SLAVE_SSDB_SNAPSHOT_TRANSFER_PRE)) {
             char buf[64];
             int len;
+            char * argv[3];
+
             len = ll2string(buf, 64, slave->slave_listening_port + SSDB_SLAVE_PORT_INCR);
 
-            sds cmdsds = sdscatfmt(sdsempty(),
-                                   "*3\r\n$20\r\nrr_transfer_snapshot\r\n$%d\r\n%s\r\n$%d\r\n%s\r\n",
-                                   strlen(slave->slave_ip), slave->slave_ip, len, buf);
+            argv[0] = sdsnew("rr_transfer_snapshot");
+            argv[1] = sdsnew(slave->client_ip);
+            argv[2] = sdsnewlen(buf, len);
+
+            /* cmsds will be consumed by sendCommandToSSDB. */
+            sds cmdsds = composeRedisCmd(3, (const char **)argv, NULL);
 
             /* TODO: block current slave. */
-            if (sendCommandToSSDB(slave, cmdsds) != C_OK) {
+            if (cmdsds && sendCommandToSSDB(slave, cmdsds) != C_OK) {
                 serverLog(LL_WARNING,
                           "Sending rr_transfer_snapshot to SSDB failed.");
                 freeClient(slave);
@@ -2722,16 +2723,19 @@ void replicationCron(void) {
     if (server.jdjr_mode && server.use_customized_replication
         && server.ssdb_status == MASTER_SSDB_SNAPSHOT_OK) {
         int has_slave_in_transfer = 0;
+        int max_replstate = REPL_STATE_NONE;
         listRewind(server.slaves,&li);
         while((ln = listNext(&li))) {
             client *slave = ln->value;
             if (slave->replstate >= SLAVE_STATE_WAIT_BGSAVE_END &&
                     slave->replstate < SLAVE_STATE_ONLINE) {
                 has_slave_in_transfer = 1;
-                break;
             }
+
+            max_replstate = slave->replstate > max_replstate ? slave->replstate: max_replstate;
         }
-        if (!has_slave_in_transfer) {
+        if (max_replstate >= SLAVE_STATE_SEND_BULK_FINISHED
+            && !has_slave_in_transfer) {
             /* Notify ssdb to release snapshot. */
             server.ssdb_status = SSDB_NONE;
             sds cmdsds = sdsnew("*1\r\n$15\r\nrr_del_snapshot\r\n");
