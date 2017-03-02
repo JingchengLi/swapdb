@@ -463,6 +463,97 @@ int SSDBImpl::LSet(const Bytes &key, const int64_t index, const Bytes &val) {
     return ret;
 }
 
+int SSDBImpl::ltrim(const Bytes &key, int64_t start, int64_t end) {
+    RecordLock l(&mutex_record_, key.String());
+    leveldb::WriteBatch batch;
+
+
+    int ret;
+
+    ListMetaVal meta_val;
+    std::string meta_key = encode_meta_key(key);
+    ret = GetListMetaVal(meta_key, meta_val);
+    if (ret != 1){
+        return ret;
+    }
+
+    uint64_t left_seq = meta_val.left_seq;
+    uint64_t right_seq = meta_val.right_seq;
+
+    int64_t llen = (int64_t)meta_val.length;
+    if (start < 0) start = llen+start;
+    if (end < 0) end = llen+end;
+    if (start < 0) start = 0;
+
+
+    uint64_t ltrim = 0;
+    uint64_t rtrim = 0;
+
+    /* Invariant: start >= 0, so this test will be true when end < 0.
+     * The range is empty when start > end or start >= length. */
+    if (start > end || start >= llen) {
+        ltrim = meta_val.length;
+        rtrim = 0;
+    } else {
+        if (end >= llen) end = llen-1;
+        uint64_t begin_seq = getSeqByIndex(start, meta_val);
+        uint64_t end_seq = getSeqByIndex(end, meta_val);
+
+        ltrim = begin_seq - left_seq;
+        rtrim = right_seq - end_seq;
+    }
+
+
+    uint64_t deleted = 0;
+    while (ltrim--){
+        std::string val;
+        std::string item_key = encode_list_key(key, meta_val.left_seq, meta_val.version);
+        batch.Delete(item_key);
+        deleted ++;
+
+        if (UINT64_MAX == meta_val.left_seq) {
+            meta_val.left_seq = 0;
+        } else {
+            meta_val.left_seq++;
+        }
+    }
+
+    while (rtrim--){
+        std::string val;
+        std::string item_key = encode_list_key(key, meta_val.right_seq, meta_val.version);
+        batch.Delete(item_key);
+        deleted ++;
+
+        if (0 == meta_val.right_seq) {
+            meta_val.right_seq = UINT64_MAX;
+        } else {
+            meta_val.right_seq--;
+        }
+    }
+
+    meta_val.length =  meta_val.length - deleted;
+
+
+    if (0 ==  meta_val.length) {
+        std::string del_key = encode_delete_key(key, meta_val.version);
+        std::string size_val = encode_list_meta_val(meta_val.length, 0, 0, meta_val.version, KEY_DELETE_MASK);
+        batch.Put(meta_key, size_val);
+        batch.Put(del_key, "");
+        this->edel_one(batch, key); //del expire ET key
+    } else {
+        std::string new_meta_val = EncodeValueListMeta(meta_val);
+        batch.Put(meta_key, new_meta_val);
+    }
+
+    leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
+    if(!s.ok()){
+        return STORAGE_ERR;
+    }
+
+    return ret;
+}
+
+
 int SSDBImpl::lrange(const Bytes &key, int64_t start, int64_t end, std::vector<std::string> *list){
 
     int ret;

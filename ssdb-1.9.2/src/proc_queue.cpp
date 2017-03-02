@@ -135,12 +135,57 @@ int proc_qfix(NetworkServer *net, Link *link, const Request &req, Response *resp
 }
 
 
+int proc_qtrim(NetworkServer *net, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *)net->data;
+	CHECK_NUM_PARAMS(4);
+
+	int64_t begin = req[2].Int64();
+	if (errno == EINVAL){
+		resp->push_back("error");
+		resp->push_back(GetErrorInfo(INVALID_INT));
+		return 0;
+	}
+
+	int64_t end = req[3].Int64();
+	if (errno == EINVAL){
+		resp->push_back("error");
+		resp->push_back(GetErrorInfo(INVALID_INT));
+		return 0;
+	}
+
+
+	int ret = serv->ssdb->ltrim(req[1], begin, end);
+	if (ret < 0){
+		resp->resp.clear();
+		resp->push_back("error");
+		resp->push_back(GetErrorInfo(ret));
+		return 0;
+	} else {
+		resp->reply_status(ret);
+	}
+
+	return 0;
+}
+
+
+
 int proc_qslice(NetworkServer *net, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(4);
 
 	int64_t begin = req[2].Int64();
+	if (errno == EINVAL){
+		resp->push_back("error");
+		resp->push_back(GetErrorInfo(INVALID_INT));
+		return 0;
+	}
+
 	int64_t end = req[3].Int64();
+	if (errno == EINVAL){
+		resp->push_back("error");
+		resp->push_back(GetErrorInfo(INVALID_INT));
+		return 0;
+	}
 
 	resp->push_back("ok");
 	int ret = serv->ssdb->lrange(req[1], begin, end, &resp->resp);

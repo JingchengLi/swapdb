@@ -98,6 +98,7 @@ public:
 	virtual int RPushX(const Bytes &key, const std::vector<Bytes> &val, int offset, uint64_t *llen) = 0;
 	virtual int LSet(const Bytes &key, const int64_t index, const Bytes &val) = 0;
 	virtual int lrange(const Bytes &key, int64_t start, int64_t end, std::vector<std::string> *list) = 0;
+	virtual int ltrim(const Bytes &key, int64_t start, int64_t end) = 0;
 
 	/* set */
 	virtual int sadd(const Bytes &key, const std::set<Bytes> &members, int64_t *num) = 0;

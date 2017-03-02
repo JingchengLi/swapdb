@@ -107,6 +107,7 @@ DEF_PROC(qpop_front);
 DEF_PROC(qpop_back);
 DEF_PROC(qfix);
 DEF_PROC(qslice);
+DEF_PROC(qtrim);
 DEF_PROC(qget);
 DEF_PROC(qset);
 
@@ -241,6 +242,7 @@ void SSDBServer::reg_procs(NetworkServer *net){
 	REG_PROC(qslice, "rt");
 	REG_PROC(qget, "rt");
 	REG_PROC(qset, "wt");
+	REG_PROC(qtrim, "wt");
 
 	REG_PROC(dump, "wt"); //auctual read but ...
 	REG_PROC(restore, "wt");

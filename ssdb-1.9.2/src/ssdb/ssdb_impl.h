@@ -147,6 +147,8 @@ public:
 	virtual int RPushX(const Bytes &key, const std::vector<Bytes> &val, int offset, uint64_t *llen);
 	virtual int LSet(const Bytes &key, const int64_t index, const Bytes &val);
 	virtual int lrange(const Bytes &key, int64_t start, int64_t end, std::vector<std::string> *list);
+	virtual int ltrim(const Bytes &key, int64_t start, int64_t end);
+
     int     GetListItemVal(const std::string& item_key, std::string* val, const leveldb::ReadOptions& options=leveldb::ReadOptions());
 
 	int 	doListPop(leveldb::WriteBatch &batch, ListMetaVal &meta_val, const Bytes &key, std::string &meta_key,

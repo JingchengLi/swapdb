@@ -740,36 +740,36 @@ start_server {
         assert_equal {} [r lrange nosuchkey 0 1]
     }
 
-#    foreach {type large} [array get largevalue] {
-#        proc trim_list {type min max} {
-#            upvar 1 large large
-#            r del mylist
-#            create_list mylist "1 2 3 4 $large"
-#            r ltrim mylist $min $max
-#            r lrange mylist 0 -1
-#        }
-#
-#        test "LTRIM basics - $type" {
-#            assert_equal "1" [trim_list $type 0 0]
-#            assert_equal "1 2" [trim_list $type 0 1]
-#            assert_equal "1 2 3" [trim_list $type 0 2]
-#            assert_equal "2 3" [trim_list $type 1 2]
-#            assert_equal "2 3 4 $large" [trim_list $type 1 -1]
-#            assert_equal "2 3 4" [trim_list $type 1 -2]
-#            assert_equal "4 $large" [trim_list $type -2 -1]
-#            assert_equal "$large" [trim_list $type -1 -1]
-#            assert_equal "1 2 3 4 $large" [trim_list $type -5 -1]
-#            assert_equal "1 2 3 4 $large" [trim_list $type -10 10]
-#            assert_equal "1 2 3 4 $large" [trim_list $type 0 5]
-#            assert_equal "1 2 3 4 $large" [trim_list $type 0 10]
-#        }
-#
-#        test "LTRIM out of range negative end index - $type" {
-#            assert_equal {1} [trim_list $type 0 -5]
-#            assert_equal {} [trim_list $type 0 -6]
-#        }
-#
-#    }
+   foreach {type large} [array get largevalue] {
+       proc trim_list {type min max} {
+           upvar 1 large large
+           r del mylist
+           create_list mylist "1 2 3 4 $large"
+           r ltrim mylist $min $max
+           r lrange mylist 0 -1
+       }
+
+       test "LTRIM basics - $type" {
+           assert_equal "1" [trim_list $type 0 0]
+           assert_equal "1 2" [trim_list $type 0 1]
+           assert_equal "1 2 3" [trim_list $type 0 2]
+           assert_equal "2 3" [trim_list $type 1 2]
+           assert_equal "2 3 4 $large" [trim_list $type 1 -1]
+           assert_equal "2 3 4" [trim_list $type 1 -2]
+           assert_equal "4 $large" [trim_list $type -2 -1]
+           assert_equal "$large" [trim_list $type -1 -1]
+           assert_equal "1 2 3 4 $large" [trim_list $type -5 -1]
+           assert_equal "1 2 3 4 $large" [trim_list $type -10 10]
+           assert_equal "1 2 3 4 $large" [trim_list $type 0 5]
+           assert_equal "1 2 3 4 $large" [trim_list $type 0 10]
+       }
+
+       test "LTRIM out of range negative end index - $type" {
+           assert_equal {1} [trim_list $type 0 -5]
+           assert_equal {} [trim_list $type 0 -6]
+       }
+
+   }
 
     foreach {type large} [array get largevalue] {
         test "LSET - $type" {
