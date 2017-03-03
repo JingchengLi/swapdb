@@ -210,7 +210,6 @@ src/redis/crc64.c
 src/redis/zmalloc.c
 src/redis/rdb_encoder.cpp
 src/redis/rdb_decoder.cpp
-src/redis/util.c
 )
 
 SET( SRC_OBJS

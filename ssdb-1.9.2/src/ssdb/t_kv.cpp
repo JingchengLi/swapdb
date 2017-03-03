@@ -5,7 +5,6 @@ found in the LICENSE file.
 */
 #include <util/error.h>
 #include <cfloat>
-#include <redis/util.h>
 #include "ssdb_impl.h"
 #include "redis/rdb_encoder.h"
 #include "redis/rdb_decoder.h"
@@ -1318,7 +1317,7 @@ bool doScanGeneric(const T &mit, const std::string &pattern, uint64_t limit, std
             break; //check limit
         }
 
-        if (fulliter ) { //|| stringmatchlen(pattern.data(), pattern.length(), mit->key.data(), mit->key.length(), 0)
+        if (fulliter || stringmatchlen(pattern.data(), pattern.length(), mit->key.data(), mit->key.length(), 0)) {
             resp.push_back(mit->key);
         } else {
             //skip
@@ -1350,7 +1349,7 @@ bool doScanGeneric(const std::unique_ptr<HIterator> &mit, const std::string &pat
             break; //check limit
         }
 
-        if (fulliter) { //|| stringmatchlen(pattern.data(), pattern.length(), mit->key.data(), mit->key.length(), 0)
+        if (fulliter || stringmatchlen(pattern.data(), pattern.length(), mit->key.data(), mit->key.length(), 0)) {
             resp.push_back(mit->key);
             resp.push_back(mit->val);
         } else {
@@ -1384,7 +1383,7 @@ bool doScanGeneric(const std::unique_ptr<ZIterator> &mit, const std::string &pat
             break; //check limit
         }
 
-        if (fulliter) { //|| stringmatchlen(pattern.data(), pattern.length(), mit->key.data(), mit->key.length(), 0)
+        if (fulliter || stringmatchlen(pattern.data(), pattern.length(), mit->key.data(), mit->key.length(), 0)) {
             resp.push_back(mit->key);
             resp.push_back(str(mit->score));
         } else {
@@ -1417,7 +1416,7 @@ bool doScanGeneric(const std::unique_ptr<SIterator> &mit, const std::string &pat
             break; //check limit
         }
 
-        if (fulliter) { //|| stringmatchlen(pattern.data(), pattern.length(), mit->key.data(), mit->key.length(), 0)
+        if (fulliter || stringmatchlen(pattern.data(), pattern.length(), mit->key.data(), mit->key.length(), 0)) {
             resp.push_back(mit->key);
         } else {
             //skip

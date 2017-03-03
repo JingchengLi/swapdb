@@ -1,5 +1,5 @@
 //
-// Created by zts on 16-12-26.
+// Created by zts on 17-3-3.
 //
 
 #ifndef REDIS_UTIL_H
@@ -9,8 +9,6 @@
 //TODO rdbExitReportCorruptRDB
 #define rdbExitReportCorruptRDB(...) {exit(-1);}
 
-
-int stringmatchlen(const char *p, int plen, const char *s, int slen, int nocase);
 
 
 

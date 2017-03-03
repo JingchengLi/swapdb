@@ -8,9 +8,6 @@ found in the LICENSE file.
 #include "net/proc.h"
 #include "net/server.h"
 
-extern "C" {
-#include "redis/util.h"
-}
 
 int proc_type(NetworkServer *net, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *)net->data;
