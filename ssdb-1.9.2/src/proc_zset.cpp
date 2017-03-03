@@ -470,8 +470,9 @@ int proc_zremrangebyscore(NetworkServer *net, Link *link, const Request &req, Re
 
  	int64_t count = serv->ssdb->zremrangebyscore(req[1], req[2], req[3]);
 
-	if (count <0) {
+	if (count < 0) {
 		resp->push_back("error");
+        resp->push_back(GetErrorInfo((int)count));
 		return 0;
 	}
 

@@ -273,45 +273,6 @@ int64_t SSDBImpl::zcount(const Bytes &name, const Bytes &score_start, const Byte
     return count;
 }
 
-int64_t SSDBImpl::zremrangebyscore(const Bytes &name, const Bytes &score_start, const Bytes &score_end) {
-    int64_t count = 0;
-    ZSetMetaVal zv;
-
-    RecordLock l(&mutex_record_, name.String());
-    std::string meta_key = encode_meta_key(name);
-    int res = GetZSetMetaVal(meta_key, zv);
-    if (res <= 0) {
-        return res;
-    }
-
-    leveldb::WriteBatch batch;
-    const leveldb::Snapshot *snapshot = nullptr;
-    auto it = std::unique_ptr<ZIterator>(this->zscan_internal(name, "", score_start, score_end, INT_MAX, Iterator::FORWARD, zv.version, snapshot));
-
-    while(it->next()){
-        int ret = zdel_one(this, batch, name, it->key, it->version);
-        if(ret < 0){
-            return ret;
-        }
-        count ++;
-    }
-
-    if (count > 0){
-        int ret = incr_zsize(this, batch, zv, name, count);
-        if (ret < 0){
-            return ret;
-        }
-
-        leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
-        if (!s.ok()) {
-            log_error("zdel error: %s", s.ToString().c_str());
-            return STORAGE_ERR;
-        }
-    }
-
-    return count;
-}
-
 int SSDBImpl::zincr(const Bytes &name, const Bytes &key, double by, int flags, double *new_val) {
     RecordLock l(&mutex_record_, name.String());
     leveldb::WriteBatch batch;
@@ -781,6 +742,76 @@ int SSDBImpl::zrangebyscore(const Bytes &name, const Bytes &start_score, const B
 int SSDBImpl::zrevrangebyscore(const Bytes &name, const Bytes &start_score, const Bytes &end_score,
                                std::vector<std::string> &key_score, int withscores, long offset, long limit) {
     return genericZrangebyscore(name, start_score, end_score, key_score, withscores, offset, limit, 1);
+}
+
+int64_t SSDBImpl::zremrangebyscore(const Bytes &name, const Bytes &score_start, const Bytes &score_end) {
+    zrangespec range;
+    int64_t count = 0;
+    std::string start_score;
+    std::string end_score;
+
+    if (zslParseRange(score_start,score_end,&range) < 0) {
+        return NAN_SCORE;
+    }
+    double score = range.min - eps;
+    start_score = str(score);
+    score = range.max + eps;
+    end_score = str(score);
+
+    if (score_start == "-inf"){
+        start_score = str(ZSET_SCORE_MIN);
+    } else if(score_start == "+inf"){
+        start_score = str(ZSET_SCORE_MAX);
+    }
+    if (score_end == "-inf"){
+        end_score = str(ZSET_SCORE_MIN);
+    } else if (score_end == "+inf"){
+        end_score = str(ZSET_SCORE_MAX);
+    }
+
+    RecordLock l(&mutex_record_, name.String());
+    ZSetMetaVal zv;
+    std::string meta_key = encode_meta_key(name);
+    int res = GetZSetMetaVal(meta_key, zv);
+    if (res <= 0) {
+        return res;
+    }
+
+    leveldb::WriteBatch batch;
+    const leveldb::Snapshot *snapshot = nullptr;
+    auto it = std::unique_ptr<ZIterator>(this->zscan_internal(name, "", start_score, end_score, -1, Iterator::FORWARD, zv.version, snapshot));
+    if (it == NULL){
+        return 1;
+    }
+
+    while(it->next()){
+        if (!zslValueGteMin(it->score,&range))
+            continue;
+        /* Check if score <= max. */
+        if (!zslValueLteMax(it->score,&range))
+            break;
+
+        int ret = zdel_one(this, batch, name, it->key, it->version);
+        if(ret < 0){
+            return ret;
+        }
+        count ++;
+    }
+
+    if (count > 0){
+        int ret = incr_zsize(this, batch, zv, name, count);
+        if (ret < 0){
+            return ret;
+        }
+
+        leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
+        if (!s.ok()) {
+            log_error("zdel error: %s", s.ToString().c_str());
+            return STORAGE_ERR;
+        }
+    }
+
+    return count;
 }
 
 ZIterator *SSDBImpl::zscan(const Bytes &name, const Bytes &key,
