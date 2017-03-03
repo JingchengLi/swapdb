@@ -509,15 +509,13 @@ int proc_del(NetworkServer *net, Link *link, const Request &req, Response *resp)
 }
 
 
-
-template <class T>
-static bool sc(const std::unique_ptr<T> &mit, const std::string &pattern, uint64_t limit, std::vector<std::string> &resp);
-
 int proc_scan(NetworkServer *net, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(2);
 
-	Bytes cursor = req[1];
+    int cursorIndex = 1;
+
+	Bytes cursor = req[cursorIndex];
 
     cursor.Uint64();
 	if (errno == EINVAL){
@@ -529,7 +527,7 @@ int proc_scan(NetworkServer *net, Link *link, const Request &req, Response *resp
 	std::string pattern = "*";
 	uint64_t limit = 10;
 
-	std::vector<Bytes>::const_iterator it = req.begin() + 2;
+	std::vector<Bytes>::const_iterator it = req.begin() + cursorIndex + 1;
 	for(; it != req.end(); it += 2){
 		std::string key = (*it).String();
 		strtolower(&key);
@@ -552,60 +550,9 @@ int proc_scan(NetworkServer *net, Link *link, const Request &req, Response *resp
     resp->push_back("ok");
     resp->push_back("0");
 
-    std::string start;
-    if(cursor == "0") {
-        start.append(1, DataType::META);
-    } else {
-        serv->ssdb->redisCursorService.FindElementByRedisCursor(cursor.String(), start);
-    }
-
-    Iterator* iter = serv->ssdb->iterator(start, "", -1);
-
-    auto mit = std::unique_ptr<MIterator>(new MIterator(iter));
-
-    bool end = sc(mit, pattern, limit, resp->resp);
-
-    if (!end) {
-		//get new;
-		uint64_t tCursor = serv->ssdb->redisCursorService.GetNewRedisCursor(iter->key().String()); //we already got it->next
-		std::string newCursor = str(tCursor);
-		resp->resp[1] = newCursor;
-	}
+    serv->ssdb->scan(cursor, pattern, limit, resp->resp);
 
 	return 0;
-}
-
-template<class T>
-bool sc(const std::unique_ptr<T> &mit, const std::string &pattern, uint64_t limit, std::vector<std::string> &resp) {
-    bool end = false; //scan end
-
-
-    bool fulliter = (pattern == "*");
-    while(mit->next()){
-        if (limit == 0) {
-            break; //check limit
-        }
-
-        if (fulliter || stringmatchlen(pattern.data(), pattern.length(), mit->key.data(), mit->key.length(), 0)) {
-            resp.push_back(mit->key);
-        } else {
-            //skip
-        }
-        limit --;
-        if (limit == 0) {
-            break; //stop now
-        }
-    }
-
-    if (!mit->next()) { // check iter , and update next as last key
-        //scan end
-        end = true;
-    } else if (limit != 0) {
-        //scan end
-        end = true;
-    }
-
-    return end;
 }
 
 int proc_scanall(NetworkServer *net, Link *link, const Request &req, Response *resp){

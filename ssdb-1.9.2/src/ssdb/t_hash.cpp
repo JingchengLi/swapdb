@@ -393,22 +393,22 @@ int SSDBImpl::hgetall(const Bytes &name, std::map<std::string, std::string> &val
 	return 1;
 }
 
-HIterator* SSDBImpl::hscan(const Bytes &name, const Bytes &start, const Bytes &end, uint64_t limit){
-    HashMetaVal hv;
-	uint16_t version;
-
-	std::string meta_key = encode_meta_key(name);
-    int ret = GetHashMetaVal(meta_key, hv);
-	if (0 == ret){
-		version = hv.version;
-	} else if (ret > 0){
-		version = hv.version;
-	} else{
-		version = 0;
-	}
-
-	return hscan_internal(name, start, end, version, limit);
-}
+//HIterator* SSDBImpl::hscan(const Bytes &name, const Bytes &start, const Bytes &end, uint64_t limit){
+//    HashMetaVal hv;
+//	uint16_t version;
+//
+//	std::string meta_key = encode_meta_key(name);
+//    int ret = GetHashMetaVal(meta_key, hv);
+//	if (0 == ret){
+//		version = hv.version;
+//	} else if (ret > 0){
+//		version = hv.version;
+//	} else{
+//		version = 0;
+//	}
+//
+//	return hscan_internal(name, start, end, version, limit);
+//}
 
 
 HIterator* SSDBImpl::hscan_internal(const Bytes &name, const Bytes &start, const Bytes &end, uint16_t version, uint64_t limit,
@@ -534,4 +534,41 @@ int hset_one(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const HashMetaVal &hv, 
 
 	return ret;
 
+}
+
+
+
+int SSDBImpl::hscan(const Bytes &name, const Bytes &cursor, const std::string &pattern, uint64_t limit,
+					std::vector<std::string> &resp) {
+
+	HashMetaVal hv;
+	std::string meta_key = encode_meta_key(name);
+	int ret = GetHashMetaVal(meta_key, hv);
+	if (ret != 1){
+		return ret;
+	}
+
+
+	std::string start;
+	if(cursor == "0") {
+		start = encode_hash_key(name, "", hv.version);
+	} else {
+		redisCursorService.FindElementByRedisCursor(cursor.String(), start);
+	}
+
+	Iterator* iter = this->iterator(start, "", -1);
+
+
+	auto mit = std::unique_ptr<HIterator>(new HIterator(iter, name, hv.version));
+
+	bool end = doScanGeneric<HIterator>(mit, pattern, limit, resp);
+
+	if (!end) {
+		//get new;
+		uint64_t tCursor = redisCursorService.GetNewRedisCursor(iter->key().String()); //we already got it->next
+		std::string newCursor = str(tCursor);
+		resp[1] = newCursor;
+	}
+
+	return 1;
 }

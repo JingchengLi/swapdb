@@ -216,16 +216,52 @@ int proc_hgetall(NetworkServer *net, Link *link, const Request &req, Response *r
 }
 
 int proc_hscan(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	CHECK_NUM_PARAMS(5);
+	CHECK_NUM_PARAMS(3);
 	SSDBServer *serv = (SSDBServer *)net->data;
 
-	uint64_t limit = req[4].Uint64();
-	auto it = std::unique_ptr<HIterator>(serv->ssdb->hscan(req[1], req[2], req[3], limit));
 
+	int cursorIndex = 2;
+
+	Bytes cursor = req[cursorIndex];
+
+	cursor.Uint64();
+	if (errno == EINVAL){
+		resp->push_back("error");
+		resp->push_back(GetErrorInfo(INVALID_INT));
+		return 0;
+	}
+
+	std::string pattern = "*";
+	uint64_t limit = 10;
+
+	std::vector<Bytes>::const_iterator it = req.begin() + cursorIndex + 1;
+	for(; it != req.end(); it += 2){
+		std::string key = (*it).String();
+		strtolower(&key);
+
+		if (key=="match") {
+			pattern = (*(it+1)).String();
+		} else if (key=="count") {
+			limit =  (*(it+1)).Uint64();
+			if (errno == EINVAL){
+				resp->push_back("error");
+				resp->push_back(GetErrorInfo(INVALID_INT));
+				return 0;
+			}
+		} else {
+			resp->push_back("error");
+			resp->push_back(GetErrorInfo(SYNTAX_ERR));
+			return 0;
+		}
+	}
 	resp->push_back("ok");
-	while(it->next()){
-		resp->push_back(it->key);
-		resp->push_back(it->val);
+	resp->push_back("0");
+
+	int ret =  serv->ssdb->hscan(req[1], cursor, pattern, limit, resp->resp);
+	if (ret < 0) {
+		resp->resp.clear();
+		resp->reply_int(-1, ret, GetErrorInfo(ret).c_str());
+	} else if (ret == 0) {
 	}
 
 	return 0;

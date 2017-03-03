@@ -120,7 +120,7 @@ static RedisCommand_raw cmds_raw[] = {
 	{STRATEGY_AUTO,  "hsetnx",	"hsetnx",		REPLY_INT},
 	//TODO HSTRLEN since 3.2
 	{STRATEGY_HVALS, "hvals", 		"hvals", 		REPLY_MULTI_BULK},
-	//TODO HSCAN
+	{STRATEGY_AUTO, "hscan",		"hscan",			REPLY_SCAN},
 
 	{STRATEGY_AUTO, "sadd",		    "sadd",			REPLY_INT},
 	{STRATEGY_AUTO, "srem",		    "srem",			REPLY_INT},
@@ -136,7 +136,7 @@ static RedisCommand_raw cmds_raw[] = {
     {STRATEGY_AUTO, "srandmember",	"srandmember",	REPLY_SPOP_SRANDMEMBER},
 //    {STRATEGY_AUTO, "sunion",	    "sunion",		REPLY_MULTI_BULK},
 //    {STRATEGY_AUTO, "sunionstore",	"sunionstore",	REPLY_INT},
-//    {STRATEGY_AUTO, "sscan",	    "sscan",		REPLY_MULTI_BULK},
+    {STRATEGY_AUTO, "sscan",	    "sscan",		REPLY_SCAN},
 
 	{STRATEGY_AUTO, "zcard",	"zsize",		REPLY_INT},
 	{STRATEGY_AUTO, "zscore",	"zget",			REPLY_BULK},
@@ -154,6 +154,7 @@ static RedisCommand_raw cmds_raw[] = {
 //	{STRATEGY_ZREVRANGEBYSCORE,	"zrevrangebyscore",	"zrscan",	REPLY_MULTI_BULK},
 	{STRATEGY_AUTO,	"zrangebyscore",	"zrangebyscore",	REPLY_MULTI_BULK},
 	{STRATEGY_AUTO,	"zrevrangebyscore",	"zrevrangebyscore",	REPLY_MULTI_BULK},
+	{STRATEGY_AUTO, "zscan",		"zscan",			REPLY_SCAN},
 
 
 	{STRATEGY_AUTO,		"lpush",		"qpush_front", 		REPLY_INT},

@@ -116,6 +116,7 @@ public:
 	// return (start, end]
 	virtual int setrange(const Bytes &key, int64_t start, const Bytes &value, uint64_t *new_len);
 
+	virtual int scan(const Bytes& cursor, const std::string &pattern, uint64_t limit, std::vector<std::string> &resp);
 	/* hash */
 
 	virtual int hmset(const Bytes &name, const std::map<Bytes,Bytes> &kvs);
@@ -133,8 +134,10 @@ public:
 	virtual int hmget(const Bytes &name, const std::vector<std::string> &reqKeys, std::map<std::string, std::string> *val);
 	virtual int hgetall(const Bytes &name, std::map<std::string, std::string> &val);
 	virtual int hget(const Bytes &name, const Bytes &key, std::string *val);
-	virtual HIterator* hscan(const Bytes &name, const Bytes &start, const Bytes &end, uint64_t limit);
-    int     GetHashMetaVal(const std::string &meta_key, HashMetaVal &hv);
+//	virtual HIterator* hscan(const Bytes &name, const Bytes &start, const Bytes &end, uint64_t limit);
+	virtual int hscan(const Bytes &name, const Bytes& cursor, const std::string &pattern, uint64_t limit, std::vector<std::string> &resp);
+
+	int     GetHashMetaVal(const std::string &meta_key, HashMetaVal &hv);
     int     GetHashItemValInternal(const std::string &item_key, std::string *val);
 
     /*  list  */

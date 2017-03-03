@@ -11,6 +11,7 @@ found in the LICENSE file.
 #include <string>
 #include <map>
 #include <util/sorted_set.h>
+#include <memory>
 #include "const.h"
 #include "options.h"
 #include "iterator.h"
@@ -69,6 +70,8 @@ public:
 	virtual int getrange(const Bytes &key, int64_t start, int64_t end, std::string *res) = 0;
 	virtual int setrange(const Bytes &key, int64_t start, const Bytes &value, uint64_t *new_len) = 0;
 
+	virtual int scan(const Bytes& cursor, const std::string &pattern, uint64_t limit, std::vector<std::string> &resp) = 0;
+
 	// return (start, end]
 
 	/* hash */
@@ -86,6 +89,7 @@ public:
 	virtual int hget(const Bytes &name, const Bytes &key, std::string *val) = 0;
 	virtual int hgetall(const Bytes &name, std::map<std::string, std::string> &val) = 0;
 	virtual int hmget(const Bytes &name, const std::vector<std::string> &reqKeys, std::map<std::string, std::string> *val) = 0;
+	virtual int hscan(const Bytes &name, const Bytes& cursor, const std::string &pattern, uint64_t limit, std::vector<std::string> &resp) = 0;
 
 	/*  list  */
 	virtual int LIndex(const Bytes &key, const int64_t index, std::string *val) = 0;
@@ -149,5 +153,11 @@ public:
 
 };
 
+
+template <class T>
+bool doScanGeneric(const std::unique_ptr<T> &mit, const std::string &pattern, uint64_t limit, std::vector<std::string> &resp);
+
+template <>
+bool doScanGeneric(const std::unique_ptr<HIterator> &mit, const std::string &pattern, uint64_t limit, std::vector<std::string> &resp);
 
 #endif
