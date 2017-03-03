@@ -544,13 +544,14 @@ int proc_scan(NetworkServer *net, Link *link, const Request &req, Response *resp
 	}
 
 	bool fulliter = (pattern == "*");
-
+	bool skip1st = false;
 
 	std::string start;
 	if(cursor == 0) {
 		start.append(1, DataType::META);
 	} else {
 		serv->ssdb->redisCursorService.FindElementByRedisCursor(req[1].String(), start);
+        skip1st = true;
 	}
 
 	Iterator* iter = serv->ssdb->iterator(start, "", -1);
@@ -560,11 +561,13 @@ int proc_scan(NetworkServer *net, Link *link, const Request &req, Response *resp
 	resp->push_back(str(cursor+limit));
 
 	std::string lastKey;
-	while(mit->next()){
+
+    if (skip1st) mit->next();
+
+    while(mit->next()){
 		if (limit == 0) {
 			break;
 		}
-
 		if (fulliter || stringmatchlen(pattern.data(), pattern.length(), mit->key.data(), mit->key.length(), 0)) {
 			resp->push_back(mit->key);
 			lastKey = mit->rawKey;
