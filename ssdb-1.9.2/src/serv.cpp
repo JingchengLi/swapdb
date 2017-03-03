@@ -712,6 +712,7 @@ void* thread_replic(void *arg){
 
     if (serv->master_link != NULL){
         std::vector<std::string> response;
+        response.push_back("ok");
         response.push_back("rr_transfer_snapshot finished");
         serv->master_link->send(response);
         serv->master_link->flush();
@@ -893,6 +894,7 @@ int proc_rr_transfer_snapshot(NetworkServer *net, Link *link, const Request &req
     SSDBServer *serv = (SSDBServer *)net->data;
     CHECK_NUM_PARAMS(3);
     if ((req.size() - 1) % 2 != 0){
+        resp->push_back("error");
         resp->push_back("wrong number of arguments");
         return 0;
     }
