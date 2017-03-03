@@ -16,6 +16,7 @@ enum REPLY{
 	REPLY_CUSTOM_STATUS,
 	REPLY_SET_STATUS,
 	REPLY_SPOP_SRANDMEMBER,
+	REPLY_SCAN,
 };
 
 enum STRATEGY{
@@ -70,6 +71,7 @@ static RedisCommand_raw cmds_raw[] = {
 	{STRATEGY_AUTO, "client",	"client",		REPLY_OK_STATUS},
 	{STRATEGY_AUTO, "quit",		"quit",			REPLY_OK_STATUS},
 
+	{STRATEGY_AUTO, "scan",		"scan",			REPLY_SCAN},
 	{STRATEGY_AUTO, "type",		"type",			REPLY_CUSTOM_STATUS},
 	{STRATEGY_AUTO, "get",		"get",			REPLY_BULK},
 	{STRATEGY_AUTO, "getset",	"getset",		REPLY_BULK},
@@ -754,6 +756,48 @@ int RedisLink::send_resp(Buffer *output, const std::vector<std::string> &resp){
 				output->append("\r\n");
 			}
 		}
+
+		return 0;
+	}
+
+	if(req_desc->reply_type == REPLY_SCAN){
+
+		do {
+			if (resp.size() < 2) {
+				output->append("-ERR server error when scan\r\n");
+				break;
+			}
+
+			output->append("*2\r\n");
+
+			const std::string &cursor = resp[1];
+			char buf[32];
+			snprintf(buf, sizeof(buf), "$%d\r\n", (int)cursor.size());
+			output->append(buf);
+			output->append(cursor.data(), cursor.size());
+			output->append("\r\n");
+
+			size_t count = resp.size() - 2;
+			if (count == 0) {
+				output->append("0\r\n");
+				output->append("*0\r\n");
+			} else {
+
+				char buf[32];
+				snprintf(buf, sizeof(buf), "*%ld\r\n", count);
+				output->append(buf);
+
+				for(int i=2; i<resp.size(); i++){
+					const std::string &val = resp[i];
+					char buf[32];
+					snprintf(buf, sizeof(buf), "$%d\r\n", (int)val.size());
+					output->append(buf);
+					output->append(val.data(), val.size());
+					output->append("\r\n");
+				}
+			}
+
+		} while (0);
 
 		return 0;
 	}
