@@ -653,8 +653,7 @@ sds composeRedisCmd(int argc, const char **argv, const size_t *argvlen) {
 /* TODO: Implement sendCommandToSSDB. Querying SSDB server if querying redis fails. */
 /* Compose the finalcmd if finalcmd is NULL. */
 int sendCommandToSSDB(client *c, sds finalcmd) {
-    char *cmd = NULL;
-    int i, len, nwritten;
+    int i, nwritten;
     struct redisCommand *cmdinfo = NULL;
     sds dupcmd = NULL;
 
@@ -673,26 +672,18 @@ int sendCommandToSSDB(client *c, sds finalcmd) {
 
         /* TODO: pre-allocate and reuse the mem to avoid allocating
            and destroying the mem frequently. */
-        char ** const argv = zmalloc(sizeof(char *) * c->argc);
-        size_t * const argvlen = zmalloc(sizeof(size_t) * c->argc);
+        char ** argv = zmalloc(sizeof(char *) * c->argc);
+        size_t * argvlen = zmalloc(sizeof(size_t) * c->argc);
 
         for (i = 0; i < c->argc; i ++) {
             argv[i] = c->argv[i]->ptr;
             argvlen[i] = sdslen((sds)(c->argv[i]->ptr));
         }
 
-        len = redisFormatCommandArgv(&cmd, c->argc, (const char **)argv, (const size_t *)argvlen);
+        finalcmd = composeRedisCmd(c->argc, (const char **)argv, (const size_t *)argvlen);
+
         zfree(argv);
         zfree(argvlen);
-
-        if (len == -1) {
-            serverLog(LL_WARNING, "Out of Memory for redisFormatCommandArgv.");
-            return C_ERR;
-        }
-
-        finalcmd = sdsnewlen(cmd, len);
-        /* Keep using free according to redisFormatCommandArgv. */
-        free(cmd);
     }
 
      if (!finalcmd) {
