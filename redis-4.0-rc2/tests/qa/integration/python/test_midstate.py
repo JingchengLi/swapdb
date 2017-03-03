@@ -12,39 +12,57 @@ class RedisPool:
 
 R = RedisPool().Redis_Pool()
 
+'''20M val need about 100ms dump/restore'''
+vlen = 20000000
+
 def dumptossdb(key="key"):
     return R.execute_command("dumptossdb "+key)
 
-def locatekey(key="key"):
-    return R.execute_command("locatekey "+key)
+def restorefromssdb(key="key"):
+    return R.execute_command("restorefromssdb "+key)
 
-def strlen(q, key="key"):
+def AllowReadBlockWrite(q, key="key"):
     res = "%d:%d:%d" % ( R.strlen(key), q.empty(), R.strlen(key))
-    print res
 
-    # 0x1 indicate some read happen during transferring status that blocked write
-    if "20000000:1" in res:
+    # some read complete before blocked write complete
+    if "%d:1" % vlen in res:
         return 0x1
-
-    if "0:20000000" in res:
-        print "0:20000000 in res,read not get the updated key after write complete."
+    # should read the updated key if write complete
+    if "0:%d" % vlen in res:
         return 0x2
-
-    elif "20000001:1" in res:
-        print "20000001:1 in res, read got the updated key before write complete."
+    # should not read the updated key before write complete
+    elif "%d:1" % (vlen+1) in res:
         return 0x4
+    # read the updated key after write complete
+    elif "0:%d" % (vlen+1) in res:
+        return 0x8
+    else:
+        print "invaild result!"
+        return 0x10
 
-    return 0x8
+def BlockRead(q, key="key"):
+    res = "%d:%d" % ( q.empty(),R.strlen(key))
+    # read should blocked and read the updated key
+    if "%d" % vlen in res:
+        return 0x1
+    elif "1:%d" % (vlen+1) in res:
+        return 0x2
+    elif "0:%d" % (vlen+1) in res:
+        return 0x4
+    else:
+        print "invaild result!"
+        return 0x10
 
 def append(q, key="key"):
-    print "append:%d" % R.append(key, "b")
+    R.append(key, "b")
+    # q.empty() is 0 if append complete.
     q.put('S')
 
-def wait_dump(key="key"):
+def wait_status(status, key="key"):
     attemps = 0
     while attemps < 10:
         time.sleep(0.01)
-        if "ssdb" == R.execute_command("locatekey "+key):
+        if status == R.execute_command("locatekey "+key):
             return True
         attemps +=1
     return False
@@ -52,7 +70,6 @@ def wait_dump(key="key"):
 class TestMidState(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        print "setUpCLass..."
         attemps = 0
         success = False
         while attemps < 5 and not success:
@@ -72,14 +89,12 @@ class TestMidState(unittest.TestCase):
         super(TestMidState, self).__init__(*args, **kwargs)
 
     def setUp(self):
-        print "setUp..."
         self.p = Pool(50)
         self.key = "key"
-        self.val = 'a'*20000000
+        self.val = 'a'*vlen
         R.set(self.key, self.val)
 
     def tearDown(self):
-        print "tearDown..."
         R.delete(self.key)
 
     def test_transferring(self):
@@ -90,16 +105,17 @@ class TestMidState(unittest.TestCase):
         results = []
         dumptossdb()
         self.p.apply_async(append, args = (q,))
+        time.sleep(0.01)
         for i in range(100):
             time.sleep(0.001)
-            result = self.p.apply_async(strlen, args = (q,))
+            result = self.p.apply_async(AllowReadBlockWrite, args = (q,))
             results.append(result)
 
         self.p.close()
         self.p.join()
         for result in results:
             flags |= result.get()
-        self.assertEqual(0x9, flags, "no blocked write or read is blocked during transferring status")
+        self.assertEqual(0x9, flags, "%d : no blocked write or read is blocked during transferring status" % flags)
 
     def test_loading_block_write(self):
         '''during loading key block write operation'''
@@ -107,38 +123,34 @@ class TestMidState(unittest.TestCase):
         q = manager.Queue()
         flags = 0
         dumptossdb()
-        self.assertTrue(wait_dump(), "wait dump key timeout")
-        for i in range(100):
+        self.assertTrue(wait_status("ssdb"), "wait dump key timeout")
+        for i in range(1000):
             self.p.apply_async(append, args = (q,))
 
         self.p.close()
         self.p.join()
-        self.assertEqual(20000100, R.strlen(self.key), "no blocked write during loading status")
+        self.assertEqual(20001000, R.strlen(self.key), "%d : mthreads write comflict during loading status" % R.strlen(self.key))
 
-    @unittest.skip("not availble")
     def test_loading_block_read(self):
-        '''during loading key reject write and read operation'''
+        '''during loading key block read operation'''
         manager = Manager()
         q = manager.Queue()
         flags = 0
         results = []
         dumptossdb()
-        self.assertTrue(wait_dump(), "wait dump key timeout")
+        self.assertTrue(wait_status("ssdb"), "wait dump key timeout")
+        restorefromssdb()
         self.p.apply_async(append, args = (q,))
+        time.sleep(0.01)
         for i in range(100):
-            time.sleep(0.001)
-            self.p.apply_async(append, args = (q,))
-            self.p.apply_async(strlen, args = (q,))
-
-        for i in range(0):
-            result = self.p.apply_async(strlen, args = (q,))
+            result = self.p.apply_async(BlockRead, args = (q,))
             results.append(result)
 
-        for result in results:
-            flags |= result.get()
         self.p.close()
         self.p.join()
-        self.assertEqual(0x9, flags, "no blocked write or blocked read during transferring status")
+        for result in results:
+            flags |= result.get()
+        self.assertEqual(0x6, flags, "%d : read shoule be blocked during loading status" % flags)
 
 if __name__=='__main__':
     unittest.main(verbosity=2)
