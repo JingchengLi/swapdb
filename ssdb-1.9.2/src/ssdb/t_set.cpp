@@ -428,8 +428,8 @@ int SSDBImpl::sunion_internal(const std::vector<Bytes> &keys, int offset, std::s
 }
 
 int SSDBImpl::sunion(const std::vector<Bytes> &keys, std::set<std::string> &members) {
-    Transaction trans(binlogs);//TODO
-
+    
+    
     return sunion_internal(keys, 1, members);
 }
 

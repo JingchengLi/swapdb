@@ -114,12 +114,10 @@ DEF_PROC(qget);
 DEF_PROC(qset);
 
 DEF_PROC(dump2);
-DEF_PROC(sync140);
 DEF_PROC(info);
 DEF_PROC(version);
 DEF_PROC(dbsize);
 DEF_PROC(compact);
-DEF_PROC(clear_binlog);
 DEF_PROC(flushdb);
 
 DEF_PROC(dump);
@@ -260,11 +258,9 @@ void SSDBServer::reg_procs(NetworkServer *net){
 	REG_PROC(sync150, "r");
 
 
-	REG_PROC(clear_binlog, "wt");
 	REG_PROC(flushdb, "wt");
 
 	REG_PROC(dump2, "b");
-	REG_PROC(sync140, "b");
 	REG_PROC(info, "r");
 	REG_PROC(version, "r");
 	REG_PROC(dbsize, "rt");
@@ -293,7 +289,6 @@ SSDBServer::SSDBServer(SSDB *ssdb, SSDB *meta, const Config &conf, NetworkServer
 	int sync_speed = conf.get_num("replication.sync_speed");
 
 	backend_dump = new BackendDump(this->ssdb);
-	backend_sync = new BackendSync(this->ssdb, sync_speed);
 	expiration = new ExpirationHandler(this->ssdb);
 
 	master_link = NULL;
@@ -314,7 +309,6 @@ SSDBServer::SSDBServer(SSDB *ssdb, SSDB *meta, const Config &conf, NetworkServer
 
 SSDBServer::~SSDBServer(){
 	delete backend_dump;
-	delete backend_sync;
 	delete expiration;
 
 	if (redisConf != nullptr) {
@@ -326,12 +320,6 @@ SSDBServer::~SSDBServer(){
 
 /*********************/
 
-int proc_clear_binlog(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
-	serv->ssdb->binlogs->flush();
-	resp->push_back("ok");
-	return 0;
-}
 
 int proc_flushdb(NetworkServer *net, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *)net->data;
@@ -473,12 +461,6 @@ int proc_rr_dump(NetworkServer *net, Link *link, const Request &req, Response *r
 	return 0;
 }
 
-int proc_sync140(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
-	serv->backend_sync->proc(link);
-	return PROC_BACKEND;
-}
-
 int proc_compact(NetworkServer *net, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *)net->data;
 	serv->ssdb->compact();
@@ -527,21 +509,6 @@ int proc_info(NetworkServer *net, Link *link, const Request &req, Response *resp
 		uint64_t size = serv->ssdb->size();
 		resp->push_back("dbsize");
 		resp->push_back(str(size));
-	}
-
-	{
-		std::string s = serv->ssdb->binlogs->stats();
-		resp->push_back("binlogs");
-		resp->push_back(s);
-	}
-	{
-		std::vector<std::string> syncs = serv->backend_sync->stats();
-		std::vector<std::string>::iterator it;
-		for(it = syncs.begin(); it != syncs.end(); it++){
-			std::string s = *it;
-			resp->push_back("replication");
-			resp->push_back(s);
-		}
 	}
 
 	// todo check

@@ -25,7 +25,6 @@ found in the LICENSE file.
 #include "../util/PTimer.h"
 
 #include "ssdb.h"
-#include "binlog.h"
 #include "iterator.h"
 //#include "t_kv.h"
 //#include "t_hash.h"
@@ -62,7 +61,6 @@ private:
 	
 	SSDBImpl();
 public:
-	BinlogQueue *binlogs;
     ExpirationHandler *expiration;
 
 	RedisCursorService redisCursorService;
