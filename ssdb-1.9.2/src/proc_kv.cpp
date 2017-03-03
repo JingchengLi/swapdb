@@ -508,11 +508,18 @@ int proc_del(NetworkServer *net, Link *link, const Request &req, Response *resp)
 	return 0;
 }
 
+
+
+template <class T>
+static bool sc(const std::unique_ptr<T> &mit, const std::string &pattern, uint64_t limit, std::vector<std::string> &resp);
+
 int proc_scan(NetworkServer *net, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(2);
 
-	uint64_t cursor = req[1].Uint64();
+	Bytes cursor = req[1];
+
+    cursor.Uint64();
 	if (errno == EINVAL){
 		resp->push_back("error");
 		resp->push_back(GetErrorInfo(INVALID_INT));
@@ -542,54 +549,63 @@ int proc_scan(NetworkServer *net, Link *link, const Request &req, Response *resp
 			return 0;
 		}
 	}
+    resp->push_back("ok");
+    resp->push_back("0");
 
-	bool fulliter = (pattern == "*");
-	bool skip1st = false;
+    std::string start;
+    if(cursor == "0") {
+        start.append(1, DataType::META);
+    } else {
+        serv->ssdb->redisCursorService.FindElementByRedisCursor(cursor.String(), start);
+    }
 
-	std::string start;
-	if(cursor == 0) {
-		start.append(1, DataType::META);
-	} else {
-		serv->ssdb->redisCursorService.FindElementByRedisCursor(req[1].String(), start);
-        skip1st = true;
-	}
+    Iterator* iter = serv->ssdb->iterator(start, "", -1);
 
-	Iterator* iter = serv->ssdb->iterator(start, "", -1);
+    auto mit = std::unique_ptr<MIterator>(new MIterator(iter));
 
-	auto mit = std::unique_ptr<MIterator>(new MIterator(iter));
-	resp->push_back("ok");
-	resp->push_back(str(cursor+limit));
+    bool end = sc(mit, pattern, limit, resp->resp);
 
-	std::string lastKey;
-
-    if (skip1st) mit->next();
-
-    while(mit->next()){
-		if (limit == 0) {
-			break;
-		}
-		if (fulliter || stringmatchlen(pattern.data(), pattern.length(), mit->key.data(), mit->key.length(), 0)) {
-			resp->push_back(mit->key);
-			lastKey = mit->rawKey;
-		} else {
-			//skip
-		}
-
-		limit --;
-	}
-
-	if (limit != 0) {
-		//scan end
-		resp->resp[1] = "0";
-
-	} else {
+    if (!end) {
 		//get new;
-		uint64_t tCursor = serv->ssdb->redisCursorService.GetNewRedisCursor(lastKey);
+		uint64_t tCursor = serv->ssdb->redisCursorService.GetNewRedisCursor(iter->key().String()); //we already got it->next
 		std::string newCursor = str(tCursor);
 		resp->resp[1] = newCursor;
 	}
 
 	return 0;
+}
+
+template<class T>
+bool sc(const std::unique_ptr<T> &mit, const std::string &pattern, uint64_t limit, std::vector<std::string> &resp) {
+    bool end = false; //scan end
+
+
+    bool fulliter = (pattern == "*");
+    while(mit->next()){
+        if (limit == 0) {
+            break; //check limit
+        }
+
+        if (fulliter || stringmatchlen(pattern.data(), pattern.length(), mit->key.data(), mit->key.length(), 0)) {
+            resp.push_back(mit->key);
+        } else {
+            //skip
+        }
+        limit --;
+        if (limit == 0) {
+            break; //stop now
+        }
+    }
+
+    if (!mit->next()) { // check iter , and update next as last key
+        //scan end
+        end = true;
+    } else if (limit != 0) {
+        //scan end
+        end = true;
+    }
+
+    return end;
 }
 
 int proc_scanall(NetworkServer *net, Link *link, const Request &req, Response *resp){

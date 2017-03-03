@@ -778,23 +778,17 @@ int RedisLink::send_resp(Buffer *output, const std::vector<std::string> &resp){
 			output->append("\r\n");
 
 			size_t count = resp.size() - 2;
-			if (count == 0) {
-				output->append("0\r\n");
-				output->append("*0\r\n");
-			} else {
 
+			snprintf(buf, sizeof(buf), "*%d\r\n", (int)count);
+			output->append(buf);
+
+			for(int i=2; i<resp.size(); i++){
+				const std::string &val = resp[i];
 				char buf[32];
-				snprintf(buf, sizeof(buf), "*%ld\r\n", count);
+				snprintf(buf, sizeof(buf), "$%d\r\n", (int)val.size());
 				output->append(buf);
-
-				for(int i=2; i<resp.size(); i++){
-					const std::string &val = resp[i];
-					char buf[32];
-					snprintf(buf, sizeof(buf), "$%d\r\n", (int)val.size());
-					output->append(buf);
-					output->append(val.data(), val.size());
-					output->append("\r\n");
-				}
+				output->append(val.data(), val.size());
+				output->append("\r\n");
 			}
 
 		} while (0);

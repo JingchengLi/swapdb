@@ -57,7 +57,7 @@ public:
 	char delType;
 	std::string key;
 //    std::string rawVal;
-    std::string rawKey;
+//    std::string rawKey;
 
 	MIterator(Iterator *it);
 	~MIterator();
