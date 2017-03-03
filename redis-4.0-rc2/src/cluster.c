@@ -4776,7 +4776,7 @@ void restorefromssdbCommand(client *c) {
         return;
     }
 
-    setTransferringDB(EVICTED_DATA_DB, keyobj);
+    setLoadingDB(keyobj);
     prologOfLoadingFromSSDB(keyobj);
 
     addReply(c,shared.ok);
