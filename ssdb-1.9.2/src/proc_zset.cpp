@@ -455,20 +455,26 @@ int proc_zdecr(NetworkServer *net, Link *link, const Request &req, Response *res
 }
 
 int proc_zcount(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
-	CHECK_NUM_PARAMS(4);
+    SSDBServer *serv = (SSDBServer *)net->data;
+    CHECK_NUM_PARAMS(4);
 
-	int64_t count = serv->ssdb->zcount(req[1],req[2], req[3]);
+    int64_t count = serv->ssdb->zremrangebyscore(req[1], req[2], req[3], 0);
 
-	resp->reply_int(0, count);
-	return 0;
+    if (count < 0) {
+        resp->push_back("error");
+        resp->push_back(GetErrorInfo((int)count));
+        return 0;
+    }
+
+    resp->reply_int(0, count);
+    return 0;
 }
 
 int proc_zremrangebyscore(NetworkServer *net, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(4);
 
- 	int64_t count = serv->ssdb->zremrangebyscore(req[1], req[2], req[3]);
+ 	int64_t count = serv->ssdb->zremrangebyscore(req[1], req[2], req[3], 1);
 
 	if (count < 0) {
 		resp->push_back("error");

@@ -178,7 +178,7 @@ public:
 	//int multi_zdel(const Bytes &name, const std::vector<Bytes> &keys, int offset=0);
 
 	int64_t zcount(const Bytes &name, const Bytes &score_start, const Bytes &score_end);
-	int64_t zremrangebyscore(const Bytes &name, const Bytes &score_start, const Bytes &score_end);
+	int64_t zremrangebyscore(const Bytes &name, const Bytes &score_start, const Bytes &score_end, int remove);
 
 	virtual int64_t zsize(const Bytes &name);
 	/**
