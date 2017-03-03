@@ -42,6 +42,9 @@ int zsetAdd(SSDBImpl *ssdb, leveldb::WriteBatch &batch, bool needCheck,
         *flags = ZADD_NAN;
         return NAN_SCORE;
     }
+    else if (score < ZSET_SCORE_MIN || score > ZSET_SCORE_MAX){
+        return ZSET_OVERFLOW;
+    }
 
     if (needCheck) {
         double old_score = 0;
@@ -74,6 +77,9 @@ int zsetAdd(SSDBImpl *ssdb, leveldb::WriteBatch &batch, bool needCheck,
                 if (std::isnan(score)) {
                     *flags |= ZADD_NAN;
                     return NAN_SCORE;
+                }
+                else if (score < ZSET_SCORE_MIN || score > ZSET_SCORE_MAX){
+                    return ZSET_OVERFLOW;
                 }
                 if (newscore) *newscore = score;
             }

@@ -26,6 +26,7 @@ std::map<int, std::string> SSDBErrMap = {
         {INVALID_EX_TIME,  "ERR invalid expire time"},
         {INVALID_INCR_PDC_NAN_OR_INF,  "ERR increment would produce NaN or Infinity"},
         {NAN_SCORE,        "ERR resulting score is not a float number (NaN)"},
+        {ZSET_OVERFLOW,    "ERR value is less than ZSET_SCORE_MIN or greater than ZSET_SCORE_MAX"},
 };
 
 
