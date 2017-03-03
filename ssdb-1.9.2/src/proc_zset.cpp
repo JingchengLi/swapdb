@@ -375,25 +375,55 @@ int proc_zrevrangebyscore(NetworkServer *net, Link *link, const Request &req, Re
 }
 
 int proc_zscan(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
-	CHECK_NUM_PARAMS(6);
+    CHECK_NUM_PARAMS(3);
+    SSDBServer *serv = (SSDBServer *)net->data;
 
-	uint64_t limit = req[5].Uint64();
-	uint64_t offset = 0;
-	if(req.size() > 6){
-		offset = limit;
-		limit = offset + req[6].Uint64();
-	}
-	auto it = std::unique_ptr<ZIterator>(serv->ssdb->zscan(req[1], req[2], req[3], req[4], limit));
-	if(offset > 0){
-		it->skip(offset);
-	}
-	resp->push_back("ok");
-	while(it->next()){
-		resp->push_back(it->key);
-		resp->push_back(str(it->score));
-	}
-	return 0;
+
+    int cursorIndex = 2;
+
+    Bytes cursor = req[cursorIndex];
+
+    cursor.Uint64();
+    if (errno == EINVAL){
+        resp->push_back("error");
+        resp->push_back(GetErrorInfo(INVALID_INT));
+        return 0;
+    }
+
+    std::string pattern = "*";
+    uint64_t limit = 10;
+
+    std::vector<Bytes>::const_iterator it = req.begin() + cursorIndex + 1;
+    for(; it != req.end(); it += 2){
+        std::string key = (*it).String();
+        strtolower(&key);
+
+        if (key=="match") {
+            pattern = (*(it+1)).String();
+        } else if (key=="count") {
+            limit =  (*(it+1)).Uint64();
+            if (errno == EINVAL){
+                resp->push_back("error");
+                resp->push_back(GetErrorInfo(INVALID_INT));
+                return 0;
+            }
+        } else {
+            resp->push_back("error");
+            resp->push_back(GetErrorInfo(SYNTAX_ERR));
+            return 0;
+        }
+    }
+    resp->push_back("ok");
+    resp->push_back("0");
+
+    int ret =  serv->ssdb->zscan(req[1], cursor, pattern, limit, resp->resp);
+    if (ret < 0) {
+        resp->resp.clear();
+        resp->reply_int(-1, ret, GetErrorInfo(ret).c_str());
+    } else if (ret == 0) {
+    }
+
+    return 0;
 }
 
 int proc_zkeys(NetworkServer *net, Link *link, const Request &req, Response *resp){

@@ -141,6 +141,7 @@ public:
 	 */
 	virtual ZIterator* zscan(const Bytes &name, const Bytes &key,
 			const Bytes &score_start, const Bytes &score_end, uint64_t limit) = 0;
+    virtual int zscan(const Bytes &name, const Bytes& cursor, const std::string &pattern, uint64_t limit, std::vector<std::string> &resp) = 0;
 
 	virtual int64_t zfix(const Bytes &name) = 0;
 

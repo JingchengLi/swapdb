@@ -1104,3 +1104,38 @@ int64_t SSDBImpl::zfix(const Bytes &name) {
 
     return size;
 }
+
+
+
+int SSDBImpl::zscan(const Bytes &name, const Bytes &cursor, const std::string &pattern, uint64_t limit,
+                    std::vector<std::string> &resp) {
+
+    ZSetMetaVal hv;
+    std::string meta_key = encode_meta_key(name);
+    int ret = GetZSetMetaVal(meta_key, hv);
+    if (ret != 1){
+        return ret;
+    }
+
+    std::string start;
+    if(cursor == "0") {
+        start = encode_zset_key(name, "", hv.version);
+    } else {
+        redisCursorService.FindElementByRedisCursor(cursor.String(), start);
+    }
+
+    Iterator* iter = this->iterator(start, "", -1);
+
+
+    auto mit = std::unique_ptr<ZIterator>(new ZIterator(iter, name, hv.version));
+
+    bool end = doScanGeneric<std::unique_ptr<ZIterator>>(mit, pattern, limit, resp);
+
+    if (!end) {
+        //get new;
+        uint64_t tCursor = redisCursorService.GetNewRedisCursor(iter->key().String()); //we already got it->next
+        resp[1] = str(tCursor);
+    }
+
+    return 1;
+}
