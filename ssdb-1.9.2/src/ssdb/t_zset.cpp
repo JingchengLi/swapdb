@@ -591,19 +591,23 @@ static int zslParseRange(const Bytes &min, const Bytes &max, zrangespec *spec) {
     if (min[0] == '(') {
         spec->min = strtod(min.data()+1,&eptr);
         if (eptr[0] != '\0' || std::isnan(spec->min)) return NAN_SCORE;
+        if (spec->min < ZSET_SCORE_MIN || spec->min > ZSET_SCORE_MAX) return ZSET_OVERFLOW;
         spec->minex = 1;
     } else {
         spec->min = strtod(min.data(),&eptr);
         if (eptr[0] != '\0' || std::isnan(spec->min)) return NAN_SCORE;
+        if (spec->min < ZSET_SCORE_MIN || spec->min > ZSET_SCORE_MAX) return ZSET_OVERFLOW;
     }
 
     if (max[0] == '(') {
         spec->max = strtod(max.data()+1,&eptr);
         if (eptr[0] != '\0' || std::isnan(spec->max)) return NAN_SCORE;
+        if (spec->max < ZSET_SCORE_MIN || spec->max > ZSET_SCORE_MAX) return ZSET_OVERFLOW;
         spec->maxex = 1;
     } else {
         spec->max = strtod(max.data(),&eptr);
         if (eptr[0] != '\0' || std::isnan(spec->max)) return NAN_SCORE;
+        if (spec->max < ZSET_SCORE_MIN || spec->max > ZSET_SCORE_MAX) return ZSET_OVERFLOW;
     }
 
     return 1;
@@ -622,18 +626,19 @@ int SSDBImpl::genericZrangebyscore(const Bytes &name, const Bytes &start_score, 
     zrangespec range;
     std::string score_start;
     std::string score_end;
+    int ret = 0;
 
     if (reverse){
-        if (zslParseRange(end_score,start_score,&range) < 0) {
-            return NAN_SCORE;
+        if ((ret = zslParseRange(end_score,start_score,&range)) < 0) {
+            return ret;
         }
         double score = range.max + eps;
         score_start = str(score);
         score = range.min - eps;
         score_end = str(score);
     } else{
-        if (zslParseRange(start_score,end_score,&range) < 0) {
-            return NAN_SCORE;
+        if ((ret = zslParseRange(start_score,end_score,&range)) < 0) {
+            return ret;
         }
         double score = range.min - eps;
         score_start = str(score);
@@ -658,7 +663,7 @@ int SSDBImpl::genericZrangebyscore(const Bytes &name, const Bytes &start_score, 
     {
         RecordLock l(&mutex_record_, name.String());
         std::string meta_key = encode_meta_key(name);
-        int ret = GetZSetMetaVal(meta_key, zv);
+        ret = GetZSetMetaVal(meta_key, zv);
         if (ret <= 0) {
             return ret;
         }
@@ -746,12 +751,13 @@ int SSDBImpl::zrevrangebyscore(const Bytes &name, const Bytes &start_score, cons
 
 int64_t SSDBImpl::zremrangebyscore(const Bytes &name, const Bytes &score_start, const Bytes &score_end) {
     zrangespec range;
+    int ret = 0;
     int64_t count = 0;
     std::string start_score;
     std::string end_score;
 
-    if (zslParseRange(score_start,score_end,&range) < 0) {
-        return NAN_SCORE;
+    if ((ret = zslParseRange(score_start,score_end,&range)) < 0) {
+        return ret;
     }
     double score = range.min - eps;
     start_score = str(score);
@@ -791,7 +797,7 @@ int64_t SSDBImpl::zremrangebyscore(const Bytes &name, const Bytes &score_start, 
         if (!zslValueLteMax(it->score,&range))
             break;
 
-        int ret = zdel_one(this, batch, name, it->key, it->version);
+        ret = zdel_one(this, batch, name, it->key, it->version);
         if(ret < 0){
             return ret;
         }
@@ -799,7 +805,7 @@ int64_t SSDBImpl::zremrangebyscore(const Bytes &name, const Bytes &score_start, 
     }
 
     if (count > 0){
-        int ret = incr_zsize(this, batch, zv, name, count);
+        ret = incr_zsize(this, batch, zv, name, count);
         if (ret < 0){
             return ret;
         }
