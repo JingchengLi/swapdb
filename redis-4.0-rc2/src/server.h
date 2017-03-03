@@ -1550,6 +1550,7 @@ void chopReplicationBacklog(void);
 void replicationCacheMasterUsingMyself(void);
 void feedReplicationBacklog(void *ptr, size_t len);
 void resetCustomizedReplication();
+void sendBulkToSlave(aeEventLoop *el, int fd, void *privdata, int mask);
 
 /* Generic persistence functions */
 void startLoading(FILE *fp);

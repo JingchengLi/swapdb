@@ -923,6 +923,12 @@ int handleResponseOfTransferSnapshot(client *c, sds replyString) {
     if (c->ssdb_status == SLAVE_SSDB_SNAPSHOT_TRANSFER_PRE) {
         if (!sdscmp(replyString, shared.transfersnapshotok)) {
             c->ssdb_status = SLAVE_SSDB_SNAPSHOT_TRANSFER_START;
+
+            aeDeleteFileEvent(server.el, c->fd, AE_WRITABLE);
+            if (aeCreateFileEvent(server.el, c->fd, AE_WRITABLE,
+                                  sendBulkToSlave, c) == AE_ERR)
+                freeClientAsync(c);
+
             process_status = C_OK;
         } else if (!sdscmp(replyString, shared.transfersnapshotnok)) {
             serverAssert(server.ssdb_status == MASTER_SSDB_SNAPSHOT_OK);

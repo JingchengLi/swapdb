@@ -2698,17 +2698,6 @@ void replicationCron(void) {
         }
 
         if (server.jdjr_mode && server.use_customized_replication
-            && (slave->ssdb_status == SLAVE_SSDB_SNAPSHOT_TRANSFER_START)) {
-            aeDeleteFileEvent(server.el, slave->fd, AE_WRITABLE);
-            if (aeCreateFileEvent(server.el, slave->fd, AE_WRITABLE,
-                                  sendBulkToSlave, slave) == AE_ERR) {
-                freeClient(slave);
-                /* continue to avoid acess invalid slave pointer. */
-                continue;
-            }
-        }
-
-        if (server.jdjr_mode && server.use_customized_replication
             && slave->replstate == SLAVE_STATE_SEND_BULK_FINISHED
             && slave->ssdb_status == SLAVE_SSDB_SNAPSHOT_TRANSFER_END) {
             putSlaveOnline(slave);
