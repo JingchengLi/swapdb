@@ -896,6 +896,7 @@ int handleResponseOfCheckWrite(client *c, sds replyString) {
 
 int handleResponseOfPsync(client *c, sds replyString) {
     int process_status;
+    UNUSED(c);
 
     sdstolower(replyString);
 
@@ -906,10 +907,8 @@ int handleResponseOfPsync(client *c, sds replyString) {
         server.is_allow_ssdb_write = ALLOW_SSDB_WRITE;
         process_status = C_OK;
     } else if (!sdscmp(replyString, shared.makesnapshotnok)) {
-        addReplyError(c, "make snapshot nok");
-        /* exception case of making snapshot will be processed
-         * in replicationCron. */
-        server.ssdb_make_snapshot_status = C_ERR;
+        /* Reset customized replication status immediately. */
+        resetCustomizedReplication();
         process_status = C_OK;
     } else
         process_status = C_ERR;

@@ -2099,7 +2099,6 @@ void initServer(void) {
     if (server.jdjr_mode) {
         server.is_allow_ssdb_write = ALLOW_SSDB_WRITE;
         server.ssdb_status = SSDB_NONE;
-        server.ssdb_make_snapshot_status = C_OK;
         server.check_write_begin_time = -1;
         server.check_write_unresponse_num = -1;
         server.no_writing_ssdb_blocked_clients = listCreate();

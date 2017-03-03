@@ -1237,7 +1237,6 @@ struct redisServer {
     list *no_writing_ssdb_blocked_clients;
     int ssdb_status;
     time_t check_write_begin_time;
-    int ssdb_make_snapshot_status;
     /* Calculate the num of unresponsed clients. */
     int check_write_unresponse_num;
     int special_clients_num;
@@ -1550,6 +1549,7 @@ void clearReplicationId2(void);
 void chopReplicationBacklog(void);
 void replicationCacheMasterUsingMyself(void);
 void feedReplicationBacklog(void *ptr, size_t len);
+void resetCustomizedReplication();
 
 /* Generic persistence functions */
 void startLoading(FILE *fp);

@@ -2545,6 +2545,28 @@ long long replicationGetSlaveOffset(void) {
     return offset;
 }
 
+void resetCustomizedReplication() {
+    listIter li;
+    listNode *ln;
+
+    server.check_write_begin_time = -1;
+    server.is_allow_ssdb_write = ALLOW_SSDB_WRITE;
+    server.ssdb_status = SSDB_NONE;
+
+    listRewind(server.slaves, &li);
+
+    while((ln = listNext(&li))) {
+        client *slave = ln->value;
+
+        if (slave->replstate == SLAVE_STATE_WAIT_BGSAVE_START) {
+            addReplyError(slave,
+                          "SSDB exceptions, replication can't continue");
+            freeClientAsync(slave);
+        }
+    }
+}
+
+
 /* --------------------------- REPLICATION CRON  ---------------------------- */
 
 /* Replication cron function, called 1 time per second. */
@@ -2611,29 +2633,13 @@ void replicationCron(void) {
         decrRefCount(ping_argv[0]);
     }
 
-    /* process the case of ssdb write check timeout or ssdb make snapshot failed. */
+    /* Process the case of ssdb write check timeout or ssdb make snapshot failed. */
     if (server.jdjr_mode && server.use_customized_replication) {
-        // todo : use a reasonable timeout to replace 5 seconds.
-        if (C_ERR == server.ssdb_make_snapshot_status ||
-            (server.check_write_begin_time != -1
-             && server.unixtime - server.check_write_begin_time > 5)) {
-            server.check_write_begin_time = -1;
-            server.is_allow_ssdb_write = ALLOW_SSDB_WRITE;
-            server.ssdb_status = SSDB_NONE;
-
-            listRewind(server.slaves,&li);
-            while((ln = listNext(&li))) {
-                client *slave = ln->value;
-
-                if (slave->replstate == SLAVE_STATE_WAIT_BGSAVE_START) {
-                    slave->flags &= ~CLIENT_SLAVE;
-                    listDelNode(server.slaves,ln);
-                    addReplyError(slave,
-                                  "ssdb write check timeout, replication can't continue");
-                    slave->flags |= CLIENT_CLOSE_AFTER_REPLY;
-                }
-            }
-        }
+        /* TODO : use a reasonable timeout to replace 5 seconds. */
+        /* TODO: handle timeout of rr_transfer_snapshot/rr_make_snapshot. */
+        if (server.check_write_begin_time != -1
+             && (server.unixtime - server.check_write_begin_time > 5))
+            resetCustomizedReplication();
     }
 
     /* Second, send a newline to all the slaves in pre-synchronization
