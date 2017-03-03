@@ -925,10 +925,9 @@ int handleResponseOfTransferSnapshot(client *c, sds replyString) {
             c->ssdb_status = SLAVE_SSDB_SNAPSHOT_TRANSFER_START;
             process_status = C_OK;
         } else if (!sdscmp(replyString, shared.transfersnapshotnok)) {
+            serverAssert(server.ssdb_status == MASTER_SSDB_SNAPSHOT_OK);
             addReplyError(c, "snapshot transfer nok");
-            /* exception case of transfer snapshot will be processed
-             * in replicationCron. */
-            c->replication_flags |= SSDB_CLIENT_TRANSFER_SNAPSHOT_ERR;
+            freeClientAsync(c);
             process_status = C_OK;
         } else
             process_status = C_ERR;
@@ -938,10 +937,9 @@ int handleResponseOfTransferSnapshot(client *c, sds replyString) {
             c->ssdb_status = SLAVE_SSDB_SNAPSHOT_TRANSFER_END;
             process_status = C_OK;
         } else if (!sdscmp(replyString, shared.transfersnapshotunfinished)) {
+            serverAssert(server.ssdb_status == MASTER_SSDB_SNAPSHOT_OK);
             addReplyError(c, "snapshot transfer unfinished");
-            /* exception case of finish response about snapshot transfer
-             * will be processed in replicationCron. */
-            c->replication_flags |= SSDB_CLIENT_FINISHED_TRANSFER_SNAPSHOT_ERR;
+            freeClientAsync(c);
             process_status = C_OK;
         } else
             process_status = C_ERR;

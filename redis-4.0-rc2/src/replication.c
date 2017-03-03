@@ -2672,15 +2672,6 @@ void replicationCron(void) {
             }
         }
 
-        if (server.jdjr_mode && server.use_customized_replication &&
-            ((slave->replication_flags & SSDB_CLIENT_TRANSFER_SNAPSHOT_ERR) ||
-             (slave->replication_flags & SSDB_CLIENT_FINISHED_TRANSFER_SNAPSHOT_ERR))) {
-            serverAssert(server.ssdb_status == MASTER_SSDB_SNAPSHOT_OK);
-            freeClient(slave);
-            /* continue to avoid acess invalid slave pointer later. */
-            continue;
-        }
-
         if (server.jdjr_mode && server.use_customized_replication
             && (server.ssdb_status == MASTER_SSDB_SNAPSHOT_OK)
             && (slave->ssdb_status == SLAVE_SSDB_SNAPSHOT_TRANSFER_PRE)) {
@@ -2697,7 +2688,6 @@ void replicationCron(void) {
             /* cmsds will be consumed by sendCommandToSSDB. */
             sds cmdsds = composeRedisCmd(3, (const char **)argv, NULL);
 
-            /* TODO: block current slave. */
             if (cmdsds && sendCommandToSSDB(slave, cmdsds) != C_OK) {
                 serverLog(LL_WARNING,
                           "Sending rr_transfer_snapshot to SSDB failed.");
