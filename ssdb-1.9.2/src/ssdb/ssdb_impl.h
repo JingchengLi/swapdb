@@ -37,6 +37,7 @@ found in the LICENSE file.
 #include <queue>
 #include <atomic>
 #include "util/thread.h"
+#include "t_cursor.h"
 
 #define MAX_NUM_DELETE 10
 
@@ -63,6 +64,8 @@ private:
 public:
 	BinlogQueue *binlogs;
     ExpirationHandler *expiration;
+
+	RedisCursorService redisCursorService;
 	
 	virtual ~SSDBImpl();
 

@@ -56,7 +56,8 @@ public:
 	char dataType;
 	char delType;
 	std::string key;
-    std::string dbVal;
+//    std::string rawVal;
+    std::string rawKey;
 
 	MIterator(Iterator *it);
 	~MIterator();
