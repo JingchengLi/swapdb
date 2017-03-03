@@ -171,7 +171,7 @@ public:
 	virtual int srandmember(const Bytes &key, std::vector<std::string> &members, int64_t cnt);
     virtual int sunion(const std::vector<Bytes> &keys, std::set<std::string>& members);
     virtual int sunionstore(const Bytes &destination, const std::vector<Bytes> &keys, int64_t *num);
-	virtual SIterator* sscan(const Bytes &key, const Bytes &start, const Bytes &end, uint64_t limit);
+	virtual int sscan(const Bytes &name, const Bytes& cursor, const std::string &pattern, uint64_t limit, std::vector<std::string> &resp);
 
 	/* zset */
 	virtual int multi_zset(const Bytes &name, const std::map<Bytes ,Bytes> &sortedSet, int flags);

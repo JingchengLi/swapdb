@@ -223,5 +223,53 @@ int proc_sunionstore(NetworkServer *net, Link *link, const Request &req, Respons
 }
 
 int proc_sscan(NetworkServer *net, Link *link, const Request &req, Response *resp){
+    CHECK_NUM_PARAMS(3);
+    SSDBServer *serv = (SSDBServer *)net->data;
+
+
+    int cursorIndex = 2;
+
+    Bytes cursor = req[cursorIndex];
+
+    cursor.Uint64();
+    if (errno == EINVAL){
+        resp->push_back("error");
+        resp->push_back(GetErrorInfo(INVALID_INT));
+        return 0;
+    }
+
+    std::string pattern = "*";
+    uint64_t limit = 10;
+
+    std::vector<Bytes>::const_iterator it = req.begin() + cursorIndex + 1;
+    for(; it != req.end(); it += 2){
+        std::string key = (*it).String();
+        strtolower(&key);
+
+        if (key=="match") {
+            pattern = (*(it+1)).String();
+        } else if (key=="count") {
+            limit =  (*(it+1)).Uint64();
+            if (errno == EINVAL){
+                resp->push_back("error");
+                resp->push_back(GetErrorInfo(INVALID_INT));
+                return 0;
+            }
+        } else {
+            resp->push_back("error");
+            resp->push_back(GetErrorInfo(SYNTAX_ERR));
+            return 0;
+        }
+    }
+    resp->push_back("ok");
+    resp->push_back("0");
+
+    int ret =  serv->ssdb->sscan(req[1], cursor, pattern, limit, resp->resp);
+    if (ret < 0) {
+        resp->resp.clear();
+        resp->reply_int(-1, ret, GetErrorInfo(ret).c_str());
+    } else if (ret == 0) {
+    }
+
     return 0;
 }

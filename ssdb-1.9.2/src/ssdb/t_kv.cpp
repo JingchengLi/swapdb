@@ -1295,13 +1295,12 @@ SSDBImpl::scan(const Bytes& cursor, const std::string &pattern, uint64_t limit, 
 
     auto mit = std::unique_ptr<MIterator>(new MIterator(iter));
 
-    bool end = doScanGeneric<MIterator>(mit, pattern, limit, resp);
+    bool end = doScanGeneric<std::unique_ptr<MIterator>>(mit, pattern, limit, resp);
 
     if (!end) {
         //get new;
         uint64_t tCursor = redisCursorService.GetNewRedisCursor(iter->key().String()); //we already got it->next
-        std::string newCursor = str(tCursor);
-        resp[1] = newCursor;
+        resp[1] = str(tCursor);
     }
 
     return 1;
@@ -1310,7 +1309,7 @@ SSDBImpl::scan(const Bytes& cursor, const std::string &pattern, uint64_t limit, 
 
 
 template<typename T>
-bool doScanGeneric(const std::unique_ptr<T> &mit, const std::string &pattern, uint64_t limit, std::vector<std::string> &resp) {
+bool doScanGeneric(const T &mit, const std::string &pattern, uint64_t limit, std::vector<std::string> &resp) {
     bool end = false; //scan end
 
     bool fulliter = (pattern == "*");
@@ -1354,6 +1353,38 @@ bool doScanGeneric(const std::unique_ptr<HIterator> &mit, const std::string &pat
         if (fulliter) { //|| stringmatchlen(pattern.data(), pattern.length(), mit->key.data(), mit->key.length(), 0)
             resp.push_back(mit->key);
             resp.push_back(mit->val);
+        } else {
+            //skip
+        }
+        limit --;
+        if (limit == 0) {
+            break; //stop now
+        }
+    }
+
+    if (!mit->next()) { // check iter , and update next as last key
+        //scan end
+        end = true;
+    } else if (limit != 0) {
+        //scan end
+        end = true;
+    }
+
+    return end;
+}
+
+template<>
+bool doScanGeneric(const std::unique_ptr<SIterator> &mit, const std::string &pattern, uint64_t limit, std::vector<std::string> &resp) {
+    bool end = false; //scan end
+
+    bool fulliter = (pattern == "*");
+    while(mit->next()){
+        if (limit == 0) {
+            break; //check limit
+        }
+
+        if (fulliter) { //|| stringmatchlen(pattern.data(), pattern.length(), mit->key.data(), mit->key.length(), 0)
+            resp.push_back(mit->key);
         } else {
             //skip
         }

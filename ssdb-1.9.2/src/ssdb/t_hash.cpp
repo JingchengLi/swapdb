@@ -561,13 +561,12 @@ int SSDBImpl::hscan(const Bytes &name, const Bytes &cursor, const std::string &p
 
 	auto mit = std::unique_ptr<HIterator>(new HIterator(iter, name, hv.version));
 
-	bool end = doScanGeneric<HIterator>(mit, pattern, limit, resp);
+	bool end = doScanGeneric<std::unique_ptr<HIterator>>(mit, pattern, limit, resp);
 
 	if (!end) {
 		//get new;
 		uint64_t tCursor = redisCursorService.GetNewRedisCursor(iter->key().String()); //we already got it->next
-		std::string newCursor = str(tCursor);
-		resp[1] = newCursor;
+		resp[1] = str(tCursor);
 	}
 
 	return 1;

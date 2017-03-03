@@ -113,7 +113,7 @@ public:
 	virtual int spop(const Bytes &key, std::vector<std::string> &members, int64_t popcnt) = 0;
 	virtual int srandmember(const Bytes &key, std::vector<std::string> &members, int64_t cnt) = 0;
 	virtual int sunion(const std::vector<Bytes> &keys, std::set<std::string>& members) = 0;
-	virtual SIterator* sscan(const Bytes &key, const Bytes &start, const Bytes &end, uint64_t limit) = 0;
+	virtual int sscan(const Bytes &name, const Bytes& cursor, const std::string &pattern, uint64_t limit, std::vector<std::string> &resp) = 0;
 
 	/* zset */
 	virtual int multi_zset(const Bytes &name, const std::map<Bytes ,Bytes> &sortedSet, int flags) = 0;
@@ -155,9 +155,7 @@ public:
 
 
 template <class T>
-bool doScanGeneric(const std::unique_ptr<T> &mit, const std::string &pattern, uint64_t limit, std::vector<std::string> &resp);
+bool doScanGeneric(const T &mit, const std::string &pattern, uint64_t limit, std::vector<std::string> &resp);
 
-template <>
-bool doScanGeneric(const std::unique_ptr<HIterator> &mit, const std::string &pattern, uint64_t limit, std::vector<std::string> &resp);
 
 #endif

@@ -54,20 +54,38 @@ SIterator* SSDBImpl::sscan_internal(const Bytes &name, const Bytes &start, const
     return new SIterator(this->iterator(key_start, key_end, limit, snapshot), name, version);
 }
 
-SIterator* SSDBImpl::sscan(const Bytes &key, const Bytes &start, const Bytes &end, uint64_t limit) {
-    SetMetaVal sv;
-    uint16_t  version;
 
-    std::string meta_key = encode_meta_key(key);
+int SSDBImpl::sscan(const Bytes &name, const Bytes& cursor, const std::string &pattern, uint64_t limit, std::vector<std::string> &resp) {
+    SetMetaVal sv;
+
+    std::string meta_key = encode_meta_key(name);
     int ret = GetSetMetaVal(meta_key, sv);
-    if (0 == ret && sv.del == KEY_DELETE_MASK){
-        version = sv.version + (uint16_t)1;
-    } else if (ret > 0){
-        version = sv.version;
-    } else {
-        version = 0;
+    if (ret != 1){
+        return ret;
     }
-    return sscan_internal(key, start, end, version, limit, nullptr);
+    std::string start;
+    if(cursor == "0") {
+        start = encode_set_key(name, "", sv.version);
+    } else {
+        redisCursorService.FindElementByRedisCursor(cursor.String(), start);
+    }
+
+    Iterator* iter = this->iterator(start, "", -1);
+
+    auto mit = std::unique_ptr<SIterator>(new SIterator(iter, name, sv.version));
+
+//    bool end = true;
+    bool end = doScanGeneric<std::unique_ptr<SIterator>>(mit, pattern, limit, resp);
+
+    if (!end) {
+        //get new;
+        uint64_t tCursor = redisCursorService.GetNewRedisCursor(iter->key().String()); //we already got it->next
+        resp[1] = str(tCursor);
+    }
+
+    return 1;
+
+
 }
 
 int SSDBImpl::saddNoLock(const Bytes &key, const std::set<Bytes> &mem_set, int64_t *num) {
