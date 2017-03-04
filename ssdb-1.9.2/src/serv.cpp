@@ -120,6 +120,7 @@ DEF_PROC(dbsize);
 DEF_PROC(compact);
 DEF_PROC(flushdb);
 
+DEF_PROC(debug);
 DEF_PROC(dump);
 DEF_PROC(restore);
 DEF_PROC(select);
@@ -267,6 +268,7 @@ void SSDBServer::reg_procs(NetworkServer *net){
 	// doing compaction in a reader thread, because we have only one
 	// writer thread(for performance reason); we don't want to block writes
 	REG_PROC(compact, "rt");
+	REG_PROC(debug, "wt");
 
     REG_PROC(rr_check_write, "wt");
     REG_PROC(rr_make_snapshot, "w");
@@ -336,6 +338,46 @@ int proc_select(NetworkServer *net, Link *link, const Request &req, Response *re
 
 
 int proc_client(NetworkServer *net, Link *link, const Request &req, Response *resp){
+	resp->push_back("ok");
+	return 0;
+}
+
+
+int proc_debug(NetworkServer *net, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *)net->data;
+	CHECK_NUM_PARAMS(2);
+
+	const std::string &action = req[1].String();
+
+	if (action == "populate") {
+		CHECK_NUM_PARAMS(3);
+
+		int64_t count = req[2].Int64();
+
+		PTimer timer("DEBUG_POPULATE");
+		timer.begin();
+
+		for (long i = 0; i < count; ++i) {
+			char kbuf[128] = {0};
+			snprintf(kbuf,sizeof(kbuf),"%s:%lu", "key" , i);
+
+			char vbuf[128] = {0};
+			snprintf(vbuf,sizeof(vbuf),"%s:%lu", "value" , i);
+
+			int ret = serv->ssdb->set(Bytes(kbuf), Bytes(vbuf),OBJ_SET_NO_FLAGS);
+			if(ret < 0){
+				resp->push_back("error");
+				resp->push_back(GetErrorInfo(ret));
+				return 0;
+			}
+
+		}
+
+		timer.end(str(count) + " keys");
+	}
+
+
+
 	resp->push_back("ok");
 	return 0;
 }

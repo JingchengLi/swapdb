@@ -1119,7 +1119,8 @@ int SSDBImpl::zscan(const Bytes &name, const Bytes &cursor, const std::string &p
 
     std::string start;
     if(cursor == "0") {
-        start = encode_zset_key(name, "", hv.version);
+//        start = encode_zset_key(name, "", hv.version);
+        start = encode_zset_score_prefix(name, hv.version);
     } else {
         redisCursorService.FindElementByRedisCursor(cursor.String(), start);
     }

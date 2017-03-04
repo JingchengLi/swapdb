@@ -369,7 +369,7 @@ void SSDBImpl::delete_key_loop(const std::string &del_key) {
         return;
     }
 
-//    log_debug("deleting key %s v %d " , hexmem(dk.key.data(),dk.key.length()).c_str() , dk.version);
+    log_debug("deleting key %s v %d " , hexmem(dk.key.data(),dk.key.length()).c_str() , dk.version);
 //    char log_type=BinlogType::SYNC;
     std::string start = encode_hash_key(dk.key, "", dk.version);
     std::string z_start = encode_zset_score_prefix(dk.key, dk.version);

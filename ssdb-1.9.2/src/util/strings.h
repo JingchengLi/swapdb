@@ -863,6 +863,21 @@ int stringmatchlen(const char *pattern, int patternLen,
 	return 0;
 }
 
+
+static inline
+void random_str(char *s, const int len) {
+	static const char alphanum[] =
+			"0123456789"
+					"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+					"abcdefghijklmnopqrstuvwxyz";
+
+	for (int i = 0; i < len; ++i) {
+		s[i] = alphanum[rand() % (sizeof(alphanum) - 1)];
+	}
+
+	s[len] = 0;
+}
+
 // is big endia. TODO: auto detect
 #if 0
 	#define big_endian(v) (v)
