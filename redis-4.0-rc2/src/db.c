@@ -326,7 +326,7 @@ long long emptyDb(int dbnum, int flags, void(callback)(void*)) {
         }
     }
 
-    if (server.jdjr_mode && dbnum == -1) {
+    if (server.jdjr_mode) {
         if (async)
             emptyDbAsync(EVICTED_DATA_DB);
         else {

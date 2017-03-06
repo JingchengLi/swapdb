@@ -2491,6 +2491,26 @@ int checkKeysInMediateState(client* c) {
     return C_OK;
 }
 
+int processCommandMaybeFlushdb(client *c, int old_bufpos) {
+    sds finalcmd = NULL;
+    sds sdsbuf = NULL;
+
+    if ((c->cmd->proc == flushallCommand
+         || c->cmd->proc == flushdbCommand)
+        && (sdsbuf = sdsnewlen(c->buf + old_bufpos, c->bufpos - old_bufpos))
+        && !sdscmp(sdsbuf, (sds)shared.ok->ptr)) {
+        finalcmd = sdsnew("*1\r\n$7\r\nflushdb\r\n");
+
+        if (sendCommandToSSDB(c, finalcmd) == C_OK) {
+            c->bufpos = old_bufpos;
+            return C_OK;
+        }
+    }
+
+    return C_ERR;
+}
+
+
 /* Process keys may be in SSDB, only handle the command jdjr_mode supported.
  The rest cases will be handled by processCommand. */
 int processCommandMaybeInSSDB(client *c) {
@@ -2578,6 +2598,8 @@ int processCommandMaybeInSSDB(client *c) {
 }
 
 int runCommand(client *c, int* need_return) {
+    int bufpos = c->bufpos;
+
     /* Exec the command */
     if (server.jdjr_mode
         && processCommandMaybeInSSDB(c) == C_OK) {
@@ -2606,6 +2628,12 @@ int runCommand(client *c, int* need_return) {
 
     serverLog(LL_DEBUG, "processing %s, fd: %d in redis: %s",
               c->cmd->name, c->fd, c->argc > 1 ? (char *)c->argv[1]->ptr : "");
+
+    if (server.jdjr_mode
+        && processCommandMaybeFlushdb(c, bufpos) == C_OK) {
+        blockClient(c, BLOCKED_VISITING_SSDB);
+        return C_ERR;
+    }
 
     return C_OK;
 }
