@@ -5,7 +5,6 @@
 #include "decode.h"
 #include "util/bytes.h"
 
-static double decodeScore(const int64_t score);
 
 int MetaKey::DecodeMetaKey(const Bytes &str) {
     Decoder decoder(str.data(), str.size());
@@ -71,7 +70,7 @@ int ZScoreItemKey::DecodeItemKey(const Bytes &str) {
     return 0;
 }
 
-static double decodeScore(const int64_t score) {
+double decodeScore(const int64_t score) {
     return (double)(score - ZSET_SCORE_SHIFT) / 100000.0;
 }
 
@@ -260,20 +259,5 @@ int DeleteKey::DecodeDeleteKey(const Bytes &str) {
         version = be16toh(version);
     }
 
-    return 0;
-}
-
-int BQueueKey::DecodeBQueueKey(const string &str) {
-    Decoder decoder(str.data(), str.size());
-    if(decoder.skip(1) == -1){
-        return -1;
-    }
-    if (decoder.read_uint16(&type) == -1){
-        return -1;
-    } else{
-        type = be16toh(type);
-    }
-
-    decoder.read_data(&key);
     return 0;
 }

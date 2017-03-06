@@ -2,10 +2,10 @@
 // Created by a1 on 16-11-2.
 //
 #include "encode.h"
+#include "util/bytes.h"
 
 static string encode_key_internal(char type, const Bytes& key, const Bytes& field, uint16_t version);
 static string encode_meta_val_internal(const char type, uint64_t length, uint16_t version, char del);
-static uint64_t encodeScore(const double score);
 
 string encode_meta_key(const Bytes& key){
     string buf;
@@ -59,7 +59,7 @@ string encode_eset_key(const Bytes& member){
     return buf;
 }
 
-static uint64_t encodeScore(const double score) {
+uint64_t encodeScore(const double score) {
     int64_t iscore;
     if (score < 0) {
         iscore = (int64_t)(score * 100000LL - 0.5) + ZSET_SCORE_SHIFT;
@@ -157,20 +157,6 @@ string encode_set_meta_val(uint64_t length, uint16_t version, char del){
 
 string encode_zset_meta_val(uint64_t length, uint16_t version, char del){
     return encode_meta_val_internal(DataType::ZSIZE, length, version, del);
-}
-
-
-string encode_bqueue_key(uint16_t task_type, const Bytes& val){
-    string buf;
-
-    buf.append(1, DataType::BQUEUE);
-
-    task_type = htobe16(task_type);
-    buf.append((char *)&task_type, sizeof(uint16_t));
-
-    buf.append(val.data(), val.size());
-
-    return buf;
 }
 
 string encode_list_meta_val(uint64_t length, uint64_t left, uint64_t right, uint16_t version, char del){

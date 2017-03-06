@@ -6,7 +6,8 @@
 #define SSDB_ENCODE_H
 
 #include "util.h"
-#include "util/bytes.h"
+
+class Bytes;
 
 string encode_meta_key(const Bytes& key);
 
@@ -45,6 +46,7 @@ string encode_list_meta_val(uint64_t length, uint64_t left, uint64_t right, uint
  */
 string encode_delete_key(const Bytes& key, uint16_t version = 0);
 
-string encode_bqueue_key(uint16_t task_type, const Bytes& val);
+
+uint64_t encodeScore(const double score);
 
 #endif //SSDB_ENCODE_H

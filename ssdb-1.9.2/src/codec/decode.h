@@ -104,18 +104,12 @@ public:
     string      key;
 };
 
-class BQueueKey{
-public:
-    int DecodeBQueueKey(const string& str);
-
-public:
-    uint16_t type;
-    string   key;
-};
 
 
 #define POS_TYPE 0
 #define POS_DEL  3
+
+double decodeScore(const int64_t score);
 
 
 #endif //SSDB_DECODE_H
