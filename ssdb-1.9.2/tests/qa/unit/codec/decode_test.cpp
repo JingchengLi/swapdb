@@ -1,8 +1,9 @@
 #include "gtest/gtest.h"
 #include "ssdb/const.h"
 #include "util/error.h"
-#include "decode.h"
-#include "encode.h"
+#include "util/bytes.h"
+#include "codec/decode.h"
+#include "codec/encode.h"
 #include "ssdb_test.h"
 #include <stdlib.h>
 using namespace std;

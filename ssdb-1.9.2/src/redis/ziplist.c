@@ -106,11 +106,10 @@
 #include <string.h>
 #include <stdint.h>
 #include <limits.h>
+#include "zmalloc.h"
 #include "ziplist.h"
 #include "endianconv.h"
-#include "zmalloc.h"
-
-
+#include "redisassert.h"
 
 #define ZIP_END 255
 #define ZIP_BIGLEN 254

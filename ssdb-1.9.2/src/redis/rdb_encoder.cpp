@@ -2,9 +2,12 @@
 // Created by zts on 16-12-20.
 //
 
-#include <cmath>
 #include <cstring>
+#include <netinet/in.h>
+#include <sstream>
+
 #include "rdb_encoder.h"
+#include "util/strings.h"
 
 extern "C" {
 #include "lzf.h"

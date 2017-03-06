@@ -7,12 +7,14 @@ INCLUDE_DIRECTORIES(
     ${BUILD_PATH}/src
     ${BUILD_PATH}/src/client
     include
+    ../unit/include
     ../integration/include
-    )
+)
 
 add_subdirectory(${BUILD_PATH}/tests/gtest_1.7.0 gtest)
 ADD_DEFINITIONS(-DGTESTING)
 AUX_SOURCE_DIRECTORY(../integration/ GTEST_SRC)
+AUX_SOURCE_DIRECTORY(../unit/codec CODEC_SRC)
 #AUX_SOURCE_DIRECTORY(./codec GTEST_CODEC_SRC)
 
 IF(GCOV)
@@ -32,3 +34,10 @@ ADD_EXECUTABLE(integ-test
     ${GTEST_SRC})
 
 TARGET_LINK_LIBRARIES(integ-test gtest libssdb-client-static libutil-static)
+
+
+ADD_EXECUTABLE(codec-test
+        ../unit/gtest_main.cc
+    ${CODEC_SRC})
+
+TARGET_LINK_LIBRARIES(codec-test gtest libcodec-static libutil-static)

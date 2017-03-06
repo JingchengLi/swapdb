@@ -15,7 +15,6 @@ INCLUDE_DIRECTORIES(
     ${BUILD_PATH}/src
     ${BUILD_PATH}/src/client
     ${BUILD_PATH}/tests/gtest_1.7.0/include
-    ${BUILD_PATH}/src/codec/
     include
     )
 

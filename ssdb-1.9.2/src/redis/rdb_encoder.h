@@ -5,17 +5,11 @@
 #ifndef SSDB_RDB_ENCODER_H
 #define SSDB_RDB_ENCODER_H
 
-#include <sstream>
 #include <string>
-#include <netinet/in.h>
-#include <util/strings.h>
 #include "rdb.h"
 
 class RdbEncoder {
 public:
-    void encodeHeader() {
-
-    }
 
     int rdbWriteRaw(void *p, size_t n) {
         w.append((const char *) p, n);

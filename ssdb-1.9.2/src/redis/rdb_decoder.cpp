@@ -3,6 +3,8 @@
 //
 
 #include "rdb_decoder.h"
+#include "util/bytes.h"
+#include <netinet/in.h>
 
 extern "C" {
 #include "lzf.h"
@@ -120,7 +122,6 @@ std::string RdbDecoder::rdbLoadLzfStringObject(int *ret) {
 
     t_val = (char *) zmalloc(len);
     if (lzf_decompress(tmp_c.data(), clen, t_val, len) == 0) {
-        log_error("Invalid LZF compressed string %s %s", strerror(errno), hexmem(tmp_c.data(), tmp_c.length()).c_str());
         free(t_val);
         *ret = -1;
         return "";

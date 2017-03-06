@@ -6,11 +6,8 @@
 #define SSDB_RDB_DECODER_H
 
 #include <cstring>
-#include <util/bytes.h>
 #include "string"
 #include "rdb.h"
-#include <netinet/in.h>
-#include <util/log.h>
 
 
 class RdbDecoder {
