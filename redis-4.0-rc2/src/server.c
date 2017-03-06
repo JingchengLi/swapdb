@@ -1461,6 +1461,8 @@ void createSharedObjects(void) {
         shared.transfersnapshotnok = sdsnew("rr_transfer_snapshot nok");
         shared.transfersnapshotfinished = sdsnew("rr_transfer_snapshot finished");
         shared.transfersnapshotunfinished = sdsnew("rr_transfer_snapshot unfinished");
+        shared.delsnapshotok = sdsnew("rr_del_snapshot ok");
+        shared.delsnapshotnok = sdsnew("rr_del_snapshot nok");
     }
 }
 

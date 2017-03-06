@@ -785,7 +785,8 @@ struct sharedObjectsStruct {
     sds minstring, maxstring;
     /* jdjr-mdoe shared sds. */
     sds checkwriteok, checkwritenok, makesnapshotok, makesnapshotnok,
-        transfersnapshotok, transfersnapshotnok, transfersnapshotfinished, transfersnapshotunfinished;
+        transfersnapshotok, transfersnapshotnok, transfersnapshotfinished,
+        transfersnapshotunfinished, delsnapshotok, delsnapshotnok;
 };
 
 /* ZSETs use a specialized version of Skiplists */

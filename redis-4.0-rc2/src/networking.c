@@ -916,6 +916,30 @@ int handleResponseOfPsync(client *c, sds replyString) {
     return process_status;
 }
 
+int handleResponseOfDelSnapshot(client *c, sds replyString) {
+    int process_status;
+    UNUSED(c);
+
+    if (!sdscmp(replyString, shared.delsnapshotok)) {
+        server.ssdb_status = SSDB_NONE;
+        process_status = C_OK;
+    } else if (!sdscmp(replyString, shared.delsnapshotnok)) {
+        /* Notify ssdb to release snapshot once more. */
+        /* TODO: limit retry times. */
+        sds cmdsds = sdsnew("*1\r\n$15\r\nrr_del_snapshot\r\n");
+
+        /* TODO: maybe we can retry if rr_del_snapshot fails. but it's also
+         * the duty of SSDB party to delete snapshot by rule.*/
+        if (sendCommandToSSDB(server.ssdb_replication_client, cmdsds) != C_OK) {
+            serverLog(LL_WARNING, "Sending rr_del_snapshot to SSDB failed.");
+        }
+        process_status = C_OK;
+    } else
+        process_status = C_ERR;
+
+    return process_status;
+}
+
 int handleResponseOfTransferSnapshot(client *c, sds replyString) {
     int process_status;
     sdstolower(replyString);
@@ -1060,6 +1084,17 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
         && (reply && reply->type == REDIS_REPLY_STRING)
         && (replyString = sdsnew(reply->str))
         && handleResponseOfTransferSnapshot(c, replyString) == C_OK) {
+        serverAssert(c->bufpos >= add_reply_len);
+        c->bufpos -= add_reply_len;
+        goto cleanup;
+    }
+
+    /* Handle the respons of rr_del_snapshot. */
+    if (c == server.ssdb_replication_client
+        && server.ssdb_status == MASTER_SSDB_SNAPSHOT_OK
+        && (reply && reply->type == REDIS_REPLY_STRING)
+        && (replyString = sdsnew(reply->str))
+        && handleResponseOfDelSnapshot(c, replyString) == C_OK) {
         serverAssert(c->bufpos >= add_reply_len);
         c->bufpos -= add_reply_len;
         goto cleanup;

@@ -2722,7 +2722,6 @@ void replicationCron(void) {
         if (max_replstate >= SLAVE_STATE_SEND_BULK_FINISHED
             && !has_slave_in_transfer) {
             /* Notify ssdb to release snapshot. */
-            server.ssdb_status = SSDB_NONE;
             sds cmdsds = sdsnew("*1\r\n$15\r\nrr_del_snapshot\r\n");
 
             /* TODO: maybe we can retry if rr_del_snapshot fails. but it's also
