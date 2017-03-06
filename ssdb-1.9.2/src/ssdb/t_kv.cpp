@@ -579,6 +579,11 @@ int SSDBImpl::getrange(const Bytes &key, int64_t start, int64_t end, std::string
 /*
  * General API
  */
+int SSDBImpl::redisCursorCleanup() {
+    redisCursorService.ClearExpireRedisCursor();
+    return 0;
+}
+
 int SSDBImpl::type(const Bytes &key, std::string *type) {
     *type = "none";
 

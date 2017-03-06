@@ -120,6 +120,7 @@ DEF_PROC(dbsize);
 DEF_PROC(compact);
 DEF_PROC(flushdb);
 
+DEF_PROC(cursor_cleanup);
 DEF_PROC(debug);
 DEF_PROC(dump);
 DEF_PROC(restore);
@@ -247,6 +248,7 @@ void SSDBServer::reg_procs(NetworkServer *net){
 	REG_PROC(qset, "wt");
 	REG_PROC(qtrim, "wt");
 
+	REG_PROC(cursor_cleanup, "rt");
 	REG_PROC(dump, "wt"); //auctual read but ...
 	REG_PROC(restore, "wt");
 	REG_PROC(rr_dump, "wt"); //auctual read but ...
@@ -288,7 +290,6 @@ SSDBServer::SSDBServer(SSDB *ssdb, SSDB *meta, const Config &conf, NetworkServer
 	net->data = this;
 	this->reg_procs(net);
 
-	int sync_speed = conf.get_num("replication.sync_speed");
 
 	backend_dump = new BackendDump(this->ssdb);
 	expiration = new ExpirationHandler(this->ssdb);
@@ -456,6 +457,16 @@ int proc_dump(NetworkServer *net, Link *link, const Request &req, Response *resp
 	return 0;
 }
 
+
+int proc_cursor_cleanup(NetworkServer *net, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *)net->data;
+	CHECK_NUM_PARAMS(2);
+
+	log_debug("cleanup redis cursor");
+	serv->ssdb->redisCursorCleanup();
+
+	return 0;
+}
 
 
 int proc_rr_restore(NetworkServer *net, Link *link, const Request &req, Response *resp){

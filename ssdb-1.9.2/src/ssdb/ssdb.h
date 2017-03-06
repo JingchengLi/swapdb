@@ -151,6 +151,8 @@ public:
 	virtual int eget(const Bytes &key, int64_t *ts) = 0;
     virtual int check_meta_key(const Bytes &key) = 0;
 
+	virtual int redisCursorCleanup() = 0;
+
 };
 
 

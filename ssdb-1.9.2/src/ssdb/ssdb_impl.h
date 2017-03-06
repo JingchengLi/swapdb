@@ -59,13 +59,13 @@ private:
 	friend class SSDB;
 	leveldb::DB* ldb;
 	leveldb::Options options;
-	
-	SSDBImpl();
-public:
-    ExpirationHandler *expiration;
 
 	RedisCursorService redisCursorService;
-	
+	ExpirationHandler *expiration;
+
+	SSDBImpl();
+public:
+
 	virtual ~SSDBImpl();
 
 	virtual int flushdb();
@@ -209,6 +209,7 @@ public:
 	virtual int edel_one(leveldb::WriteBatch &batch, const Bytes &key);
     virtual int check_meta_key(const Bytes &key);
 
+	virtual int redisCursorCleanup();
 
 	//TODO
 	int GetZSetItemVal(const std::string &item_key, double *score);

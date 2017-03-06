@@ -41,6 +41,8 @@ private:
 
 	int num_readers;
 	int num_writers;
+	int num_transfers;
+
 	ProcWorkerPool *writer;
 	ProcWorkerPool *reader;
 

@@ -21,6 +21,8 @@ static DEF_PROC(auth);
 
 #define TICK_INTERVAL          100 // ms
 #define STATUS_REPORT_TICKS    (300 * 1000/TICK_INTERVAL) // second
+#define CURSOR_CLEANUP_TICKS    (60 * 1000/TICK_INTERVAL) // second
+
 static const int READER_THREADS = 10;
 static const int WRITER_THREADS = 1;  // 必须为1, 因为某些写操作依赖单线程
 
@@ -44,7 +46,8 @@ void signal_handler(int sig){
 NetworkServer::NetworkServer(){
 	num_readers = READER_THREADS;
 	num_writers = WRITER_THREADS;
-	
+	num_transfers = READER_THREADS;
+
 	tick_interval = TICK_INTERVAL;
 	status_report_ticks = STATUS_REPORT_TICKS;
 
@@ -216,7 +219,7 @@ void NetworkServer::serve(){
 	reader->start(num_readers);
 
 	redis = new TransferWorkerPool("transfer");
-	redis->start(10);
+	redis->start(num_transfers);
 
 	ready_list_t ready_list;
 	ready_list_t ready_list_2;
@@ -231,15 +234,30 @@ void NetworkServer::serve(){
 	fdes->set(this->writer->fd(), FDEVENT_IN, 0, this->writer);
 	fdes->set(this->redis->fd(), FDEVENT_IN, 0, this->redis);
 
-	uint32_t last_ticks = g_ticks;
-	
+	uint32_t status_ticks = g_ticks;
+	uint32_t cursor_ticks = g_ticks;
+
 	while(!quit){
 		double loop_stime = millitime();
 
 		// status report
-		if((uint32_t)(g_ticks - last_ticks) >= STATUS_REPORT_TICKS){
-			last_ticks = g_ticks;
+		if((uint32_t)(g_ticks - status_ticks) >= STATUS_REPORT_TICKS){
+			status_ticks = g_ticks;
 			log_info("server running, links: %d", this->link_count);
+		}
+
+		if((uint32_t)(g_ticks - cursor_ticks) >= CURSOR_CLEANUP_TICKS){
+			cursor_ticks = g_ticks;
+			Command *cmd = proc_map.get_proc("cursor_cleanup");
+			if(!cmd){
+				log_fatal("");
+			} else {
+				Request request;
+				Response response;
+				request.push_back("cursor_cleanup");
+				request.push_back("1000");
+				cmd->proc(this, nullptr, request, &response);
+			}
 		}
 		
 		ready_list.swap(ready_list_2);
