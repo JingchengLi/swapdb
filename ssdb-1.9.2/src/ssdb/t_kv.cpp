@@ -581,7 +581,7 @@ int SSDBImpl::getrange(const Bytes &key, int64_t start, int64_t end, std::string
  */
 int SSDBImpl::type(const Bytes &key, std::string *type) {
     *type = "none";
-    int ret = 0;
+
     std::string val;
     std::string meta_key = encode_meta_key(key);
     leveldb::Status s = ldb->Get(leveldb::ReadOptions(), meta_key, &val);
