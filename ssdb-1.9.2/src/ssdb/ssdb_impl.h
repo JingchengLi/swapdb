@@ -139,8 +139,6 @@ public:
 //	virtual HIterator* hscan(const Bytes &name, const Bytes &start, const Bytes &end, uint64_t limit);
 	virtual int hscan(const Bytes &name, const Bytes& cursor, const std::string &pattern, uint64_t limit, std::vector<std::string> &resp);
 
-	int     GetHashMetaVal(const std::string &meta_key, HashMetaVal &hv);
-    int     GetHashItemValInternal(const std::string &item_key, std::string *val);
 
     /*  list  */
     virtual int LIndex(const Bytes &key, const int64_t index, std::string *val);
@@ -155,7 +153,6 @@ public:
 	virtual int lrange(const Bytes &key, int64_t start, int64_t end, std::vector<std::string> *list);
 	virtual int ltrim(const Bytes &key, int64_t start, int64_t end);
 
-    int     GetListItemVal(const std::string& item_key, std::string* val, const leveldb::ReadOptions& options=leveldb::ReadOptions());
 
 	int 	doListPop(leveldb::WriteBatch &batch, ListMetaVal &meta_val, const Bytes &key, std::string &meta_key,
 					 LIST_POSTION lp, std::string *val);
@@ -207,8 +204,6 @@ public:
 
 	virtual int64_t zfix(const Bytes &name);
 
-	int GetZSetMetaVal(const std::string &meta_key, ZSetMetaVal &zv);
-	int GetZSetItemVal(const std::string &item_key, double *score);
 
 
 	/* eset */
@@ -228,25 +223,31 @@ private:
     int del_key_internal(leveldb::WriteBatch &batch, const Bytes &key);
     int mark_key_deleted(leveldb::WriteBatch &batch, const Bytes &key, const std::string &meta_key, std::string &meta_val);
 
+    int GetHashMetaVal(const std::string &meta_key, HashMetaVal &hv);
+    int GetHashItemValInternal(const std::string &item_key, std::string *val);
     HIterator* hscan_internal(const Bytes &name, const Bytes &start, const Bytes &end, uint16_t version, uint64_t limit, const leveldb::Snapshot *snapshot=nullptr);
 
     int GetSetMetaVal(const std::string &meta_key, SetMetaVal &sv);
     int GetSetItemValInternal(const std::string &item_key);
-	int incr_ssize(leveldb::WriteBatch &batch, const SetMetaVal &sv, const std::string &meta_key,const Bytes &key, int64_t incr);
     SIterator* sscan_internal(const Bytes &name, const Bytes &start, const Bytes &end, uint16_t version, uint64_t limit, const leveldb::Snapshot *snapshot=nullptr);
+    int incr_ssize(leveldb::WriteBatch &batch, const SetMetaVal &sv, const std::string &meta_key,const Bytes &key, int64_t incr);
     int sunion_internal(const std::vector<Bytes> &keys, int offset, std::set<std::string>& members);
-	int saddNoLock(const Bytes &key, const std::set<Bytes> &mem_set, int64_t *num);
 
-	int GetListMetaVal(const std::string &meta_key, ListMetaVal &lv);
+    int GetListItemVal(const std::string& item_key, std::string* val, const leveldb::ReadOptions& options=leveldb::ReadOptions());
+    int GetListMetaVal(const std::string &meta_key, ListMetaVal &lv);
 
-	ZIterator* zscan_internal(const Bytes &name, const Bytes &key_start,
+    int GetZSetMetaVal(const std::string &meta_key, ZSetMetaVal &zv);
+
+    int GetZSetItemVal(const std::string &item_key, double *score);
+    ZIterator* zscan_internal(const Bytes &name, const Bytes &key_start,
 										const Bytes &score_start, const Bytes &score_end,
 										uint64_t limit, Iterator::Direction direction, uint16_t version,
 										const leveldb::Snapshot *snapshot=nullptr);
 
 	int setNoLock(const Bytes &key, const Bytes &val, int flags);
-	int hmsetNoLock(const Bytes &name, const std::map<Bytes,Bytes> &kvs, bool check_exists);
-	int rpushNoLock(const Bytes &key, const std::vector<Bytes> &val, int offset, uint64_t *llen);
+    int saddNoLock(const Bytes &key, const std::set<Bytes> &mem_set, int64_t *num);
+    int hmsetNoLock(const Bytes &name, const std::map<Bytes,Bytes> &kvs, bool check_exists);
+    int rpushNoLock(const Bytes &key, const std::vector<Bytes> &val, int offset, uint64_t *llen);
 	int zsetNoLock(const Bytes &name, const std::map<Bytes ,Bytes> &sortedSet, int flags);
 	int zdelNoLock(const Bytes &name, const std::set<Bytes> &keys);
     int zrangeGeneric(const Bytes &name, const Bytes &begin, const Bytes &limit, std::vector<string> &key_score, int reverse);
