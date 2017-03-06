@@ -230,6 +230,11 @@ int proc_zsize(NetworkServer *net, Link *link, const Request &req, Response *res
 	CHECK_NUM_PARAMS(2);
 
 	int64_t ret = serv->ssdb->zsize(req[1]);
+    if (ret < 0) {
+        resp->push_back("error");
+        resp->push_back(GetErrorInfo((int)ret));
+        return 0;
+    }
 	resp->reply_int(ret, ret);
 	return 0;
 }
