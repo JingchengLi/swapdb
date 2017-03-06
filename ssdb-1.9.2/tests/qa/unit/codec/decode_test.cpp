@@ -1,5 +1,6 @@
 #include "gtest/gtest.h"
 #include "ssdb/const.h"
+#include "util/error.h"
 #include "decode.h"
 #include "encode.h"
 #include "ssdb_test.h"
@@ -216,10 +217,12 @@ TEST_F(DecodeTest, Test_Kv_DecodeMetaVal) {
     compare_KvMetaVal("", 0, 'D');
     //
     // error return
-    string dummyMetaVal [] = {"","k1", "X00", "X00Eval","k00Xval"};
+    string dummyMetaVal [] = {"","k1","X00","k00Xval"};
     KvMetaVal metaval;
     for(int n = 0; n < sizeof(dummyMetaVal)/sizeof(string); n++)
         EXPECT_EQ(-1, metaval.DecodeMetaVal(dummyMetaVal[n]));
+
+    EXPECT_EQ(WRONG_TYPE_ERR, metaval.DecodeMetaVal("X00Eval"));
 } 
 
 void compare_MetaVal(uint64_t length, uint16_t version, char del){
@@ -264,10 +267,12 @@ TEST_F(DecodeTest, Test_DecodeMetaVal) {
     }
 
     // error return
-    string dummyMetaVal [] = {"", "S1", "Z11", "X11E00010000", "H11X00010000", "H11E01"};
+    string dummyMetaVal [] = {"", "S1", "Z11", "H11X00010000", "H11E01"};
     MetaVal metaval;
     for(int n = 0; n < sizeof(dummyMetaVal)/sizeof(string); n++)
         EXPECT_EQ(-1, metaval.DecodeMetaVal(dummyMetaVal[n]))<<dummyMetaVal[n];
+
+    EXPECT_EQ(WRONG_TYPE_ERR, metaval.DecodeMetaVal("X11E00010000"));
 } 
 
 
@@ -305,11 +310,13 @@ TEST_F(DecodeTest, Test_List_DecodeMetaVal) {
     }
 
     // error return
-    string dummyMetaVal [] = {"", "L1", "L11", "X11E000100002222222233333333", "L11X000100002222222233333333", "L11E00010", \
+    string dummyMetaVal [] = {"", "L1", "L11", "L11X000100002222222233333333", "L11E00010", \
         "L11E000100002222222", "L11E00010000222222223333333"};
     ListMetaVal metaval;
     for(int n = 0; n < sizeof(dummyMetaVal)/sizeof(string); n++)
         EXPECT_EQ(-1, metaval.DecodeMetaVal(dummyMetaVal[n]))<<dummyMetaVal[n];
+
+    EXPECT_EQ(WRONG_TYPE_ERR, metaval.DecodeMetaVal("X11E000100002222222233333333"));
 } 
 
 void compare_DeleteKey(const string &key, uint16_t version){

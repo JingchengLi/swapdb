@@ -75,12 +75,12 @@ SET( SSDB_OBJS
     ${BUILD_PATH}/src/ssdb/t_kv.cpp
     ${BUILD_PATH}/src/ssdb/t_hash.cpp
     ${BUILD_PATH}/src/ssdb/t_zset.cpp
-    ${BUILD_PATH}/src/ssdb/t_queue.cpp
-    ${BUILD_PATH}/src/ssdb/binlog.cpp
     ${BUILD_PATH}/src/ssdb/ttl.cpp
     ${BUILD_PATH}/src/ssdb/t_list.cpp
     ${BUILD_PATH}/src/ssdb/t_set.cpp
     ${BUILD_PATH}/src/ssdb/t_eset.cpp
+    ${BUILD_PATH}/src/ssdb/internal_error.cpp
+    ${BUILD_PATH}/src/ssdb/t_cursor.cpp
 )
 
 ADD_LIBRARY(libssdb-static STATIC ${SSDB_OBJS})                                                                                                                                                  
