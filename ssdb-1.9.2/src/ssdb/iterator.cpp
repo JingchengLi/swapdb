@@ -234,6 +234,43 @@ bool ZIterator::next(){
 	return false;
 }
 
+ZIteratorByLex::ZIteratorByLex(Iterator *it, const Bytes &name, uint16_t version) {
+	this->it = it;
+	this->name.assign(name.data(), name.size());
+	this->version = version;
+}
+
+ZIteratorByLex::~ZIteratorByLex() {
+	delete it;
+}
+
+bool ZIteratorByLex::skip(uint64_t offset) {
+	while(offset-- > 0){
+		if(this->next() == false){
+			return false;
+		}
+	}
+	return true;
+}
+
+bool ZIteratorByLex::next() {
+	while(it->next()){
+		Bytes ks = it->key();
+
+		ZSetItemKey zk;
+		if(zk.DecodeItemKey(ks) == -1){
+			continue;
+		}
+		if(zk.key != this->name || zk.version != this->version){
+			return false;
+		}
+		this->key = zk.field;
+
+		return true;
+	}
+	return false;
+}
+
 
 //TODO impl ?
 LIterator::LIterator(Iterator *it, const Bytes &name, uint16_t version) {

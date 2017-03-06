@@ -273,3 +273,20 @@ int proc_sscan(NetworkServer *net, Link *link, const Request &req, Response *res
 
     return 0;
 }
+
+int proc_zlexcount(NetworkServer *net, Link *link, const Request &req, Response *resp){
+    CHECK_NUM_PARAMS(4);
+    SSDBServer *serv = (SSDBServer *)net->data;
+
+    int64_t count = serv->ssdb->zlexcount(req[1], req[2], req[3]);
+    if (count < 0){
+        resp->push_back("error");
+        resp->push_back(GetErrorInfo(SYNTAX_ERR));
+        return 0;
+    }
+
+    resp->reply_int(0, count);
+
+    return 0;
+}
+

@@ -431,6 +431,24 @@ ZIterator* SSDBImpl::zscan_internal(const Bytes &name, const Bytes &key_start,
     }
 }
 
+ZIteratorByLex* SSDBImpl::zscanbylex_internal(const Bytes &name, const Bytes &key_start, const Bytes &key_end,
+                                         uint64_t limit, Iterator::Direction direction, uint16_t version,
+                                         const leveldb::Snapshot *snapshot) {
+    std::string start, end;
+    start = encode_zset_key(name, key_start, version);
+    if (key_end != "") {
+        end = encode_zset_key(name, key_end, version);
+    } else{
+        end = "";
+    }
+
+    if (direction == Iterator::FORWARD) {
+        return new ZIteratorByLex(this->iterator(start, end, limit, snapshot), name, version);
+    } else {
+        return new ZIteratorByLex(this->rev_iterator(start, end, limit, snapshot), name, version);
+    }
+}
+
 int64_t SSDBImpl::zrank(const Bytes &name, const Bytes &key) {
     ZSetMetaVal zv;
     const leveldb::Snapshot* snapshot = nullptr;
@@ -896,6 +914,109 @@ static int incr_zsize(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const ZSetMeta
         }
     }
     return 0;
+}
+
+/* Struct to hold an inclusive/exclusive range spec by lexicographic comparison. */
+typedef struct {
+    std::string min, max;     /* May be set to shared.(minstring|maxstring) */
+    int minex, maxex; /* are min or max exclusive? */
+} zlexrangespec;
+
+int zslParseLexRangeItem(const Bytes &item, std::string *dest, int *ex) {
+    std::string tmp(item.data()+1, item.size()-1);
+    switch(item[0]) {
+        case '+':
+            if (item[1] != '\0') return -1;
+            *ex = 0;
+            *dest = "";
+            return 0;
+        case '-':
+            if (item[1] != '\0') return -1;
+            *ex = 0;
+            *dest = "";
+            return 0;
+        case '(':
+            *ex = 1;
+            *dest = tmp;
+            return 0;
+        case '[':
+            *ex = 0;
+            *dest = tmp;
+            return 0;
+        default:
+            return -1;
+    }
+}
+
+int zslParseLexRange(const Bytes &min, const Bytes &max, zlexrangespec *spec) {
+    /* The range can't be valid if objects are integer encoded.
+     * Every item must start with ( or [. */
+
+    spec->min = spec->max = "";
+    if (zslParseLexRangeItem(min, &spec->min, &spec->minex) == -1 ||
+        zslParseLexRangeItem(max, &spec->max, &spec->maxex) == -1) {
+        return SYNTAX_ERR;
+    } else {
+        return 0;
+    }
+}
+
+int zslLexValueGteMin(std::string value, zlexrangespec *spec) {
+    return spec->minex ?
+           (value > spec->min) :
+           (value >= spec->min);
+}
+
+int zslLexValueLteMax(std::string value, zlexrangespec *spec) {
+    if (spec->max == "")
+        return 1;
+    return spec->maxex ?
+           (value < spec->max) :
+           (value <= spec->max);
+}
+
+int64_t SSDBImpl::zlexcount(const Bytes &name, const Bytes &key_start, const Bytes &key_end) {
+    zlexrangespec range;
+    int count = 0;
+
+    /* Parse the range arguments */
+    if (zslParseLexRange(key_start,key_end,&range) != 0) {
+        return SYNTAX_ERR;
+    }
+    if ((range.min > range.max)  ||
+        (range.min == range.max &&
+         (range.minex || range.maxex)))
+        return SYNTAX_ERR;
+
+
+    ZSetMetaVal zv;
+    const leveldb::Snapshot* snapshot = nullptr;
+    {
+        RecordLock l(&mutex_record_, name.String());
+        std::string meta_key = encode_meta_key(name);
+        int ret = GetZSetMetaVal(meta_key, zv);
+        if (ret <= 0) {
+            return ret;
+        }
+        snapshot = ldb->GetSnapshot();
+    }
+    SnapshotPtr spl(ldb, snapshot); //auto release
+
+    auto it = std::unique_ptr<ZIteratorByLex>(this->zscanbylex_internal(name, range.min, range.max, -1, Iterator::FORWARD, zv.version, snapshot));
+    if (it == NULL) {
+        return 0;
+    }
+
+    while (it->next()) {
+        if (zslLexValueGteMin(it->key, &range)){
+            if (zslLexValueLteMax(it->key, &range)){
+                count++;
+            } else
+                break;
+        }
+    }
+
+    return count;
 }
 
 int64_t SSDBImpl::zfix(const Bytes &name) {

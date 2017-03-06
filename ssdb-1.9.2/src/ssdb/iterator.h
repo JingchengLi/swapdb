@@ -117,6 +117,20 @@ private:
 	Iterator *it;
 };
 
+class ZIteratorByLex{
+public:
+	std::string name;
+	std::string key;
+	uint16_t 	version;
+
+	ZIteratorByLex(Iterator *it, const Bytes &name, uint16_t version);
+	~ZIteratorByLex();
+	bool skip(uint64_t offset);
+	bool next();
+private:
+	Iterator *it;
+};
+
 class LIterator{
 public:
 	std::string name;

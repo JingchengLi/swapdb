@@ -98,6 +98,7 @@ DEF_PROC(multi_zsize);
 DEF_PROC(multi_zget);
 DEF_PROC(multi_zset);
 DEF_PROC(multi_zdel);
+DEF_PROC(zlexcount);
 	
 DEF_PROC(qsize);
 DEF_PROC(qpush_front);
@@ -231,6 +232,7 @@ void SSDBServer::reg_procs(NetworkServer *net){
 	REG_PROC(multi_zget, "rt");
 	REG_PROC(multi_zset, "wt");
 	REG_PROC(multi_zdel, "wt");
+    REG_PROC(zlexcount, "rt");
 
 	REG_PROC(qsize, "rt");
 	REG_PROC(qpush_frontx, "wt");
