@@ -431,20 +431,6 @@ int proc_zscan(NetworkServer *net, Link *link, const Request &req, Response *res
     return 0;
 }
 
-int proc_zkeys(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
-	CHECK_NUM_PARAMS(6);
-
-	uint64_t limit = req[5].Uint64();
-	auto it = std::unique_ptr<ZIterator>(serv->ssdb->zscan(req[1], req[2], req[3], req[4], limit));
-	resp->push_back("ok");
-	while(it->next()){
-		resp->push_back(it->key);
-	}
-
-	return 0;
-}
-
 
 // dir := +1|-1
 static int _zincr(SSDB *ssdb, const Request &req, Response *resp, int dir){

@@ -89,7 +89,6 @@ DEF_PROC(zincr);
 DEF_PROC(zdecr);
 DEF_PROC(zfix);
 DEF_PROC(zscan);
-DEF_PROC(zkeys);
 DEF_PROC(zcount);
 DEF_PROC(zexists);
 DEF_PROC(zremrangebyrank);
@@ -223,7 +222,6 @@ void SSDBServer::reg_procs(NetworkServer *net){
 	REG_PROC(zdecr, "wt");
 	REG_PROC(zfix, "wt");
 	REG_PROC(zscan, "rt");
-	REG_PROC(zkeys, "rt");
 	REG_PROC(zcount, "rt");
 	REG_PROC(zremrangebyrank, "wt");
 	REG_PROC(zremrangebyscore, "wt");
@@ -347,9 +345,12 @@ int proc_debug(NetworkServer *net, Link *link, const Request &req, Response *res
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(2);
 
-	const std::string &action = req[1].String();
+	std::string action = req[1].String();
+	strtolower(&action);
 
-	if (action == "populate") {
+	if (action == "segfault") {
+		*((char*)-1) = 'x';
+	} else if (action == "populate") {
 		CHECK_NUM_PARAMS(3);
 
 		int64_t count = req[2].Int64();
