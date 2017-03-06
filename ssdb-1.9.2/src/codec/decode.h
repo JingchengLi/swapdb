@@ -105,10 +105,6 @@ public:
 };
 
 
-
-#define POS_TYPE 0
-#define POS_DEL  3
-
 double decodeScore(const int64_t score);
 
 

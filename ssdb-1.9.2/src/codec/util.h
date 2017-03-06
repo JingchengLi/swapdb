@@ -5,8 +5,6 @@
 #ifndef SSDB_UTIL_H
 #define SSDB_UTIL_H
 
-#include "ssdb/const.h"
-
 #include <stdlib.h>
 #include <stdint.h>
 #include <string>
@@ -14,6 +12,10 @@ using namespace std;
 
 #define KEY_DELETE_MASK 'D'
 #define KEY_ENABLED_MASK 'E'
+
+
+#define POS_TYPE 0
+#define POS_DEL  3
 
 #define ZSET_SCORE_SHIFT 1000000000000000000LL
 
@@ -46,31 +48,24 @@ unsigned int keyHashSlot(const char *key, int keylen);
 
 class DataType{
 public:
-    static const char SYNCLOG	= 1;
 
     static const char META		= 'M'; // meta key
-    static const char KV		= 'k';
-    static const char HASH		= 'h'; // TODO CHAECK AND DELETE ! hashmap(sorted by key)
+    static const char KV		= 'k'; // meta value string
     static const char HSIZE		= 'H'; // meta value hash
     static const char ZSIZE		= 'Z'; // meta value zset
     static const char SSIZE		= 'S'; // meta value set
     static const char LSIZE		= 'L'; // meta value list
 
-    static const char ITEM		= 'S'; // meta value set
+    static const char ITEM		= 'S'; // meta value item
 
-    static const char ZSET		= 's'; // TODO CHAECK AND DELETE !   key => score
     static const char ZSCORE	= 'z';
 
-    static const char BQUEUE	= 'B'; // background queue
+//    static const char BQUEUE	= 'B'; // background queue
     static const char ESCORE	= 'T'; // expire key
     static const char EKEY   	= 'E'; // expire timestamp key
-    static const char QUEUE		= 'q'; // TODO CHAECK AND DELETE !
-    static const char QSIZE		= 'Q'; // TODO CHAECK AND DELETE !
 
-    static const char DELETE	= 'D';
+    static const char DELETE	= KEY_DELETE_MASK;
 
-    static const char MIN_PREFIX = HASH;
-    static const char MAX_PREFIX = ZSET;
 };
 
 #endif //SSDB_UTIL_H
