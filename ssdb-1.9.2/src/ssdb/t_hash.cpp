@@ -377,7 +377,7 @@ int SSDBImpl::hgetall(const Bytes &name, std::map<std::string, std::string> &val
 
 	SnapshotPtr spl(ldb, snapshot);
 
-	HIterator* hi = hscan_internal(name, "", "", hv.version, -1, snapshot);
+	HIterator* hi = hscan_internal(name, "", hv.version, -1, snapshot);
 	if (hi == nullptr) {
 		return -1;
 	}
@@ -408,14 +408,11 @@ int SSDBImpl::hgetall(const Bytes &name, std::map<std::string, std::string> &val
 //}
 
 
-HIterator* SSDBImpl::hscan_internal(const Bytes &name, const Bytes &start, const Bytes &end, uint16_t version, uint64_t limit,
+HIterator* SSDBImpl::hscan_internal(const Bytes &name, const Bytes &start, uint16_t version, uint64_t limit,
 									const leveldb::Snapshot *snapshot){
-    std::string key_start, key_end;
 
+    std::string key_start, key_end;
     key_start = encode_hash_key(name, start, version);
-    if(!end.empty()){
-        key_end = encode_hash_key(name, end, version);
-    }
 
     return new HIterator(this->iterator(key_start, key_end, limit, snapshot), name, version);
 }

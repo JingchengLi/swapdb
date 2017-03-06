@@ -5,7 +5,7 @@
 
 
 
-int SSDBImpl::GetListItemVal(const std::string &item_key, std::string *val, const leveldb::ReadOptions& options) {
+int SSDBImpl::GetListItemValInternal(const std::string &item_key, std::string *val, const leveldb::ReadOptions &options) {
     leveldb::Status s = ldb->Get(options, item_key, val);
     if (s.IsNotFound()){
         return 0;
@@ -59,7 +59,7 @@ int SSDBImpl::LIndex(const Bytes &key, const int64_t index, std::string *val) {
     if (1 == s){
         sequence = getSeqByIndex(index, lv);
         std::string item_key = encode_list_key(key, sequence, lv.version);
-        s = GetListItemVal(item_key, val);
+        s = GetListItemValInternal(item_key, val);
         return s;
     }
     return s;
@@ -135,7 +135,7 @@ int SSDBImpl::doListPop(leveldb::WriteBatch &batch, ListMetaVal &meta_val,
     }
 
     std::string last_item_key = encode_list_key(key, item_seq, meta_val.version);
-    int ret = GetListItemVal(last_item_key, val);
+    int ret = GetListItemValInternal(last_item_key, val);
     if (1 == ret) {
         uint64_t len = meta_val.length - 1;
 
@@ -600,7 +600,7 @@ int SSDBImpl::lrange(const Bytes &key, int64_t start, int64_t end, std::vector<s
     while (rangelen--){
         std::string val;
         std::string item_key = encode_list_key(key, cur_seq, meta_val.version);
-        ret = GetListItemVal(item_key, &val, readOptions);
+        ret = GetListItemValInternal(item_key, &val, readOptions);
         if (1 != ret){
             list->clear();
             return -1;

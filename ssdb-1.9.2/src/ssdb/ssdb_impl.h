@@ -224,17 +224,17 @@ private:
 
     int GetHashMetaVal(const std::string &meta_key, HashMetaVal &hv);
     int GetHashItemValInternal(const std::string &item_key, std::string *val);
-    HIterator* hscan_internal(const Bytes &name, const Bytes &start, const Bytes &end, uint16_t version, uint64_t limit, const leveldb::Snapshot *snapshot=nullptr);
+    HIterator* hscan_internal(const Bytes &name, const Bytes &start, uint16_t version, uint64_t limit, const leveldb::Snapshot *snapshot=nullptr);
     int incr_hsize(leveldb::WriteBatch &batch, const std::string &size_key, HashMetaVal &hv, const Bytes &name, int64_t incr);
     int hset_one(leveldb::WriteBatch &batch, const HashMetaVal &hv, bool check_exists, const Bytes &name, const Bytes &key, const Bytes &val);
 
     int GetSetMetaVal(const std::string &meta_key, SetMetaVal &sv);
     int GetSetItemValInternal(const std::string &item_key);
-    SIterator* sscan_internal(const Bytes &name, const Bytes &start, const Bytes &end, uint16_t version, uint64_t limit, const leveldb::Snapshot *snapshot=nullptr);
+    SIterator* sscan_internal(const Bytes &name, const Bytes &start, uint16_t version, uint64_t limit, const leveldb::Snapshot *snapshot=nullptr);
     int incr_ssize(leveldb::WriteBatch &batch, const SetMetaVal &sv, const std::string &meta_key,const Bytes &key, int64_t incr);
     int sunion_internal(const std::vector<Bytes> &keys, int offset, std::set<std::string>& members);
 
-    int GetListItemVal(const std::string& item_key, std::string* val, const leveldb::ReadOptions& options=leveldb::ReadOptions());
+    int GetListItemValInternal(const std::string &item_key, std::string *val, const leveldb::ReadOptions &options = leveldb::ReadOptions());
     int GetListMetaVal(const std::string &meta_key, ListMetaVal &lv);
     int doListPop(leveldb::WriteBatch &batch, ListMetaVal &meta_val, const Bytes &key, std::string &meta_key, LIST_POSTION lp, std::string *val);
     int DoLPush(leveldb::WriteBatch &batch, const Bytes &key, const std::vector<Bytes> &val, int offset, std::string &meta_key, ListMetaVal &meta_val);

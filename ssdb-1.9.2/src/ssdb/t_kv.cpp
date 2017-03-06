@@ -730,7 +730,7 @@ int SSDBImpl::dump(const Bytes &key, std::string *res) {
             rdbEncoder.rdbSaveType(RDB_TYPE_HASH);
             rdbEncoder.rdbSaveLen(hv.length);
 
-            auto it = std::unique_ptr<HIterator>(this->hscan_internal(key, "", "", hv.version, -1, snapshot));
+            auto it = std::unique_ptr<HIterator>(this->hscan_internal(key, "", hv.version, -1, snapshot));
 
 
             uint64_t cnt = 0;
@@ -757,7 +757,7 @@ int SSDBImpl::dump(const Bytes &key, std::string *res) {
             rdbEncoder.rdbSaveType(RDB_TYPE_SET);
             rdbEncoder.rdbSaveLen(sv.length);
 
-            auto it = std::unique_ptr<SIterator>(this->sscan_internal(key, "", "", sv.version, -1, snapshot));
+            auto it = std::unique_ptr<SIterator>(this->sscan_internal(key, "", sv.version, -1, snapshot));
 
             uint64_t cnt = 0;
             while (it->next()) {
@@ -822,7 +822,7 @@ int SSDBImpl::dump(const Bytes &key, std::string *res) {
 
                 std::string item_key = encode_list_key(key, cur_seq, lv.version);
                 std::string item_val;
-                ret = GetListItemVal(item_key, &item_val, readOptions);
+                ret = GetListItemValInternal(item_key, &item_val, readOptions);
                 if (1 != ret) {
                     return -1;
                 }
