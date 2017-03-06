@@ -14,14 +14,16 @@ source support/util.tcl
 set ::all_tests {
     ssdb/hash
     ssdb/list-3
+    ssdb/list-2
     ssdb/list
     ssdb/string
     ssdb/set
     ssdb/incr
     ssdb/expire
     ssdb/other
-    ssdb/zset
+    ssdb/scan
 }
+    #ssdb/zset
 # need run with redis
 # ssdb/dump
 

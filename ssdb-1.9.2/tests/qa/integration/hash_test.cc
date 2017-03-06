@@ -362,7 +362,7 @@ TEST_F(HashTest, Test_hash_hkeys) {
     s = client->multi_del(key);
 }
 
-TEST_F(HashTest, Test_hash_hscan) {
+TEST_F(HashTest, DISABLED_Test_hash_hscan) {
     key = GetRandomKey_();
     s = client->hscan(key, "", "", 2, &list);
     ASSERT_TRUE(s.ok() && list.size() <= 4);
