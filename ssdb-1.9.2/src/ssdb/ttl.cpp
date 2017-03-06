@@ -3,11 +3,8 @@ Copyright (c) 2012-2014 The SSDB Authors. All rights reserved.
 Use of this source code is governed by a BSD-style license that can be
 found in the LICENSE file.
 */
-#include <pthread.h>
-#include <time.h>
-#include <memory>
+#include "ssdb_impl.h"
 #include "../include.h"
-#include "../util/log.h"
 #include "ttl.h"
 
 //#define EXPIRATION_LIST_KEY "\xff\xff\xff\xff\xff|EXPIRE_LIST|KV"

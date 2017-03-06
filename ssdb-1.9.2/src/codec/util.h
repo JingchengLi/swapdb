@@ -42,4 +42,35 @@ using namespace std;
 
 unsigned int keyHashSlot(const char *key, int keylen);
 
+
+
+class DataType{
+public:
+    static const char SYNCLOG	= 1;
+
+    static const char META		= 'M'; // meta key
+    static const char KV		= 'k';
+    static const char HASH		= 'h'; // TODO CHAECK AND DELETE ! hashmap(sorted by key)
+    static const char HSIZE		= 'H'; // meta value hash
+    static const char ZSIZE		= 'Z'; // meta value zset
+    static const char SSIZE		= 'S'; // meta value set
+    static const char LSIZE		= 'L'; // meta value list
+
+    static const char ITEM		= 'S'; // meta value set
+
+    static const char ZSET		= 's'; // TODO CHAECK AND DELETE !   key => score
+    static const char ZSCORE	= 'z';
+
+    static const char BQUEUE	= 'B'; // background queue
+    static const char ESCORE	= 'T'; // expire key
+    static const char EKEY   	= 'E'; // expire timestamp key
+    static const char QUEUE		= 'q'; // TODO CHAECK AND DELETE !
+    static const char QSIZE		= 'Q'; // TODO CHAECK AND DELETE !
+
+    static const char DELETE	= 'D';
+
+    static const char MIN_PREFIX = HASH;
+    static const char MAX_PREFIX = ZSET;
+};
+
 #endif //SSDB_UTIL_H
