@@ -11,6 +11,8 @@ found in the LICENSE file.
 
 #include "leveldb/db.h"
 #include "leveldb/slice.h"
+#include "leveldb/write_batch.h"
+
 #include <memory>
 
 #else
