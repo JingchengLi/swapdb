@@ -726,7 +726,7 @@ void* thread_replic(void *arg){
         response.push_back("rr_transfer_snapshot finished");
         serv->master_link->send(response);
         serv->master_link->flush();
-		log_debug("send replic finish!!");
+		log_debug("send rr_transfer_snapshot finished!!");
     }
 	log_debug("replic procedure finish!");
 
