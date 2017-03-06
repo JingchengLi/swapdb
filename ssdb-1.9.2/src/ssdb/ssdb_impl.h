@@ -153,11 +153,6 @@ public:
 	virtual int ltrim(const Bytes &key, int64_t start, int64_t end);
 
 
-	int 	doListPop(leveldb::WriteBatch &batch, ListMetaVal &meta_val, const Bytes &key, std::string &meta_key,
-					 LIST_POSTION lp, std::string *val);
-
-    int     DoLPush(leveldb::WriteBatch &batch, const Bytes &key, const std::vector<Bytes> &val, int offset, std::string &meta_key, ListMetaVal &meta_val);
-    int     DoRPush(leveldb::WriteBatch &batch, const Bytes &key, const std::vector<Bytes> &val, int offset, std::string &meta_key, ListMetaVal &meta_val);
 
     /* set */
     virtual int sadd(const Bytes &key, const std::set<Bytes> &members, int64_t *num);
@@ -216,8 +211,6 @@ public:
 
 
 	//TODO
-	int GetHashMetaVal(const std::string &meta_key, HashMetaVal &hv);
-	int GetHashItemValInternal(const std::string &item_key, std::string *val);
 	int GetZSetItemVal(const std::string &item_key, double *score);
 
 private:
@@ -228,7 +221,12 @@ private:
     int del_key_internal(leveldb::WriteBatch &batch, const Bytes &key);
     int mark_key_deleted(leveldb::WriteBatch &batch, const Bytes &key, const std::string &meta_key, std::string &meta_val);
 
-   HIterator* hscan_internal(const Bytes &name, const Bytes &start, const Bytes &end, uint16_t version, uint64_t limit, const leveldb::Snapshot *snapshot=nullptr);
+
+    int GetHashMetaVal(const std::string &meta_key, HashMetaVal &hv);
+    int GetHashItemValInternal(const std::string &item_key, std::string *val);
+    HIterator* hscan_internal(const Bytes &name, const Bytes &start, const Bytes &end, uint16_t version, uint64_t limit, const leveldb::Snapshot *snapshot=nullptr);
+    int incr_hsize(leveldb::WriteBatch &batch, const std::string &size_key, HashMetaVal &hv, const Bytes &name, int64_t incr);
+    int hset_one(leveldb::WriteBatch &batch, const HashMetaVal &hv, bool check_exists, const Bytes &name, const Bytes &key, const Bytes &val);
 
     int GetSetMetaVal(const std::string &meta_key, SetMetaVal &sv);
     int GetSetItemValInternal(const std::string &item_key);
@@ -238,9 +236,12 @@ private:
 
     int GetListItemVal(const std::string& item_key, std::string* val, const leveldb::ReadOptions& options=leveldb::ReadOptions());
     int GetListMetaVal(const std::string &meta_key, ListMetaVal &lv);
+    int doListPop(leveldb::WriteBatch &batch, ListMetaVal &meta_val, const Bytes &key, std::string &meta_key, LIST_POSTION lp, std::string *val);
+    int DoLPush(leveldb::WriteBatch &batch, const Bytes &key, const std::vector<Bytes> &val, int offset, std::string &meta_key, ListMetaVal &meta_val);
+    int DoRPush(leveldb::WriteBatch &batch, const Bytes &key, const std::vector<Bytes> &val, int offset, std::string &meta_key, ListMetaVal &meta_val);
+
 
     int GetZSetMetaVal(const std::string &meta_key, ZSetMetaVal &zv);
-
     ZIterator* zscan_internal(const Bytes &name, const Bytes &key_start,
 										const Bytes &score_start, const Bytes &score_end,
 										uint64_t limit, Iterator::Direction direction, uint16_t version,

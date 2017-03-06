@@ -7,9 +7,6 @@ found in the LICENSE file.
 #include <util/error.h>
 #include "ssdb_impl.h"
 
-static int hset_one(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const HashMetaVal &hv, bool check_exists,const Bytes &name, const Bytes &key, const Bytes &val);
-static int incr_hsize(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const std::string &size_key, HashMetaVal &hv, const Bytes &name, int64_t incr);
-
 /**
  * @return -1: error, 0: item updated, 1: new item inserted
  */
@@ -37,7 +34,7 @@ int SSDBImpl::hmsetNoLock(const Bytes &name, const std::map<Bytes ,Bytes> &kvs, 
 		const Bytes &key = it.first;
 		const Bytes &val = it.second;
 
-		int added = hset_one(this ,batch, hv, check_exists, name, key, val);
+		int added = hset_one(batch, hv, check_exists, name, key, val);
 		if(added < 0){
 			return added;
 		}
@@ -49,7 +46,7 @@ int SSDBImpl::hmsetNoLock(const Bytes &name, const std::map<Bytes ,Bytes> &kvs, 
 	}
 
  	if(sum != 0) {
-		if ((ret = incr_hsize(this, batch, meta_key , hv, name, sum)) < 0) {
+		if ((ret = incr_hsize(batch, meta_key , hv, name, sum)) < 0) {
 			return ret;
 		}
 	}
@@ -74,13 +71,13 @@ int SSDBImpl::hset(const Bytes &name, const Bytes &key, const Bytes &val){
         return ret;
     }
 
-    int added = hset_one(this ,batch, hv, true, name, key, val);
+    int added = hset_one(batch, hv, true, name, key, val);
 	if(added < 0) {
 		return added;
 	}
 
 	if(added > 0){
-		if ((ret = incr_hsize(this, batch, meta_key , hv, name, added)) < 0) {
+		if ((ret = incr_hsize(batch, meta_key , hv, name, added)) < 0) {
 			return ret;
 		}
 	}
@@ -117,13 +114,13 @@ int SSDBImpl::hsetnx(const Bytes &name, const Bytes &key, const Bytes &val){
 
     //ret == 0
 
-	int added = hset_one(this ,batch, hv, false, name, key, val);
+	int added = hset_one(batch, hv, false, name, key, val);
 	if(added < 0) {
 		return added;
 	}
 
 	if(added > 0){
-		if ((ret = incr_hsize(this, batch, meta_key , hv, name, added)) < 0) {
+		if ((ret = incr_hsize(batch, meta_key , hv, name, added)) < 0) {
 			return ret;
 		}
 	}
@@ -165,7 +162,7 @@ int SSDBImpl::hdel(const Bytes &name, const std::set<Bytes> &fields) {
 	}
 
 	if (deleted > 0) {
-		if ((ret = incr_hsize(this, batch, meta_key , hv, name, -deleted)) < 0) {
+		if ((ret = incr_hsize(batch, meta_key , hv, name, -deleted)) < 0) {
 			return ret;
 		}
 	}
@@ -203,7 +200,7 @@ int SSDBImpl::hincrbyfloat(const Bytes &name, const Bytes &key, long double by, 
 		return ret;
 	} else if (ret == 0) {
         *new_val = by;
-		added = hset_one(this ,batch, hv, false, name, key, str(*new_val));
+		added = hset_one(batch, hv, false, name, key, str(*new_val));
 
 	} else {
 
@@ -223,7 +220,7 @@ int SSDBImpl::hincrbyfloat(const Bytes &name, const Bytes &key, long double by, 
 			return INVALID_INCR_PDC_NAN_OR_INF;
 		}
 
-		hset_one(this ,batch, hv, false, name, key, str(*new_val));
+		hset_one(batch, hv, false, name, key, str(*new_val));
 	}
 
 
@@ -232,7 +229,7 @@ int SSDBImpl::hincrbyfloat(const Bytes &name, const Bytes &key, long double by, 
     }
 
     if(added > 0){
-		if ((ret = incr_hsize(this, batch, meta_key , hv, name, added)) < 0) {
+		if ((ret = incr_hsize(batch, meta_key , hv, name, added)) < 0) {
 			return ret;
 		}
     }
@@ -271,7 +268,7 @@ int SSDBImpl::hincr(const Bytes &name, const Bytes &key, int64_t by, int64_t *ne
 
     if (ret == 0) {
         *new_val = by;
-		added = hset_one(this ,batch, hv, false, name, key, str(*new_val));
+		added = hset_one(batch, hv, false, name, key, str(*new_val));
 
 	} else {
         long long oldvalue;
@@ -283,7 +280,7 @@ int SSDBImpl::hincr(const Bytes &name, const Bytes &key, int64_t by, int64_t *ne
             return INT_OVERFLOW;
         }
         *new_val = oldvalue + by;
-		hset_one(this ,batch, hv, false, name, key, str(*new_val));
+		hset_one(batch, hv, false, name, key, str(*new_val));
 	}
 
 	if(added < 0){
@@ -291,7 +288,7 @@ int SSDBImpl::hincr(const Bytes &name, const Bytes &key, int64_t by, int64_t *ne
 	}
 
 	if(added > 0){
-		if ((ret = incr_hsize(this, batch, meta_key , hv, name, added)) < 0) {
+		if ((ret = incr_hsize(batch, meta_key , hv, name, added)) < 0) {
 			return ret;
 		}
 	}
@@ -472,7 +469,7 @@ int SSDBImpl::GetHashItemValInternal(const std::string &item_key, std::string *v
 }
 
 
-static int incr_hsize(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const std::string &size_key, HashMetaVal &hv, const Bytes &name, int64_t incr) {
+int SSDBImpl::incr_hsize(leveldb::WriteBatch &batch, const std::string &size_key, HashMetaVal &hv, const Bytes &name, int64_t incr) {
 
     if (hv.length == 0){
 		if (incr > 0){
@@ -497,7 +494,7 @@ static int incr_hsize(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const std::str
 			std::string meta_val = encode_hash_meta_val(hv.length, hv.version, KEY_DELETE_MASK);
 			batch.Put(del_key, "");
 			batch.Put(size_key, meta_val);
-			ssdb->edel_one(batch, name); //del expire ET key
+			edel_one(batch, name); //del expire ET key
 		} else{
 			std::string size_val = encode_hash_meta_val(len, hv.version);
 			batch.Put(size_key, size_val);
@@ -507,14 +504,14 @@ static int incr_hsize(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const std::str
 	return 0;
 }
 
-int hset_one(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const HashMetaVal &hv, bool check_exists, const Bytes &name,
+int SSDBImpl::hset_one(leveldb::WriteBatch &batch, const HashMetaVal &hv, bool check_exists, const Bytes &name,
 			 const Bytes &key, const Bytes &val) {
 	int ret = 0;
 	std::string dbval;
 
 	if (check_exists) {
 		std::string item_key = encode_hash_key(name, key, hv.version);
-		ret = ssdb->GetHashItemValInternal(item_key, &dbval);
+		ret = GetHashItemValInternal(item_key, &dbval);
 		if (ret < 0){
 			return ret;
 		} else if (ret == 0){
