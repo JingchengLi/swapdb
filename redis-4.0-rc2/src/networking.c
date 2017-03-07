@@ -650,18 +650,19 @@ sds composeRedisCmd(int argc, const char **argv, const size_t *argvlen) {
     return finalcmd;
 }
 
-/* TODO: Implement sendCommandToSSDB. Querying SSDB server if querying redis fails. */
-/* Compose the finalcmd if finalcmd is NULL. */
+/* Querying SSDB server if querying redis fails, Compose the finalcmd if finalcmd is NULL. */
 int sendCommandToSSDB(client *c, sds finalcmd) {
     int i, nwritten;
     struct redisCommand *cmdinfo = NULL;
     sds dupcmd = NULL;
+    char ** argv;
+    size_t * argvlen;
 
     if (!finalcmd) {
         cmdinfo = lookupCommand(c->argv[0]->ptr);
         if (!cmdinfo
             || !(cmdinfo->flags & CMD_JDJR_MODE)
-            /* TODO: support multi and pipeline. */
+            /* TODO: support multi. */
             || (c->flags & CLIENT_MULTI))
             return C_ERR;
 
@@ -670,10 +671,13 @@ int sendCommandToSSDB(client *c, sds finalcmd) {
             return C_ERR;
         }
 
-        /* TODO: pre-allocate and reuse the mem to avoid allocating
-           and destroying the mem frequently. */
-        char ** argv = zmalloc(sizeof(char *) * c->argc);
-        size_t * argvlen = zmalloc(sizeof(size_t) * c->argc);
+        if (c->argc > SSDB_CMD_DEFAULT_MAX_ARGC) {
+            argv = zmalloc(sizeof(char *) * c->argc);
+            argvlen = zmalloc(sizeof(size_t) * c->argc);
+        } else {
+            argv = server.ssdbargv;
+            argvlen = server.ssdbargvlen;
+        }
 
         for (i = 0; i < c->argc; i ++) {
             argv[i] = c->argv[i]->ptr;
@@ -682,8 +686,10 @@ int sendCommandToSSDB(client *c, sds finalcmd) {
 
         finalcmd = composeRedisCmd(c->argc, (const char **)argv, (const size_t *)argvlen);
 
-        zfree(argv);
-        zfree(argvlen);
+        if (c->argc > SSDB_CMD_DEFAULT_MAX_ARGC) {
+            zfree(argv);
+            zfree(argvlen);
+        }
     }
 
      if (!finalcmd) {

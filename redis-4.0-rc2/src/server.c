@@ -2104,6 +2104,8 @@ void initServer(void) {
         server.check_write_begin_time = -1;
         server.check_write_unresponse_num = -1;
         server.no_writing_ssdb_blocked_clients = listCreate();
+        server.ssdbargv = zmalloc(sizeof(char *) * SSDB_CMD_DEFAULT_MAX_ARGC);
+        server.ssdbargvlen = zmalloc(sizeof(size_t) * SSDB_CMD_DEFAULT_MAX_ARGC);
     }
 }
 

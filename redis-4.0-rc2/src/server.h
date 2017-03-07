@@ -81,6 +81,9 @@ typedef long long mstime_t; /* millisecond time type. */
 /* replication flags in jdjr_mode */
 #define SSDB_CLIENT_KEEP_REPLY (1<<0)
 
+/* Default max argc of cmds sended to SSDB. */
+#define SSDB_CMD_DEFAULT_MAX_ARGC 10
+
 #define SSDB_SLAVE_PORT_INCR 20000 /* SSDB port = redis port + PORT_INCR */
 
 /* is_allow_ssdb_write codes */
@@ -1239,6 +1242,8 @@ struct redisServer {
     /* Calculate the num of unresponsed clients. */
     int check_write_unresponse_num;
     int special_clients_num;
+    char **ssdbargv;
+    size_t *ssdbargvlen;
 };
 
 typedef struct pubsubPattern {
