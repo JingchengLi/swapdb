@@ -144,6 +144,7 @@ public:
 	virtual int64_t zfix(const Bytes &name) = 0;
 	virtual int64_t zlexcount(const Bytes &name, const Bytes &key_start, const Bytes &key_end) = 0;
     virtual int zrangebylex(const Bytes &name, const Bytes &key_start, const Bytes &key_end, std::vector<std::string> &keys) = 0;
+    virtual int64_t zremrangebylex(const Bytes &name, const Bytes &key_start, const Bytes &key_end) = 0;
 
 	/* eset */
 	virtual int eset(const Bytes &key, int64_t ts) = 0;

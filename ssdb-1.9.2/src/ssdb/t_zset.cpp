@@ -1033,6 +1033,63 @@ int SSDBImpl::zrangebylex(const Bytes &name, const Bytes &key_start, const Bytes
     return genericZrangebylex(name, key_start, key_end, keys, 1);
 }
 
+int64_t SSDBImpl::zremrangebylex(const Bytes &name, const Bytes &key_start, const Bytes &key_end) {
+    zlexrangespec range;
+    int count = 0;
+
+    /* Parse the range arguments */
+    if (zslParseLexRange(key_start,key_end,&range) != 0) {
+        return SYNTAX_ERR;
+    }
+    if ((range.min > range.max)  ||
+        (range.min == range.max &&
+         (range.minex || range.maxex)))
+        return SYNTAX_ERR;
+
+    RecordLock l(&mutex_record_, name.String());
+    ZSetMetaVal zv;
+    std::string meta_key = encode_meta_key(name);
+    int ret = GetZSetMetaVal(meta_key, zv);
+    if (ret <= 0) {
+        return ret;
+    }
+
+    leveldb::WriteBatch batch;
+    const leveldb::Snapshot *snapshot = nullptr;
+    auto it = std::unique_ptr<ZIteratorByLex>(this->zscanbylex_internal(name, range.min, range.max, -1, Iterator::FORWARD, zv.version, snapshot));
+    if (it == NULL) {
+        return 0;
+    }
+
+    while (it->next()) {
+        if (zslLexValueGteMin(it->key, &range)){
+            if (zslLexValueLteMax(it->key, &range)){
+                count++;
+                ret = zdel_one(this, batch, name, it->key, it->version);
+                if(ret < 0){
+                    return ret;
+                }
+            } else
+                break;
+        }
+    }
+
+    if (count > 0){
+        ret = incr_zsize(this, batch, zv, name, count);
+        if (ret < 0){
+            return ret;
+        }
+
+        leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
+        if (!s.ok()) {
+            log_error("zdel error: %s", s.ToString().c_str());
+            return STORAGE_ERR;
+        }
+    }
+
+    return count;
+}
+
 int64_t SSDBImpl::zfix(const Bytes &name) {
     RecordLock l(&mutex_record_, name.String());
 

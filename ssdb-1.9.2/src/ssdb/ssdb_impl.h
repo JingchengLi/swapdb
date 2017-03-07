@@ -199,6 +199,7 @@ public:
 	virtual int64_t zfix(const Bytes &name);
 	virtual int64_t zlexcount(const Bytes &name, const Bytes &key_start, const Bytes &key_end);
     virtual int zrangebylex(const Bytes &name, const Bytes &key_start, const Bytes &key_end, std::vector<std::string> &keys);
+    virtual int64_t zremrangebylex(const Bytes &name, const Bytes &key_start, const Bytes &key_end);
 
 
 	/* eset */

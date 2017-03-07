@@ -564,3 +564,19 @@ int proc_zrangebylex(NetworkServer *net, Link *link, const Request &req, Respons
 
     return 0;
 }
+
+int proc_zremrangebylex(NetworkServer *net, Link *link, const Request &req, Response *resp){
+    SSDBServer *serv = (SSDBServer *)net->data;
+    CHECK_NUM_PARAMS(4);
+
+    int64_t count = serv->ssdb->zremrangebylex(req[1], req[2], req[3]);
+
+    if (count < 0) {
+        resp->push_back("error");
+        resp->push_back(GetErrorInfo((int)count));
+        return 0;
+    }
+
+    resp->reply_int(0, count);
+    return 0;
+}
