@@ -12,7 +12,7 @@ found in the LICENSE file.
 #include "link.h"
 #include "fde.h"
 #include <vector>
-#include <net/redis/transfer.h>
+#include <execinfo.h>
 
 static DEF_PROC(ping);
 static DEF_PROC(info);
@@ -29,6 +29,25 @@ static const int WRITER_THREADS = 1;  // 必须为1, 因为某些写操作依赖
 
 volatile bool quit = false;
 volatile uint32_t g_ticks = 0;
+
+
+//void sig_signal_handler(int sig){
+void sig_signal_handler(int sig, siginfo_t * info, void * ucontext) {
+    ucontext_t *uc = (ucontext_t*) ucontext;
+    log_error("SSDB %s crashed by signal: %d", SSDB_VERSION, sig);
+
+
+    void *array[12];
+    size_t size;
+
+    // get void*'s for all entries on the stack
+    size = backtrace(array, 12);
+
+    // print out all the frames to stderr
+    fprintf(stderr, "Error: signal %d (%s)\n", sig, strsignal(sig));
+    backtrace_symbols_fd(array, size, STDERR_FILENO);
+    exit(1);
+}
 
 void signal_handler(int sig){
 	switch(sig){
@@ -72,6 +91,7 @@ NetworkServer::NetworkServer(){
 	signal(SIGQUIT, signal_handler);
 	signal(SIGKILL, signal_handler);
 	signal(SIGTERM, signal_handler);
+//	signal(SIGSEGV, sig_signal_handler);
 #ifndef __CYGWIN__
 	signal(SIGALRM, signal_handler);
 	{
@@ -83,6 +103,18 @@ NetworkServer::NetworkServer(){
 		setitimer(ITIMER_REAL, &tv, NULL);
 	}
 #endif
+
+    struct sigaction act;
+
+    sigemptyset(&act.sa_mask);
+    act.sa_flags = SA_NODEFER | SA_RESETHAND | SA_SIGINFO;
+    act.sa_sigaction = sig_signal_handler;
+    sigaction(SIGSEGV, &act, NULL);
+    sigaction(SIGBUS, &act, NULL);
+    sigaction(SIGFPE, &act, NULL);
+    sigaction(SIGILL, &act, NULL);
+
+    return;
 }
 	
 NetworkServer::~NetworkServer(){
