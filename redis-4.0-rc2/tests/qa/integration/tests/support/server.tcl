@@ -195,6 +195,7 @@ proc start_server {options {code undefined}} {
     # start every server on a different port
     set ::port [find_available_port [expr {$::port+1}]]
     dict set config port $::port
+    dict set config ssdb_server_unixsocket "/tmp/ssdb$::port.sock"
 
     # apply overrides from global space and arguments
     foreach {directive arguments} [concat $::global_overrides $overrides] {
@@ -209,6 +210,25 @@ proc start_server {options {code undefined}} {
         puts $fp [dict get $config $directive]
     }
     close $fp
+
+    # write new configuration to temporary ssdb file
+    set ssdbport [expr $::port+20000]
+    set workdir [dict get $config dir]
+    set workdir [string range $workdir 12 end]
+    set ssdb_config_file [tmpfile ssdb.conf]
+    set ssdbdata [exec cat "tests/assets/ssdb_default.conf"]
+    set fp [open $ssdb_config_file w+]
+    set ssdbdata [regsub -all {{work_dir}} $ssdbdata $workdir]
+    set ssdbdata [regsub -all {{ssdbport}} $ssdbdata $ssdbport]
+    set ssdbdata [regsub -all {{redisport}} $ssdbdata $::port]
+    puts $fp $ssdbdata
+    close $fp
+    set ssdbstdout [format "%s/%s" [dict get $config "dir"] "ssdbstdout"]
+    set ssdbstderr [format "%s/%s" [dict get $config "dir"] "ssdbstderr"]
+    puts "start ssdb:$ssdb_config_file"
+    set ssdbpid [exec ~/workspace/wy_redis/ssdb-1.9.2/ssdb-server $ssdb_config_file > $ssdbstdout 2> $ssdbstderr &]
+    after 1000
+
 
     set stdout [format "%s/%s" [dict get $config "dir"] "stdout"]
     set stderr [format "%s/%s" [dict get $config "dir"] "stderr"]
@@ -324,6 +344,8 @@ proc start_server {options {code undefined}} {
 
         set ::tags [lrange $::tags 0 end-[llength $tags]]
         kill_server $srv
+        puts "kill_server"
+        exec kill -9 $ssdbpid
     } else {
         set ::tags [lrange $::tags 0 end-[llength $tags]]
         set _ $srv
