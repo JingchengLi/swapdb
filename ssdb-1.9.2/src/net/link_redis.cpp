@@ -157,7 +157,7 @@ static RedisCommand_raw cmds_raw[] = {
 	{STRATEGY_AUTO,	"zrevrangebyscore",	"zrevrangebyscore",	REPLY_MULTI_BULK},
 	{STRATEGY_AUTO, "zscan",		"zscan",			REPLY_SCAN},
 	{STRATEGY_AUTO, "zlexcount",	"zlexcount",		REPLY_INT},
-
+    {STRATEGY_AUTO,	"zrangebylex",	"zrangebylex",	REPLY_MULTI_BULK},
 
 	{STRATEGY_AUTO,		"lpush",		"qpush_front", 		REPLY_INT},
 	{STRATEGY_AUTO,		"rpush",		"qpush_back", 		REPLY_INT},

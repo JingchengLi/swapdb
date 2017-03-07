@@ -975,7 +975,8 @@ int zslLexValueLteMax(std::string value, zlexrangespec *spec) {
            (value <= spec->max);
 }
 
-int64_t SSDBImpl::zlexcount(const Bytes &name, const Bytes &key_start, const Bytes &key_end) {
+int SSDBImpl::genericZrangebylex(const Bytes &name, const Bytes &key_start, const Bytes &key_end,
+                                 std::vector<string> &keys, int save) {
     zlexrangespec range;
     int count = 0;
 
@@ -1011,12 +1012,25 @@ int64_t SSDBImpl::zlexcount(const Bytes &name, const Bytes &key_start, const Byt
         if (zslLexValueGteMin(it->key, &range)){
             if (zslLexValueLteMax(it->key, &range)){
                 count++;
+                if (save){
+                    keys.push_back(it->key);
+                }
             } else
                 break;
         }
     }
 
     return count;
+}
+
+int64_t SSDBImpl::zlexcount(const Bytes &name, const Bytes &key_start, const Bytes &key_end) {
+    std::vector<string> keys;
+    return genericZrangebylex(name, key_start, key_end, keys, 0);
+}
+
+int SSDBImpl::zrangebylex(const Bytes &name, const Bytes &key_start, const Bytes &key_end,
+                              std::vector<std::string> &keys) {
+    return genericZrangebylex(name, key_start, key_end, keys, 1);
 }
 
 int64_t SSDBImpl::zfix(const Bytes &name) {
