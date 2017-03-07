@@ -23,6 +23,7 @@ static DEF_PROC(auth);
 #define STATUS_REPORT_TICKS    (300 * 1000/TICK_INTERVAL) // second
 #define CURSOR_CLEANUP_TICKS    (60 * 1000/TICK_INTERVAL) // second
 
+static const int TRANSFER_THREADS = 5;
 static const int READER_THREADS = 10;
 static const int WRITER_THREADS = 1;  // 必须为1, 因为某些写操作依赖单线程
 
@@ -31,6 +32,7 @@ volatile uint32_t g_ticks = 0;
 
 void signal_handler(int sig){
 	switch(sig){
+		case SIGKILL:
 		case SIGTERM:
 		case SIGINT:{
 			quit = true;
@@ -46,7 +48,7 @@ void signal_handler(int sig){
 NetworkServer::NetworkServer(){
 	num_readers = READER_THREADS;
 	num_writers = WRITER_THREADS;
-	num_transfers = READER_THREADS;
+	num_transfers = TRANSFER_THREADS;
 
 	tick_interval = TICK_INTERVAL;
 	status_report_ticks = STATUS_REPORT_TICKS;
@@ -67,6 +69,8 @@ NetworkServer::NetworkServer(){
 
 	signal(SIGPIPE, SIG_IGN);
 	signal(SIGINT, signal_handler);
+	signal(SIGQUIT, signal_handler);
+	signal(SIGKILL, signal_handler);
 	signal(SIGTERM, signal_handler);
 #ifndef __CYGWIN__
 	signal(SIGALRM, signal_handler);
