@@ -225,8 +225,8 @@ proc start_server {options {code undefined}} {
     close $fp
     set ssdbstdout [format "%s/%s" [dict get $config "dir"] "ssdbstdout"]
     set ssdbstderr [format "%s/%s" [dict get $config "dir"] "ssdbstderr"]
-    puts "start ssdb:$ssdb_config_file"
-    set ssdbpid [exec ~/workspace/wy_redis/ssdb-1.9.2/ssdb-server $ssdb_config_file > $ssdbstdout 2> $ssdbstderr &]
+    puts "start dir: $workdir"
+    set ssdbpid [exec ssdb-server $ssdb_config_file > $ssdbstdout 2> $ssdbstderr &]
     after 1000
 
 
@@ -238,6 +238,7 @@ proc start_server {options {code undefined}} {
     } elseif ($::stack_logging) {
         set pid [exec /usr/bin/env MallocStackLogging=1 MallocLogFile=/tmp/malloc_log.txt ../../../src/redis-server $config_file > $stdout 2> $stderr &]
     } else {
+        puts "start redis port: $::port"
         set pid [exec ../../../src/redis-server $config_file > $stdout 2> $stderr &]
     }
 
@@ -320,6 +321,8 @@ proc start_server {options {code undefined}} {
             # Kill the server without checking for leaks
             dict set srv "skipleaks" 1
             kill_server $srv
+            puts "kill_server"
+            exec kill -9 $ssdbpid
 
             # Print warnings from log
             puts [format "\nLogged warnings (pid %d):" [dict get $srv "pid"]]
