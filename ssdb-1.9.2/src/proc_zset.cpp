@@ -580,3 +580,19 @@ int proc_zremrangebylex(NetworkServer *net, Link *link, const Request &req, Resp
     resp->reply_int(0, count);
     return 0;
 }
+
+int proc_zrevrangebylex(NetworkServer *net, Link *link, const Request &req, Response *resp){
+    SSDBServer *serv = (SSDBServer *)net->data;
+    CHECK_NUM_PARAMS(4);
+
+    resp->push_back("ok");
+    int ret = serv->ssdb->zrevrangebylex(req[1], req[2], req[3], resp->resp);
+    if (ret < 0){
+        resp->resp.clear();
+        resp->push_back("error");
+        resp->push_back(GetErrorInfo(ret));
+        return 0;
+    }
+
+    return 0;
+}

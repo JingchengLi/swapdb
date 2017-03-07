@@ -203,9 +203,9 @@ Iterator* SSDBImpl::rev_iterator(const std::string &start, const std::string &en
 	it->Seek(start);
 	if(!it->Valid()){
 		it->SeekToLast();
-	}else{
+	}/*else{
 		it->Prev();
-	}
+	}*/
 	return new Iterator(it, end, limit, Iterator::BACKWARD, iterate_options.snapshot);
 }
 

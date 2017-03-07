@@ -1090,6 +1090,51 @@ int64_t SSDBImpl::zremrangebylex(const Bytes &name, const Bytes &key_start, cons
     return count;
 }
 
+int SSDBImpl::zrevrangebylex(const Bytes &name, const Bytes &key_start, const Bytes &key_end,
+                             std::vector<std::string> &keys) {
+    zlexrangespec range;
+    int count = 0;
+
+    /* Parse the range arguments */
+    if (zslParseLexRange(key_end,key_start,&range) != 0) {
+        return SYNTAX_ERR;
+    }
+    if ((range.min > range.max)  ||
+        (range.min == range.max &&
+         (range.minex || range.maxex)))
+        return SYNTAX_ERR;
+
+    ZSetMetaVal zv;
+    const leveldb::Snapshot* snapshot = nullptr;
+    {
+        RecordLock l(&mutex_record_, name.String());
+        std::string meta_key = encode_meta_key(name);
+        int ret = GetZSetMetaVal(meta_key, zv);
+        if (ret <= 0) {
+            return ret;
+        }
+        snapshot = ldb->GetSnapshot();
+    }
+    SnapshotPtr spl(ldb, snapshot); //auto release
+
+    auto it = std::unique_ptr<ZIteratorByLex>(this->zscanbylex_internal(name, range.max, range.min, -1, Iterator::BACKWARD, zv.version, snapshot));
+    if (it == NULL) {
+        return 0;
+    }
+
+    while (it->next()) {
+        if (zslLexValueLteMax(it->key, &range)){
+            if (zslLexValueGteMin(it->key, &range)){
+                count++;
+                keys.push_back(it->key);
+            } else
+                break;
+        }
+    }
+
+    return count;
+}
+
 int64_t SSDBImpl::zfix(const Bytes &name) {
     RecordLock l(&mutex_record_, name.String());
 
