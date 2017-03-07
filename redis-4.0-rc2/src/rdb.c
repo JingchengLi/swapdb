@@ -883,7 +883,7 @@ int rdbSaveRio(rio *rdb, int *error, int flags, rdbSaveInfo *rsi) {
     if (rdbWriteRaw(rdb,magic,9) == -1) goto werr;
     if (rdbSaveInfoAuxFields(rdb,flags,rsi) == -1) goto werr;
 
-    for (j = 0; j < server.dbnum; j++) {
+    for (j = 0; j < (server.jdjr_mode ? server.dbnum + 1 : server.dbnum); j++) {
         redisDb *db = server.db+j;
         dict *d = db->dict;
         if (dictSize(d) == 0) continue;
