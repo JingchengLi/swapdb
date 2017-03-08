@@ -4649,8 +4649,6 @@ void customizedRestoreCommand(client *c) {
         /* TODO: using new arg to customize the way to free. */
         dictDelete(EVICTED_DATA_DB->dict, key->ptr);
 
-        propagateExpire(EVICTED_DATA_DB, key, server.lazyfree_lazy_eviction);
-
         if (server.lazyfree_lazy_eviction)
             dbAsyncDelete(EVICTED_DATA_DB, key);
         else

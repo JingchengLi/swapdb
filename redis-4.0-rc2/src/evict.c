@@ -492,10 +492,7 @@ int epilogOfEvictingToSSDB(robj *keyobj) {
     /* Append set operation to aof. */
     cmdname = sdsnew("set");
     setcmd = createObject(OBJ_STRING, (void *)cmdname);
-    robj *setargv[3] = {setcmd, keyobj, usage_obj};
 
-    propagate(lookupCommand(cmdname), EVICTED_DATA_DBID, setargv, 3,
-              PROPAGATE_AOF | PROPAGATE_REPL);
     decrRefCount(setcmd);
 
     /* Record the expire info. */
@@ -518,8 +515,6 @@ int epilogOfEvictingToSSDB(robj *keyobj) {
         serverLog(LL_DEBUG, "Appending expire operation to aof.");
         decrRefCount(llbufobj);
     }
-
-    propagateExpire(db,keyobj,server.lazyfree_lazy_eviction);
 
     if (dictSize(EVICTED_DATA_DB->transferring_keys) > 0) {
         serverAssert(dictDelete(EVICTED_DATA_DB->transferring_keys,
@@ -670,6 +665,8 @@ int tryEvictingKeysToSSDB(int *mem_tofree) {
      * so to start populate the eviction pool sampling keys from
      * every DB. */
     for (i = 0; i < server.dbnum; i++) {
+        if (i == EVICTED_DATA_DBID) continue;
+
         db = server.db+i;
         dict = db->dict;
         if ((keys = dictSize(dict)) != 0) {
@@ -805,6 +802,8 @@ int freeMemoryIfNeeded(void) {
                  * so to start populate the eviction pool sampling keys from
                  * every DB. */
                 for (i = 0; i < server.dbnum; i++) {
+                    if (server.jdjr_mode && i == EVICTED_DATA_DBID) continue;
+
                     db = server.db+i;
                     dict = (server.maxmemory_policy & MAXMEMORY_FLAG_ALLKEYS) ?
                             db->dict : db->expires;
