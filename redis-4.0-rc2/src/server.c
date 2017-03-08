@@ -311,8 +311,6 @@ struct redisCommand redisCommandTable[] = {
     {"dumptossdb",dumptossdbCommand,2,"w",0,NULL,1,1,1,0,0},
     {"restorefromssdb",restorefromssdbCommand,2,"w",0,NULL,1,1,1,0,0},
     {"locatekey",locatekeyCommand,2,"r",0,NULL,1,1,1,0,0},
-    /* /\* Interfaces for redis only in jdjr-mode. *\/ */
-    /* {"setevicted",setCommand,-3,"wm",0,NULL,1,1,1,0,0}, */
 };
 
 /*============================ Utility functions ============================ */
