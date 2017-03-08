@@ -22,7 +22,7 @@ found in the LICENSE file.
 struct Slave_info{
 	std::string ip;
 	int port;
-	Link	*link;
+    Link    *master_link;
 };
 
 class SSDBServer
@@ -41,8 +41,8 @@ public:
 
 	RecordMutex transfer_mutex_record_;
 
-	std::vector<Slave_info> slave_infos;
-	Link*	master_link;
+    std::queue<Slave_info>  slave_infos;
+    pthread_mutex_t         mutex;
 	const leveldb::Snapshot* snapshot;
 
 	SSDBServer(SSDB *ssdb, SSDB *meta, const Config &conf, NetworkServer *net);

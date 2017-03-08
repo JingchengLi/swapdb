@@ -300,8 +300,8 @@ SSDBServer::SSDBServer(SSDB *ssdb, SSDB *meta, const Config &conf, NetworkServer
 	backend_dump = new BackendDump(this->ssdb);
 	expiration = new ExpirationHandler(this->ssdb);
 
-	master_link = NULL;
 	snapshot = nullptr;
+    pthread_mutex_init(&mutex, NULL);
 
 	{
 		const Config *upstream_conf = conf.get("upstream");
@@ -323,6 +323,8 @@ SSDBServer::~SSDBServer(){
 	if (redisConf != nullptr) {
 		delete redisConf;
 	}
+
+    pthread_mutex_destroy(&mutex);
 
 	log_debug("SSDBServer finalized");
 }
@@ -637,19 +639,33 @@ static int ssdb_save_len(uint64_t len, std::string &res){
 
 void* thread_replic(void *arg){
 	SSDBServer *serv = (SSDBServer *)arg;
-	std::vector<Slave_info>::iterator it = serv->slave_infos.begin();
-	for (; it != serv->slave_infos.end(); ++it) {
-		it->link = Link::connect((it->ip).c_str(), it->port);
-		if(it->link == NULL){
-			printf("fail to connect to slave ssdb! ip[%s] port[%d]\n", it->ip.c_str(), it->port);
-			continue;
-		}
-		std::vector<std::string> req;
-		req.push_back(std::string("sync150"));
-		it->link->send(req);
-		it->link->flush();
-		it->link->response();
-	}
+    pthread_mutex_lock(&serv->mutex);
+    if (serv->slave_infos.empty()){
+        log_fatal("get slave info error!");
+        exit(0);
+    }
+    Slave_info slave = serv->slave_infos.front();
+    serv->slave_infos.pop();
+    pthread_mutex_unlock(&serv->mutex);
+
+    Link* link = Link::connect((slave.ip).c_str(), slave.port);
+    if(link == NULL){
+        log_error("fail to connect to slave ssdb! ip[%s] port[%d]", slave.ip.c_str(), slave.port);
+        if(slave.master_link != NULL){
+            std::vector<std::string> response;
+            response.push_back("error");
+            response.push_back("rr_transfer_snapshot error");
+            slave.master_link->send(response);
+            slave.master_link->flush();
+            log_error("send rr_transfer_snapshot error!!");
+        }
+        return 0;
+    }
+    std::vector<std::string> req;
+    req.push_back(std::string("sync150"));
+    link->send(req);
+    link->flush();
+    link->response();
 
 	Buffer *buffer = new Buffer(8*1024);
 	std::string oper = "mset";
@@ -668,103 +684,100 @@ void* thread_replic(void *arg){
 		buffer->append(fit->val());
 
 		if (buffer->size() > 1024) {
-			it = serv->slave_infos.begin();
-			for (; it != serv->slave_infos.end(); ++it) {
-				if (it->link != NULL) {
-					it->link->output->append(oper_len.c_str(), (int)oper_len.size());
-					it->link->output->append(oper.c_str(), (int)oper.size());
+			link->output->append(oper_len.c_str(), (int)oper_len.size());
+			link->output->append(oper.c_str(), (int)oper.size());
 
-					char buf[32] = {0};
-					ll2string(buf, sizeof(buf)-1, (long long)buffer->size());
-					std::string buffer_size(buf);
-					std::string buffer_len;
-					ssdb_save_len((uint64_t)buffer_size.size(), buffer_len);
-					it->link->output->append(buffer_len.c_str(), (int)buffer_len.size());
-					it->link->output->append(buffer_size.c_str(), (int)buffer_size.size());
+			char buf[32] = {0};
+			ll2string(buf, sizeof(buf)-1, (long long)buffer->size());
+			std::string buffer_size(buf);
+			std::string buffer_len;
+			ssdb_save_len((uint64_t)buffer_size.size(), buffer_len);
+			link->output->append(buffer_len.c_str(), (int)buffer_len.size());
+			link->output->append(buffer_size.c_str(), (int)buffer_size.size());
 
-					it->link->output->append(buffer->data(), buffer->size());
+			link->output->append(buffer->data(), buffer->size());
 
-					if(it->link->flush() == -1){
-						log_error("fd: %d, send error: %s", it->link->fd(), strerror(errno));
-						break;
-					}
-				}
+			if(link->flush() == -1){
+				log_error("fd: %d, send error: %s", link->fd(), strerror(errno));
+                if(slave.master_link != NULL){
+                    std::vector<std::string> response;
+                    response.push_back("error");
+                    response.push_back("rr_transfer_snapshot error");
+                    slave.master_link->send(response);
+                    slave.master_link->flush();
+                    log_error("send rr_transfer_snapshot error!!");
+                }
+                return 0;
 			}
+
 			buffer->decr(buffer->size());
+            buffer->nice();
 		}
 	}
 
 	if (buffer->size() > 0) {
-		it = serv->slave_infos.begin();
-		for (; it != serv->slave_infos.end(); ++it) {
-			if (it->link != NULL) {
-				it->link->output->append(oper_len.c_str(), (int)oper_len.size());
-				it->link->output->append(oper.c_str(), (int)oper.size());
+		link->output->append(oper_len.c_str(), (int)oper_len.size());
+		link->output->append(oper.c_str(), (int)oper.size());
 
-				char buf[32] = {0};
-				ll2string(buf, sizeof(buf)-1, (long long)buffer->size());
-				std::string buffer_size(buf);
-				std::string buffer_len;
-				ssdb_save_len((uint64_t)buffer_size.size(), buffer_len);
-				it->link->output->append(buffer_len.c_str(), (int)buffer_len.size());
-				it->link->output->append(buffer_size.c_str(), (int)buffer_size.size());
+		char buf[32] = {0};
+		ll2string(buf, sizeof(buf)-1, (long long)buffer->size());
+		std::string buffer_size(buf);
+		std::string buffer_len;
+		ssdb_save_len((uint64_t)buffer_size.size(), buffer_len);
+		link->output->append(buffer_len.c_str(), (int)buffer_len.size());
+		link->output->append(buffer_size.c_str(), (int)buffer_size.size());
 
-				it->link->output->append(buffer->data(), buffer->size());
+		link->output->append(buffer->data(), buffer->size());
 
-				if(it->link->flush() == -1){
-					log_error("fd: %d, send error: %s", it->link->fd(), strerror(errno));
-					break;
-				}
-			}
+		if(link->flush() == -1){
+			log_error("fd: %d, send error: %s", link->fd(), strerror(errno));
+            if(slave.master_link != NULL){
+                std::vector<std::string> response;
+                response.push_back("error");
+                response.push_back("rr_transfer_snapshot error");
+                slave.master_link->send(response);
+                slave.master_link->flush();
+                log_error("send rr_transfer_snapshot error!!");
+            }
+            return 0;
 		}
+
 		buffer->decr(buffer->size());
+        buffer->nice();
 		delete buffer;
 	}
 
 	oper = "complete";
 	oper_len.clear();
 	ssdb_save_len((uint64_t)oper.size(), oper_len);
+	link->output->append(oper_len.c_str(), (int)oper_len.size());
+	link->output->append(oper.c_str(), (int)oper.size());
+	link->flush();
+	link->read();
+	delete link;
 
-    it = serv->slave_infos.begin();
-    for(; it != serv->slave_infos.end(); ++it){
-        if (it->link != NULL ){
-			it->link->output->append(oper_len.c_str(), (int)oper_len.size());
-			it->link->output->append(oper.c_str(), (int)oper.size());
-			it->link->flush();
-			it->link->read();
-			delete it->link;
-        }
-    }
-    serv->slave_infos.clear();
-
-//	serv->ssdb->ReleaseSnapshot(snapshot);
-
-    if (serv->master_link != NULL){
+    if (slave.master_link != NULL){
         std::vector<std::string> response;
         response.push_back("ok");
         response.push_back("rr_transfer_snapshot finished");
-        serv->master_link->send(response);
-        serv->master_link->flush();
+        slave.master_link->send(response);
+        slave.master_link->flush();
 		log_debug("send rr_transfer_snapshot finished!!");
     }
 	log_debug("replic procedure finish!");
 
-	return (void *)NULL;
+    return (void *)NULL;
 }
 
 int proc_replic(NetworkServer *net, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(3);
-	if ((req.size() - 1) % 2 != 0){
-		resp->push_back("wrong number of arguments");
-		return 0;
-	}
-	for (int i = 1; i < req.size(); i += 2) {
-		std::string ip = req[i].String();
-		int port = req[i+1].Int();
-		serv->slave_infos.push_back(Slave_info{ip, port, NULL});
-	}
-    serv->master_link = link;
+    std::string ip = req[1].String();
+    int port = req[2].Int();
+    pthread_mutex_lock(&serv->mutex);
+    serv->slave_infos.push(Slave_info{ip, port, link});
+    pthread_mutex_unlock(&serv->mutex);
+
 	serv->snapshot = serv->ssdb->GetSnapshot();
 //	breplication = true; //todo 设置全量复制开始标志
 
@@ -922,17 +935,12 @@ int proc_rr_make_snapshot(NetworkServer *net, Link *link, const Request &req, Re
 int proc_rr_transfer_snapshot(NetworkServer *net, Link *link, const Request &req, Response *resp){
     SSDBServer *serv = (SSDBServer *)net->data;
     CHECK_NUM_PARAMS(3);
-    if ((req.size() - 1) % 2 != 0){
-        resp->push_back("error");
-        resp->push_back("wrong number of arguments");
-        return 0;
-    }
-    for (int i = 1; i < req.size(); i += 2) {
-        std::string ip = req[i].String();
-        int port = req[i+1].Int();
-        serv->slave_infos.push_back(Slave_info{ip, port, NULL});
-    }
-    serv->master_link = link;
+
+    std::string ip = req[1].String();
+    int port = req[2].Int();
+    pthread_mutex_lock(&serv->mutex);
+    serv->slave_infos.push(Slave_info{ip, port, link});
+    pthread_mutex_unlock(&serv->mutex);
 
     pthread_t tid;
     int err = pthread_create(&tid, NULL, &thread_replic, serv);
