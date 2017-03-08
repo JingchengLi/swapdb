@@ -203,9 +203,11 @@ Iterator* SSDBImpl::rev_iterator(const std::string &start, const std::string &en
 	it->Seek(start);
 	if(!it->Valid()){
 		it->SeekToLast();
-	}/*else{
-		it->Prev();
-	}*/
+	}else{
+        if (memcmp(start.data(), it->key().data(), start.size()) != 0){
+            it->Prev();
+        }
+	}
 	return new Iterator(it, end, limit, Iterator::BACKWARD, iterate_options.snapshot);
 }
 
