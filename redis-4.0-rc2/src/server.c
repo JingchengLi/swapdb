@@ -1993,8 +1993,6 @@ void initServer(void) {
     }
 
     /* Create the Redis databases, and initialize other internal state. */
-    if (server.jdjr_mode)
-        serverAssert(server.dbnum  == EVICTED_DATA_DBID + 1);
     for (j = 0; j < server.dbnum; j++) {
         server.db[j].dict = dictCreate(&dbDictType,NULL);
         server.db[j].expires = dictCreate(&keyptrDictType,NULL);
