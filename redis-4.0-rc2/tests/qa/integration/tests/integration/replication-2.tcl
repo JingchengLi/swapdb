@@ -2,7 +2,7 @@ start_server {tags {"repl"}} {
     start_server {} {
         test {First server should have role slave after SLAVEOF} {
             r -1 slaveof [srv 0 host] [srv 0 port]
-            after 1000
+            after 1000000
             s -1 role
         } {slave}
 

@@ -456,11 +456,12 @@ int epilogOfEvictingToSSDB(robj *keyobj) {
     sds cmdname;
     dictEntry *de;
     long long now = mstime(), expiretime;
-    int dbid = getTransferringDB(keyobj);
+    /* TODO: clean up getTransferringDB. */
+    int dbid = 0;
     int slaves = listLength(server.slaves);
     long long usage;
 
-    if (dbid == -1) {
+    if (dbid != 0) {
         serverLog(LL_WARNING, "The key: %s should be found.", (char *)keyobj->ptr);
         return C_ERR;
     }

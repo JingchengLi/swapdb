@@ -645,7 +645,7 @@ sds composeRedisCmd(int argc, const char **argv, const size_t *argvlen) {
     }
 
     finalcmd = sdsnewlen(cmd, len);
-    free(cmd);
+    zlibc_free(cmd);
 
     return finalcmd;
 }
