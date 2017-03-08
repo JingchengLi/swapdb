@@ -1004,7 +1004,8 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
 
     do {
         int oldlen = r->len;
-        if (redisBufferRead(c->context) == REDIS_OK) {
+        if (redisBufferRead(c->context) == REDIS_OK
+            && c != server.ssdb_client) {
             add_reply_len = r->len - oldlen;
             addReplyString(c, r->buf + oldlen, add_reply_len);
         }
@@ -1024,6 +1025,9 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
 
     if (reply && reply->type == REDIS_REPLY_ERROR)
         serverLog(LL_WARNING, "Reply from SSDB is ERROR: %s", reply->str);
+
+    if (c == server.ssdb_client)
+        goto cleanup;
 
     /* Maintain the EVICTED_DATA_DB. */
     if (c->cmd && (c->cmd->proc == delCommand)) {
@@ -1135,7 +1139,7 @@ int createClientForReplicate() {
     return C_OK;
 }
 
-/* Create a client for evciting data to SSDB. */
+/* Create a client for evciting data to SSDB, loading data from SSDB. */
 int createClientForEvicting() {
     if (server.ssdb_client && server.ssdb_client->fd != -1)
         unlinkClient(server.ssdb_client);

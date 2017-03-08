@@ -744,7 +744,7 @@ void syncCommand(client *c) {
             c->ssdb_status = SLAVE_SSDB_SNAPSHOT_IN_PROCESS;
 
             /* Update the server's status. */
-            server.check_write_unresponse_num = listLength(server.clients);
+            server.check_write_unresponse_num = listLength(server.clients) - server.special_clients_num;
             server.ssdb_status = MASTER_SSDB_SNAPSHOT_CHECK_WRITE;
 
             server.check_write_begin_time = server.unixtime;
@@ -756,6 +756,11 @@ void syncCommand(client *c) {
             listRewind(server.clients, &li);
             while ((ln = listNext(&li)) != NULL) {
                 tc = listNodeValue(ln);
+
+                if (tc == server.ssdb_client
+                    || tc == server.ssdb_replication_client)
+                    continue;
+
                 if (aeCreateFileEvent(server.el, tc->fd, AE_WRITABLE,
                                       sendCheckWriteCommandToSSDB, tc) == AE_ERR) {
                     /* just free disconnected client and ignore it. */
@@ -1165,6 +1170,19 @@ void replicationCreateMasterClient(int fd, int dbid) {
     if (server.master->reploff == -1)
         server.master->flags |= CLIENT_PRE_PSYNC;
     if (dbid != -1) selectDb(server.master,dbid);
+
+    if (server.jdjr_mode) {
+        redisContext *context = redisConnectUnixNonBlock(server.ssdb_server_unixsocket);
+
+        if (context->err) {
+            serverLog(LL_VERBOSE, "Could not connect to SSDB server.");
+            redisFree(context);
+            return;
+        } else
+            server.master->context = context;
+
+        server.master->context = redisConnectUnixNonBlock(server.ssdb_server_unixsocket);
+    }
 }
 
 void restartAOF() {

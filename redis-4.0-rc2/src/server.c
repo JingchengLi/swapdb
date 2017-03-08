@@ -311,7 +311,8 @@ struct redisCommand redisCommandTable[] = {
     {"dumptossdb",dumptossdbCommand,2,"w",0,NULL,1,1,1,0,0},
     {"restorefromssdb",restorefromssdbCommand,2,"w",0,NULL,1,1,1,0,0},
     {"locatekey",locatekeyCommand,2,"r",0,NULL,1,1,1,0,0},
-
+    /* /\* Interfaces for redis only in jdjr-mode. *\/ */
+    /* {"setevicted",setCommand,-3,"wm",0,NULL,1,1,1,0,0}, */
 };
 
 /*============================ Utility functions ============================ */
@@ -1352,11 +1353,12 @@ void beforeSleep(struct aeEventLoop *eventLoop) {
     /* Handle writes with pending output buffers. */
     handleClientsWithPendingWrites();
 
+    /* TODO: fix the population. */
     /* Try to evict proper keys to make more free memory. */
-    if (server.jdjr_mode) startToEvictIfNeeded();
+    if (server.jdjr_mode && server.masterhost == NULL) startToEvictIfNeeded();
 
     /* Try to load keys from SSDB to redis. */
-    if (server.jdjr_mode) startToLoadIfNeeded();
+    if (server.jdjr_mode && server.masterhost == NULL) startToLoadIfNeeded();
 }
 
 /* =========================== Server initialization ======================== */
@@ -2558,6 +2560,12 @@ int processCommandMaybeInSSDB(client *c) {
         robj* val = lookupKey(EVICTED_DATA_DB, c->argv[1], LOOKUP_NONE);
         if (val) {
             int ret = sendCommandToSSDB(c, NULL);
+
+            if ((c->cmd->flags & CMD_WRITE)
+                && server.masterhost == NULL) {
+                propagate(c->cmd, c->db->id, c->argv, c->argc, PROPAGATE_AOF|PROPAGATE_REPL);
+            }
+
             if (ret == C_ERR) return C_ERR;
             if (ret == C_FD_ERR) return C_OK;
 

@@ -225,7 +225,7 @@ proc start_server {options {code undefined}} {
     close $fp
     set ssdbstdout [format "%s/%s" [dict get $config "dir"] "ssdbstdout"]
     set ssdbstderr [format "%s/%s" [dict get $config "dir"] "ssdbstderr"]
-    puts "start dir: $workdir"
+    puts "start ssdb:$ssdb_config_file"
     set ssdbpid [exec ssdb-server $ssdb_config_file > $ssdbstdout 2> $ssdbstderr &]
     after 1000
 
