@@ -305,7 +305,8 @@ proc csvdump r {
             }
         }
     }
-    {*}$r select 9
+    {*}$r select 0
+    # {*}$r select 9
     return $o
 }
 
@@ -366,9 +367,9 @@ proc colorstr {color str} {
 
 # Execute a background process writing random data for the specified number
 # of seconds to the specified Redis instance.
-proc start_write_load {host port seconds} {
+proc start_write_load {host port seconds {interval 0}} {
     set tclsh [info nameofexecutable]
-    exec $tclsh tests/helpers/gen_write_load.tcl $host $port $seconds &
+    exec $tclsh tests/helpers/gen_write_load.tcl $host $port $seconds $interval &
 }
 
 # Stop a process generating write load executed with start_write_load.

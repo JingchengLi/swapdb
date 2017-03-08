@@ -128,11 +128,11 @@ foreach dl {no yes} {
         set master_host [srv 0 host]
         set master_port [srv 0 port]
         set slaves {}
-        # set load_handle0 [start_write_load $master_host $master_port 3]
-        # set load_handle1 [start_write_load $master_host $master_port 5]
-        # set load_handle2 [start_write_load $master_host $master_port 20]
-        # set load_handle3 [start_write_load $master_host $master_port 8]
-        # set load_handle4 [start_write_load $master_host $master_port 4]
+        set load_handle0 [start_write_load $master_host $master_port 3 10]
+        set load_handle1 [start_write_load $master_host $master_port 5 10]
+        set load_handle2 [start_write_load $master_host $master_port 20 10]
+        set load_handle3 [start_write_load $master_host $master_port 8 10]
+        set load_handle4 [start_write_load $master_host $master_port 4 10]
         start_server {} {
             lappend slaves [srv 0 client]
             start_server {} {
@@ -142,12 +142,8 @@ foreach dl {no yes} {
                     test "Connect multiple slaves at the same time (issue #141), diskless=$dl" {
                         # Send SLAVEOF commands to slaves
                         [lindex $slaves 0] slaveof $master_host $master_port
-                        puts "slave [lindex $slaves 0]"
                         [lindex $slaves 1] slaveof $master_host $master_port
-                        puts "slave [lindex $slaves 1]"
                         [lindex $slaves 2] slaveof $master_host $master_port
-                        puts "slave [lindex $slaves 2]"
-                        after 10000
 
                         # Wait for all the three slaves to reach the "online"
                         # state from the POV of the master.
@@ -177,11 +173,11 @@ foreach dl {no yes} {
                         }
 
                         # Stop the write load
-                        # stop_write_load $load_handle0
-                        # stop_write_load $load_handle1
-                        # stop_write_load $load_handle2
-                        # stop_write_load $load_handle3
-                        # stop_write_load $load_handle4
+                        stop_write_load $load_handle0
+                        stop_write_load $load_handle1
+                        stop_write_load $load_handle2
+                        stop_write_load $load_handle3
+                        stop_write_load $load_handle4
 
                         # Make sure that slaves and master have same
                         # number of keys
