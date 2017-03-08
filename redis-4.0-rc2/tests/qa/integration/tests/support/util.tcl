@@ -159,9 +159,10 @@ proc findKeyWithType {r type} {
 }
 
 proc createComplexDataset {r ops {opt {}}} {
+    set keyslist {}
     for {set j 0} {$j < $ops} {incr j} {
         set k [randomKey]
-        set k2 [randomKey]
+        lappend keyslist $k
         set f [randomValue]
         set v [randomValue]
 
@@ -170,20 +171,20 @@ proc createComplexDataset {r ops {opt {}}} {
                 {*}$r expire [randomKey] [randomInt 2]
             }
         }
-
-        randpath {
-            set d [expr {rand()}]
-        } {
-            set d [expr {rand()}]
-        } {
-            set d [expr {rand()}]
-        } {
-            set d [expr {rand()}]
-        } {
-            set d [expr {rand()}]
-        } {
-            randpath {set d +inf} {set d -inf}
-        }
+        set d [randomSignedInt 100000000]
+        # randpath {
+            # set d [expr {rand()}]
+        # } {
+            # set d [expr {rand()}]
+        # } {
+            # set d [expr {rand()}]
+        # } {
+            # set d [expr {rand()}]
+        # } {
+            # set d [expr {rand()}]
+        # } {
+            # randpath {set d +inf} {set d -inf}
+        # }
         set t [{*}$r type $k]
 
         if {$t eq {none}} {
@@ -210,39 +211,16 @@ proc createComplexDataset {r ops {opt {}}} {
             {list} {
                 randpath {{*}$r lpush $k $v} \
                         {{*}$r rpush $k $v} \
-                        {{*}$r lrem $k 0 $v} \
                         {{*}$r rpop $k} \
                         {{*}$r lpop $k}
             }
             {set} {
                 randpath {{*}$r sadd $k $v} \
-                        {{*}$r srem $k $v} \
-                        {
-                            set otherset [findKeyWithType {*}$r set]
-                            if {$otherset ne {}} {
-                                randpath {
-                                    {*}$r sunionstore $k2 $k $otherset
-                                } {
-                                    {*}$r sinterstore $k2 $k $otherset
-                                } {
-                                    {*}$r sdiffstore $k2 $k $otherset
-                                }
-                            }
-                        }
+                        {{*}$r srem $k $v}
             }
             {zset} {
                 randpath {{*}$r zadd $k $d $v} \
-                        {{*}$r zrem $k $v} \
-                        {
-                            set otherzset [findKeyWithType {*}$r zset]
-                            if {$otherzset ne {}} {
-                                randpath {
-                                    {*}$r zunionstore $k2 2 $k $otherzset
-                                } {
-                                    {*}$r zinterstore $k2 2 $k $otherzset
-                                }
-                            }
-                        }
+                        {{*}$r zrem $k $v}
             }
             {hash} {
                 randpath {{*}$r hset $k $f $v} \
@@ -250,6 +228,7 @@ proc createComplexDataset {r ops {opt {}}} {
             }
         }
     }
+    return [lsort -unique $keyslist ]
 }
 
 proc formatCommand {args} {
