@@ -1698,8 +1698,8 @@ const char *evictPolicyToString(void);
 struct redisMemOverhead *getMemoryOverheadData(void);
 void freeMemoryOverheadData(struct redisMemOverhead *mh);
 
-#define EVICTED_DATA_DBID (server.dbnum)
-#define EVICTED_DATA_DB (server.db + server.dbnum)
+#define EVICTED_DATA_DBID (server.dbnum - 1)
+#define EVICTED_DATA_DB (server.db + server.dbnum - 1)
 
 #define RESTART_SERVER_NONE 0
 #define RESTART_SERVER_GRACEFULLY (1<<0)     /* Do proper shutdown. */

@@ -326,15 +326,6 @@ long long emptyDb(int dbnum, int flags, void(callback)(void*)) {
         }
     }
 
-    if (server.jdjr_mode) {
-        if (async)
-            emptyDbAsync(EVICTED_DATA_DB);
-        else {
-            dictEmpty(EVICTED_DATA_DB->dict,callback);
-            dictEmpty(EVICTED_DATA_DB->expires,callback);
-        }
-    }
-
     if (server.cluster_enabled) {
         if (async) {
             slotToKeyFlushAsync();

@@ -729,6 +729,8 @@ void loadServerConfigFromString(char *config) {
     }
 
     if (server.jdjr_mode) {
+        server.dbnum += 1;
+
         if (server.ssdb_load_upper_limit > 0 &&
                 server.ssdb_transfer_lower_limit >= server.ssdb_load_upper_limit) {
             err = "ssdb transfer/load will not work, ssdb-load-upper-limit"
