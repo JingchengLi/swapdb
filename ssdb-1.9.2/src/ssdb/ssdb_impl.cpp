@@ -19,6 +19,7 @@ found in the LICENSE file.
 #include "rocksdb/table.h"
 #include "rocksdb/convenience.h"
 
+#include "t_listener.h"
 #define leveldb rocksdb
 #endif
 
@@ -90,7 +91,10 @@ SSDB* SSDB::open(const Options &opt, const std::string &dir){
 		ssdb->options.compression = leveldb::kNoCompression;
 	}
 
-
+#ifdef USE_LEVELDB
+#else
+	ssdb->options.listeners.push_back(std::shared_ptr<t_listener>(new t_listener()));
+#endif
 
 	leveldb::Status status;
 
