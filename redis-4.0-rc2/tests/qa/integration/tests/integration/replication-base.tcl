@@ -54,7 +54,7 @@ start_server {tags {"repl"}} {
 
         test {SET on the master should immediately propagate} {
             r -1 set mykey bar
-            after 2000
+            after 1000000
 
             wait_for_condition 500 100 {
                 [r  0 get mykey] eq {bar}
