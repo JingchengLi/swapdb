@@ -883,7 +883,7 @@ int rdbSaveRio(rio *rdb, int *error, int flags, rdbSaveInfo *rsi) {
     if (rdbWriteRaw(rdb,magic,9) == -1) goto werr;
     if (rdbSaveInfoAuxFields(rdb,flags,rsi) == -1) goto werr;
 
-    for (j = 0; j < (server.jdjr_mode ? server.dbnum + 1 : server.dbnum); j++) {
+    for (j = 0; j < server.dbnum; j++) {
         redisDb *db = server.db+j;
         dict *d = db->dict;
         if (dictSize(d) == 0) continue;
@@ -1476,7 +1476,7 @@ int rdbLoadRio(rio *rdb, rdbSaveInfo *rsi) {
             /* SELECTDB: Select the specified database. */
             if ((dbid = rdbLoadLen(rdb,NULL)) == RDB_LENERR)
                 goto eoferr;
-            if (dbid >= (unsigned)(server.jdjr_mode ? server.dbnum + 1 : server.dbnum)) {
+            if (dbid >= (uint64_t)server.dbnum) {
                 serverLog(LL_WARNING,
                     "FATAL: Data file was created with a Redis "
                     "server configured to handle more than %d "

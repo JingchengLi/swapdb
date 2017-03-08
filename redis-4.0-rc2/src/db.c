@@ -347,9 +347,7 @@ long long emptyDb(int dbnum, int flags, void(callback)(void*)) {
 }
 
 int selectDb(client *c, int id) {
-    int server_dbnum = server.jdjr_mode && server.loading
-        ? (server.dbnum + 1) : server.dbnum;
-    if (id < 0 || id >= server_dbnum)
+    if (id < 0 || id >= server.dbnum)
         return C_ERR;
     c->db = &server.db[id];
     return C_OK;
@@ -482,7 +480,7 @@ void selectCommand(client *c) {
         return;
 
     if (server.cluster_enabled && (id != 0)
-        && (!server.jdjr_mode || (server.loading && id != EVICTED_DATA_DBID))) {
+        && !(server.jdjr_mode && id == EVICTED_DATA_DBID)) {
         addReplyError(c,"SELECT is not allowed in cluster mode");
         return;
     }

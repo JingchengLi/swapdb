@@ -101,16 +101,13 @@ void activeExpireCycle(int type) {
     static int timelimit_exit = 0;      /* Time limit hit in previous call? */
     static long long last_fast_cycle = 0; /* When last fast cycle ran. */
 
-    int j, iteration = 0, server_dbnum;
+    int j, iteration = 0;
     int dbs_per_call = CRON_DBS_PER_CALL;
     long long start = ustime(), timelimit;
 
     /* Try to expire the EVICTED_DATA_DB. */
-    if (server.jdjr_mode) {
+    if (server.jdjr_mode)
         dbs_per_call += 1;
-        server_dbnum = server.dbnum + 1;
-    } else
-        server_dbnum = server.dbnum;
 
     if (type == ACTIVE_EXPIRE_CYCLE_FAST) {
         /* Don't start a fast cycle if the previous cycle did not exited
@@ -128,8 +125,8 @@ void activeExpireCycle(int type) {
      * 2) If last time we hit the time limit, we want to scan all DBs
      * in this iteration, as there is work to do in some DB and we don't want
      * expired keys to use memory for too much time. */
-    if (dbs_per_call > server_dbnum || timelimit_exit)
-        dbs_per_call = server_dbnum;
+    if (dbs_per_call > server.dbnum || timelimit_exit)
+        dbs_per_call = server.dbnum;
 
     /* We can use at max ACTIVE_EXPIRE_CYCLE_SLOW_TIME_PERC percentage of CPU time
      * per iteration. Since this function gets called with a frequency of
@@ -144,7 +141,7 @@ void activeExpireCycle(int type) {
 
     for (j = 0; j < dbs_per_call; j++) {
         int expired;
-        redisDb *db = server.db+(current_db % server_dbnum);
+        redisDb *db = server.db+(current_db % server.dbnum);
 
         /* Increment the DB now so we are sure if we run out of time
          * in the current DB we'll restart from the next. This allows to

@@ -898,26 +898,24 @@ void databasesCron(void) {
         static unsigned int resize_db = 0;
         static unsigned int rehash_db = 0;
         int dbs_per_call = CRON_DBS_PER_CALL;
-        int j, server_dbnum = server.dbnum;
+        int j;
 
-        if (server.jdjr_mode) {
+        if (server.jdjr_mode)
             dbs_per_call += 1;
-            server_dbnum += 1;
-        }
 
         /* Don't test more DBs than we have. */
-        if (dbs_per_call > server_dbnum) dbs_per_call = server_dbnum;
+        if (dbs_per_call > server.dbnum) dbs_per_call = server.dbnum;
 
         /* Resize */
         for (j = 0; j < dbs_per_call; j++) {
-            tryResizeHashTables(resize_db % server_dbnum);
+            tryResizeHashTables(resize_db % server.dbnum);
             resize_db++;
         }
 
         /* Rehash */
         if (server.activerehashing) {
             for (j = 0; j < dbs_per_call; j++) {
-                int work_done = incrementallyRehash(rehash_db % server_dbnum);
+                int work_done = incrementallyRehash(rehash_db % server.dbnum);
                 rehash_db++;
                 if (work_done) {
                     /* If the function did some work, stop here, we'll do
@@ -1493,7 +1491,7 @@ void initServerConfig(void) {
     server.jdjr_mode = CONFIG_DEFAULT_JDJR_MODE;
     server.load_from_ssdb = CONFIG_DEFAULT_LOAD_FROM_SSDB;
     server.use_customized_replication = CONFIG_DEFAULT_USE_CUSTOMIZED_REPLICATION;
-    server.dbnum = CONFIG_DEFAULT_DBNUM;
+    server.dbnum = server.jdjr_mode ? CONFIG_DEFAULT_DBNUM + 1 : CONFIG_DEFAULT_DBNUM;
     server.verbosity = CONFIG_DEFAULT_VERBOSITY;
     server.maxidletime = CONFIG_DEFAULT_CLIENT_TIMEOUT;
     server.tcpkeepalive = CONFIG_DEFAULT_TCP_KEEPALIVE;
@@ -1908,9 +1906,8 @@ void resetServerStats(void) {
 }
 
 void initServer(void) {
-    int j, server_dbnum;
+    int j;
 
-    server_dbnum = server.jdjr_mode ? server.dbnum + 1 : server.dbnum;
     signal(SIGHUP, SIG_IGN);
     signal(SIGPIPE, SIG_IGN);
     setupSignalHandlers();
@@ -1941,7 +1938,7 @@ void initServer(void) {
     createSharedObjects();
     adjustOpenFilesLimit();
     server.el = aeCreateEventLoop(server.maxclients+CONFIG_FDSET_INCR);
-    server.db = zmalloc(sizeof(redisDb)* server_dbnum);
+    server.db = zmalloc(sizeof(redisDb)* server.dbnum);
 
     if (server.jdjr_mode) server.special_clients_num = 0;
 
@@ -1996,7 +1993,7 @@ void initServer(void) {
     }
 
     /* Create the Redis databases, and initialize other internal state. */
-    for (j = 0; j < server_dbnum; j++) {
+    for (j = 0; j < server.dbnum; j++) {
         server.db[j].dict = dictCreate(&dbDictType,NULL);
         server.db[j].expires = dictCreate(&keyptrDictType,NULL);
         server.db[j].blocking_keys = dictCreate(&keylistDictType,NULL);
