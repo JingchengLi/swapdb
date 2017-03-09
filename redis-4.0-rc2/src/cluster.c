@@ -4692,6 +4692,7 @@ void customizedFailCommand(client *c) {
     }
 
     signalBlockingKeyAsReady(c->db, keyobj);
+    server.dirty ++;
 
     addReply(c, shared.ok);
 
@@ -4701,19 +4702,34 @@ void customizedFailCommand(client *c) {
 }
 
 void dumptossdbCommand(client *c) {
+    robj *keyobj, *noreplyobj = NULL, *o;
+    sds noreplysds = NULL;
+
     if (!server.jdjr_mode) {
         addReplyErrorFormat(c,"Command only supported in jdjr-mode '%s'",
                             (char*)c->argv[0]->ptr);
         return;
     }
 
-    robj *keyobj = c->argv[1], *o;
+    keyobj = c->argv[1];
 
     if ((o = lookupKeyReadOrReply(c, c->argv[1], shared.nullbulk)) == NULL)
         return;
 
+    if (c->argc == 3) {
+        noreplyobj = c->argv[2];
+        noreplysds = (sds)noreplyobj->ptr;
+        sdstoupper(noreplysds);
+
+        if (noreplyobj->type != REDIS_REPLY_STRING
+            || sdscmp(noreplysds, shared.noreply)) {
+            addReply(c, shared.syntaxerr);
+            return;
+        }
+    }
+
     /* Try restoring the redis dumped data to SSDB. */
-    if (prologOfEvictingToSSDB(keyobj, c->db) != C_OK)
+    if (prologOfEvictingToSSDB(keyobj, c->db, noreplyobj) != C_OK)
         serverLog(LL_DEBUG, "Failed to send the restore cmd to SSDB.");
     else
         setTransferringDB(c->db, keyobj);

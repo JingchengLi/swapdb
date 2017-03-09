@@ -308,7 +308,8 @@ struct redisCommand redisCommandTable[] = {
     {"customized-fail",customizedFailCommand,3,"w",0,NULL,1,1,1,0,0},
 
     /* Interfaces for testing. */
-    {"dumptossdb",dumptossdbCommand,2,"w",0,NULL,1,1,1,0,0},
+
+    {"dumptossdb",dumptossdbCommand,3,"w",0,NULL,1,1,1,0,0},
     {"restorefromssdb",restorefromssdbCommand,2,"w",0,NULL,1,1,1,0,0},
     {"locatekey",locatekeyCommand,2,"r",0,NULL,1,1,1,0,0},
 };
@@ -1461,6 +1462,11 @@ void createSharedObjects(void) {
         shared.transfersnapshotunfinished = sdsnew("rr_transfer_snapshot unfinished");
         shared.delsnapshotok = sdsnew("rr_del_snapshot ok");
         shared.delsnapshotnok = sdsnew("rr_del_snapshot nok");
+        shared.noreply = sdsnew("NOREPLY");
+        shared.dumpcmdsds= sdsnew("DUMPTOSSDB");
+
+        shared.noreplyobj = createObject(OBJ_STRING, (void *)shared.noreply);
+        shared.dumpcmdobj = createObject(OBJ_STRING, (void *)sdsnew("DUMPTOSSDB"));
     }
 }
 

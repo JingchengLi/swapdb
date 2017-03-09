@@ -581,7 +581,7 @@ int prologOfLoadingFromSSDB(robj *keyobj) {
     return C_OK;
 }
 
-int prologOfEvictingToSSDB(robj *keyobj, redisDb *db) {
+int prologOfEvictingToSSDB(robj *keyobj, redisDb *db, robj *noreplyobj) {
     rio cmd, payload;
     long long ttl = 0;
     long long expiretime;
@@ -609,7 +609,7 @@ int prologOfEvictingToSSDB(robj *keyobj, redisDb *db) {
     }
 
     rioInitWithBuffer(&cmd, sdsempty());
-    serverAssert(rioWriteBulkCount(&cmd, '*', 5));
+    serverAssert(rioWriteBulkCount(&cmd, '*', noreplyobj ? 6 : 5));
     serverAssert(rioWriteBulkString(&cmd, "RR_RESTORE", 10));
     serverAssert(sdsEncodedObject(keyobj));
     serverAssert(rioWriteBulkString(&cmd, keyobj->ptr, sdslen(keyobj->ptr)));
@@ -625,11 +625,21 @@ int prologOfEvictingToSSDB(robj *keyobj, redisDb *db) {
 
     serverAssert(rioWriteBulkString(&cmd, "REPLACE", 7));
 
+    if (noreplyobj) {
+        sds noreplysds = (sds)(noreplyobj->ptr);
+        serverAssert(rioWriteBulkString(&cmd, noreplysds, sdslen(noreplysds)));
+    }
+
     /* sendCommandToSSDB will free cmd.io.buffer.ptr. */
     if (sendCommandToSSDB(server.ssdb_client, cmd.io.buffer.ptr) != C_OK) {
         serverLog(LL_WARNING, "sendCommandToSSDB: server.ssdb_client failed.");
         return C_ERR;
     }
+
+    robj *setargv[3] = {shared.dumpcmdobj, keyobj, shared.noreplyobj};
+    propagate(lookupCommand(shared.dumpcmdsds), 0, setargv, 3,
+              PROPAGATE_REPL);
+
 
     serverLog(LL_DEBUG, "Evicting key: %s to SSDB, maxmemory: %lld, zmalloc_used_memory: %lu.",
               (char *)(keyobj->ptr), server.maxmemory, zmalloc_used_memory());
@@ -714,7 +724,7 @@ int tryEvictingKeysToSSDB(int *mem_tofree) {
         robj *keyobj = createStringObject(bestkey,sdslen(bestkey));
 
         /* Try restoring the redis dumped data to SSDB. */
-        if (prologOfEvictingToSSDB(keyobj, db) != C_OK)
+        if (prologOfEvictingToSSDB(keyobj, db, NULL) != C_OK)
             serverLog(LL_DEBUG, "Failed to send the restore cmd to SSDB.");
         else
             setTransferringDB(db, keyobj);

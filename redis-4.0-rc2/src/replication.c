@@ -1182,6 +1182,15 @@ void replicationCreateMasterClient(int fd, int dbid) {
             server.master->context = context;
 
         server.master->context = redisConnectUnixNonBlock(server.ssdb_server_unixsocket);
+
+        anetKeepAlive(NULL, server.master->context->fd, server.tcpkeepalive);
+
+        if (aeCreateFileEvent(server.el, server.master->context->fd,
+                              AE_READABLE, ssdbClientUnixHandler, server.master) == AE_ERR)
+            serverLog(LL_VERBOSE, "Unrecoverable error creating ssdbFd file event.");
+        else
+            serverLog(LL_DEBUG, "rfd:%d connecting to SSDB Unix socket succeeded: sfd:%d",
+                      server.master->fd, server.master->context->fd);
     }
 }
 
