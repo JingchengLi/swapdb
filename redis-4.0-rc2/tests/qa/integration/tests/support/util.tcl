@@ -166,11 +166,6 @@ proc createComplexDataset {r ops {opt {}}} {
         set f [randomValue]
         set v [randomValue]
 
-        if {[lsearch -exact $opt useexpire] != -1} {
-            if {rand() < 0.1} {
-                {*}$r expire [randomKey] [randomInt 2]
-            }
-        }
         set d [randomSignedInt 100000000]
         # randpath {
             # set d [expr {rand()}]
@@ -225,6 +220,12 @@ proc createComplexDataset {r ops {opt {}}} {
             {hash} {
                 randpath {{*}$r hset $k $f $v} \
                         {{*}$r hdel $k $f}
+            }
+        }
+
+        if {[lsearch -exact $opt useexpire] != -1} {
+            if {rand() < 0.5} {
+                {*}$r expire $k [randomInt 2]
             }
         }
     }
@@ -402,4 +403,26 @@ proc wait_memory_stable {} {
         after 30
         set current_mem [s used_memory]
     }
+}
+
+proc debug_digest {r {level 0}} {
+    set oldmemory [lindex [$r $level config get maxmemory] 1 ]
+    $r $level config set maxmemory 0
+    $r $level select 16
+    set keyslist [$r $level keys *]
+    $r $level select 0
+    foreach key $keyslist {
+        $r $level exists $key ;#load keys to redis
+    }
+    $r $level select 16
+    wait_for_condition 300 10000 {
+        [$r $level keys *] eq {}
+    } else {
+        fail "wait $r $level debug digest timeout."
+    }
+    $r $level select 0
+
+    set digest [$r $level debug digest]
+    $r $level config set maxmemory $oldmemory
+    return $digest
 }

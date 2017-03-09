@@ -17,7 +17,7 @@ start_server {tags {"repl"}} {
                     after 100
                 }
             }
-            if {$retry == 1} {
+            if {$retry == 0} {
                 error "assertion:Slaves not correctly synchronized"
             }
             r config set min-slaves-to-write 1
@@ -48,6 +48,11 @@ start_server {tags {"repl"}} {
             }
             r config set maxmemory $oldmaxmemory
             r config set ssdb-transfer-lower-limit $oldlower
+        }
+
+        test {#issue slave key's value is missed} {
+            assert_equal [r get foossdb] {12345} "master foossdb value error"
+            assert_equal [r -1 get foossdb] {12345} "slave foossdb value error"
         }
 
         test {No write if min-slaves-to-write is < attached slaves} {
@@ -107,7 +112,7 @@ start_server {tags {"repl"}} {
 
             r config set maxmemory 0
             foreach key $keyslist {
-                assert_equal [ r exists $key ] [ r -1 exists $key ]
+                assert_equal [ r exists $key ] [ r -1 exists $key ] "key:$key"
             }
 
             if {[r debug digest] ne [r -1 debug digest]} {

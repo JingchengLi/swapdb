@@ -1,5 +1,6 @@
 proc start_bg_complex_data {host port db ops} {
     set tclsh [info nameofexecutable]
+    set db 0
     exec $tclsh tests/helpers/bg_complex_data.tcl $host $port $db $ops &
 }
 
@@ -14,10 +15,10 @@ start_server {tags {"repl"}} {
         set master_host [srv -1 host]
         set master_port [srv -1 port]
         set slave [srv 0 client]
-
-        set load_handle0 [start_bg_complex_data $master_host $master_port 9 100000]
-        set load_handle1 [start_bg_complex_data $master_host $master_port 11 100000]
-        set load_handle2 [start_bg_complex_data $master_host $master_port 12 100000]
+        set num 100000
+        set load_handle0 [start_bg_complex_data $master_host $master_port 9 $num]
+        set load_handle1 [start_bg_complex_data $master_host $master_port 11 $num]
+        set load_handle2 [start_bg_complex_data $master_host $master_port 12 $num]
 
         test {First server should have role slave after SLAVEOF} {
             $slave slaveof $master_host $master_port
@@ -25,32 +26,20 @@ start_server {tags {"repl"}} {
             s 0 role
         } {slave}
 
-        test {Test replication with parallel clients writing in differnet DBs} {
+        test {Test replication with parallel clients writing in DB 0} {
             after 5000
             stop_bg_complex_data $load_handle0
             stop_bg_complex_data $load_handle1
             stop_bg_complex_data $load_handle2
             set retry 10
-            while {$retry && ([$master debug digest] ne [$slave debug digest])}\
+            r config set maxmemory 0
+            r -1 config set maxmemory 0
+            while {$retry && ([debug_digest r] ne [debug_digest r -1])}\
             {
                 after 1000
                 incr retry -1
             }
-            assert {[$master dbsize] > 0}
-
-            if {[$master debug digest] ne [$slave debug digest]} {
-                set csv1 [csvdump r]
-                set csv2 [csvdump {r -1}]
-                set fd [open /tmp/repldump1.txt w]
-                puts -nonewline $fd $csv1
-                close $fd
-                set fd [open /tmp/repldump2.txt w]
-                puts -nonewline $fd $csv2
-                close $fd
-                puts "Master - Slave inconsistency"
-                puts "Run diff -u against /tmp/repldump*.txt for more info"
-            }
-            assert_equal [r debug digest] [r -1 debug digest]
+            assert {retry > 0}
         }
     }
 }
@@ -70,6 +59,8 @@ start_server {tags {"repl"}} {
                 fail "Replication not started."
             }
         }
+        # slave->replstate not online when master link status is up
+        after 1000
 
         test {With min-slaves-to-write (1,3): master should be writable} {
             $master config set min-slaves-max-lag 3
@@ -111,26 +102,21 @@ start_server {tags {"repl"}} {
             } else {
                 fail "Replication not started."
             }
-        }
 
-        test {Replication: commands with many arguments (issue #1221)} {
-            # We now issue large MSET commands, that may trigger a specific
-            # class of bugs, see issue #1221.
-            for {set j 0} {$j < 100} {incr j} {
-                set cmd [list mset]
-                for {set x 0} {$x < 1000} {incr x} {
-                    lappend cmd [randomKey] [randomValue]
+            # wait for sync complete.
+            set retry 500
+            while {$retry} {
+                set info [r -1 info]
+                if {[string match {*slave0:*state=online*} $info]} {
+                    break
+                } else {
+                    incr retry -1
+                    after 100
                 }
-                $master {*}$cmd
             }
-
-            set retry 10
-            while {$retry && ([$master debug digest] ne [$slave debug digest])}\
-            {
-                after 1000
-                incr retry -1
+            if {$retry == 0} {
+                error "assertion:Slaves not correctly synchronized"
             }
-            assert {[$master dbsize] > 0}
         }
 
         test {Replication of SPOP command -- alsoPropagate() API} {
@@ -145,11 +131,7 @@ start_server {tags {"repl"}} {
             set count [randomInt 100]
             set result [$master spop myset $count]
 
-            wait_for_condition 50 100 {
-                [$master debug digest] eq [$slave debug digest]
-            } else {
-                fail "SPOP replication inconsistency"
-            }
+           assert_equal [debug_digest r -1] [debug_digest r] "SPOP replication inconsistency"
         }
     }
 }

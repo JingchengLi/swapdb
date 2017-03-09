@@ -9,12 +9,18 @@ start_server {tags {"repl"}} {
             }
         }
 
-        if {$::accurate} {set numops 50000} else {set numops 5000}
+        if {$::accurate} {set numops 50} else {set numops 5}
 
         test {MASTER and SLAVE consistency with expire} {
-            createComplexDataset r $numops useexpire
+            set keyslist [ createComplexDataset r $numops useexpire ]
             after 4000 ;# Make sure everything expired before taking the digest
-            r keys *   ;# Force DEL syntesizing to slave
+
+            set oldmaxmemory [lindex [ r config get maxmemory ] 1]
+            r config set maxmemory 0 ;# load all keys to redis
+            foreach key $keyslist {
+                assert_equal [ r exists $key ] [ r -1 exists $key ] "key:$key"
+            }
+            # r keys *   ;# Force DEL syntesizing to slave
             after 1000 ;# Wait another second. Now everything should be fine.
             if {[r debug digest] ne [r -1 debug digest]} {
                 set csv1 [csvdump r]
@@ -29,6 +35,7 @@ start_server {tags {"repl"}} {
                 puts "Run diff -u against /tmp/repldump*.txt for more info"
             }
             assert_equal [r debug digest] [r -1 debug digest]
+            r config set maxmemory $oldmaxmemory
         }
     }
 }
