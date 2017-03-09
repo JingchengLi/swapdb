@@ -4,6 +4,7 @@ Use of this source code is governed by a BSD-style license that can be
 found in the LICENSE file.
 */
 #include <limits.h>
+#include <stack>
 #include "../include.h"
 #include "ssdb_impl.h"
 
@@ -1102,10 +1103,19 @@ int SSDBImpl::zrevrangebylex(const Bytes &name, const Bytes &key_start, const By
     if (zslParseLexRange(key_end,key_start,&range) != 0) {
         return SYNTAX_ERR;
     }
-    if ((range.min > range.max)  ||
-        (range.min == range.max &&
-         (range.minex || range.maxex)))
-        return SYNTAX_ERR;
+    /*
+     * in some of the following special cases, return nil
+     * { zrevrangebylex zkey - + } / { zrevrangebylex zkey - (g } / { zrevrangebylex zkey [f + }
+     * { zrevrangebylex zkey [a (f } / but except { zrevrangebylex zkey + (f } even if range.min > range.max
+     * { zrevrangebylex zkey [ ( } / but except { zrevrangebylex zkey + ( } even if range.min == range.max == ""
+     * { zrevrangebylex zkey (f (f } / but except { zrevrangebylex zkey + ( }
+     */
+    if ( (key_start[0] == '-') || (key_end[0] == '+') ||
+         (range.min > range.max && key_start[0] != '+') ||
+         (range.min == "" && range.max == "" && key_start[0] != '+') ||
+         (range.min == range.max  && range.max != "" && (range.minex || range.maxex)) ){
+        return 0;
+    }
 
     ZSetMetaVal zv;
     const leveldb::Snapshot* snapshot = nullptr;
@@ -1120,18 +1130,26 @@ int SSDBImpl::zrevrangebylex(const Bytes &name, const Bytes &key_start, const By
     }
     SnapshotPtr spl(ldb, snapshot); //auto release
 
-    auto it = std::unique_ptr<ZIteratorByLex>(this->zscanbylex_internal(name, range.max, range.min, -1, Iterator::BACKWARD, zv.version, snapshot));
+    auto it = std::unique_ptr<ZIteratorByLex>(this->zscanbylex_internal(name, range.min, range.max, -1, Iterator::FORWARD, zv.version, snapshot));
     if (it == NULL) {
         return 0;
     }
 
+    std::stack<std::string> tmp_stack;
     while (it->next()) {
-        if (zslLexValueLteMax(it->key, &range)){
-            if (zslLexValueGteMin(it->key, &range)){
+        if (zslLexValueGteMin(it->key, &range)){
+            if (zslLexValueLteMax(it->key, &range)){
                 count++;
-                keys.push_back(it->key);
+                tmp_stack.push(it->key);
             } else
                 break;
+        }
+    }
+
+    if (count > 0){
+        while (!tmp_stack.empty()){
+            keys.push_back(tmp_stack.top());
+            tmp_stack.pop();
         }
     }
 
