@@ -984,11 +984,12 @@ int SSDBImpl::genericZrangebylex(const Bytes &name, const Bytes &key_start, cons
     if (zslParseLexRange(key_start,key_end,&range) != 0) {
         return SYNTAX_ERR;
     }
-    if ((range.min > range.max)  ||
-        (range.min == range.max &&
-         (range.minex || range.maxex)))
-        return SYNTAX_ERR;
-
+    if ( (key_start[0] == '+') || (key_end[0] == '-') ||
+         (range.min > range.max && key_end[0] != '+')  ||
+         (range.min == "" && range.max == "" && key_end[0] != '+') ||
+         (range.min == range.max  && range.max != "" && (range.minex || range.maxex)) ){
+        return 0;
+    }
 
     ZSetMetaVal zv;
     const leveldb::Snapshot* snapshot = nullptr;
@@ -1041,10 +1042,12 @@ int64_t SSDBImpl::zremrangebylex(const Bytes &name, const Bytes &key_start, cons
     if (zslParseLexRange(key_start,key_end,&range) != 0) {
         return SYNTAX_ERR;
     }
-    if ((range.min > range.max)  ||
-        (range.min == range.max &&
-         (range.minex || range.maxex)))
-        return SYNTAX_ERR;
+    if ( (key_start[0] == '+') || (key_end[0] == '-') ||
+         (range.min > range.max && key_end[0] != '+')  ||
+         (range.min == "" && range.max == "" && key_end[0] != '+') ||
+         (range.min == range.max  && range.max != "" && (range.minex || range.maxex)) ){
+        return 0;
+    }
 
     RecordLock l(&mutex_record_, name.String());
     ZSetMetaVal zv;
