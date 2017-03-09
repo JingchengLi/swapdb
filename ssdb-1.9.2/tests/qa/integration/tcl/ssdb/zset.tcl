@@ -282,7 +282,7 @@ start_server {tags {"zset"}} {
         }
 
         proc create_default_zset {} {
-            create_zset zset {-10000000000000 a 1 b 2 c 3 d 4 e 5 f 10000000000000 g}
+            create_zset zset {-9999999999999 a 1 b 2 c 3 d 4 e 5 f 9999999999999 g}
             # create_zset zset {$SCORE_MIN a 1 b 2 c 3 d 4 e 5 f $SCORE_MAX g}
         }
 
