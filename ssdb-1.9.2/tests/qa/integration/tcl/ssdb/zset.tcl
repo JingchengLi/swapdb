@@ -301,14 +301,14 @@ start_server {tags {"zset"}} {
             assert_equal 3 [r zcount zset 0 3]
 
             # exclusive range
-            assert_equal {b}   [r zrangebyscore zset (-inf (2]
+            assert_equal {a b}   [r zrangebyscore zset (-inf (2]
             assert_equal {b c} [r zrangebyscore zset (0 (3]
             assert_equal {e f} [r zrangebyscore zset (3 (6]
-            assert_equal {f}   [r zrangebyscore zset (4 (+inf]
-            assert_equal {b}   [r zrevrangebyscore zset (2 (-inf]
+            assert_equal {f g}   [r zrangebyscore zset (4 (+inf]
+            assert_equal {b a}   [r zrevrangebyscore zset (2 (-inf]
             assert_equal {c b} [r zrevrangebyscore zset (3 (0]
             assert_equal {f e} [r zrevrangebyscore zset (6 (3]
-            assert_equal {f}   [r zrevrangebyscore zset (+inf (4]
+            assert_equal {g f}   [r zrevrangebyscore zset (+inf (4]
             assert_equal 2 [r zcount zset (0 (3]
 
             # test empty ranges
