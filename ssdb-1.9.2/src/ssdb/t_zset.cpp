@@ -660,14 +660,14 @@ int SSDBImpl::genericZrangebyscore(const Bytes &name, const Bytes &start_score, 
         score_end = str(score);
     }
 
-    if (start_score == "-inf"){
+    if (start_score == "-inf" || start_score == "(-inf"){
         score_start = str(ZSET_SCORE_MIN);
-    } else if(start_score == "+inf"){
+    } else if(start_score == "+inf" || start_score == "(+inf"){
         score_start = str(ZSET_SCORE_MAX);
     }
-    if (end_score == "-inf"){
+    if (end_score == "-inf" || end_score == "(-inf"){
         score_end = str(ZSET_SCORE_MIN);
-    } else if (end_score == "+inf"){
+    } else if (end_score == "+inf" || end_score == "(+inf"){
         score_end = str(ZSET_SCORE_MAX);
     }
 
