@@ -124,7 +124,7 @@ int proc_multi_zset(NetworkServer *net, Link *link, const Request &req, Response
                 resp->push_back("ERR value is not a valid float or a NaN data");
                 return 0;
             }
-        }else if (score < ZSET_SCORE_MIN || score > ZSET_SCORE_MAX){
+        }else if (score <= ZSET_SCORE_MIN || score >= ZSET_SCORE_MAX){
             resp->push_back("error");
             resp->push_back("ERR value is less than ZSET_SCORE_MIN or greater than ZSET_SCORE_MAX");
             return 0;
@@ -156,7 +156,7 @@ int proc_multi_zset(NetworkServer *net, Link *link, const Request &req, Response
                 resp->push_back("ERR value is not a valid float");
 				return 0;
 			}
-		}else if (score < ZSET_SCORE_MIN || score > ZSET_SCORE_MAX){
+		}else if (score <= ZSET_SCORE_MIN || score >= ZSET_SCORE_MAX){
             resp->push_back("error");
             resp->push_back("ERR value is less than ZSET_SCORE_MIN or greater than ZSET_SCORE_MAX");
             return 0;
@@ -446,7 +446,7 @@ static int _zincr(SSDB *ssdb, const Request &req, Response *resp, int dir){
             resp->push_back("ERR value is not a valid float or a NaN data");
             return 0;
         }
-    } else if (score < ZSET_SCORE_MIN || score > ZSET_SCORE_MAX){
+    } else if (score <= ZSET_SCORE_MIN || score >= ZSET_SCORE_MAX){
         resp->push_back("error");
         resp->push_back("ERR value is less than ZSET_SCORE_MIN or greater than ZSET_SCORE_MAX");
         return 0;

@@ -42,7 +42,7 @@ int zsetAdd(SSDBImpl *ssdb, leveldb::WriteBatch &batch, bool needCheck,
         *flags = ZADD_NAN;
         return NAN_SCORE;
     }
-    else if (score < ZSET_SCORE_MIN || score > ZSET_SCORE_MAX){
+    else if (score <= ZSET_SCORE_MIN || score >= ZSET_SCORE_MAX){
         return ZSET_OVERFLOW;
     }
 
@@ -78,7 +78,7 @@ int zsetAdd(SSDBImpl *ssdb, leveldb::WriteBatch &batch, bool needCheck,
                     *flags |= ZADD_NAN;
                     return NAN_SCORE;
                 }
-                else if (score < ZSET_SCORE_MIN || score > ZSET_SCORE_MAX){
+                else if (score <= ZSET_SCORE_MIN || score >= ZSET_SCORE_MAX){
                     return ZSET_OVERFLOW;
                 }
                 if (newscore) *newscore = score;
@@ -175,7 +175,7 @@ int SSDBImpl::zsetNoLock(const Bytes &name, const std::map<Bytes ,Bytes> &sorted
 
         double score = val.Double();
 
-        if (score > ZSET_SCORE_MAX || score < ZSET_SCORE_MIN) {
+        if (score >= ZSET_SCORE_MAX || score <= ZSET_SCORE_MIN) {
             return -1;
         }
         int retflags = flags;
