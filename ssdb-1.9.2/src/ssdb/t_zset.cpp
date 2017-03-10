@@ -820,7 +820,7 @@ int64_t SSDBImpl::zremrangebyscore(const Bytes &name, const Bytes &score_start, 
     }
 
     if (remove && count > 0){
-        int ret = incr_zsize(this, batch, zv, name, count);
+        int ret = incr_zsize(this, batch, zv, name, -1 * count);
         if (ret < 0){
             return ret;
         }
@@ -1087,7 +1087,7 @@ int64_t SSDBImpl::zremrangebylex(const Bytes &name, const Bytes &key_start, cons
     }
 
     if (count > 0){
-        ret = incr_zsize(this, batch, zv, name, count);
+        ret = incr_zsize(this, batch, zv, name, -1 * count);
         if (ret < 0){
             return ret;
         }
