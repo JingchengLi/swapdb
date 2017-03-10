@@ -518,7 +518,7 @@ int proc_zremrangebyrank(NetworkServer *net, Link *link, const Request &req, Res
         resp->push_back(GetErrorInfo(ret));
         return 0;
     } else if (ret == 0) {
-        resp->push_back("ok");
+        resp->reply_int(0, ret);
         return 0;
     }
 
