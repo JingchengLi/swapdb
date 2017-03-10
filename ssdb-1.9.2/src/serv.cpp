@@ -484,22 +484,36 @@ int proc_rr_restore(NetworkServer *net, Link *link, const Request &req, Response
 	int64_t ttl = req[2].Int64();
 	if (errno == EINVAL || ttl < 0){
 		resp->push_back("error");
+		resp->push_back(GetErrorInfo(INVALID_INT));
 		return 0;
 	}
 
 	bool replace = false;
-	if (req.size()>4) {
-		std::string q4 = req[4].String();
-		strtoupper(&q4);
-		if (q4 == "REPLACE") {
-			replace = true;
-		} else {
-			resp->push_back("error");
-			return 0;
-		}
-	}
+	bool noreply = false;
 
-	TransferJob* job = new TransferJob(serv, COMMAND_DATA_SAVE, req[1].String(), new DumpData(req[1].String(), req[3].String(), ttl, replace));
+
+	if (req.size()>4) {
+
+        std::vector<Bytes>::const_iterator it = req.begin() + 4;
+        for(; it != req.end(); it += 1){
+            std::string key = (*it).String();
+             strtoupper(&key);
+
+            if (key=="REPLACE") {
+                replace = true;
+            } else if (key=="NOREPLY") {
+                noreply = true;
+            } else {
+                resp->push_back("error");
+                resp->push_back(GetErrorInfo(SYNTAX_ERR));
+                return 0;
+            }
+        }
+
+
+ 	}
+
+	TransferJob* job = new TransferJob(serv, COMMAND_DATA_SAVE, req[1].String(), new DumpData(req[1].String(), req[3].String(), ttl, replace, noreply));
 	job->proc = BPROC(COMMAND_DATA_SAVE);
 
 	net->redis->push(job);

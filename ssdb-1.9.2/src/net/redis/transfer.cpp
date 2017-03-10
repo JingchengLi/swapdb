@@ -52,7 +52,7 @@ int TransferWorker::proc(TransferJob *job) {
         avg_process = time_ms() - current;
     }
 
-    if ((current - last) > 2000) {
+    if ((current - last) > 5000) {
          last = time_ms();
 
         log_info("task avg wait %f ms", avg_wait);

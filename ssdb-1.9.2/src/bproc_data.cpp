@@ -31,19 +31,25 @@ int bproc_COMMAND_DATA_SAVE(SSDBServer *serv, TransferWorker *worker, const std:
         return notifyFailedToRedis(worker->redisUpstream, "customized-dump", data_key);
     }
 
-    std::vector<std::string> req = {"customized-del", data_key};
-    log_debug("[request->redis] : %s %s", req[0].c_str(), req[1].c_str());
+    if (!dumpData->noreply) {
 
-    RedisResponse *t_res = worker->redisUpstream->sendCommand(req);
-    if (t_res == nullptr) {
-        log_error("[%s %s] redis response is null", req[0].c_str(), req[1].c_str());
-        //redis res failed
-        return -1;
+        std::vector<std::string> req = {"customized-del", data_key};
+        log_debug("[request->redis] : %s %s", req[0].c_str(), req[1].c_str());
+
+        RedisResponse *t_res = worker->redisUpstream->sendCommand(req);
+        if (t_res == nullptr) {
+            log_error("[%s %s] redis response is null", req[0].c_str(), req[1].c_str());
+            //redis res failed
+            return -1;
+        }
+
+        log_debug("[response<-redis] : %s %s %s", req[0].c_str(), req[1].c_str(), t_res->toString().c_str());
+
+        delete t_res;
+
+    } else {
+        log_debug("noreply for %s:", data_key.c_str());
     }
-
-    log_debug("[response<-redis] : %s %s %s", req[0].c_str(), req[1].c_str(), t_res->toString().c_str());
-
-    delete t_res;
 
     return 0;
 }
