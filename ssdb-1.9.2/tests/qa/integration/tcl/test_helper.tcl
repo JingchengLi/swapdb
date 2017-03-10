@@ -22,8 +22,8 @@ set ::all_tests {
     ssdb/expire
     ssdb/other
     ssdb/scan
+    ssdb/zset
 }
-    #ssdb/zset
 # need run with redis
 # ssdb/dump
 
