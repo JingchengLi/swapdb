@@ -788,7 +788,7 @@ Status ClientImpl::zrrank(const std::string &name, const std::string &key, int64
 
 //offset is start, limit is stop, same as redis API.
 Status ClientImpl::zrange(const std::string &name,
-		uint64_t offset, uint64_t limit,
+		int64_t offset, int64_t limit,
 		std::vector<std::string> *ret)
 {
 	std::string s_offset = str(offset);
@@ -799,7 +799,7 @@ Status ClientImpl::zrange(const std::string &name,
 }
 
 Status ClientImpl::zrrange(const std::string &name,
-		uint64_t offset, uint64_t limit,
+		int64_t offset, int64_t limit,
 		std::vector<std::string> *ret)
 {
 	std::string s_offset = str(offset);

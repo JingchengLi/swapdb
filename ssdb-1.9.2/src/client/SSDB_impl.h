@@ -109,10 +109,10 @@ public:
 	virtual Status zrank(const std::string &name, const std::string &key, int64_t *ret);
 	virtual Status zrrank(const std::string &name, const std::string &key, int64_t *ret);
 	virtual Status zrange(const std::string &name,
-		uint64_t offset, uint64_t limit,
+		int64_t offset, int64_t limit,
 		std::vector<std::string> *ret);
 	virtual Status zrrange(const std::string &name,
-		uint64_t offset, uint64_t limit,
+		int64_t offset, int64_t limit,
 		std::vector<std::string> *ret);
 	virtual Status zkeys(const std::string &name, const std::string &key_start,
 		double *score_start, double *score_end,

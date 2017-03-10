@@ -237,13 +237,13 @@ public:
 	 * <b>Important! This method is SLOW for large offset!</b>
 	 */
 	virtual Status zrange(const std::string &name,
-		uint64_t offset, uint64_t limit,
+		int64_t offset, int64_t limit,
 		std::vector<std::string> *ret=NULL) = 0;
 	/**
 	 * <b>Important! This method is SLOW for large offset!</b>
 	 */
 	virtual Status zrrange(const std::string &name,
-		uint64_t offset, uint64_t limit,
+		int64_t offset, int64_t limit,
 		std::vector<std::string> *ret=NULL) = 0;
 	/**
 	 * @param score_start NULL means no limit.
