@@ -15,7 +15,7 @@ start_server {tags {"repl"}} {
         set master_host [srv -1 host]
         set master_port [srv -1 port]
         set slave [srv 0 client]
-        set num 100000
+        set num 1000
         set load_handle0 [start_bg_complex_data $master_host $master_port 9 $num]
         set load_handle1 [start_bg_complex_data $master_host $master_port 11 $num]
         set load_handle2 [start_bg_complex_data $master_host $master_port 12 $num]
@@ -31,15 +31,9 @@ start_server {tags {"repl"}} {
             stop_bg_complex_data $load_handle0
             stop_bg_complex_data $load_handle1
             stop_bg_complex_data $load_handle2
-            set retry 10
             r config set maxmemory 0
             r -1 config set maxmemory 0
-            while {$retry && ([debug_digest r] ne [debug_digest r -1])}\
-            {
-                after 1000
-                incr retry -1
-            }
-            assert {retry > 0}
+            assert_equal [debug_digest r] [debug_digest r -1]
         }
     }
 }

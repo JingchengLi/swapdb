@@ -416,7 +416,7 @@ proc debug_digest {r {level 0}} {
     }
     $r $level select 16
     wait_for_condition 300 100 {
-        [$r $level keys *] eq {}
+        [$r dbsize] eq 0
     } else {
         fail "wait $r $level debug digest timeout."
     }
