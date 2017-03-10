@@ -4721,7 +4721,7 @@ void dumptossdbCommand(client *c) {
         noreplysds = (sds)noreplyobj->ptr;
         sdstoupper(noreplysds);
 
-        if (noreplyobj->type != REDIS_REPLY_STRING
+        if (noreplyobj->type != OBJ_ENCODING_RAW
             || sdscmp(noreplysds, shared.noreply)) {
             addReply(c, shared.syntaxerr);
             return;
