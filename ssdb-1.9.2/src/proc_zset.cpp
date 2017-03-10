@@ -549,12 +549,38 @@ int proc_zfix(NetworkServer *net, Link *link, const Request &req, Response *resp
 	return 0;
 }
 
-int proc_zrangebylex(NetworkServer *net, Link *link, const Request &req, Response *resp){
-    SSDBServer *serv = (SSDBServer *)net->data;
+static int _zrangebylex(SSDB *ssdb, const Request &req, Response *resp, int reverse){
     CHECK_NUM_PARAMS(4);
+    long offset = 0, limit = -1;
+    int ret = 0;
+
+    if (req.size() > 4) {
+        int remaining = req.size() - 4;
+        int pos = 4;
+
+        while (remaining) {
+            if (remaining >= 3 && !strcasecmp(req[pos].data(),"limit")) {
+                if ( (string2ld(req[pos+1].data(),req[pos+1].size(),&offset) < 0) ||
+                     (string2ld(req[pos+2].data(),req[pos+2].size(),&limit) < 0) ){
+                    resp->push_back("error");
+                    resp->push_back(GetErrorInfo(NAN_SCORE));
+                    return 0;
+                }
+                pos += 3; remaining -= 3;
+            } else {
+                resp->push_back("error");
+                resp->push_back("ERR syntax error");
+                return 0;
+            }
+        }
+    }
 
     resp->push_back("ok");
-    int ret = serv->ssdb->zrangebylex(req[1], req[2], req[3], resp->resp);
+    if (reverse){
+        ret = ssdb->zrevrangebylex(req[1], req[2], req[3], resp->resp, offset, limit);
+    } else{
+        ret = ssdb->zrangebylex(req[1], req[2], req[3], resp->resp, offset, limit);
+    }
     if (ret < 0){
         resp->resp.clear();
         resp->push_back("error");
@@ -563,6 +589,11 @@ int proc_zrangebylex(NetworkServer *net, Link *link, const Request &req, Respons
     }
 
     return 0;
+}
+
+int proc_zrangebylex(NetworkServer *net, Link *link, const Request &req, Response *resp){
+    SSDBServer *serv = (SSDBServer *)net->data;
+    return _zrangebylex(serv->ssdb, req, resp, 0);
 }
 
 int proc_zremrangebylex(NetworkServer *net, Link *link, const Request &req, Response *resp){
@@ -583,16 +614,21 @@ int proc_zremrangebylex(NetworkServer *net, Link *link, const Request &req, Resp
 
 int proc_zrevrangebylex(NetworkServer *net, Link *link, const Request &req, Response *resp){
     SSDBServer *serv = (SSDBServer *)net->data;
-    CHECK_NUM_PARAMS(4);
+    return _zrangebylex(serv->ssdb, req, resp, 1);
+}
 
-    resp->push_back("ok");
-    int ret = serv->ssdb->zrevrangebylex(req[1], req[2], req[3], resp->resp);
-    if (ret < 0){
-        resp->resp.clear();
+int proc_zlexcount(NetworkServer *net, Link *link, const Request &req, Response *resp){
+    CHECK_NUM_PARAMS(4);
+    SSDBServer *serv = (SSDBServer *)net->data;
+
+    int64_t count = serv->ssdb->zlexcount(req[1], req[2], req[3]);
+    if (count < 0){
         resp->push_back("error");
-        resp->push_back(GetErrorInfo(ret));
+        resp->push_back(GetErrorInfo(SYNTAX_ERR));
         return 0;
     }
+
+    resp->reply_int(0, count);
 
     return 0;
 }

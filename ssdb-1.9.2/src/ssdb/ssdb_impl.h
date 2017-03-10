@@ -198,8 +198,10 @@ public:
 
 	virtual int64_t zfix(const Bytes &name);
 	virtual int64_t zlexcount(const Bytes &name, const Bytes &key_start, const Bytes &key_end);
-    virtual int zrangebylex(const Bytes &name, const Bytes &key_start, const Bytes &key_end, std::vector<std::string> &keys);
-    virtual int zrevrangebylex(const Bytes &name, const Bytes &key_start, const Bytes &key_end, std::vector<std::string> &keys);
+    virtual int zrangebylex(const Bytes &name, const Bytes &key_start, const Bytes &key_end, std::vector<std::string> &keys,
+							long offset, long limit);
+    virtual int zrevrangebylex(const Bytes &name, const Bytes &key_start, const Bytes &key_end, std::vector<std::string> &keys,
+							   long offset, long limit);
     virtual int64_t zremrangebylex(const Bytes &name, const Bytes &key_start, const Bytes &key_end);
 
 
@@ -262,7 +264,8 @@ private:
     int zrangeGeneric(const Bytes &name, const Bytes &begin, const Bytes &limit, std::vector<string> &key_score, int reverse);
     int genericZrangebyscore(const Bytes &name, const Bytes &start_score, const Bytes &end_score, std::vector<std::string> &key_score,
                              int withscores, long offset, long limit, int reverse);
-    int genericZrangebylex(const Bytes &name, const Bytes &key_start, const Bytes &key_end, std::vector<string> &keys, int save);
+    int genericZrangebylex(const Bytes &name, const Bytes &key_start, const Bytes &key_end, std::vector<string> &keys,
+						   long offset, long limit, int save);
 
 private:
 	//    pthread_mutex_t mutex_bgtask_;

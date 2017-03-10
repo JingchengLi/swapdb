@@ -977,13 +977,13 @@ int zslLexValueLteMax(std::string value, zlexrangespec *spec) {
 }
 
 int SSDBImpl::genericZrangebylex(const Bytes &name, const Bytes &key_start, const Bytes &key_end,
-                                 std::vector<string> &keys, int save) {
+                                 std::vector<string> &keys, long offset, long limit, int save) {
     zlexrangespec range;
     int count = 0;
 
     /* Parse the range arguments */
     if (zslParseLexRange(key_start,key_end,&range) != 0) {
-        return SYNTAX_ERR;
+        return ZSET_INVALID_STR;
     }
     if ( (key_start[0] == '+') || (key_end[0] == '-') ||
          (range.min > range.max && key_end[0] != '+')  ||
@@ -1011,14 +1011,22 @@ int SSDBImpl::genericZrangebylex(const Bytes &name, const Bytes &key_start, cons
     }
 
     while (it->next()) {
-        if (zslLexValueGteMin(it->key, &range)){
-            if (zslLexValueLteMax(it->key, &range)){
-                count++;
-                if (save){
+        if (!zslLexValueGteMin(it->key, &range))
+            continue;
+        if (!zslLexValueLteMax(it->key, &range))
+            break;
+
+        count++;
+
+        if (save) {
+            if (!offset){
+                if (limit--){
                     keys.push_back(it->key);
-                }
-            } else
-                break;
+                } else
+                    break;
+            } else{
+                offset--;
+            }
         }
     }
 
@@ -1027,12 +1035,12 @@ int SSDBImpl::genericZrangebylex(const Bytes &name, const Bytes &key_start, cons
 
 int64_t SSDBImpl::zlexcount(const Bytes &name, const Bytes &key_start, const Bytes &key_end) {
     std::vector<string> keys;
-    return genericZrangebylex(name, key_start, key_end, keys, 0);
+    return genericZrangebylex(name, key_start, key_end, keys, 0, -1, 0);
 }
 
 int SSDBImpl::zrangebylex(const Bytes &name, const Bytes &key_start, const Bytes &key_end,
-                              std::vector<std::string> &keys) {
-    return genericZrangebylex(name, key_start, key_end, keys, 1);
+                              std::vector<std::string> &keys, long offset, long limit) {
+    return genericZrangebylex(name, key_start, key_end, keys, offset, limit, 1);
 }
 
 int64_t SSDBImpl::zremrangebylex(const Bytes &name, const Bytes &key_start, const Bytes &key_end) {
@@ -1095,13 +1103,13 @@ int64_t SSDBImpl::zremrangebylex(const Bytes &name, const Bytes &key_start, cons
 }
 
 int SSDBImpl::zrevrangebylex(const Bytes &name, const Bytes &key_start, const Bytes &key_end,
-                             std::vector<std::string> &keys) {
+                             std::vector<std::string> &keys, long offset, long limit) {
     zlexrangespec range;
     int count = 0;
 
     /* Parse the range arguments */
     if (zslParseLexRange(key_end,key_start,&range) != 0) {
-        return SYNTAX_ERR;
+        return ZSET_INVALID_STR;
     }
     /*
      * in some of the following special cases, return nil
@@ -1148,8 +1156,16 @@ int SSDBImpl::zrevrangebylex(const Bytes &name, const Bytes &key_start, const By
 
     if (count > 0){
         while (!tmp_stack.empty()){
-            keys.push_back(tmp_stack.top());
-            tmp_stack.pop();
+            if (!offset){
+                if (limit--){
+                    keys.push_back(tmp_stack.top());
+                    tmp_stack.pop();
+                } else
+                    break;
+            } else{
+                tmp_stack.pop();
+                offset--;
+            }
         }
     }
 
