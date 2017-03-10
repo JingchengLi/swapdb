@@ -1,6 +1,6 @@
 #verify redis/ssdb's dump/restore API
-start_server {tags {"redis-ssdb"}} {
-    set ssdb [redis $::host $::ssdbport]
+start_server {tags {"redis-ssdb"}
+overrides {maxmemory 0}} {
 
 #string type
     foreach valtype {string-encoded integer-encoded mix-encoded} {
@@ -14,9 +14,9 @@ start_server {tags {"redis-ssdb"}} {
 
         test "string $valtype Be Hot ssdb dump/redis restore" {
             r del foo
-            $ssdb set foo $bar
-            set ssdbEncoded [$ssdb dump foo]
-            $ssdb del foo
+            sr set foo $bar
+            set ssdbEncoded [sr dump foo]
+            sr del foo
             r restore foo 0 $ssdbEncoded
             assert_equal $bar [ r get foo ]
         }
@@ -26,8 +26,8 @@ start_server {tags {"redis-ssdb"}} {
             r set foo $bar
             set redisEncoded [r dump foo]
             r del foo
-            $ssdb restore foo 0 $redisEncoded
-            assert_equal $bar [ $ssdb get foo ]
+            sr restore foo 0 $redisEncoded
+            assert_equal $bar [ sr get foo ]
         }
     }
 
@@ -60,12 +60,12 @@ start_server {tags {"redis-ssdb"}} {
             set redisEncoded [r dump myhash]
 
             r del myhash
-            $ssdb restore myhash 0 $redisEncoded
+            sr restore myhash 0 $redisEncoded
 
             set err {}
             foreach k [array names myhash *] {
-                if {$myhash($k) ne [$ssdb hget myhash $k]} {
-                    set err "$myhash($k) != [$ssdb hget myhash $k]"
+                if {$myhash($k) ne [sr hget myhash $k]} {
+                    set err "$myhash($k) != [sr hget myhash $k]"
                     break
                 }
             }
@@ -73,9 +73,9 @@ start_server {tags {"redis-ssdb"}} {
         } {}
 
         test "hash ($encoding) Be Hot ssdb dump/redis restore" {
-            set ssdbEncoded [$ssdb dump myhash]
+            set ssdbEncoded [sr dump myhash]
 
-            $ssdb del myhash
+            sr del myhash
 
             r restore myhash 0 $ssdbEncoded
             set err {}
@@ -90,7 +90,7 @@ start_server {tags {"redis-ssdb"}} {
         } {}
 
         test {RESTORE can detect a syntax error for unrecongized options} {
-            catch {$ssdb restore myhash 0 $redisEncoded invalid-option} e
+            catch {sr restore myhash 0 $redisEncoded invalid-option} e
             set e
         } {*ERR*}
     }
@@ -121,14 +121,14 @@ start_server {tags {"redis-ssdb"}} {
         test "set ($encoding) $valtype Be Cold redis dump/ssdb restore" {
             set redisEncoded [r dump myset]
             r del myset
-            $ssdb restore myset 0 $redisEncoded
+            sr restore myset 0 $redisEncoded
 
-            assert_equal [lsort $list] [lsort [$ssdb smembers myset]]
+            assert_equal [lsort $list] [lsort [sr smembers myset]]
         }
 
         test "set ($encoding) $valtype Be Hot ssdb dump/redis restore" {
-            set ssdbEncoded [$ssdb dump myset]
-            $ssdb del myset
+            set ssdbEncoded [sr dump myset]
+            sr del myset
             r restore myset 0 $ssdbEncoded
 
             assert_equal [lsort $list] [lsort [r smembers myset]]
@@ -136,9 +136,9 @@ start_server {tags {"redis-ssdb"}} {
         }
 
         test {RESTORE (SSDB) can set an arbitrary expire to the materialized key} {
-            $ssdb del foottl
-            $ssdb restore foottl 5000 $redisEncoded
-            set ttl [$ssdb pttl foottl]
+            sr del foottl
+            sr restore foottl 5000 $redisEncoded
+            set ttl [sr pttl foottl]
             assert {$ttl >= 3000 && $ttl <= 5000}
         }
         r del foottl
@@ -167,14 +167,14 @@ start_server {tags {"redis-ssdb"}} {
         test "zset ($encoding) Be Cold redis dump/ssdb restore" {
             set redisEncoded [r dump myzset]
             r del myzset
-            $ssdb restore myzset 0 $redisEncoded
+            sr restore myzset 0 $redisEncoded
 
-            assert_equal $list [$ssdb zrange myzset 0 -1 withscores]
+            assert_equal $list [sr zrange myzset 0 -1 withscores]
         }
 
         test "zset ($encoding) Be Hot ssdb dump/redis restore" {
-            set ssdbEncoded [$ssdb dump myzset]
-            $ssdb del myzset
+            set ssdbEncoded [sr dump myzset]
+            sr del myzset
             r restore myzset 0 $ssdbEncoded
 
             assert_equal $list [r zrange myzset 0 -1 withscores]
@@ -182,9 +182,9 @@ start_server {tags {"redis-ssdb"}} {
         }
 
         test {RESTORE (SSDB) can set an expire that overflows a 32 bit integer} {
-            $ssdb del foottl
-            $ssdb restore foottl 2569591501 $redisEncoded
-            set ttl [$ssdb pttl foottl]
+            sr del foottl
+            sr restore foottl 2569591501 $redisEncoded
+            set ttl [sr pttl foottl]
             assert {$ttl >= 2569591501-3000 && $ttl <= 2569591501}
         }
         r del foottl
@@ -213,14 +213,14 @@ start_server {tags {"redis-ssdb"}} {
         test "list (quicklist) $valtype Be Cold redis dump/ssdb restore" {
             set redisEncoded [r dump mylist]
             r del mylist
-            $ssdb restore mylist 0 $redisEncoded
+            sr restore mylist 0 $redisEncoded
 
-            assert_equal [lsort $list] [lsort [$ssdb lrange mylist 0 -1]]
+            assert_equal [lsort $list] [lsort [sr lrange mylist 0 -1]]
         }
 
         test "list (quicklist) $valtype Be Hot ssdb dump/redis restore" {
-            set ssdbEncoded [$ssdb dump mylist]
-            $ssdb del mylist
+            set ssdbEncoded [sr dump mylist]
+            sr del mylist
             r restore mylist 0 $ssdbEncoded
 
             assert_equal [lsort $list] [lsort [r lrange mylist 0 -1]]
@@ -228,16 +228,16 @@ start_server {tags {"redis-ssdb"}} {
         }
 
         test {RESTORE (SSDB) returns an error of the key already exists} {
-            $ssdb del foobusy
-            $ssdb set foobusy barbusy
+            sr del foobusy
+            sr set foobusy barbusy
             set e {}
-            catch { $ssdb restore foobusy 0 $redisEncoded } e
-            list [set e] [ $ssdb get foobusy ]
+            catch { sr restore foobusy 0 $redisEncoded } e
+            list [set e] [ sr get foobusy ]
         } {*ERR* barbusy}
 
         test {RESTORE (SSDB) can overwrite an existing key with REPLACE} {
-            $ssdb restore foobusy 0 $redisEncoded replace
-            assert_equal [lsort $list] [lsort [$ssdb lrange foobusy 0 -1]]
+            sr restore foobusy 0 $redisEncoded replace
+            assert_equal [lsort $list] [lsort [sr lrange foobusy 0 -1]]
         }
         r del foobusy
     }
@@ -260,17 +260,17 @@ start_server {tags {"redis-ssdb"}} {
 
                 set redisEncoded [r dump hash]
                 r del hash
-                $ssdb restore hash 0 $redisEncoded replace
+                sr restore hash 0 $redisEncoded replace
 
                 foreach {k v} [array get hash] {
                     # puts "$k $v"
-                    assert_equal $v [$ssdb hget hash $k]
+                    assert_equal $v [sr hget hash $k]
                 }
-                assert_equal [array size hash] [$ssdb hlen hash]
+                assert_equal [array size hash] [sr hlen hash]
 
-                set ssdbEncoded [$ssdb dump hash]
+                set ssdbEncoded [sr dump hash]
                 r restore hash 0 $ssdbEncoded replace
-                $ssdb del hash
+                sr del hash
 
                 # Verify
                 foreach {k v} [array get hash] {
@@ -281,5 +281,5 @@ start_server {tags {"redis-ssdb"}} {
             r del hash
         }
     }
-    $ssdb flushdb
+    sr flushdb
 }

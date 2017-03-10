@@ -1,6 +1,8 @@
 start_server {tags {"ssdb"}
-overrides {save ""}} {
-    set ssdb [redis $::host $::ssdbport]
+overrides {
+    save ""
+    maxmemory 0
+}} {
 
     test "Basic AOF rewrite" {
         r set foo bar
@@ -21,7 +23,7 @@ overrides {save ""}} {
         # Make sure they are the same
         assert {$d1 eq $d2}
 
-        list [$ssdb exists foo] [r get foo] [r locatekey hello] [r get hello]
+        list [sr exists foo] [r get foo] [r locatekey hello] [r get hello]
     } {1 bar redis world}
 
     foreach d {string int} {
@@ -78,7 +80,7 @@ overrides {save ""}} {
             test "AOF rewrite of set with $e encoding, $d data" {
                 r flushall
                 #TODO del flushdb after flushall issue fixed
-                $ssdb flushdb
+                sr flushdb
                 # r del ssdbkey key
                 if {$e eq {intset}} {set len 10} else {set len 1000}
                 for {set j 0} {$j < $len} {incr j} {
@@ -207,7 +209,7 @@ overrides {save ""}} {
         foreach e {ziplist skiplist} {
             test "AOF rewrite of zset with $e encoding, $d data" {
                 r flushall
-                $ssdb flushdb
+                sr flushdb
                 if {$e eq {ziplist}} {set len 10} else {set len 1000}
                 for {set j 0} {$j < $len} {incr j} {
                     if {$d eq {string}} {

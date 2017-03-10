@@ -86,7 +86,7 @@ set ::next_test 0
 
 set ::host 127.0.0.1
 set ::port 21111
-set ::ssdbport 8888
+set ::ssdbport 20000
 set ::traceleaks 0
 set ::valgrind 0
 set ::stack_logging 0
@@ -162,6 +162,17 @@ proc r {args} {
         set args [lrange $args 1 end]
     }
     [srv $level "client"] {*}$args
+}
+
+# for ssdb access, ssdbport = redisport + 20000.
+proc sr {args} {
+    set level 0
+    if {[string is integer [lindex $args 0]]} {
+        set level [lindex $args 0]
+        set args [lrange $args 1 end]
+    }
+    set ssdbport [expr [srv $level port]+$::ssdbport]
+    [redis $::host $ssdbport] {*}$args
 }
 
 proc reconnect {args} {

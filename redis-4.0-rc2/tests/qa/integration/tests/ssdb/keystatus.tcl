@@ -1,5 +1,5 @@
-start_server {tags {"ssdb"}} {
-    set ssdb [redis $::host $::ssdbport]
+start_server {tags {"ssdb"}
+overrides {maxmemory 0}} {
 
     test "ssdb status key is in ssdb" {
         r set foo bar
@@ -9,7 +9,7 @@ start_server {tags {"ssdb"}} {
         } else {
             fail "key foo be dumptossdb failed"
         }
-        list [$ssdb get foo] 
+        list [sr get foo] 
     } {bar}
 
     test "redis status key is not in ssdb" {
@@ -19,13 +19,13 @@ start_server {tags {"ssdb"}} {
         } else {
             fail "key foo be hot failed"
         }
-        list [$ssdb get foo] [ r get foo ]
+        list [sr get foo] [ r get foo ]
     } {{} bar}
 
     test "status of key in ssdb is ssdb" {
         r dumptossdb foo
         wait_for_condition 100 1 {
-            [ $ssdb get foo ] eq {bar}
+            [ sr get foo ] eq {bar}
         } else {
             fail "key foo be dumptossdb failed"
         }
@@ -35,7 +35,7 @@ start_server {tags {"ssdb"}} {
     test "status of key in redis is redis" {
         r get foo
         wait_for_condition 100 1 {
-            [$ssdb get foo] eq {}
+            [sr get foo] eq {}
         } else {
             fail "key foo be hot failed"
         }
@@ -57,9 +57,9 @@ start_server {tags {"ssdb"}} {
 
         assert { [r locatekey foo] ne {none} }
         if {[r locatekey foo] eq {redis}} {
-            assert_equal [ $ssdb exists foo ] 0
+            assert_equal [ sr exists foo ] 0
         } elseif {[r locatekey foo] eq {ssdb}} {
-            assert_equal [ $ssdb exists foo ] 1
+            assert_equal [ sr exists foo ] 1
         }
     }
     r del foo

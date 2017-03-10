@@ -160,6 +160,7 @@ proc start_server {options {code undefined}} {
 
     # setup defaults
     set baseconfig "default.conf"
+    set ssdbbaseconfig "ssdb_default.conf"
     set overrides {}
     set tags {}
 
@@ -216,7 +217,7 @@ proc start_server {options {code undefined}} {
     set workdir [dict get $config dir]
     set workdir [string range $workdir 12 end]
     set ssdb_config_file [tmpfile ssdb.conf]
-    set ssdbdata [exec cat "tests/assets/ssdb_default.conf"]
+    set ssdbdata [exec cat "tests/assets/$ssdbbaseconfig"]
     set fp [open $ssdb_config_file w+]
     set ssdbdata [regsub -all {{work_dir}} $ssdbdata $workdir]
     set ssdbdata [regsub -all {{ssdbport}} $ssdbdata $ssdbport]

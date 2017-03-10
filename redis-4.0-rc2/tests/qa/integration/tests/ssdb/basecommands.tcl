@@ -1,4 +1,5 @@
-start_server {tags {"ssdb"}} {
+start_server {tags {"ssdb"}
+overrides {maxmemory 0}} {
     test {basic commands - keys} {
         ssdbr del key
         ssdbr set key bar

@@ -1,6 +1,6 @@
 #verify redis be cold(dumptossdb) and be hot(read) function
-start_server {tags {"redis-ssdb"}} {
-    set ssdb [redis $::host $::ssdbport]
+start_server {tags {"redis-ssdb"}
+overrides {maxmemory 0}} {
 
 #string type
     foreach valtype {string-encoded integer-encoded mix-encoded} {
@@ -18,13 +18,13 @@ start_server {tags {"redis-ssdb"}} {
             r dumptossdb foo
             wait_for_dumpto_ssdb r foo
 
-            assert_equal [$ssdb get foo] $bar
+            assert_equal [sr get foo] $bar
         }
 
         test "string $valtype Be Hot store in redis" {
             assert_equal $bar [ r get foo ]
             wait_for_restoreto_redis r foo
-            assert_equal {} [ $ssdb get foo ]
+            assert_equal {} [ sr get foo ]
         }
         r del foo
     }
@@ -59,11 +59,11 @@ start_server {tags {"redis-ssdb"}} {
 
             wait_for_dumpto_ssdb r myhash
 
-            assert_equal [$ssdb exists myhash] {1}
+            assert_equal [sr exists myhash] {1}
             set err {}
             foreach k [array names myhash *] {
-                if {$myhash($k) ne [$ssdb hget myhash $k]} {
-                    set err "$myhash($k) != [$ssdb hget myhash $k]"
+                if {$myhash($k) ne [sr hget myhash $k]} {
+                    set err "$myhash($k) != [sr hget myhash $k]"
                     break
                 }
             }
@@ -79,7 +79,7 @@ start_server {tags {"redis-ssdb"}} {
                 }
             }
             assert_equal [r locatekey myhash] {redis}
-            assert_equal 0 [ $ssdb exists myhash ]
+            assert_equal 0 [ sr exists myhash ]
             r del myhash
             set _ $err
         } {}
@@ -114,14 +114,14 @@ start_server {tags {"redis-ssdb"}} {
 
             wait_for_dumpto_ssdb r myset
 
-            assert_equal [$ssdb exists myset] {1}
-            assert_equal [lsort $list] [lsort [$ssdb smembers myset]]
+            assert_equal [sr exists myset] {1}
+            assert_equal [lsort $list] [lsort [sr smembers myset]]
         }
 
         test "set ($encoding) $valtype Be Hot store in redis" {
             assert_equal [lsort $list] [lsort [r smembers myset]]
             assert_equal [r locatekey myset] {redis}
-            assert_equal [ $ssdb exists myset ] 0
+            assert_equal [ sr exists myset ] 0
         }
 
         test {Be Cold/Hot with an expire key} {
@@ -130,8 +130,8 @@ start_server {tags {"redis-ssdb"}} {
 
             wait_for_dumpto_ssdb r myset
 
-            assert_equal [$ssdb exists myset] {1}
-            assert_equal [lsort $list] [lsort [$ssdb smembers myset]]
+            assert_equal [sr exists myset] {1}
+            assert_equal [lsort $list] [lsort [sr smembers myset]]
             set ttl [r ttl myset]
             assert {$ttl >= 1 && $ttl <= 3}
 
@@ -167,14 +167,14 @@ start_server {tags {"redis-ssdb"}} {
 
             wait_for_dumpto_ssdb r myzset
 
-            assert_equal [$ssdb exists myzset] {1}
-            assert_equal $list [$ssdb zrange myzset 0 -1 withscores]
+            assert_equal [sr exists myzset] {1}
+            assert_equal $list [sr zrange myzset 0 -1 withscores]
         }
 
         test "zset ($encoding) Be Hot store in redis" {
             assert_equal $list [r zrange myzset 0 -1 withscores]
             assert_equal [r locatekey myzset] {redis}
-            assert_equal 0 [ $ssdb exists myzset ]
+            assert_equal 0 [ sr exists myzset ]
         }
 
         test {Be Cold/Hot with an expire overflows a 32 bit integer key ($encoding)} {
@@ -185,8 +185,8 @@ start_server {tags {"redis-ssdb"}} {
 
             wait_for_dumpto_ssdb r myzset
 
-            assert_equal [$ssdb exists myzset] {1}
-            assert_equal $list [$ssdb zrange myzset 0 -1 withscores]
+            assert_equal [sr exists myzset] {1}
+            assert_equal $list [sr zrange myzset 0 -1 withscores]
             set pttl [r pttl myzset]
             assert {$pttl >= 2569591501-3000 && $pttl <= 2569591501}
 
@@ -222,26 +222,26 @@ start_server {tags {"redis-ssdb"}} {
 
             wait_for_dumpto_ssdb r mylist
 
-            assert_equal [$ssdb exists mylist] {1}
-            assert_equal [lsort $list] [lsort [$ssdb lrange mylist 0 -1]]
+            assert_equal [sr exists mylist] {1}
+            assert_equal [lsort $list] [lsort [sr lrange mylist 0 -1]]
         }
 
         test "list (quicklist) $valtype Be Hot store in redis" {
             assert_equal [lsort $list] [lsort [r lrange mylist 0 -1]]
 
             assert_equal [r locatekey mylist] {redis}
-            assert_equal [ $ssdb exists mylist ] 0
+            assert_equal [ sr exists mylist ] 0
         }
 
         test {Override an key already exists in ssdb} {
-            $ssdb set mylist barbusy
+            sr set mylist barbusy
 
             r dumptossdb mylist
 
             wait_for_dumpto_ssdb r mylist
 
-            assert_equal [$ssdb exists mylist] {1}
-            assert_equal [lsort $list] [lsort [$ssdb lrange mylist 0 -1]]
+            assert_equal [sr exists mylist] {1}
+            assert_equal [lsort $list] [lsort [sr lrange mylist 0 -1]]
         }
         r del mylist
     }
