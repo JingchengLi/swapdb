@@ -100,34 +100,33 @@ start_server {tags {"repl"}} {
         }
 
         # Fix parameters for the next test to work
-        r -1 slaveof [srv 0 host] [srv 0 port]
         r config set min-slaves-to-write 0
         r -1 config set min-slaves-to-write 0
         r flushall
         after 1000
 
         test {MASTER and SLAVE dataset should be identical after complex ops} {
-            set keyslist [createComplexDataset r 10]
-            after 1000
+            set keyslist [createComplexDataset r 10000]
 
             r config set maxmemory 0
             foreach key $keyslist {
-                assert_equal [ r exists $key ] [ r -1 exists $key ] "key:$key"
+                wait_for_condition 100 100 {
+                    [ r exists $key ] eq [ r -1 exists $key ]
+                } else {
+                    fail "key:$key in master and slave not identical"
+                }
             }
-
-            if {[r debug digest] ne [r -1 debug digest]} {
-                set csv1 [csvdump r]
-                set csv2 [csvdump {r -1}]
-                set fd [open /tmp/repldump1.txt w]
-                puts -nonewline $fd $csv1
-                close $fd
-                set fd [open /tmp/repldump2.txt w]
-                puts -nonewline $fd $csv2
-                close $fd
-                puts "Master - Slave inconsistency"
-                puts "Run diff -u against /tmp/repldump*.txt for more info"
+            assert_equal [debug_digest r] [debug_digest r -1]
+            wait_for_condition 50 100 {
+                [llength [sr keys *] ] eq 0
+            } else {
+                fail "master's ssdb keys should be null"
             }
-            assert_equal [r debug digest] [r -1 debug digest]
+            wait_for_condition 50 100 {
+                [llength [sr -1 keys *] ] eq 0
+            } else {
+                fail "slave's ssdb keys should be null"
+            }
         }
     }
 }

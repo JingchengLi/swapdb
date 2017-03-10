@@ -415,7 +415,7 @@ proc debug_digest {r {level 0}} {
         $r $level exists $key ;#load keys to redis
     }
     $r $level select 16
-    wait_for_condition 300 10000 {
+    wait_for_condition 300 100 {
         [$r $level keys *] eq {}
     } else {
         fail "wait $r $level debug digest timeout."
