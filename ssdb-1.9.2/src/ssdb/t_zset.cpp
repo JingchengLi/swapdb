@@ -274,7 +274,7 @@ int64_t SSDBImpl::zcount(const Bytes &name, const Bytes &score_start, const Byte
     return count;
 }
 
-int SSDBImpl::zincr(const Bytes &name, const Bytes &key, double by, int flags, double *new_val) {
+int SSDBImpl::zincr(const Bytes &name, const Bytes &key, double by, int &flags, double *new_val) {
     RecordLock l(&mutex_record_, name.String());
     leveldb::WriteBatch batch;
     ZSetMetaVal zv;
@@ -301,13 +301,12 @@ int SSDBImpl::zincr(const Bytes &name, const Bytes &key, double by, int flags, d
         cur_version = zv.version;
     }
 
-    int retflags = flags;
-    int retval = zsetAdd(this, batch ,needCheck, name, key, by, cur_version, &retflags, new_val);
+    int retval = zsetAdd(this, batch ,needCheck, name, key, by, cur_version, &flags, new_val);
     if (retval < 0) {
         return retval;
     }
 
-    if (retflags & ZADD_ADDED) {
+    if (flags & ZADD_ADDED) {
         ret = incr_zsize(this, batch, zv, name, 1);
         if (ret < 0) {
             return ret;

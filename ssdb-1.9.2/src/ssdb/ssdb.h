@@ -120,7 +120,7 @@ public:
 	virtual int multi_zdel(const Bytes &name, const std::set<Bytes> &keys) = 0;
 
 	// -1: error, 1: ok, 0: value is not an integer or out of range
-	virtual int zincr(const Bytes &name, const Bytes &key, double by, int flags, double *new_val) = 0;
+	virtual int zincr(const Bytes &name, const Bytes &key, double by, int &flags, double *new_val) = 0;
 	
 	virtual int64_t zsize(const Bytes &name) = 0;
 	/**

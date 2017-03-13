@@ -137,7 +137,21 @@ int proc_multi_zset(NetworkServer *net, Link *link, const Request &req, Response
             resp->push_back(GetErrorInfo(ret));
             return 0;
         }
+
         resp->reply_double(0, new_val);
+        if (link->redis){
+            int processed = 0;
+            if (!(flags & ZADD_NOP)) processed++;
+            if (processed){
+                link->output->append(":");
+                link->output->append(resp->resp[1].data(), resp->resp[1].size());
+                link->output->append("\r\n");
+            } else{
+                link->output->append("$-1\r\n");
+            }
+            resp->resp.clear();
+        }
+
         return 0;
     }
 
@@ -433,7 +447,7 @@ int proc_zscan(NetworkServer *net, Link *link, const Request &req, Response *res
 
 
 // dir := +1|-1
-static int _zincr(SSDB *ssdb, const Request &req, Response *resp, int dir){
+static int _zincr(SSDB *ssdb, Link *link, const Request &req, Response *resp, int dir){
 	CHECK_NUM_PARAMS(4);
     int flags = ZADD_NONE;
     flags |= ZADD_INCR;
@@ -461,18 +475,33 @@ static int _zincr(SSDB *ssdb, const Request &req, Response *resp, int dir){
     }
 
     resp->reply_double(0, new_val);
+    if (link->redis){
+        int processed = 0;
+        if (!(flags & ZADD_NOP)) processed++;
+        if (processed){
+            const std::string &val = resp->resp[1];
+            char buf[32];
+            snprintf(buf, sizeof(buf), "$%d\r\n", (int)val.size());
+            link->output->append(buf);
+            link->output->append(val.data(), val.size());
+            link->output->append("\r\n");
+        } else{
+            link->output->append("$-1\r\n");
+        }
+        resp->resp.clear();
+    }
 
 	return 0;
 }
 
 int proc_zincr(NetworkServer *net, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *)net->data;
-	return _zincr(serv->ssdb, req, resp, 1);
+	return _zincr(serv->ssdb, link, req, resp, 1);
 }
 
 int proc_zdecr(NetworkServer *net, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *)net->data;
-	return _zincr(serv->ssdb, req, resp, -1);
+	return _zincr(serv->ssdb, link, req, resp, -1);
 }
 
 int proc_zcount(NetworkServer *net, Link *link, const Request &req, Response *resp){
