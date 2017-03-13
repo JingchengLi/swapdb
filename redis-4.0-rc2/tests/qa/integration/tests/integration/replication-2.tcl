@@ -109,6 +109,7 @@ start_server {tags {"repl"}} {
             set keyslist [createComplexDataset r 10000]
 
             r config set maxmemory 0
+            r -1 config set maxmemory 0
             foreach key $keyslist {
                 wait_for_condition 100 100 {
                     [ r exists $key ] eq [ r -1 exists $key ]
