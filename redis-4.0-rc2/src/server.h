@@ -785,13 +785,13 @@ struct sharedObjectsStruct {
     *integers[OBJ_SHARED_INTEGERS],
     *mbulkhdr[OBJ_SHARED_BULKHDR_LEN], /* "*<value>\r\n" */
     *bulkhdr[OBJ_SHARED_BULKHDR_LEN],  /* "$<value>\r\n" */
-    *noreplyobj, *dumpcmdobj;
+    *noreplyobj, *dumpcmdobj, *ssdbdelcmdobj;
     sds minstring, maxstring;
     /* jdjr-mdoe shared sds. */
     sds checkwriteok, checkwritenok, makesnapshotok, makesnapshotnok,
         transfersnapshotok, transfersnapshotnok, transfersnapshotfinished,
         transfersnapshotunfinished, delsnapshotok, delsnapshotnok, noreply,
-        dumpcmdsds;
+        dumpcmdsds, ssdbdelcmdsds;
 };
 
 /* ZSETs use a specialized version of Skiplists */
@@ -2063,6 +2063,7 @@ void customizedRestoreCommand(client *c);
 void customizedFailCommand(client *c);
 void dumptossdbCommand(client *c);
 void locatekeyCommand(client *c);
+void ssdbDelCommand(client *c);
 void restorefromssdbCommand(client *c);
 int prologOfEvictingToSSDB(robj *keyobj, redisDb *db, robj *noreplyobj);
 int prologOfLoadingFromSSDB(robj *keyobj);

@@ -307,11 +307,12 @@ struct redisCommand redisCommandTable[] = {
     {"customized-restore",customizedRestoreCommand,-4,"wm",0,NULL,1,1,1,0,0},
     {"customized-fail",customizedFailCommand,3,"w",0,NULL,1,1,1,0,0},
 
-    /* Interfaces for testing. */
-
     {"dumptossdb",dumptossdbCommand,3,"w",0,NULL,1,1,1,0,0},
     {"restorefromssdb",restorefromssdbCommand,2,"w",0,NULL,1,1,1,0,0},
     {"locatekey",locatekeyCommand,2,"r",0,NULL,1,1,1,0,0},
+
+    /* Only be handled by slaves. */
+    {"ssdbdel",ssdbDelCommand,-2,"wJ",0,NULL,1,-1,1,0,0},
 };
 
 /*============================ Utility functions ============================ */
@@ -1464,9 +1465,11 @@ void createSharedObjects(void) {
         shared.delsnapshotnok = sdsnew("rr_del_snapshot nok");
         shared.noreply = sdsnew("NOREPLY");
         shared.dumpcmdsds= sdsnew("DUMPTOSSDB");
+        shared.ssdbdelcmdsds = sdsnew("SSDBDEL");
 
         shared.noreplyobj = createObject(OBJ_STRING, (void *)shared.noreply);
         shared.dumpcmdobj = createObject(OBJ_STRING, (void *)sdsnew("DUMPTOSSDB"));
+        shared.ssdbdelcmdobj = createObject(OBJ_STRING, (void*)shared.ssdbdelcmdsds);
     }
 }
 
@@ -2423,8 +2426,14 @@ void call(client *c, int flags) {
 
         /* Call propagate() only if at least one of AOF / replication
          * propagation is needed. */
-        if (propagate_flags != PROPAGATE_NONE)
+        if (propagate_flags != PROPAGATE_NONE) {
             propagate(c->cmd,c->db->id,c->argv,c->argc,propagate_flags);
+
+            if (server.jdjr_mode && c->cmd->proc == customizedRestoreCommand) {
+                robj *argv[2] = {shared.ssdbdelcmdobj, c->argv[1]};
+                propagate(lookupCommand(shared.ssdbdelcmdsds), 0, argv, 2, PROPAGATE_REPL);
+            }
+        }
     }
 
     /* Restore the old replication flags, since call() can be executed
@@ -2496,9 +2505,7 @@ int processCommandMaybeFlushdb(client *c, int old_bufpos) {
     sds sdsbuf = NULL;
 
     if ((c->cmd->proc == flushallCommand
-         || c->cmd->proc == flushdbCommand)
-        && (sdsbuf = sdsnewlen(c->buf + old_bufpos, c->bufpos - old_bufpos))
-        && !sdscmp(sdsbuf, (sds)shared.ok->ptr)) {
+         || c->cmd->proc == flushdbCommand)) {
         finalcmd = sdsnew("*1\r\n$7\r\nflushdb\r\n");
 
         if (sendCommandToSSDB(c, finalcmd) == C_OK) {
@@ -2576,6 +2583,9 @@ int processCommandMaybeInSSDB(client *c) {
                 if (keys) getKeysFreeResult(keys);
                 blockClient(c, BLOCKED_VISITING_SSDB);
             }
+
+            /* Slaves do not load data from ssdb automatically. */
+            if (server.masterhost) return C_OK;
 
             /* TODO: temporary code. Using the distribute of lfu counter to
                determine if the key is to load to redis. */

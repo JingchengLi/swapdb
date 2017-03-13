@@ -4758,6 +4758,23 @@ void locatekeyCommand(client *c) {
     decrRefCount(replyObj);
 }
 
+void ssdbDelCommand(client *c) {
+    sds finalcmd;
+    if (server.jdjr_mode) {
+        if (server.masterhost) {
+            server.ssdbargv[0] = sdsnew("del");
+            server.ssdbargv[1] = c->argv[1]->ptr;
+            server.ssdbargvlen[0] = 3;
+
+            server.ssdbargvlen[1] = sdslen((sds)(c->argv[1]->ptr));
+            finalcmd = composeRedisCmd(2, (const char**)server.ssdbargv, server.ssdbargvlen);
+            sendCommandToSSDB(c, finalcmd);
+        } else
+            addReplyError(c, "Only supported in slaves.");
+    } else
+        addReplyError(c, "Only supported in jdjr-mode.");
+}
+
 void restorefromssdbCommand(client *c) {
     dictEntry *de;
 
