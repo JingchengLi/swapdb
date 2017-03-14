@@ -1,6 +1,7 @@
 start_server {
-    tags {"list"}
+    tags {"type"}
     overrides {
+        maxmemory 0
         "list-max-ziplist-size" 4
     }
 } {

@@ -1,4 +1,5 @@
-start_server {tags {"incr"}} {
+start_server {tags {"type"}
+overrides {maxmemory 0}} {
     test {INCR against non existing key} {
         set res {}
         append res [ssdbr incr novar]

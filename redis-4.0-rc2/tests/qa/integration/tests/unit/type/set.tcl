@@ -1,6 +1,7 @@
 start_server {
-    tags {"set"}
+    tags {"type"}
     overrides {
+        maxmemory 0
         "set-max-intset-entries" 512
     }
 } {

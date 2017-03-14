@@ -1,4 +1,5 @@
-start_server {tags {"hash"}} {
+start_server {tags {"type"}
+overrides {maxmemory 0}} {
     test "repeat hlen twice cause timeout #issue(happen when db select 9)" {
         ssdbr hset hash k v
         list [ssdbr hlen hash] [ssdbr hlen hash]

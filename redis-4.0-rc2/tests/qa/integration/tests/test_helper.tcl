@@ -27,8 +27,9 @@ set ::all_tests {
     unit/type/zset
     unit/type/list-3
     unit/type/list-2
-    unit/scan
 }
+# next time support
+    # unit/scan
 #need update
     #ssdb/loadconfig
 # maxpolicy is a stress test.

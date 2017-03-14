@@ -1,4 +1,5 @@
-start_server {tags {"string"}} {
+start_server {tags {"type"}
+overrides {maxmemory 0}} {
     test {SET and GET an item} {
         ssdbr set x foobar
         ssdbr get x
@@ -55,6 +56,7 @@ start_server {tags {"string"}} {
         } {}
 
         test {DBSIZE should be 10000 now} {
+            after 10
             ssdbr dbsize
         } {10000}
     }

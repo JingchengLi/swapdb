@@ -1,4 +1,5 @@
-start_server {tags {"zset"}} {
+start_server {tags {"type"}
+overrides {maxmemory 0}} {
     proc create_zset {key items} {
         ssdbr del $key
         foreach {score entry} $items {
@@ -121,10 +122,11 @@ start_server {tags {"zset"}} {
             assert {[ssdbr zadd ztmp ch 12 x 22 y 30 z] == 2}
         }
 
-        test "ZINCRBY calls leading to NaN result in error" {
-            ssdbr zincrby myzset +inf abc
-            assert_error "*NaN*" {r zincrby myzset -inf abc}
-        }
+        # ssdb not support inf set
+#        test "ZINCRBY calls leading to NaN result in error" {
+#            r zincrby myzset +inf abc
+#            assert_error "*NaN*" {r zincrby myzset -inf abc}
+#        }
 
         test {ZADD - Variadic version base case} {
             ssdbr del myzset
@@ -297,7 +299,7 @@ start_server {tags {"zset"}} {
         }
 
         proc create_default_zset {} {
-            create_zset zset {-inf a 1 b 2 c 3 d 4 e 5 f +inf g}
+            create_zset zset {-9999999999999 a 1 b 2 c 3 d 4 e 5 f 9999999999999 g}
         }
 
         test "ZRANGEBYSCORE/ZREVRANGEBYSCORE/ZCOUNT basics" {
@@ -315,14 +317,14 @@ start_server {tags {"zset"}} {
             assert_equal 3 [ssdbr zcount zset 0 3]
 
             # exclusive range
-            assert_equal {b}   [ssdbr zrangebyscore zset (-inf (2]
+            assert_equal {a b}   [ssdbr zrangebyscore zset (-inf (2]
             assert_equal {b c} [ssdbr zrangebyscore zset (0 (3]
             assert_equal {e f} [ssdbr zrangebyscore zset (3 (6]
-            assert_equal {f}   [ssdbr zrangebyscore zset (4 (+inf]
-            assert_equal {b}   [ssdbr zrevrangebyscore zset (2 (-inf]
+            assert_equal {f g}   [ssdbr zrangebyscore zset (4 (+inf]
+            assert_equal {b a}   [ssdbr zrevrangebyscore zset (2 (-inf]
             assert_equal {c b} [ssdbr zrevrangebyscore zset (3 (0]
             assert_equal {f e} [ssdbr zrevrangebyscore zset (6 (3]
-            assert_equal {f}   [ssdbr zrevrangebyscore zset (+inf (4]
+            assert_equal {g f}   [ssdbr zrevrangebyscore zset (+inf (4]
             assert_equal 2 [ssdbr zcount zset (0 (3]
 
             # test empty ranges
@@ -532,169 +534,133 @@ start_server {tags {"zset"}} {
             assert_equal 0 [ssdbr exists zset]
         }
 
-        test "ZUNIONSTORE against non-existing key doesn't set destination - $encoding" {
-            ssdbr del zseta
-            assert_equal 0 [ssdbr zunionstore dst_key 1 zseta]
-            assert_equal 0 [ssdbr exists dst_key]
-        }
-
-        test "ZUNIONSTORE with empty set - $encoding" {
-            ssdbr del zseta zsetb
-            ssdbr zadd zseta 1 a
-            ssdbr zadd zseta 2 b
-            ssdbr zunionstore zsetc 2 zseta zsetb
-            ssdbr zrange zsetc 0 -1 withscores
-        } {a 1 b 2}
-
-        test "ZUNIONSTORE basics - $encoding" {
-            ssdbr del zseta zsetb zsetc
-            ssdbr zadd zseta 1 a
-            ssdbr zadd zseta 2 b
-            ssdbr zadd zseta 3 c
-            ssdbr zadd zsetb 1 b
-            ssdbr zadd zsetb 2 c
-            ssdbr zadd zsetb 3 d
-
-            assert_equal 4 [ssdbr zunionstore zsetc 2 zseta zsetb]
-            assert_equal {a 1 b 3 d 3 c 5} [ssdbr zrange zsetc 0 -1 withscores]
-        }
-
-        test "ZUNIONSTORE with weights - $encoding" {
-            assert_equal 4 [ssdbr zunionstore zsetc 2 zseta zsetb weights 2 3]
-            assert_equal {a 2 b 7 d 9 c 12} [ssdbr zrange zsetc 0 -1 withscores]
-        }
-
-        test "ZUNIONSTORE with a regular set and weights - $encoding" {
-            ssdbr del seta
-            ssdbr sadd seta a
-            ssdbr sadd seta b
-            ssdbr sadd seta c
-
-            assert_equal 4 [ssdbr zunionstore zsetc 2 seta zsetb weights 2 3]
-            assert_equal {a 2 b 5 c 8 d 9} [ssdbr zrange zsetc 0 -1 withscores]
-        }
-
-        test "ZUNIONSTORE with AGGREGATE MIN - $encoding" {
-            assert_equal 4 [ssdbr zunionstore zsetc 2 zseta zsetb aggregate min]
-            assert_equal {a 1 b 1 c 2 d 3} [ssdbr zrange zsetc 0 -1 withscores]
-        }
-
-        test "ZUNIONSTORE with AGGREGATE MAX - $encoding" {
-            assert_equal 4 [ssdbr zunionstore zsetc 2 zseta zsetb aggregate max]
-            assert_equal {a 1 b 2 c 3 d 3} [ssdbr zrange zsetc 0 -1 withscores]
-        }
-
-        test "ZINTERSTORE basics - $encoding" {
-            assert_equal 2 [ssdbr zinterstore zsetc 2 zseta zsetb]
-            assert_equal {b 3 c 5} [ssdbr zrange zsetc 0 -1 withscores]
-        }
-
-        test "ZINTERSTORE with weights - $encoding" {
-            assert_equal 2 [ssdbr zinterstore zsetc 2 zseta zsetb weights 2 3]
-            assert_equal {b 7 c 12} [ssdbr zrange zsetc 0 -1 withscores]
-        }
-
-        test "ZINTERSTORE with a regular set and weights - $encoding" {
-            ssdbr del seta
-            ssdbr sadd seta a
-            ssdbr sadd seta b
-            ssdbr sadd seta c
-            assert_equal 2 [ssdbr zinterstore zsetc 2 seta zsetb weights 2 3]
-            assert_equal {b 5 c 8} [ssdbr zrange zsetc 0 -1 withscores]
-        }
-
-        test "ZINTERSTORE with AGGREGATE MIN - $encoding" {
-            assert_equal 2 [ssdbr zinterstore zsetc 2 zseta zsetb aggregate min]
-            assert_equal {b 1 c 2} [ssdbr zrange zsetc 0 -1 withscores]
-        }
-
-        test "ZINTERSTORE with AGGREGATE MAX - $encoding" {
-            assert_equal 2 [ssdbr zinterstore zsetc 2 zseta zsetb aggregate max]
-            assert_equal {b 2 c 3} [ssdbr zrange zsetc 0 -1 withscores]
-        }
-
-        foreach cmd {ZUNIONSTORE ZINTERSTORE} {
-            test "$cmd with +inf/-inf scores - $encoding" {
-                ssdbr del zsetinf1 zsetinf2
-
-                ssdbr zadd zsetinf1 +inf key
-                ssdbr zadd zsetinf2 +inf key
-                ssdbr $cmd zsetinf3 2 zsetinf1 zsetinf2
-                assert_equal inf [ssdbr zscore zsetinf3 key]
-
-                ssdbr zadd zsetinf1 -inf key
-                ssdbr zadd zsetinf2 +inf key
-                ssdbr $cmd zsetinf3 2 zsetinf1 zsetinf2
-                assert_equal 0 [ssdbr zscore zsetinf3 key]
-
-                ssdbr zadd zsetinf1 +inf key
-                ssdbr zadd zsetinf2 -inf key
-                ssdbr $cmd zsetinf3 2 zsetinf1 zsetinf2
-                assert_equal 0 [ssdbr zscore zsetinf3 key]
-
-                ssdbr zadd zsetinf1 -inf key
-                ssdbr zadd zsetinf2 -inf key
-                ssdbr $cmd zsetinf3 2 zsetinf1 zsetinf2
-                assert_equal -inf [ssdbr zscore zsetinf3 key]
-            }
-
-            test "$cmd with NaN weights $encoding" {
-                ssdbr del zsetinf1 zsetinf2
-
-                ssdbr zadd zsetinf1 1.0 key
-                ssdbr zadd zsetinf2 1.0 key
-                assert_error "*weight*not*float*" {
-                    ssdbr $cmd zsetinf3 2 zsetinf1 zsetinf2 weights nan nan
-                }
-            }
-        }
+#        test "ZUNIONSTORE against non-existing key doesn't set destination - $encoding" {
+#            ssdbr del zseta
+#            assert_equal 0 [ssdbr zunionstore dst_key 1 zseta]
+#            assert_equal 0 [ssdbr exists dst_key]
+#        }
+#
+#        test "ZUNIONSTORE with empty set - $encoding" {
+#            ssdbr del zseta zsetb
+#            ssdbr zadd zseta 1 a
+#            ssdbr zadd zseta 2 b
+#            ssdbr zunionstore zsetc 2 zseta zsetb
+#            ssdbr zrange zsetc 0 -1 withscores
+#        } {a 1 b 2}
+#
+#        test "ZUNIONSTORE basics - $encoding" {
+#            ssdbr del zseta zsetb zsetc
+#            ssdbr zadd zseta 1 a
+#            ssdbr zadd zseta 2 b
+#            ssdbr zadd zseta 3 c
+#            ssdbr zadd zsetb 1 b
+#            ssdbr zadd zsetb 2 c
+#            ssdbr zadd zsetb 3 d
+#
+#            assert_equal 4 [ssdbr zunionstore zsetc 2 zseta zsetb]
+#            assert_equal {a 1 b 3 d 3 c 5} [ssdbr zrange zsetc 0 -1 withscores]
+#        }
+#
+#        test "ZUNIONSTORE with weights - $encoding" {
+#            assert_equal 4 [ssdbr zunionstore zsetc 2 zseta zsetb weights 2 3]
+#            assert_equal {a 2 b 7 d 9 c 12} [ssdbr zrange zsetc 0 -1 withscores]
+#        }
+#
+#        test "ZUNIONSTORE with a regular set and weights - $encoding" {
+#            ssdbr del seta
+#            ssdbr sadd seta a
+#            ssdbr sadd seta b
+#            ssdbr sadd seta c
+#
+#            assert_equal 4 [ssdbr zunionstore zsetc 2 seta zsetb weights 2 3]
+#            assert_equal {a 2 b 5 c 8 d 9} [ssdbr zrange zsetc 0 -1 withscores]
+#        }
+#
+#        test "ZUNIONSTORE with AGGREGATE MIN - $encoding" {
+#            assert_equal 4 [ssdbr zunionstore zsetc 2 zseta zsetb aggregate min]
+#            assert_equal {a 1 b 1 c 2 d 3} [ssdbr zrange zsetc 0 -1 withscores]
+#        }
+#
+#        test "ZUNIONSTORE with AGGREGATE MAX - $encoding" {
+#            assert_equal 4 [ssdbr zunionstore zsetc 2 zseta zsetb aggregate max]
+#            assert_equal {a 1 b 2 c 3 d 3} [ssdbr zrange zsetc 0 -1 withscores]
+#        }
+#
+#        test "ZINTERSTORE basics - $encoding" {
+#            assert_equal 2 [ssdbr zinterstore zsetc 2 zseta zsetb]
+#            assert_equal {b 3 c 5} [ssdbr zrange zsetc 0 -1 withscores]
+#        }
+#
+#        test "ZINTERSTORE with weights - $encoding" {
+#            assert_equal 2 [ssdbr zinterstore zsetc 2 zseta zsetb weights 2 3]
+#            assert_equal {b 7 c 12} [ssdbr zrange zsetc 0 -1 withscores]
+#        }
+#
+#        test "ZINTERSTORE with a regular set and weights - $encoding" {
+#            ssdbr del seta
+#            ssdbr sadd seta a
+#            ssdbr sadd seta b
+#            ssdbr sadd seta c
+#            assert_equal 2 [ssdbr zinterstore zsetc 2 seta zsetb weights 2 3]
+#            assert_equal {b 5 c 8} [ssdbr zrange zsetc 0 -1 withscores]
+#        }
+#
+#        test "ZINTERSTORE with AGGREGATE MIN - $encoding" {
+#            assert_equal 2 [ssdbr zinterstore zsetc 2 zseta zsetb aggregate min]
+#            assert_equal {b 1 c 2} [ssdbr zrange zsetc 0 -1 withscores]
+#        }
+#
+#        test "ZINTERSTORE with AGGREGATE MAX - $encoding" {
+#            assert_equal 2 [ssdbr zinterstore zsetc 2 zseta zsetb aggregate max]
+#            assert_equal {b 2 c 3} [ssdbr zrange zsetc 0 -1 withscores]
+#        }
     }
 
     basics ziplist
     basics skiplist
 
-    test {ZINTERSTORE regression with two sets, intset+hashtable} {
-        ssdbr del seta setb setc
-        ssdbr sadd set1 a
-        ssdbr sadd set2 10
-        ssdbr zinterstore set3 2 set1 set2
-    } {0}
-
-    test {ZUNIONSTORE regression, should not create NaN in scores} {
-        ssdbr zadd z -inf neginf
-        ssdbr zunionstore out 1 z weights 0
-        ssdbr zrange out 0 -1 withscores
-    } {neginf 0}
-
-    test {ZINTERSTORE #516 regression, mixed sets and ziplist zsets} {
-        ssdbr sadd one 100 101 102 103
-        ssdbr sadd two 100 200 201 202
-        ssdbr zadd three 1 500 1 501 1 502 1 503 1 100
-        ssdbr zinterstore to_here 3 one two three WEIGHTS 0 0 1
-        ssdbr zrange to_here 0 -1
-    } {100}
-
-    test {ZUNIONSTORE result is sorted} {
-        # Create two sets with common and not common elements, perform
-        # the UNION, check that elements are still sorted.
-        ssdbr del one two dest
-        set cmd1 [list r zadd one]
-        set cmd2 [list r zadd two]
-        for {set j 0} {$j < 1000} {incr j} {
-            lappend cmd1 [expr rand()] [randomInt 1000]
-            lappend cmd2 [expr rand()] [randomInt 1000]
-        }
-        {*}$cmd1
-        {*}$cmd2
-        assert {[ssdbr zcard one] > 100}
-        assert {[ssdbr zcard two] > 100}
-        ssdbr zunionstore dest 2 one two
-        set oldscore 0
-        foreach {ele score} [ssdbr zrange dest 0 -1 withscores] {
-            assert {$score >= $oldscore}
-            set oldscore $score
-        }
-    }
+#    test {ZINTERSTORE regression with two sets, intset+hashtable} {
+#        ssdbr del seta setb setc
+#        ssdbr sadd set1 a
+#        ssdbr sadd set2 10
+#        ssdbr zinterstore set3 2 set1 set2
+#    } {0}
+#
+#    test {ZUNIONSTORE regression, should not create NaN in scores} {
+#        ssdbr zadd z -inf neginf
+#        ssdbr zunionstore out 1 z weights 0
+#        ssdbr zrange out 0 -1 withscores
+#    } {neginf 0}
+#
+#    test {ZINTERSTORE #516 regression, mixed sets and ziplist zsets} {
+#        ssdbr sadd one 100 101 102 103
+#        ssdbr sadd two 100 200 201 202
+#        ssdbr zadd three 1 500 1 501 1 502 1 503 1 100
+#        ssdbr zinterstore to_here 3 one two three WEIGHTS 0 0 1
+#        ssdbr zrange to_here 0 -1
+#    } {100}
+#
+#    test {ZUNIONSTORE result is sorted} {
+#        # Create two sets with common and not common elements, perform
+#        # the UNION, check that elements are still sorted.
+#        ssdbr del one two dest
+#        set cmd1 [list r zadd one]
+#        set cmd2 [list r zadd two]
+#        for {set j 0} {$j < 1000} {incr j} {
+#            lappend cmd1 [expr rand()] [randomInt 1000]
+#            lappend cmd2 [expr rand()] [randomInt 1000]
+#        }
+#        {*}$cmd1
+#        {*}$cmd2
+#        assert {[ssdbr zcard one] > 100}
+#        assert {[ssdbr zcard two] > 100}
+#        ssdbr zunionstore dest 2 one two
+#        set oldscore 0
+#        foreach {ele score} [ssdbr zrange dest 0 -1 withscores] {
+#            assert {$score >= $oldscore}
+#            set oldscore $score
+#        }
+#    }
 
     proc stressers {encoding} {
         if {$encoding == "ziplist"} {
@@ -711,11 +677,11 @@ start_server {tags {"zset"}} {
             exit
         }
 
-        test "ZSCORE - $encoding" {
+        test "ZSCORE INT - $encoding" {
             ssdbr del zscoretest
             set aux {}
             for {set i 0} {$i < $elements} {incr i} {
-                set score [expr rand()]
+                set score [randomInt 999999999]
                 lappend aux $score
                 ssdbr zadd zscoretest $score $i
             }
@@ -726,7 +692,39 @@ start_server {tags {"zset"}} {
             }
         }
 
-        test "ZSCORE after a DEBUG RELOAD - $encoding" {
+        set eps 0.00001
+        test "ZSCORE DECIMAL - $encoding" {
+            ssdbr del zscoretest
+            set aux {}
+            for {set i 0} {$i < $elements} {incr i} {
+                set score [expr rand()]
+                lappend aux $score
+                ssdbr zadd zscoretest $score $i
+            }
+
+            assert_encoding $encoding zscoretest
+            for {set i 0} {$i < $elements} {incr i} {
+                assert { abs([expr [lindex $aux $i]-[ssdbr zscore zscoretest $i]]) < $eps  }
+            }
+        }
+
+        test "ZSCORE INT after a DEBUG RELOAD - $encoding" {
+            ssdbr del zscoretest
+            set aux {}
+            for {set i 0} {$i < $elements} {incr i} {
+                set score [randomInt 9999999]
+                lappend aux $score
+                ssdbr zadd zscoretest $score $i
+            }
+
+            ssdbr debug reload
+            assert_encoding $encoding zscoretest
+            for {set i 0} {$i < $elements} {incr i} {
+                assert_equal [lindex $aux $i] [ssdbr zscore zscoretest $i]
+            }
+        }
+
+        test "ZSCORE DECIMAL after a DEBUG RELOAD - $encoding" {
             ssdbr del zscoretest
             set aux {}
             for {set i 0} {$i < $elements} {incr i} {
@@ -738,7 +736,7 @@ start_server {tags {"zset"}} {
             ssdbr debug reload
             assert_encoding $encoding zscoretest
             for {set i 0} {$i < $elements} {incr i} {
-                assert_equal [lindex $aux $i] [ssdbr zscore zscoretest $i]
+                assert { abs([expr [lindex $aux $i]-[ssdbr zscore zscoretest $i]]) < $eps  }
             }
         }
 
@@ -998,12 +996,12 @@ start_server {tags {"zset"}} {
         test "ZSETs ZRANK augmented skip list stress testing - $encoding" {
             set err {}
             ssdbr del myzset
-            for {set k 0} {$k < 2000} {incr k} {
+            for {set k 0} {$k < 500} {incr k} {
                 set i [expr {$k % $elements}]
                 if {[expr rand()] < .2} {
                     ssdbr zrem myzset $i
                 } else {
-                    set score [expr rand()]
+                    set score [randomInt 9999999999999]
                     ssdbr zadd myzset $score $i
                     assert_encoding $encoding myzset
                 }

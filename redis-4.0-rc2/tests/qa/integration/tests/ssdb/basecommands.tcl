@@ -77,7 +77,12 @@ overrides {maxmemory 0}} {
         assert_equal [ssdbr lindex mylist 0] "hello" "lindex mylist"
         assert_equal [ssdbr rpop mylist] "world" "rpop mylist"
         assert_equal [ssdbr lpop mylist] "hello" "lpop mylist"
-        assert_equal [ssdbr del mylist] 0 "del mylist"
+
+        ssdbr rpush mylist hello world one two three
+        assert_equal [ssdbr ltrim mylist 0 1] {OK} "ltrim mylist"
+        assert_equal [ssdbr lrange mylist 0 -1] {hello world} "lrange mylist after ltrim"
+
+        assert_equal [ssdbr del mylist] 1 "del mylist"
     }
 
     test {basic commands - hash} {
@@ -111,7 +116,7 @@ overrides {maxmemory 0}} {
         assert_equal [ssdbr sadd myset "world"] 0 "sadd myset world twice"
         assert_equal [ssdbr scard myset] 2 "scard myset"
         assert_equal [ssdbr sismember myset hello] 1 "sismember myset"
-        assert_equal [ssdbr smembers myset] {hello world} "smembers myset"
+        assert_equal [lsort [ssdbr smembers myset]] {hello world} "smembers myset"
 
         assert_equal [ssdbr srem myset "hello"] 1 "srem myset"
         assert_equal [ssdbr srandmember myset] world "srandmember myset"
@@ -138,11 +143,12 @@ overrides {maxmemory 0}} {
         assert_equal [ssdbr zcard myzset] 2 "zcard myzset"
         assert_equal [ssdbr zcount myzset 1 2] 2 "zcount myzset"
         assert_equal [ssdbr zrangebyscore myzset 1 2] {one two} "zrangebyscore myzset"
+        assert_equal [ssdbr zrevrangebyscore myzset 2 1] {two one} "zrevrangebyscore myzset"
 
         assert_equal [ssdbr zremrangebyrank myzset 0 0] 1 "zremrangebyrank myzset"
-        assert_equal [ssdbr zadd myzset 1 "one"] 1 "zadd myzset"
-        assert_equal [ssdbr zremrangebyscore myzset 1 1] 1 "zremrangebyscore myzset"
-        assert_equal [ssdbr zadd myzset 2 "two"] 1 "zadd myzset"
+        assert_equal [ssdbr zadd myzset 1 "one"] 1 "zadd myzset one"
+        assert_equal [ssdbr zremrangebyscore myzset 2 2] 1 "zremrangebyscore myzset"
+        assert_equal [ssdbr zadd myzset 2 "two"] 1 "zadd myzset two"
 
 
         assert_equal [ssdbr ZRANGE myzset 0 -1 WITHSCORES] {one 1 two 2} "zrange myzset"
@@ -151,6 +157,13 @@ overrides {maxmemory 0}} {
 
         assert_equal [ssdbr zincrby myzset 2 "one"] 3 "zincryby myzset"
         assert_equal [ssdbr zscore myzset "one"] 3 "zscore myzset"
-        assert_equal [ssdbr del myzset] 0 "del myzset"
+        assert_equal [ssdbr del myzset] 1 "del myzset"
+
+        ssdbr zadd myzset 0 a 0 b 0 c 0 d 0 e 0 f 0 g
+        assert_equal [ssdbr zlexcount myzset \[b \[f] 5 "zlexcount myzset"
+        assert_equal [ssdbr zrangebylex myzset \[ccc (g] "d e f" "zrangebylex myzset"
+        assert_equal [ssdbr zremrangebylex myzset \[ccc (g] 3 "zremrangebylex myzset"
+        assert_equal [ssdbr zrevrangebylex myzset (g \[aaa] "c b" "zrevrangebylex myzset"
+        assert_equal [ssdbr del myzset] 1 "del myzset"
     }
 }
