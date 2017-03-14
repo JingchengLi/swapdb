@@ -666,6 +666,19 @@ void* thread_replic(void *arg){
     serv->slave_infos.pop();
     pthread_mutex_unlock(&serv->mutex);
 
+    if (serv->snapshot == NULL){
+        log_error("snapshot is null, maybe rr_make_snapshot not receive or error!");
+        if(slave.master_link != NULL){
+            std::vector<std::string> response;
+            response.push_back("error");
+            response.push_back("rr_transfer_snapshot error");
+            slave.master_link->send(response);
+            slave.master_link->flush();
+            log_error("send rr_transfer_snapshot error!!");
+        }
+        return 0;
+    }
+
     Link* link = Link::connect((slave.ip).c_str(), slave.port);
     if(link == NULL){
         log_error("fail to connect to slave ssdb! ip[%s] port[%d]", slave.ip.c_str(), slave.port);
@@ -725,6 +738,8 @@ void* thread_replic(void *arg){
                     slave.master_link->flush();
                     log_error("send rr_transfer_snapshot error!!");
                 }
+                delete buffer;
+                delete link;
                 return 0;
 			}
 
@@ -757,6 +772,8 @@ void* thread_replic(void *arg){
                 slave.master_link->flush();
                 log_error("send rr_transfer_snapshot error!!");
             }
+            delete buffer;
+            delete link;
             return 0;
 		}
 
