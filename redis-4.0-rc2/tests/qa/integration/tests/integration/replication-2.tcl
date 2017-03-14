@@ -55,12 +55,12 @@ start_server {tags {"repl"}} {
             assert_equal [r -1 get foossdb] {12345} "slave foossdb value error"
         }
 
-        test {No write if min-slaves-to-write is < attached slaves} {
-            r config set min-slaves-to-write 2
-            r config set min-slaves-max-lag 10
-            catch {r set foo 12345} err
-            set err
-        } {NOREPLICAS*}
+#        test {No write if min-slaves-to-write is < attached slaves} {
+#            r config set min-slaves-to-write 2
+#            r config set min-slaves-max-lag 10
+#            catch {r set foo 12345} err
+#            set err
+#        } {NOREPLICAS*}
 
         test {If min-slaves-to-write is honored, write is accepted (again)} {
             r config set min-slaves-to-write 1
@@ -73,18 +73,18 @@ start_server {tags {"repl"}} {
             }
         }
 
-        test {No write if min-slaves-max-lag is > of the slave lag} {
-            r -1 deferred 1
-            r config set min-slaves-to-write 1
-            r config set min-slaves-max-lag 2
-            r -1 debug sleep 6
-            assert {[r set foo 12345] eq {OK}}
-            after 4000
-            catch {r set foo 12345} err
-            assert {[r -1 read] eq {OK}}
-            r -1 deferred 0
-            set err
-        } {NOREPLICAS*}
+#        test {No write if min-slaves-max-lag is > of the slave lag} {
+#            r -1 deferred 1
+#            r config set min-slaves-to-write 1
+#            r config set min-slaves-max-lag 2
+#            r -1 debug sleep 6
+#            assert {[r set foo 12345] eq {OK}}
+#            after 4000
+#            catch {r set foo 12345} err
+#            assert {[r -1 read] eq {OK}}
+#            r -1 deferred 0
+#            set err
+#        } {NOREPLICAS*}
 
         test {min-slaves-to-write is ignored by slaves} {
             r config set min-slaves-to-write 1
