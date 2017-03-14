@@ -326,6 +326,10 @@ SSDBServer::~SSDBServer(){
 
     pthread_mutex_destroy(&mutex);
 
+	if (snapshot != nullptr) {
+		ssdb->ReleaseSnapshot(snapshot);
+	}
+
 	log_debug("SSDBServer finalized");
 }
 
