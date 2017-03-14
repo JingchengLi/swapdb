@@ -53,14 +53,40 @@ start_server {tags {"repl"}} {
         } {up}
 
         test {SET on the master should immediately propagate} {
-            r -1 set mykey bar
-            after 1000000
+            r -1 set mykey2 bar
 
             wait_for_condition 500 100 {
-                [r  0 get mykey] eq {bar}
+                [r 0 get mykey2] eq {bar}
             } else {
                 fail "SET on master did not propagated on slave"
             }
+        }
+
+        test {slave can only be loaded by master} {
+            r config set maxmemory 0
+            r -1 config set maxmemory 0
+
+            assert_equal [r -1 get mykey] {foo}
+            assert_equal [r 0 get mykey2] {bar}
+            wait_for_condition 100 10 {
+                [r 0 locatekey mykey] eq {redis} &&
+                [r 0 locatekey mykey2] eq {ssdb}
+            } else {
+                fail "slave key status error"
+            }
+            wait_for_condition 100 10 {
+                [r -1 locatekey mykey] eq {redis} &&
+                [r -1 locatekey mykey2] eq {ssdb}
+            } else {
+                fail "master key status error"
+            }
+        }
+
+        test {verify key in ssdb match its status} {
+            assert_equal [sr 0 get mykey] {} "slave key with status redis should not in ssdb"
+            assert_equal [sr 0 get mykey2] {bar} "slave key with status ssdb should in ssdb"
+            assert_equal [sr -1 get mykey] {} "master key with status redis should not in ssdb"
+            assert_equal [sr -1 get mykey2] {bar} "master key with status ssdb should in ssdb"
         }
 
         test {FLUSHALL should replicate} {
@@ -186,10 +212,9 @@ foreach dl {no yes} {
                             [$master dbsize] == [[lindex $slaves 1] dbsize] &&
                             [$master dbsize] == [[lindex $slaves 2] dbsize]
                         } else {
-                            fail "Different number of keys between masted and slave after too long time."
+                            fail "Different number of keys between master and slave after too long time."
                         }
 
-                        # Check digests
                         set digest [$master debug digest]
                         set digest0 [[lindex $slaves 0] debug digest]
                         set digest1 [[lindex $slaves 1] debug digest]
@@ -198,6 +223,20 @@ foreach dl {no yes} {
                         assert {$digest eq $digest0}
                         assert {$digest eq $digest1}
                         assert {$digest eq $digest2}
+
+                        # Check digests when all keys be hot
+                        r config set maxmemory 0
+                        set digest [debug_digest r -3]
+                        set digest0 [debug_digest r -2]
+                        set digest1 [debug_digest r -1]
+                        set digest2 [debug_digest r 0]
+                        wait_for_condition 500 100 {
+                            $digest == [[lindex $slaves 0] debug digest] &&
+                            $digest == [[lindex $slaves 1] debug digest] &&
+                            $digest == [[lindex $slaves 2] debug digest]
+                        } else {
+                            fail "Different digest between master and slave after too long time."
+                        }
                     }
                }
             }
