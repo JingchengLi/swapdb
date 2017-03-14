@@ -307,7 +307,7 @@ struct redisCommand redisCommandTable[] = {
     {"customized-restore",customizedRestoreCommand,-4,"wm",0,NULL,1,1,1,0,0},
     {"customized-fail",customizedFailCommand,3,"w",0,NULL,1,1,1,0,0},
 
-    {"dumptossdb",dumptossdbCommand,3,"w",0,NULL,1,1,1,0,0},
+    {"dumptossdb",dumptossdbCommand,-2,"w",0,NULL,1,1,1,0,0},
     {"restorefromssdb",restorefromssdbCommand,2,"w",0,NULL,1,1,1,0,0},
     {"locatekey",locatekeyCommand,2,"r",0,NULL,1,1,1,0,0},
 
@@ -1463,13 +1463,11 @@ void createSharedObjects(void) {
         shared.transfersnapshotunfinished = sdsnew("rr_transfer_snapshot unfinished");
         shared.delsnapshotok = sdsnew("rr_del_snapshot ok");
         shared.delsnapshotnok = sdsnew("rr_del_snapshot nok");
-        shared.noreply = sdsnew("NOREPLY");
-        shared.dumpcmdsds= sdsnew("DUMPTOSSDB");
-        shared.ssdbdelcmdsds = sdsnew("SSDBDEL");
 
-        shared.noreplyobj = createObject(OBJ_STRING, (void *)shared.noreply);
         shared.dumpcmdobj = createObject(OBJ_STRING, (void *)sdsnew("DUMPTOSSDB"));
-        shared.ssdbdelcmdobj = createObject(OBJ_STRING, (void*)shared.ssdbdelcmdsds);
+        shared.ssdbdelcmdobj = createObject(OBJ_STRING, (void*)sdsnew("SSDBDEL"));
+        shared.rr_restoreobj = createObject(OBJ_STRING, (void *)sdsnew("RR_RESTORE"));
+        shared.restoreobj = createObject(OBJ_STRING, (void *)sdsnew("RESTORE"));
     }
 }
 
@@ -2431,7 +2429,7 @@ void call(client *c, int flags) {
 
             if (server.jdjr_mode && c->cmd->proc == customizedRestoreCommand) {
                 robj *argv[2] = {shared.ssdbdelcmdobj, c->argv[1]};
-                propagate(lookupCommand(shared.ssdbdelcmdsds), 0, argv, 2, PROPAGATE_REPL);
+                propagate(lookupCommand(shared.ssdbdelcmdobj->ptr), 0, argv, 2, PROPAGATE_REPL);
             }
         }
     }
@@ -2502,7 +2500,6 @@ int checkKeysInMediateState(client* c) {
 
 int processCommandMaybeFlushdb(client *c, int old_bufpos) {
     sds finalcmd = NULL;
-    sds sdsbuf = NULL;
 
     if ((c->cmd->proc == flushallCommand
          || c->cmd->proc == flushdbCommand)) {

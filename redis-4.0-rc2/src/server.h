@@ -784,14 +784,16 @@ struct sharedObjectsStruct {
     *select[PROTO_SHARED_SELECT_CMDS],
     *integers[OBJ_SHARED_INTEGERS],
     *mbulkhdr[OBJ_SHARED_BULKHDR_LEN], /* "*<value>\r\n" */
-    *bulkhdr[OBJ_SHARED_BULKHDR_LEN],  /* "$<value>\r\n" */
-    *noreplyobj, *dumpcmdobj, *ssdbdelcmdobj;
+    *bulkhdr[OBJ_SHARED_BULKHDR_LEN];  /* "$<value>\r\n" */
+
     sds minstring, maxstring;
+
+    /* jdjr-mode shared obj. */
+    robj *dumpcmdobj, *ssdbdelcmdobj, *restoreobj, *rr_restoreobj;
     /* jdjr-mdoe shared sds. */
     sds checkwriteok, checkwritenok, makesnapshotok, makesnapshotnok,
         transfersnapshotok, transfersnapshotnok, transfersnapshotfinished,
-        transfersnapshotunfinished, delsnapshotok, delsnapshotnok, noreply,
-        dumpcmdsds, ssdbdelcmdsds;
+        transfersnapshotunfinished, delsnapshotok, delsnapshotnok;
 };
 
 /* ZSETs use a specialized version of Skiplists */
@@ -2065,7 +2067,7 @@ void dumptossdbCommand(client *c);
 void locatekeyCommand(client *c);
 void ssdbDelCommand(client *c);
 void restorefromssdbCommand(client *c);
-int prologOfEvictingToSSDB(robj *keyobj, redisDb *db, robj *noreplyobj);
+int prologOfEvictingToSSDB(robj *keyobj, redisDb *db, sds cmdname);
 int prologOfLoadingFromSSDB(robj *keyobj);
 
 #if defined(__GNUC__)

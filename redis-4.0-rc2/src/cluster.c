@@ -4687,6 +4687,8 @@ void customizedFailCommand(client *c) {
             serverLog(LL_DEBUG, "key: %s is deleted from EVICTED_DATA_DB->db.", (char *)keyobj->ptr);
         if (getExpire(EVICTED_DATA_DB, keyobj) != -1)
             dictDelete(EVICTED_DATA_DB->expires, keyobj->ptr);
+
+        server.evicting_keys_num --;
     } else {
         serverPanic("cmd is not supported.");
     }
@@ -4702,8 +4704,8 @@ void customizedFailCommand(client *c) {
 }
 
 void dumptossdbCommand(client *c) {
-    robj *keyobj, *noreplyobj = NULL, *o;
-    sds noreplysds = NULL;
+    robj *keyobj, *o;
+    sds cmdname = NULL;
 
     if (!server.jdjr_mode) {
         addReplyErrorFormat(c,"Command only supported in jdjr-mode '%s'",
@@ -4716,20 +4718,16 @@ void dumptossdbCommand(client *c) {
     if ((o = lookupKeyReadOrReply(c, c->argv[1], shared.nullbulk)) == NULL)
         return;
 
-    if (c->argc == 3) {
-        noreplyobj = c->argv[2];
-        noreplysds = (sds)noreplyobj->ptr;
-        sdstoupper(noreplysds);
+    cmdname = c->argc >= 3 && c->argv[2] ? c->argv[2]->ptr : shared.rr_restoreobj->ptr;
 
-        if (noreplyobj->type != OBJ_ENCODING_RAW
-            || sdscmp(noreplysds, shared.noreply)) {
-            addReply(c, shared.syntaxerr);
-            return;
-        }
+    if (sdscmp(cmdname, shared.restoreobj->ptr)
+        && sdscmp(cmdname, shared.rr_restoreobj->ptr)) {
+        addReply(c, shared.syntaxerr);
+        return;
     }
 
     /* Try restoring the redis dumped data to SSDB. */
-    if (prologOfEvictingToSSDB(keyobj, c->db, noreplyobj) != C_OK)
+    if (prologOfEvictingToSSDB(keyobj, c->db, cmdname) != C_OK)
         serverLog(LL_DEBUG, "Failed to send the restore cmd to SSDB.");
     else
         setTransferringDB(c->db, keyobj);

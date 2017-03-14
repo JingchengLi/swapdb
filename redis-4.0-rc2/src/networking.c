@@ -699,6 +699,8 @@ int sendCommandToSSDB(client *c, sds finalcmd) {
 
      dupcmd = sdsdup(finalcmd);
 
+     serverLog(LL_DEBUG, "sendCommandToSSDB fd: %d", c->context->fd);
+
      while (finalcmd && sdslen(finalcmd) > 0) {
          nwritten = write(c->context->fd, finalcmd, sdslen(finalcmd));
          if (nwritten == -1) {
