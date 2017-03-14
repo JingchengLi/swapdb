@@ -4747,7 +4747,7 @@ void locatekeyCommand(client *c) {
 
     serverAssert(c->argc == 2);
 
-    replyString = lookupKey(EVICTED_DATA_DB, c->argv[1], LOOKUP_NONE)
+    replyString = lookupKey(EVICTED_DATA_DB, c->argv[1], LOOKUP_NOTOUCH)
         ? "ssdb" : (lookupKey(c->db, c->argv[1], LOOKUP_NONE)
                     ? "redis" : "none");
 
