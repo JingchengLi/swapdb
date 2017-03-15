@@ -13,6 +13,7 @@ found in the LICENSE file.
 #include "fde.h"
 #include <vector>
 #include <execinfo.h>
+#include <serv.h>
 
 static DEF_PROC(ping);
 static DEF_PROC(info);
@@ -294,6 +295,28 @@ void NetworkServer::serve(){
 				request.push_back("1000");
 				cmd->proc(this, nullptr, request, &response);
 			}
+		}
+
+		SSDBServer *serv = (SSDBServer *)(this->data);
+		static int nLoopNum = 0;
+		pthread_mutex_lock(&serv->mutex);
+		if (serv->ReplicState == REPLIC_END){
+			pthread_mutex_unlock(&serv->mutex);
+			nLoopNum++;
+			if (nLoopNum == 10){
+				Command *cmd = proc_map.get_proc("rr_del_snapshot");
+				if(!cmd){
+					log_fatal("not found rr_del_snapshot command");
+				} else {
+					Request request;
+					Response response;
+					cmd->proc(this, nullptr, request, &response);
+				}
+				nLoopNum = 0;
+			}
+		} else{
+			pthread_mutex_unlock(&serv->mutex);
+			nLoopNum = 0;
 		}
 		
 		ready_list.swap(ready_list_2);

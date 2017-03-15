@@ -25,6 +25,12 @@ struct Slave_info{
     Link    *master_link;
 };
 
+enum Replic_state{
+	REPLIC_START = 0,
+	REPLIC_TRANS	,
+	REPLIC_END
+};
+
 class SSDBServer
 {
 private:
@@ -44,6 +50,9 @@ public:
     std::queue<Slave_info>  slave_infos;
     pthread_mutex_t         mutex;
 	const leveldb::Snapshot* snapshot;
+	enum Replic_state 		ReplicState;
+	int 					nStartRepliNum;
+	int 					nFinishPeplicNum;
 
 	SSDBServer(SSDB *ssdb, SSDB *meta, const Config &conf, NetworkServer *net);
 	~SSDBServer();

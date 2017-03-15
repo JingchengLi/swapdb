@@ -306,6 +306,9 @@ SSDBServer::SSDBServer(SSDB *ssdb, SSDB *meta, const Config &conf, NetworkServer
 
 	snapshot = nullptr;
     pthread_mutex_init(&mutex, NULL);
+    ReplicState       = REPLIC_START;
+    nStartRepliNum    = 0;
+    nFinishPeplicNum  = 0;
 
 	{
 		const Config *upstream_conf = conf.get("upstream");
@@ -805,6 +808,13 @@ void* thread_replic(void *arg){
     }
 	log_debug("replic procedure finish!");
 
+    pthread_mutex_lock(&serv->mutex);
+    serv->nFinishPeplicNum++;
+    if (serv->nFinishPeplicNum == serv->nStartRepliNum){
+        serv->ReplicState = REPLIC_END;
+    }
+    pthread_mutex_unlock(&serv->mutex);
+
     return (void *)NULL;
 }
 
@@ -966,6 +976,13 @@ int proc_rr_make_snapshot(NetworkServer *net, Link *link, const Request &req, Re
         serv->ssdb->ReleaseSnapshot(serv->snapshot);
     }
     serv->snapshot = serv->ssdb->GetSnapshot();
+
+    pthread_mutex_lock(&serv->mutex);
+    serv->ReplicState       = REPLIC_START;
+    serv->nStartRepliNum    = 0;
+    serv->nFinishPeplicNum  = 0;
+    pthread_mutex_unlock(&serv->mutex);
+
     resp->push_back("ok");
     resp->push_back("rr_make_snapshot ok");
     return 0;
@@ -977,8 +994,11 @@ int proc_rr_transfer_snapshot(NetworkServer *net, Link *link, const Request &req
 
     std::string ip = req[1].String();
     int port = req[2].Int();
+
     pthread_mutex_lock(&serv->mutex);
     serv->slave_infos.push(Slave_info{ip, port, link});
+    serv->ReplicState = REPLIC_TRANS;
+    serv->nStartRepliNum++;
     pthread_mutex_unlock(&serv->mutex);
 
     pthread_t tid;
@@ -998,6 +1018,13 @@ int proc_rr_del_snapshot(NetworkServer *net, Link *link, const Request &req, Res
         serv->ssdb->ReleaseSnapshot(serv->snapshot);
         serv->snapshot = nullptr;
     }
+
+    pthread_mutex_lock(&serv->mutex);
+    serv->ReplicState       = REPLIC_START;
+    serv->nStartRepliNum    = 0;
+    serv->nFinishPeplicNum  = 0;
+    pthread_mutex_unlock(&serv->mutex);
+
     resp->push_back("ok");
     resp->push_back("rr_del_snapshot ok");
     return 0;
