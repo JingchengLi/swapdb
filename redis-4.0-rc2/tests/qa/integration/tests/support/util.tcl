@@ -411,8 +411,11 @@ proc debug_digest {r {level 0}} {
     $r $level select 16
     set keyslist [$r $level keys *]
     $r $level select 0
-    foreach key $keyslist {
-        $r $level exists $key ;#load keys to redis
+
+    if {[lindex [r $level role] 0] == "master"} {
+        foreach key $keyslist {
+            $r $level exists $key ;#load keys to redis
+        }
     }
     $r $level select 16
     wait_for_condition 300 100 {

@@ -205,7 +205,7 @@ foreach dl {no} {
                 assert {$digest eq $digest0}
 
                 # Check digests when all keys be hot
-                r config set maxmemory 0
+                r -1 config set maxmemory 0
                 set digest [debug_digest r -1]
                 set digest2 [debug_digest r 0]
                 wait_for_condition 500 100 {
@@ -296,7 +296,7 @@ foreach dl {no yes} {
                         assert {$digest eq $digest2}
 
                         # Check digests when all keys be hot
-                        r config set maxmemory 0
+                        r -3 config set maxmemory 0
                         set digest [debug_digest r -3]
                         set digest0 [debug_digest r -2]
                         set digest1 [debug_digest r -1]
