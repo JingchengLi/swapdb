@@ -39,7 +39,7 @@ SSDBImpl::~SSDBImpl(){
 //	if(expiration){
 //		delete expiration;
 //	}
-	Locking l(&this->mutex_bgtask_);
+	Locking<Mutex> l(&this->mutex_bgtask_);
 	this->stop();
 #ifdef USE_LEVELDB
     //auto memory man in rocks

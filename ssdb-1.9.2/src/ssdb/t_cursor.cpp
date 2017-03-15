@@ -6,7 +6,7 @@
 #include "t_cursor.h"
 
 uint64_t RedisCursorService::GetNewRedisCursor(const std::string &element) {
-    Locking l(&mutex);
+    Locking<SpinMutexLock> l(&mutex);
 
     RedisCursor cursor;
     cursor.element = element;
@@ -30,7 +30,7 @@ int RedisCursorService::FindElementByRedisCursor(const std::string &cursor, std:
         return -1;
     }
 
-    Locking l(&mutex);
+    Locking<SpinMutexLock> l(&mutex);
     RedisCursorTable::iterator it = m_redis_cursor_table.find(cursor_int);
     if (it == m_redis_cursor_table.end())
     {
@@ -41,7 +41,7 @@ int RedisCursorService::FindElementByRedisCursor(const std::string &cursor, std:
 }
 
 void RedisCursorService::ClearExpireRedisCursor() {
-    Locking l(&mutex);
+    Locking<SpinMutexLock> l(&mutex);
 
 
     while (!m_redis_cursor_table.empty())

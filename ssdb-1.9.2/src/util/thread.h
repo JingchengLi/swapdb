@@ -17,6 +17,7 @@ found in the LICENSE file.
 #include <string>
 #include <unordered_map>
 #include <sys/time.h>
+#include <atomic>
 
 class Mutex{
 	private:
@@ -36,6 +37,21 @@ class Mutex{
 			pthread_mutex_unlock(&mutex);
 		}
 };
+
+
+class SpinMutexLock {
+	std::atomic_flag locked = ATOMIC_FLAG_INIT ;
+public:
+	void lock() {
+		while (locked.test_and_set(std::memory_order_acquire)) {
+			sched_yield();
+		}
+	}
+	void unlock() {
+		locked.clear(std::memory_order_release);
+	}
+};
+
 
 class CondVar{
 	private:
@@ -68,14 +84,15 @@ class CondVar{
 		}
 };
 
+template <typename T>
 class Locking{
 	private:
-		Mutex *mutex;
+	T *mutex;
 		// No copying allowed
 		Locking(const Locking&);
 		void operator=(const Locking&);
 	public:
-		Locking(Mutex *mutex){
+		Locking(T *mutex){
 			this->mutex = mutex;
 			this->mutex->lock();
 		}

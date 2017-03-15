@@ -34,7 +34,7 @@ private:
 
     RedisCursorTable m_redis_cursor_table;
 
-    Mutex mutex;
+    SpinMutexLock mutex;
 
 };
 

@@ -440,7 +440,7 @@ int proc_restore(NetworkServer *net, Link *link, const Request &req, Response *r
 	PTE(restore, req[1].String())
 
 	if (ret > 0 && ttl > 0) {
-		Locking l(&serv->expiration->mutex);
+		Locking<Mutex> l(&serv->expiration->mutex);
 		ret = serv->expiration->expire(req[1], ttl, TimeUnit::Millisecond);
 		if (ret < 0) {
 			serv->ssdb->del(req[1]);

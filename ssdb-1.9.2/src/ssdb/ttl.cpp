@@ -20,7 +20,7 @@ ExpirationHandler::ExpirationHandler(SSDB *ssdb) {
 }
 
 ExpirationHandler::~ExpirationHandler() {
-    Locking l(&this->mutex);
+    Locking<Mutex> l(&this->mutex);
     this->stop();
     ssdb = NULL;
 }
@@ -148,7 +148,7 @@ void ExpirationHandler::load_expiration_keys_from_db(int num) {
 }
 
 void ExpirationHandler::expire_loop() {
-    Locking l(&this->mutex);
+    Locking<Mutex> l(&this->mutex);
     if (!this->ssdb) {
         return;
     }

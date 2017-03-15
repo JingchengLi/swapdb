@@ -22,7 +22,7 @@ int bproc_COMMAND_DATA_SAVE(SSDBServer *serv, TransferWorker *worker, const std:
     }
 
     if (ret > 0 && pttl > 0) {
-        Locking l(&serv->expiration->mutex);
+        Locking<Mutex> l(&serv->expiration->mutex);
         ret = serv->expiration->expire(dumpData->key, pttl, TimeUnit::Millisecond);
     }
     if (ret < 0) {
