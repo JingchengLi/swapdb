@@ -266,13 +266,22 @@ int SSDBImpl::raw_get(const Bytes &key, std::string *val){
 
 uint64_t SSDBImpl::size(){
 	// todo r2m adaptation
+#ifdef USE_LEVELDB
     std::string s = "A";
-    std::string e(1, 'z' + 1);
+    std::string s(1, DataType::META);
+    std::string e(1, DataType::META + 1);
 	leveldb::Range ranges[1];
 	ranges[0] = leveldb::Range(s, e);
 	uint64_t sizes[1];
 	ldb->GetApproximateSizes(ranges, 1, sizes);
-	return sizes[0];
+	return (sizes[0] / 18);
+#else
+    std::string num = "0";
+    ldb->GetProperty("rocksdb.estimate-num-keys", &num);
+
+    return Bytes(num).Uint64();
+#endif
+
 }
 
 std::vector<std::string> SSDBImpl::info(){

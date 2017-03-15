@@ -133,6 +133,8 @@ DEF_PROC(quit);
 DEF_PROC(replic);
 DEF_PROC(sync150);
 
+DEF_PROC(ssdbscan);
+
 DEF_PROC(rr_dump);
 DEF_PROC(rr_restore);
 
@@ -277,6 +279,8 @@ void SSDBServer::reg_procs(NetworkServer *net){
 	// writer thread(for performance reason); we don't want to block writes
 	REG_PROC(compact, "rt");
 	REG_PROC(debug, "wt");
+
+	REG_PROC(ssdbscan, "wt");
 
     REG_PROC(rr_check_write, "wt");
     REG_PROC(rr_make_snapshot, "w");

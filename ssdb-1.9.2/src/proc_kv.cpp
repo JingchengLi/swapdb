@@ -552,17 +552,60 @@ int proc_scan(NetworkServer *net, Link *link, const Request &req, Response *resp
 	return 0;
 }
 
-int proc_scanall(NetworkServer *net, Link *link, const Request &req, Response *resp){
+int proc_ssdbscan(NetworkServer *net, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *)net->data;
-//	CHECK_NUM_PARAMS(4);
+	CHECK_NUM_PARAMS(2);
 
-//	uint64_t limit = req[3].Uint64();
-//	KIterator *it = serv->ssdb->scan(req[1], req[2], limit);
-	auto it = std::unique_ptr<Iterator>(serv->ssdb->iterator("", "", -1));
+	uint64_t limit = 1000;
+
+	std::string pattern = "*";
+	bool need_value = false;
+	std::vector<Bytes>::const_iterator it = req.begin() + 1;
+	for(; it != req.end(); it += 2){
+		std::string key = (*it).String();
+		strtolower(&key);
+
+		if (key=="match") {
+			pattern = (*(it+1)).String();
+		} else if (key=="count") {
+			limit =  (*(it+1)).Uint64();
+			if (errno == EINVAL){
+				resp->push_back("error");
+				resp->push_back(GetErrorInfo(INVALID_INT));
+				return 0;
+			}
+		} else if (key=="value") {
+			std::string has_value_s = (*(it+1)).String();
+			strtolower(&has_value_s);
+
+			need_value = (has_value_s=="on");
+		} else {
+			resp->push_back("error");
+			resp->push_back(GetErrorInfo(SYNTAX_ERR));
+			return 0;
+		}
+	}
+	bool fulliter = (pattern == "*");
+
+	auto ssdb_it = std::unique_ptr<Iterator>(serv->ssdb->iterator("", "", -1));
 	resp->push_back("ok");
-	while(it->next()){
-		resp->push_back(hexmem(it->key().data(),it->key().size()));
-		resp->push_back(hexmem(it->val().data(),it->val().size()));
+	while(ssdb_it->next()){
+
+		if (fulliter || stringmatchlen(pattern.data(), pattern.length(), ssdb_it->key().data(), ssdb_it->key().size(), 0)) {
+			resp->push_back(hexmem(ssdb_it->key().data(),ssdb_it->key().size()));
+			if (need_value) {
+				resp->push_back(hexmem(ssdb_it->val().data(),ssdb_it->val().size()));
+			}
+
+			limit --;
+			if (limit == 0) {
+				break; //stop now
+			}
+
+		} else {
+			//skip
+		}
+
 	}
 
 	return 0;
