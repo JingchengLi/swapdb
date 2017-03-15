@@ -180,11 +180,11 @@ proc createComplexDataset {r ops {opt {}}} {
         # } {
             # randpath {set d +inf} {set d -inf}
         # }
+        catch {
         set t [{*}$r type $k]
-
-        if {$t eq {none}} {
-            randpath {
-                {*}$r set $k $v
+            if {$t eq {none}} {
+                randpath {
+                    {*}$r set $k $v
             } {
                 {*}$r lpush $k $v
             } {
@@ -197,31 +197,34 @@ proc createComplexDataset {r ops {opt {}}} {
                 {*}$r del $k
             }
             set t [{*}$r type $k]
-        }
+            }
+        } err;# WRONGTYPE ERR
 
-        switch $t {
-            {string} {
-                # Nothing to do
+        catch {
+            switch $t {
+                {string} {
+                    # Nothing to do
+                }
+                {list} {
+                    randpath {{*}$r lpush $k $v} \
+                    {{*}$r rpush $k $v} \
+                    {{*}$r rpop $k} \
+                    {{*}$r lpop $k}
+                }
+                {set} {
+                    randpath {{*}$r sadd $k $v} \
+                    {{*}$r srem $k $v}
+                }
+                {zset} {
+                    randpath {{*}$r zadd $k $d $v} \
+                    {{*}$r zrem $k $v}
+                }
+                {hash} {
+                    randpath {{*}$r hset $k $f $v} \
+                    {{*}$r hdel $k $f}
+                }
             }
-            {list} {
-                randpath {{*}$r lpush $k $v} \
-                        {{*}$r rpush $k $v} \
-                        {{*}$r rpop $k} \
-                        {{*}$r lpop $k}
-            }
-            {set} {
-                randpath {{*}$r sadd $k $v} \
-                        {{*}$r srem $k $v}
-            }
-            {zset} {
-                randpath {{*}$r zadd $k $d $v} \
-                        {{*}$r zrem $k $v}
-            }
-            {hash} {
-                randpath {{*}$r hset $k $f $v} \
-                        {{*}$r hdel $k $f}
-            }
-        }
+        } err;# WRONGTYPE ERR
 
         if {[lsearch -exact $opt useexpire] != -1} {
             if {rand() < 0.5} {
