@@ -1,10 +1,3 @@
-proc log_file_matches {log pattern} {
-    set fp [open $log r]
-    set content [read $fp]
-    close $fp
-    string match $pattern $content
-}
-
 start_server {tags {"repl"}} {
     set A [srv 0 client]
     set A_host [srv 0 host]
@@ -144,6 +137,84 @@ start_server {tags {"repl"}} {
                 }
             }
         }
+    }
+}
+
+# master with only one slave
+foreach dl {no} {
+    start_server {tags {"repl"}} {
+        set master [srv 0 client]
+        $master config set repl-diskless-sync $dl
+        set master_host [srv 0 host]
+        set master_port [srv 0 port]
+        set slaves {}
+        set load_handle0 [start_write_load $master_host $master_port 3 10]
+        set load_handle1 [start_write_load $master_host $master_port 5 10]
+        set load_handle2 [start_write_load $master_host $master_port 20 10]
+        set load_handle3 [start_write_load $master_host $master_port 8 10]
+        set load_handle4 [start_write_load $master_host $master_port 4 10]
+        start_server {} {
+            lappend slaves [srv 0 client]
+            test "Connect single slave at the same time , diskless=$dl" {
+                # Send SLAVEOF commands to slave
+                [lindex $slaves 0] slaveof $master_host $master_port
+
+                # Wait for the slave to reach the "online"
+                # state from the POV of the master.
+                set retry 500
+                while {$retry} {
+                    set info [$master info]
+                    if {[string match {*slave0:*state=online*} $info]} {
+                        break
+                    } else {
+                        incr retry -1
+                        after 100
+                    }
+                }
+                if {$retry == 0} {
+                    error "assertion:Single Slave not correctly synchronized"
+                }
+
+                # Wait that slave acknowledge is online so
+                # we are sure that DBSIZE and DEBUG DIGEST will not
+                # fail because of timing issues.
+                wait_for_condition 500 100 {
+                    [lindex [[lindex $slaves 0] role] 3] eq {connected}
+                } else {
+                    fail "Single Slave still not connected after some time"
+                }
+
+                # Stop the write load
+                stop_write_load $load_handle0
+                stop_write_load $load_handle1
+                stop_write_load $load_handle2
+                stop_write_load $load_handle3
+                stop_write_load $load_handle4
+
+                # Make sure that slave and master have same
+                # number of keys
+                wait_for_condition 500 100 {
+                    [$master dbsize] == [r dbsize]
+                } else {
+                    fail "Different number of keys between master and single slave after too long time."
+                }
+
+                set digest [$master debug digest]
+                set digest0 [[lindex $slaves 0] debug digest]
+                assert {$digest ne 0000000000000000000000000000000000000000}
+                assert {$digest eq $digest0}
+
+                # Check digests when all keys be hot
+                r config set maxmemory 0
+                set digest [debug_digest r -1]
+                set digest2 [debug_digest r 0]
+                wait_for_condition 500 100 {
+                    $digest == [r debug digest]
+                } else {
+                    fail "Different digest between master and single slave after too long time."
+                }
+            }
+       }
     }
 }
 

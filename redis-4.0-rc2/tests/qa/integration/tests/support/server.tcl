@@ -321,9 +321,9 @@ proc start_server {options {code undefined}} {
 
             # Kill the server without checking for leaks
             dict set srv "skipleaks" 1
-            kill_server $srv
             puts "kill_server"
             catch { exec kill -9 $ssdbpid }
+            kill_server $srv
 
             # Print warnings from log
             puts [format "\nLogged warnings (pid %d):" [dict get $srv "pid"]]
@@ -347,9 +347,9 @@ proc start_server {options {code undefined}} {
         set ::servers [lrange $::servers 0 end-1]
 
         set ::tags [lrange $::tags 0 end-[llength $tags]]
-        kill_server $srv
         puts "kill_server"
         catch { exec kill -9 $ssdbpid }
+        kill_server $srv
     } else {
         set ::tags [lrange $::tags 0 end-[llength $tags]]
         set _ $srv
