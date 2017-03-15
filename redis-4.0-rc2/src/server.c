@@ -2521,7 +2521,6 @@ int processCommandMaybeInSSDB(client *c) {
     if ( !c->cmd ||
          !((c->cmd->flags & (CMD_READONLY | CMD_WRITE)) && (c->cmd->flags & CMD_JDJR_MODE)) )
         return C_ERR;
-    /* Calling lookupKey to update lru or lfu counter. */
     if (c->argc <= 1 || !dictFind(EVICTED_DATA_DB->dict, c->argv[1]->ptr))
         return C_ERR;
 
@@ -2555,6 +2554,7 @@ int processCommandMaybeInSSDB(client *c) {
 
     if ((c->cmd->flags & (CMD_READONLY | CMD_WRITE)) &&
          (c->cmd->flags & CMD_JDJR_MODE)) {
+        /* Calling lookupKey to update lru or lfu counter. */
         robj* val = lookupKey(EVICTED_DATA_DB, c->argv[1], LOOKUP_NONE);
         if (val) {
             int ret = sendCommandToSSDB(c, NULL);
@@ -2593,7 +2593,12 @@ int processCommandMaybeInSSDB(client *c) {
 
                 serverAssert(server.maxmemory_policy & MAXMEMORY_FLAG_LFU);
 
-                int counter = val->lru & 255;
+                dictEntry* de = dictFind(EVICTED_DATA_DB->dict, c->argv[1]);
+                sds db_key = dictGetKey(de);
+
+                unsigned int lfu = sdsgetlfu(db_key);
+
+                unsigned char counter = lfu & 255;
 
                 // todo: add config option for LFU value
                 if ((counter > LFU_INIT_VAL) && !memoryReachLoadUpperLimit()) {
