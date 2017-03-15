@@ -66,7 +66,7 @@ static inline int sdsHdrSize(char type) {
 }
 
 static inline char sdsReqType(size_t string_size, int is_lfu_type) {
-    if (string_size < 1<<5)
+    if (string_size < 1<<4)
         return is_lfu_type ? SDS_TYPE_5_LFU : SDS_TYPE_5;
     if (string_size < 1<<8)
         return is_lfu_type ? SDS_TYPE_8_LFU : SDS_TYPE_8;
@@ -179,7 +179,12 @@ sds sdsnewlen2(const void *init, size_t initlen, int is_lfu_type) {
 }
 
 sds sdsnewlen(const void *init, size_t initlen) {
+#ifdef SDS_TEST_MAIN
+    printf("\nuse lfu type!!!!!!\n");
+    return sdsnewlen2(init, initlen, 1);
+#else
     return sdsnewlen2(init, initlen, 0);
+#endif
 }
 
 /* Create an empty (zero length) sds string. Even in this case the string
@@ -191,7 +196,12 @@ sds sdsempty(void) {
 /* Create a new sds string starting from a null terminated C string. */
 sds sdsnew(const char *init) {
     size_t initlen = (init == NULL) ? 0 : strlen(init);
+#ifdef SDS_TEST_MAIN
+    printf("\nuse lfu type!!!!!!\n");
+    return sdsnewlen2(init, initlen, 1);
+#else
     return sdsnewlen(init, initlen);
+#endif
 }
 
 /* Duplicate an sds string. */
@@ -369,7 +379,9 @@ void sdsIncrLen(sds s, int incr) {
         case SDS_TYPE_5: {
             unsigned char *fp = ((unsigned char*)s)-1;
             unsigned char oldlen = SDS_TYPE_5_LEN(flags);
-            assert((incr > 0 && oldlen+incr < 32) || (incr < 0 && oldlen >= (unsigned int)(-incr)));
+            /* The max length is 15 for SDS_TYPE_5 in jdjr_mode,
+             * max value is 31 for SDS_TYPE_5 in native redis.*/
+            assert((incr > 0 && oldlen+incr < 16) || (incr < 0 && oldlen >= (unsigned int)(-incr)));
             *fp = SDS_TYPE_5 | ((oldlen+incr) << SDS_TYPE_BITS);
             len = oldlen+incr;
             break;
@@ -377,7 +389,9 @@ void sdsIncrLen(sds s, int incr) {
         case SDS_TYPE_5_LFU: {
             unsigned char *fp = ((unsigned char*)s)-1;
             unsigned char oldlen = SDS_TYPE_5_LFU_LEN(flags);
-            assert((incr > 0 && oldlen+incr < 32) || (incr < 0 && oldlen >= (unsigned int)(-incr)));
+            /* The max length is 15 for SDS_TYPE_5 in jdjr_mode,
+             * max value is 31 for SDS_TYPE_5 in native redis.*/
+            assert((incr > 0 && oldlen+incr < 16) || (incr < 0 && oldlen >= (unsigned int)(-incr)));
             *fp = SDS_TYPE_5_LFU | ((oldlen+incr) << SDS_TYPE_BITS);
             len = oldlen+incr;
             break;
@@ -1235,6 +1249,18 @@ int sdsTest(void) {
             memcmp(x,"--4294967295,18446744073709551615--",35) == 0)
 
         sdsfree(x);
+        x = sdsnew("=");
+        test_cond("", (x[-1] & SDS_TYPE_MASK) == 8)
+
+        sdsfree(x);
+        x = sdsnew("123456789abcdef");
+        test_cond("sds init len is 15, type is SDS_TYPE_5", (x[-1] & SDS_TYPE_MASK) == 8)
+
+        sdsfree(x);
+        x = sdsnew("123456789abcdefg");
+        test_cond("sds init len is 16, type is SDS_TYPE_8", (x[-1] & SDS_TYPE_MASK) == 9)
+
+        sdsfree(x);
         x = sdsnew(" x ");
         sdstrim(x," x");
         test_cond("sdstrim() works when all chars match",
@@ -1353,6 +1379,8 @@ int sdsTest(void) {
 #endif
 
 #ifdef SDS_TEST_MAIN
+// make test-sds -e USE_JEMALLOC=no
+
 int main(void) {
     return sdsTest();
 }

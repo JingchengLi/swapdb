@@ -135,6 +135,8 @@ struct __attribute__ ((__packed__)) sdshdr64lfu {
 #define SDS_TYPE_BITS 4
 #define SDS_HDR_VAR(T,s) struct sdshdr##T *sh = (void*)((s)-(sizeof(struct sdshdr##T)));
 #define SDS_HDR(T,s) ((struct sdshdr##T *)((s)-(sizeof(struct sdshdr##T))))
+/* The max length is 15 for SDS_TYPE_5 in jdjr_mode,
+ * max value is 31 for SDS_TYPE_5 in native redis.*/
 #define SDS_TYPE_5_LEN(f) ((f)>>SDS_TYPE_BITS)
 #define SDS_TYPE_5_LFU_LEN(f) SDS_TYPE_5_LEN(f)
 
