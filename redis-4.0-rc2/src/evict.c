@@ -186,7 +186,11 @@ void coldKeyPopulate(int dbid, dict *sampledict, dict *keydict, struct evictionP
              * first. So inside the pool we put objects using the inverted
              * frequency subtracting the actual frequency to the maximum
              * frequency of 255. */
-            idle = 255-LFUDecrAndReturn(o);
+            if (server.jdjr_mode) {
+                idle = 255-KeyLFUDecrAndReturn(key);
+            } else {
+                idle = 255-LFUDecrAndReturn(o);
+            }
         } else {
             serverPanic("Unknown eviction policy in coldKeyPopulate()");
         }
@@ -298,7 +302,11 @@ void evictionPoolPopulate(int dbid, dict *sampledict, dict *keydict, struct evic
              * first. So inside the pool we put objects using the inverted
              * frequency subtracting the actual frequency to the maximum
              * frequency of 255. */
-            idle = 255-LFUDecrAndReturn(o);
+            if (server.jdjr_mode) {
+                idle = 255-KeyLFUDecrAndReturn(key);
+            } else {
+                idle = 255-LFUDecrAndReturn(o);
+            }
         } else if (server.maxmemory_policy == MAXMEMORY_VOLATILE_TTL) {
             /* In this case the sooner the expire the better. */
             idle = ULLONG_MAX - (long)dictGetVal(de);
@@ -444,6 +452,23 @@ unsigned long LFUDecrAndReturn(robj *o) {
             counter--;
         }
         o->lru = (LFUGetTimeInMinutes()<<8) | counter;
+    }
+    return counter;
+}
+
+/* in jdjr_mode, the lfu info is stored in the sds header of db key. */
+unsigned long KeyLFUDecrAndReturn(sds key) {
+    unsigned int lfu = sdsgetlfu(key);
+    unsigned long ldt = lfu >> 8;
+    unsigned long counter = lfu & 255;
+    if (LFUTimeElapsed(ldt) >= server.lfu_decay_time && counter) {
+        if (counter > LFU_INIT_VAL*2) {
+            counter /= 2;
+            if (counter < LFU_INIT_VAL*2) counter = LFU_INIT_VAL*2;
+        } else {
+            counter--;
+        }
+        sdssetlfu(key, (LFUGetTimeInMinutes()<<8) | counter);
     }
     return counter;
 }

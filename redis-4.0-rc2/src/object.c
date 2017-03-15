@@ -48,7 +48,9 @@ robj *createObject(int type, void *ptr) {
     /* Set the LRU to the current lruclock (minutes resolution), or
      * alternatively the LFU counter. */
     if (server.maxmemory_policy & MAXMEMORY_FLAG_LFU) {
-        o->lru = (LFUGetTimeInMinutes()<<8) | LFU_INIT_VAL;
+        if (!server.jdjr_mode) {
+            o->lru = (LFUGetTimeInMinutes()<<8) | LFU_INIT_VAL;
+        }
     } else {
         o->lru = LRU_CLOCK();
     }
@@ -90,7 +92,9 @@ robj *createEmbeddedStringObject(const char *ptr, size_t len) {
     o->ptr = sh+1;
     o->refcount = 1;
     if (server.maxmemory_policy & MAXMEMORY_FLAG_LFU) {
-        o->lru = (LFUGetTimeInMinutes()<<8) | LFU_INIT_VAL;
+        if (!server.jdjr_mode) {
+            o->lru = (LFUGetTimeInMinutes() << 8) | LFU_INIT_VAL;
+        }
     } else {
         o->lru = LRU_CLOCK();
     }
@@ -1023,13 +1027,28 @@ void objectCommand(client *c) {
         }
         addReplyLongLong(c,estimateObjectIdleTime(o)/1000);
     } else if (!strcasecmp(c->argv[1]->ptr,"freq") && c->argc == 3) {
-        if ((o = objectCommandLookupOrReply(c,c->argv[2],shared.nullbulk))
+        dictEntry* de;
+        sds db_key;
+        long long counter;
+        unsigned int lfu;
+        if (server.jdjr_mode) {
+            if ((de = dictFind(c->db->dict,c->argv[2]->ptr)) == NULL) {
+                addReply(c, shared.nullbulk);
+                return;
+            }
+            db_key = dictGetKey(de);
+            lfu = sdsgetlfu(db_key);
+            counter = lfu & 255;
+        } else {
+            if ((o = objectCommandLookupOrReply(c,c->argv[2],shared.nullbulk))
                 == NULL) return;
+            counter = o->lru & 255;
+        }
         if (server.maxmemory_policy & MAXMEMORY_FLAG_LRU) {
             addReplyError(c,"An LRU maxmemory policy is selected, access frequency not tracked. Please note that when switching between policies at runtime LRU and LFU data will take some time to adjust.");
             return;
         }
-        addReplyLongLong(c,o->lru&255);
+        addReplyLongLong(c,counter);
     } else {
         addReplyError(c,"Syntax error. Try OBJECT (refcount|encoding|idletime|freq)");
     }

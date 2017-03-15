@@ -360,6 +360,13 @@ static inline void sdssetalloc(sds s, size_t newlen) {
     }
 }
 
+/* for jdjr_mode only*/
+int sdscopylfu(sds dest, sds src);
+unsigned int sdsgetlfu(sds s);
+void sdssetlfu(sds s, unsigned int lfu);
+
+
+sds sdsnewlen2(const void *init, size_t initlen, int is_lfu_type);
 sds sdsnewlen(const void *init, size_t initlen);
 sds sdsnew(const char *init);
 sds sdsempty(void);

@@ -79,6 +79,87 @@ static inline char sdsReqType(size_t string_size, int is_lfu_type) {
     return is_lfu_type ? SDS_TYPE_64_LFU : SDS_TYPE_64;
 }
 
+void sdssetlfu(sds s, unsigned int lfu) {
+    unsigned char counter = lfu & 255;
+    unsigned short lfu_decr_time = lfu >> 8;
+    char type = s[-1] & SDS_TYPE_MASK;
+    switch(type) {
+        case SDS_TYPE_5_LFU: {
+            SDS_HDR_VAR(5lfu,s);
+            sh->lfu_decr_time = lfu_decr_time;
+            sh->lfu_counter = counter;
+            break;
+        }
+        case SDS_TYPE_8_LFU: {
+            SDS_HDR_VAR(8lfu,s);
+            sh->lfu_decr_time = lfu_decr_time;
+            sh->lfu_counter = counter;
+            break;
+        }
+        case SDS_TYPE_16_LFU: {
+            SDS_HDR_VAR(16lfu,s);
+            sh->lfu_decr_time = lfu_decr_time;
+            sh->lfu_counter = counter;
+            break;
+        }
+        case SDS_TYPE_32_LFU: {
+            SDS_HDR_VAR(32lfu,s);
+            sh->lfu_decr_time = lfu_decr_time;
+            sh->lfu_counter = counter;
+            break;
+        }
+        case SDS_TYPE_64_LFU: {
+            SDS_HDR_VAR(64lfu,s);
+            sh->lfu_decr_time = lfu_decr_time;
+            sh->lfu_counter = counter;
+            break;
+        }
+        default:
+            break;
+    }
+}
+
+unsigned int sdsgetlfu(sds s) {
+    char type = s[-1] & SDS_TYPE_MASK;
+    switch(type&SDS_TYPE_MASK) {
+         case SDS_TYPE_5_LFU: {
+            SDS_HDR_VAR(5lfu,s);
+            return ((sh->lfu_decr_time << 8) | sh->lfu_counter);
+        }
+        case SDS_TYPE_8_LFU: {
+            SDS_HDR_VAR(8lfu,s);
+            return ((sh->lfu_decr_time << 8) | sh->lfu_counter);
+        }
+        case SDS_TYPE_16_LFU: {
+            SDS_HDR_VAR(16lfu,s);
+            return ((sh->lfu_decr_time << 8) | sh->lfu_counter);
+        }
+        case SDS_TYPE_32_LFU: {
+            SDS_HDR_VAR(32lfu,s);
+            return ((sh->lfu_decr_time << 8) | sh->lfu_counter);
+        }
+        case SDS_TYPE_64_LFU: {
+            SDS_HDR_VAR(64lfu,s);
+            return ((sh->lfu_decr_time << 8) | sh->lfu_counter);
+        }
+        default:
+            return 0;
+    }
+}
+
+int sdscopylfu(sds dest, sds src) {
+    char dest_type = dest[-1] & SDS_TYPE_MASK;
+    char src_type = src[-1] & SDS_TYPE_MASK;
+
+    if ((dest_type & SDS_TYPE_LFU) && (src_type & SDS_TYPE_LFU)) {
+        unsigned int lfu = sdsgetlfu(src);
+        sdssetlfu(dest, lfu);
+        return 0;
+    } else {
+        return -1;
+    }
+}
+
 /* Create a new sds string with the content specified by the 'init' pointer
  * and 'initlen'.
  * If NULL is used for 'init' the string is initialized with zero bytes.

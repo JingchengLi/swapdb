@@ -1874,6 +1874,7 @@ void evictionPoolAlloc(void);
 #define LFU_INIT_VAL 5
 unsigned long LFUGetTimeInMinutes(void);
 uint8_t LFULogIncr(uint8_t value);
+unsigned long KeyLFUDecrAndReturn(sds key);
 
 /* Keys hashing / comparison functions for dict.c hash tables. */
 unsigned int dictSdsHash(const void *key);

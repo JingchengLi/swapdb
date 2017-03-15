@@ -54,9 +54,17 @@ robj *lookupKey(redisDb *db, robj *key, int flags) {
             !(flags & LOOKUP_NOTOUCH))
         {
             if (server.maxmemory_policy & MAXMEMORY_FLAG_LFU) {
-                unsigned long ldt = val->lru >> 8;
-                unsigned long counter = LFULogIncr(val->lru & 255);
-                val->lru = (ldt << 8) | counter;
+                if (server.jdjr_mode) {
+                    sds db_key = dictGetKey(de);
+                    unsigned int lfu = sdsgetlfu(db_key);
+                    unsigned short ldt = lfu >> 8;
+                    unsigned char counter = LFULogIncr(lfu & 255);
+                    sdssetlfu(db_key, ((ldt << 8) | counter));
+                } else {
+                    unsigned long ldt = val->lru >> 8;
+                    unsigned long counter = LFULogIncr(val->lru & 255);
+                    val->lru = (ldt << 8) | counter;
+                }
             } else {
                 val->lru = LRU_CLOCK();
             }
@@ -158,7 +166,13 @@ robj *lookupKeyWriteOrReply(client *c, robj *key, robj *reply) {
  *
  * The program is aborted if the key already exists. */
 void dbAdd(redisDb *db, robj *key, robj *val) {
-    sds copy = sdsdup(key->ptr);
+    sds copy;
+    if (server.jdjr_mode) {
+        copy = sdsnewlen2(key->ptr, sdslen(key->ptr), 1);
+        sdssetlfu(copy, LFUGetTimeInMinutes() << 8 | LFU_INIT_VAL);
+    } else
+        copy = sdsnewlen2(key->ptr, sdslen(key->ptr), 1);
+
     int retval = dictAdd(db->dict, copy, val);
 
     serverAssertWithInfo(NULL,key,retval == DICT_OK);
@@ -176,10 +190,15 @@ void dbOverwrite(redisDb *db, robj *key, robj *val) {
 
     serverAssertWithInfo(NULL,key,de != NULL);
     if (server.maxmemory_policy & MAXMEMORY_FLAG_LFU) {
-        robj *old = dictGetVal(de);
-        int saved_lru = old->lru;
-        dictReplace(db->dict, key->ptr, val);
-        val->lru = saved_lru;
+        if (server.jdjr_mode) {
+            /* lfu already exists in dict key. */
+            dictReplace(db->dict, key->ptr, val);
+        } else {
+            robj *old = dictGetVal(de);
+            int saved_lru = old->lru;
+            dictReplace(db->dict, key->ptr, val);
+            val->lru = saved_lru;
+        }
     } else {
         dictReplace(db->dict, key->ptr, val);
     }
