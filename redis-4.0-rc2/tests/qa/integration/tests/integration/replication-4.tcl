@@ -15,7 +15,7 @@ start_server {tags {"repl"}} {
         set master_host [srv -1 host]
         set master_port [srv -1 port]
         set slave [srv 0 client]
-        set num 10000
+        set num 50000
         set load_handle0 [start_bg_complex_data $master_host $master_port 9 $num]
         set load_handle1 [start_bg_complex_data $master_host $master_port 11 $num]
         set load_handle2 [start_bg_complex_data $master_host $master_port 12 $num]

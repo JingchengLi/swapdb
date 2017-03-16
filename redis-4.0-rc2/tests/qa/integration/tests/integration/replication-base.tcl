@@ -82,6 +82,31 @@ start_server {tags {"repl"}} {
             assert_equal [sr -1 get mykey2] {bar} "master key with status ssdb should in ssdb"
         }
 
+        test {slave should dump key to ssdb when conditions satisfied} {
+            set oldlower [lindex [ r -1 config get ssdb-transfer-lower-limit ] 1]
+            r -1 config set ssdb-transfer-lower-limit 0
+            set oldmaxmemory [lindex [ r -1 config get maxmemory ] 1]
+            r -1 config set maxmemory 100M
+            r -1 set foossdb 12345
+            wait_for_condition 50 100 {
+                [r -1 locatekey foossdb] eq {ssdb}
+            } else {
+                fail "master's key should be dump to ssdb"
+            }
+            wait_for_condition 50 100 {
+                [r locatekey foossdb] eq {ssdb}
+            } else {
+                fail "slave's key should be dump to ssdb"
+            }
+            r -1 config set maxmemory $oldmaxmemory
+            r -1 config set ssdb-transfer-lower-limit $oldlower
+        }
+
+        test {#issue slave key's value is missed} {
+            assert_equal [r -1 get foossdb] {12345} "master foossdb value error"
+            assert_equal [r get foossdb] {12345} "slave foossdb value error"
+        }
+
         test {FLUSHALL should replicate} {
             r -1 flushall
             if {$::valgrind} {after 2000}

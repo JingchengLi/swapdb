@@ -30,31 +30,6 @@ start_server {tags {"repl"}} {
             }
         }
 
-        test {slave should dump key to ssdb when conditions satisfied} {
-            set oldlower [lindex [ r config get ssdb-transfer-lower-limit ] 1]
-            r config set ssdb-transfer-lower-limit 0
-            set oldmaxmemory [lindex [ r config get maxmemory ] 1]
-            r config set maxmemory 100M
-            r set foossdb 12345
-            wait_for_condition 50 100 {
-                [r locatekey foossdb] eq {ssdb}
-            } else {
-                fail "master's key should be dump to ssdb"
-            }
-            wait_for_condition 50 100 {
-                [r -1 locatekey foossdb] eq {ssdb}
-            } else {
-                fail "slave's key should be dump to ssdb"
-            }
-            r config set maxmemory $oldmaxmemory
-            r config set ssdb-transfer-lower-limit $oldlower
-        }
-
-        test {#issue slave key's value is missed} {
-            assert_equal [r get foossdb] {12345} "master foossdb value error"
-            assert_equal [r -1 get foossdb] {12345} "slave foossdb value error"
-        }
-
 #        test {No write if min-slaves-to-write is < attached slaves} {
 #            r config set min-slaves-to-write 2
 #            r config set min-slaves-max-lag 10
@@ -106,7 +81,7 @@ start_server {tags {"repl"}} {
         after 1000
 
         test {MASTER and SLAVE dataset should be identical after complex ops} {
-            set keyslist [createComplexDataset r 10000]
+            set keyslist [createComplexDataset r 100000]
 
             r config set maxmemory 0
             r -1 config set maxmemory 0
