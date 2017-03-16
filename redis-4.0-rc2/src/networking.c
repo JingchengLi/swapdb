@@ -988,13 +988,13 @@ int handleResponseOfTransferSnapshot(client *c, sds replyString) {
 }
 
 static void revertClientBufReply(client *c, size_t revertlen) {
-    if (listLength(c->reply) > 0) {
+    listNode *ln;
+    sds tail;
+
+    if (listLength(c->reply) > 0
+        && (ln = listLast(c->reply))
+        && (tail = listNodeValue(ln))) {
         /* May need handle both c->reply and c->buf. */
-        listNode *ln = listLast(c->reply);
-        sds tail = listNodeValue(ln);
-
-        if (!tail) return;
-
         size_t length = sdslen(tail);
 
         if (length > revertlen) {
@@ -1010,7 +1010,7 @@ static void revertClientBufReply(client *c, size_t revertlen) {
         }
     } else {
         /* Only need to handle c->buf. */
-        serverAssert(c->bufpos >= revertlen);
+        serverAssert(c->bufpos >= (int)revertlen);
         c->bufpos -= revertlen;
     }
 }
