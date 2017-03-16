@@ -2593,7 +2593,7 @@ int processCommandMaybeInSSDB(client *c) {
 
                 serverAssert(server.maxmemory_policy & MAXMEMORY_FLAG_LFU);
 
-                dictEntry* de = dictFind(EVICTED_DATA_DB->dict, c->argv[1]);
+                dictEntry* de = dictFind(EVICTED_DATA_DB->dict, c->argv[1]->ptr);
                 sds db_key = dictGetKey(de);
 
                 unsigned int lfu = sdsgetlfu(db_key);
