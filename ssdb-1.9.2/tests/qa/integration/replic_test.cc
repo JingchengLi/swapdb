@@ -128,7 +128,7 @@ void ReplicTest::checkSlaveDataOK(int times=10) {
 
         for (int m = 0; m < keysNum; ++m) {
             sclient->client()->hget(key, field+itoa(m), &getVal);
-            ASSERT_EQ(val+itoa(m), getVal)<<m;
+            ASSERT_EQ(val+itoa(m), getVal)<<key<<":"<<m;
         }
 
         //list type
@@ -138,7 +138,7 @@ void ReplicTest::checkSlaveDataOK(int times=10) {
 
         for (int m = 0; m < keysNum; ++m) {
             sclient->client()->qget(key, m, &getVal);
-            ASSERT_EQ(val+itoa(m), getVal)<<m;
+            ASSERT_EQ(val+itoa(m), getVal)<<key<<":"<<m;
         }
 
         //set type
@@ -148,7 +148,7 @@ void ReplicTest::checkSlaveDataOK(int times=10) {
 
         for (int m = 0; m < keysNum; ++m) {
             sclient->client()->sismember(key, val+itoa(m), &ret);
-            ASSERT_EQ(true, ret)<<m;
+            ASSERT_EQ(true, ret)<<key<<":"<<m;
         }
 
         //zset type
@@ -158,7 +158,7 @@ void ReplicTest::checkSlaveDataOK(int times=10) {
 
         for (int m = 0; m < keysNum; ++m) {
             sclient->client()->zget(key, field+itoa(m), &getScore);
-            ASSERT_EQ(m, getScore)<<m;
+            ASSERT_EQ(m, getScore)<<key<<":"<<m;
         }
     }
 }
@@ -208,7 +208,7 @@ void ReplicTest::replic(const std::vector<std::string> &items) {
     s = replicClient->client()->replic(items);
 
     std::string result = replicClient->client()->response();
-    ASSERT_EQ("rr_transfer_snapshot finished", result);
+    ASSERT_EQ("ok", result);
     delete replicClient;
 }
 
@@ -305,12 +305,16 @@ TEST_F(ReplicTest, Test_replic_multi_slaves) {
     fillMasterData();
 
     std::vector<int> slave_ports = {8889, 8890};
-    std::vector<std::string> items;
+    // ssdb not support replic two slaves at once now.
+    // std::vector<std::string> items;
+    // for (auto port : slave_ports) {
+        // items.push_back(slave_ip);
+        // items.push_back(itoa(port));
+    // }
+    // replic(items);
     for (auto port : slave_ports) {
-        items.push_back(slave_ip);
-        items.push_back(itoa(port));
+        replic(slave_ip, port);
     }
-    replic(items);
 
     for (auto port : slave_ports) {
         sclient = new SlaveClient(slave_ip, port);
