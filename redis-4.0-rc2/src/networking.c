@@ -995,7 +995,7 @@ static void revertClientBufReply(client *c, size_t revertlen) {
 
         if (!tail) return;
 
-        size_t length = length = sdslen(tail);
+        size_t length = sdslen(tail);
 
         if (length > revertlen) {
             /* Only need to handle c->reply. */
@@ -1006,7 +1006,7 @@ static void revertClientBufReply(client *c, size_t revertlen) {
         } else {
             /* Need to handle c->reply and c->buf. */
             listDelNode(c->reply, ln);
-            c->bufpos -= revertlen - length;
+            c->bufpos -= (revertlen - length);
         }
     } else {
         /* Only need to handle c->buf. */
