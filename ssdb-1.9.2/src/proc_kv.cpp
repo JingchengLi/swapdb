@@ -133,7 +133,7 @@ int proc_set(NetworkServer *net, Link *link, const Request &req, Response *resp)
 
 	if (when > 0) {
 
-		Locking<Mutex> l(&serv->expiration->mutex);
+		Locking<Mutex> l(&serv->ssdb->expiration->mutex);
 		int ret;
 		ret = serv->ssdb->set(req[1], req[2], flags);
 		if(ret < 0){
@@ -147,7 +147,7 @@ int proc_set(NetworkServer *net, Link *link, const Request &req, Response *resp)
 		}
 
 
-		ret = serv->expiration->expire(req[1], (int64_t)when, tu);
+		ret = serv->ssdb->expiration->expire(req[1], (int64_t)when, tu);
 		if(ret < 0){
 			serv->ssdb->del(req[1]);
 			resp->push_back("error");
@@ -209,7 +209,7 @@ int proc_setx(NetworkServer *net, Link *link, const Request &req, Response *resp
 		return 0;
 	}
 
-	Locking<Mutex> l(&serv->expiration->mutex);
+	Locking<Mutex> l(&serv->ssdb->expiration->mutex);
 	int ret;
 	ret = serv->ssdb->set(req[1], req[2], OBJ_SET_NO_FLAGS);
 	if(ret < 0){
@@ -217,7 +217,7 @@ int proc_setx(NetworkServer *net, Link *link, const Request &req, Response *resp
 		resp->push_back(GetErrorInfo(ret));
 		return 0;
 	}
-	ret = serv->expiration->expire(req[1], (int64_t)when, TimeUnit::Second);
+	ret = serv->ssdb->expiration->expire(req[1], (int64_t)when, TimeUnit::Second);
 	if(ret < 0){
         serv->ssdb->del(req[1]);
 		resp->push_back("error");
@@ -245,7 +245,7 @@ int proc_psetx(NetworkServer *net, Link *link, const Request &req, Response *res
 		return 0;
 	}
 
-	Locking<Mutex> l(&serv->expiration->mutex);
+	Locking<Mutex> l(&serv->ssdb->expiration->mutex);
 	int ret;
 	ret = serv->ssdb->set(req[1], req[2], OBJ_SET_NO_FLAGS);
 	if(ret < 0){
@@ -254,7 +254,7 @@ int proc_psetx(NetworkServer *net, Link *link, const Request &req, Response *res
 		return 0;
 	}
 
-	ret = serv->expiration->expire(req[1], (int64_t)when, TimeUnit::Millisecond);
+	ret = serv->ssdb->expiration->expire(req[1], (int64_t)when, TimeUnit::Millisecond);
 	if(ret < 0){
         serv->ssdb->del(req[1]);
 		resp->push_back("error");
@@ -271,7 +271,7 @@ int proc_pttl(NetworkServer *net, Link *link, const Request &req, Response *resp
 	CHECK_NUM_PARAMS(2);
 
 	//todo update
-	int64_t ttl = serv->expiration->pttl(req[1], TimeUnit::Millisecond);
+	int64_t ttl = serv->ssdb->expiration->pttl(req[1], TimeUnit::Millisecond);
 	resp->push_back("ok");
 	resp->push_back(str(ttl));
 	return 0;
@@ -282,7 +282,7 @@ int proc_ttl(NetworkServer *net, Link *link, const Request &req, Response *resp)
 	CHECK_NUM_PARAMS(2);
 
 	//todo update
-	int64_t ttl = serv->expiration->pttl(req[1], TimeUnit::Second);
+	int64_t ttl = serv->ssdb->expiration->pttl(req[1], TimeUnit::Second);
 	resp->push_back("ok");
 	resp->push_back(str(ttl));
 	return 0;
@@ -299,9 +299,9 @@ int proc_pexpire(NetworkServer *net, Link *link, const Request &req, Response *r
 		return 0;
     }
 
-    Locking<Mutex> l(&serv->expiration->mutex);
+    Locking<Mutex> l(&serv->ssdb->expiration->mutex);
     std::string val;
-    int ret = serv->expiration->expire(req[1], (int64_t)when, TimeUnit::Millisecond);
+    int ret = serv->ssdb->expiration->expire(req[1], (int64_t)when, TimeUnit::Millisecond);
     if(ret == 1){
         resp->push_back("ok");
         resp->push_back("1");
@@ -326,9 +326,9 @@ int proc_expire(NetworkServer *net, Link *link, const Request &req, Response *re
 		return 0;
     }
 
-	Locking<Mutex> l(&serv->expiration->mutex);
+	Locking<Mutex> l(&serv->ssdb->expiration->mutex);
 	std::string val;
-	int ret = serv->expiration->expire(req[1], (int64_t)when, TimeUnit::Second);
+	int ret = serv->ssdb->expiration->expire(req[1], (int64_t)when, TimeUnit::Second);
 	if(ret == 1){
 		resp->push_back("ok");
 		resp->push_back("1");
@@ -353,9 +353,9 @@ int proc_expireat(NetworkServer *net, Link *link, const Request &req, Response *
 		return 0;
     }
 
-	Locking<Mutex> l(&serv->expiration->mutex);
+	Locking<Mutex> l(&serv->ssdb->expiration->mutex);
 	std::string val;
-	int ret = serv->expiration->expireAt(req[1], (int64_t)ts_ms * 1000);
+	int ret = serv->ssdb->expiration->expireAt(req[1], (int64_t)ts_ms * 1000);
 	if(ret == 1){
 		resp->push_back("ok");
 		resp->push_back("1");
@@ -373,9 +373,9 @@ int proc_persist(NetworkServer *net, Link *link, const Request &req, Response *r
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(2);
 
-	Locking<Mutex> l(&serv->expiration->mutex);
+	Locking<Mutex> l(&serv->ssdb->expiration->mutex);
 	std::string val;
-	int ret = serv->expiration->persist(req[1]);
+	int ret = serv->ssdb->expiration->persist(req[1]);
 	if(ret == 1){
 		resp->push_back("ok");
 		resp->push_back("1");
@@ -400,9 +400,9 @@ int proc_pexpireat(NetworkServer *net, Link *link, const Request &req, Response 
 		return 0;
     }
 
-	Locking<Mutex> l(&serv->expiration->mutex);
+	Locking<Mutex> l(&serv->ssdb->expiration->mutex);
 	std::string val;
-	int ret = serv->expiration->expireAt(req[1], (int64_t)ts_ms);
+	int ret = serv->ssdb->expiration->expireAt(req[1], (int64_t)ts_ms);
 	if(ret == 1){
 		resp->push_back("ok");
 		resp->push_back("1");
@@ -453,16 +453,12 @@ int proc_multi_del(NetworkServer *net, Link *link, const Request &req, Response 
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(2);
 
-	Locking<Mutex> l(&serv->expiration->mutex);
+	Locking<Mutex> l(&serv->ssdb->expiration->mutex);
 	int ret = serv->ssdb->multi_del(req, 1);
 	if(ret < 0){
 		resp->push_back("error");
 		resp->push_back(GetErrorInfo(ret));
 	} else{
-		for(Request::const_iterator it=req.begin()+1; it!=req.end(); it++){
-			const Bytes key = *it;
-			serv->expiration->persist(key);
-		}
 		resp->reply_int(0, ret);
 	}
 	return 0;
@@ -488,7 +484,7 @@ int proc_del(NetworkServer *net, Link *link, const Request &req, Response *resp)
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(2);
 
-	Locking<Mutex> l(&serv->expiration->mutex);
+	Locking<Mutex> l(&serv->ssdb->expiration->mutex);
 	int ret = serv->ssdb->del(req[1]);
 	if(ret < 0){
 		resp->push_back("error");
@@ -497,7 +493,7 @@ int proc_del(NetworkServer *net, Link *link, const Request &req, Response *resp)
 		resp->push_back("not_found");
 		resp->push_back("0");
 	} else{
-		serv->expiration->persist(req[1]);
+//		serv->ssdb->expiration->persist(req[1]);
 
 		resp->push_back("ok");
 		resp->push_back(str(ret));

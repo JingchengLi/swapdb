@@ -68,6 +68,7 @@ int SSDBImpl::edel_one(leveldb::WriteBatch &batch, const Bytes &key) {
         batch.Delete(old_score_key);
         batch.Delete(old_eset_key);
     }
+    expiration->delfastkey(key);
 
     return 1;
 }

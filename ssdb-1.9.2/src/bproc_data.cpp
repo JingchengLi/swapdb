@@ -22,8 +22,8 @@ int bproc_COMMAND_DATA_SAVE(SSDBServer *serv, TransferWorker *worker, const std:
     }
 
     if (ret > 0 && pttl > 0) {
-        Locking<Mutex> l(&serv->expiration->mutex);
-        ret = serv->expiration->expire(dumpData->key, pttl, TimeUnit::Millisecond);
+        Locking<Mutex> l(&serv->ssdb->expiration->mutex);
+        ret = serv->ssdb->expiration->expire(dumpData->key, pttl, TimeUnit::Millisecond);
     }
     if (ret < 0) {
         //notify failed
@@ -71,7 +71,7 @@ int bproc_COMMAND_DATA_DUMP(SSDBServer *serv, TransferWorker *worker, const std:
 
     } else {
 
-        int64_t pttl = serv->expiration->pttl(data_key, TimeUnit::Millisecond);
+        int64_t pttl = serv->ssdb->expiration->pttl(data_key, TimeUnit::Millisecond);
         if (pttl < 0) {
             pttl = 0; //not sure
         }

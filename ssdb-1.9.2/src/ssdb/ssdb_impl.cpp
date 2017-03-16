@@ -30,6 +30,7 @@ SSDBImpl::SSDBImpl()
 	: bg_cv_(&mutex_bgtask_){
 	ldb = NULL;
 	this->bgtask_flag_ = true;
+	expiration = NULL;
 }
 
 SSDBImpl::~SSDBImpl(){
@@ -103,7 +104,7 @@ SSDB* SSDB::open(const Options &opt, const std::string &dir){
 		log_error("open db failed: %s", status.ToString().c_str());
 		goto err;
 	}
-//    ssdb->expiration = new ExpirationHandler(ssdb); //todo 后续如果支持set命令中设置过期时间，添加此行，同时删除serv.cpp中相应代码
+    ssdb->expiration = new ExpirationHandler(ssdb); //todo 后续如果支持set命令中设置过期时间，添加此行，同时删除serv.cpp中相应代码
     ssdb->start();
 
 	return ssdb;

@@ -300,9 +300,7 @@ SSDBServer::SSDBServer(SSDB *ssdb, SSDB *meta, const Config &conf, NetworkServer
 	net->data = this;
 	this->reg_procs(net);
 
-
 	backend_dump = new BackendDump(this->ssdb);
-	expiration = new ExpirationHandler(this->ssdb);
 
 	snapshot = nullptr;
     pthread_mutex_init(&mutex, NULL);
@@ -325,7 +323,6 @@ SSDBServer::SSDBServer(SSDB *ssdb, SSDB *meta, const Config &conf, NetworkServer
 
 SSDBServer::~SSDBServer(){
 	delete backend_dump;
-	delete expiration;
 
 	if (redisConf != nullptr) {
 		delete redisConf;
@@ -447,8 +444,8 @@ int proc_restore(NetworkServer *net, Link *link, const Request &req, Response *r
 	PTE(restore, req[1].String())
 
 	if (ret > 0 && ttl > 0) {
-		Locking<Mutex> l(&serv->expiration->mutex);
-		ret = serv->expiration->expire(req[1], ttl, TimeUnit::Millisecond);
+		Locking<Mutex> l(&serv->ssdb->expiration->mutex);
+		ret = serv->ssdb->expiration->expire(req[1], ttl, TimeUnit::Millisecond);
 		if (ret < 0) {
 			serv->ssdb->del(req[1]);
 		}
@@ -954,9 +951,9 @@ int proc_sync150(NetworkServer *net, Link *link, const Request &req, Response *r
 
     ret = serv->ssdb->parse_replic(kvs);
 	if (resp->size() > 0) {
-		if (serv->expiration != NULL) {
-			delete serv->expiration;
-			serv->expiration = new ExpirationHandler(serv->ssdb);
+		if (serv->ssdb->expiration != NULL) {
+			delete serv->ssdb->expiration;
+			serv->ssdb->expiration = new ExpirationHandler(serv->ssdb);
 		}
 	}
 

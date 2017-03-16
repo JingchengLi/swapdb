@@ -41,7 +41,6 @@ private:
 public:
 	SSDBImpl *ssdb;
 	BackendDump *backend_dump;
-	ExpirationHandler *expiration;
 
     RedisConf *redisConf;
 

@@ -61,10 +61,10 @@ private:
 	leveldb::Options options;
 
 	RedisCursorService redisCursorService;
-	ExpirationHandler *expiration;
 
 	SSDBImpl();
 public:
+	ExpirationHandler *expiration;
 
 	virtual ~SSDBImpl();
 
