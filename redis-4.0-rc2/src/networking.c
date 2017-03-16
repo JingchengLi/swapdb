@@ -660,6 +660,7 @@ int sendCommandToSSDB(client *c, sds finalcmd) {
 
     if (!finalcmd) {
         cmdinfo = lookupCommand(c->argv[0]->ptr);
+        //todo: review
         if (!cmdinfo
             || !(cmdinfo->flags & CMD_JDJR_MODE)
             /* TODO: support multi. */
@@ -668,7 +669,8 @@ int sendCommandToSSDB(client *c, sds finalcmd) {
 
         if (!c->context || c->context->fd <= 0) {
             serverLog(LL_VERBOSE, "redisContext error.");
-            return C_ERR;
+            freeClient(c);
+            return C_FD_ERR;
         }
 
         if (c->argc > SSDB_CMD_DEFAULT_MAX_ARGC) {
@@ -741,14 +743,14 @@ void sendCheckWriteCommandToSSDB(aeEventLoop *el, int fd, void *privdata, int ma
        'rr_check_write ok/nok'. */
     sds finalcmd = sdsnew("*1\r\n$14\r\nrr_check_write\r\n");
 
-    if (sendCommandToSSDB(c, finalcmd) != C_OK)
+    if (sendCommandToSSDB(c, finalcmd) != C_OK) {
         serverLog(LL_WARNING, "Sending rr_check_write to SSDB failed.");
-    else
+        server.check_write_unresponse_num -= 1;
+    } else {
         serverLog(LL_DEBUG, "Sending rr_check_write to SSDB, fd: %d.", fd);
-
-    aeDeleteFileEvent(server.el, c->fd, AE_WRITABLE);
-
-    c->replication_flags |= SSDB_CLIENT_KEEP_REPLY;
+        c->replication_flags |= SSDB_CLIENT_KEEP_REPLY;
+        aeDeleteFileEvent(server.el, c->fd, AE_WRITABLE);
+    }
 }
 
 
@@ -884,6 +886,7 @@ int handleResponseOfCheckWrite(client *c, sds replyString) {
 
             sds finalcmd = sdsnew("*1\r\n$16\r\nrr_make_snapshot\r\n");
             if (sendCommandToSSDB(server.ssdb_replication_client, finalcmd) != C_OK)
+                // todo: set server.ssdb_replication_client to null and reconnect
                 serverLog(LL_WARNING, "Sending rr_make_snapshot to SSDB failed.");
         }
 
@@ -939,6 +942,7 @@ int handleResponseOfDelSnapshot(client *c, sds replyString) {
         /* TODO: maybe we can retry if rr_del_snapshot fails. but it's also
          * the duty of SSDB party to delete snapshot by rule.*/
         if (sendCommandToSSDB(server.ssdb_replication_client, cmdsds) != C_OK) {
+            // todo: set server.ssdb_replication_client to null and reconnect
             serverLog(LL_WARNING, "Sending rr_del_snapshot to SSDB failed.");
         }
         process_status = C_OK;
@@ -1081,6 +1085,7 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
 
         keys = getKeysFromCommand(c->cmd, c->argv, c->argc, &numkeys);
         for (j = 0; j < numkeys; j ++) {
+            // todo: fix
             dictDelete(EVICTED_DATA_DB->visiting_ssdb_keys, c->argv[keys[j]]->ptr);
             serverLog(LL_DEBUG, "key: %s is deleted from visiting_ssdb_keys, fd: %d.",
                       (char *)c->argv[keys[j]]->ptr, c->fd);
@@ -1090,6 +1095,13 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
 
         unblockClient(c);
 
+        // todo: review
+        if ((c->cmd->flags & CMD_WRITE)
+            && server.masterhost == NULL) {
+            propagate(c->cmd, c->db->id, c->argv, c->argc, PROPAGATE_AOF|PROPAGATE_REPL);
+        }
+
+        // todo: fix
         /* Due to the async operations, add the btype for handling timeout. */
         c->btype = BLOCKED_VISITING_SSDB_TIMEOUT;
         resetClient(c);

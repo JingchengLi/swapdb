@@ -2718,7 +2718,6 @@ void replicationCron(void) {
             if (cmdsds && sendCommandToSSDB(slave, cmdsds) != C_OK) {
                 serverLog(LL_WARNING,
                           "Sending rr_transfer_snapshot to SSDB failed.");
-                freeClient(slave);
                 /* continue to avoid acess invalid slave pointer later. */
                 continue;
             }
@@ -2754,6 +2753,7 @@ void replicationCron(void) {
             /* TODO: maybe we can retry if rr_del_snapshot fails. but it's also
              * the duty of SSDB party to delete snapshot by rule.*/
             if (sendCommandToSSDB(server.ssdb_replication_client, cmdsds) != C_OK) {
+                // todo: set server.ssdb_replication_client to null and reconnect
                 serverLog(LL_WARNING, "Sending rr_del_snapshot to SSDB failed.");
             }
         }
