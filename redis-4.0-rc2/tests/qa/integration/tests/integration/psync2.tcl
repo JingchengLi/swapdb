@@ -61,7 +61,7 @@ start_server {} {
             set master_host $R_host($mid)
             set master_port $R_port($mid)
 
-            test "PSYNC2: Set #$slave_id to replicate from #$mid" {
+            test "PSYNC2: Set $R_port($slave_id)#$slave_id to replicate from $R_port($mid)#$mid" {
                 $R($slave_id) slaveof $master_host $master_port
             }
             lappend used $slave_id
