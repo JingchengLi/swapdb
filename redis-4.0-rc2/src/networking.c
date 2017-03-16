@@ -987,6 +987,34 @@ int handleResponseOfTransferSnapshot(client *c, sds replyString) {
     return process_status;
 }
 
+static void revertClientBufReply(client *c, size_t revertlen) {
+    if (listLength(c->reply) > 0) {
+        /* May need handle both c->reply and c->buf. */
+        listNode *ln = listLast(c->reply);
+        sds tail = listNodeValue(ln);
+
+        if (!tail) return;
+
+        size_t length = length = sdslen(tail);
+
+        if (length > revertlen) {
+            /* Only need to handle c->reply. */
+            sdsrange(tail, 0, length - revertlen - 1);
+        } else if (length == revertlen) {
+            /* Only need to handle c->reply. */
+            listDelNode(c->reply, ln);
+        } else {
+            /* Need to handle c->reply and c->buf. */
+            listDelNode(c->reply, ln);
+            c->bufpos -= revertlen - length;
+        }
+    } else {
+        /* Only need to handle c->buf. */
+        serverAssert(c->bufpos >= revertlen);
+        c->bufpos -= revertlen;
+    }
+}
+
 /* TODO: Implement ssdbClientUnixHandler. Only handle AE_READABLE. */
 void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
     UNUSED(el);
@@ -1006,6 +1034,7 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
 
     do {
         int oldlen = r->len;
+
         if (redisBufferRead(c->context) == REDIS_OK
             && c != server.ssdb_client) {
             add_reply_len = r->len - oldlen;
@@ -1072,8 +1101,7 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
         && (reply && reply->type == REDIS_REPLY_STRING)
         && (replyString = sdsnew(reply->str))
         && handleResponseOfCheckWrite(c, replyString) == C_OK) {
-        serverAssert(c->bufpos >= add_reply_len);
-        c->bufpos -= add_reply_len;
+        revertClientBufReply(c, add_reply_len);
         goto cleanup;
     }
 
@@ -1083,8 +1111,7 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
         && (reply && reply->type == REDIS_REPLY_STRING)
         && (replyString = sdsnew(reply->str))
         && handleResponseOfPsync(c, replyString) == C_OK) {
-        serverAssert(c->bufpos >= add_reply_len);
-        c->bufpos -= add_reply_len;
+        revertClientBufReply(c, add_reply_len);
         goto cleanup;
     }
 
@@ -1096,8 +1123,7 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
         && (reply && reply->type == REDIS_REPLY_STRING)
         && (replyString = sdsnew(reply->str))
         && handleResponseOfTransferSnapshot(c, replyString) == C_OK) {
-        serverAssert(c->bufpos >= add_reply_len);
-        c->bufpos -= add_reply_len;
+        revertClientBufReply(c, add_reply_len);
         goto cleanup;
     }
 
@@ -1107,8 +1133,7 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
         && (reply && reply->type == REDIS_REPLY_STRING)
         && (replyString = sdsnew(reply->str))
         && handleResponseOfDelSnapshot(c, replyString) == C_OK) {
-        serverAssert(c->bufpos >= add_reply_len);
-        c->bufpos -= add_reply_len;
+        revertClientBufReply(c, add_reply_len);
         goto cleanup;
     }
 
