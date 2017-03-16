@@ -650,13 +650,38 @@ sds composeRedisCmd(int argc, const char **argv, const size_t *argvlen) {
     return finalcmd;
 }
 
-/* Querying SSDB server if querying redis fails, Compose the finalcmd if finalcmd is NULL. */
-int sendCommandToSSDB(client *c, sds finalcmd) {
-    int i, nwritten;
-    struct redisCommand *cmdinfo = NULL;
-    sds dupcmd = NULL;
+/* Caller should free finalcmd. */
+sds composeCmdFromArgs(client *c) {
+    int i;
+    sds finalcmd;
     char ** argv;
     size_t * argvlen;
+    if (c->argc > SSDB_CMD_DEFAULT_MAX_ARGC) {
+        argv = zmalloc(sizeof(char *) * c->argc);
+        argvlen = zmalloc(sizeof(size_t) * c->argc);
+    } else {
+        argv = server.ssdbargv;
+        argvlen = server.ssdbargvlen;
+    }
+
+    for (i = 0; i < c->argc; i ++) {
+        argv[i] = c->argv[i]->ptr;
+        argvlen[i] = sdslen((sds)(c->argv[i]->ptr));
+    }
+
+    finalcmd = composeRedisCmd(c->argc, (const char **)argv, (const size_t *)argvlen);
+
+    if (c->argc > SSDB_CMD_DEFAULT_MAX_ARGC) {
+        zfree(argv);
+        zfree(argvlen);
+    }
+    return finalcmd;
+}
+
+/* Querying SSDB server if querying redis fails, Compose the finalcmd if finalcmd is NULL. */
+int sendCommandToSSDB(client *c, sds finalcmd) {
+    int nwritten;
+    struct redisCommand *cmdinfo = NULL;
 
     if (!finalcmd) {
         cmdinfo = lookupCommand(c->argv[0]->ptr);
@@ -673,63 +698,39 @@ int sendCommandToSSDB(client *c, sds finalcmd) {
             return C_FD_ERR;
         }
 
-        if (c->argc > SSDB_CMD_DEFAULT_MAX_ARGC) {
-            argv = zmalloc(sizeof(char *) * c->argc);
-            argvlen = zmalloc(sizeof(size_t) * c->argc);
-        } else {
-            argv = server.ssdbargv;
-            argvlen = server.ssdbargvlen;
-        }
+        finalcmd = composeCmdFromArgs(c);
+    }
 
-        for (i = 0; i < c->argc; i ++) {
-            argv[i] = c->argv[i]->ptr;
-            argvlen[i] = sdslen((sds)(c->argv[i]->ptr));
-        }
+    if (!finalcmd) {
+        serverLog(LL_WARNING, "Expecting finalcmd not NULL.");
+        return C_ERR;
+    }
 
-        finalcmd = composeRedisCmd(c->argc, (const char **)argv, (const size_t *)argvlen);
+    serverLog(LL_DEBUG, "sendCommandToSSDB fd: %d", c->context->fd);
 
-        if (c->argc > SSDB_CMD_DEFAULT_MAX_ARGC) {
-            zfree(argv);
-            zfree(argvlen);
+    while (finalcmd && sdslen(finalcmd) > 0) {
+        nwritten = write(c->context->fd, finalcmd, sdslen(finalcmd));
+        if (nwritten == -1) {
+            if (errno == EAGAIN || errno == EINTR) {
+                /* Try again later. */
+            } else {
+                serverLog(LL_WARNING,
+                          "Error writing to SSDB server: %s", strerror(errno));
+                if (finalcmd) sdsfree(finalcmd);
+                freeClient(c);
+                return C_FD_ERR;
+            }
+        } else if (nwritten > 0) {
+            if (nwritten == (signed)sdslen(finalcmd)) {
+                sdsfree(finalcmd);
+                finalcmd = NULL;
+            } else {
+                sdsrange(finalcmd, nwritten, -1);
+            }
         }
     }
 
-     if (!finalcmd) {
-          serverLog(LL_WARNING, "Expecting finalcmd not NULL.");
-          return C_ERR;
-     }
-
-     dupcmd = sdsdup(finalcmd);
-
-     serverLog(LL_DEBUG, "sendCommandToSSDB fd: %d", c->context->fd);
-
-     while (finalcmd && sdslen(finalcmd) > 0) {
-         nwritten = write(c->context->fd, finalcmd, sdslen(finalcmd));
-         if (nwritten == -1) {
-             if (errno == EAGAIN || errno == EINTR) {
-                 /* Try again later. */
-             } else {
-                 serverLog(LL_WARNING,
-                           "Error writing to SSDB server: %s", strerror(errno));
-                 if (finalcmd) sdsfree(finalcmd);
-                 freeClient(c);
-                 return C_FD_ERR;
-             }
-          } else if (nwritten > 0) {
-                    if (nwritten == (signed)sdslen(finalcmd)) {
-                         sdsfree(finalcmd);
-                         finalcmd = NULL;
-                    } else {
-                         sdsrange(finalcmd, nwritten, -1);
-                    }
-               }
-          }
-
-     /* TODO: call feedReplicationBacklog before finalcmd is consumed. */
-     if (server.repl_backlog) feedReplicationBacklog((void *)dupcmd, sdslen(dupcmd));
-     sdsfree(dupcmd);
-
-     return C_OK;
+    return C_OK;
 }
 
 void sendCheckWriteCommandToSSDB(aeEventLoop *el, int fd, void *privdata, int mask) {

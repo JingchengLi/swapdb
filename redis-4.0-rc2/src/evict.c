@@ -602,6 +602,7 @@ int prologOfLoadingFromSSDB(robj *keyobj) {
         serverLog(LL_WARNING, "sendCommandToSSDB: server.ssdb_client failed.");
         return C_ERR;
     }
+    // todo: progate restorefromssdb to slaves
 
     serverLog(LL_DEBUG, "Loading key: %s from SSDB started.", (char *)(keyobj->ptr));
     return C_OK;
@@ -651,6 +652,7 @@ int prologOfEvictingToSSDB(robj *keyobj, redisDb *db, sds cmdname) {
 
     serverAssert(rioWriteBulkString(&cmd, "REPLACE", 7));
 
+    // todo: fix: why send command to server.master ???
     /* sendCommandToSSDB will free cmd.io.buffer.ptr. */
     /* Using the same connection with propagate method. */
     if (sendCommandToSSDB(!server.masterhost
