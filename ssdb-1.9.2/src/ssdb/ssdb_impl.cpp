@@ -267,7 +267,7 @@ int SSDBImpl::raw_get(const Bytes &key, std::string *val){
 uint64_t SSDBImpl::size(){
 	// todo r2m adaptation
 #ifdef USE_LEVELDB
-    std::string s = "A";
+//    std::string s = "A";
     std::string s(1, DataType::META);
     std::string e(1, DataType::META + 1);
 	leveldb::Range ranges[1];
