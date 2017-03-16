@@ -3,7 +3,8 @@ source tests/support/util.tcl
 
 proc bg_complex_data {host port db ops} {
     set r [redis $host $port]
-    $r select $db
+    # $r select $db
+    $r select 0
     createComplexDataset $r $ops
 }
 
