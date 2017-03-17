@@ -1448,7 +1448,7 @@ unsigned int countKeysInSlot(unsigned int hashslot) {
     return count;
 }
 
-void customizedDelCommand(client *c) {
+void ssdbRespDelCommand(client *c) {
     robj *keyobj;
     int numdel = 0, j;
 
@@ -1464,11 +1464,11 @@ void customizedDelCommand(client *c) {
         serverAssert(getExpire(EVICTED_DATA_DB, keyobj) == -1);
 
         if (epilogOfEvictingToSSDB(keyobj) == C_OK) {
-            serverLog(LL_DEBUG, "customizedDelCommand fd:%d key: %s dictDelete ok.",
+            serverLog(LL_DEBUG, "ssdbRespDelCommand fd:%d key: %s dictDelete ok.",
                       c->fd, (char *)keyobj->ptr);
             numdel ++;
         } else
-            serverLog(LL_WARNING, "customizedDelCommand fd:%d key: %s dictDelete nok.",
+            serverLog(LL_WARNING, "ssdbRespDelCommand fd:%d key: %s dictDelete nok.",
                       c->fd, (char *)keyobj->ptr);
     }
     addReplyLongLong(c, numdel);

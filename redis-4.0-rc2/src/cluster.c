@@ -4623,7 +4623,7 @@ void restoreCommand(client *c) {
     server.dirty++;
 }
 
-void customizedRestoreCommand(client *c) {
+void ssdbRespRestoreCommand(client *c) {
     robj * key = c->argv[1];
     long long old_dirty = server.dirty;
 
@@ -4656,32 +4656,24 @@ void customizedRestoreCommand(client *c) {
 
         /* Queue the ready key to ssdb_ready_keys. */
         signalBlockingKeyAsReady(c->db, key);
-        serverLog(LL_DEBUG, "customizedRestoreCommand succeed.");
+        serverLog(LL_DEBUG, "ssdbRespRestoreCommand succeed.");
     } else
-        serverLog(LL_WARNING, "customizedRestoreCommand failed.");
+        serverLog(LL_WARNING, "ssdbRespRestoreCommand failed.");
 
 }
 
-
-void customizedFailCommand(client *c) {
+void ssdbRespNotfoundCommand(client *c) {
     robj *cmd = c->argv[1];
     robj *keyobj = c->argv[2];
 
     /* TODO: make sds vars shared. */
-    sds fail_restore = sdsnew("customized-restore");
-    sds fail_dump = sdsnew("customized-dump");
-    sds fail_not_found = sdsnew("not-found");
+    sds fail_restore = sdsnew("ssdb-resp-restore");
+    sds fail_dump = sdsnew("ssdp-resp-dump");
 
     serverAssert(c->db->id == 0);
 
-    if (!sdscmp(cmd->ptr, fail_restore)) {
-        if (dictDelete(EVICTED_DATA_DB->loading_hot_keys, keyobj->ptr) == DICT_OK)
-            serverLog(LL_DEBUG, "key: %s is deleted from loading_hot_keys.", (char *)keyobj->ptr);
-    } else if (!sdscmp(cmd->ptr, fail_dump)) {
-        if (dictDelete(EVICTED_DATA_DB->transferring_keys, keyobj->ptr) == DICT_OK)
-            serverLog(LL_DEBUG, "key: %s is deleted from transferring_keys.", (char *)keyobj->ptr);
-    } else if (!sdscmp(cmd->ptr, fail_not_found)) {
-        if (dictDelete(EVICTED_DATA_DB->loading_hot_keys, keyobj->ptr) == DICT_OK)
+    if (!sdscmp(cmd->ptr, fail_restore) || !sdscmp(cmd->ptr, fail_dump)) {
+         if (dictDelete(EVICTED_DATA_DB->loading_hot_keys, keyobj->ptr) == DICT_OK)
             serverLog(LL_DEBUG, "key: %s is deleted from loading_hot_keys.", (char *)keyobj->ptr);
         if (dictDelete(EVICTED_DATA_DB->dict, keyobj->ptr) == DICT_OK)
             serverLog(LL_DEBUG, "key: %s is deleted from EVICTED_DATA_DB->db.", (char *)keyobj->ptr);
@@ -4700,12 +4692,39 @@ void customizedFailCommand(client *c) {
 
     sdsfree(fail_restore);
     sdsfree(fail_dump);
-    sdsfree(fail_not_found);
 }
 
-void dumptossdbCommand(client *c) {
+void ssdbRespFailCommand(client *c) {
+    robj *cmd = c->argv[1];
+    robj *keyobj = c->argv[2];
+
+    /* TODO: make sds vars shared. */
+    sds fail_restore = sdsnew("ssdb-resp-restore");
+    sds fail_dump = sdsnew("ssdp-resp-dump");
+
+    serverAssert(c->db->id == 0);
+
+    if (!sdscmp(cmd->ptr, fail_restore)) {
+        if (dictDelete(EVICTED_DATA_DB->loading_hot_keys, keyobj->ptr) == DICT_OK)
+            serverLog(LL_DEBUG, "key: %s is deleted from loading_hot_keys.", (char *)keyobj->ptr);
+    } else if (!sdscmp(cmd->ptr, fail_dump)) {
+        if (dictDelete(EVICTED_DATA_DB->transferring_keys, keyobj->ptr) == DICT_OK)
+            serverLog(LL_DEBUG, "key: %s is deleted from transferring_keys.", (char *)keyobj->ptr);
+    } else {
+        serverPanic("cmd is not supported.");
+    }
+
+    signalBlockingKeyAsReady(c->db, keyobj);
+    server.dirty ++;
+
+    addReply(c, shared.ok);
+
+    sdsfree(fail_restore);
+    sdsfree(fail_dump);
+}
+
+void storetossdbCommand(client *c) {
     robj *keyobj, *o;
-    sds cmdname = NULL;
 
     if (!server.jdjr_mode) {
         addReplyErrorFormat(c,"Command only supported in jdjr-mode '%s'",
@@ -4715,19 +4734,16 @@ void dumptossdbCommand(client *c) {
 
     keyobj = c->argv[1];
 
-    if ((o = lookupKeyReadOrReply(c, c->argv[1], shared.nullbulk)) == NULL)
+    if (lookupKeyReadOrReply(c, c->argv[1], shared.nullbulk) == NULL)
         return;
 
-    cmdname = c->argc >= 3 && c->argv[2] ? c->argv[2]->ptr : shared.rr_restoreobj->ptr;
-
-    if (sdscmp(cmdname, shared.restoreobj->ptr)
-        && sdscmp(cmdname, shared.rr_restoreobj->ptr)) {
+    if (c->argc != 2) {
         addReply(c, shared.syntaxerr);
         return;
     }
 
     /* Try restoring the redis dumped data to SSDB. */
-    if (prologOfEvictingToSSDB(keyobj, c->db, cmdname) != C_OK)
+    if (prologOfEvictingToSSDB(keyobj, c->db) != C_OK)
         serverLog(LL_DEBUG, "Failed to send the restore cmd to SSDB.");
     else
         setTransferringDB(c->db, keyobj);
@@ -4756,7 +4772,7 @@ void locatekeyCommand(client *c) {
     decrRefCount(replyObj);
 }
 
-void ssdbDelCommand(client *c) {
+void slaveDelCommand(client *c) {
     sds finalcmd;
     if (server.jdjr_mode) {
         if (server.masterhost) {
@@ -4773,7 +4789,7 @@ void ssdbDelCommand(client *c) {
         addReplyError(c, "Only supported in jdjr-mode.");
 }
 
-void restorefromssdbCommand(client *c) {
+void dumpfromssdbCommand(client *c) {
     dictEntry *de;
 
     if (!server.jdjr_mode) {

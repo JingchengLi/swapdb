@@ -303,16 +303,17 @@ struct redisCommand redisCommandTable[] = {
     {"latency",latencyCommand,-2,"aslt",0,NULL,0,0,0,0,0},
 
     /* Interfaces called by SSDB. */
-    {"customized-del",customizedDelCommand,-2,"w",0,NULL,1,-1,1,0,0},
-    {"customized-restore",customizedRestoreCommand,-4,"wm",0,NULL,1,1,1,0,0},
-    {"customized-fail",customizedFailCommand,3,"w",0,NULL,1,1,1,0,0},
+    {"ssdb-resp-del",ssdbRespDelCommand,-2,"w",0,NULL,1,-1,1,0,0},
+    {"ssdb-resp-restore",ssdbRespRestoreCommand,-4,"wm",0,NULL,1,1,1,0,0},
+    {"ssdb-resp-fail",ssdbRespFailCommand,3,"w",0,NULL,1,1,1,0,0},
+    {"ssdb-resp-notfound",ssdbRespNotfoundCommand,3,"w",0,NULL,1,1,1,0,0},
 
-    {"dumptossdb",dumptossdbCommand,-2,"w",0,NULL,1,1,1,0,0},
-    {"restorefromssdb",restorefromssdbCommand,2,"w",0,NULL,1,1,1,0,0},
+    {"storetossdb",storetossdbCommand,-2,"w",0,NULL,1,1,1,0,0},
+    {"dumpfromssdb",dumpfromssdbCommand,2,"w",0,NULL,1,1,1,0,0},
     {"locatekey",locatekeyCommand,2,"r",0,NULL,1,1,1,0,0},
 
     /* Only be handled by slaves. */
-    {"ssdbdel",ssdbDelCommand,-2,"wJ",0,NULL,1,-1,1,0,0},
+    {"slavedel",slaveDelCommand,-2,"wJ",0,NULL,1,-1,1,0,0},
 };
 
 /*============================ Utility functions ============================ */
@@ -1464,10 +1465,9 @@ void createSharedObjects(void) {
         shared.delsnapshotok = sdsnew("rr_del_snapshot ok");
         shared.delsnapshotnok = sdsnew("rr_del_snapshot nok");
 
-        shared.dumpcmdobj = createObject(OBJ_STRING, (void *)sdsnew("DUMPTOSSDB"));
-        shared.ssdbdelcmdobj = createObject(OBJ_STRING, (void*)sdsnew("SSDBDEL"));
-        shared.rr_restoreobj = createObject(OBJ_STRING, (void *)sdsnew("RR_RESTORE"));
-        shared.restoreobj = createObject(OBJ_STRING, (void *)sdsnew("RESTORE"));
+        shared.storecmdobj = createObject(OBJ_STRING, (void *)sdsnew("storetossdb"));
+        shared.slavedelcmdobj = createObject(OBJ_STRING, (void*)sdsnew("slavedel"));
+        shared.rr_restoreobj = createObject(OBJ_STRING, (void *)sdsnew("redis_req_restore"));
     }
 }
 
@@ -2427,9 +2427,9 @@ void call(client *c, int flags) {
         if (propagate_flags != PROPAGATE_NONE) {
             propagate(c->cmd,c->db->id,c->argv,c->argc,propagate_flags);
 
-            if (server.jdjr_mode && c->cmd->proc == customizedRestoreCommand) {
-                robj *argv[2] = {shared.ssdbdelcmdobj, c->argv[1]};
-                propagate(lookupCommand(shared.ssdbdelcmdobj->ptr), 0, argv, 2, PROPAGATE_REPL);
+            if (server.jdjr_mode && c->cmd->proc == ssdbRespRestoreCommand) {
+                robj *argv[2] = {shared.slavedelcmdobj, c->argv[1]};
+                propagate(lookupCommand(shared.slavedelcmdobj->ptr), 0, argv, 2, PROPAGATE_REPL);
             }
         }
     }
@@ -2475,8 +2475,8 @@ int checkKeysInMediateState(client* c) {
         return C_OK;
 
     /* Command from SSDB should not be blocked. */
-    if (c->cmd->proc == customizedDelCommand
-        || c->cmd->proc == customizedRestoreCommand)
+    if (c->cmd->proc == ssdbRespDelCommand
+        || c->cmd->proc == ssdbRespRestoreCommand)
         return C_OK;
 
     keys = getKeysFromCommand(c->cmd, c->argv, c->argc, &numkeys);
@@ -2744,7 +2744,7 @@ int processCommand(client *c) {
             addReply(c, shared.oomerr);
 
             /* Try to unblock the clients blocked by the loading_hot key. */
-            if (server.jdjr_mode && c->cmd->proc == customizedRestoreCommand)
+            if (server.jdjr_mode && c->cmd->proc == ssdbRespRestoreCommand)
                 signalBlockingKeyAsReady(c->db, c->argv[1]);
 
             return C_OK;

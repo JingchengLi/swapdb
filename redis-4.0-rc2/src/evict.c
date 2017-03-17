@@ -592,7 +592,7 @@ int prologOfLoadingFromSSDB(robj *keyobj) {
 
     rioInitWithBuffer(&cmd, sdsempty());
     serverAssert(rioWriteBulkCount(&cmd, '*', 2));
-    serverAssert(rioWriteBulkString(&cmd, "RR_DUMP", 7));
+    serverAssert(rioWriteBulkString(&cmd, "redis_req_dump", 7));
     serverAssert(sdsEncodedObject(keyobj));
     serverAssert(rioWriteBulkString(&cmd, keyobj->ptr, sdslen(keyobj->ptr)));
 
@@ -608,7 +608,7 @@ int prologOfLoadingFromSSDB(robj *keyobj) {
     return C_OK;
 }
 
-int prologOfEvictingToSSDB(robj *keyobj, redisDb *db, sds cmdname) {
+int prologOfEvictingToSSDB(robj *keyobj, redisDb *db) {
     rio cmd, payload;
     long long ttl = 0;
     long long expiretime;
@@ -637,7 +637,7 @@ int prologOfEvictingToSSDB(robj *keyobj, redisDb *db, sds cmdname) {
 
     rioInitWithBuffer(&cmd, sdsempty());
     serverAssert(rioWriteBulkCount(&cmd, '*', 5));
-    serverAssert(rioWriteBulkString(&cmd, cmdname, sdslen(cmdname)));
+    serverAssert(rioWriteBulkString(&cmd, "redis_req_restore", strlen("redis_req_restore")));
     serverAssert(sdsEncodedObject(keyobj));
     serverAssert(rioWriteBulkString(&cmd, keyobj->ptr, sdslen(keyobj->ptr)));
     serverAssert(rioWriteBulkLongLong(&cmd, ttl));
@@ -652,21 +652,16 @@ int prologOfEvictingToSSDB(robj *keyobj, redisDb *db, sds cmdname) {
 
     serverAssert(rioWriteBulkString(&cmd, "REPLACE", 7));
 
-    // todo: fix: why send command to server.master ???
     /* sendCommandToSSDB will free cmd.io.buffer.ptr. */
     /* Using the same connection with propagate method. */
-    if (sendCommandToSSDB(!server.masterhost
-                          ? server.ssdb_client
-                          : server.master, cmd.io.buffer.ptr) != C_OK) {
+    if (sendCommandToSSDB(server.ssdb_client, cmd.io.buffer.ptr) != C_OK) {
         // todo: set server.ssdb_client to null and reconnect
         serverLog(LL_WARNING, "sendCommandToSSDB: server.ssdb_client failed.");
         return C_ERR;
     }
 
-    robj *setargv[3] = {shared.dumpcmdobj, keyobj, shared.restoreobj};
-    propagate(lookupCommand(shared.dumpcmdobj->ptr), 0, setargv, 3,
-              PROPAGATE_REPL);
-
+    robj *setargv[2] = {shared.storecmdobj, keyobj};
+    propagate(lookupCommand(shared.storecmdobj->ptr), 0, setargv, 2, PROPAGATE_REPL);
 
     serverLog(LL_DEBUG, "Evicting key: %s to SSDB, maxmemory: %lld, zmalloc_used_memory: %lu.",
               (char *)(keyobj->ptr), server.maxmemory, zmalloc_used_memory());
@@ -751,7 +746,7 @@ int tryEvictingKeysToSSDB(int *mem_tofree) {
         robj *keyobj = createStringObject(bestkey,sdslen(bestkey));
 
         /* Try restoring the redis dumped data to SSDB. */
-        if (prologOfEvictingToSSDB(keyobj, db, shared.rr_restoreobj->ptr) != C_OK)
+        if (prologOfEvictingToSSDB(keyobj, db) != C_OK)
             serverLog(LL_DEBUG, "Failed to send the restore cmd to SSDB.");
         else
             setTransferringDB(db, keyobj);

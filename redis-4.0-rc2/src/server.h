@@ -789,7 +789,7 @@ struct sharedObjectsStruct {
     sds minstring, maxstring;
 
     /* jdjr-mode shared obj. */
-    robj *dumpcmdobj, *ssdbdelcmdobj, *restoreobj, *rr_restoreobj;
+    robj *storecmdobj, *slavedelcmdobj, *rr_restoreobj;
     /* jdjr-mdoe shared sds. */
     sds checkwriteok, checkwritenok, makesnapshotok, makesnapshotnok,
         transfersnapshotok, transfersnapshotnok, transfersnapshotfinished,
@@ -2061,14 +2061,15 @@ void pfdebugCommand(client *c);
 void latencyCommand(client *c);
 void moduleCommand(client *c);
 void securityWarningCommand(client *c);
-void customizedDelCommand(client *c);
-void customizedRestoreCommand(client *c);
-void customizedFailCommand(client *c);
-void dumptossdbCommand(client *c);
+void ssdbRespDelCommand(client *c);
+void ssdbRespRestoreCommand(client *c);
+void ssdbRespFailCommand(client *c);
+void ssdbRespNotfoundCommand(client *c);
+void storetossdbCommand(client *c);
 void locatekeyCommand(client *c);
-void ssdbDelCommand(client *c);
-void restorefromssdbCommand(client *c);
-int prologOfEvictingToSSDB(robj *keyobj, redisDb *db, sds cmdname);
+void slaveDelCommand(client *c);
+void dumpfromssdbCommand(client *c);
+int prologOfEvictingToSSDB(robj *keyobj, redisDb *db);
 int prologOfLoadingFromSSDB(robj *keyobj);
 
 #if defined(__GNUC__)

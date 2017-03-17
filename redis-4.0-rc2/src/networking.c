@@ -681,13 +681,11 @@ sds composeCmdFromArgs(client *c) {
 /* Querying SSDB server if querying redis fails, Compose the finalcmd if finalcmd is NULL. */
 int sendCommandToSSDB(client *c, sds finalcmd) {
     int nwritten;
-    struct redisCommand *cmdinfo = NULL;
+    struct redisCommand *cmd = NULL;
 
     if (!finalcmd) {
-        cmdinfo = lookupCommand(c->argv[0]->ptr);
-        //todo: review
-        if (!cmdinfo
-            || !(cmdinfo->flags & CMD_JDJR_MODE)
+        cmd = lookupCommand(c->argv[0]->ptr);
+        if (!cmd || !(cmd->flags & CMD_JDJR_MODE)
             /* TODO: support multi. */
             || (c->flags & CLIENT_MULTI))
             return C_ERR;
@@ -702,7 +700,7 @@ int sendCommandToSSDB(client *c, sds finalcmd) {
     }
 
     if (!finalcmd) {
-        serverLog(LL_WARNING, "Expecting finalcmd not NULL.");
+        serverLog(LL_WARNING, "out of memory!");
         return C_ERR;
     }
 
