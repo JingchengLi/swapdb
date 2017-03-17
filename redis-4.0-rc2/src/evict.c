@@ -505,10 +505,11 @@ int epilogOfEvictingToSSDB(robj *keyobj) {
 
     de = dictFind(db->dict, keyobj->ptr);
 
-    /* The key may be deleted before the callback customized-del. */
+    /* The key may be deleted before the callback ssdb-resp-del. */
     if (!de) return C_ERR;
 
     usage = (long long)estimateKeyMemoryUsage(de);
+    //todo: fix, lfu counter has been removed
     usage_obj = createStringObjectFromLongLong(usage);
     setKey(evicteddb, keyobj, usage_obj);
     server.dirty ++;
@@ -521,14 +522,20 @@ int epilogOfEvictingToSSDB(robj *keyobj) {
 
     decrRefCount(setcmd);
 
+    /* remove expire info from evictdb keys when transfer key to ssdb
+     * for an issue caused by hdel like commands which may implicitly
+     * del the key, redis may expire a key by mistake. */
+
+    // todo: fix ttl/exists/... commands
+
     /* Record the expire info. */
+    /*
     if (expiretime > 0) {
         setExpire(NULL, evicteddb, keyobj, expiretime);
         ll2string(llbuf, sizeof(llbuf), expiretime);
         notifyKeyspaceEvent(NOTIFY_GENERIC,
                             "expire", keyobj, evicteddb->id);
 
-        /* Append expire operation to aof if necessary. */
         robj *llbufobj = createObject(OBJ_STRING, (void *)(sdsnew(llbuf)));
         sds cmdname = sdsnew("expire");
         robj *expirecmd = createObject(OBJ_STRING, (void *)cmdname);
@@ -541,6 +548,7 @@ int epilogOfEvictingToSSDB(robj *keyobj) {
         serverLog(LL_DEBUG, "Appending expire operation to aof.");
         decrRefCount(llbufobj);
     }
+    */
 
     if (dictSize(EVICTED_DATA_DB->transferring_keys) > 0) {
         serverAssert(dictDelete(EVICTED_DATA_DB->transferring_keys,
