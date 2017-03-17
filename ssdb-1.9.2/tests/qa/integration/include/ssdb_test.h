@@ -118,8 +118,11 @@ public:
 		struct timeval currentTime;
 		gettimeofday(&currentTime, NULL);
 		srand(currentTime.tv_usec);
-        int eNum = rand()%24 - 12;
+        int eNum = rand()%26 - 13;
         float base = rand()*1.0/rand();
+        if (base > 1) {
+            base = 1.0/base;
+        }
         double randomDouble = base*pow(10, eNum);
         return randomDouble; 
 	}
