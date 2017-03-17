@@ -681,7 +681,7 @@ overrides {maxmemory 0}} {
             ssdbr del zscoretest
             set aux {}
             for {set i 0} {$i < $elements} {incr i} {
-                set score [randomInt 999999999]
+                set score [randomSignedInt 999999999]
                 lappend aux $score
                 ssdbr zadd zscoretest $score $i
             }
@@ -712,7 +712,7 @@ overrides {maxmemory 0}} {
             ssdbr del zscoretest
             set aux {}
             for {set i 0} {$i < $elements} {incr i} {
-                set score [randomInt 9999999]
+                set score [randomSignedInt 9999999]
                 lappend aux $score
                 ssdbr zadd zscoretest $score $i
             }
@@ -1001,7 +1001,7 @@ overrides {maxmemory 0}} {
                 if {[expr rand()] < .2} {
                     ssdbr zrem myzset $i
                 } else {
-                    set score [randomInt 9999999999999]
+                    set score [randomSignedInt 9999999999999]
                     ssdbr zadd myzset $score $i
                     assert_encoding $encoding myzset
                 }
