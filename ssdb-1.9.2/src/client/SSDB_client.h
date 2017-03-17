@@ -97,6 +97,7 @@ public:
 	virtual Status exists(const std::vector<std::string> &keys, int64_t *ret=NULL) = 0;
 	virtual Status replic(const std::string &ip, int port) = 0;
 	virtual Status replic(const std::vector<std::string> &items) = 0;
+	virtual Status flushdb() = 0;
 
 	/// @name KV methods
 	/// @{

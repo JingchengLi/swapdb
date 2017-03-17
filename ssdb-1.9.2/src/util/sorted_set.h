@@ -139,6 +139,11 @@ public:
 		return 1;
 	}
 
+	void clear(){
+		existed.clear();
+		sorted_set.clear();
+	}
+
 
 private:
 

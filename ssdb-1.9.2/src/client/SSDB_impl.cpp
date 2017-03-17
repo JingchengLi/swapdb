@@ -223,6 +223,13 @@ Status ClientImpl::replic(const std::vector<std::string> &items) {
 	return s;
 }
 
+Status ClientImpl::flushdb() {
+	const std::vector<std::string> *resp;
+	resp = this->request("flushdb");
+	Status s(resp);
+	return s;
+}
+
 Status ClientImpl::dbsize(int64_t *ret){
 	const std::vector<std::string> *resp;
 	resp = this->request("dbsize");
