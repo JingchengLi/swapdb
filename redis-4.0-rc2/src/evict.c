@@ -600,7 +600,7 @@ int prologOfLoadingFromSSDB(robj *keyobj) {
 
     rioInitWithBuffer(&cmd, sdsempty());
     serverAssert(rioWriteBulkCount(&cmd, '*', 2));
-    serverAssert(rioWriteBulkString(&cmd, "redis_req_dump", 7));
+    serverAssert(rioWriteBulkString(&cmd, "redis_req_dump", strlen("redis_req_dump")));
     serverAssert(sdsEncodedObject(keyobj));
     serverAssert(rioWriteBulkString(&cmd, keyobj->ptr, sdslen(keyobj->ptr)));
 
@@ -658,7 +658,7 @@ int prologOfEvictingToSSDB(robj *keyobj, redisDb *db) {
                                     sdslen(payload.io.buffer.ptr)));
     sdsfree(payload.io.buffer.ptr);
 
-    serverAssert(rioWriteBulkString(&cmd, "REPLACE", 7));
+    serverAssert(rioWriteBulkString(&cmd, "REPLACE", strlen("REPLACE")));
 
     /* sendCommandToSSDB will free cmd.io.buffer.ptr. */
     /* Using the same connection with propagate method. */
