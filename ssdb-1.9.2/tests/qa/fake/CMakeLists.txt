@@ -1,13 +1,12 @@
 cmake_minimum_required(VERSION 2.8)
 project(integ-test)
 
-SET(BUILD_PATH "${CMAKE_SOURCE_DIR}")
+SET(BUILD_PATH "../../../")
 INCLUDE_DIRECTORIES(
     ${BUILD_PATH}/tests/gtest_1.7.0/include
     ${BUILD_PATH}/src
     ${BUILD_PATH}/src/client
     include
-    ../unit/include
     ../integration/include
 )
 
@@ -34,10 +33,3 @@ ADD_EXECUTABLE(integ-test
     ${GTEST_SRC})
 
 TARGET_LINK_LIBRARIES(integ-test gtest libssdb-client-static libutil-static)
-
-
-ADD_EXECUTABLE(codec-test
-        ../unit/gtest_main.cc
-    ${CODEC_SRC})
-
-TARGET_LINK_LIBRARIES(codec-test gtest libcodec-static libutil-static)
