@@ -474,7 +474,6 @@ unsigned long KeyLFUDecrAndReturn(sds key) {
 }
 
 int epilogOfEvictingToSSDB(robj *keyobj) {
-    char llbuf[32] = {0};
     redisDb *evicteddb = server.db + EVICTED_DATA_DBID, *db;
     mstime_t eviction_latency;
     robj *setcmd, *usage_obj;
@@ -486,7 +485,6 @@ int epilogOfEvictingToSSDB(robj *keyobj) {
     int slaves = listLength(server.slaves);
     long long usage;
     sds db_key, evdb_key;
-    long long counter;
     unsigned int lfu;
 
     if (dbid != 0) {

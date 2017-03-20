@@ -4724,7 +4724,7 @@ void ssdbRespFailCommand(client *c) {
 }
 
 void storetossdbCommand(client *c) {
-    robj *keyobj, *o;
+    robj *keyobj;
 
     if (!server.jdjr_mode) {
         addReplyErrorFormat(c,"Command only supported in jdjr-mode '%s'",
