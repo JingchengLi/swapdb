@@ -683,6 +683,8 @@ int sendCommandToSSDB(client *c, sds finalcmd) {
     int nwritten;
     struct redisCommand *cmd = NULL;
 
+    if (!c) return C_ERR;
+
     if (!finalcmd) {
         cmd = lookupCommand(c->argv[0]->ptr);
         if (!cmd || !(cmd->flags & CMD_JDJR_MODE)
@@ -715,7 +717,7 @@ int sendCommandToSSDB(client *c, sds finalcmd) {
                 serverLog(LL_WARNING,
                           "Error writing to SSDB server: %s", strerror(errno));
                 if (finalcmd) sdsfree(finalcmd);
-                if (c->fd != -1) freeClient(c);
+                freeClient(c);
                 return C_FD_ERR;
             }
         } else if (nwritten > 0) {
@@ -1272,6 +1274,14 @@ void unlinkClient(client *c) {
     }
 }
 
+void resetSpecialCient(client *c) {
+    if (c == server.ssdb_client)
+        server.ssdb_client = NULL;
+
+    if (c == server.ssdb_replication_client)
+        server.ssdb_replication_client = NULL;
+}
+
 void freeClient(client *c) {
     listNode *ln;
 
@@ -1360,6 +1370,8 @@ void freeClient(client *c) {
 
     /* Free redisContext. */
     if (server.jdjr_mode && c->context) redisFree(c->context);
+
+    if (server.jdjr_mode) resetSpecialCient(c);
 
     /* Release other dynamically allocated client structure fields,
      * and finally release the client structure itself. */
