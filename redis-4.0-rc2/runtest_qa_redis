@@ -15,4 +15,4 @@ fi
 mkdir -p ../jenkins/report/integration
 
 cd tests/qa/integration
-$TCLSH tests/test_helper.tcl --host 127.0.0.1 --clients 1 $*
+$TCLSH tests/test_helper.tcl $*
