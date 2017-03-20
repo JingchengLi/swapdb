@@ -3,11 +3,11 @@ overrides {maxmemory 0}} {
 
     test "ssdb status key is in ssdb" {
         r set foo bar
-        r dumptossdb foo
+        r storetossdb foo
         wait_for_condition 100 1 {
             [ r locatekey foo ] eq {ssdb}
         } else {
-            fail "key foo be dumptossdb failed"
+            fail "key foo be storetossdb failed"
         }
         list [sr get foo] 
     } {bar}
@@ -23,11 +23,11 @@ overrides {maxmemory 0}} {
     } {{} bar}
 
     test "status of key in ssdb is ssdb" {
-        r dumptossdb foo
+        r storetossdb foo
         wait_for_condition 100 1 {
             [ sr get foo ] eq {bar}
         } else {
-            fail "key foo be dumptossdb failed"
+            fail "key foo be storetossdb failed"
         }
         list [r locatekey foo] 
     } {ssdb}
@@ -45,11 +45,11 @@ overrides {maxmemory 0}} {
     test "loop dump/restore multi times" {
         for {set i 0} {$i < 500} {incr i} {
             r set foo bar
-            r dumptossdb foo
+            r storetossdb foo
         }
 
         for {set i 0} {$i < 500} {incr i} {
-            r dumptossdb foo
+            r storetossdb foo
             r get foo
         }
 

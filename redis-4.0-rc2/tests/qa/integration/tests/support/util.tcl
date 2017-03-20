@@ -365,7 +365,7 @@ proc wait_for_dumpto_ssdb {r key} {
     wait_for_condition 100 1 {
         [ $r locatekey $key ] eq {ssdb}
     } else {
-        fail "key $key be dumptossdb failed"
+        fail "key $key be storetossdb failed"
     }
 }
 
@@ -379,12 +379,12 @@ proc wait_for_restoreto_redis {r key} {
 }
 
 proc dumpto_ssdb_and_wait {r key} {
-    $r dumptossdb $key
+    $r storetossdb $key
     #wait key dumped to ssdb
     wait_for_condition 100 1 {
         [ $r locatekey $key ] eq {ssdb}
     } else {
-        fail "key $key be dumptossdb failed"
+        fail "key $key be storetossdb failed"
     }
 }
 

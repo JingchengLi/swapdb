@@ -243,7 +243,8 @@ foreach dl {no} {
     }
 }
 
-foreach dl {no yes} {
+# not support diskless replication.
+foreach dl {no} {
     start_server {tags {"repl"}} {
         set master [srv 0 client]
         $master config set repl-diskless-sync $dl

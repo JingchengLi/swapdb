@@ -1,4 +1,4 @@
-#verify redis be cold(dumptossdb) and be hot(read) function
+#verify redis be cold(storetossdb) and be hot(read) function
 start_server {tags {"redis-ssdb"}
 overrides {maxmemory 0}} {
 
@@ -15,7 +15,7 @@ overrides {maxmemory 0}} {
         test "string $valtype Be Cold store in ssdb" {
             r del foo
             r set foo $bar
-            r dumptossdb foo
+            r storetossdb foo
             wait_for_dumpto_ssdb r foo
 
             assert_equal [sr get foo] $bar
@@ -55,7 +55,7 @@ overrides {maxmemory 0}} {
         }
 
         test "hash ($encoding) Be Cold store in ssdb" {
-            r dumptossdb myhash
+            r storetossdb myhash
 
             wait_for_dumpto_ssdb r myhash
 
@@ -110,7 +110,7 @@ overrides {maxmemory 0}} {
         }
 
         test "set ($encoding) $valtype Be Cold store in ssdb" {
-            r dumptossdb myset
+            r storetossdb myset
 
             wait_for_dumpto_ssdb r myset
 
@@ -126,7 +126,7 @@ overrides {maxmemory 0}} {
 
         test {Be Cold/Hot with an expire key} {
             r expire myset 3
-            r dumptossdb myset
+            r storetossdb myset
 
             wait_for_dumpto_ssdb r myset
 
@@ -163,7 +163,7 @@ overrides {maxmemory 0}} {
         }
 
         test "zset ($encoding) Be Cold store in ssdb" {
-            r dumptossdb myzset
+            r storetossdb myzset
 
             wait_for_dumpto_ssdb r myzset
 
@@ -181,7 +181,7 @@ overrides {maxmemory 0}} {
             r pexpire myzset 2569591501
             set pttl [r pttl foottl]
 
-            r dumptossdb myzset
+            r storetossdb myzset
 
             wait_for_dumpto_ssdb r myzset
 
@@ -218,7 +218,7 @@ overrides {maxmemory 0}} {
         }
 
         test "list (quicklist) $valtype Be Cold store in ssdb" {
-            r dumptossdb mylist
+            r storetossdb mylist
 
             wait_for_dumpto_ssdb r mylist
 
@@ -236,7 +236,7 @@ overrides {maxmemory 0}} {
         test {Override an key already exists in ssdb} {
             sr set mylist barbusy
 
-            r dumptossdb mylist
+            r storetossdb mylist
 
             wait_for_dumpto_ssdb r mylist
 

@@ -22,8 +22,8 @@ def get(key="key"):
 def delete(key="key"):
     return R.delete(key)
 
-def dumptossdb(key="key"):
-    return R.execute_command("dumptossdb "+key)
+def storetossdb(key="key"):
+    return R.execute_command("storetossdb "+key)
 
 def locatekey(key="key"):
     return R.execute_command("locatekey "+key)
@@ -70,10 +70,10 @@ class TestMthreads(unittest.TestCase):
 
     @unittest.skip("skip test_01")
     def test_01(self):
-        '''set/dumptossdb/get concurrency'''
+        '''set/storetossdb/get concurrency'''
         for i in range(100):
             self.p.apply_async(set)
-            self.p.apply_async(dumptossdb)
+            self.p.apply_async(storetossdb)
             self.p.apply_async(get)
 
         self.p.close()
@@ -84,11 +84,11 @@ class TestMthreads(unittest.TestCase):
 
     @unittest.skip("skip test_01_leak")
     def test_01_leak(self):
-        '''set/dumptossdb/get concurrency memory leak'''
+        '''set/storetossdb/get concurrency memory leak'''
         memory_before = R.info("memory")["used_memory"]
         for i in range(100):
             self.p.apply_async(set)
-            self.p.apply_async(dumptossdb)
+            self.p.apply_async(storetossdb)
             self.p.apply_async(get)
 
         self.p.close()

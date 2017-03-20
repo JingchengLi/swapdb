@@ -7,7 +7,7 @@ overrides {
     test "Basic AOF rewrite" {
         r set foo bar
         r set hello world
-        r dumptossdb foo
+        r storetossdb foo
 
         wait_for_dumpto_ssdb r foo
 
@@ -105,13 +105,13 @@ overrides {
                     }
                 }
                 set d3 [r debug digest]
-                r dumptossdb ssdbkey
+                r storetossdb ssdbkey
 
                 #wait key dumped to ssdb
                 wait_for_condition 100 1 {
                     [ r locatekey ssdbkey ] eq {ssdb}
                 } else {
-                    fail "key ssdbkey be dumptossdb failed"
+                    fail "key ssdbkey be storetossdb failed"
                 }
 
                 if {$d ne {string}} {
@@ -170,13 +170,13 @@ overrides {
                     }
                 }
                 set d3 [r debug digest]
-                r dumptossdb ssdbkey
+                r storetossdb ssdbkey
 
                 #wait key dumped to ssdb
                 wait_for_condition 100 1 {
                     [ r locatekey ssdbkey ] eq {ssdb}
                 } else {
-                    fail "key ssdbkey be dumptossdb failed"
+                    fail "key ssdbkey be storetossdb failed"
                 }
 
                 assert_equal [r object encoding key] $e

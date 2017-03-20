@@ -27,7 +27,7 @@ class TestPipeline(unittest.TestCase):
 
     def dumpKeys(self, patten='*'):
         for key in self.R.keys():
-            self.R.execute_command("dumptossdb "+key)
+            self.R.execute_command("storetossdb "+key)
 
     def test_pipleline_set_get(self, r=RedisPool().Redis_Pool()):
         self.R.set("foo", 'ssdbbar')

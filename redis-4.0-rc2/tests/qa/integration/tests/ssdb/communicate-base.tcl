@@ -37,7 +37,7 @@ overrides {maxmemory 0}} {
         } {bar}
 
         test "Key(become cold) with ttl($ttl) check with jdjr-mode" {
-            r dumptossdb foo
+            r storetossdb foo
             r set fooxxx barxxx
 
             wait_for_dumpto_ssdb r foo
@@ -57,7 +57,7 @@ overrides {maxmemory 0}} {
         } {}
 
         test "Key(become cold) - 2 move from redis to ssdb with ttl($ttl)" {
-            r dumptossdb foo
+            r storetossdb foo
 
             wait_for_dumpto_ssdb r foo
             sr get foo
@@ -86,7 +86,7 @@ overrides {maxmemory 0}} {
             } else {
                 r set foo bar
             }
-            r dumptossdb foo
+            r storetossdb foo
 
             wait_for_dumpto_ssdb r foo
 
@@ -127,7 +127,7 @@ overrides {maxmemory 0}} {
         if {$ttl > 0} {
             test "key store in ssdb with ttl(3) will expire" {
                 r setex foo 3 bar
-                r dumptossdb foo
+                r storetossdb foo
 
                 wait_for_dumpto_ssdb r foo
 

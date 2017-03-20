@@ -15,11 +15,11 @@ R = RedisPool().Redis_Pool()
 '''20M val need about 100ms dump/restore'''
 vlen = 20000000
 
-def dumptossdb(key="key"):
-    return R.execute_command("dumptossdb "+key)
+def storetossdb(key="key"):
+    return R.execute_command("storetossdb "+key)
 
-def restorefromssdb(key="key"):
-    return R.execute_command("restorefromssdb "+key)
+def dumpfromssdb(key="key"):
+    return R.execute_command("dumpfromssdb "+key)
 
 def AllowReadBlockWrite(q, key="key"):
     res = "%d:%d:%d" % ( R.strlen(key), q.empty(), R.strlen(key))
@@ -103,7 +103,7 @@ class TestMidState(unittest.TestCase):
         q = manager.Queue()
         flags = 0
         results = []
-        dumptossdb()
+        storetossdb()
         self.p.apply_async(append, args = (q,))
         time.sleep(0.01)
         for i in range(100):
@@ -122,7 +122,7 @@ class TestMidState(unittest.TestCase):
         manager = Manager()
         q = manager.Queue()
         flags = 0
-        dumptossdb()
+        storetossdb()
         self.assertTrue(wait_status("ssdb"), "wait dump key timeout")
         for i in range(1000):
             self.p.apply_async(append, args = (q,))
@@ -137,9 +137,9 @@ class TestMidState(unittest.TestCase):
         q = manager.Queue()
         flags = 0
         results = []
-        dumptossdb()
+        storetossdb()
         self.assertTrue(wait_status("ssdb"), "wait dump key timeout")
-        restorefromssdb()
+        dumpfromssdb()
         self.p.apply_async(append, args = (q,))
         time.sleep(0.01)
         for i in range(100):
