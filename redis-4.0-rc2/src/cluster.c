@@ -4668,7 +4668,7 @@ void ssdbRespNotfoundCommand(client *c) {
 
     /* TODO: make sds vars shared. */
     sds fail_restore = sdsnew("ssdb-resp-restore");
-    sds fail_dump = sdsnew("ssdp-resp-dump");
+    sds fail_dump = sdsnew("ssdb-resp-dump");
 
     serverAssert(c->db->id == 0);
 
@@ -4700,7 +4700,7 @@ void ssdbRespFailCommand(client *c) {
 
     /* TODO: make sds vars shared. */
     sds fail_restore = sdsnew("ssdb-resp-restore");
-    sds fail_dump = sdsnew("ssdp-resp-dump");
+    sds fail_dump = sdsnew("ssdb-resp-dump");
 
     serverAssert(c->db->id == 0);
 
