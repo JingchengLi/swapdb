@@ -316,7 +316,7 @@ SSDBServer::SSDBServer(SSDB *ssdb, SSDB *meta, const Config &conf, NetworkServer
 
 			log_info("upstream: %s:%d", ip.c_str(), port);
 
-			redisConf = new RedisConf(ip, port);
+			redisConf = new HostAndPort(ip, port);
 		}
 	}
 }

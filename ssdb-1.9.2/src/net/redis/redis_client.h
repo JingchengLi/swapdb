@@ -31,13 +31,13 @@ private:
 
 
 
-struct RedisConf {
+struct HostAndPort {
 public:
 
     std::string ip;
     int port;
 
-    RedisConf(const std::string &ip, int port) : ip(ip), port(port) {}
+    HostAndPort(const std::string &ip, int port) : ip(ip), port(port) {}
 
 };
 

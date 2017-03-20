@@ -28,7 +28,7 @@ void TransferWorker::init() {
 int TransferWorker::proc(TransferJob *job) {
 
     if (redisUpstream == nullptr) {
-        RedisConf *conf = job->serv->redisConf;
+        HostAndPort *conf = job->serv->redisConf;
         if (conf == nullptr) {
             log_error("redis upstream conf is null");
             return -1;

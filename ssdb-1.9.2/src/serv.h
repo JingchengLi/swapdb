@@ -42,7 +42,7 @@ public:
 	SSDBImpl *ssdb;
 	BackendDump *backend_dump;
 
-    RedisConf *redisConf;
+    HostAndPort *redisConf;
 
 	RecordMutex transfer_mutex_record_;
 
