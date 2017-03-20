@@ -636,6 +636,12 @@ int NetworkServer::proc(ProcJob *job){
 			fdes->del(sock);
 			fdes->set(sock, FDEVENT_IN, 150, job->link);
 
+			SSDBServer *serv = (SSDBServer *)(this->data);
+			if (serv->ssdb->expiration){
+				delete serv->ssdb->expiration;
+				serv->ssdb->expiration = NULL;
+			}
+
 			Command *cmd = proc_map.get_proc("flushdb");
 			if(!cmd){
 				job->link->output->append("flushdb error");

@@ -20,8 +20,10 @@ ExpirationHandler::ExpirationHandler(SSDB *ssdb) {
 }
 
 ExpirationHandler::~ExpirationHandler() {
-    Locking<Mutex> l(&this->mutex);
-    fast_keys.clear();
+    {
+        Locking<Mutex> l(&this->mutex);
+        fast_keys.clear();
+    }
     this->stop();
     ssdb = NULL;
 }
