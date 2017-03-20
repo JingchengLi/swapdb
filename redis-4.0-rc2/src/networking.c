@@ -1086,10 +1086,22 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
 
         keys = getKeysFromCommand(c->cmd, c->argv, c->argc, &numkeys);
         for (j = 0; j < numkeys; j ++) {
-            // todo: fix
-            dictDelete(EVICTED_DATA_DB->visiting_ssdb_keys, c->argv[keys[j]]->ptr);
-            serverLog(LL_DEBUG, "key: %s is deleted from visiting_ssdb_keys, fd: %d.",
+            dictEntry *entry;
+            entry = dictFind(EVICTED_DATA_DB->dict, c->argv[keys[j]]->ptr);
+            uint64_t clients_visiting_num = dictGetUnsignedIntegerVal(entry);
+            serverAssert(entry && (clients_visiting_num >= 1));
+            if (1 == clients_visiting_num) {
+                /* only this client is visiting the specified key, remove the key
+                 * from visiting keys. */
+                dictDelete(EVICTED_DATA_DB->visiting_ssdb_keys, c->argv[keys[j]]->ptr);
+                serverLog(LL_DEBUG, "key: %s is deleted from visiting_ssdb_keys, fd: %d.",
                       (char *)c->argv[keys[j]]->ptr, c->fd);
+            } else {
+                /* there are other clients visiting the specified key, just reduce the visiting
+                 * clients num by 1. */
+                clients_visiting_num--;
+                dictSetUnsignedIntegerVal(entry, clients_visiting_num);
+            }
         }
 
         if (keys) getKeysFreeResult(keys);
