@@ -13,7 +13,7 @@ int bproc_COMMAND_DATA_SAVE(SSDBServer *serv, TransferWorker *worker, const std:
     const std::string cmd = "ssdb-resp-dump";
     const std::string del_cmd = "ssdb-resp-del";
 
-    RecordLock l(&serv->transfer_mutex_record_, data_key);
+    RecordLock<Mutex> l(&serv->transfer_mutex_record_, data_key);
 
     DumpData *dumpData = (DumpData *) value;
 
@@ -61,7 +61,7 @@ int bproc_COMMAND_DATA_SAVE(SSDBServer *serv, TransferWorker *worker, const std:
 int bproc_COMMAND_DATA_DUMP(SSDBServer *serv, TransferWorker *worker, const std::string &data_key, void *value) {
     const std::string cmd = "ssdb-resp-restore";
 
-    RecordLock l(&serv->transfer_mutex_record_, data_key);
+    RecordLock<Mutex> l(&serv->transfer_mutex_record_, data_key);
 
     std::string val;
     int ret = serv->ssdb->dump(data_key, &val);

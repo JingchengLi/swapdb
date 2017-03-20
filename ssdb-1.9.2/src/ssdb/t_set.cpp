@@ -135,12 +135,12 @@ int SSDBImpl::saddNoLock(const Bytes &key, const std::set<Bytes> &mem_set, int64
 }
 
 int SSDBImpl::sadd(const Bytes &key, const std::set<Bytes> &mem_set, int64_t *num) {
-    RecordLock l(&mutex_record_, key.String());
+    RecordLock<Mutex> l(&mutex_record_, key.String());
     return saddNoLock(key, mem_set, num);
 }
 
 int SSDBImpl::srem(const Bytes &key, const std::vector<Bytes> &members, int64_t *num) {
-    RecordLock l(&mutex_record_, key.String());
+    RecordLock<Mutex> l(&mutex_record_, key.String());
     leveldb::WriteBatch batch;
 
     int ret = 0;
@@ -213,7 +213,7 @@ int SSDBImpl::srandmember(const Bytes &key, std::vector<std::string> &members, i
     SetMetaVal sv;
     int ret;
     {
-        RecordLock l(&mutex_record_, key.String());
+        RecordLock<Mutex> l(&mutex_record_, key.String());
 
         std::string meta_key = encode_meta_key(key);
         ret = GetSetMetaVal(meta_key, sv);
@@ -312,7 +312,7 @@ int SSDBImpl::spop(const Bytes &key, std::vector<std::string> &members, int64_t 
     SetMetaVal sv;
     int ret;
 
-    RecordLock l(&mutex_record_, key.String());
+    RecordLock<Mutex> l(&mutex_record_, key.String());
 
     std::string meta_key = encode_meta_key(key);
     ret = GetSetMetaVal(meta_key, sv);
@@ -388,7 +388,7 @@ int SSDBImpl::smembers(const Bytes &key, std::vector<std::string> &members) {
     int s;
 
     {
-        RecordLock l(&mutex_record_, key.String());
+        RecordLock<Mutex> l(&mutex_record_, key.String());
 
         std::string meta_key = encode_meta_key(key);
         s = GetSetMetaVal(meta_key, sv);
@@ -418,7 +418,7 @@ int SSDBImpl::sunion_internal(const std::vector<Bytes> &keys, int offset, std::s
         SetMetaVal sv;
 
         {
-            RecordLock l(&mutex_record_, keys[i].String());
+            RecordLock<Mutex> l(&mutex_record_, keys[i].String());
             std::string meta_key = encode_meta_key(keys[i]);
             int s = GetSetMetaVal(meta_key, sv);
             if (s < 0){
@@ -449,7 +449,7 @@ int SSDBImpl::sunion(const std::vector<Bytes> &keys, std::set<std::string> &memb
 }
 
 int SSDBImpl::sunionstore(const Bytes &destination, const std::vector<Bytes> &keys, int64_t *num) {
-//    RecordLock l(&mutex_record_, key.String());//TODO
+//    RecordLock<Mutex> l(&mutex_record_, key.String());//TODO
     leveldb::WriteBatch batch;
 
     std::set<std::string> members;

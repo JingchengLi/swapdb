@@ -77,7 +77,7 @@ int SSDBImpl::LLen(const Bytes &key, uint64_t *llen) {
 }
 
 int SSDBImpl::LPop(const Bytes &key, std::string *val) {
-    RecordLock l(&mutex_record_, key.String());
+    RecordLock<Mutex> l(&mutex_record_, key.String());
     leveldb::WriteBatch batch;
 
     ListMetaVal meta_val;
@@ -100,7 +100,7 @@ int SSDBImpl::LPop(const Bytes &key, std::string *val) {
 }
 
 int SSDBImpl::RPop(const Bytes &key, std::string *val) {
-    RecordLock l(&mutex_record_, key.String());
+    RecordLock<Mutex> l(&mutex_record_, key.String());
     leveldb::WriteBatch batch;
 
     ListMetaVal meta_val;
@@ -174,7 +174,7 @@ int SSDBImpl::doListPop(leveldb::WriteBatch &batch, ListMetaVal &meta_val,
 
 
 int SSDBImpl::LPushX(const Bytes &key, const std::vector<Bytes> &val, int offset, uint64_t *llen) {
-    RecordLock l(&mutex_record_, key.String());
+    RecordLock<Mutex> l(&mutex_record_, key.String());
     leveldb::WriteBatch batch;
 
     *llen = 0;
@@ -206,7 +206,7 @@ int SSDBImpl::LPushX(const Bytes &key, const std::vector<Bytes> &val, int offset
 
 int SSDBImpl::LPush(const Bytes &key, const std::vector<Bytes> &val, int offset, uint64_t *llen) {
 
-    RecordLock l(&mutex_record_, key.String());
+    RecordLock<Mutex> l(&mutex_record_, key.String());
     leveldb::WriteBatch batch;
 
     *llen = 0;
@@ -305,7 +305,7 @@ int SSDBImpl::DoRPush(leveldb::WriteBatch &batch, const Bytes &key, const std::v
 }
 
 int SSDBImpl::RPushX(const Bytes &key, const std::vector<Bytes> &val, int offset, uint64_t *llen) {
-    RecordLock l(&mutex_record_, key.String());
+    RecordLock<Mutex> l(&mutex_record_, key.String());
     leveldb::WriteBatch batch;
 
     *llen = 0;
@@ -336,7 +336,7 @@ int SSDBImpl::RPushX(const Bytes &key, const std::vector<Bytes> &val, int offset
 }
 
 int SSDBImpl::RPush(const Bytes &key, const std::vector<Bytes> &val, int offset, uint64_t *llen) {
-    RecordLock l(&mutex_record_, key.String());
+    RecordLock<Mutex> l(&mutex_record_, key.String());
     leveldb::WriteBatch batch;
 
     *llen = 0;
@@ -430,7 +430,7 @@ int SSDBImpl::rpushNoLock(const Bytes &key, const std::vector<Bytes> &val, int o
 }
 
 int SSDBImpl::LSet(const Bytes &key, const int64_t index, const Bytes &val) {
-    RecordLock l(&mutex_record_, key.String());
+    RecordLock<Mutex> l(&mutex_record_, key.String());
     leveldb::WriteBatch batch;
 
     ListMetaVal meta_val;
@@ -464,7 +464,7 @@ int SSDBImpl::LSet(const Bytes &key, const int64_t index, const Bytes &val) {
 }
 
 int SSDBImpl::ltrim(const Bytes &key, int64_t start, int64_t end) {
-    RecordLock l(&mutex_record_, key.String());
+    RecordLock<Mutex> l(&mutex_record_, key.String());
     leveldb::WriteBatch batch;
 
 
@@ -562,7 +562,7 @@ int SSDBImpl::lrange(const Bytes &key, int64_t start, int64_t end, std::vector<s
     const leveldb::Snapshot* snapshot = nullptr;
 
     {
-        RecordLock l(&mutex_record_, key.String());
+        RecordLock<Mutex> l(&mutex_record_, key.String());
 
         std::string meta_key = encode_meta_key(key);
         ret = GetListMetaVal(meta_key, meta_val);

@@ -200,13 +200,13 @@ int SSDBImpl::setNoLock(const Bytes &key, const Bytes &val, int flags) {
 }
 
 int SSDBImpl::set(const Bytes &key, const Bytes &val, int flags){
-	RecordLock l(&mutex_record_, key.String());
+	RecordLock<Mutex> l(&mutex_record_, key.String());
 
     return setNoLock(key, val, flags);
 }
 
 int SSDBImpl::getset(const Bytes &key, std::string *val, const Bytes &newval){
-	RecordLock l(&mutex_record_, key.String());
+	RecordLock<Mutex> l(&mutex_record_, key.String());
 	leveldb::WriteBatch batch;
 
 	std::string meta_key = encode_meta_key(key);
@@ -271,7 +271,7 @@ int SSDBImpl::mark_key_deleted(leveldb::WriteBatch &batch, const Bytes &key, con
 
 
 int SSDBImpl::del(const Bytes &key){
-	RecordLock l(&mutex_record_, key.String());
+	RecordLock<Mutex> l(&mutex_record_, key.String());
 	leveldb::WriteBatch batch;
 
 	int ret = del_key_internal(batch, key);
@@ -290,7 +290,7 @@ int SSDBImpl::del(const Bytes &key){
 
 
 int SSDBImpl::incrbyfloat(const Bytes &key, long double by, long double *new_val) {
-    RecordLock l(&mutex_record_, key.String());
+    RecordLock<Mutex> l(&mutex_record_, key.String());
     leveldb::WriteBatch batch;
 
     std::string old;
@@ -337,7 +337,7 @@ int SSDBImpl::incrbyfloat(const Bytes &key, long double by, long double *new_val
 
 
 int SSDBImpl::incr(const Bytes &key, int64_t by, int64_t *new_val){
-	RecordLock l(&mutex_record_, key.String());
+	RecordLock<Mutex> l(&mutex_record_, key.String());
 	leveldb::WriteBatch batch;
 
     std::string old;
@@ -390,7 +390,7 @@ int SSDBImpl::get(const Bytes &key, std::string *val) {
 
 
 int SSDBImpl::append(const Bytes &key, const Bytes &value, uint64_t *llen) {
-    RecordLock l(&mutex_record_, key.String());
+    RecordLock<Mutex> l(&mutex_record_, key.String());
     leveldb::WriteBatch batch;
 
     std::string val;
@@ -425,7 +425,7 @@ int SSDBImpl::append(const Bytes &key, const Bytes &value, uint64_t *llen) {
 
 
 int SSDBImpl::setbit(const Bytes &key, int64_t bitoffset, int on){
-	RecordLock l(&mutex_record_, key.String());
+	RecordLock<Mutex> l(&mutex_record_, key.String());
 	leveldb::WriteBatch batch;
 
 	std::string val;
@@ -480,7 +480,7 @@ int SSDBImpl::getbit(const Bytes &key, int64_t bitoffset) {
 }
 
 int SSDBImpl::setrange(const Bytes &key, int64_t start, const Bytes &value, uint64_t *new_len) {
-    RecordLock l(&mutex_record_, key.String());
+    RecordLock<Mutex> l(&mutex_record_, key.String());
     leveldb::WriteBatch batch;
 
     std::string val;
@@ -670,7 +670,7 @@ int SSDBImpl::dump(const Bytes &key, std::string *res) {
     const leveldb::Snapshot* snapshot = nullptr;
 
     {
-        RecordLock l(&mutex_record_, key.String());
+        RecordLock<Mutex> l(&mutex_record_, key.String());
 
         std::string meta_key = encode_meta_key(key);
         leveldb::Status s = ldb->Get(leveldb::ReadOptions(), meta_key, &meta_val);
@@ -856,7 +856,7 @@ int SSDBImpl::dump(const Bytes &key, std::string *res) {
 int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool replace, std::string *res) {
     *res = "none";
 
-    RecordLock l(&mutex_record_, key.String());
+    RecordLock<Mutex> l(&mutex_record_, key.String());
 
     int ret = 0;
     std::string meta_val;

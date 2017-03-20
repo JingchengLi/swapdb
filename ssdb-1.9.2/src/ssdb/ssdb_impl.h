@@ -274,7 +274,7 @@ private:
 	pthread_t bg_tid_;
     std::queue<std::string> tasks_;
 	CondVar bg_cv_;
-    RecordMutex mutex_record_;
+    RecordMutex<Mutex> mutex_record_;
 
 	void start();
 	void stop();

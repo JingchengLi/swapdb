@@ -44,7 +44,7 @@ public:
 
     HostAndPort redisConf;
 
-	RecordMutex transfer_mutex_record_;
+	RecordMutex<Mutex> transfer_mutex_record_;
 
     std::queue<Slave_info>  slave_infos;
     pthread_mutex_t         mutex;
