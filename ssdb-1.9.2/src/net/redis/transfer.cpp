@@ -28,12 +28,12 @@ void TransferWorker::init() {
 int TransferWorker::proc(TransferJob *job) {
 
     if (redisUpstream == nullptr) {
-        HostAndPort *conf = job->serv->redisConf;
-        if (conf == nullptr) {
+        HostAndPort conf = job->serv->redisConf;
+        if (conf.port == 0) {
             log_error("redis upstream conf is null");
             return -1;
         }
-        this->redisUpstream = new RedisUpstream(conf->ip.c_str(), conf->port);
+        this->redisUpstream = new RedisUpstream(conf.ip.c_str(), conf.port);
     }
 
     int64_t current = time_ms();

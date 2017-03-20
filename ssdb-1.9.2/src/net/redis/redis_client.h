@@ -30,7 +30,6 @@ private:
 };
 
 
-
 struct HostAndPort {
 public:
 
@@ -39,8 +38,11 @@ public:
 
     HostAndPort(const std::string &ip, int port) : ip(ip), port(port) {}
 
+    HostAndPort() {
+        port = 0;
+        ip = "";
+    }
 };
-
 
 
 #endif //SSDB_LINK_REDIS_CLIENT_H

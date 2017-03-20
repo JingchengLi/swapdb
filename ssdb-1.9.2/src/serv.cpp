@@ -316,17 +316,13 @@ SSDBServer::SSDBServer(SSDB *ssdb, SSDB *meta, const Config &conf, NetworkServer
 
 			log_info("upstream: %s:%d", ip.c_str(), port);
 
-			redisConf = new HostAndPort(ip, port);
+			redisConf = HostAndPort(ip, port);
 		}
 	}
 }
 
 SSDBServer::~SSDBServer(){
 	delete backend_dump;
-
-	if (redisConf != nullptr) {
-		delete redisConf;
-	}
 
     pthread_mutex_destroy(&mutex);
 
