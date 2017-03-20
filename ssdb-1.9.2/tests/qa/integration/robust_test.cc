@@ -23,6 +23,10 @@ class RobustTest : public SSDBTest
         uint32_t keysNum;
         int64_t ret;
         double score, getScore;
+        static const uint32_t counts = 100;
+
+    void fillMasterData();
+    void checkDataOK(int);
 
 };
 
@@ -259,4 +263,103 @@ TEST_F(RobustTest, DISABLED_Test_zset_rrank_time_compare) {
     cout<<"zrrank cost total time is:"<<cur_seconds-pre_seconds<<"(secs)"<<endl;
     client->del(key);
     client->del("zrank");
+}
+
+void RobustTest::fillMasterData(){
+    keys.clear();
+    for (int n = 0; n < counts; ++n) {
+        //string type
+        key = "kkey_"+itoa(n);
+        for (int m = 0; m < keysNum; ++m) {
+            client->set(key + "_" +itoa(m), val+itoa(m));
+            keys.push_back(key+ "_"+itoa(m));
+        }
+
+        //hash type
+        key = "hkey_"+itoa(n);
+        for (int m = 0; m < keysNum; ++m) {
+            client->hset(key, field+itoa(m), val+itoa(m));
+        }
+        keys.push_back(key);
+
+        //list type
+        key = "lkey_"+itoa(n);
+        for (int m = 0; m < keysNum; ++m) {
+            client->qpush_back(key, val+itoa(m), &ret);
+        }
+        keys.push_back(key);
+
+        //set type
+        key = "skey_"+itoa(n);
+        for (int m = 0; m < keysNum; ++m) {
+            client->sadd(key, val+itoa(m), &ret);
+        }
+        keys.push_back(key);
+
+        //zset type
+        key = "zkey_"+itoa(n);
+        for (int m = 0; m < keysNum; ++m) {
+            client->zset(key, field+itoa(m), score+m);
+        }
+        keys.push_back(key);
+    }
+}
+
+void RobustTest::checkDataOK(int times=10) {
+
+    for (int n = 0; n < counts; ++n) {
+        //string type
+        key = "kkey_"+itoa(n);
+        for (int m = 0; m < keysNum; ++m) {
+            client->get(key+ "_"+itoa(m), &getVal);
+            ASSERT_EQ(val+itoa(m), getVal)<<key+"_"+itoa(m);
+        }
+
+        //hash type
+        key = "hkey_"+itoa(n);
+        client->hsize(key, &ret);
+        ASSERT_EQ(keysNum, ret)<<"slave hsize error"<<endl;
+
+        for (int m = 0; m < keysNum; ++m) {
+            client->hget(key, field+itoa(m), &getVal);
+            ASSERT_EQ(val+itoa(m), getVal)<<key<<":"<<m;
+        }
+
+        //list type
+        key = "lkey_"+itoa(n);
+        client->qsize(key, &ret);
+        ASSERT_EQ(keysNum, ret)<<"slave qsize error"<<endl;
+
+        for (int m = 0; m < keysNum; ++m) {
+            client->qget(key, m, &getVal);
+            ASSERT_EQ(val+itoa(m), getVal)<<key<<":"<<m;
+        }
+
+        //set type
+        key = "skey_"+itoa(n);
+        client->scard(key, &ret);
+        ASSERT_EQ(keysNum, ret)<<"slave scard error"<<endl;
+
+        for (int m = 0; m < keysNum; ++m) {
+            client->sismember(key, val+itoa(m), &ret);
+            ASSERT_EQ(true, ret)<<key<<":"<<m;
+        }
+
+        //zset type
+        key = "zkey_"+itoa(n);
+        client->zsize(key, &ret);
+        ASSERT_EQ(keysNum, ret)<<"slave zsize error"<<endl;
+
+        for (int m = 0; m < keysNum; ++m) {
+            client->zget(key, field+itoa(m), &getScore);
+            ASSERT_EQ(m, getScore)<<key<<":"<<m;
+        }
+    }
+}
+
+TEST_F(RobustTest, Test_del_and_check){
+    keysNum = 100;
+    fillMasterData();
+    checkDataOK();
+    client->multi_del(keys);
 }
