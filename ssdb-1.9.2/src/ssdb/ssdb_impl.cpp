@@ -118,6 +118,8 @@ err:
 int SSDBImpl::flushdb(){
 //lock
 
+    Locking<RecordMutex<Mutex>> gl(&mutex_record_);
+
 
 #ifdef USE_LEVELDB
 

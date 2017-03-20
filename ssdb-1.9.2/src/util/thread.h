@@ -167,7 +167,23 @@ public:
 
 	const int64_t kEstimatePairSize = sizeof(std::string) + sizeof(RefMutex<T> *    ) + sizeof(std::pair<std::string, void *>);
 
+	void lock() {
+        g_mutex_.lock();
+
+        while (GetUsage() > 0) {
+            sched_yield();
+        }
+
+    }
+
+	void unlock() {
+        g_mutex_.unlock();
+    }
+
 	void Lock(const std::string &key) {
+        g_mutex_.lock();
+        g_mutex_.unlock();
+
 		mutex_.lock();
 		typename std::unordered_map<std::string, RefMutex<T> *>::const_iterator it = records_.find(key);
 
@@ -215,6 +231,7 @@ public:
 
 private:
 	T mutex_;
+    SpinMutexLock g_mutex_;
 
 	std::unordered_map<std::string, RefMutex<T> *> records_;
 	int64_t charge_;
