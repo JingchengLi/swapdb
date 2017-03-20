@@ -1027,16 +1027,17 @@ void objectCommand(client *c) {
         }
         addReplyLongLong(c,estimateObjectIdleTime(o)/1000);
     } else if (!strcasecmp(c->argv[1]->ptr,"freq") && c->argc == 3) {
-        dictEntry* de;
+        dictEntry *de, *ev_de;
         sds db_key;
         long long counter;
         unsigned int lfu;
         if (server.jdjr_mode) {
-            if ((de = dictFind(c->db->dict,c->argv[2]->ptr)) == NULL) {
+            if (((de = dictFind(c->db->dict,c->argv[2]->ptr)) == NULL) &&
+                        ((ev_de = dictFind(EVICTED_DATA_DB->dict, c->argv[2]->ptr)) == NULL)) {
                 addReply(c, shared.nullbulk);
                 return;
             }
-            db_key = dictGetKey(de);
+            db_key = de ? dictGetKey(de) : dictGetKey(ev_de);
             lfu = sdsgetlfu(db_key);
             counter = lfu & 255;
         } else {
