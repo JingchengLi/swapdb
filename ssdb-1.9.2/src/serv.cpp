@@ -135,8 +135,8 @@ DEF_PROC(sync150);
 
 DEF_PROC(ssdbscan);
 
-DEF_PROC(rr_dump);
-DEF_PROC(rr_restore);
+DEF_PROC(redis_req_dump);
+DEF_PROC(redis_req_restore);
 
 DEF_PROC(rr_check_write);
 DEF_PROC(rr_make_snapshot);
@@ -259,8 +259,8 @@ void SSDBServer::reg_procs(NetworkServer *net){
 	REG_PROC(cursor_cleanup, "rt");
 	REG_PROC(dump, "wt"); //auctual read but ...
 	REG_PROC(restore, "wt");
-	REG_PROC(rr_dump, "wt"); //auctual read but ...
-	REG_PROC(rr_restore, "wt");
+	REG_PROC(redis_req_dump, "wt"); //auctual read but ...
+	REG_PROC(redis_req_restore, "wt");
 
 	REG_PROC(select, "rt");
 	REG_PROC(client, "r");
@@ -485,7 +485,7 @@ int proc_cursor_cleanup(NetworkServer *net, Link *link, const Request &req, Resp
 }
 
 
-int proc_rr_restore(NetworkServer *net, Link *link, const Request &req, Response *resp){
+int proc_redis_req_restore(NetworkServer *net, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(4);
 
@@ -532,7 +532,7 @@ int proc_rr_restore(NetworkServer *net, Link *link, const Request &req, Response
 }
 
 
-int proc_rr_dump(NetworkServer *net, Link *link, const Request &req, Response *resp){
+int proc_redis_req_dump(NetworkServer *net, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(2);
 

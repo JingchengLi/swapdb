@@ -5,10 +5,14 @@
 #include <net/redis/transfer.h>
 #include "serv.h"
 
-int notifyFailedToRedis(RedisUpstream *redisUpstream, std::string responseCommand, std::string dataKey) ;
+int notifyFailedToRedis(RedisUpstream *redisUpstream, std::string responseCommand, std::string dataKey);
+int notifyNotFoundToRedis(RedisUpstream *redisUpstream, std::string dataKey);
 
 
 int bproc_COMMAND_DATA_SAVE(SSDBServer *serv, TransferWorker *worker, const std::string &data_key, void *value) {
+    const std::string cmd = "ssdb-resp-dump";
+    const std::string del_cmd = "ssdb-resp-del";
+
     RecordLock l(&serv->transfer_mutex_record_, data_key);
 
     DumpData *dumpData = (DumpData *) value;
@@ -18,7 +22,7 @@ int bproc_COMMAND_DATA_SAVE(SSDBServer *serv, TransferWorker *worker, const std:
     int ret = serv->ssdb->restore(dumpData->key, dumpData->expire, dumpData->data, dumpData->replace, &val);
     if (ret < 0) {
         //notify failed
-        return notifyFailedToRedis(worker->redisUpstream, "customized-dump", data_key);
+        return notifyFailedToRedis(worker->redisUpstream, cmd, data_key);
     }
 
     if (ret > 0 && pttl > 0) {
@@ -28,12 +32,12 @@ int bproc_COMMAND_DATA_SAVE(SSDBServer *serv, TransferWorker *worker, const std:
     if (ret < 0) {
         //notify failed
         serv->ssdb->del(dumpData->key);
-        return notifyFailedToRedis(worker->redisUpstream, "customized-dump", data_key);
+        return notifyFailedToRedis(worker->redisUpstream, cmd, data_key);
     }
 
     if (!dumpData->noreply) {
 
-        std::vector<std::string> req = {"customized-del", data_key};
+        std::vector<std::string> req = {del_cmd, data_key};
         log_debug("[request->redis] : %s %s", req[0].c_str(), req[1].c_str());
 
         RedisResponse *t_res = worker->redisUpstream->sendCommand(req);
@@ -55,6 +59,8 @@ int bproc_COMMAND_DATA_SAVE(SSDBServer *serv, TransferWorker *worker, const std:
 }
 
 int bproc_COMMAND_DATA_DUMP(SSDBServer *serv, TransferWorker *worker, const std::string &data_key, void *value) {
+    const std::string cmd = "ssdb-resp-restore";
+
     RecordLock l(&serv->transfer_mutex_record_, data_key);
 
     std::string val;
@@ -62,11 +68,11 @@ int bproc_COMMAND_DATA_DUMP(SSDBServer *serv, TransferWorker *worker, const std:
 
     if (ret < 0) {
         //notify failed
-        return notifyFailedToRedis(worker->redisUpstream, "customized-restore", data_key);
+        return notifyFailedToRedis(worker->redisUpstream, cmd, data_key);
 
     } else if (ret == 0) {
         //notify key not found
-        notifyFailedToRedis(worker->redisUpstream, "not-found", data_key);
+        notifyNotFoundToRedis(worker->redisUpstream, data_key);
         return 0;
 
     } else {
@@ -77,7 +83,7 @@ int bproc_COMMAND_DATA_DUMP(SSDBServer *serv, TransferWorker *worker, const std:
         }
 
 
-        std::vector<std::string> req = {"customized-restore", data_key, str(pttl), val, "replace"};
+        std::vector<std::string> req = {cmd, data_key, str(pttl), val, "replace"};
         log_debug("[request->redis] : %s %s", req[0].c_str(), req[1].c_str());
 
         RedisResponse *t_res = worker->redisUpstream->sendCommand(req);
@@ -103,10 +109,10 @@ int bproc_COMMAND_DATA_DUMP(SSDBServer *serv, TransferWorker *worker, const std:
 
 
 
-
-
 int notifyFailedToRedis(RedisUpstream *redisUpstream, std::string responseCommand, std::string dataKey) {
-    std::vector<std::string> req = {"customized-fail", responseCommand, dataKey};
+    const std::string cmd = "ssdb-resp-fail";
+
+    std::vector<std::string> req = {cmd, responseCommand, dataKey};
     log_debug("[request->redis] : %s %s %s", req[0].c_str(), req[1].c_str(), req[2].c_str());
 
     RedisResponse *t_res = redisUpstream->sendCommand(req);
@@ -116,7 +122,27 @@ int notifyFailedToRedis(RedisUpstream *redisUpstream, std::string responseComman
         return -1;
     }
 
-    log_debug("[response<-redis] : %s %s  %s %s", req[0].c_str(), req[1].c_str(), req[2].c_str(), t_res->toString().c_str());
+    log_debug("[response<-redis] : %s %s  %s %s", req[0].c_str(), req[1].c_str(), req[2].c_str(),
+              t_res->toString().c_str());
+
+    delete t_res;
+    return -1;
+}
+
+int notifyNotFoundToRedis(RedisUpstream *redisUpstream, std::string dataKey) {
+    const std::string cmd = "ssdb-resp-notfound";
+
+    std::vector<std::string> req = {cmd, dataKey};
+    log_debug("[request->redis] : %s %s", req[0].c_str(), req[1].c_str());
+
+    RedisResponse *t_res = redisUpstream->sendCommand(req);
+    if (t_res == nullptr) {
+        log_error("[%s %s] redis response is null", req[0].c_str(), req[1].c_str());
+        //redis res failed
+        return -1;
+    }
+
+    log_debug("[response<-redis] : %s %s %s", req[0].c_str(), req[1].c_str(), t_res->toString().c_str());
 
     delete t_res;
     return -1;

@@ -58,8 +58,8 @@ static RedisCommand_raw cmds_raw[] = {
 	{STRATEGY_AUTO, "restore",	"restore",  	REPLY_OK_STATUS},
 
 
-	{STRATEGY_AUTO, "rr_dump",		"rr_dump",			REPLY_OK_STATUS},
-	{STRATEGY_AUTO, "rr_restore",	"rr_restore",  	REPLY_OK_STATUS},
+	{STRATEGY_AUTO, "redis_req_dump",		"redis_req_dump",		REPLY_OK_STATUS},
+	{STRATEGY_AUTO, "redis_req_restore",	"redis_req_restore",  	REPLY_OK_STATUS},
 
     {STRATEGY_AUTO, "rr_check_write",	    "rr_check_write",  	    REPLY_BULK},
     {STRATEGY_AUTO, "rr_make_snapshot",	    "rr_make_snapshot",  	REPLY_BULK},
