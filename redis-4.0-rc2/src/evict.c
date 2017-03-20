@@ -479,12 +479,15 @@ int epilogOfEvictingToSSDB(robj *keyobj) {
     mstime_t eviction_latency;
     robj *setcmd, *usage_obj;
     sds cmdname;
-    dictEntry *de;
+    dictEntry *de, *ev_de;
     long long now = mstime(), expiretime;
     /* TODO: clean up getTransferringDB. */
     int dbid = 0;
     int slaves = listLength(server.slaves);
     long long usage;
+    sds db_key, evdb_key;
+    long long counter;
+    unsigned int lfu;
 
     if (dbid != 0) {
         serverLog(LL_WARNING, "The key: %s should be found.", (char *)keyobj->ptr);
@@ -501,17 +504,24 @@ int epilogOfEvictingToSSDB(robj *keyobj) {
         return C_OK;
     }
 
-    /* Record the evicted keys in an extra redis db. */
-
     de = dictFind(db->dict, keyobj->ptr);
 
     /* The key may be deleted before the callback ssdb-resp-del. */
     if (!de) return C_ERR;
 
+    /* Record the evicted keys in an extra redis db. */
     usage = (long long)estimateKeyMemoryUsage(de);
-    //todo: fix, lfu counter has been removed
     usage_obj = createStringObjectFromLongLong(usage);
     setKey(evicteddb, keyobj, usage_obj);
+
+    /* save lfu info when transfer. */
+    db_key = dictGetKey(de);
+    lfu = sdsgetlfu(db_key);
+
+    ev_de = dictFind(evicteddb->dict, db_key);
+    evdb_key = dictGetKey(ev_de);
+    sdssetlfu(evdb_key, lfu);
+
     server.dirty ++;
 
     notifyKeyspaceEvent(NOTIFY_STRING,"set",keyobj,evicteddb->id);
