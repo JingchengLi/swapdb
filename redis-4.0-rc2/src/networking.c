@@ -1087,7 +1087,7 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
         keys = getKeysFromCommand(c->cmd, c->argv, c->argc, &numkeys);
         for (j = 0; j < numkeys; j ++) {
             dictEntry *entry;
-            entry = dictFind(EVICTED_DATA_DB->dict, c->argv[keys[j]]->ptr);
+            entry = dictFind(EVICTED_DATA_DB->visiting_ssdb_keys, c->argv[keys[j]]->ptr);
             uint64_t clients_visiting_num = dictGetUnsignedIntegerVal(entry);
             serverAssert(entry && (clients_visiting_num >= 1));
             if (1 == clients_visiting_num) {
