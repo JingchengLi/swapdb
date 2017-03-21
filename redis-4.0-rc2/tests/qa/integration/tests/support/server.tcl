@@ -240,7 +240,7 @@ proc start_server {options {code undefined}} {
         set pid [exec /usr/bin/env MallocStackLogging=1 MallocLogFile=/tmp/malloc_log.txt ../../../src/redis-server $config_file > $stdout 2> $stderr &]
     } else {
         puts "start redis port: $::port"
-        set pid [exec ../../../src/redis-server $config_file > $stdout 2> $stderr &]
+        set pid [exec ../../../build/redis-server $config_file > $stdout 2> $stderr &]
     }
 
     # Tell the test server about this new instance.

@@ -1,5 +1,37 @@
 start_server {tags {"type"}
 overrides {maxmemory 0}} {
+    test "Exceed MAX/MIN score in ssdb return err" {
+        ssdbr del zscoretest
+        ssdbr zadd zscoretest 1e13 x
+        assert_equal [expr 10**13] [ssdbr zscore zscoretest x]
+        ssdbr zadd zscoretest -1e13 y
+        assert_equal [expr -1*10**13] [ssdbr zscore zscoretest y]
+    }
+
+    test "zadd +/-inf key in ssdb" {
+        ssdbr del ztmp
+        ssdbr zadd ztmp inf x
+        assert_equal inf [ssdbr zscore ztmp x]
+        ssdbr zadd ztmp -inf y
+        assert_equal -inf [ssdbr zscore ztmp y]
+    }
+
+    test "zadd incr +/-inf key in ssdb" {
+        ssdbr del ztmp
+        ssdbr zadd ztmp incr inf x
+        assert_equal inf [ssdbr zscore ztmp x]
+        ssdbr zadd ztmp incr -inf y
+        assert_equal -inf [ssdbr zscore ztmp y]
+    }
+
+    test "zincrby +/-inf key in ssdb" {
+        ssdbr del ztmp
+        ssdbr zincrby ztmp inf x
+        assert_equal inf [ssdbr zscore ztmp x]
+        ssdbr zincrby ztmp -inf y
+        assert_equal -inf [ssdbr zscore ztmp y]
+    }
+
     set elements 500
     test "Big score int range +/- 2.8e12" {
     #   127.0.0.1:41212>  zadd zk 3021985275215 q

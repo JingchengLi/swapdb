@@ -25,8 +25,15 @@ set ::all_tests {
     unit/type/list
     unit/type/set
     unit/type/zset
-    unit/type/list-3
+    unit/type/zset-2
     unit/type/list-2
+    unit/type/list-3
+
+    integration/replication-base
+    integration/replication-2
+    integration/replication-3
+    integration/replication-4
+    integration/replication-psync
 }
 # next time support
     # unit/scan

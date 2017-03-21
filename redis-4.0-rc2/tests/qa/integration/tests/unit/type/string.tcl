@@ -1,5 +1,21 @@
 start_server {tags {"type"}
 overrides {maxmemory 0}} {
+    # ssdb behavior
+    test {SET can not overrides other types} {
+        ssdbr zadd x 10 a
+        assert_error "WRONGTYPE*" {ssdbr set x foobar}
+        ssdbr del x
+        ssdbr hset x f v
+        assert_error "WRONGTYPE*" {ssdbr set x foobar}
+        ssdbr del x
+        ssdbr lpush x a
+        assert_error "WRONGTYPE*" {ssdbr set x foobar}
+        ssdbr del x
+        ssdbr sadd x a
+        assert_error "WRONGTYPE*" {ssdbr set x foobar}
+        ssdbr del x
+    }
+
     test {SET and GET an item} {
         ssdbr set x foobar
         ssdbr get x
