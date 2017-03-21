@@ -133,7 +133,8 @@ DEF_PROC(quit);
 DEF_PROC(replic);
 DEF_PROC(sync150);
 
-DEF_PROC(ssdbscan);
+DEF_PROC(ssdb_scan);
+DEF_PROC(ssdb_dbsize);
 
 DEF_PROC(redis_req_dump);
 DEF_PROC(redis_req_restore);
@@ -280,7 +281,8 @@ void SSDBServer::reg_procs(NetworkServer *net){
 	REG_PROC(compact, "rt");
 	REG_PROC(debug, "wt");
 
-	REG_PROC(ssdbscan, "wt");
+	REG_PROC(ssdb_scan, "wt");
+	REG_PROC(ssdb_dbsize, "wt");
 
     REG_PROC(rr_check_write, "wt");
     REG_PROC(rr_make_snapshot, "w");

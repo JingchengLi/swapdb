@@ -548,7 +548,20 @@ int proc_scan(NetworkServer *net, Link *link, const Request &req, Response *resp
 	return 0;
 }
 
-int proc_ssdbscan(NetworkServer *net, Link *link, const Request &req, Response *resp){
+int proc_ssdb_dbsize(NetworkServer *net, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *)net->data;
+
+	uint64_t count = 0;
+	auto ssdb_it = std::unique_ptr<Iterator>(serv->ssdb->iterator("", "", -1));
+	while(ssdb_it->next()){
+		count ++;
+	}
+
+    resp->reply_int(0, count);
+	return 0;
+}
+
+int proc_ssdb_scan(NetworkServer *net, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(2);
 
@@ -556,7 +569,7 @@ int proc_ssdbscan(NetworkServer *net, Link *link, const Request &req, Response *
 
 	std::string pattern = "*";
 	bool need_value = false;
-	std::vector<Bytes>::const_iterator it = req.begin() + 1;
+	std::vector<Bytes>::const_iterator it = req.begin() + 2;
 	for(; it != req.end(); it += 2){
 		std::string key = (*it).String();
 		strtolower(&key);
