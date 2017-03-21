@@ -199,6 +199,7 @@ void ReplicTest::replic(const string &slave_ip, int slave_port) {
     s = replicClient->client()->replic(slave_ip, slave_port);
 
     std::string result = replicClient->client()->response();
+    replicClient->client()->del_snapshot();
     ASSERT_EQ("ok", result);
     delete replicClient;
 }

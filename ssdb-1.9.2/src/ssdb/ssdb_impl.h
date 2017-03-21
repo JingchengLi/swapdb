@@ -276,13 +276,15 @@ private:
 	CondVar bg_cv_;
     RecordMutex<Mutex> mutex_record_;
 
-	void start();
-	void stop();
-    void load_delete_keys_from_db(int num);
+	void load_delete_keys_from_db(int num);
     void delete_key_loop(const std::string& del_key);
     int  delete_meta_key(const DeleteKey& dk, leveldb::WriteBatch& batch);
 	void runBGTask();
 	static void* thread_func(void *arg);
+
+public:
+    void start();
+    void stop();
 };
 
 uint64_t getSeqByIndex(int64_t index, const ListMetaVal &meta_val);

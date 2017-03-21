@@ -230,6 +230,13 @@ Status ClientImpl::flushdb() {
 	return s;
 }
 
+Status ClientImpl::del_snapshot() {
+    const std::vector<std::string> *resp;
+    resp = this->request("rr_del_snapshot");
+    Status s(resp);
+    return s;
+}
+
 Status ClientImpl::dbsize(int64_t *ret){
 	const std::vector<std::string> *resp;
 	resp = this->request("dbsize");

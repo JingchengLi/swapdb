@@ -641,6 +641,7 @@ int NetworkServer::proc(ProcJob *job){
 				delete serv->ssdb->expiration;
 				serv->ssdb->expiration = NULL;
 			}
+			serv->ssdb->stop();
 
 			Command *cmd = proc_map.get_proc("flushdb");
 			if(!cmd){

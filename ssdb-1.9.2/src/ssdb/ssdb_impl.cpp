@@ -329,6 +329,7 @@ void SSDBImpl::compact(){
 
 
 void SSDBImpl::start() {
+    this->bgtask_flag_ = true;
 	int err = pthread_create(&bg_tid_, NULL, &thread_func, this);
 	if(err != 0){
 		log_fatal("can't create thread: %s", strerror(err));
@@ -337,7 +338,11 @@ void SSDBImpl::start() {
 }
 
 void SSDBImpl::stop() {
-	this->bgtask_flag_ = false;
+    mutex_bgtask_.lock();
+    this->bgtask_flag_ = false;
+    std::queue<std::string> tmp_tasks_;
+    tasks_.swap(tmp_tasks_);
+    mutex_bgtask_.unlock();
 }
 
 void SSDBImpl::load_delete_keys_from_db(int num) {

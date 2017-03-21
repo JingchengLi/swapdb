@@ -40,6 +40,7 @@ public:
 	virtual Status replic(const std::string &ip, int port);
 	virtual Status replic(const std::vector<std::string> &items);
 	virtual Status flushdb();
+	virtual Status del_snapshot();
 
 	virtual Status get(const std::string &key, std::string *val=NULL);
 	virtual Status set(const std::string &key, const std::string &val);

@@ -953,6 +953,7 @@ int proc_sync150(NetworkServer *net, Link *link, const Request &req, Response *r
 			delete serv->ssdb->expiration;
 		}
 		serv->ssdb->expiration = new ExpirationHandler(serv->ssdb);
+        serv->ssdb->start();
 	}
 
 	return ret;

@@ -49,7 +49,7 @@ SET( UTIL_OBJS
     ${BUILD_PATH}/src/util/bytes.cpp
     #${BUILD_PATH}/src/util/sorted_set.cpp
     ${BUILD_PATH}/src/util/app.cpp
-    ${BUILD_PATH}/src/util/thread.cpp
+#    ${BUILD_PATH}/src/util/thread.cpp
 )
 
 ADD_LIBRARY(libutil-static STATIC ${UTIL_OBJS})
