@@ -1,5 +1,12 @@
 start_server {tags {"ssdb"}
 overrides {maxmemory 0}} {
+    test "#crash issue Reply from SSDB:ERR value*integer*out of range" {
+        r set foo bar
+        dumpto_ssdb_and_wait r foo
+        assert_error "*out of range*" {r incr foo}
+        assert_error "*out of range*" {r incr foo}
+    }
+
     test "new key's lfu is 5" {
         r set foo bar
         assert_equal 5 [r object freq foo] "[r object freq foo] not equal 5"
