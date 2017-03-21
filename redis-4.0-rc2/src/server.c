@@ -2568,7 +2568,7 @@ int processCommandMaybeInSSDB(client *c) {
                 for (j = 0; j < numkeys; j ++) {
                     dictEntry *entry, *existing;
                     entry = dictAddRaw(EVICTED_DATA_DB->visiting_ssdb_keys, c->argv[keys[j]]->ptr, &existing);
-                    if (existing == entry) {
+                    if (NULL == entry) {
                         /* there are already some clients visiting this key. just increase client visiting count. */
                         uint64_t clients_visiting_num = dictGetUnsignedIntegerVal(existing);
                         clients_visiting_num++;
