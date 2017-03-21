@@ -1020,6 +1020,33 @@ static void revertClientBufReply(client *c, size_t revertlen) {
     }
 }
 
+void removeVisitingSSDBKey(client *c) {
+    int *keys = NULL, numkeys = 0, j;
+    serverAssert(c->cmd && c->argc && c->btype == BLOCKED_VISITING_SSDB);
+
+    keys = getKeysFromCommand(c->cmd, c->argv, c->argc, &numkeys);
+    for (j = 0; j < numkeys; j ++) {
+        dictEntry *entry;
+        entry = dictFind(EVICTED_DATA_DB->visiting_ssdb_keys, c->argv[keys[j]]->ptr);
+        uint64_t clients_visiting_num = dictGetUnsignedIntegerVal(entry);
+        serverAssert(entry && (clients_visiting_num >= 1));
+        if (1 == clients_visiting_num) {
+            /* only this client is visiting the specified key, remove the key
+             * from visiting keys. */
+            dictDelete(EVICTED_DATA_DB->visiting_ssdb_keys, c->argv[keys[j]]->ptr);
+            serverLog(LL_DEBUG, "key: %s is deleted from visiting_ssdb_keys, fd: %d.",
+                      (char *)c->argv[keys[j]]->ptr, c->fd);
+        } else {
+            /* there are other clients visiting the specified key, just reduce the visiting
+             * clients num by 1. */
+            clients_visiting_num--;
+            dictSetUnsignedIntegerVal(entry, clients_visiting_num);
+        }
+    }
+
+    if (keys) getKeysFreeResult(keys);
+}
+
 /* TODO: Implement ssdbClientUnixHandler. Only handle AE_READABLE. */
 void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
     UNUSED(el);
@@ -1081,31 +1108,6 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
 
     /* Unblock the current client. */
     if (c->btype == BLOCKED_VISITING_SSDB) {
-        int *keys = NULL, numkeys = 0, j;
-        serverAssert(c->cmd && c->argc);
-
-        keys = getKeysFromCommand(c->cmd, c->argv, c->argc, &numkeys);
-        for (j = 0; j < numkeys; j ++) {
-            dictEntry *entry;
-            entry = dictFind(EVICTED_DATA_DB->visiting_ssdb_keys, c->argv[keys[j]]->ptr);
-            uint64_t clients_visiting_num = dictGetUnsignedIntegerVal(entry);
-            serverAssert(entry && (clients_visiting_num >= 1));
-            if (1 == clients_visiting_num) {
-                /* only this client is visiting the specified key, remove the key
-                 * from visiting keys. */
-                dictDelete(EVICTED_DATA_DB->visiting_ssdb_keys, c->argv[keys[j]]->ptr);
-                serverLog(LL_DEBUG, "key: %s is deleted from visiting_ssdb_keys, fd: %d.",
-                      (char *)c->argv[keys[j]]->ptr, c->fd);
-            } else {
-                /* there are other clients visiting the specified key, just reduce the visiting
-                 * clients num by 1. */
-                clients_visiting_num--;
-                dictSetUnsignedIntegerVal(entry, clients_visiting_num);
-            }
-        }
-
-        if (keys) getKeysFreeResult(keys);
-
         unblockClient(c);
 
         // todo: review
@@ -1114,9 +1116,6 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
             propagate(c->cmd, c->db->id, c->argv, c->argc, PROPAGATE_AOF|PROPAGATE_REPL);
         }
 
-        // todo: fix
-        /* Due to the async operations, add the btype for handling timeout. */
-        c->btype = BLOCKED_VISITING_SSDB_TIMEOUT;
         resetClient(c);
     }
 

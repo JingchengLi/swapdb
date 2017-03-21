@@ -2582,10 +2582,7 @@ int processCommandMaybeInSSDB(client *c) {
                 }
 
                 if (keys) getKeysFreeResult(keys);
-                /* todo: use a ssdb timeouot config option, read/write timeout is 500ms default
-                 * at client side. but here we can use a greater timeout value because ssdb don't
-                 * block redis. */
-                c->bpop.timeout = 5000 + mstime();
+
                 blockClient(c, BLOCKED_VISITING_SSDB);
             }
 
