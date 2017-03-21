@@ -48,7 +48,7 @@ string encode_zset_key(const Bytes& key, const Bytes& member, uint16_t version){
     return encode_key_internal(DataType::ITEM, key, member, version);
 }
 
-string encode_zset_score_prefix(const Bytes& key, uint16_t version){
+string encode_zscore_prefix(const Bytes &key, uint16_t version){
     return encode_key_internal(DataType::ZSCORE, key, Bytes(""), version);
 }
 

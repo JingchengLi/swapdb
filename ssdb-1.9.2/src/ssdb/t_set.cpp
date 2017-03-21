@@ -478,10 +478,10 @@ int SSDBImpl::sunionstore(const Bytes &destination, const std::vector<Bytes> &ke
     leveldb::Status s = ldb->Get(leveldb::ReadOptions(), meta_key, &val);
     if(s.IsNotFound()){
         for (; it != members.end(); ++it) {
-            std::string hkey = encode_set_key(destination, *it);
+            std::string hkey = encode_set_key(destination, *it, 0);
             batch.Put(hkey, slice(""));
         }
-        std::string size_val = encode_set_meta_val((uint64_t)(*num));
+        std::string size_val = encode_set_meta_val((uint64_t)(*num), 0);
         batch.Put(meta_key, size_val);
     } else if(s.ok()){
         uint16_t version = *(uint16_t *)(val.c_str()+1);

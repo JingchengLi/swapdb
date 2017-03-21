@@ -886,7 +886,7 @@ static int incr_zsize(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const ZSetMeta
         }
     } else if (zv.length == 0) {
         if (incr > 0) {
-            std::string size_val = encode_zset_meta_val((uint64_t) incr);
+            std::string size_val = encode_zset_meta_val((uint64_t) incr, 0);
             batch.Put(size_key, size_val);
         } else {
             return -1;
@@ -1303,7 +1303,7 @@ int64_t SSDBImpl::zfix(const Bytes &name) {
 
         Bytes score = it->val();
         double d_score = *((double *) score.String().data());
-        std::string buf = encode_zscore_key(name, zk.field, d_score);
+        std::string buf = encode_zscore_key(name, zk.field, d_score, zv.version);
         std::string score2;
         s = ldb->Get(leveldb::ReadOptions(), buf, &score2);
         if (!s.ok() && !s.IsNotFound()) {
@@ -1370,7 +1370,7 @@ int SSDBImpl::zscan(const Bytes &name, const Bytes &cursor, const std::string &p
     std::string start;
     if(cursor == "0") {
 //        start = encode_zset_key(name, "", hv.version);
-        start = encode_zset_score_prefix(name, hv.version);
+        start = encode_zscore_prefix(name, hv.version);
     } else {
         redisCursorService.FindElementByRedisCursor(cursor.String(), start);
     }
