@@ -2750,10 +2750,6 @@ int processCommand(client *c) {
             flagTransaction(c);
             addReply(c, shared.oomerr);
 
-            /* Try to unblock the clients blocked by the loading_hot key. */
-            if (server.jdjr_mode && c->cmd->proc == ssdbRespRestoreCommand)
-                signalBlockingKeyAsReady(c->db, c->argv[1]);
-
             return C_OK;
         }
     }

@@ -1131,11 +1131,12 @@ int blockForLoadingkeys(client *c, robj **keys, int numkeys, mstime_t timeout) {
 
     for (j = 0; j < numkeys; j++) {
         if (((c->cmd->flags & CMD_WRITE)
-            && (dictFind(EVICTED_DATA_DB->transferring_keys, keys[j]->ptr)
-                || dictFind(EVICTED_DATA_DB->loading_hot_keys, keys[j]->ptr)))
+             && (dictFind(EVICTED_DATA_DB->transferring_keys, keys[j]->ptr)
+                 || dictFind(EVICTED_DATA_DB->loading_hot_keys, keys[j]->ptr)))
             /* Read a key of transferring state from redis. */
             || ((c->cmd->flags & CMD_READONLY)
                 && dictFind(EVICTED_DATA_DB->loading_hot_keys, keys[j]->ptr))) {
+
             if (dictAdd(c->bpop.loading_or_transfer_keys, keys[j], NULL) != DICT_OK) continue;
 
             serverLog(LL_DEBUG, "key: %s is added to loading_or_transfer_keys.", (char *)keys[j]->ptr);

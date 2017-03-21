@@ -4631,17 +4631,18 @@ void ssdbRespRestoreCommand(client *c) {
 
     restoreCommand(c);
 
+    if (server.load_from_ssdb) {
+        /* Restart redis will lose data in loading_hot_keys. */
+        if (dictDelete(EVICTED_DATA_DB->loading_hot_keys,
+                       key->ptr) == DICT_OK)
+            serverLog(LL_DEBUG, "key: %s is deleted from loading_hot_keys.", (char *)key->ptr);
+        else
+            serverLog(LL_WARNING, "key: %s failed to be deleted from loading_hot_keys.",
+                      (char *)key->ptr);
+    }
+
     /* Delete key from EVICTED_DATA_DB if restoreCommand is OK. */
     if (server.dirty == old_dirty + 1) {
-        if (server.load_from_ssdb) {
-            /* Restart redis will lose data in loading_hot_keys. */
-            if (dictDelete(EVICTED_DATA_DB->loading_hot_keys,
-                           key->ptr) == DICT_OK)
-                serverLog(LL_DEBUG, "key: %s is deleted from loading_hot_keys.", (char *)key->ptr);
-            else
-                serverLog(LL_WARNING, "key: %s failed to be deleted from loading_hot_keys.",
-                          (char *)key->ptr);
-        }
 
         if (getExpire(EVICTED_DATA_DB, key) != -1)
             dictDelete(EVICTED_DATA_DB->expires, key->ptr);
@@ -4654,12 +4655,13 @@ void ssdbRespRestoreCommand(client *c) {
         else
             dbSyncDelete(EVICTED_DATA_DB, key);
 
-        /* Queue the ready key to ssdb_ready_keys. */
-        signalBlockingKeyAsReady(c->db, key);
         serverLog(LL_DEBUG, "ssdbRespRestoreCommand succeed.");
     } else
         serverLog(LL_WARNING, "ssdbRespRestoreCommand failed.");
 
+    /* Queue the ready key to ssdb_ready_keys. and unblock the
+     * clients blocked by the loading_hot key. */
+    signalBlockingKeyAsReady(c->db, key);
 }
 
 void ssdbRespNotfoundCommand(client *c) {
