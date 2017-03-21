@@ -144,25 +144,14 @@ int SSDBImpl::zsetNoLock(const Bytes &name, const std::map<Bytes ,Bytes> &sorted
     ZSetMetaVal zv;
     std::string meta_key = encode_meta_key(name);
     int ret = GetZSetMetaVal(meta_key, zv);
-    uint16_t cur_version = 0;
     bool needCheck = false;
 
     if (ret < 0) {
         return ret;
     } else if (ret == 0) {
         needCheck = false;
-        if (zv.del == KEY_DELETE_MASK) {
-            if (zv.version == UINT16_MAX){
-                cur_version = 0;
-            } else{
-                cur_version = (uint16_t) (zv.version + 1);
-            }
-        } else {
-            cur_version = 0;
-        }
     } else {
         needCheck = true;
-        cur_version = zv.version;
     }
 
     double newscore;
@@ -181,7 +170,7 @@ int SSDBImpl::zsetNoLock(const Bytes &name, const std::map<Bytes ,Bytes> &sorted
         }
         int retflags = flags;
 
-        int retval = zsetAdd(this, batch ,needCheck, name, key, score, cur_version, &retflags, &newscore);
+        int retval = zsetAdd(this, batch ,needCheck, name, key, score, zv.version, &retflags, &newscore);
         if (retval < 0) {
             return retval;
         }
@@ -256,9 +245,9 @@ int64_t SSDBImpl::zcount(const Bytes &name, const Bytes &score_start, const Byte
     {
         RecordLock<Mutex> l(&mutex_record_, name.String());
         std::string meta_key = encode_meta_key(name);
-        int res = GetZSetMetaVal(meta_key, zv);
-        if (res <= 0) {
-            return res;
+        int ret = GetZSetMetaVal(meta_key, zv);
+        if (ret <= 0) {
+            return ret;
         }
 
         snapshot = ldb->GetSnapshot();
@@ -278,7 +267,6 @@ int SSDBImpl::zincr(const Bytes &name, const Bytes &key, double by, int &flags, 
     RecordLock<Mutex> l(&mutex_record_, name.String());
     leveldb::WriteBatch batch;
     ZSetMetaVal zv;
-    uint16_t cur_version = 0;
     bool needCheck = false;
 
     std::string meta_key = encode_meta_key(name);
@@ -287,21 +275,11 @@ int SSDBImpl::zincr(const Bytes &name, const Bytes &key, double by, int &flags, 
         return ret;
     } else if (ret == 0) {
         needCheck = false;
-        if (zv.del == KEY_DELETE_MASK) {
-            if (zv.version == UINT16_MAX){
-                cur_version = 0;
-            } else{
-                cur_version = (uint16_t) (zv.version + 1);
-            }
-        } else {
-            cur_version = 0;
-        }
     } else {
         needCheck = true;
-        cur_version = zv.version;
     }
 
-    int retval = zsetAdd(this, batch ,needCheck, name, key, by, cur_version, &flags, new_val);
+    int retval = zsetAdd(this, batch ,needCheck, name, key, by, zv.version, &flags, new_val);
     if (retval < 0) {
         return retval;
     }
@@ -337,14 +315,27 @@ int SSDBImpl::GetZSetMetaVal(const std::string &meta_key, ZSetMetaVal &zv) {
     leveldb::Status s = ldb->Get(leveldb::ReadOptions(), meta_key, &meta_val);
     if (s.IsNotFound()) {
         zv.length = 0;
+        zv.del = KEY_ENABLED_MASK;
+        zv.type = DataType::ZSIZE;
+        zv.version = 0;
         return 0;
     } else if (!s.ok() && !s.IsNotFound()) {
+        //error
         return STORAGE_ERR;
     } else {
         int ret = zv.DecodeMetaVal(meta_val);
         if (ret < 0) {
+            //error
             return ret;
         } else if (zv.del == KEY_DELETE_MASK) {
+            //deleted , reset zv
+            if (zv.version == UINT16_MAX){
+                zv.version = 0;
+            } else{
+                zv.version = (uint16_t)(zv.version+1);
+            }
+            zv.length = 0;
+            zv.del = KEY_ENABLED_MASK;
             return 0;
         } else if (zv.type != DataType::ZSIZE){
             return WRONG_TYPE_ERR;
@@ -456,9 +447,9 @@ int64_t SSDBImpl::zrank(const Bytes &name, const Bytes &key) {
     {
         RecordLock<Mutex> l(&mutex_record_, name.String());
         std::string meta_key = encode_meta_key(name);
-        int res = GetZSetMetaVal(meta_key, zv);
-        if (res != 1) {
-            return -1;
+        int ret = GetZSetMetaVal(meta_key, zv);
+        if (ret != 1) {
+            return ret;
         }
 
         snapshot = ldb->GetSnapshot();
@@ -490,9 +481,9 @@ int64_t SSDBImpl::zrrank(const Bytes &name, const Bytes &key) {
         RecordLock<Mutex> l(&mutex_record_, name.String());
 
         std::string meta_key = encode_meta_key(name);
-        int res = GetZSetMetaVal(meta_key, zv);
-        if (res != 1) {
-            return -1;
+        int ret = GetZSetMetaVal(meta_key, zv);
+        if (ret != 1) {
+            return ret;
         }
 
         snapshot = ldb->GetSnapshot();
@@ -871,22 +862,9 @@ static int zdel_one(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &nam
 
 static int incr_zsize(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const ZSetMetaVal &zv, const Bytes &name, int64_t incr) {
     std::string size_key = encode_meta_key(name);
-    if (zv.del == KEY_DELETE_MASK) {
+    if (zv.length == 0) {
         if (incr > 0) {
-            uint16_t version;
-            if (zv.version == UINT16_MAX){
-                version = 0;
-            } else{
-                version = (uint16_t) (zv.version + 1);
-            }
-            std::string size_val = encode_zset_meta_val((uint64_t) incr, version);
-            batch.Put(size_key, size_val);
-        } else {
-            return -1;
-        }
-    } else if (zv.length == 0) {
-        if (incr > 0) {
-            std::string size_val = encode_zset_meta_val((uint64_t) incr, 0);
+            std::string size_val = encode_zset_meta_val((uint64_t) incr, zv.version);
             batch.Put(size_key, size_val);
         } else {
             return -1;
