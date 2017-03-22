@@ -524,11 +524,14 @@ int epilogOfEvictingToSSDB(robj *keyobj) {
 
     notifyKeyspaceEvent(NOTIFY_STRING,"set",keyobj,evicteddb->id);
 
+    // todo: propagate aof
     /* Append set operation to aof. */
+    /*
     cmdname = sdsnew("set");
     setcmd = createObject(OBJ_STRING, (void *)cmdname);
 
     decrRefCount(setcmd);
+     */
 
     /* remove expire info from evictdb keys when transfer key to ssdb
      * for an issue caused by hdel like commands which may implicitly

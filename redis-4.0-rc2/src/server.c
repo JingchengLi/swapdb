@@ -2436,11 +2436,11 @@ void call(client *c, int flags) {
          * propagation is needed. */
         if (propagate_flags != PROPAGATE_NONE) {
             propagate(c->cmd,c->db->id,c->argv,c->argc,propagate_flags);
-
-            if (server.jdjr_mode && c->cmd->proc == ssdbRespRestoreCommand) {
-                robj *argv[2] = {shared.slavedelcmdobj, c->argv[1]};
-                propagate(lookupCommand(shared.slavedelcmdobj->ptr), 0, argv, 2, PROPAGATE_REPL);
-            }
+            // todo: review
+            //if (server.jdjr_mode && c->cmd->proc == ssdbRespRestoreCommand) {
+            //    robj *argv[2] = {shared.slavedelcmdobj, c->argv[1]};
+            //    propagate(lookupCommand(shared.slavedelcmdobj->ptr), 0, argv, 2, PROPAGATE_REPL);
+            //}
         }
     }
 

@@ -4633,6 +4633,8 @@ void ssdbRespDelCommand(client *c) {
         return;
     }
 
+    preventCommandPropagation(c);
+
     for (j = 1; j < c->argc; j ++) {
         keyobj = c->argv[j];
 
@@ -4655,6 +4657,8 @@ void ssdbRespRestoreCommand(client *c) {
     long long old_dirty = server.dirty;
 
     serverAssert(c->db->id == 0);
+
+    preventCommandPropagation(c);
 
     restoreCommand(c);
 
@@ -4690,6 +4694,8 @@ void ssdbRespRestoreCommand(client *c) {
         else
             dbSyncDelete(EVICTED_DATA_DB, key);
 
+        // todo: propagate aof
+
         // todo: progate dumpfromssdb to slaves
 
         serverLog(LL_DEBUG, "ssdbRespRestoreCommand succeed.");
@@ -4712,9 +4718,10 @@ void ssdbRespNotfoundCommand(client *c) {
 
     /* TODO: make sds vars shared. */
     sds fail_restore = sdsnew("ssdb-resp-restore");
-    sds fail_dump = sdsnew("ssdb-resp-dump");
 
     serverAssert(c->db->id == 0);
+
+    preventCommandPropagation(c);
 
     if (!sdscmp(cmd->ptr, fail_restore)) {
          if (dictDelete(EVICTED_DATA_DB->loading_hot_keys, keyobj->ptr) == DICT_OK)
@@ -4723,6 +4730,10 @@ void ssdbRespNotfoundCommand(client *c) {
             serverLog(LL_DEBUG, "key: %s is deleted from EVICTED_DATA_DB->db.", (char *)keyobj->ptr);
         if (getExpire(EVICTED_DATA_DB, keyobj) != -1)
             dictDelete(EVICTED_DATA_DB->expires, keyobj->ptr);
+
+        // todo: propagate aof to delete key in evict db
+
+        // todo: propagate to delete key in slave db
 
         server.evicting_keys_num --;
     } else {
@@ -4735,7 +4746,6 @@ void ssdbRespNotfoundCommand(client *c) {
     addReply(c, shared.ok);
 
     sdsfree(fail_restore);
-    sdsfree(fail_dump);
 }
 
 void ssdbRespFailCommand(client *c) {
@@ -4759,7 +4769,6 @@ void ssdbRespFailCommand(client *c) {
     }
 
     signalBlockingKeyAsReady(c->db, keyobj);
-    server.dirty ++;
 
     addReply(c, shared.ok);
 
@@ -4816,6 +4825,7 @@ void locatekeyCommand(client *c) {
     decrRefCount(replyObj);
 }
 
+// todo: remove unused codes
 void slaveDelCommand(client *c) {
     sds finalcmd;
     if (server.jdjr_mode) {
