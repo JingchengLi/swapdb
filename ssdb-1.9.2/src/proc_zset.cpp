@@ -5,58 +5,7 @@ found in the LICENSE file.
 */
 /* zset */
 #include "serv.h"
-#include "net/proc.h"
-#include "net/server.h"
 
-int proc_zexists(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
-	CHECK_NUM_PARAMS(3);
-
-	const Bytes &name = req[1];
-	const Bytes &key = req[2];
-	double val = 0;
-	int ret = serv->ssdb->zget(name, key, &val);
-	resp->reply_bool(ret);
-	return 0;
-}
-
-int proc_multi_zexists(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
-	CHECK_NUM_PARAMS(3);
-
-	resp->push_back("ok");
-	const Bytes &name = req[1];
-	double val = 0;
-	for(Request::const_iterator it=req.begin()+2; it!=req.end(); it++){
-		const Bytes &key = *it;
-		int ret = serv->ssdb->zget(name, key, &val);
-		resp->push_back(key.String());
-		if(ret > 0){
-			resp->push_back("1");
-		}else{
-			resp->push_back("0");
-		}
-	}
-	return 0;
-}
-
-int proc_multi_zsize(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
-	CHECK_NUM_PARAMS(2);
-
-	resp->push_back("ok");
-	for(Request::const_iterator it=req.begin()+1; it!=req.end(); it++){
-		const Bytes &key = *it;
-		int64_t ret = serv->ssdb->zsize(key);
-		resp->push_back(key.String());
-		if(ret == -1){
-			resp->push_back("-1");
-		}else{
-			resp->add(ret);
-		}
-	}
-	return 0;
-}
 
 int proc_multi_zset(NetworkServer *net, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *)net->data;
@@ -219,25 +168,6 @@ int proc_multi_zdel(NetworkServer *net, Link *link, const Request &req, Response
 	return 0;
 }
 
-int proc_multi_zget(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
-	CHECK_NUM_PARAMS(3);
-
-	resp->push_back("ok");
-	Request::const_iterator it=req.begin() + 1;
-	const Bytes name = *it;
-	it ++;
-	for(; it!=req.end(); it+=1){
-		const Bytes &key = *it;
-		double score = 0;
-		int ret = serv->ssdb->zget(name, key, &score);
-		if(ret == 1){
-			resp->push_back(key.String());
-			resp->push_back(str(score));
-		}
-	}
-	return 0;
-}
 
 int proc_zsize(NetworkServer *net, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *)net->data;
@@ -259,9 +189,11 @@ int proc_zget(NetworkServer *net, Link *link, const Request &req, Response *resp
 
 	double score = 0;
 	int ret = serv->ssdb->zget(req[1], req[2], &score);
-	if(ret == 0){
-		resp->add("not_found");
-	}else{
+    if (ret < 0) {
+        resp->push_back("error");
+        resp->push_back(GetErrorInfo((int)ret));
+        return 0;
+    } else{
 		resp->reply_double(ret, score);
 	}
 	return 0;
@@ -272,9 +204,11 @@ int proc_zrank(NetworkServer *net, Link *link, const Request &req, Response *res
 	CHECK_NUM_PARAMS(3);
 
 	int64_t ret = serv->ssdb->zrank(req[1], req[2]);
-	if(ret == -1){
-		resp->add("not_found");
-	}else{
+    if (ret < 0) {
+        resp->push_back("error");
+        resp->push_back(GetErrorInfo((int)ret));
+        return 0;
+    } else{
 		resp->reply_int(ret, ret);
 	}
 	return 0;
@@ -285,9 +219,11 @@ int proc_zrrank(NetworkServer *net, Link *link, const Request &req, Response *re
 	CHECK_NUM_PARAMS(3);
 
 	int64_t ret = serv->ssdb->zrrank(req[1], req[2]);
-	if(ret == -1){
-		resp->add("not_found");
-	}else{
+    if (ret < 0) {
+        resp->push_back("error");
+        resp->push_back(GetErrorInfo((int)ret));
+        return 0;
+    } else{
 		resp->reply_int(ret, ret);
 	}
 	return 0;
