@@ -1449,32 +1449,4 @@ unsigned int countKeysInSlot(unsigned int hashslot) {
     return count;
 }
 
-void ssdbRespDelCommand(client *c) {
-    robj *keyobj;
-    int numdel = 0, j;
 
-    if (!server.jdjr_mode) {
-        addReplyErrorFormat(c,"Command only supported in jdjr-mode '%s'",
-                            (char *)c->argv[0]->ptr);
-        return;
-    }
-
-    for (j = 1; j < c->argc; j ++) {
-        keyobj = c->argv[j];
-
-        serverAssert(getExpire(EVICTED_DATA_DB, keyobj) == -1);
-
-        if (epilogOfEvictingToSSDB(keyobj) == C_OK) {
-            serverLog(LL_DEBUG, "ssdbRespDelCommand fd:%d key: %s dictDelete ok.",
-                      c->fd, (char *)keyobj->ptr);
-            numdel ++;
-
-            robj *argv[2] = {shared.storecmdobj, keyobj};
-            propagate(lookupCommand(keyobj->ptr), 0, argv, 2, PROPAGATE_REPL);
-            serverLog(LL_DEBUG, "propagate cmd: %s to slave", (char *)keyobj->ptr);
-        } else
-            serverLog(LL_WARNING, "ssdbRespDelCommand fd:%d key: %s dictDelete nok.",
-                      c->fd, (char *)keyobj->ptr);
-    }
-    addReplyLongLong(c, numdel);
-}

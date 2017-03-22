@@ -618,7 +618,6 @@ int prologOfLoadingFromSSDB(robj *keyobj) {
         serverLog(LL_WARNING, "sendCommandToSSDB: server.ssdb_client failed.");
         return C_ERR;
     }
-    // todo: progate restorefromssdb to slaves
 
     serverLog(LL_DEBUG, "Loading key: %s from SSDB started.", (char *)(keyobj->ptr));
     return C_OK;
@@ -675,9 +674,6 @@ int prologOfEvictingToSSDB(robj *keyobj, redisDb *db) {
         serverLog(LL_WARNING, "sendCommandToSSDB: server.ssdb_client failed.");
         return C_ERR;
     }
-
-    robj *setargv[2] = {shared.storecmdobj, keyobj};
-    propagate(lookupCommand(shared.storecmdobj->ptr), 0, setargv, 2, PROPAGATE_REPL);
 
     serverLog(LL_DEBUG, "Evicting key: %s to SSDB, maxmemory: %lld, zmalloc_used_memory: %lu.",
               (char *)(keyobj->ptr), server.maxmemory, zmalloc_used_memory());

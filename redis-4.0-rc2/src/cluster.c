@@ -4623,6 +4623,33 @@ void restoreCommand(client *c) {
     server.dirty++;
 }
 
+void ssdbRespDelCommand(client *c) {
+    robj *keyobj;
+    int numdel = 0, j;
+
+    if (!server.jdjr_mode) {
+        addReplyErrorFormat(c,"Command only supported in jdjr-mode '%s'",
+                            (char *)c->argv[0]->ptr);
+        return;
+    }
+
+    for (j = 1; j < c->argc; j ++) {
+        keyobj = c->argv[j];
+
+        robj *setargv[2] = {shared.storecmdobj, keyobj};
+        propagate(lookupCommand(shared.storecmdobj->ptr), 0, setargv, 2, PROPAGATE_REPL);
+
+        if (epilogOfEvictingToSSDB(keyobj) == C_OK) {
+            serverLog(LL_DEBUG, "ssdbRespDelCommand fd:%d key: %s dictDelete ok.",
+                      c->fd, (char *)keyobj->ptr);
+            numdel ++;
+        } else
+            serverLog(LL_WARNING, "ssdbRespDelCommand fd:%d key: %s dictDelete nok.",
+                      c->fd, (char *)keyobj->ptr);
+    }
+    addReplyLongLong(c, numdel);
+}
+
 void ssdbRespRestoreCommand(client *c) {
     robj * key = c->argv[1];
     long long old_dirty = server.dirty;
@@ -4662,6 +4689,8 @@ void ssdbRespRestoreCommand(client *c) {
             dbAsyncDelete(EVICTED_DATA_DB, key);
         else
             dbSyncDelete(EVICTED_DATA_DB, key);
+
+        // todo: progate dumpfromssdb to slaves
 
         serverLog(LL_DEBUG, "ssdbRespRestoreCommand succeed.");
 
@@ -4820,10 +4849,9 @@ void dumpfromssdbCommand(client *c) {
         return;
     }
 
-    if ((de = dictFind(EVICTED_DATA_DB->transferring_keys, keyobj->ptr))) {
-        addReplyError(c, "In transferring_keys.");
-        return;
-    } else if ((de = dictFind(EVICTED_DATA_DB->loading_hot_keys, keyobj->ptr))) {
+    // todo: we need try load key later for slave redis.
+
+    if ((de = dictFind(EVICTED_DATA_DB->loading_hot_keys, keyobj->ptr))) {
         addReplyError(c, "In loading_hot_keys.");
         return;
     } else if (dictFind(EVICTED_DATA_DB->visiting_ssdb_keys, keyobj->ptr)) {
