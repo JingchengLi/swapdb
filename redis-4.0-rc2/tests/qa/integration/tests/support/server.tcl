@@ -240,7 +240,13 @@ proc start_server {options {code undefined}} {
         set pid [exec /usr/bin/env MallocStackLogging=1 MallocLogFile=/tmp/malloc_log.txt ../../../src/redis-server $config_file > $stdout 2> $stderr &]
     } else {
         puts "start redis port: $::port"
-        set pid [exec ../../../build/redis-server $config_file > $stdout 2> $stderr &]
+        if {[file exists ../../../build/redis-server]} {
+            set pid [exec ../../../build/redis-server $config_file > $stdout 2> $stderr &]
+        } elseif {[file exists ../../../src/redis-server]} {
+            set pid [exec ../../../src/redis-server $config_file > $stdout 2> $stderr &]
+        } else {
+            error "no redis-server found in src or build directory!!!"
+        }
     }
 
     # Tell the test server about this new instance.
