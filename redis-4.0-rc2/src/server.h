@@ -789,7 +789,7 @@ struct sharedObjectsStruct {
     sds minstring, maxstring;
 
     /* jdjr-mode shared obj. */
-    robj *storecmdobj, *slavedelcmdobj, *rr_restoreobj;
+    robj *storecmdobj, *dumpcmdobj, *slavedelcmdobj, *rr_restoreobj;
     /* jdjr-mdoe shared sds. */
     sds checkwriteok, checkwritenok, makesnapshotok, makesnapshotnok,
         transfersnapshotok, transfersnapshotnok, transfersnapshotfinished,

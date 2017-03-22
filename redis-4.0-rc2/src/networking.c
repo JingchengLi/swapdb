@@ -1113,7 +1113,7 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
         // todo: review
         if ((c->cmd->flags & CMD_WRITE)
             && server.masterhost == NULL) {
-            propagate(c->cmd, c->db->id, c->argv, c->argc, PROPAGATE_AOF|PROPAGATE_REPL);
+            propagate(c->cmd, c->db->id, c->argv, c->argc, PROPAGATE_REPL);
         }
 
         resetClient(c);

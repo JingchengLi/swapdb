@@ -1467,6 +1467,10 @@ void ssdbRespDelCommand(client *c) {
             serverLog(LL_DEBUG, "ssdbRespDelCommand fd:%d key: %s dictDelete ok.",
                       c->fd, (char *)keyobj->ptr);
             numdel ++;
+
+            robj *argv[2] = {shared.storecmdobj, keyobj};
+            propagate(lookupCommand(keyobj->ptr), 0, argv, 2, PROPAGATE_REPL);
+            serverLog(LL_DEBUG, "propagate cmd: %s to slave", (char *)keyobj->ptr);
         } else
             serverLog(LL_WARNING, "ssdbRespDelCommand fd:%d key: %s dictDelete nok.",
                       c->fd, (char *)keyobj->ptr);

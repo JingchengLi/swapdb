@@ -1466,6 +1466,7 @@ void createSharedObjects(void) {
         shared.delsnapshotnok = sdsnew("rr_del_snapshot nok");
 
         shared.storecmdobj = createObject(OBJ_STRING, (void *)sdsnew("storetossdb"));
+        shared.dumpcmdobj = createObject(OBJ_STRING, (void *)sdsnew("dumpfromssdb"));
         shared.slavedelcmdobj = createObject(OBJ_STRING, (void*)sdsnew("slavedel"));
         shared.rr_restoreobj = createObject(OBJ_STRING, (void *)sdsnew("redis_req_restore"));
     }
@@ -2422,6 +2423,13 @@ void call(client *c, int flags) {
             !(flags & CMD_CALL_PROPAGATE_AOF))
                 propagate_flags &= ~PROPAGATE_AOF;
 
+
+        if (server.jdjr_mode
+            && (c->cmd->proc == ssdbRespDelCommand
+                || c->cmd->proc == ssdbRespRestoreCommand
+                || c->cmd->proc == ssdbRespFailCommand))
+            propagate_flags = PROPAGATE_NONE;
+
         /* Call propagate() only if at least one of AOF / replication
          * propagation is needed. */
         if (propagate_flags != PROPAGATE_NONE) {
@@ -2475,8 +2483,9 @@ int checkKeysInMediateState(client* c) {
         return C_OK;
 
     /* Command from SSDB should not be blocked. */
-    if (c->cmd->proc == ssdbRespDelCommand
-        || c->cmd->proc == ssdbRespRestoreCommand)
+    if (!server.masterhost
+        && (c->cmd->proc == ssdbRespDelCommand
+            || c->cmd->proc == ssdbRespRestoreCommand))
         return C_OK;
 
     keys = getKeysFromCommand(c->cmd, c->argv, c->argc, &numkeys);
@@ -2790,7 +2799,8 @@ int processCommand(client *c) {
 
     /* Don't accept write commands if this is a read only slave. But
      * accept write commands if this is our master. */
-    if (server.masterhost && server.repl_slave_ro &&
+    if (!server.jdjr_mode &&
+        server.masterhost && server.repl_slave_ro &&
         !(c->flags & CLIENT_MASTER) &&
         c->cmd->flags & CMD_WRITE)
     {

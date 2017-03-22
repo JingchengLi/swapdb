@@ -4656,6 +4656,11 @@ void ssdbRespRestoreCommand(client *c) {
             dbSyncDelete(EVICTED_DATA_DB, key);
 
         serverLog(LL_DEBUG, "ssdbRespRestoreCommand succeed.");
+
+        robj *argv[2] = {shared.dumpcmdobj, key};
+
+        propagate(lookupCommand(key->ptr), 0, argv, 2, PROPAGATE_REPL);
+        serverLog(LL_DEBUG, "propagate cmd: %s to slave", (char *)key->ptr);
     } else
         serverLog(LL_WARNING, "ssdbRespRestoreCommand failed.");
 
