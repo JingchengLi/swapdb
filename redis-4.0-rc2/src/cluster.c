@@ -4636,18 +4636,40 @@ void ssdbRespDelCommand(client *c) {
     preventCommandPropagation(c);
 
     for (j = 1; j < c->argc; j ++) {
+        long long usage;
+        robj* tmpargv[3];
         keyobj = c->argv[j];
 
-        robj *setargv[2] = {shared.storecmdobj, keyobj};
-        propagate(lookupCommand(shared.storecmdobj->ptr), 0, setargv, 2, PROPAGATE_REPL);
+        /* propage storetossdb command to slaves. */
+        tmpargv[0] = shared.storecmdobj;
+        tmpargv[1] = keyobj;
+        propagate(lookupCommand(shared.storecmdobj->ptr), c->db->id, tmpargv, 2, PROPAGATE_REPL);
 
-        if (epilogOfEvictingToSSDB(keyobj) == C_OK) {
+        if (epilogOfEvictingToSSDB(keyobj, &usage) == C_OK) {
+            robj* delCmdObj = createStringObject("del",3);
+            tmpargv[0] = delCmdObj;
+            tmpargv[1] = keyobj;
+
+            /* propage aof to del key from redis db.*/
+            propagate(lookupCommand((char*)"del"),c->db->id, tmpargv, 2, PROPAGATE_AOF);
+            decrRefCount(delCmdObj);
+
             serverLog(LL_DEBUG, "ssdbRespDelCommand fd:%d key: %s dictDelete ok.",
                       c->fd, (char *)keyobj->ptr);
             numdel ++;
         } else
             serverLog(LL_WARNING, "ssdbRespDelCommand fd:%d key: %s dictDelete nok.",
                       c->fd, (char *)keyobj->ptr);
+
+        /* propage aof to set key in evict db. */
+        robj* setCmdObj = createStringObject("set",3);
+        robj* usage_obj = createStringObjectFromLongLong(usage);
+        tmpargv[0] = setCmdObj;
+        tmpargv[1] = keyobj;
+        tmpargv[2] = usage_obj;
+        propagate(lookupCommand((char*)"set"),EVICTED_DATA_DBID, tmpargv, 3, PROPAGATE_AOF);
+        decrRefCount(setCmdObj);
+        decrRefCount(usage_obj);
     }
     addReplyLongLong(c, numdel);
 }
@@ -4683,20 +4705,28 @@ void ssdbRespRestoreCommand(client *c) {
         sds db_key = dictGetKey(de);
         sdssetlfu(db_key, lfu);
 
+        // todo: remove unused codes
+        /*
         if (getExpire(EVICTED_DATA_DB, key) != -1)
             dictDelete(EVICTED_DATA_DB->expires, key->ptr);
-
-        /* TODO: using new arg to customize the way to free. */
+        */
         dictDelete(EVICTED_DATA_DB->dict, key->ptr);
 
-        if (server.lazyfree_lazy_eviction)
-            dbAsyncDelete(EVICTED_DATA_DB, key);
-        else
-            dbSyncDelete(EVICTED_DATA_DB, key);
+        robj* tmpargv[2];
+        robj* delCmdObj = createStringObject("del",3);
+        tmpargv[0] = delCmdObj;
+        tmpargv[1] = key;
 
-        // todo: propagate aof
+        // propagate aof
+        propagate(lookupCommand((char*)"restore"),c->db->id,c->argv,c->argc,PROPAGATE_AOF);
+        propagate(lookupCommand((char*)"del"),EVICTED_DATA_DBID,tmpargv,2,PROPAGATE_AOF);
+        decrRefCount(delCmdObj);
 
-        // todo: progate dumpfromssdb to slaves
+        // progate dumpfromssdb to slaves
+        robj* loadCmdObj = createStringObject("dumpfromssdb", strlen("dumpfromssdb"));
+        tmpargv[0] = loadCmdObj;
+        propagate(lookupCommand((char*)"dumpfromssdb"),c->db->id,tmpargv,2,PROPAGATE_REPL);
+        decrRefCount(loadCmdObj);
 
         serverLog(LL_DEBUG, "ssdbRespRestoreCommand succeed.");
 
@@ -4728,12 +4758,19 @@ void ssdbRespNotfoundCommand(client *c) {
             serverLog(LL_DEBUG, "key: %s is deleted from loading_hot_keys.", (char *)keyobj->ptr);
         if (dictDelete(EVICTED_DATA_DB->dict, keyobj->ptr) == DICT_OK)
             serverLog(LL_DEBUG, "key: %s is deleted from EVICTED_DATA_DB->db.", (char *)keyobj->ptr);
+        // todo: remove unused codes
+        /*
         if (getExpire(EVICTED_DATA_DB, keyobj) != -1)
             dictDelete(EVICTED_DATA_DB->expires, keyobj->ptr);
+        */
+        robj* tmpargv[2];
+        robj* delCmdObj = createStringObject("del",3);
+        tmpargv[0] = delCmdObj;
+        tmpargv[1] = keyobj;
 
-        // todo: propagate aof to delete key in evict db
-
-        // todo: propagate to delete key in slave db
+        //  propagate to delete key in evict db and in slave redis
+        propagate(lookupCommand((char*)"del"),EVICTED_DATA_DBID,tmpargv,2,PROPAGATE_AOF|PROPAGATE_REPL);
+        decrRefCount(tmpargv[0]);
 
         server.evicting_keys_num --;
     } else {
@@ -4859,7 +4896,8 @@ void dumpfromssdbCommand(client *c) {
         return;
     }
 
-    // todo: we need try load key later for slave redis.
+    /* todo: we need try to load this key later for slave redis if the key
+     * is in Intermediate state. */
 
     if ((de = dictFind(EVICTED_DATA_DB->loading_hot_keys, keyobj->ptr))) {
         addReplyError(c, "In loading_hot_keys.");

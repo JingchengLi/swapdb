@@ -473,7 +473,7 @@ unsigned long KeyLFUDecrAndReturn(sds key) {
     return counter;
 }
 
-int epilogOfEvictingToSSDB(robj *keyobj) {
+int epilogOfEvictingToSSDB(robj *keyobj, long long *usage) {
     redisDb *evicteddb = server.db + EVICTED_DATA_DBID, *db;
     mstime_t eviction_latency;
     robj *setcmd, *usage_obj;
@@ -483,14 +483,8 @@ int epilogOfEvictingToSSDB(robj *keyobj) {
     /* TODO: clean up getTransferringDB. */
     int dbid = 0;
     int slaves = listLength(server.slaves);
-    long long usage;
     sds db_key, evdb_key;
     unsigned int lfu;
-
-    if (dbid != 0) {
-        serverLog(LL_WARNING, "The key: %s should be found.", (char *)keyobj->ptr);
-        return C_ERR;
-    }
 
     db = server.db + dbid;
     expiretime = getExpire(db, keyobj);
@@ -508,9 +502,10 @@ int epilogOfEvictingToSSDB(robj *keyobj) {
     if (!de) return C_ERR;
 
     /* Record the evicted keys in an extra redis db. */
-    usage = (long long)estimateKeyMemoryUsage(de);
-    usage_obj = createStringObjectFromLongLong(usage);
+    if (usage) *usage = (long long)estimateKeyMemoryUsage(de);
+    usage_obj = createStringObjectFromLongLong(usage ? *usage : 0);
     setKey(evicteddb, keyobj, usage_obj);
+    decrRefCount(usage_obj);
 
     /* save lfu info when transfer. */
     db_key = dictGetKey(de);

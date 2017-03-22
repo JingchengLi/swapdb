@@ -1866,7 +1866,7 @@ void disconnectAllBlockedClients(void);
 /* expire.c -- Handling of expired keys */
 void activeExpireCycle(int type);
 /* expire.c -- Handling of evicting keys to SSDB. */
-int epilogOfEvictingToSSDB(robj *keyobj);
+int epilogOfEvictingToSSDB(robj *keyobj, long long *usage);
 void expireSlaveKeys(void);
 void rememberSlaveKeyWithExpire(redisDb *db, robj *key);
 void flushSlaveKeysWithExpireList(void);
