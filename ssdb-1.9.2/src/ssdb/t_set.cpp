@@ -128,6 +128,7 @@ int SSDBImpl::saddNoLock(const Bytes &key, const std::set<Bytes> &mem_set, int64
 
     leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
     if(!s.ok()){
+        log_error("saddNoLock error: %s", s.ToString().c_str());
         return STORAGE_ERR;
     }
 
@@ -172,6 +173,7 @@ int SSDBImpl::srem(const Bytes &key, const std::vector<Bytes> &members, int64_t 
 
     leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
     if(!s.ok()){
+        log_error("srem error: %s", s.ToString().c_str());
         return STORAGE_ERR;
     }
 
@@ -374,6 +376,7 @@ int SSDBImpl::spop(const Bytes &key, std::vector<std::string> &members, int64_t 
 
     leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
     if(!s.ok()){
+        log_error("spop error: %s", s.ToString().c_str());
         return STORAGE_ERR;
     }
 
@@ -467,6 +470,7 @@ int SSDBImpl::sunionstore(const Bytes &destination, const std::vector<Bytes> &ke
     if (*num == 0) {
         leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
         if(!s.ok()){
+            log_error("sunionstore error: %s", s.ToString().c_str());
             return STORAGE_ERR;
         }
         return 1;
@@ -524,6 +528,7 @@ int SSDBImpl::GetSetMetaVal(const std::string &meta_key, SetMetaVal &sv){
         return 0;
     } else if (!s.ok() && !s.IsNotFound()){
         //error
+        log_error("GetSetMetaVal error: %s", s.ToString().c_str());
         return STORAGE_ERR;
     } else{
         int ret = sv.DecodeMetaVal(meta_val);
@@ -554,7 +559,7 @@ int SSDBImpl::GetSetItemValInternal(const std::string &item_key){
     if (s.IsNotFound()){
         return 0;
     } else if (!s.ok() && !s.IsNotFound()){
-        log_error("%s", s.ToString().c_str());
+        log_error("GetSetItemValInternal error: %s", s.ToString().c_str());
         return STORAGE_ERR;
     }
     return 1;

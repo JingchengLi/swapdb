@@ -53,6 +53,7 @@ int SSDBImpl::hmsetNoLock(const Bytes &name, const std::map<Bytes ,Bytes> &kvs, 
 
 	leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
 	if(!s.ok()){
+		log_error("error: %s", s.ToString().c_str());
 		return STORAGE_ERR;
 	}
 
@@ -84,6 +85,7 @@ int SSDBImpl::hset(const Bytes &name, const Bytes &key, const Bytes &val){
 
 	leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
 	if(!s.ok()){
+		log_error("error: %s", s.ToString().c_str());
 		return STORAGE_ERR;
 	}
 
@@ -127,6 +129,7 @@ int SSDBImpl::hsetnx(const Bytes &name, const Bytes &key, const Bytes &val){
 
 	leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
 	if(!s.ok()){
+		log_error("error: %s", s.ToString().c_str());
 		return STORAGE_ERR;
 	}
 
@@ -169,6 +172,7 @@ int SSDBImpl::hdel(const Bytes &name, const std::set<Bytes> &fields) {
 
 	leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
 	if(!s.ok()){
+		log_error("error: %s", s.ToString().c_str());
 		return STORAGE_ERR;
 	}
 
@@ -236,6 +240,7 @@ int SSDBImpl::hincrbyfloat(const Bytes &name, const Bytes &key, long double by, 
 
 	leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
 	if(!s.ok()){
+		log_error("error: %s", s.ToString().c_str());
 		return STORAGE_ERR;
 	}
 
@@ -295,6 +300,7 @@ int SSDBImpl::hincr(const Bytes &name, const Bytes &key, int64_t by, int64_t *ne
 
 	leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
 	if(!s.ok()){
+		log_error("error: %s", s.ToString().c_str());
 		return STORAGE_ERR;
 	}
 
@@ -430,6 +436,7 @@ int SSDBImpl::GetHashMetaVal(const std::string &meta_key, HashMetaVal &hv){
 		return 0;
 	} else if (!s.ok() && !s.IsNotFound()){
         //error
+		log_error("error: %s", s.ToString().c_str());
 		return STORAGE_ERR;
 	} else{
 		int ret = hv.DecodeMetaVal(meta_val);
@@ -460,6 +467,7 @@ int SSDBImpl::GetHashItemValInternal(const std::string &item_key, std::string *v
 		return 0;
 	} else if (!s.ok() && !s.IsNotFound()){
 		log_error("%s", s.ToString().c_str());
+		log_error("error: %s", s.ToString().c_str());
 		return STORAGE_ERR;
 	}
 	return 1;

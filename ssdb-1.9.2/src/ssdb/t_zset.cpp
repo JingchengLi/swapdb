@@ -208,6 +208,7 @@ int SSDBImpl::GetZSetMetaVal(const std::string &meta_key, ZSetMetaVal &zv) {
         return 0;
     } else if (!s.ok() && !s.IsNotFound()) {
         //error
+        log_error("GetZSetMetaVal error: %s", s.ToString().c_str());
         return STORAGE_ERR;
     } else {
         int ret = zv.DecodeMetaVal(meta_val);
@@ -238,7 +239,7 @@ int SSDBImpl::GetZSetItemVal(const std::string &item_key, double *score) {
         return 0;
     }
     if (!s.ok()) {
-        log_error("%s", s.ToString().c_str());
+        log_error("GetZSetItemVal error: %s", s.ToString().c_str());
         return STORAGE_ERR;
     }
 

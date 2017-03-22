@@ -89,6 +89,7 @@ int SSDBImpl::LPop(const Bytes &key, std::string *val) {
             if (1 == ret){
                 leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
                 if(!s.ok()){
+                    log_error("error: %s", s.ToString().c_str());
                     return STORAGE_ERR;
                 }
             }
@@ -112,6 +113,7 @@ int SSDBImpl::RPop(const Bytes &key, std::string *val) {
             if (1 == ret){
                 leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
                 if(!s.ok()){
+                    log_error("error: %s", s.ToString().c_str());
                     return STORAGE_ERR;
                 }
             }
@@ -198,6 +200,7 @@ int SSDBImpl::LPushX(const Bytes &key, const std::vector<Bytes> &val, int offset
 
     leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
     if(!s.ok()){
+        log_error("error: %s", s.ToString().c_str());
         return STORAGE_ERR;
     }
 
@@ -227,6 +230,7 @@ int SSDBImpl::LPush(const Bytes &key, const std::vector<Bytes> &val, int offset,
 
     leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
     if(!s.ok()){
+        log_error("error: %s", s.ToString().c_str());
         return STORAGE_ERR;
     }
 
@@ -329,6 +333,7 @@ int SSDBImpl::RPushX(const Bytes &key, const std::vector<Bytes> &val, int offset
 
     leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
     if(!s.ok()){
+        log_error("error: %s", s.ToString().c_str());
         return STORAGE_ERR;
     }
 
@@ -357,6 +362,7 @@ int SSDBImpl::RPush(const Bytes &key, const std::vector<Bytes> &val, int offset,
 
     leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
     if(!s.ok()){
+        log_error("error: %s", s.ToString().c_str());
         return STORAGE_ERR;
     }
 
@@ -378,6 +384,7 @@ int SSDBImpl::GetListMetaVal(const std::string &meta_key, ListMetaVal &lv) {
         return 0;
     } else if (!s.ok() && !s.IsNotFound()){
         //error
+        log_error("error: %s", s.ToString().c_str());
         return STORAGE_ERR;
     } else{
         ret = lv.DecodeMetaVal(meta_val);
@@ -457,6 +464,7 @@ int SSDBImpl::LSet(const Bytes &key, const int64_t index, const Bytes &val) {
 
         leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
         if(!s.ok()){
+            log_error("error: %s", s.ToString().c_str());
             return STORAGE_ERR;
         }
     }
@@ -547,6 +555,7 @@ int SSDBImpl::ltrim(const Bytes &key, int64_t start, int64_t end) {
 
     leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
     if(!s.ok()){
+        log_error("error: %s", s.ToString().c_str());
         return STORAGE_ERR;
     }
 

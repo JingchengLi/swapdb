@@ -37,12 +37,12 @@ int proc_multi_zset(NetworkServer *net, Link *link, const Request &req, Response
     elements = (int)req.size() - scoreidx;
     if(elements <= 0){
         resp->push_back("error");
-        resp->push_back("ERR syntax error wrong number of arguments");
+        resp->push_back("ERR wrong number of arguments for 'zadd' command");
         return 0;
     } else if(elements % 2 != 0){
 		//wrong args
 		resp->push_back("client_error");
-        resp->push_back("ERR syntax error");
+        resp->push_back(GetErrorInfo(SYNTAX_ERR));
 		return 0;
 	}
     elements /= 2;

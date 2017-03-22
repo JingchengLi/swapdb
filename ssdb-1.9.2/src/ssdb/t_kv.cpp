@@ -28,6 +28,7 @@ int SSDBImpl::GetKvMetaVal(const std::string &meta_key, KvMetaVal &kv) {
         return ret;
 
     } else if (!s.ok()) {
+        log_error("error: %s", s.ToString().c_str());
         return STORAGE_ERR;
     } else {
 
@@ -193,6 +194,7 @@ int SSDBImpl::setNoLock(const Bytes &key, const Bytes &val, int flags) {
     }
     leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
     if (!s.ok()){
+        log_error("error: %s", s.ToString().c_str());
         return STORAGE_ERR;
     }
 
@@ -240,6 +242,7 @@ int SSDBImpl::del_key_internal(leveldb::WriteBatch &batch, const Bytes &key) {
     if (s.IsNotFound()) {
         return 0;
     } else if (!s.ok()) {
+        log_error("error: %s", s.ToString().c_str());
         return STORAGE_ERR;
     } else {
         if (meta_val.size() >= 4) {
@@ -368,7 +371,7 @@ int SSDBImpl::incr(const Bytes &key, int64_t by, int64_t *new_val){
 
 	leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
 	if(!s.ok()){
-		log_error("del error: %s", s.ToString().c_str());
+		log_error("incr error: %s", s.ToString().c_str());
 		return STORAGE_ERR;
 	}
 	return 1;
@@ -417,6 +420,7 @@ int SSDBImpl::append(const Bytes &key, const Bytes &value, uint64_t *llen) {
     leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
     if(!s.ok()){
         log_error("set error: %s", s.ToString().c_str());
+        log_error("error: %s", s.ToString().c_str());
         return STORAGE_ERR;
     }
     return 1;
