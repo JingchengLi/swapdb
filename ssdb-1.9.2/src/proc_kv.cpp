@@ -552,9 +552,18 @@ int proc_ssdb_dbsize(NetworkServer *net, Link *link, const Request &req, Respons
 	SSDBServer *serv = (SSDBServer *)net->data;
 
 	uint64_t count = 0;
-	auto ssdb_it = std::unique_ptr<Iterator>(serv->ssdb->iterator("", "", -1));
+
+	std::string start;
+	start.append(1, DataType::META);
+	auto ssdb_it = std::unique_ptr<Iterator>(serv->ssdb->iterator(start, "", -1));
 	while(ssdb_it->next()){
-		count ++;
+		Bytes ks = ssdb_it->key();
+
+		if (ks.data()[0] != DataType::META) {
+			break;
+		}
+
+		count++;
 	}
 
     resp->reply_int(0, count);

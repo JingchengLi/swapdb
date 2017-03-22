@@ -147,7 +147,7 @@ void ExpirationHandler::load_expiration_keys_from_db(int num) {
         fast_keys.add(key, score);
     }
 
-    log_info("load %d keys into fast_keys", n);
+    log_debug("load %d keys into fast_keys", n);
 }
 
 void ExpirationHandler::expire_loop() {
