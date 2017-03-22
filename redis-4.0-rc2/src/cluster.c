@@ -4643,6 +4643,14 @@ void ssdbRespRestoreCommand(client *c) {
 
     /* Delete key from EVICTED_DATA_DB if restoreCommand is OK. */
     if (server.dirty == old_dirty + 1) {
+        dictEntry* ev_de = dictFind(EVICTED_DATA_DB->dict, c->argv[1]->ptr);
+        dictEntry* de = dictFind(c->db->dict, c->argv[1]->ptr);
+
+        /* copy lfu info when load ssdb key to redis.*/
+        sds evdb_key = dictGetKey(ev_de);
+        unsigned int lfu = sdsgetlfu(evdb_key);
+        sds db_key = dictGetKey(de);
+        sdssetlfu(db_key, lfu);
 
         if (getExpire(EVICTED_DATA_DB, key) != -1)
             dictDelete(EVICTED_DATA_DB->expires, key->ptr);
