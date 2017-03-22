@@ -9,8 +9,6 @@ found in the LICENSE file.
 #include "ssdb_impl.h"
 
 
-static int zset_one(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &name, const Bytes &key, double score, uint16_t version);
-
 static int zdel_one(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &name, const Bytes &key, uint16_t version);
 
 static int incr_zsize(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const ZSetMetaVal &zv, const Bytes &name, int64_t incr);
@@ -29,90 +27,6 @@ int SSDBImpl::multi_zdel(const Bytes &name, const std::set<Bytes> &keys) {
     return zdelNoLock(name, keys);
 }
 
-int zsetAdd(SSDBImpl *ssdb, leveldb::WriteBatch &batch, bool needCheck,
-             const Bytes &name, const Bytes &key, double score, uint16_t cur_version,
-            int *flags, double *newscore) {
-    /* Turn options into simple to check vars. */
-    int incr = (*flags & ZADD_INCR) != 0;
-    int nx = (*flags & ZADD_NX) != 0;
-    int xx = (*flags & ZADD_XX) != 0;
-    *flags = 0; /* We'll return our response flags. */
-
-    /* NaN as input is an error regardless of all the other parameters. */
-    if (std::isnan(score)) {
-        *flags = ZADD_NAN;
-        return NAN_SCORE;
-    }
-    else if (score <= ZSET_SCORE_MIN || score >= ZSET_SCORE_MAX){
-        return ZSET_OVERFLOW;
-    }
-
-    if (needCheck) {
-        double old_score = 0;
-
-        std::string dbkey = encode_zset_key(name, key, cur_version);
-        int found = ssdb->GetZSetItemVal(dbkey, &old_score);
-        if (found < 0) {
-            return found;
-        }
-
-        if (found == 0) {
-            if (!xx) {
-                if (newscore) *newscore = score;
-                zset_one(ssdb, batch, name, key, score, cur_version);
-                *flags |= ZADD_ADDED;
-            } else {
-                *flags |= ZADD_NOP;
-            }
-
-            return 1;
-
-        } else if (found == 1) {
-            if (nx) {
-                *flags |= ZADD_NOP;
-                return 1;
-            }
-
-            if (incr) {
-                score += old_score;
-                if (std::isnan(score)) {
-                    *flags |= ZADD_NAN;
-                    return NAN_SCORE;
-                }
-                else if (score <= ZSET_SCORE_MIN || score >= ZSET_SCORE_MAX){
-                    return ZSET_OVERFLOW;
-                }
-                if (newscore) *newscore = score;
-            }
-
-            if (fabs(old_score - score) < eps) {
-                //same
-            } else {
-                if (newscore) *newscore = score;
-
-                string old_score_key = encode_zscore_key(name, key, old_score, cur_version);
-                batch.Delete(old_score_key);
-                zset_one(ssdb, batch, name, key, score, cur_version);
-                *flags |= ZADD_UPDATED;
-            }
-            return 1;
-        } else {
-            //error
-            return -1;
-        }
-    } else {
-
-        if (!xx) {
-            if (newscore) *newscore = score;
-            zset_one(ssdb, batch, name, key, score, cur_version);
-            *flags |= ZADD_ADDED;
-        } else {
-            *flags |= ZADD_NOP;
-        }
-
-        return 1;
-    }
-}
 
 int SSDBImpl::zsetNoLock(const Bytes &name, const std::map<Bytes ,Bytes> &sortedSet, int flags) {
     int incr = (flags & ZADD_INCR) != 0;
@@ -170,7 +84,7 @@ int SSDBImpl::zsetNoLock(const Bytes &name, const std::map<Bytes ,Bytes> &sorted
         }
         int retflags = flags;
 
-        int retval = zsetAdd(this, batch ,needCheck, name, key, score, zv.version, &retflags, &newscore);
+        int retval = zset_one(batch, needCheck, name, key, score, zv.version, &retflags, &newscore);
         if (retval < 0) {
             return retval;
         }
@@ -181,7 +95,7 @@ int SSDBImpl::zsetNoLock(const Bytes &name, const std::map<Bytes ,Bytes> &sorted
     }
 
     if (added > 0) {
-        if (int rett = incr_zsize(this, batch, zv, name, added) < 0) {
+        if (int rett = incr_zsize(batch, zv, name, added) < 0) {
             log_error("incr_zsize error");
             return rett;
         }
@@ -213,7 +127,7 @@ int SSDBImpl::zdelNoLock(const Bytes &name, const std::set<Bytes> &keys) {
     int count = 0;
     for (auto it = keys.begin(); it != keys.end() ; ++it) {
         const Bytes &key = *it;
-        ret = zdel_one(this, batch, name, key, zv.version);
+        ret = zdel_one(batch, name, key, zv.version);
         if (ret < 0) {
             return ret;
         }
@@ -221,7 +135,7 @@ int SSDBImpl::zdelNoLock(const Bytes &name, const std::set<Bytes> &keys) {
     }
 
     if (count > 0) {
-        ret = incr_zsize(this, batch, zv, name, -count);
+        ret = incr_zsize(batch, zv, name, -count);
         if (ret < 0) {
             return ret;
         }
@@ -231,33 +145,6 @@ int SSDBImpl::zdelNoLock(const Bytes &name, const std::set<Bytes> &keys) {
             log_error("zdel error: %s", s.ToString().c_str());
             return STORAGE_ERR;
         }
-    }
-
-    return count;
-}
-
-int64_t SSDBImpl::zcount(const Bytes &name, const Bytes &score_start, const Bytes &score_end) {
-    int64_t count = 0;
-
-    ZSetMetaVal zv;
-    const leveldb::Snapshot* snapshot = nullptr;
-
-    {
-        RecordLock<Mutex> l(&mutex_record_, name.String());
-        std::string meta_key = encode_meta_key(name);
-        int ret = GetZSetMetaVal(meta_key, zv);
-        if (ret <= 0) {
-            return ret;
-        }
-
-        snapshot = ldb->GetSnapshot();
-    }
-
-    SnapshotPtr spl(ldb, snapshot); //auto release
-
-    auto it = std::unique_ptr<ZIterator>(this->zscan_internal(name, "", score_start, score_end, INT_MAX, Iterator::FORWARD, zv.version, snapshot));
-    while(it->next()){
-        count ++;
     }
 
     return count;
@@ -279,13 +166,13 @@ int SSDBImpl::zincr(const Bytes &name, const Bytes &key, double by, int &flags, 
         needCheck = true;
     }
 
-    int retval = zsetAdd(this, batch ,needCheck, name, key, by, zv.version, &flags, new_val);
+    int retval = zset_one(batch, needCheck, name, key, by, zv.version, &flags, new_val);
     if (retval < 0) {
         return retval;
     }
 
     if (flags & ZADD_ADDED) {
-        ret = incr_zsize(this, batch, zv, name, 1);
+        ret = incr_zsize(batch, zv, name, 1);
         if (ret < 0) {
             return ret;
         }
@@ -801,7 +688,7 @@ int64_t SSDBImpl::zremrangebyscore(const Bytes &name, const Bytes &score_start, 
             break;
 
         if (remove){
-            int ret = zdel_one(this, batch, name, it->key, it->version);
+            int ret = zdel_one(batch, name, it->key, it->version);
             if(ret < 0){
                 return ret;
             }
@@ -810,7 +697,7 @@ int64_t SSDBImpl::zremrangebyscore(const Bytes &name, const Bytes &score_start, 
     }
 
     if (remove && count > 0){
-        int ret = incr_zsize(this, batch, zv, name, -1 * count);
+        int ret = incr_zsize(batch, zv, name, -1 * count);
         if (ret < 0){
             return ret;
         }
@@ -826,26 +713,10 @@ int64_t SSDBImpl::zremrangebyscore(const Bytes &name, const Bytes &score_start, 
 }
 
 
-// returns the number of newly added items
-static int zset_one(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &name, const Bytes &key, double score, uint16_t version) {
-
-    string zkey = encode_zset_key(name, key, version);
-
-    string buf;
-    buf.append((char *) (&score), sizeof(double));
-
-    string score_key = encode_zscore_key(name, key, score, version);
-
-    batch.Put(zkey, buf);
-    batch.Put(score_key, "");
-
-    return 1;
-}
-
-static int zdel_one(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &name, const Bytes &key, uint16_t version) {
+int SSDBImpl::zdel_one(leveldb::WriteBatch &batch, const Bytes &name, const Bytes &key, uint16_t version) {
     double old_score = 0;
     std::string item_key = encode_zset_key(name, key, version);
-    int ret = ssdb->GetZSetItemVal(item_key, &old_score);
+    int ret = GetZSetItemVal(item_key, &old_score);
     if (ret <= 0) {
         return ret;
     } else {
@@ -860,7 +731,7 @@ static int zdel_one(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &nam
     return 1;
 }
 
-static int incr_zsize(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const ZSetMetaVal &zv, const Bytes &name, int64_t incr) {
+int SSDBImpl::incr_zsize(leveldb::WriteBatch &batch, const ZSetMetaVal &zv, const Bytes &name, int64_t incr) {
     std::string size_key = encode_meta_key(name);
     if (zv.length == 0) {
         if (incr > 0) {
@@ -885,7 +756,7 @@ static int incr_zsize(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const ZSetMeta
             std::string meta_val = encode_zset_meta_val(zv.length, zv.version, KEY_DELETE_MASK);
             batch.Put(del_key, "");
             batch.Put(size_key, meta_val);
-            ssdb->edel_one(batch, name); //del expire ET key
+            edel_one(batch, name); //del expire ET key
         } else {
             std::string size_val = encode_zset_meta_val(len, zv.version);
             batch.Put(size_key, size_val);
@@ -893,6 +764,110 @@ static int incr_zsize(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const ZSetMeta
     }
     return 0;
 }
+
+
+int SSDBImpl::zset_one(leveldb::WriteBatch &batch, bool needCheck, const Bytes &name, const Bytes &key, double score,
+                       uint16_t cur_version, int *flags, double *newscore) {
+
+    /* Turn options into simple to check vars. */
+    int incr = (*flags & ZADD_INCR) != 0;
+    int nx = (*flags & ZADD_NX) != 0;
+    int xx = (*flags & ZADD_XX) != 0;
+    *flags = 0; /* We'll return our response flags. */
+
+    /* NaN as input is an error regardless of all the other parameters. */
+    if (std::isnan(score)) {
+        *flags = ZADD_NAN;
+        return NAN_SCORE;
+    }
+    else if (score <= ZSET_SCORE_MIN || score >= ZSET_SCORE_MAX){
+        return ZSET_OVERFLOW;
+    }
+
+    std::string zkey = encode_zset_key(name, key, cur_version);
+
+    if (needCheck) {
+        double old_score = 0;
+
+        int found = GetZSetItemVal(zkey, &old_score);
+        if (found < 0) {
+            return found;
+        }
+
+        if (found == 0) {
+            if (!xx) {
+                if (newscore) *newscore = score;
+
+                std::string buf((char *) (&score), sizeof(double));
+                batch.Put(zkey, buf);
+                string score_key = encode_zscore_key(name, key, score, cur_version);
+                batch.Put(score_key, "");
+
+                *flags |= ZADD_ADDED;
+            } else {
+                *flags |= ZADD_NOP;
+            }
+
+            return 1;
+
+        } else if (found == 1) {
+            if (nx) {
+                *flags |= ZADD_NOP;
+                return 1;
+            }
+
+            if (incr) {
+                score += old_score;
+                if (std::isnan(score)) {
+                    *flags |= ZADD_NAN;
+                    return NAN_SCORE;
+                }
+                else if (score <= ZSET_SCORE_MIN || score >= ZSET_SCORE_MAX){
+                    return ZSET_OVERFLOW;
+                }
+                if (newscore) *newscore = score;
+            }
+
+            if (fabs(old_score - score) < eps) {
+                //same
+            } else {
+                if (newscore) *newscore = score;
+
+                string old_score_key = encode_zscore_key(name, key, old_score, cur_version);
+                batch.Delete(old_score_key);
+
+                std::string buf((char *) (&score), sizeof(double));
+                batch.Put(zkey, buf);
+                string score_key = encode_zscore_key(name, key, score, cur_version);
+                batch.Put(score_key, "");
+
+                *flags |= ZADD_UPDATED;
+            }
+            return 1;
+        } else {
+            //error
+            return -1;
+        }
+    } else {
+
+        if (!xx) {
+            if (newscore) *newscore = score;
+
+            std::string buf((char *) (&score), sizeof(double));
+            batch.Put(zkey, buf);
+            string score_key = encode_zscore_key(name, key, score, cur_version);
+            batch.Put(score_key, "");
+
+            *flags |= ZADD_ADDED;
+        } else {
+            *flags |= ZADD_NOP;
+        }
+
+        return 1;
+    }
+
+}
+
 
 /* Struct to hold an inclusive/exclusive range spec by lexicographic comparison. */
 typedef struct {
@@ -1054,7 +1029,7 @@ int64_t SSDBImpl::zremrangebylex(const Bytes &name, const Bytes &key_start, cons
         if (zslLexValueGteMin(it->key, &range)){
             if (zslLexValueLteMax(it->key, &range)){
                 count++;
-                ret = zdel_one(this, batch, name, it->key, it->version);
+                ret = zdel_one(batch, name, it->key, it->version);
                 if(ret < 0){
                     return ret;
                 }
@@ -1064,7 +1039,7 @@ int64_t SSDBImpl::zremrangebylex(const Bytes &name, const Bytes &key_start, cons
     }
 
     if (count > 0){
-        ret = incr_zsize(this, batch, zv, name, -1 * count);
+        ret = incr_zsize(batch, zv, name, -1 * count);
         if (ret < 0){
             return ret;
         }

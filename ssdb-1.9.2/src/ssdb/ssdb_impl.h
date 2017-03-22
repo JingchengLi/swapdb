@@ -174,7 +174,6 @@ public:
 	//int multi_zset(const Bytes &name, const std::vector<Bytes> &kvs, int offset=0);
 	//int multi_zdel(const Bytes &name, const std::vector<Bytes> &keys, int offset=0);
 
-	int64_t zcount(const Bytes &name, const Bytes &score_start, const Bytes &score_end);
 	int64_t zremrangebyscore(const Bytes &name, const Bytes &score_start, const Bytes &score_end, int remove);
 
 	virtual int64_t zsize(const Bytes &name);
@@ -207,16 +206,12 @@ public:
 
 	/* eset */
 	virtual int eset(const Bytes &key, int64_t ts);
-	virtual int esetNoLock(const Bytes &key, int64_t ts);
 	virtual int edel(const Bytes &key);
 	virtual int eget(const Bytes &key, int64_t *ts);
-	virtual int edel_one(leveldb::WriteBatch &batch, const Bytes &key);
     virtual int check_meta_key(const Bytes &key);
 
 	virtual int redisCursorCleanup();
 
-	//TODO
-	int GetZSetItemVal(const std::string &item_key, double *score);
 
 private:
 
@@ -226,13 +221,14 @@ private:
     int del_key_internal(leveldb::WriteBatch &batch, const Bytes &key);
     int mark_key_deleted(leveldb::WriteBatch &batch, const Bytes &key, const std::string &meta_key, std::string &meta_val);
 
+	int edel_one(leveldb::WriteBatch &batch, const Bytes &key);
 
-    int GetHashMetaVal(const std::string &meta_key, HashMetaVal &hv);
+
+	int GetHashMetaVal(const std::string &meta_key, HashMetaVal &hv);
     int GetHashItemValInternal(const std::string &item_key, std::string *val);
     HIterator* hscan_internal(const Bytes &name, const Bytes &start, uint16_t version, uint64_t limit, const leveldb::Snapshot *snapshot=nullptr);
     int incr_hsize(leveldb::WriteBatch &batch, const std::string &size_key, HashMetaVal &hv, const Bytes &name, int64_t incr);
     int hset_one(leveldb::WriteBatch &batch, const HashMetaVal &hv, bool check_exists, const Bytes &name, const Bytes &key, const Bytes &val);
-
     int GetSetMetaVal(const std::string &meta_key, SetMetaVal &sv);
     int GetSetItemValInternal(const std::string &item_key);
     SIterator* sscan_internal(const Bytes &name, const Bytes &start, uint16_t version, uint64_t limit, const leveldb::Snapshot *snapshot=nullptr);
@@ -247,14 +243,20 @@ private:
 
 
     int GetZSetMetaVal(const std::string &meta_key, ZSetMetaVal &zv);
-    ZIterator* zscan_internal(const Bytes &name, const Bytes &key_start,
+	int GetZSetItemVal(const std::string &item_key, double *score);
+
+	ZIterator* zscan_internal(const Bytes &name, const Bytes &key_start,
 										const Bytes &score_start, const Bytes &score_end,
 										uint64_t limit, Iterator::Direction direction, uint16_t version,
 										const leveldb::Snapshot *snapshot=nullptr);
     ZIteratorByLex* zscanbylex_internal(const Bytes &name, const Bytes &key_start, const Bytes &key_end,
 							  uint64_t limit, Iterator::Direction direction, uint16_t version,
 							  const leveldb::Snapshot *snapshot=nullptr);
+	int	zset_one(leveldb::WriteBatch &batch, bool needCheck, const Bytes &name, const Bytes &key, double score, uint16_t cur_version, int *flags, double *newscore);
+	int zdel_one(leveldb::WriteBatch &batch, const Bytes &name, const Bytes &key, uint16_t version);
+	int incr_zsize(leveldb::WriteBatch &batch, const ZSetMetaVal &zv, const Bytes &name, int64_t incr);
 
+	int esetNoLock(const Bytes &key, int64_t ts);
 	int setNoLock(const Bytes &key, const Bytes &val, int flags);
     int saddNoLock(const Bytes &key, const std::set<Bytes> &mem_set, int64_t *num);
     int hmsetNoLock(const Bytes &name, const std::map<Bytes,Bytes> &kvs, bool check_exists);

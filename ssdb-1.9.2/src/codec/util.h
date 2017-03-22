@@ -38,7 +38,7 @@ using namespace std;
 #define ZADD_ADDED (1<<5)   /* The element was new and was added. */
 #define ZADD_UPDATED (1<<6) /* The element already existed, score updated. */
 
-/* Flags only used by the ZADD command but not by zsetAdd() API: */
+/* Flags only used by the ZADD command but not by zset_one() API: */
 #define ZADD_CH (1<<16)      /* Return num of elements added or updated. */
 
 

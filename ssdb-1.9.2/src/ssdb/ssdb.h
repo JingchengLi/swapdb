@@ -151,7 +151,6 @@ public:
 
 	/* eset */
 	virtual int eset(const Bytes &key, int64_t ts) = 0;
-	virtual int esetNoLock(const Bytes &key, int64_t ts) = 0;
 	virtual int edel(const Bytes &key) = 0;
 	virtual int eget(const Bytes &key, int64_t *ts) = 0;
     virtual int check_meta_key(const Bytes &key) = 0;
