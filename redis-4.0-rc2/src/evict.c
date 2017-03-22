@@ -741,10 +741,9 @@ int tryEvictingKeysToSSDB(int *mem_tofree) {
 
         /* If the key exists, is our pick. Otherwise it is
          * a ghost and we need to try the next element. */
-        if (de && dictFind(EVICTED_DATA_DB->transferring_keys,
-                           dictGetKey(de)) == NULL
-            && dictFind(EVICTED_DATA_DB->visiting_ssdb_keys,
-                        dictGetKey(de)) == NULL) {
+        if (de && dictFind(EVICTED_DATA_DB->transferring_keys, dictGetKey(de)) == NULL
+            && dictFind(EVICTED_DATA_DB->visiting_ssdb_keys, dictGetKey(de)) == NULL
+            && dictFind(EVICTED_DATA_DB->delete_confirm_keys, dictGetKey(de)) == NULL) {
             size_t usage;
             bestkey = dictGetKey(de);
             /* Estimate the memory usage of the bestkey. */
@@ -1132,11 +1131,15 @@ int blockForLoadingkeys(client *c, robj **keys, int numkeys, mstime_t timeout) {
     for (j = 0; j < numkeys; j++) {
         if (((c->cmd->flags & CMD_WRITE)
              && (dictFind(EVICTED_DATA_DB->transferring_keys, keys[j]->ptr)
-                 || dictFind(EVICTED_DATA_DB->loading_hot_keys, keys[j]->ptr)))
-            /* Read a key of transferring state from redis. */
-            || ((c->cmd->flags & CMD_READONLY)
-                && dictFind(EVICTED_DATA_DB->loading_hot_keys, keys[j]->ptr))) {
-
+                 || dictFind(EVICTED_DATA_DB->loading_hot_keys, keys[j]->ptr)
+                 || dictFind(EVICTED_DATA_DB->delete_confirm_keys, keys[j]->ptr))
+            )
+            ||
+            ( (c->cmd->flags & CMD_READONLY)
+              && (dictFind(EVICTED_DATA_DB->loading_hot_keys, keys[j]->ptr)
+                  || dictFind(EVICTED_DATA_DB->delete_confirm_keys, keys[j]->ptr))
+            )
+        ) {
             if (dictAdd(c->bpop.loading_or_transfer_keys, keys[j], NULL) != DICT_OK) continue;
 
             serverLog(LL_DEBUG, "key: %s is added to loading_or_transfer_keys.", (char *)keys[j]->ptr);

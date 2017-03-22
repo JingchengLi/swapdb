@@ -360,6 +360,7 @@ long long emptyDb(int dbnum, int flags, void(callback)(void*)) {
         dictEmpty(EVICTED_DATA_DB->transferring_keys, callback);
         dictEmpty(EVICTED_DATA_DB->loading_hot_keys, callback);
         dictEmpty(EVICTED_DATA_DB->visiting_ssdb_keys, callback);
+        dictEmpty(EVICTED_DATA_DB->delete_confirm_keys, callback);
     }
     return removed;
 }

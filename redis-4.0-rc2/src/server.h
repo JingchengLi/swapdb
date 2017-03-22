@@ -640,6 +640,9 @@ typedef struct redisDb {
     dict *transferring_keys;    /* Keys are in the process of transferring keys to SSDB. */
     dict *loading_hot_keys;     /* keys become hot and in loading state from SSDB. */
     dict *visiting_ssdb_keys;   /* Keys are visiting SSDB, including reading and writing. */
+    dict *delete_confirm_keys;  /* need to confirm whether keys are deleted in SSDB when receive
+                                 * key-not-exist responses for get like APIs or key-delete responses
+                                 * for hdel like APIs. */
     int id;                     /* Database ID */
     long long avg_ttl;          /* Average TTL, just for stats */
 } redisDb;

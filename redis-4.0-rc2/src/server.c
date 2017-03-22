@@ -1267,7 +1267,8 @@ void startToLoadIfNeeded() {
             continue;
 
         /* Try to load the keys in the next loop. */
-        if (dictFind(EVICTED_DATA_DB->visiting_ssdb_keys, keyobj->ptr)) {
+        if (dictFind(EVICTED_DATA_DB->visiting_ssdb_keys, keyobj->ptr) ||
+                dictFind(EVICTED_DATA_DB->delete_confirm_keys, keyobj->ptr)) {
             incrRefCount(keyobj);
             listAddNodeTail(tmp, keyobj);
             continue;
@@ -2018,6 +2019,7 @@ void initServer(void) {
         server.db[EVICTED_DATA_DBID].transferring_keys = dictCreate(&keyptrDictType,NULL);
         server.db[EVICTED_DATA_DBID].loading_hot_keys = dictCreate(&keyptrDictType,NULL);
         server.db[EVICTED_DATA_DBID].visiting_ssdb_keys = dictCreate(&keyptrDictType,NULL);
+        server.db[EVICTED_DATA_DBID].delete_confirm_keys = dictCreate(&keyptrDictType,NULL);
     }
 
     evictionPoolAlloc(); /* Initialize the LRU keys pool. */
@@ -2497,7 +2499,7 @@ int checkKeysInMediateState(client* c) {
         keyobjs[j] = c->argv[keys[j]];
 
     /* TODO: use a suitable timeout */
-    blockednum = blockForLoadingkeys(c, keyobjs, numkeys, 5000 + mstime());
+    blockednum = blockForLoadingkeys(c, keyobjs, numkeys, 100 + mstime());
 
     if (numkeys && keyobjs) zfree(keyobjs);
     if (keys) getKeysFreeResult(keys);

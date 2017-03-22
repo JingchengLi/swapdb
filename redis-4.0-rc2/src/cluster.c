@@ -4679,7 +4679,7 @@ void ssdbRespNotfoundCommand(client *c) {
 
     serverAssert(c->db->id == 0);
 
-    if (!sdscmp(cmd->ptr, fail_restore) || !sdscmp(cmd->ptr, fail_dump)) {
+    if (!sdscmp(cmd->ptr, fail_restore)) {
          if (dictDelete(EVICTED_DATA_DB->loading_hot_keys, keyobj->ptr) == DICT_OK)
             serverLog(LL_DEBUG, "key: %s is deleted from loading_hot_keys.", (char *)keyobj->ptr);
         if (dictDelete(EVICTED_DATA_DB->dict, keyobj->ptr) == DICT_OK)
@@ -4820,6 +4820,9 @@ void dumpfromssdbCommand(client *c) {
         return;
     } else if (dictFind(EVICTED_DATA_DB->visiting_ssdb_keys, keyobj->ptr)) {
         addReplyError(c, "In visiting_ssdb_keys.");
+        return;
+    } else if (dictFind(EVICTED_DATA_DB->delete_confirm_keys, keyobj->ptr)) {
+        addReplyError(c, "In delete_confirm_keys.");
         return;
     }
 
