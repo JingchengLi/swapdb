@@ -63,8 +63,8 @@ void MyApplication::run(){
 	log_info("binlog_capacity  : %d", option.binlog_capacity);
 	log_info("sync_speed       : %d MB/s", conf->get_num("replication.sync_speed"));
 
-	SSDB *data_db = NULL;
-	SSDB *meta_db = NULL;
+	SSDB *data_db = nullptr;
+	SSDB *meta_db = nullptr;
 	data_db = SSDB::open(option, data_db_dir);
 	if(!data_db){
 		log_fatal("could not open data db: %s", data_db_dir.c_str());
@@ -72,12 +72,12 @@ void MyApplication::run(){
 		exit(1);
 	}
 
-	meta_db = SSDB::open(Options(), meta_db_dir);
-	if(!meta_db){
-		log_fatal("could not open meta db: %s", meta_db_dir.c_str());
-		fprintf(stderr, "could not open meta db: %s\n", meta_db_dir.c_str());
-		exit(1);
-	}
+//	meta_db = SSDB::open(Options(), meta_db_dir);
+//	if(!meta_db){
+//		log_fatal("could not open meta db: %s", meta_db_dir.c_str());
+//		fprintf(stderr, "could not open meta db: %s\n", meta_db_dir.c_str());
+//		exit(1);
+//	}
 
 	NetworkServer *net = NULL;	
 	SSDBServer *server;
@@ -90,7 +90,7 @@ void MyApplication::run(){
 	
 	delete net;
 	delete server;
-	delete meta_db;
+//	delete meta_db;
 	delete data_db;
 
 	log_info("%s exit.", APP_NAME);
