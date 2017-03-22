@@ -73,11 +73,11 @@ SSDB* SSDB::open(const Options &opt, const std::string &dir){
 //	ssdb->options.new_table_reader_for_compaction_inputs = true;
 //	ssdb->options.compaction_readahead_size = 16 * 1024 * 1024;
 //
-//	ssdb->options.target_file_size_base = 64 * 1024 * 1024;
 //	ssdb->options.level0_file_num_compaction_trigger = 3; //start compaction
 //	ssdb->options.level0_slowdown_writes_trigger = 20; //slow write
 //	ssdb->options.level0_stop_writes_trigger = 24;  //block write
 	//========
+//	ssdb->options.target_file_size_base = 2 * 1024 * 1024; //sst file target size
 
     op.filter_policy = std::shared_ptr<const leveldb::FilterPolicy>(leveldb::NewBloomFilterPolicy(10));
     op.block_cache = leveldb::NewLRUCache(opt.cache_size * 1048576);
