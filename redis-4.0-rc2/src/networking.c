@@ -1022,29 +1022,32 @@ static void revertClientBufReply(client *c, size_t revertlen) {
 
 void removeVisitingSSDBKey(client *c) {
     int *keys = NULL, numkeys = 0, j;
-    serverAssert(c->cmd && c->argc && c->btype == BLOCKED_VISITING_SSDB);
+    if ( (c->cmd->flags & (CMD_READONLY | CMD_WRITE)) &&
+         (c->cmd->flags & CMD_JDJR_MODE) ) {
+        serverAssert(c->cmd && c->argc && c->btype == BLOCKED_VISITING_SSDB);
 
-    keys = getKeysFromCommand(c->cmd, c->argv, c->argc, &numkeys);
-    for (j = 0; j < numkeys; j ++) {
-        dictEntry *entry;
-        entry = dictFind(EVICTED_DATA_DB->visiting_ssdb_keys, c->argv[keys[j]]->ptr);
-        uint64_t clients_visiting_num = dictGetUnsignedIntegerVal(entry);
-        serverAssert(entry && (clients_visiting_num >= 1));
-        if (1 == clients_visiting_num) {
-            /* only this client is visiting the specified key, remove the key
-             * from visiting keys. */
-            dictDelete(EVICTED_DATA_DB->visiting_ssdb_keys, c->argv[keys[j]]->ptr);
-            serverLog(LL_DEBUG, "key: %s is deleted from visiting_ssdb_keys, fd: %d.",
-                      (char *)c->argv[keys[j]]->ptr, c->fd);
-        } else {
-            /* there are other clients visiting the specified key, just reduce the visiting
-             * clients num by 1. */
-            clients_visiting_num--;
-            dictSetUnsignedIntegerVal(entry, clients_visiting_num);
+        keys = getKeysFromCommand(c->cmd, c->argv, c->argc, &numkeys);
+        for (j = 0; j < numkeys; j ++) {
+            dictEntry *entry;
+            entry = dictFind(EVICTED_DATA_DB->visiting_ssdb_keys, c->argv[keys[j]]->ptr);
+            uint64_t clients_visiting_num = dictGetUnsignedIntegerVal(entry);
+            serverAssert(entry && (clients_visiting_num >= 1));
+            if (1 == clients_visiting_num) {
+                /* only this client is visiting the specified key, remove the key
+                 * from visiting keys. */
+                dictDelete(EVICTED_DATA_DB->visiting_ssdb_keys, c->argv[keys[j]]->ptr);
+                serverLog(LL_DEBUG, "key: %s is deleted from visiting_ssdb_keys, fd: %d.",
+                          (char *)c->argv[keys[j]]->ptr, c->fd);
+            } else {
+                /* there are other clients visiting the specified key, just reduce the visiting
+                 * clients num by 1. */
+                clients_visiting_num--;
+                dictSetUnsignedIntegerVal(entry, clients_visiting_num);
+            }
         }
-    }
 
-    if (keys) getKeysFreeResult(keys);
+        if (keys) getKeysFreeResult(keys);
+    }
 }
 
 /* TODO: Implement ssdbClientUnixHandler. Only handle AE_READABLE. */

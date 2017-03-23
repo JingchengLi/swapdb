@@ -4640,7 +4640,7 @@ void ssdbRespDelCommand(client *c) {
         robj* tmpargv[3];
         keyobj = c->argv[j];
 
-        /* propage storetossdb command to slaves. */
+        /* propagate storetossdb command to slaves. */
         tmpargv[0] = shared.storecmdobj;
         tmpargv[1] = keyobj;
         propagate(lookupCommand(shared.storecmdobj->ptr), c->db->id, tmpargv, 2, PROPAGATE_REPL);
@@ -4650,7 +4650,7 @@ void ssdbRespDelCommand(client *c) {
             tmpargv[0] = delCmdObj;
             tmpargv[1] = keyobj;
 
-            /* propage aof to del key from redis db.*/
+            /* propagate aof to del key from redis db.*/
             propagate(lookupCommand((char*)"del"),c->db->id, tmpargv, 2, PROPAGATE_AOF);
             decrRefCount(delCmdObj);
 

@@ -334,6 +334,7 @@ long long emptyDb(int dbnum, int flags, void(callback)(void*)) {
         return -1;
     }
 
+    // todo: fix and remove data in evict db.
     for (j = 0; j < server.dbnum; j++) {
         if (dbnum != -1 && dbnum != j) continue;
         removed += dictSize(server.db[j].dict);
@@ -354,6 +355,7 @@ long long emptyDb(int dbnum, int flags, void(callback)(void*)) {
     }
     if (dbnum == -1) flushSlaveKeysWithExpireList();
 
+    /* todo: fix */
     /* Empty transferring_keys/loading_hot_keys/visiting_ssdb_keys,
        fix the memory conflict. */
     if (server.jdjr_mode) {
