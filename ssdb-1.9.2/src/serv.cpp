@@ -468,7 +468,6 @@ int proc_cursor_cleanup(NetworkServer *net, Link *link, const Request &req, Resp
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(2);
 
-	log_debug("cleanup redis cursor");
 	serv->ssdb->redisCursorCleanup();
 
 	return 0;

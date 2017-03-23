@@ -512,9 +512,8 @@ int SSDBImpl::incr_hsize(leveldb::WriteBatch &batch, const std::string &size_key
 int SSDBImpl::hset_one(leveldb::WriteBatch &batch, const HashMetaVal &hv, bool check_exists, const Bytes &name,
 			 const Bytes &key, const Bytes &val) {
 	int ret = 0;
-	std::string dbval;
-
 	if (check_exists) {
+		std::string dbval;
 		std::string item_key = encode_hash_key(name, key, hv.version);
 		ret = GetHashItemValInternal(item_key, &dbval);
 		if (ret < 0){
