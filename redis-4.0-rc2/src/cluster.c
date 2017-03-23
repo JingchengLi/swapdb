@@ -4807,6 +4807,8 @@ void ssdbRespFailCommand(client *c) {
 
     signalBlockingKeyAsReady(c->db, keyobj);
 
+    preventCommandPropagation(c);
+
     addReply(c, shared.ok);
 
     sdsfree(fail_restore);

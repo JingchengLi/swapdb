@@ -2437,13 +2437,6 @@ void call(client *c, int flags) {
             !(flags & CMD_CALL_PROPAGATE_AOF))
                 propagate_flags &= ~PROPAGATE_AOF;
 
-
-        if (server.jdjr_mode
-            && (c->cmd->proc == ssdbRespDelCommand
-                || c->cmd->proc == ssdbRespRestoreCommand
-                || c->cmd->proc == ssdbRespFailCommand))
-            propagate_flags = PROPAGATE_NONE;
-
         /* Call propagate() only if at least one of AOF / replication
          * propagation is needed. */
         if (propagate_flags != PROPAGATE_NONE) {
