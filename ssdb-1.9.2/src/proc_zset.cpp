@@ -193,6 +193,9 @@ int proc_zget(NetworkServer *net, Link *link, const Request &req, Response *resp
         resp->push_back("error");
         resp->push_back(GetErrorInfo((int)ret));
         return 0;
+    } else if(ret == 0){
+        resp->push_back("not_found");
+        return 0;
     } else{
 		resp->reply_double(ret, score);
 	}
