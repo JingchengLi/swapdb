@@ -18,6 +18,8 @@ set ::all_tests {
     ssdb/aofrw
     ssdb/keystatus
     ssdb/basecommands
+    ssdb/lfu
+    ssdb/lfu-policy
 
     unit/type/hash
     unit/type/incr
