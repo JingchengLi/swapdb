@@ -2880,14 +2880,11 @@ int processCommand(client *c) {
         && server.masterhost
         && (c->cmd->proc == storetossdbCommand
             || c->cmd->proc == dumpfromssdbCommand)) {
-        int j, currcmd_is_load;
+        int currcmd_is_load;
 
         c->lastcmd = c->cmd;
 
         if (updateLoadAndEvictCmdDict(c->argv[1], currcmd_is_load) == C_OK) {
-            for (j = 0; j < c->argc; j ++)
-                incrRefCount(c->argv[j]);
-
             loadAndEvictCmd *cmdinfo = createLoadAndEvictCmd(c->argv, c->argc, c->cmd);
             listAddNodeTail(server.loadAndEvictCmdList, cmdinfo);
             /* Keep c->argv alocated memory. */
