@@ -437,6 +437,7 @@ void NetworkServer::serve(){
 			const Request *req = link->recv();
 			if(req == NULL){
 				log_warn("fd: %d, link parse error, delete link", link->fd());
+                log_debug("error data length: %d  error data: %s", link->input->size(), hexmem(link->input->data(), link->input->size()).c_str());
 				this->link_count --;
 				fdes->del(link->fd());
 				delete link;
