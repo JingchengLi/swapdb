@@ -4651,7 +4651,7 @@ void ssdbRespDelCommand(client *c) {
             tmpargv[1] = keyobj;
 
             /* propagate aof to del key from redis db.*/
-            propagate(lookupCommand((char*)"del"),c->db->id, tmpargv, 2, PROPAGATE_AOF);
+            propagate(lookupCommandByCString((char*)"del"),c->db->id, tmpargv, 2, PROPAGATE_AOF);
             decrRefCount(delCmdObj);
 
             serverLog(LL_DEBUG, "ssdbRespDelCommand fd:%d key: %s dictDelete ok.",
@@ -4667,7 +4667,7 @@ void ssdbRespDelCommand(client *c) {
         tmpargv[0] = setCmdObj;
         tmpargv[1] = keyobj;
         tmpargv[2] = usage_obj;
-        propagate(lookupCommand((char*)"set"),EVICTED_DATA_DBID, tmpargv, 3, PROPAGATE_AOF);
+        propagate(lookupCommandByCString((char*)"set"),EVICTED_DATA_DBID, tmpargv, 3, PROPAGATE_AOF);
         decrRefCount(setCmdObj);
         decrRefCount(usage_obj);
     }
@@ -4698,6 +4698,7 @@ void ssdbRespRestoreCommand(client *c) {
     if (server.dirty == old_dirty + 1) {
         dictEntry* ev_de = dictFind(EVICTED_DATA_DB->dict, c->argv[1]->ptr);
         dictEntry* de = dictFind(c->db->dict, c->argv[1]->ptr);
+        robj* tmpargv[2];
 
         /* copy lfu info when load ssdb key to redis.*/
         sds evdb_key = dictGetKey(ev_de);
@@ -4712,20 +4713,28 @@ void ssdbRespRestoreCommand(client *c) {
         */
         dictDelete(EVICTED_DATA_DB->dict, key->ptr);
 
-        robj* tmpargv[2];
+        // propagate aof
+        robj** restore_argv = zmalloc(c->argc * sizeof(robj*));
+        restore_argv[0] = createStringObject("restore", strlen("restore"));
+        memcpy(restore_argv,c->argv+1,c->argc-1);
+
+        propagate(lookupCommandByCString((char*)"restore"),c->db->id,restore_argv,c->argc,PROPAGATE_AOF);
+        decrRefCount(restore_argv[0]);
+        zfree(restore_argv);
+
         robj* delCmdObj = createStringObject("del",3);
         tmpargv[0] = delCmdObj;
         tmpargv[1] = key;
-
-        // propagate aof
-        propagate(lookupCommand((char*)"restore"),c->db->id,c->argv,c->argc,PROPAGATE_AOF);
-        propagate(lookupCommand((char*)"del"),EVICTED_DATA_DBID,tmpargv,2,PROPAGATE_AOF);
+        propagate(lookupCommandByCString((char*)"del"),EVICTED_DATA_DBID,tmpargv,2,PROPAGATE_AOF);
         decrRefCount(delCmdObj);
 
         // progate dumpfromssdb to slaves
-        robj *argv[2] = {shared.dumpcmdobj, key};
-        propagate(lookupCommand(shared.dumpcmdobj->ptr), c->db->id, argv, 2, PROPAGATE_REPL);
-        serverLog(LL_DEBUG, "propagate cmd: %s to slave", (char *)key->ptr);
+        robj* loadCmdObj = createStringObject("dumpfromssdb", strlen("dumpfromssdb"));
+        tmpargv[0] = loadCmdObj;
+        tmpargv[1] = key;
+        propagate(lookupCommandByCString((char*)"dumpfromssdb"),c->db->id,tmpargv,2,PROPAGATE_REPL);
+        decrRefCount(loadCmdObj);
+
         serverLog(LL_DEBUG, "ssdbRespRestoreCommand succeed.");
     } else
         serverLog(LL_WARNING, "ssdbRespRestoreCommand failed.");
@@ -4762,7 +4771,7 @@ void ssdbRespNotfoundCommand(client *c) {
         tmpargv[1] = keyobj;
 
         //  propagate to delete key in evict db and in slave redis
-        propagate(lookupCommand((char*)"del"),EVICTED_DATA_DBID,tmpargv,2,PROPAGATE_AOF|PROPAGATE_REPL);
+        propagate(lookupCommandByCString((char*)"del"),EVICTED_DATA_DBID,tmpargv,2,PROPAGATE_AOF|PROPAGATE_REPL);
         decrRefCount(tmpargv[0]);
 
         server.evicting_keys_num --;
