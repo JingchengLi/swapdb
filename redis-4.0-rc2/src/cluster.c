@@ -4723,17 +4723,10 @@ void ssdbRespRestoreCommand(client *c) {
         decrRefCount(delCmdObj);
 
         // progate dumpfromssdb to slaves
-        robj* loadCmdObj = createStringObject("dumpfromssdb", strlen("dumpfromssdb"));
-        tmpargv[0] = loadCmdObj;
-        propagate(lookupCommand((char*)"dumpfromssdb"),c->db->id,tmpargv,2,PROPAGATE_REPL);
-        decrRefCount(loadCmdObj);
-
-        serverLog(LL_DEBUG, "ssdbRespRestoreCommand succeed.");
-
         robj *argv[2] = {shared.dumpcmdobj, key};
-
-        propagate(lookupCommand(key->ptr), 0, argv, 2, PROPAGATE_REPL);
+        propagate(lookupCommand(shared.dumpcmdobj->ptr), c->db->id, argv, 2, PROPAGATE_REPL);
         serverLog(LL_DEBUG, "propagate cmd: %s to slave", (char *)key->ptr);
+        serverLog(LL_DEBUG, "ssdbRespRestoreCommand succeed.");
     } else
         serverLog(LL_WARNING, "ssdbRespRestoreCommand failed.");
 
