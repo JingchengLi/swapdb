@@ -1979,6 +1979,13 @@ void initServer(void) {
         exit(1);
     }
 
+    if (server.jdjr_mode
+        && createFakeClientForLoadAndEvict() != C_OK) {
+        serverLog(LL_WARNING, "create SSDB propagation socket failed.");
+        exit(1);
+    }
+
+
     if (server.jdjr_mode && server.special_clients_num) {
         server.maxclients += server.special_clients_num;
         adjustOpenFilesLimit();
@@ -2019,7 +2026,7 @@ void initServer(void) {
         server.db[EVICTED_DATA_DBID].transferring_keys = dictCreate(&keyptrDictType,NULL);
         server.db[EVICTED_DATA_DBID].loading_hot_keys = dictCreate(&keyptrDictType,NULL);
         server.db[EVICTED_DATA_DBID].visiting_ssdb_keys = dictCreate(&keyptrDictType,NULL);
-        server.db[EVICTED_DATA_DBID].delete_confirm_keys = dictCreate(&keyptrDictType,NULL);
+        server.loadAndEvictCmdDict = dictCreate(&keyptrDictType,NULL);
     }
 
     evictionPoolAlloc(); /* Initialize the LRU keys pool. */
@@ -2042,6 +2049,9 @@ void initServer(void) {
     server.rdb_save_time_last = -1;
     server.rdb_save_time_start = -1;
     server.dirty = 0;
+
+    if (server.jdjr_mode)
+        server.cmdNotDone = 0;
     resetServerStats();
     /* A few stats we don't want to reset: server startup time, and peak mem. */
     server.stat_starttime = time(NULL);
@@ -2113,6 +2123,8 @@ void initServer(void) {
         server.no_writing_ssdb_blocked_clients = listCreate();
         server.ssdbargv = zmalloc(sizeof(char *) * SSDB_CMD_DEFAULT_MAX_ARGC);
         server.ssdbargvlen = zmalloc(sizeof(size_t) * SSDB_CMD_DEFAULT_MAX_ARGC);
+        server.loadAndEvictCmdList = listCreate();
+        listSetFreeMethod(server.loadAndEvictCmdList, (void (*)(void*))freeMultiCmd);
     }
 }
 
@@ -2485,9 +2497,8 @@ int checkKeysInMediateState(client* c) {
         return C_OK;
 
     /* Command from SSDB should not be blocked. */
-    if (!server.masterhost
-        && (c->cmd->proc == ssdbRespDelCommand
-            || c->cmd->proc == ssdbRespRestoreCommand))
+    if (c->cmd->proc == ssdbRespDelCommand
+        || c->cmd->proc == ssdbRespRestoreCommand)
         return C_OK;
 
     keys = getKeysFromCommand(c->cmd, c->argv, c->argc, &numkeys);
@@ -2578,18 +2589,20 @@ int processCommandMaybeInSSDB(client *c) {
                 keys = getKeysFromCommand(c->cmd, c->argv, c->argc, &numkeys);
                 for (j = 0; j < numkeys; j ++) {
                     dictEntry *entry, *existing;
+                    uint64_t clients_visiting_num = 0;
                     entry = dictAddRaw(EVICTED_DATA_DB->visiting_ssdb_keys, c->argv[keys[j]]->ptr, &existing);
                     if (NULL == entry) {
                         /* there are already some clients visiting this key. just increase client visiting count. */
-                        uint64_t clients_visiting_num = dictGetUnsignedIntegerVal(existing);
+                        clients_visiting_num = dictGetUnsignedIntegerVal(existing);
                         clients_visiting_num++;
                         dictSetUnsignedIntegerVal(existing, clients_visiting_num);
                     } else {
                         /* no other clients are visiting this key, set client visiting num to 1. */
                         dictSetUnsignedIntegerVal(entry, 1);
                     }
-                    serverLog(LL_DEBUG, "key: %s is added to visiting_ssdb_keys, fd: %d.",
-                              (char *)c->argv[keys[j]]->ptr, c->fd);
+                    serverLog(LL_DEBUG, "key: %s is added to visiting_ssdb_keys, fd: %d, counter: %d",
+                              (char *)c->argv[keys[j]]->ptr, c->fd,
+                              clients_visiting_num ? clients_visiting_num : 1);
                 }
 
                 if (keys) getKeysFreeResult(keys);
@@ -2671,6 +2684,20 @@ int runCommand(client *c, int* need_return) {
 
     return C_OK;
 }
+
+/* TODO: using new defined struct if necessary. */
+loadAndEvictCmd *createLoadAndEvictCmd(robj ** argv, int argc, struct redisCommand *cmd) {
+    loadAndEvictCmd *cmdinfo = zmalloc(sizeof(*cmdinfo));
+    cmdinfo->argc = argc;
+    cmdinfo->argv = argv;
+    cmdinfo->cmd = cmd;
+    return cmdinfo;
+}
+
+void freeMultiCmd(multiCmd *md) {
+    zfree(md);
+}
+
 
 /* If this function gets called we already read a whole
  * command, arguments are in the client argv/argc fields.
@@ -2855,6 +2882,28 @@ int processCommand(client *c) {
         return C_OK;
     }
 
+
+    if (server.jdjr_mode
+        && server.masterhost
+        && (c->cmd->proc == storetossdbCommand
+            || c->cmd->proc == dumpfromssdbCommand)) {
+        int j, currcmd_is_load;
+
+        c->lastcmd = c->cmd;
+
+        if (updateLoadAndEvictCmdDict(c->argv[1], currcmd_is_load) == C_OK) {
+            for (j = 0; j < c->argc; j ++)
+                incrRefCount(c->argv[j]);
+
+            loadAndEvictCmd *cmdinfo = createLoadAndEvictCmd(c->argv, c->argc, c->cmd);
+            listAddNodeTail(server.loadAndEvictCmdList, cmdinfo);
+            /* Keep c->argv alocated memory. */
+            c->argv = NULL;
+        }
+
+        return C_OK;
+    }
+
     /* Check if current cmd contains blocked keys. */
     if (server.jdjr_mode
         && c->argc > 1
@@ -2876,7 +2925,9 @@ int processCommand(client *c) {
         && (server.is_allow_ssdb_write == ALLOW_SSDB_WRITE)
         && listLength(server.no_writing_ssdb_blocked_clients))
         handleClientsBlockedOnCustomizedPsync();
-
+    if (server.jdjr_mode && server.masterhost
+        && listLength(server.loadAndEvictCmdList))
+        handleLoadAndEvictCmdInSlave();
     return ret;
 }
 

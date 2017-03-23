@@ -757,9 +757,7 @@ void syncCommand(client *c) {
             while ((ln = listNext(&li)) != NULL) {
                 tc = listNodeValue(ln);
 
-                if (tc == server.ssdb_client
-                    || tc == server.ssdb_replication_client)
-                    continue;
+                if (isSpecialConnection(tc)) continue;
 
                 if (aeCreateFileEvent(server.el, tc->fd, AE_WRITABLE,
                                       sendCheckWriteCommandToSSDB, tc) == AE_ERR) {

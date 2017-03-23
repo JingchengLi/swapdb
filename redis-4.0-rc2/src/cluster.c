@@ -4815,6 +4815,7 @@ void ssdbRespFailCommand(client *c) {
 
 void storetossdbCommand(client *c) {
     robj *keyobj;
+    dictEntry *de;
 
     if (!server.jdjr_mode) {
         addReplyErrorFormat(c,"Command only supported in jdjr-mode '%s'",
@@ -4824,21 +4825,44 @@ void storetossdbCommand(client *c) {
 
     keyobj = c->argv[1];
 
-    if (lookupKeyReadOrReply(c, c->argv[1], shared.nullbulk) == NULL)
+    if (lookupKeyReadOrReply(c, c->argv[1], shared.nullbulk) == NULL) {
+        /* The key is not existed any more. */
+        addReplyError(c, "Not existed in redis.");
         return;
+    }
 
     if (c->argc != 2) {
         addReply(c, shared.syntaxerr);
         return;
     }
 
+    if ((de = dictFind(EVICTED_DATA_DB->transferring_keys, keyobj->ptr))) {
+        addReplyError(c, "In transferring_keys.");
+        server.cmdNotDone = 1;
+        return;
+    } else if ((de = dictFind(EVICTED_DATA_DB->loading_hot_keys, keyobj->ptr))) {
+        addReplyError(c, "In loading_hot_keys.");
+        server.cmdNotDone = 1;
+        return;
+    } else if (dictFind(EVICTED_DATA_DB->visiting_ssdb_keys, keyobj->ptr)) {
+        addReplyError(c, "In visiting_ssdb_keys.");
+        server.cmdNotDone = 1;
+        return;
+    }
+
     /* Try restoring the redis dumped data to SSDB. */
-    if (prologOfEvictingToSSDB(keyobj, c->db) != C_OK)
+    if (prologOfEvictingToSSDB(keyobj, c->db) != C_OK) {
+        addReplyErrorFormat(c,"Failed to send the restore cmd to SSDB.",
+                            (char*)c->argv[0]->ptr);
         serverLog(LL_DEBUG, "Failed to send the restore cmd to SSDB.");
-    else
+        /* TODO: handle server.cmdNotDone */
+        return;
+    } else
         setTransferringDB(c->db, keyobj);
 
     addReply(c,shared.ok);
+
+    server.dirty ++;
 }
 
 void locatekeyCommand(client *c) {
@@ -4896,14 +4920,17 @@ void dumpfromssdbCommand(client *c) {
         return;
     }
 
-    /* todo: we need try to load this key later for slave redis if the key
-     * is in Intermediate state. */
-
-    if ((de = dictFind(EVICTED_DATA_DB->loading_hot_keys, keyobj->ptr))) {
+    if ((de = dictFind(EVICTED_DATA_DB->transferring_keys, keyobj->ptr))) {
+        addReplyError(c, "In transferring_keys.");
+        server.cmdNotDone = 1;
+        return;
+    } else if ((de = dictFind(EVICTED_DATA_DB->loading_hot_keys, keyobj->ptr))) {
         addReplyError(c, "In loading_hot_keys.");
+        server.cmdNotDone = 1;
         return;
     } else if (dictFind(EVICTED_DATA_DB->visiting_ssdb_keys, keyobj->ptr)) {
         addReplyError(c, "In visiting_ssdb_keys.");
+        server.cmdNotDone = 1;
         return;
     } else if (dictFind(EVICTED_DATA_DB->delete_confirm_keys, keyobj->ptr)) {
         addReplyError(c, "In delete_confirm_keys.");
@@ -4919,6 +4946,8 @@ void dumpfromssdbCommand(client *c) {
     prologOfLoadingFromSSDB(keyobj);
 
     addReply(c,shared.ok);
+
+    server.dirty ++;
 }
 
 

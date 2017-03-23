@@ -178,6 +178,8 @@ int prepareClientToWrite(client *c) {
 
     if (c->fd <= 0) return C_ERR; /* Fake client for AOF loading. */
 
+    if (server.jdjr_mode && c == server.slave_ssdb_load_evict_client) return C_ERR;
+
     /* Schedule the client to write the output buffers to the socket only
      * if not already done (there were no pending writes already and the client
      * was yet not flagged), and, for slaves, if the slave can actually
@@ -1050,6 +1052,16 @@ void removeVisitingSSDBKey(client *c) {
     }
 }
 
+
+int isSpecialConnection(client *c) {
+    if (c == server.ssdb_client
+        || c == server.slave_ssdb_load_evict_client
+        || c == server.ssdb_replication_client)
+        return 1;
+    else
+        return 0;
+}
+
 /* TODO: Implement ssdbClientUnixHandler. Only handle AE_READABLE. */
 void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
     UNUSED(el);
@@ -1071,7 +1083,7 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
         int oldlen = r->len;
 
         if (redisBufferRead(c->context) == REDIS_OK
-            && c != server.ssdb_client) {
+            && !isSpecialConnection(c)) {
             add_reply_len = r->len - oldlen;
             addReplyString(c, r->buf + oldlen, add_reply_len);
         }
@@ -1189,7 +1201,29 @@ int createClientForReplicate() {
 
     server.special_clients_num ++;
 
-    serverLog(LL_NOTICE, "create SSDB replication socket success.");
+    serverLog(LL_NOTICE, "Create SSDB replication socket success.");
+    return C_OK;
+}
+
+int createFakeClientForLoadAndEvict() {
+    if (server.slave_ssdb_load_evict_client && server.slave_ssdb_load_evict_client->fd != -1)
+        unlinkClient(server.slave_ssdb_load_evict_client);
+
+    server.slave_ssdb_load_evict_client = createClient(-1);
+    if (!server.slave_ssdb_load_evict_client) {
+        serverLog(LL_WARNING, "Error creating new client.");
+        return C_ERR;
+    }
+
+    if (nonBlockConnectToSsdbServer(server.slave_ssdb_load_evict_client) == C_OK) {
+        server.slave_ssdb_load_evict_client->fd = server.slave_ssdb_load_evict_client->context->fd;
+        listAddNodeTail(server.clients, server.slave_ssdb_load_evict_client);
+    } else
+        return C_ERR;
+
+    server.special_clients_num ++;
+
+    serverLog(LL_NOTICE, "Create SSDB loadAndEvict socket success.");
     return C_OK;
 }
 
@@ -1219,8 +1253,10 @@ int createClientForEvicting() {
 
 static void freeClientArgv(client *c) {
     int j;
-    for (j = 0; j < c->argc; j++)
-        decrRefCount(c->argv[j]);
+
+    if (c->argv)
+        for (j = 0; j < c->argc; j++)
+            decrRefCount(c->argv[j]);
     c->argc = 0;
     c->cmd = NULL;
 }
@@ -1294,6 +1330,9 @@ void resetSpecialCient(client *c) {
 
     if (c == server.ssdb_replication_client)
         server.ssdb_replication_client = NULL;
+
+    if (c == server.slave_ssdb_load_evict_client)
+        server.slave_ssdb_load_evict_client = NULL;
 }
 
 void freeClient(client *c) {
@@ -2024,7 +2063,7 @@ sds getAllClientsInfoString(void) {
     while ((ln = listNext(&li)) != NULL) {
         client = listNodeValue(ln);
 
-        if (server.jdjr_mode && client == server.ssdb_client)
+        if (server.jdjr_mode && isSpecialConnection(client))
             continue;
 
         o = catClientInfoString(o,client);
@@ -2245,6 +2284,13 @@ void replaceClientCommandVector(client *c, int argc, robj **argv) {
     c->argv = argv;
     c->argc = argc;
     c->cmd = lookupCommandOrOriginal(c->argv[0]->ptr);
+    serverAssertWithInfo(c,NULL,c->cmd != NULL);
+}
+
+void restoreLoadEvictCommandVector(client *c, int argc, robj **argv, struct redisCommand *cmd) {
+    c->argv = argv;
+    c->argc = argc;
+    c->cmd = cmd;
     serverAssertWithInfo(c,NULL,c->cmd != NULL);
 }
 

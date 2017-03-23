@@ -1095,6 +1095,25 @@ void setLoadingDB(robj *key) {
     serverLog(LL_DEBUG, "key: %s is added to loading_hot_keys.", (char *)key->ptr);
 }
 
+int updateLoadAndEvictCmdDict(robj *key, int currcmd_is_load) {
+    dictEntry *de;
+    int prevcmd_is_load;
+    de = dictFind(server.loadAndEvictCmdDict, key->ptr);
+
+    if (de) {
+        prevcmd_is_load = dictGetSignedIntegerVal(de);
+        if (prevcmd_is_load != currcmd_is_load)
+            dictDelete(server.loadAndEvictCmdDict, key->ptr);
+
+        return C_ERR;
+    } else {
+        de = dictAddOrFind(server.loadAndEvictCmdDict, key->ptr);
+        dictSetSignedIntegerVal(de, currcmd_is_load);
+
+        return C_OK;
+    }
+}
+
 long long getTransferringDB(robj *key) {
     redisDb *db = EVICTED_DATA_DB;
     dictEntry *de;

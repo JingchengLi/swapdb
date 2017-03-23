@@ -661,6 +661,14 @@ typedef struct multiState {
     time_t minreplicas_timeout; /* MINREPLICAS timeout as unixtime. */
 } multiState;
 
+typedef struct loadAndEvictCmd {
+    robj **argv;
+    int argc;
+    struct redisCommand *cmd;
+} loadAndEvictCmd;
+
+
+
 /* This structure holds the blocking operation state for a client.
  * The fields used depend on client->btype. */
 typedef struct blockingState {
@@ -953,6 +961,7 @@ struct redisServer {
     client *ssdb_client;        /* client for ssdb_client_sofd. */
     client *ssdb_replication_client;   /* client for interaction with SSDB in
                                  * replication state. */
+    client *slave_ssdb_load_evict_client;
     int cfd[CONFIG_BINDADDR_MAX];/* Cluster bus listening socket */
     int cfd_count;              /* Used slots in cfd[] */
     list *clients;              /* List of active clients */
@@ -1251,6 +1260,9 @@ struct redisServer {
     int special_clients_num;
     char **ssdbargv;
     size_t *ssdbargvlen;
+    list *loadAndEvictCmdList;
+    dict *loadAndEvictCmdDict;
+    int cmdNotDone;
 };
 
 typedef struct pubsubPattern {
@@ -1393,6 +1405,7 @@ void acceptUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask);
 void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *private, int mask);
 int createClientForEvicting();
 int createClientForReplicate();
+int createFakeClientForLoadAndEvict();
 void readQueryFromClient(aeEventLoop *el, int fd, void *privdata, int mask);
 void addReplyString(client *c, const char *s, size_t len);
 void addReplyBulk(client *c, robj *obj);
@@ -1420,6 +1433,7 @@ sds getAllClientsInfoString(void);
 void rewriteClientCommandVector(client *c, int argc, ...);
 void rewriteClientCommandArgument(client *c, int i, robj *newval);
 void replaceClientCommandVector(client *c, int argc, robj **argv);
+void restoreLoadEvictCommandVector(client *c, int argc, robj **argv, struct redisCommand *cmd);
 unsigned long getClientOutputBufferMemoryUsage(client *c);
 void freeClientsInAsyncFreeQueue(void);
 void asyncCloseClientOnOutputBufferLimitReached(client *c);
@@ -1562,6 +1576,7 @@ void replicationCacheMasterUsingMyself(void);
 void feedReplicationBacklog(void *ptr, size_t len);
 void resetCustomizedReplication();
 void sendBulkToSlave(aeEventLoop *el, int fd, void *privdata, int mask);
+void freeMultiCmd(multiCmd *md);
 
 /* Generic persistence functions */
 void startLoading(FILE *fp);
@@ -1779,6 +1794,7 @@ int expireIfNeeded(redisDb *db, robj *key);
 long long getExpire(redisDb *db, robj *key);
 void setTransferringDB(redisDb *db, robj *key);
 void setLoadingDB(robj *key);
+int updateLoadAndEvictCmdDict(robj *key, int currcmd_is_load);
 long long getTransferringDB(robj *key);
 void setExpire(client *c, redisDb *db, robj *key, long long when);
 robj *lookupKey(redisDb *db, robj *key, int flags);
