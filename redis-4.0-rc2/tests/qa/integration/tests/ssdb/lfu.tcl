@@ -1,3 +1,7 @@
+#start_server {tags {"ssdb"}
+#overrides {maxmemory 0}} {
+#    after 1000000
+#}
 start_server {tags {"ssdb"}
 overrides {maxmemory 0}} {
     test "#crash issue Reply from SSDB:ERR value*integer*out of range" {
@@ -24,7 +28,7 @@ overrides {maxmemory 0}} {
         r del foo
     }
 
-    test "#issue lfu count be initialled to 5 when key dump to ssdb " {
+    test "#issue SWAP-9 lfu count be initiallized to 5 when key dump to ssdb " {
         r del foo
         for {set i 0} {$i < 1000} {incr i} {
             r incr foo
@@ -33,6 +37,13 @@ overrides {maxmemory 0}} {
         assert {$freq > 5}
         dumpto_ssdb_and_wait r foo
         assert_equal $freq [r object freq foo] "ssdb freq:[r object freq foo] wrong"
-        r del foo
+    }
+
+    test "#issue SWAP-20 lfu count be initiallized to 5 when key restore to redis " {
+        set freq [r object freq foo]
+        assert {$freq > 5}
+        assert_equal 1000 [r get foo]
+        assert_equal {redis} [r locatekey foo]
+        assert {[r object freq foo] >= $freq}
     }
 }
