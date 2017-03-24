@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 2.8)
 project(ssdb)
 
+option(ROCKSDB "enable rocksdb support" ON)
+
 SET(LEVELDB_PATH=${CMAKE_CURRENT_SOURCE_DIR}/deps/leveldb-1.18)
 SET(JEMALLOC_PATH=${CMAKE_CURRENT_SOURCE_DIR}/deps/jemalloc-4.1.0)
 SET(SNAPPY_PATH=${CMAKE_CURRENT_SOURCE_DIR}/deps/snappy-1.1.0)
@@ -35,8 +37,8 @@ ELSE()
     SET(CMAKE_CXX_FLAGS "-DNDEBUG -D__STDC_FORMAT_MACROS -Wall -O0 -Wno-sign-compare -std=c++11")
 ENDIF()
 
-
 IF(ROCKSDB)
+    message("==================use rocksdb===================")
     INCLUDE_DIRECTORIES(
             ${CMAKE_CURRENT_SOURCE_DIR}/deps/rocksdb-4.11.2/include
     )
@@ -50,6 +52,7 @@ IF(ROCKSDB)
             LINKER_LANGUAGE CXX
             OUTPUT_NAME "rocksdb")
 ELSE()
+    message("==================use leveldb===================")
     INCLUDE_DIRECTORIES(
             ${CMAKE_CURRENT_SOURCE_DIR}/deps/leveldb-1.18/include
             ${CMAKE_CURRENT_SOURCE_DIR}/deps/leveldb-1.18/include/leveldb

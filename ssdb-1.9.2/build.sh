@@ -3,6 +3,7 @@ BASE_DIR=`pwd`
 JEMALLOC_PATH="$BASE_DIR/deps/jemalloc-4.1.0"
 LEVELDB_PATH="$BASE_DIR/deps/leveldb-1.18"
 SNAPPY_PATH="$BASE_DIR/deps/snappy-1.1.0"
+ROCKSDB_PATH="$BASE_DIR/deps/rocksdb-4.11.2"
 
 # dependency check
 which autoconf > /dev/null 2>&1
@@ -78,8 +79,18 @@ if [ ! -f Makefile ]; then
 	echo "##### building snappy finished #####"
 	echo ""
 fi
-cd "$DIR"
 
+cd "$DIR"
+DIR=`pwd`
+cd $ROCKSDB_PATH
+if [ -f CMakeLists.txt ];then
+    echo "##### building rocksdb... #####"
+    cmake .
+    make -j16
+    echo "##### building rocksdb finished #####"
+fi
+
+cd "$DIR"
 DIR=`pwd`
 cd $LEVELDB_PATH
 if [ -f Makefile ]; then
@@ -89,6 +100,7 @@ if [ -f Makefile ]; then
     echo "##### building leveldb finished #####"
     echo ""
 fi
+
 cd "$DIR"
 
 case "$TARGET_OS" in
