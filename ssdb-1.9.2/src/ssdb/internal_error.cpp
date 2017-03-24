@@ -28,6 +28,8 @@ std::map<int, std::string> SSDBErrMap = {
         {NAN_SCORE,        "ERR resulting score is not a float number (NaN)"},
         {ZSET_OVERFLOW,    "ERR value is less than ZSET_SCORE_MIN or greater than ZSET_SCORE_MAX"},
         {ZSET_INVALID_STR, "ERR min or max not valid string range item"},
+        {BUSY_KEY_EXISTS,  "BUSYKEY Target key name already exists."},
+        {INVALID_DUMP_STR,  "ERR DUMP payload version or checksum are wrong"},
 };
 
 

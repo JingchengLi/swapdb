@@ -875,13 +875,13 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
     if (s.ok()) {
 
         if(meta_val.size()<4) {
-            return -1;
+            return INVALID_METAVAL;
         }
 
         if(meta_val[POS_DEL] == KEY_ENABLED_MASK){
             if (!replace) {
                 //exist key no
-                return -1;
+                return BUSY_KEY_EXISTS;
             }
 
             leveldb::WriteBatch batch;
@@ -889,7 +889,7 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
             s = ldb->Write(leveldb::WriteOptions(), &(batch));
 
             if(!s.ok()){
-                return -1;
+                return STORAGE_ERR;
             }
 
         }
@@ -902,7 +902,7 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
 
     if (!ok) {
         log_warn("checksum failed %s:%s", hexmem(key.data(), key.size()).c_str(),hexmem(data.data(), data.size()).c_str());
-        return -1;
+        return INVALID_DUMP_STR;
     }
 
     uint64_t len = 0;

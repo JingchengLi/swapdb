@@ -441,9 +441,11 @@ int proc_restore(NetworkServer *net, Link *link, const Request &req, Response *r
 
 	if (ret < 0) {
 		log_error("%s : %s", hexmem(req[1].data(),req[1].size()).c_str(), hexmem(req[3].data(),req[3].size()).c_str());
+		resp->reply_get(ret, &val, GetErrorInfo(ret).c_str());
+	} else {
+		resp->reply_get(ret, &val);
 	}
 
-    resp->reply_get(ret, &val);
     return 0;
 }
 
