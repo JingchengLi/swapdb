@@ -507,15 +507,6 @@ int proc_zremrangebyrank(NetworkServer *net, Link *link, const Request &req, Res
 	return 0;
 }
 
-int proc_zfix(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
-	CHECK_NUM_PARAMS(2);
-
-	const Bytes &name = req[1];
-	int64_t ret = serv->ssdb->zfix(name);
-	resp->reply_int(ret, ret);
-	return 0;
-}
 
 static int _zrangebylex(SSDB *ssdb, const Request &req, Response *resp, int reverse){
     CHECK_NUM_PARAMS(4);

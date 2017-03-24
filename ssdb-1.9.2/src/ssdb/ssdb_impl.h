@@ -195,7 +195,6 @@ public:
 	 */
 	virtual int zscan(const Bytes &name, const Bytes& cursor, const std::string &pattern, uint64_t limit, std::vector<std::string> &resp);
 
-	virtual int64_t zfix(const Bytes &name);
 	virtual int64_t zlexcount(const Bytes &name, const Bytes &key_start, const Bytes &key_end);
     virtual int zrangebylex(const Bytes &name, const Bytes &key_start, const Bytes &key_end, std::vector<std::string> &keys,
 							long offset, long limit);

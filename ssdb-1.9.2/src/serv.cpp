@@ -87,7 +87,6 @@ DEF_PROC(zsize);
 DEF_PROC(zget);
 DEF_PROC(zincr);
 DEF_PROC(zdecr);
-DEF_PROC(zfix);
 DEF_PROC(zscan);
 DEF_PROC(zcount);
 DEF_PROC(zremrangebyrank);
@@ -224,7 +223,6 @@ void SSDBServer::reg_procs(NetworkServer *net){
 	REG_PROC(zget, "rt");
 	REG_PROC(zincr, "wt");
 	REG_PROC(zdecr, "wt");
-	REG_PROC(zfix, "wt");
 	REG_PROC(zscan, "rt");
 	REG_PROC(zcount, "rt");
 	REG_PROC(zremrangebyrank, "wt");
