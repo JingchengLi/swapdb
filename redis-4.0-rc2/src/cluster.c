@@ -4627,13 +4627,13 @@ void ssdbRespDelCommand(client *c) {
     robj *keyobj;
     int numdel = 0, j;
 
+    preventCommandPropagation(c);
+
     if (!server.jdjr_mode) {
         addReplyErrorFormat(c,"Command only supported in jdjr-mode '%s'",
                             (char *)c->argv[0]->ptr);
         return;
     }
-
-    preventCommandPropagation(c);
 
     for (j = 1; j < c->argc; j ++) {
         long long usage;
@@ -4787,6 +4787,8 @@ void ssdbRespFailCommand(client *c) {
     robj *cmd = c->argv[1];
     robj *keyobj = c->argv[2];
 
+    preventCommandPropagation(c);
+
     /* TODO: make sds vars shared. */
     sds fail_restore = sdsnew("ssdb-resp-restore");
     sds fail_dump = sdsnew("ssdb-resp-dump");
@@ -4805,8 +4807,6 @@ void ssdbRespFailCommand(client *c) {
 
     signalBlockingKeyAsReady(c->db, keyobj);
 
-    preventCommandPropagation(c);
-
     addReply(c, shared.ok);
 
     sdsfree(fail_restore);
@@ -4816,6 +4816,8 @@ void ssdbRespFailCommand(client *c) {
 void storetossdbCommand(client *c) {
     robj *keyobj;
     dictEntry *de;
+
+    preventCommandPropagation(c);
 
     if (!server.jdjr_mode) {
         addReplyErrorFormat(c,"Command only supported in jdjr-mode '%s'",
@@ -4860,8 +4862,6 @@ void storetossdbCommand(client *c) {
         setTransferringDB(c->db, keyobj);
 
     addReply(c,shared.ok);
-
-    server.dirty ++;
 }
 
 void locatekeyCommand(client *c) {
@@ -4945,8 +4945,6 @@ void dumpfromssdbCommand(client *c) {
     prologOfLoadingFromSSDB(keyobj);
 
     addReply(c,shared.ok);
-
-    server.dirty ++;
 }
 
 
