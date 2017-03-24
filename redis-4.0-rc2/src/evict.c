@@ -476,8 +476,7 @@ unsigned long KeyLFUDecrAndReturn(sds key) {
 int epilogOfEvictingToSSDB(robj *keyobj, long long *usage) {
     redisDb *evicteddb = server.db + EVICTED_DATA_DBID, *db;
     mstime_t eviction_latency;
-    robj *setcmd, *usage_obj;
-    sds cmdname;
+    robj *usage_obj;
     dictEntry *de, *ev_de;
     long long now = mstime(), expiretime;
     /* TODO: clean up getTransferringDB. */

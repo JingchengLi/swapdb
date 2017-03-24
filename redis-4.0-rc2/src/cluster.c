@@ -4856,8 +4856,7 @@ void storetossdbCommand(client *c) {
 
     /* Try restoring the redis dumped data to SSDB. */
     if (prologOfEvictingToSSDB(keyobj, c->db) != C_OK) {
-        addReplyErrorFormat(c,"Failed to send the restore cmd to SSDB.",
-                            (char*)c->argv[0]->ptr);
+        addReplyErrorFormat(c,"Failed to send the restore cmd to SSDB.");
         serverLog(LL_DEBUG, "Failed to send the restore cmd to SSDB.");
         /* TODO: handle server.cmdNotDone */
         return;

@@ -2589,11 +2589,11 @@ int processCommandMaybeInSSDB(client *c) {
                         clients_visiting_num = dictGetUnsignedIntegerVal(existing);
                         clients_visiting_num++;
                         dictSetUnsignedIntegerVal(existing, clients_visiting_num);
-                    } else {
+                   } else {
                         /* no other clients are visiting this key, set client visiting num to 1. */
                         dictSetUnsignedIntegerVal(entry, 1);
                     }
-                    serverLog(LL_DEBUG, "key: %s is added to visiting_ssdb_keys, fd: %d, counter: %d",
+                    serverLog(LL_DEBUG, "key: %s is added to visiting_ssdb_keys, fd: %d, counter: %ld",
                               (char *)c->argv[keys[j]]->ptr, c->fd,
                               clients_visiting_num ? clients_visiting_num : 1);
                 }
