@@ -500,6 +500,7 @@ int SSDBImpl::incr_hsize(leveldb::WriteBatch &batch, const std::string &size_key
 			batch.Put(del_key, "");
 			batch.Put(size_key, meta_val);
 			edel_one(batch, name); //del expire ET key
+			//TODO TAG NOTIFY REDIS
 		} else{
 			std::string size_val = encode_hash_meta_val(len, hv.version);
 			batch.Put(size_key, size_val);

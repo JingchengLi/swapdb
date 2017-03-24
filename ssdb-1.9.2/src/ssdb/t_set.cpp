@@ -32,6 +32,7 @@ int SSDBImpl::incr_ssize(leveldb::WriteBatch &batch, const SetMetaVal &sv, const
             batch.Put(del_key, "");
             batch.Put(meta_key, meta_val);
             this->edel_one(batch, key); //del expire ET key
+            //TODO TAG NOTIFY REDIS
         } else{
             std::string size_val = encode_set_meta_val(len, sv.version);
             batch.Put(meta_key, size_val);

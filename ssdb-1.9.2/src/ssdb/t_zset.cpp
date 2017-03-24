@@ -758,6 +758,7 @@ int SSDBImpl::incr_zsize(leveldb::WriteBatch &batch, const ZSetMetaVal &zv, cons
             batch.Put(del_key, "");
             batch.Put(size_key, meta_val);
             edel_one(batch, name); //del expire ET key
+            //TODO TAG NOTIFY REDIS
         } else {
             std::string size_val = encode_zset_meta_val(len, zv.version);
             batch.Put(size_key, size_val);
