@@ -4716,7 +4716,7 @@ void ssdbRespRestoreCommand(client *c) {
         // propagate aof
         robj** restore_argv = zmalloc(c->argc * sizeof(robj*));
         restore_argv[0] = createStringObject("restore", strlen("restore"));
-        memcpy(restore_argv,c->argv+1,c->argc-1);
+        memcpy(restore_argv+1,c->argv+1,(c->argc-1) * sizeof(robj*));
 
         propagate(lookupCommandByCString((char*)"restore"),c->db->id,restore_argv,c->argc,PROPAGATE_AOF);
         decrRefCount(restore_argv[0]);
@@ -4729,12 +4729,8 @@ void ssdbRespRestoreCommand(client *c) {
         decrRefCount(delCmdObj);
 
         // progate dumpfromssdb to slaves
-        robj* loadCmdObj = createStringObject("dumpfromssdb", strlen("dumpfromssdb"));
-        tmpargv[0] = loadCmdObj;
-        tmpargv[1] = key;
-        propagate(lookupCommandByCString((char*)"dumpfromssdb"),c->db->id,tmpargv,2,PROPAGATE_REPL);
-        decrRefCount(loadCmdObj);
-
+        robj *argv[2] = {shared.dumpcmdobj, key};
+        propagate(lookupCommand(shared.dumpcmdobj->ptr), c->db->id, argv, 2, PROPAGATE_REPL);
         serverLog(LL_DEBUG, "ssdbRespRestoreCommand succeed.");
     } else
         serverLog(LL_WARNING, "ssdbRespRestoreCommand failed.");
