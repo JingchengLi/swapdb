@@ -558,6 +558,9 @@ TEST_F(KVTest, Test_kv_setbit_getbit) {
     int64_t getBit;
     s = client->multi_del(key);
     s = client->getbit(key, bitoffset, &getBit);
+    ASSERT_TRUE(s.ok());
+    ASSERT_EQ(0, getBit)<<"getbit no exists key return 0!";
+    s = client->getbit(key, bitoffset, &getBit);
     EXPECT_TRUE(s.ok())<<s.code();
     ASSERT_EQ(0, getBit);
     s = client->setbit(key, bitoffset, 1);

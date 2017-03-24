@@ -455,6 +455,8 @@ TEST_F(ZsetTest, Test_zset_zrank) {
     field = GetRandomField_();
     score = GetRandomDouble_();
     s = client->del(key);
+    s = client->zrank(key, field, &ret);
+    EXPECT_TRUE(s.not_found())<<"zrank not exists key should return nil!";
     int count = 20;
 
     for(int n = 0; n < count; n++)
@@ -467,6 +469,8 @@ TEST_F(ZsetTest, Test_zset_zrank) {
         s = client->zrank(key, field + itoa(n), &ret);
         ASSERT_EQ(n, ret);
     }
+    s = client->zrank(key, field+"null", &ret);
+    EXPECT_TRUE(s.not_found())<<"zrank not exists key field should return nil!";
     client->del(key);
 
     client->set(key, "val");
@@ -479,6 +483,8 @@ TEST_F(ZsetTest, Test_zset_zrevrank) {
     key = GetRandomKey_();
     field = GetRandomField_();
     score = GetRandomDouble_();
+    s = client->zrrank(key, field, &ret);
+    EXPECT_TRUE(s.not_found())<<"zrevrank not exists key should return nil!";
     client->del(key);
     int count = 20;
 
@@ -492,6 +498,8 @@ TEST_F(ZsetTest, Test_zset_zrevrank) {
         s = client->zrrank(key, field + itoa(n), &ret);
         ASSERT_EQ(count-n-1, ret);
     }
+    s = client->zrrank(key, field+"null", &ret);
+    EXPECT_TRUE(s.not_found())<<"zrevrank not exists key field should return nil!";
     client->del(key);
     client->set(key, "val");
     s = client->zrrank(key, field, &ret);
