@@ -2600,6 +2600,8 @@ int processCommandMaybeInSSDB(client *c) {
 
                 if (keys) getKeysFreeResult(keys);
 
+                /* TODO: use a suitable timeout. */
+                c->bpop.timeout = 5000 + mstime();
                 blockClient(c, BLOCKED_VISITING_SSDB);
             }
 
