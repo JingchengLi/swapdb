@@ -2880,9 +2880,7 @@ int processCommand(client *c) {
         && server.masterhost
         && (c->cmd->proc == storetossdbCommand
             || c->cmd->proc == dumpfromssdbCommand)) {
-        int currcmd_is_load;
-
-        c->lastcmd = c->cmd;
+        int currcmd_is_load = (c->cmd->proc == dumpfromssdbCommand) ? 1 : 0;
 
         if (updateLoadAndEvictCmdDict(c->argv[1], currcmd_is_load) == C_OK) {
             loadAndEvictCmd *cmdinfo = createLoadAndEvictCmd(c->argv, c->argc, c->cmd);
