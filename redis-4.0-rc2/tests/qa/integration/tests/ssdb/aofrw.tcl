@@ -47,20 +47,14 @@ start_server {tags {"ssdb"}} {
             wait_for_transfer_limit 0
             # Get the data set digest
             set d1 [r debug digest]
-            puts $d1
 
             # Load the AOF
             r debug loadaof
             wait_memory_stable
             set d2 [r debug digest]
-            puts $d2
 
             # Make sure they are the same
             assert {$d1 eq $d2}
-            puts [r dbsize]
-            r select 16
-            puts [r dbsize]
-            r select 0
             r flushall
         }
     }

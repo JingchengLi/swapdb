@@ -31,6 +31,7 @@ proc kill_server config {
     # nevermind if its already dead
     if {![is_alive $config]} { return }
     set pid [dict get $config pid]
+    set ssdbpid [dict get $config ssdbpid]
 
     # check for leaks
     if {![dict exists $config "skipleaks"]} {
@@ -54,6 +55,7 @@ proc kill_server config {
 
     # kill server and wait for the process to be totally exited
     catch {exec kill $pid}
+    catch {exec kill -9 $ssdbpid}
     if {$::valgrind} {
         set max_wait 60000
     } else {
@@ -65,6 +67,7 @@ proc kill_server config {
         if {$wait >= $max_wait} {
             puts "Forcing process $pid to exit..."
             catch {exec kill -KILL $pid}
+            catch {exec kill -KILL $ssdbpid}
         } elseif {$wait % 1000 == 0} {
             puts "Waiting for process $pid to exit..."
         }
@@ -82,7 +85,8 @@ proc kill_server config {
 
 proc is_alive config {
     set pid [dict get $config pid]
-    if {[catch {exec ps -p $pid} err]} {
+    set ssdbpid [dict get $config ssdbpid]
+    if {[catch {exec ps -p $pid} err] && [catch {exec ps -p $ssdbpid} err]} {
         return 0
     } else {
         return 1
@@ -297,6 +301,7 @@ proc start_server {options {code undefined}} {
     dict set srv "port" $port
     dict set srv "stdout" $stdout
     dict set srv "stderr" $stderr
+    dict set srv "ssdbpid" $ssdbpid
 
     # if a block of code is supplied, we wait for the server to become
     # available, create a client object and kill the server afterwards
@@ -328,7 +333,6 @@ proc start_server {options {code undefined}} {
             # Kill the server without checking for leaks
             dict set srv "skipleaks" 1
             puts "kill_server"
-            catch { exec kill -9 $ssdbpid }
             kill_server $srv
 
             # Print warnings from log
@@ -354,7 +358,6 @@ proc start_server {options {code undefined}} {
 
         set ::tags [lrange $::tags 0 end-[llength $tags]]
         puts "kill_server"
-        catch { exec kill -9 $ssdbpid }
         kill_server $srv
     } else {
         set ::tags [lrange $::tags 0 end-[llength $tags]]

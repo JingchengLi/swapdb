@@ -7,8 +7,8 @@ start_server {tags {"lfu"}} {
 
     test "lfu-decay-time config" {
         set decaytime 2
-        assert_equal {OK} [r config set lfu-decay-time $decaylimit] "set lfu-decay-time"
-        assert_equal $decaylimit [lindex [r config get lfu-decay-time] 1] "get lfu-decay-time"
+        assert_equal {OK} [r config set lfu-decay-time $decaytime] "set lfu-decay-time"
+        assert_equal $decaytime [lindex [r config get lfu-decay-time] 1] "get lfu-decay-time"
     }
 
     test "ssdb-transfer-lower-limit config" {

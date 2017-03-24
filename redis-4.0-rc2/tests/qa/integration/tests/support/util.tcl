@@ -402,9 +402,29 @@ proc ssdbr {args} {
 proc wait_memory_stable {} {
     set current_mem 0
 
-    while {[expr { [s used_memory] - $current_mem } ] != 0} {
-        after 30
+    while {[s used_memory] == $current_mem} {
+        after 1000
         set current_mem [s used_memory]
+    }
+}
+
+# flag = 1 mean that wait memory used upper than transfer_limit.
+# flag = 0 mean that wait memory used lower than transfer_limit and keep stable.
+proc wait_for_transfer_limit {flag} {
+    set maxmemory [lindex [r config get maxmemory] 1 ]
+    set ssdb_transfer_limit [lindex [r config get ssdb-transfer-lower-limit] 1]
+    assert {$maxmemory ne 0}
+    set current_mem 0
+    if {1 == $flag} {
+        while {[s used_memory] < $maxmemory*$ssdb_transfer_limit/100.0} {
+            after 100
+        }
+    } elseif {0 == $flag} {
+        while {[s used_memory] > $maxmemory*$ssdb_transfer_limit/100.0\
+        || [s used_memory] != $current_mem} {
+            after 1000
+            set current_mem [s used_memory]
+        }
     }
 }
 
@@ -415,7 +435,7 @@ proc debug_digest {r {level 0}} {
     set keyslist [$r $level keys *]
     $r $level select 0
 
-    if {[lindex [r $level role] 0] == "master"} {
+    if {[lindex [$r $level role] 0] == "master"} {
         foreach key $keyslist {
             $r $level exists $key ;#load keys to redis
         }
