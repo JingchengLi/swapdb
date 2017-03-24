@@ -170,7 +170,7 @@ void ExpirationHandler::expire_loop() {
         this->first_timeout = score;
 
         if (score <= time_ms()) {
-            log_debug("expired %s", key.c_str());
+            log_debug("expired %s", hexstr(key).c_str());
             ssdb->del(key);
 //            ssdb->edel(key); //moved to ssdb->del(key)
             this->fast_keys.pop_front();
