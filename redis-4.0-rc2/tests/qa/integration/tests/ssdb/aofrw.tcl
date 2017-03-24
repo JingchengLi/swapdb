@@ -1,8 +1,74 @@
+start_server {tags {"ssdb"}} {
+    # Enable the AOF
+    r config set appendonly yes
+    r config set auto-aof-rewrite-percentage 0 ; # Disable auto-rewrite.
+    waitForBgrewriteaof r
+
+    foreach rdbpre {no yes} {
+        r config set aof-use-rdb-preamble $rdbpre
+        test "AOF rewrite during write load and transferring: RDB preamble=$rdbpre" {
+            r config set ssdb-transfer-lower-limit 10
+            # Start a write load for 10 seconds
+            set master [srv 0 client]
+            set master_host [srv 0 host]
+            set master_port [srv 0 port]
+            set load_handle0 [start_write_load $master_host $master_port 10]
+            set load_handle1 [start_write_load $master_host $master_port 10]
+            set load_handle2 [start_write_load $master_host $master_port 10]
+            set load_handle3 [start_write_load $master_host $master_port 10]
+            set load_handle4 [start_write_load $master_host $master_port 10]
+
+            # Make sure the instance is really receiving data
+            wait_for_condition 50 100 {
+                [r debug digest] ne 0000000000000000000000000000000000000000
+            } else {
+                fail "No write load detected."
+            }
+
+            # wait reach transfer_limit and store some keys to ssdb.
+            wait_for_transfer_limit 1
+            # upper lower-limit otherwise allkeys storetossdb
+            r config set ssdb-transfer-lower-limit 20
+            r bgrewriteaof
+            waitForBgrewriteaof r
+
+            # Let it run a bit more so that we'll append some data to the new
+            # AOF.
+            after 100
+
+            # Stop the processes generating the load if they are still active
+            stop_write_load $load_handle0
+            stop_write_load $load_handle1
+            stop_write_load $load_handle2
+            stop_write_load $load_handle3
+            stop_write_load $load_handle4
+
+            # Make sure that no write before debug digest.
+            wait_for_transfer_limit 0
+            # Get the data set digest
+            set d1 [r debug digest]
+            puts $d1
+
+            # Load the AOF
+            r debug loadaof
+            wait_memory_stable
+            set d2 [r debug digest]
+            puts $d2
+
+            # Make sure they are the same
+            assert {$d1 eq $d2}
+            puts [r dbsize]
+            r select 16
+            puts [r dbsize]
+            r select 0
+            r flushall
+        }
+    }
+}
+
 start_server {tags {"ssdb"}
-overrides {
-    save ""
-    maxmemory 0
-}} {
+overrides { save ""
+    maxmemory 0 }} {
 
     test "Basic AOF rewrite" {
         r set foo bar

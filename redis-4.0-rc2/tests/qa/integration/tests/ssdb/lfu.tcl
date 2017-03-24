@@ -7,20 +7,20 @@ start_server {tags {"lfu"}} {
 
     test "lfu-decay-time config" {
         set decaytime 2
-        assert_equal {OK} [r config set lfu-decay-time $factor] "set lfu-decay-time"
-        assert_equal $factor [lindex [r config get lfu-decay-time] 1] "get lfu-decay-time"
+        assert_equal {OK} [r config set lfu-decay-time $decaylimit] "set lfu-decay-time"
+        assert_equal $decaylimit [lindex [r config get lfu-decay-time] 1] "get lfu-decay-time"
     }
 
     test "ssdb-transfer-lower-limit config" {
         set lower 20
-        assert_equal {OK} [r config set ssdb-transfer-lower-limit $factor] "set ssdb-transfer-lower-limit"
-        assert_equal $factor [lindex [r config get ssdb-transfer-lower-limit] 1] "get ssdb-transfer-lower-limit"
+        assert_equal {OK} [r config set ssdb-transfer-lower-limit $lower] "set ssdb-transfer-lower-limit"
+        assert_equal $lower [lindex [r config get ssdb-transfer-lower-limit] 1] "get ssdb-transfer-lower-limit"
     }
 
     test "ssdb-load-upper-limit config" {
-        set decaylimit 50
-        assert_equal {OK} [r config set ssdb-load-upper-limit $factor] "set ssdb-load-upper-limit"
-        assert_equal $factor [lindex [r config get ssdb-load-upper-limit] 1] "get ssdb-load-upper-limit"
+        set upper 50
+        assert_equal {OK} [r config set ssdb-load-upper-limit $upper] "set ssdb-load-upper-limit"
+        assert_equal $upper [lindex [r config get ssdb-load-upper-limit] 1] "get ssdb-load-upper-limit"
     }
 }
 
