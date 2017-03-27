@@ -4827,7 +4827,8 @@ void storetossdbCommand(client *c) {
 
     keyobj = c->argv[1];
 
-    if (lookupKeyReadOrReply(c, c->argv[1], shared.nullbulk) == NULL) {
+    if (lookupKeyReadWithFlags(c, c->argv[1], LOOKUP_NOTOUCH) == NULL) {
+        addReply(c, shared.nullbulk);
         /* The key is not existed any more. */
         serverLog(LL_DEBUG, "Not existed in redis.");
         return;
@@ -4877,7 +4878,7 @@ void locatekeyCommand(client *c) {
     serverAssert(c->argc == 2);
 
     replyString = lookupKey(EVICTED_DATA_DB, c->argv[1], LOOKUP_NOTOUCH)
-        ? "ssdb" : (lookupKey(c->db, c->argv[1], LOOKUP_NONE)
+        ? "ssdb" : (lookupKey(c->db, c->argv[1], LOOKUP_NOTOUCH)
                     ? "redis" : "none");
 
     replyObj = createStringObject(replyString, strlen(replyString));
@@ -4914,7 +4915,7 @@ void dumpfromssdbCommand(client *c) {
 
     robj *keyobj = c->argv[1], *o;
 
-    if ((o = lookupKeyRead(c->db, c->argv[1])) != NULL) {
+    if ((o = lookupKeyReadWithFlags(c->db, c->argv[1], LOOKUP_NOTOUCH)) != NULL) {
         addReplyError(c, "Already in redis.");
         return;
     }
@@ -4936,7 +4937,7 @@ void dumpfromssdbCommand(client *c) {
         return;
     }
 
-    if ((o = lookupKeyRead(EVICTED_DATA_DB,c->argv[1])) == NULL) {
+    if ((o = lookupKeyReadWithFlags(EVICTED_DATA_DB,c->argv[1], LOOKUP_NOTOUCH)) == NULL) {
         addReply(c, shared.nullbulk);
         return;
     }
