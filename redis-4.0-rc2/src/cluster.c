@@ -4829,7 +4829,7 @@ void storetossdbCommand(client *c) {
 
     if (lookupKeyReadOrReply(c, c->argv[1], shared.nullbulk) == NULL) {
         /* The key is not existed any more. */
-        addReplyError(c, "Not existed in redis.");
+        serverLog(LL_DEBUG, "Not existed in redis.");
         return;
     }
 
