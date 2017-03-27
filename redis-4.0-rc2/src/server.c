@@ -1359,6 +1359,10 @@ void beforeSleep(struct aeEventLoop *eventLoop) {
 
     /* Try to load keys from SSDB to redis. */
     if (server.jdjr_mode && server.masterhost == NULL) startToLoadIfNeeded();
+
+    if (server.jdjr_mode && server.masterhost
+        && listLength(server.loadAndEvictCmdList))
+        handleLoadAndEvictCmdInSlave();
 }
 
 /* =========================== Server initialization ======================== */
@@ -2673,6 +2677,8 @@ int runCommand(client *c, int* need_return) {
 
     if (server.jdjr_mode
         && processCommandMaybeFlushdb(c, bufpos) == C_OK) {
+        /* TODO: use a suitable timeout. */
+        c->bpop.timeout = 5000 + mstime();
         blockClient(c, BLOCKED_VISITING_SSDB);
         return C_ERR;
     }
@@ -2915,9 +2921,6 @@ int processCommand(client *c) {
         && (server.is_allow_ssdb_write == ALLOW_SSDB_WRITE)
         && listLength(server.no_writing_ssdb_blocked_clients))
         handleClientsBlockedOnCustomizedPsync();
-    if (server.jdjr_mode && server.masterhost
-        && listLength(server.loadAndEvictCmdList))
-        handleLoadAndEvictCmdInSlave();
     return ret;
 }
 
