@@ -32,7 +32,7 @@ message(STATUS "rocksdb: ${ROCKSDB_VERSION}")
 
 set(BUILD_VERSION_CC ${CMAKE_CURRENT_SOURCE_DIR}/util/build_version.cc)
 execute_process(COMMAND
-        "./build_tools/create_version_cc.sh ${BUILD_VERSION_CC}"
+        "./build_tools/create_version_cc.sh" "${BUILD_VERSION_CC}"
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         )
 
