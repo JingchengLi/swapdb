@@ -131,7 +131,7 @@ public:
 	//int multi_hset(const Bytes &name, const std::vector<Bytes> &kvs, int offset=0);
 	//int multi_hdel(const Bytes &name, const std::vector<Bytes> &keys, int offset=0);
 
-	virtual int64_t hsize(const Bytes &name);
+	virtual int hsize(const Bytes &name, uint64_t *size);
 	virtual int hmget(const Bytes &name, const std::vector<std::string> &reqKeys, std::map<std::string, std::string> *val);
 	virtual int hgetall(const Bytes &name, std::map<std::string, std::string> &val);
 	virtual int hget(const Bytes &name, const Bytes &key, std::string *val);
@@ -176,7 +176,7 @@ public:
 
 	int64_t zremrangebyscore(const Bytes &name, const Bytes &score_start, const Bytes &score_end, int remove);
 
-	virtual int64_t zsize(const Bytes &name);
+	virtual int zsize(const Bytes &name, uint64_t *size);
 	/**
 	 * @return -1: error; 0: not found; 1: found
 	 */

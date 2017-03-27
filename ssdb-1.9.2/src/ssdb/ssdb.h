@@ -85,7 +85,7 @@ public:
 	virtual int hincr(const Bytes &name, const Bytes &key, int64_t by, int64_t *new_val) = 0;
 	virtual int hincrbyfloat(const Bytes &name, const Bytes &key, long double by, long double *new_val) = 0;
 
-	virtual int64_t hsize(const Bytes &name) = 0;
+	virtual int hsize(const Bytes &name, uint64_t *size) = 0;
 	virtual int hget(const Bytes &name, const Bytes &key, std::string *val) = 0;
 	virtual int hgetall(const Bytes &name, std::map<std::string, std::string> &val) = 0;
 	virtual int hmget(const Bytes &name, const std::vector<std::string> &reqKeys, std::map<std::string, std::string> *val) = 0;
@@ -121,9 +121,8 @@ public:
 
 	// -1: error, 1: ok, 0: value is not an integer or out of range
 	virtual int zincr(const Bytes &name, const Bytes &key, double by, int &flags, double *new_val) = 0;
-	
-	virtual int64_t zsize(const Bytes &name) = 0;
-	/**
+    virtual int zsize(const Bytes &name, uint64_t *size) = 0;
+    /**
 	 * @return -1: error; 0: not found; 1: found
 	 */
 	virtual int zget(const Bytes &name, const Bytes &key, double *score) = 0;

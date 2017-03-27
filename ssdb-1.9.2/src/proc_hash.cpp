@@ -128,12 +128,12 @@ int proc_hsize(NetworkServer *net, Link *link, const Request &req, Response *res
 	CHECK_NUM_PARAMS(2);
 	SSDBServer *serv = (SSDBServer *)net->data;
 
-	int64_t ret = serv->ssdb->hsize(req[1]);
-
+	uint64_t size = 0;
+	int ret = serv->ssdb->hsize(req[1], &size);
 	if (ret < 0) {
 		resp->reply_int(-1, ret, GetErrorInfo(ret).c_str());
 	} else {
-		resp->reply_int(ret, ret);
+		resp->reply_int(ret, size);
 	}
 
 	return 0;

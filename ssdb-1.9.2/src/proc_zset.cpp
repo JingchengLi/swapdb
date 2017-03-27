@@ -173,13 +173,14 @@ int proc_zsize(NetworkServer *net, Link *link, const Request &req, Response *res
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(2);
 
-	int64_t ret = serv->ssdb->zsize(req[1]);
+    uint64_t size = 0;
+	int ret = serv->ssdb->zsize(req[1], &size);
     if (ret < 0) {
         resp->push_back("error");
-        resp->push_back(GetErrorInfo((int)ret));
+        resp->push_back(GetErrorInfo(ret));
         return 0;
     }
-	resp->reply_int(ret, ret);
+	resp->reply_int(ret, size);
 	return 0;
 }
 

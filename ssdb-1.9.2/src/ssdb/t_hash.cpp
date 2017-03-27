@@ -307,14 +307,15 @@ int SSDBImpl::hincr(const Bytes &name, const Bytes &key, int64_t by, int64_t *ne
 	return 1;
 }
 
-int64_t SSDBImpl::hsize(const Bytes &name){
+int SSDBImpl::hsize(const Bytes &name, uint64_t *size){
 	HashMetaVal hv;
 	std::string size_key = encode_meta_key(name);
 	int ret = GetHashMetaVal(size_key, hv);
 	if (ret != 1){
 		return ret;
 	} else{
-		return (int64_t)hv.length;
+		*size = hv.length;
+		return 1;
 	}
 }
 
