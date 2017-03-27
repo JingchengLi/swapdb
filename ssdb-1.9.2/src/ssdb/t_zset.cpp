@@ -745,8 +745,8 @@ int SSDBImpl::incr_zsize(leveldb::WriteBatch &batch, const ZSetMetaVal &zv, cons
     int ret = 1;
     if (zv.length == 0) {
         if (incr > 0) {
-            std::string size_val = encode_zset_meta_val((uint64_t) incr, zv.version);
-            batch.Put(size_key, size_val);
+            std::string meta_val = encode_zset_meta_val((uint64_t) incr, zv.version);
+            batch.Put(size_key, meta_val);
         } else if (incr == 0) {
             return 0;
         } else {
@@ -777,8 +777,8 @@ int SSDBImpl::incr_zsize(leveldb::WriteBatch &batch, const ZSetMetaVal &zv, cons
 
             ret = 0;
         } else {
-            std::string size_val = encode_zset_meta_val(len, zv.version);
-            batch.Put(size_key, size_val);
+            std::string meta_val = encode_zset_meta_val(len, zv.version);
+            batch.Put(size_key, meta_val);
         }
     }
     return ret;

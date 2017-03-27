@@ -5,15 +5,14 @@
 #include "ssdb_impl.h"
 
 
-int
-SSDBImpl::incr_ssize(leveldb::WriteBatch &batch, const SetMetaVal &sv, const std::string &meta_key, const Bytes &key,
+int SSDBImpl::incr_ssize(leveldb::WriteBatch &batch, const SetMetaVal &sv, const std::string &meta_key, const Bytes &key,
                      int64_t incr) {
     int ret = 1;
 
     if (sv.length == 0) {
         if (incr > 0) {
-            std::string size_val = encode_set_meta_val((uint64_t) incr, sv.version);
-            batch.Put(meta_key, size_val);
+            std::string meta_val = encode_set_meta_val((uint64_t) incr, sv.version);
+            batch.Put(meta_key, meta_val);
         } else if (incr == 0) {
             return 0;
         } else {
@@ -44,8 +43,8 @@ SSDBImpl::incr_ssize(leveldb::WriteBatch &batch, const SetMetaVal &sv, const std
 
             ret = 0;
         } else {
-            std::string size_val = encode_set_meta_val(len, sv.version);
-            batch.Put(meta_key, size_val);
+            std::string meta_val = encode_set_meta_val(len, sv.version);
+            batch.Put(meta_key, meta_val);
         }
     }
 
