@@ -270,16 +270,15 @@ int SSDBImpl::zget(const Bytes &name, const Bytes &key, double *score) {
     return 1;
 }
 
-ZIterator* SSDBImpl::zscan_internal(const Bytes &name, const Bytes &key_start,
-                                    const Bytes &score_start, const Bytes &score_end,
+ZIterator* SSDBImpl::zscan_internal(const Bytes &name, const Bytes &score_start, const Bytes &score_end,
                                     uint64_t limit, Iterator::Direction direction, uint16_t version,
                                     const leveldb::Snapshot *snapshot) {
     if (direction == Iterator::FORWARD) {
         std::string start, end;
         if (score_start.empty()) {
-            start = encode_zscore_key(name, key_start, ZSET_SCORE_MIN, version);
+            start = encode_zscore_key(name, "", ZSET_SCORE_MIN, version);
         } else {
-            start = encode_zscore_key(name, key_start, score_start.Double(), version);
+            start = encode_zscore_key(name, "", score_start.Double(), version);
         }
         if (score_end.empty()) {
             end = encode_zscore_key(name, "", ZSET_SCORE_MAX, version);
@@ -290,13 +289,9 @@ ZIterator* SSDBImpl::zscan_internal(const Bytes &name, const Bytes &key_start,
     } else {
         std::string start, end;
         if (score_start.empty()) {
-            start = encode_zscore_key(name, key_start, ZSET_SCORE_MAX, version);
+            start = encode_zscore_key(name, "", ZSET_SCORE_MAX, version);
         } else {
-            if (key_start.empty()) {
-                start = encode_zscore_key(name, "", score_start.Double(), version);
-            } else {
-                start = encode_zscore_key(name, key_start, score_start.Double(), version);
-            }
+            start = encode_zscore_key(name, "", score_start.Double(), version);
         }
         if (score_end.empty()) {
             end = encode_zscore_key(name, "", ZSET_SCORE_MIN, version);
@@ -343,7 +338,7 @@ int64_t SSDBImpl::zrank(const Bytes &name, const Bytes &key) {
     SnapshotPtr spl(ldb, snapshot); //auto release
 
     bool found = false;
-    auto it = std::unique_ptr<ZIterator>(this->zscan_internal(name, "", "", "", INT_MAX, Iterator::FORWARD, zv.version, snapshot));
+    auto it = std::unique_ptr<ZIterator>(this->zscan_internal(name, "", "", INT_MAX, Iterator::FORWARD, zv.version, snapshot));
     uint64_t ret = 0;
     while (true) {
         if (!it->next()) {
@@ -376,7 +371,7 @@ int64_t SSDBImpl::zrrank(const Bytes &name, const Bytes &key) {
 
     SnapshotPtr spl(ldb, snapshot); //auto release
     bool found = false;
-    auto it = std::unique_ptr<ZIterator>(this->zscan_internal(name, "", "", "", INT_MAX, Iterator::BACKWARD, zv.version, snapshot));
+    auto it = std::unique_ptr<ZIterator>(this->zscan_internal(name, "", "", INT_MAX, Iterator::BACKWARD, zv.version, snapshot));
     uint64_t ret = 0;
     while (true) {
         if (!it->next()) {
@@ -436,9 +431,9 @@ int SSDBImpl::zrangeGeneric(const Bytes &name, const Bytes &begin, const Bytes &
     }
 
     if (reverse) {
-        it = this->zscan_internal(name, "", "", "", end+1, Iterator::BACKWARD, version, snapshot);
+        it = this->zscan_internal(name, "", "", end+1, Iterator::BACKWARD, version, snapshot);
     } else {
-        it = this->zscan_internal(name, "", "",  "", end+1, Iterator::FORWARD, version, snapshot);
+        it = this->zscan_internal(name, "",  "", end+1, Iterator::FORWARD, version, snapshot);
     }
 
     if (it != NULL) {
@@ -560,7 +555,7 @@ int SSDBImpl::genericZrangebyscore(const Bytes &name, const Bytes &start_score, 
     }
 
     if (reverse) {
-        it = this->zscan_internal(name, "", score_start, score_end, -1, Iterator::BACKWARD, zv.version, snapshot);
+        it = this->zscan_internal(name, score_start, score_end, -1, Iterator::BACKWARD, zv.version, snapshot);
         if (it == NULL) {
             if (snapshot != nullptr) {
                 ldb->ReleaseSnapshot(snapshot);
@@ -590,7 +585,7 @@ int SSDBImpl::genericZrangebyscore(const Bytes &name, const Bytes &start_score, 
         delete it;
         it = NULL;
     } else {
-        it = this->zscan_internal(name, "", score_start, score_end, -1, Iterator::FORWARD, zv.version, snapshot);
+        it = this->zscan_internal(name, score_start, score_end, -1, Iterator::FORWARD, zv.version, snapshot);
         if (it == NULL) {
             if (snapshot != nullptr) {
                 ldb->ReleaseSnapshot(snapshot);
@@ -673,7 +668,7 @@ int64_t SSDBImpl::zremrangebyscore(const Bytes &name, const Bytes &score_start, 
 
     leveldb::WriteBatch batch;
     const leveldb::Snapshot *snapshot = nullptr;
-    auto it = std::unique_ptr<ZIterator>(this->zscan_internal(name, "", start_score, end_score, -1, Iterator::FORWARD, zv.version, snapshot));
+    auto it = std::unique_ptr<ZIterator>(this->zscan_internal(name, start_score, end_score, -1, Iterator::FORWARD, zv.version, snapshot));
     if (it == NULL){
         return 1;
     }

@@ -244,8 +244,7 @@ private:
     int GetZSetMetaVal(const std::string &meta_key, ZSetMetaVal &zv);
 	int GetZSetItemVal(const std::string &item_key, double *score);
 
-	ZIterator* zscan_internal(const Bytes &name, const Bytes &key_start,
-										const Bytes &score_start, const Bytes &score_end,
+	ZIterator* zscan_internal(const Bytes &name, const Bytes &score_start, const Bytes &score_end,
 										uint64_t limit, Iterator::Direction direction, uint16_t version,
 										const leveldb::Snapshot *snapshot=nullptr);
     ZIteratorByLex* zscanbylex_internal(const Bytes &name, const Bytes &key_start, const Bytes &key_end,

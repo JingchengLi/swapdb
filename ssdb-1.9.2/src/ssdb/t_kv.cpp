@@ -792,7 +792,7 @@ int SSDBImpl::dump(const Bytes &key, std::string *res) {
             rdbEncoder.rdbSaveType(RDB_TYPE_ZSET);
             rdbEncoder.rdbSaveLen(zv.length);
 
-            auto it = std::unique_ptr<ZIterator>(this->zscan_internal(key, "", "", "", -1, Iterator::FORWARD, zv.version, snapshot));
+            auto it = std::unique_ptr<ZIterator>(this->zscan_internal(key, "", "", -1, Iterator::FORWARD, zv.version, snapshot));
 
             uint64_t cnt = 0;
             while (it->next()) {
