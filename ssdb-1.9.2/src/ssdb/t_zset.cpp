@@ -9,10 +9,6 @@ found in the LICENSE file.
 #include "ssdb_impl.h"
 
 
-static int zdel_one(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &name, const Bytes &key, uint16_t version);
-
-static int incr_zsize(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const ZSetMetaVal &zv, const Bytes &name, int64_t incr);
-
 /**
  * @return -1: error, 0: item updated, 1: new item inserted
  */
