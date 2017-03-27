@@ -106,7 +106,7 @@ ADD_LIBRARY(libssdb-static STATIC ${SSDB_OBJS})
 
 
 IF(ROCKSDB)
-    TARGET_LINK_LIBRARIES ( libssdb-static rocksdb.a snappy.a  z bz2)
+    TARGET_LINK_LIBRARIES ( libssdb-static rocksdb snappy z bz2)
     #TARGET_LINK_LIBRARIES ( libssdb-shared rocksdb )
 ELSE()
     TARGET_LINK_LIBRARIES ( libssdb-static leveldb snappy )
