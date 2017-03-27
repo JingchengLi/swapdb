@@ -31,10 +31,15 @@ set(ROCKSDB_VERSION "${ROCKSDB_VERSION_MAJOR}.${ROCKSDB_VERSION_MINOR}.${ROCKSDB
 message(STATUS "rocksdb: ${ROCKSDB_VERSION}")
 
 set(BUILD_VERSION_CC ${CMAKE_CURRENT_SOURCE_DIR}/util/build_version.cc)
-add_custom_command(OUTPUT ${BUILD_VERSION_CC}
-        COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/build_tools/create_version_cc.sh
-        ${BUILD_VERSION_CC}
+execute_process(COMMAND
+        "./build_tools/create_version_cc.sh ${BUILD_VERSION_CC}"
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         )
+
+#add_custom_command(OUTPUT ${BUILD_VERSION_CC}
+#        COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/build_tools/create_version_cc.sh
+#        ${BUILD_VERSION_CC}
+#        )
 
 include_directories(${PROJECT_SOURCE_DIR})
 include_directories(${PROJECT_SOURCE_DIR}/include)
