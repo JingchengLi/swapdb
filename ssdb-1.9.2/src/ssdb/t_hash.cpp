@@ -507,7 +507,7 @@ int SSDBImpl::incr_hsize(leveldb::WriteBatch &batch, const std::string &size_key
 		}
 	}
 
-	return 0;
+	return 1;
 }
 
 int SSDBImpl::hset_one(leveldb::WriteBatch &batch, const HashMetaVal &hv, bool check_exists, const Bytes &name,
