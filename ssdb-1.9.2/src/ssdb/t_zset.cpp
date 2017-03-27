@@ -18,9 +18,9 @@ int SSDBImpl::multi_zset(const Bytes &name, const std::map<Bytes ,Bytes> &sorted
     return zsetNoLock(name, sortedSet, flags);
 }
 
-int SSDBImpl::multi_zdel(const Bytes &name, const std::set<Bytes> &keys) {
+int SSDBImpl::multi_zdel(const Bytes &name, const std::set<Bytes> &keys, int64_t *count) {
     RecordLock<Mutex> l(&mutex_record_, name.String());
-    return zdelNoLock(name, keys);
+    return zdelNoLock(name, keys, count);
 }
 
 
@@ -91,9 +91,10 @@ int SSDBImpl::zsetNoLock(const Bytes &name, const std::map<Bytes ,Bytes> &sorted
     }
 
     if (added > 0) {
-        if (int rett = incr_zsize(batch, zv, name, added) < 0) {
+        int iret = incr_zsize(batch, zv, name, added);
+        if (iret < 0) {
             log_error("incr_zsize error");
-            return rett;
+            return iret;
         }
     }
 
@@ -110,7 +111,7 @@ int SSDBImpl::zsetNoLock(const Bytes &name, const std::map<Bytes ,Bytes> &sorted
     }
 }
 
-int SSDBImpl::zdelNoLock(const Bytes &name, const std::set<Bytes> &keys) {
+int SSDBImpl::zdelNoLock(const Bytes &name, const std::set<Bytes> &keys, int64_t *count) {
     ZSetMetaVal zv;
     leveldb::WriteBatch batch;
 
@@ -120,20 +121,21 @@ int SSDBImpl::zdelNoLock(const Bytes &name, const std::set<Bytes> &keys) {
         return ret;
     }
 
-    int count = 0;
     for (auto it = keys.begin(); it != keys.end() ; ++it) {
         const Bytes &key = *it;
         ret = zdel_one(batch, name, key, zv.version);
         if (ret < 0) {
             return ret;
         }
-        count += ret;
+        *count += ret;
     }
 
-    if (count > 0) {
-        ret = incr_zsize(batch, zv, name, -count);
-        if (ret < 0) {
-            return ret;
+    if (*count > 0) {
+        int iret = incr_zsize(batch, zv, name, -(*count));
+        if (iret < 0) {
+            return iret;
+        } else if (iret == 0) {
+
         }
 
         leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
@@ -143,7 +145,7 @@ int SSDBImpl::zdelNoLock(const Bytes &name, const std::set<Bytes> &keys) {
         }
     }
 
-    return count;
+    return 1;
 }
 
 int SSDBImpl::zincr(const Bytes &name, const Bytes &key, double by, int &flags, double *new_val) {
@@ -168,10 +170,13 @@ int SSDBImpl::zincr(const Bytes &name, const Bytes &key, double by, int &flags, 
     }
 
     if (flags & ZADD_ADDED) {
-        ret = incr_zsize(batch, zv, name, 1);
-        if (ret < 0) {
-            return ret;
+        int iret = incr_zsize(batch, zv, name, 1);
+        if (iret < 0) {
+            return iret;
+        } else if (iret == 0) {
+
         }
+
     }
     leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
     if (!s.ok()) {
@@ -690,10 +695,13 @@ int64_t SSDBImpl::zremrangebyscore(const Bytes &name, const Bytes &score_start, 
     }
 
     if (remove && count > 0){
-        int ret = incr_zsize(batch, zv, name, -1 * count);
-        if (ret < 0){
-            return ret;
+        int iret = incr_zsize(batch, zv, name, -1 * count);
+        if (iret < 0){
+            return iret;
+        } else if (iret == 0) {
+
         }
+
 
         leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
         if (!s.ok()) {
@@ -726,6 +734,8 @@ int SSDBImpl::zdel_one(leveldb::WriteBatch &batch, const Bytes &name, const Byte
 
 int SSDBImpl::incr_zsize(leveldb::WriteBatch &batch, const ZSetMetaVal &zv, const Bytes &name, int64_t incr) {
     std::string size_key = encode_meta_key(name);
+
+    int ret = 1;
     if (zv.length == 0) {
         if (incr > 0) {
             std::string size_val = encode_zset_meta_val((uint64_t) incr, zv.version);
@@ -750,13 +760,13 @@ int SSDBImpl::incr_zsize(leveldb::WriteBatch &batch, const ZSetMetaVal &zv, cons
             batch.Put(del_key, "");
             batch.Put(size_key, meta_val);
             edel_one(batch, name); //del expire ET key
-            //TODO TAG NOTIFY REDIS
+            ret = 0;
         } else {
             std::string size_val = encode_zset_meta_val(len, zv.version);
             batch.Put(size_key, size_val);
         }
     }
-    return 0;
+    return ret;
 }
 
 
@@ -1033,10 +1043,13 @@ int64_t SSDBImpl::zremrangebylex(const Bytes &name, const Bytes &key_start, cons
     }
 
     if (count > 0){
-        ret = incr_zsize(batch, zv, name, -1 * count);
-        if (ret < 0){
-            return ret;
+        int iret = incr_zsize(batch, zv, name, -1 * count);
+        if (iret < 0){
+            return iret;
+        } else if (iret == 0) {
+
         }
+
 
         leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
         if (!s.ok()) {
@@ -1138,8 +1151,6 @@ int SSDBImpl::zscan(const Bytes &name, const Bytes &cursor, const std::string &p
     }
 
     Iterator* iter = this->iterator(start, "", -1);
-
-
     auto mit = std::unique_ptr<ZIterator>(new ZIterator(iter, name, hv.version));
 
     bool end = doScanGeneric<std::unique_ptr<ZIterator>>(mit, pattern, limit, resp);

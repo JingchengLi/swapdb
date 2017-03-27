@@ -168,7 +168,7 @@ public:
 
 	/* zset */
 	virtual int multi_zset(const Bytes &name, const std::map<Bytes ,Bytes> &sortedSet, int flags);
-	virtual int multi_zdel(const Bytes &name, const std::set<Bytes> &keys);
+	virtual int multi_zdel(const Bytes &name, const std::set<Bytes> &keys, int64_t *count);
 	// -1: error, 1: ok, 0: value is not an integer or out of range
 	virtual int zincr(const Bytes &name, const Bytes &key, double by, int &flags, double *new_val);
 	//int multi_zset(const Bytes &name, const std::vector<Bytes> &kvs, int offset=0);
@@ -260,7 +260,7 @@ private:
     int hmsetNoLock(const Bytes &name, const std::map<Bytes,Bytes> &kvs, bool check_exists);
     int rpushNoLock(const Bytes &key, const std::vector<Bytes> &val, int offset, uint64_t *llen);
 	int zsetNoLock(const Bytes &name, const std::map<Bytes ,Bytes> &sortedSet, int flags);
-	int zdelNoLock(const Bytes &name, const std::set<Bytes> &keys);
+	int zdelNoLock(const Bytes &name, const std::set<Bytes> &keys, int64_t *count);
     int zrangeGeneric(const Bytes &name, const Bytes &begin, const Bytes &limit, std::vector<string> &key_score, int reverse);
     int genericZrangebyscore(const Bytes &name, const Bytes &start_score, const Bytes &end_score, std::vector<std::string> &key_score,
                              int withscores, long offset, long limit, int reverse);

@@ -157,14 +157,16 @@ int proc_multi_zdel(NetworkServer *net, Link *link, const Request &req, Response
 		const Bytes &key = *it;
         keys.insert(key);
 	}
-    int ret = serv->ssdb->multi_zdel(name, keys);
+
+    int64_t count = 0;
+    int ret = serv->ssdb->multi_zdel(name, keys, &count);
     if(ret < 0){
         resp->push_back("error");
         resp->push_back(GetErrorInfo(ret));
         return 0;
     }
 
-	resp->reply_int(0, ret);
+	resp->reply_int(0, count);
 	return 0;
 }
 
@@ -491,19 +493,20 @@ int proc_zremrangebyrank(NetworkServer *net, Link *link, const Request &req, Res
         return 0;
     }
 
-    std::set<Bytes>  keys;
+    std::set<Bytes> keys;
     for (int i = 0; i < key_score.size(); i += 2) {
         keys.insert(key_score[i]);
     }
 
-    ret = serv->ssdb->multi_zdel(req[1], keys);
+    int64_t count = 0;
+    ret = serv->ssdb->multi_zdel(req[1], keys, &count);
     if (ret < 0) {
         resp->push_back("error");
         resp->push_back(GetErrorInfo(ret));
         return 0;
     }
 
-	resp->reply_int(0, ret);
+	resp->reply_int(0, count);
 
 	return 0;
 }
