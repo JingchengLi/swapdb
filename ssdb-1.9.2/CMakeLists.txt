@@ -105,7 +105,7 @@ ADD_LIBRARY(libssdb-static STATIC ${SSDB_OBJS})
 
 
 IF(ROCKSDB)
-    TARGET_LINK_LIBRARIES ( libssdb-static rocksdb snappy  z bz2)
+    TARGET_LINK_LIBRARIES ( libssdb-static rocksdb.a snappy.a  z bz2)
     #TARGET_LINK_LIBRARIES ( libssdb-shared rocksdb )
 ELSE()
     TARGET_LINK_LIBRARIES ( libssdb-static leveldb snappy )
@@ -232,7 +232,7 @@ ADD_EXECUTABLE(ssdb-server ${SRC_OBJS} ${RDB_OBJS})
 
 
 IF(ROCKSDB)
-    TARGET_LINK_LIBRARIES(ssdb-server libssdb-static libutil-static libnet-static libcodec-static gflags snappy jemalloc pthread rt z bz2)
+    TARGET_LINK_LIBRARIES(ssdb-server libssdb-static libutil-static libnet-static libcodec-static gflags snappy jemalloc.a pthread rt z bz2)
 ELSE()
     TARGET_LINK_LIBRARIES(ssdb-server leveldb libssdb-static libutil-static libnet-static libcodec-static gflags snappy jemalloc pthread rt z bz2)
 ENDIF()
