@@ -181,8 +181,8 @@ public:
 	 * @return -1: error; 0: not found; 1: found
 	 */
 	virtual int zget(const Bytes &name, const Bytes &key, double *score);
-	virtual int64_t zrank(const Bytes &name, const Bytes &key);
-	virtual int64_t zrrank(const Bytes &name, const Bytes &key);
+	virtual int zrank(const Bytes &name, const Bytes &key, int64_t *rank);
+	virtual int zrrank(const Bytes &name, const Bytes &key, int64_t *rank);
 	virtual int zrange(const Bytes &name, const Bytes &begin, const Bytes &limit, std::vector<std::string> &key_score);
 	virtual int zrrange(const Bytes &name, const Bytes &begin, const Bytes &limit, std::vector<std::string> &key_score);
     virtual int zrangebyscore(const Bytes &name, const Bytes &start_score, const Bytes &end_score, std::vector<std::string> &key_score,

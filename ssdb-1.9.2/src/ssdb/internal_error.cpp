@@ -19,7 +19,7 @@ std::map<int, std::string> SSDBErrMap = {
         {DBL_OVERFLOW,     "ERR increment or decrement would overflow"},
         {INVALID_INT,      "ERR value is not an integer or out of range"},
         {INVALID_DBL,      "ERR value is not a valid float or out of range"},
-        {INVALID_INCR,     "ERR INVALID_INCR     "},
+        {INVALID_INCR_LEN,     "ERR INVALID_INCR     "},
         {STRING_OVERMAX,   "ERR string exceeds maximum allowed size (512MB)"},
         {INDEX_OUT_OF_RANGE,"ERR index out of range"},
         {SYNTAX_ERR,       "ERR syntax error"},

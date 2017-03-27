@@ -209,13 +209,16 @@ int proc_zrank(NetworkServer *net, Link *link, const Request &req, Response *res
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(3);
 
-	int64_t ret = serv->ssdb->zrank(req[1], req[2]);
+    int64_t rank = 0;
+	int ret = serv->ssdb->zrank(req[1], req[2], &rank);
     if (ret < 0) {
         resp->push_back("error");
-        resp->push_back(GetErrorInfo((int)ret));
+        resp->push_back(GetErrorInfo(ret));
         return 0;
-    } else{
-		resp->reply_int(ret, ret);
+    } else if (ret == 0 || rank == -1) {
+        resp->push_back("not_found");
+    } else {
+		resp->reply_int(ret, rank);
 	}
 	return 0;
 }
@@ -224,13 +227,16 @@ int proc_zrrank(NetworkServer *net, Link *link, const Request &req, Response *re
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(3);
 
-	int64_t ret = serv->ssdb->zrrank(req[1], req[2]);
+    int64_t rank = 0;
+	int ret = serv->ssdb->zrrank(req[1], req[2], &rank);
     if (ret < 0) {
         resp->push_back("error");
-        resp->push_back(GetErrorInfo((int)ret));
+        resp->push_back(GetErrorInfo(ret));
         return 0;
+    } else if (ret == 0 || rank == -1) {
+        resp->push_back("not_found");
     } else{
-		resp->reply_int(ret, ret);
+		resp->reply_int(ret, rank);
 	}
 	return 0;
 }

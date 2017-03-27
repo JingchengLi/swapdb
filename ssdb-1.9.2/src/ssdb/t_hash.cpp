@@ -476,39 +476,48 @@ int SSDBImpl::GetHashItemValInternal(const std::string &item_key, std::string *v
 
 
 int SSDBImpl::incr_hsize(leveldb::WriteBatch &batch, const std::string &size_key, HashMetaVal &hv, const Bytes &name, int64_t incr) {
+	int ret = 1;
 
     if (hv.length == 0){
 		if (incr > 0){
 			std::string size_val = encode_hash_meta_val((uint64_t)incr, hv.version);
 			batch.Put(size_key, size_val);
+		} else if (incr == 0) {
+			return 0;
 		} else{
-			return INVALID_INCR;
+			return INVALID_INCR_LEN;
 		}
 	} else{
 		uint64_t len = hv.length;
 		if (incr > 0) {
+			//TODO 溢出检查
 			len += incr;
 		} else if (incr < 0) {
 			uint64_t u64 = static_cast<uint64_t>(-incr);
 			if (len < u64) {
-				return INVALID_INCR; //?
+				return INVALID_INCR_LEN; //?
 			}
 			len = len - u64;
+		} else {
+			//incr == 0
+			return ret;
 		}
 		if (len == 0){
 			std::string del_key = encode_delete_key(name, hv.version);
 			std::string meta_val = encode_hash_meta_val(hv.length, hv.version, KEY_DELETE_MASK);
 			batch.Put(del_key, "");
 			batch.Put(size_key, meta_val);
+
 			edel_one(batch, name); //del expire ET key
-			//TODO TAG NOTIFY REDIS
+
+			ret = 0;
 		} else{
 			std::string size_val = encode_hash_meta_val(len, hv.version);
 			batch.Put(size_key, size_val);
 		}
 	}
 
-	return 1;
+	return ret;
 }
 
 int SSDBImpl::hset_one(leveldb::WriteBatch &batch, const HashMetaVal &hv, bool check_exists, const Bytes &name,

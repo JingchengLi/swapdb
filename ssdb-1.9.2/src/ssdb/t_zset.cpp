@@ -13,7 +13,7 @@ found in the LICENSE file.
  * @return -1: error, 0: item updated, 1: new item inserted
  */
 
-int SSDBImpl::multi_zset(const Bytes &name, const std::map<Bytes ,Bytes> &sortedSet, int flags) {
+int SSDBImpl::multi_zset(const Bytes &name, const std::map<Bytes, Bytes> &sortedSet, int flags) {
     RecordLock<Mutex> l(&mutex_record_, name.String());
     return zsetNoLock(name, sortedSet, flags);
 }
@@ -24,7 +24,7 @@ int SSDBImpl::multi_zdel(const Bytes &name, const std::set<Bytes> &keys, int64_t
 }
 
 
-int SSDBImpl::zsetNoLock(const Bytes &name, const std::map<Bytes ,Bytes> &sortedSet, int flags) {
+int SSDBImpl::zsetNoLock(const Bytes &name, const std::map<Bytes, Bytes> &sortedSet, int flags) {
     int incr = (flags & ZADD_INCR) != 0;
     int nx = (flags & ZADD_NX) != 0;
     int xx = (flags & ZADD_XX) != 0;
@@ -66,8 +66,7 @@ int SSDBImpl::zsetNoLock(const Bytes &name, const std::map<Bytes ,Bytes> &sorted
 
     double newscore;
 
-    for(auto const &it : sortedSet)
-    {
+    for (auto const &it : sortedSet) {
         const Bytes &key = it.first;
         const Bytes &val = it.second;
 
@@ -90,12 +89,12 @@ int SSDBImpl::zsetNoLock(const Bytes &name, const std::map<Bytes ,Bytes> &sorted
         if (!(retflags & ZADD_NOP)) processed++;
     }
 
-    if (added > 0) {
-        int iret = incr_zsize(batch, zv, name, added);
-        if (iret < 0) {
-            log_error("incr_zsize error");
-            return iret;
-        }
+    int iret = incr_zsize(batch, zv, name, added);
+    if (iret < 0) {
+        log_error("incr_zsize error");
+        return iret;
+    } else if (iret == 0) {
+
     }
 
     leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
@@ -105,7 +104,7 @@ int SSDBImpl::zsetNoLock(const Bytes &name, const std::map<Bytes ,Bytes> &sorted
     }
 
     if (ch) {
-        return added+updated;
+        return added + updated;
     } else {
         return added;
     }
@@ -121,7 +120,7 @@ int SSDBImpl::zdelNoLock(const Bytes &name, const std::set<Bytes> &keys, int64_t
         return ret;
     }
 
-    for (auto it = keys.begin(); it != keys.end() ; ++it) {
+    for (auto it = keys.begin(); it != keys.end(); ++it) {
         const Bytes &key = *it;
         ret = zdel_one(batch, name, key, zv.version);
         if (ret < 0) {
@@ -130,19 +129,17 @@ int SSDBImpl::zdelNoLock(const Bytes &name, const std::set<Bytes> &keys, int64_t
         *count += ret;
     }
 
-    if (*count > 0) {
-        int iret = incr_zsize(batch, zv, name, -(*count));
-        if (iret < 0) {
-            return iret;
-        } else if (iret == 0) {
+    int iret = incr_zsize(batch, zv, name, -(*count));
+    if (iret < 0) {
+        return iret;
+    } else if (iret == 0) {
 
-        }
+    }
 
-        leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
-        if (!s.ok()) {
-            log_error("zdel error: %s", s.ToString().c_str());
-            return STORAGE_ERR;
-        }
+    leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
+    if (!s.ok()) {
+        log_error("zdel error: %s", s.ToString().c_str());
+        return STORAGE_ERR;
     }
 
     return 1;
@@ -219,15 +216,15 @@ int SSDBImpl::GetZSetMetaVal(const std::string &meta_key, ZSetMetaVal &zv) {
             return ret;
         } else if (zv.del == KEY_DELETE_MASK) {
             //deleted , reset zv
-            if (zv.version == UINT16_MAX){
+            if (zv.version == UINT16_MAX) {
                 zv.version = 0;
-            } else{
-                zv.version = (uint16_t)(zv.version+1);
+            } else {
+                zv.version = (uint16_t) (zv.version + 1);
             }
             zv.length = 0;
             zv.del = KEY_ENABLED_MASK;
             return 0;
-        } else if (zv.type != DataType::ZSIZE){
+        } else if (zv.type != DataType::ZSIZE) {
             return WRONG_TYPE_ERR;
         }
     }
@@ -275,7 +272,7 @@ int SSDBImpl::zget(const Bytes &name, const Bytes &key, double *score) {
     return 1;
 }
 
-ZIterator* SSDBImpl::zscan_internal(const Bytes &name, const Bytes &score_start, const Bytes &score_end,
+ZIterator *SSDBImpl::zscan_internal(const Bytes &name, const Bytes &score_start, const Bytes &score_end,
                                     uint64_t limit, Iterator::Direction direction, uint16_t version,
                                     const leveldb::Snapshot *snapshot) {
     if (direction == Iterator::FORWARD) {
@@ -307,14 +304,14 @@ ZIterator* SSDBImpl::zscan_internal(const Bytes &name, const Bytes &score_start,
     }
 }
 
-ZIteratorByLex* SSDBImpl::zscanbylex_internal(const Bytes &name, const Bytes &key_start, const Bytes &key_end,
-                                         uint64_t limit, Iterator::Direction direction, uint16_t version,
-                                         const leveldb::Snapshot *snapshot) {
+ZIteratorByLex *SSDBImpl::zscanbylex_internal(const Bytes &name, const Bytes &key_start, const Bytes &key_end,
+                                              uint64_t limit, Iterator::Direction direction, uint16_t version,
+                                              const leveldb::Snapshot *snapshot) {
     std::string start, end;
     start = encode_zset_key(name, key_start, version);
     if (key_end != "") {
         end = encode_zset_key(name, key_end, version);
-    } else{
+    } else {
         end = "";
     }
 
@@ -325,9 +322,9 @@ ZIteratorByLex* SSDBImpl::zscanbylex_internal(const Bytes &name, const Bytes &ke
     }
 }
 
-int64_t SSDBImpl::zrank(const Bytes &name, const Bytes &key) {
+int SSDBImpl::zrank(const Bytes &name, const Bytes &key, int64_t *rank) {
     ZSetMetaVal zv;
-    const leveldb::Snapshot* snapshot = nullptr;
+    const leveldb::Snapshot *snapshot = nullptr;
 
     {
         RecordLock<Mutex> l(&mutex_record_, name.String());
@@ -343,7 +340,8 @@ int64_t SSDBImpl::zrank(const Bytes &name, const Bytes &key) {
     SnapshotPtr spl(ldb, snapshot); //auto release
 
     bool found = false;
-    auto it = std::unique_ptr<ZIterator>(this->zscan_internal(name, "", "", INT_MAX, Iterator::FORWARD, zv.version, snapshot));
+    auto it = std::unique_ptr<ZIterator>(
+            this->zscan_internal(name, "", "", INT_MAX, Iterator::FORWARD, zv.version, snapshot));
     uint64_t ret = 0;
     while (true) {
         if (!it->next()) {
@@ -355,12 +353,15 @@ int64_t SSDBImpl::zrank(const Bytes &name, const Bytes &key) {
         }
         ret++;
     }
-    return found ? ret : -1;
+
+    *rank = found ? (int64_t)ret : -1;
+
+    return 1;
 }
 
-int64_t SSDBImpl::zrrank(const Bytes &name, const Bytes &key) {
+int SSDBImpl::zrrank(const Bytes &name, const Bytes &key, int64_t *rank) {
     ZSetMetaVal zv;
-    const leveldb::Snapshot* snapshot = nullptr;
+    const leveldb::Snapshot *snapshot = nullptr;
 
     {
         RecordLock<Mutex> l(&mutex_record_, name.String());
@@ -376,7 +377,8 @@ int64_t SSDBImpl::zrrank(const Bytes &name, const Bytes &key) {
 
     SnapshotPtr spl(ldb, snapshot); //auto release
     bool found = false;
-    auto it = std::unique_ptr<ZIterator>(this->zscan_internal(name, "", "", INT_MAX, Iterator::BACKWARD, zv.version, snapshot));
+    auto it = std::unique_ptr<ZIterator>(
+            this->zscan_internal(name, "", "", INT_MAX, Iterator::BACKWARD, zv.version, snapshot));
     uint64_t ret = 0;
     while (true) {
         if (!it->next()) {
@@ -388,18 +390,21 @@ int64_t SSDBImpl::zrrank(const Bytes &name, const Bytes &key) {
         }
         ret++;
     }
-    return found ? ret : -1;
+
+    *rank = found ? (int64_t)ret : -1;
+
+    return 1;
 }
 
 int SSDBImpl::zrangeGeneric(const Bytes &name, const Bytes &begin, const Bytes &limit, std::vector<string> &key_score,
                             int reverse) {
     long long start, end;
-    if (string2ll(begin.data(), (size_t)begin.size(), &start) == 0) {
+    if (string2ll(begin.data(), (size_t) begin.size(), &start) == 0) {
         return INVALID_INT;
     } else if (start < LONG_MIN || start > LONG_MAX) {
         return INVALID_INT;
     }
-    if (string2ll(limit.data(), (size_t)limit.size(), &end) == 0) {
+    if (string2ll(limit.data(), (size_t) limit.size(), &end) == 0) {
         return INVALID_INT;
     } else if (end < LONG_MIN || end > LONG_MAX) {
         return INVALID_INT;
@@ -408,7 +413,7 @@ int SSDBImpl::zrangeGeneric(const Bytes &name, const Bytes &begin, const Bytes &
     uint16_t version = 0;
     ZSetMetaVal zv;
     int llen = 0;
-    const leveldb::Snapshot* snapshot = nullptr;
+    const leveldb::Snapshot *snapshot = nullptr;
     ZIterator *it = NULL;
 
     {
@@ -419,9 +424,9 @@ int SSDBImpl::zrangeGeneric(const Bytes &name, const Bytes &begin, const Bytes &
             return ret;
         }
 
-        llen = (int)zv.length;
-        if (start < 0) start = llen+start;
-        if (end < 0) end = llen+end;
+        llen = (int) zv.length;
+        if (start < 0) start = llen + start;
+        if (end < 0) end = llen + end;
         if (start < 0) start = 0;
 
         /* Invariant: start >= 0, so this test will be true when end < 0.
@@ -429,21 +434,21 @@ int SSDBImpl::zrangeGeneric(const Bytes &name, const Bytes &begin, const Bytes &
         if (start > end || start >= llen) {
             return 0;
         }
-        if (end >= llen) end = llen-1;
+        if (end >= llen) end = llen - 1;
 
         version = zv.version;
         snapshot = ldb->GetSnapshot();
     }
 
     if (reverse) {
-        it = this->zscan_internal(name, "", "", end+1, Iterator::BACKWARD, version, snapshot);
+        it = this->zscan_internal(name, "", "", end + 1, Iterator::BACKWARD, version, snapshot);
     } else {
-        it = this->zscan_internal(name, "",  "", end+1, Iterator::FORWARD, version, snapshot);
+        it = this->zscan_internal(name, "", "", end + 1, Iterator::FORWARD, version, snapshot);
     }
 
     if (it != NULL) {
         it->skip(start);
-        while(it->next()){
+        while (it->next()) {
             key_score.push_back(it->key);
             key_score.push_back(str(it->score));
         }
@@ -483,20 +488,20 @@ static int zslParseRange(const Bytes &min, const Bytes &max, zrangespec *spec) {
      * ZRANGEBYSCORE zset 1.5 2.5 will instead match min <= x <= max */
 
     if (min[0] == '(') {
-        spec->min = strtod(min.data()+1,&eptr);
+        spec->min = strtod(min.data() + 1, &eptr);
         if (eptr[0] != '\0' || std::isnan(spec->min)) return NAN_SCORE;
         spec->minex = 1;
     } else {
-        spec->min = strtod(min.data(),&eptr);
+        spec->min = strtod(min.data(), &eptr);
         if (eptr[0] != '\0' || std::isnan(spec->min)) return NAN_SCORE;
     }
 
     if (max[0] == '(') {
-        spec->max = strtod(max.data()+1,&eptr);
+        spec->max = strtod(max.data() + 1, &eptr);
         if (eptr[0] != '\0' || std::isnan(spec->max)) return NAN_SCORE;
         spec->maxex = 1;
     } else {
-        spec->max = strtod(max.data(),&eptr);
+        spec->max = strtod(max.data(), &eptr);
         if (eptr[0] != '\0' || std::isnan(spec->max)) return NAN_SCORE;
     }
 
@@ -512,21 +517,22 @@ int zslValueLteMax(double value, zrangespec *spec) {
 }
 
 int SSDBImpl::genericZrangebyscore(const Bytes &name, const Bytes &start_score, const Bytes &end_score,
-                                   std::vector<std::string> &key_score, int withscores, long offset, long limit, int reverse) {
+                                   std::vector<std::string> &key_score, int withscores, long offset, long limit,
+                                   int reverse) {
     zrangespec range;
     std::string score_start;
     std::string score_end;
 
-    if (reverse){
-        if (zslParseRange(end_score,start_score,&range) < 0) {
+    if (reverse) {
+        if (zslParseRange(end_score, start_score, &range) < 0) {
             return NAN_SCORE;
         }
         double score = range.max + eps;
         score_start = str(score);
         score = range.min - eps;
         score_end = str(score);
-    } else{
-        if (zslParseRange(start_score,end_score,&range) < 0) {
+    } else {
+        if (zslParseRange(start_score, end_score, &range) < 0) {
             return NAN_SCORE;
         }
         double score = range.min - eps;
@@ -535,19 +541,19 @@ int SSDBImpl::genericZrangebyscore(const Bytes &name, const Bytes &start_score, 
         score_end = str(score);
     }
 
-    if (start_score == "-inf" || start_score == "(-inf"){
+    if (start_score == "-inf" || start_score == "(-inf") {
         score_start = str(ZSET_SCORE_MIN);
-    } else if(start_score == "+inf" || start_score == "(+inf"){
+    } else if (start_score == "+inf" || start_score == "(+inf") {
         score_start = str(ZSET_SCORE_MAX);
     }
-    if (end_score == "-inf" || end_score == "(-inf"){
+    if (end_score == "-inf" || end_score == "(-inf") {
         score_end = str(ZSET_SCORE_MIN);
-    } else if (end_score == "+inf" || end_score == "(+inf"){
+    } else if (end_score == "+inf" || end_score == "(+inf") {
         score_end = str(ZSET_SCORE_MAX);
     }
 
     ZSetMetaVal zv;
-    const leveldb::Snapshot* snapshot = nullptr;
+    const leveldb::Snapshot *snapshot = nullptr;
     ZIterator *it = NULL;
     {
         RecordLock<Mutex> l(&mutex_record_, name.String());
@@ -569,21 +575,21 @@ int SSDBImpl::genericZrangebyscore(const Bytes &name, const Bytes &start_score, 
         }
 
         while (it->next()) {
-            if (!zslValueLteMax(it->score,&range))
+            if (!zslValueLteMax(it->score, &range))
                 continue;
             /* Check if score >= min. */
-            if (!zslValueGteMin(it->score,&range))
+            if (!zslValueGteMin(it->score, &range))
                 break;
 
-            if (!offset){
-                if (limit--){
+            if (!offset) {
+                if (limit--) {
                     key_score.push_back(it->key);
-                    if (withscores){
+                    if (withscores) {
                         key_score.push_back(str(it->score));
                     }
                 } else
                     break;
-            } else{
+            } else {
                 offset--;
             }
         }
@@ -599,21 +605,21 @@ int SSDBImpl::genericZrangebyscore(const Bytes &name, const Bytes &start_score, 
         }
 
         while (it->next()) {
-            if (!zslValueGteMin(it->score,&range))
+            if (!zslValueGteMin(it->score, &range))
                 continue;
-                /* Check if score <= max. */
-            if (!zslValueLteMax(it->score,&range))
+            /* Check if score <= max. */
+            if (!zslValueLteMax(it->score, &range))
                 break;
 
-            if (!offset){
-                if (limit--){
+            if (!offset) {
+                if (limit--) {
                     key_score.push_back(it->key);
-                    if (withscores){
+                    if (withscores) {
                         key_score.push_back(str(it->score));
                     }
                 } else
                     break;
-            } else{
+            } else {
                 offset--;
             }
         }
@@ -644,7 +650,7 @@ int64_t SSDBImpl::zremrangebyscore(const Bytes &name, const Bytes &score_start, 
     std::string start_score;
     std::string end_score;
 
-    if (zslParseRange(score_start,score_end,&range) < 0) {
+    if (zslParseRange(score_start, score_end, &range) < 0) {
         return NAN_SCORE;
     }
     double score = range.min - eps;
@@ -652,14 +658,14 @@ int64_t SSDBImpl::zremrangebyscore(const Bytes &name, const Bytes &score_start, 
     score = range.max + eps;
     end_score = str(score);
 
-    if (score_start == "-inf"){
+    if (score_start == "-inf") {
         start_score = str(ZSET_SCORE_MIN);
-    } else if(score_start == "+inf"){
+    } else if (score_start == "+inf") {
         start_score = str(ZSET_SCORE_MAX);
     }
-    if (score_end == "-inf"){
+    if (score_end == "-inf") {
         end_score = str(ZSET_SCORE_MIN);
-    } else if (score_end == "+inf"){
+    } else if (score_end == "+inf") {
         end_score = str(ZSET_SCORE_MAX);
     }
 
@@ -673,30 +679,31 @@ int64_t SSDBImpl::zremrangebyscore(const Bytes &name, const Bytes &score_start, 
 
     leveldb::WriteBatch batch;
     const leveldb::Snapshot *snapshot = nullptr;
-    auto it = std::unique_ptr<ZIterator>(this->zscan_internal(name, start_score, end_score, -1, Iterator::FORWARD, zv.version, snapshot));
-    if (it == NULL){
+    auto it = std::unique_ptr<ZIterator>(
+            this->zscan_internal(name, start_score, end_score, -1, Iterator::FORWARD, zv.version, snapshot));
+    if (it == NULL) {
         return 1;
     }
 
-    while(it->next()){
-        if (!zslValueGteMin(it->score,&range))
+    while (it->next()) {
+        if (!zslValueGteMin(it->score, &range))
             continue;
         /* Check if score <= max. */
-        if (!zslValueLteMax(it->score,&range))
+        if (!zslValueLteMax(it->score, &range))
             break;
 
-        if (remove){
+        if (remove) {
             int ret = zdel_one(batch, name, it->key, it->version);
-            if(ret < 0){
+            if (ret < 0) {
                 return ret;
             }
         }
-        count ++;
+        count++;
     }
 
-    if (remove && count > 0){
+    if (remove) {
         int iret = incr_zsize(batch, zv, name, -1 * count);
-        if (iret < 0){
+        if (iret < 0) {
             return iret;
         } else if (iret == 0) {
 
@@ -740,26 +747,34 @@ int SSDBImpl::incr_zsize(leveldb::WriteBatch &batch, const ZSetMetaVal &zv, cons
         if (incr > 0) {
             std::string size_val = encode_zset_meta_val((uint64_t) incr, zv.version);
             batch.Put(size_key, size_val);
+        } else if (incr == 0) {
+            return 0;
         } else {
-            return -1;
+            return INVALID_INCR_LEN;
         }
     } else {
         uint64_t len = zv.length;
         if (incr > 0) {
+            //TODO 溢出检查
             len += incr;
         } else if (incr < 0) {
             uint64_t u64 = static_cast<uint64_t>(-incr);
             if (len < u64) {
-                return -1;
+                return INVALID_INCR_LEN;
             }
             len = len - u64;
+        } else {
+            //incr == 0
+            return ret;
         }
         if (len == 0) {
             std::string del_key = encode_delete_key(name, zv.version);
             std::string meta_val = encode_zset_meta_val(zv.length, zv.version, KEY_DELETE_MASK);
             batch.Put(del_key, "");
             batch.Put(size_key, meta_val);
+
             edel_one(batch, name); //del expire ET key
+
             ret = 0;
         } else {
             std::string size_val = encode_zset_meta_val(len, zv.version);
@@ -783,8 +798,7 @@ int SSDBImpl::zset_one(leveldb::WriteBatch &batch, bool needCheck, const Bytes &
     if (std::isnan(score)) {
         *flags = ZADD_NAN;
         return NAN_SCORE;
-    }
-    else if (score <= ZSET_SCORE_MIN || score >= ZSET_SCORE_MAX){
+    } else if (score <= ZSET_SCORE_MIN || score >= ZSET_SCORE_MAX) {
         return ZSET_OVERFLOW;
     }
 
@@ -825,8 +839,7 @@ int SSDBImpl::zset_one(leveldb::WriteBatch &batch, bool needCheck, const Bytes &
                 if (std::isnan(score)) {
                     *flags |= ZADD_NAN;
                     return NAN_SCORE;
-                }
-                else if (score <= ZSET_SCORE_MIN || score >= ZSET_SCORE_MAX){
+                } else if (score <= ZSET_SCORE_MIN || score >= ZSET_SCORE_MAX) {
                     return ZSET_OVERFLOW;
                 }
                 if (newscore) *newscore = score;
@@ -880,8 +893,8 @@ typedef struct {
 } zlexrangespec;
 
 int zslParseLexRangeItem(const Bytes &item, std::string *dest, int *ex) {
-    std::string tmp(item.data()+1, item.size()-1);
-    switch(item[0]) {
+    std::string tmp(item.data() + 1, item.size() - 1);
+    switch (item[0]) {
         case '+':
             if (item[1] != '\0') return -1;
             *ex = 0;
@@ -938,18 +951,18 @@ int SSDBImpl::genericZrangebylex(const Bytes &name, const Bytes &key_start, cons
     int count = 0;
 
     /* Parse the range arguments */
-    if (zslParseLexRange(key_start,key_end,&range) != 0) {
+    if (zslParseLexRange(key_start, key_end, &range) != 0) {
         return ZSET_INVALID_STR;
     }
-    if ( (key_start[0] == '+') || (key_end[0] == '-') ||
-         (range.min > range.max && key_end[0] != '+')  ||
-         (range.min == "" && range.max == "" && key_end[0] != '+') ||
-         (range.min == range.max  && range.max != "" && (range.minex || range.maxex)) ){
+    if ((key_start[0] == '+') || (key_end[0] == '-') ||
+        (range.min > range.max && key_end[0] != '+') ||
+        (range.min == "" && range.max == "" && key_end[0] != '+') ||
+        (range.min == range.max && range.max != "" && (range.minex || range.maxex))) {
         return 0;
     }
 
     ZSetMetaVal zv;
-    const leveldb::Snapshot* snapshot = nullptr;
+    const leveldb::Snapshot *snapshot = nullptr;
     {
         RecordLock<Mutex> l(&mutex_record_, name.String());
         std::string meta_key = encode_meta_key(name);
@@ -961,7 +974,8 @@ int SSDBImpl::genericZrangebylex(const Bytes &name, const Bytes &key_start, cons
     }
     SnapshotPtr spl(ldb, snapshot); //auto release
 
-    auto it = std::unique_ptr<ZIteratorByLex>(this->zscanbylex_internal(name, range.min, range.max, -1, Iterator::FORWARD, zv.version, snapshot));
+    auto it = std::unique_ptr<ZIteratorByLex>(
+            this->zscanbylex_internal(name, range.min, range.max, -1, Iterator::FORWARD, zv.version, snapshot));
     if (it == NULL) {
         return 0;
     }
@@ -975,12 +989,12 @@ int SSDBImpl::genericZrangebylex(const Bytes &name, const Bytes &key_start, cons
         count++;
 
         if (save) {
-            if (!offset){
-                if (limit--){
+            if (!offset) {
+                if (limit--) {
                     keys.push_back(it->key);
                 } else
                     break;
-            } else{
+            } else {
                 offset--;
             }
         }
@@ -995,7 +1009,7 @@ int64_t SSDBImpl::zlexcount(const Bytes &name, const Bytes &key_start, const Byt
 }
 
 int SSDBImpl::zrangebylex(const Bytes &name, const Bytes &key_start, const Bytes &key_end,
-                              std::vector<std::string> &keys, long offset, long limit) {
+                          std::vector<std::string> &keys, long offset, long limit) {
     return genericZrangebylex(name, key_start, key_end, keys, offset, limit, 1);
 }
 
@@ -1004,13 +1018,13 @@ int64_t SSDBImpl::zremrangebylex(const Bytes &name, const Bytes &key_start, cons
     int count = 0;
 
     /* Parse the range arguments */
-    if (zslParseLexRange(key_start,key_end,&range) != 0) {
+    if (zslParseLexRange(key_start, key_end, &range) != 0) {
         return SYNTAX_ERR;
     }
-    if ( (key_start[0] == '+') || (key_end[0] == '-') ||
-         (range.min > range.max && key_end[0] != '+')  ||
-         (range.min == "" && range.max == "" && key_end[0] != '+') ||
-         (range.min == range.max  && range.max != "" && (range.minex || range.maxex)) ){
+    if ((key_start[0] == '+') || (key_end[0] == '-') ||
+        (range.min > range.max && key_end[0] != '+') ||
+        (range.min == "" && range.max == "" && key_end[0] != '+') ||
+        (range.min == range.max && range.max != "" && (range.minex || range.maxex))) {
         return 0;
     }
 
@@ -1024,17 +1038,18 @@ int64_t SSDBImpl::zremrangebylex(const Bytes &name, const Bytes &key_start, cons
 
     leveldb::WriteBatch batch;
     const leveldb::Snapshot *snapshot = nullptr;
-    auto it = std::unique_ptr<ZIteratorByLex>(this->zscanbylex_internal(name, range.min, range.max, -1, Iterator::FORWARD, zv.version, snapshot));
+    auto it = std::unique_ptr<ZIteratorByLex>(
+            this->zscanbylex_internal(name, range.min, range.max, -1, Iterator::FORWARD, zv.version, snapshot));
     if (it == NULL) {
         return 0;
     }
 
     while (it->next()) {
-        if (zslLexValueGteMin(it->key, &range)){
-            if (zslLexValueLteMax(it->key, &range)){
+        if (zslLexValueGteMin(it->key, &range)) {
+            if (zslLexValueLteMax(it->key, &range)) {
                 count++;
                 ret = zdel_one(batch, name, it->key, it->version);
-                if(ret < 0){
+                if (ret < 0) {
                     return ret;
                 }
             } else
@@ -1042,20 +1057,18 @@ int64_t SSDBImpl::zremrangebylex(const Bytes &name, const Bytes &key_start, cons
         }
     }
 
-    if (count > 0){
-        int iret = incr_zsize(batch, zv, name, -1 * count);
-        if (iret < 0){
-            return iret;
-        } else if (iret == 0) {
+    int iret = incr_zsize(batch, zv, name, -1 * count);
+    if (iret < 0) {
+        return iret;
+    } else if (iret == 0) {
 
-        }
+    }
 
 
-        leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
-        if (!s.ok()) {
-            log_error("zdel error: %s", s.ToString().c_str());
-            return STORAGE_ERR;
-        }
+    leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
+    if (!s.ok()) {
+        log_error("zdel error: %s", s.ToString().c_str());
+        return STORAGE_ERR;
     }
 
     return count;
@@ -1067,7 +1080,7 @@ int SSDBImpl::zrevrangebylex(const Bytes &name, const Bytes &key_start, const By
     int count = 0;
 
     /* Parse the range arguments */
-    if (zslParseLexRange(key_end,key_start,&range) != 0) {
+    if (zslParseLexRange(key_end, key_start, &range) != 0) {
         return ZSET_INVALID_STR;
     }
     /*
@@ -1077,15 +1090,15 @@ int SSDBImpl::zrevrangebylex(const Bytes &name, const Bytes &key_start, const By
      * { zrevrangebylex zkey [ ( } / but except { zrevrangebylex zkey + ( } even if range.min == range.max == ""
      * { zrevrangebylex zkey (f (f } / but except { zrevrangebylex zkey + ( }
      */
-    if ( (key_start[0] == '-') || (key_end[0] == '+') ||
-         (range.min > range.max && key_start[0] != '+') ||
-         (range.min == "" && range.max == "" && key_start[0] != '+') ||
-         (range.min == range.max  && range.max != "" && (range.minex || range.maxex)) ){
+    if ((key_start[0] == '-') || (key_end[0] == '+') ||
+        (range.min > range.max && key_start[0] != '+') ||
+        (range.min == "" && range.max == "" && key_start[0] != '+') ||
+        (range.min == range.max && range.max != "" && (range.minex || range.maxex))) {
         return 0;
     }
 
     ZSetMetaVal zv;
-    const leveldb::Snapshot* snapshot = nullptr;
+    const leveldb::Snapshot *snapshot = nullptr;
     {
         RecordLock<Mutex> l(&mutex_record_, name.String());
         std::string meta_key = encode_meta_key(name);
@@ -1097,15 +1110,16 @@ int SSDBImpl::zrevrangebylex(const Bytes &name, const Bytes &key_start, const By
     }
     SnapshotPtr spl(ldb, snapshot); //auto release
 
-    auto it = std::unique_ptr<ZIteratorByLex>(this->zscanbylex_internal(name, range.min, range.max, -1, Iterator::FORWARD, zv.version, snapshot));
+    auto it = std::unique_ptr<ZIteratorByLex>(
+            this->zscanbylex_internal(name, range.min, range.max, -1, Iterator::FORWARD, zv.version, snapshot));
     if (it == NULL) {
         return 0;
     }
 
     std::stack<std::string> tmp_stack;
     while (it->next()) {
-        if (zslLexValueGteMin(it->key, &range)){
-            if (zslLexValueLteMax(it->key, &range)){
+        if (zslLexValueGteMin(it->key, &range)) {
+            if (zslLexValueLteMax(it->key, &range)) {
                 count++;
                 tmp_stack.push(it->key);
             } else
@@ -1113,15 +1127,15 @@ int SSDBImpl::zrevrangebylex(const Bytes &name, const Bytes &key_start, const By
         }
     }
 
-    if (count > 0){
-        while (!tmp_stack.empty()){
-            if (!offset){
-                if (limit--){
+    if (count > 0) {
+        while (!tmp_stack.empty()) {
+            if (!offset) {
+                if (limit--) {
                     keys.push_back(tmp_stack.top());
                     tmp_stack.pop();
                 } else
                     break;
-            } else{
+            } else {
                 tmp_stack.pop();
                 offset--;
             }
@@ -1138,19 +1152,19 @@ int SSDBImpl::zscan(const Bytes &name, const Bytes &cursor, const std::string &p
     ZSetMetaVal hv;
     std::string meta_key = encode_meta_key(name);
     int ret = GetZSetMetaVal(meta_key, hv);
-    if (ret != 1){
+    if (ret != 1) {
         return ret;
     }
 
     std::string start;
-    if(cursor == "0") {
+    if (cursor == "0") {
 //        start = encode_zset_key(name, "", hv.version);
         start = encode_zscore_prefix(name, hv.version);
     } else {
         redisCursorService.FindElementByRedisCursor(cursor.String(), start);
     }
 
-    Iterator* iter = this->iterator(start, "", -1);
+    Iterator *iter = this->iterator(start, "", -1);
     auto mit = std::unique_ptr<ZIterator>(new ZIterator(iter, name, hv.version));
 
     bool end = doScanGeneric<std::unique_ptr<ZIterator>>(mit, pattern, limit, resp);
