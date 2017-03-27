@@ -43,6 +43,7 @@ IF(ROCKSDB)
             ${CMAKE_CURRENT_SOURCE_DIR}/deps/rocksdb-4.11.2/include
     )
     LINK_DIRECTORIES(
+            ${CMAKE_CURRENT_SOURCE_DIR}/deps/rocksdb-4.11.2/third-party/gtest-1.7.0/fused-src/gtest
             ${CMAKE_CURRENT_SOURCE_DIR}/deps/rocksdb-4.11.2/
     )
     SET(CMAKE_CXX_FLAGS "-DNDEBUG -D__STDC_FORMAT_MACROS -Wall -O0 -Wno-sign-compare -std=c++11")
@@ -232,7 +233,7 @@ ADD_EXECUTABLE(ssdb-server ${SRC_OBJS} ${RDB_OBJS})
 
 
 IF(ROCKSDB)
-    TARGET_LINK_LIBRARIES(ssdb-server libssdb-static libutil-static libnet-static libcodec-static gflags snappy jemalloc.a pthread rt z bz2)
+    TARGET_LINK_LIBRARIES(ssdb-server libssdb-static libutil-static libnet-static libcodec-static rocksdb gtest gflags snappy jemalloc pthread rt z bz2)
 ELSE()
     TARGET_LINK_LIBRARIES(ssdb-server leveldb libssdb-static libutil-static libnet-static libcodec-static gflags snappy jemalloc pthread rt z bz2)
 ENDIF()
