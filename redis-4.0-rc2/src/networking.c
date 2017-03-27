@@ -1289,6 +1289,13 @@ void unlinkClient(client *c) {
         serverAssert(ln != NULL);
         listDelNode(server.clients,ln);
 
+        /* Remove from the new added lists in jdjr-mode. */
+        if (server.jdjr_mode) {
+            ln = listSearchKey(server.no_writing_ssdb_blocked_clients, c);
+
+            if (ln) listDelNode(server.no_writing_ssdb_blocked_clients, ln);
+        }
+
         /* Unregister async I/O handlers and close the socket. */
         aeDeleteFileEvent(server.el,c->fd,AE_READABLE);
         aeDeleteFileEvent(server.el,c->fd,AE_WRITABLE);
