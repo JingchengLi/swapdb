@@ -15,6 +15,37 @@ start_server {tags {"repl"}} {
         set master_host [srv -1 host]
         set master_port [srv -1 port]
         set slave [srv 0 client]
+        set num 100000
+        set load_handle0 [start_bg_complex_data $master_host $master_port 9 $num]
+        # set load_handle1 [start_bg_complex_data $master_host $master_port 11 $num]
+        # set load_handle2 [start_bg_complex_data $master_host $master_port 12 $num]
+        after 1000
+
+        test {slave sync with master during writing data} {
+            $slave slaveof $master_host $master_port
+            wait_for_condition 50 500 {
+                [lindex [$slave role] 0] eq {slave} &&
+                [string match {*master_link_status:up*} [$slave info replication]]
+            } else {
+                stop_bg_complex_data $load_handle0
+                # stop_bg_complex_data $load_handle1
+                # stop_bg_complex_data $load_handle2
+                fail "slave can not sync with master during writing"
+            }
+            stop_bg_complex_data $load_handle0
+            # stop_bg_complex_data $load_handle1
+            # stop_bg_complex_data $load_handle2
+        }
+    }
+}
+
+start_server {tags {"repl"}} {
+    start_server {} {
+
+        set master [srv -1 client]
+        set master_host [srv -1 host]
+        set master_port [srv -1 port]
+        set slave [srv 0 client]
         set num 50000
         set load_handle0 [start_bg_complex_data $master_host $master_port 9 $num]
         set load_handle1 [start_bg_complex_data $master_host $master_port 11 $num]
