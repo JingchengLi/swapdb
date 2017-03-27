@@ -1082,40 +1082,6 @@ void handleClientsBlockedOnCustomizedPsync(void) {
     }
 }
 
-
-void handleLoadAndEvictCmdInSlave(void) {
-    listIter iter;
-    listNode *node;
-
-    listRewind(server.loadAndEvictCmdList, &iter);
-    while((node = listNext(&iter)) != NULL) {
-        loadAndEvictCmd *cmdinfo = node->value;
-        robj *keyobj = cmdinfo->argv[1];
-        server.cmdNotDone = 0;
-        restoreLoadEvictCommandVector(server.slave_ssdb_load_evict_client,
-                                      cmdinfo->argc , cmdinfo->argv, cmdinfo->cmd);
-
-        if (dictFind(server.loadAndEvictCmdDict, keyobj->ptr)) {
-            server.slave_ssdb_load_evict_client->lastcmd = server.slave_ssdb_load_evict_client->cmd;
-
-            runCommand(server.slave_ssdb_load_evict_client, NULL);
-
-            if (!server.cmdNotDone) {
-                serverLog(LL_DEBUG, "beforesleep processing cmd: %s",
-                          server.slave_ssdb_load_evict_client->cmd->name);
-                dictDelete(server.loadAndEvictCmdDict, keyobj->ptr);
-            } else {
-                serverLog(LL_DEBUG, "beforesleep processing cmd: %s failed.",
-                          server.slave_ssdb_load_evict_client->cmd->name);
-                break;
-            }
-        }
-
-        resetClient(server.slave_ssdb_load_evict_client);
-        listDelNode(server.loadAndEvictCmdList, node);
-    }
-}
-
 void signalBlockingKeyAsReady(redisDb *db, robj *key) {
     readyList *rl;
 

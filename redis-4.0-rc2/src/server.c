@@ -1302,6 +1302,42 @@ void startToLoadIfNeeded() {
     server.hot_keys = tmp;
 }
 
+
+void startToHandleCmdListInSlave(void) {
+    listIter iter;
+    listNode *node;
+
+    if (listLength(server.loadAndEvictCmdList) == 0) return;
+
+    listRewind(server.loadAndEvictCmdList, &iter);
+    while((node = listNext(&iter)) != NULL) {
+        loadAndEvictCmd *cmdinfo = node->value;
+        robj *keyobj = cmdinfo->argv[1];
+        server.cmdNotDone = 0;
+        restoreLoadEvictCommandVector(server.slave_ssdb_load_evict_client,
+                                      cmdinfo->argc , cmdinfo->argv, cmdinfo->cmd);
+
+        if (dictFind(server.loadAndEvictCmdDict, keyobj->ptr)) {
+            server.slave_ssdb_load_evict_client->lastcmd = server.slave_ssdb_load_evict_client->cmd;
+
+            runCommand(server.slave_ssdb_load_evict_client, NULL);
+
+            if (!server.cmdNotDone) {
+                serverLog(LL_DEBUG, "beforesleep processing cmd: %s",
+                          server.slave_ssdb_load_evict_client->cmd->name);
+                dictDelete(server.loadAndEvictCmdDict, keyobj->ptr);
+            } else {
+                serverLog(LL_DEBUG, "beforesleep processing cmd: %s failed.",
+                          server.slave_ssdb_load_evict_client->cmd->name);
+                break;
+            }
+        }
+
+        resetClient(server.slave_ssdb_load_evict_client);
+        listDelNode(server.loadAndEvictCmdList, node);
+    }
+}
+
 /* This function gets called every time Redis is entering the
  * main loop of the event driven library, that is, before to sleep
  * for ready file descriptors. */
@@ -1360,9 +1396,12 @@ void beforeSleep(struct aeEventLoop *eventLoop) {
     /* Try to load keys from SSDB to redis. */
     if (server.jdjr_mode && server.masterhost == NULL) startToLoadIfNeeded();
 
-    if (server.jdjr_mode && server.masterhost
-        && listLength(server.loadAndEvictCmdList))
-        handleLoadAndEvictCmdInSlave();
+    /* Try to handle cmds(load/evict cmds) in an extra list in slave. */
+    if (server.jdjr_mode && server.masterhost) startToHandleCmdListInSlave();
+
+    /* Call handleCustomizedBlockedClients in beforeSleep to
+       avoid timeout when there's only 1 real client. */
+    if (server.jdjr_mode) handleCustomizedBlockedClients();
 }
 
 /* =========================== Server initialization ======================== */
@@ -2699,6 +2738,13 @@ void freeMultiCmd(multiCmd *md) {
     zfree(md);
 }
 
+void handleCustomizedBlockedClients() {
+    if (listLength(server.ssdb_ready_keys))
+        handleClientsBlockedOnSSDB();
+    if ((server.is_allow_ssdb_write == ALLOW_SSDB_WRITE)
+        && listLength(server.no_writing_ssdb_blocked_clients))
+        handleClientsBlockedOnCustomizedPsync();
+}
 
 /* If this function gets called we already read a whole
  * command, arguments are in the client argv/argc fields.
@@ -2915,12 +2961,9 @@ int processCommand(client *c) {
 
     if (listLength(server.ready_keys))
         handleClientsBlockedOnLists();
-    if (server.jdjr_mode && listLength(server.ssdb_ready_keys))
-        handleClientsBlockedOnSSDB();
-    if (server.jdjr_mode
-        && (server.is_allow_ssdb_write == ALLOW_SSDB_WRITE)
-        && listLength(server.no_writing_ssdb_blocked_clients))
-        handleClientsBlockedOnCustomizedPsync();
+
+    if (server.jdjr_mode) handleCustomizedBlockedClients();
+
     return ret;
 }
 

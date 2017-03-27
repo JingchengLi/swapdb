@@ -2093,6 +2093,7 @@ void dumpfromssdbCommand(client *c);
 int prologOfEvictingToSSDB(robj *keyobj, redisDb *db);
 int prologOfLoadingFromSSDB(robj *keyobj);
 void removeVisitingSSDBKey(client *c);
+void handleCustomizedBlockedClients();
 
 #if defined(__GNUC__)
 void *calloc(size_t count, size_t size) __attribute__ ((deprecated));
