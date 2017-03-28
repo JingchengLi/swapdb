@@ -2578,7 +2578,7 @@ void resetCustomizedReplication() {
     server.check_write_begin_time = -1;
     server.is_allow_ssdb_write = ALLOW_SSDB_WRITE;
     server.ssdb_status = SSDB_NONE;
-    server.ssdb_replication_client->flags &= ~SSDB_CLIENT_KEEP_REPLY;
+    server.ssdb_replication_client->flags = 0;
 
 
     listRewind(server.slaves, &li);
