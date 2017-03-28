@@ -158,12 +158,10 @@ public:
     virtual int sadd(const Bytes &key, const std::set<Bytes> &members, int64_t *num);
     virtual int srem(const Bytes &key, const std::vector<Bytes> &members, int64_t *num);
 	virtual int scard(const Bytes &key, uint64_t *llen);
-    virtual int sismember(const Bytes &key, const Bytes &member);
+    virtual int sismember(const Bytes &key, const Bytes &member, bool *ismember);
     virtual int smembers(const Bytes &key, std::vector<std::string> &members);
 	virtual int spop(const Bytes &key, std::vector<std::string> &members, int64_t popcnt);
 	virtual int srandmember(const Bytes &key, std::vector<std::string> &members, int64_t cnt);
-    virtual int sunion(const std::vector<Bytes> &keys, std::set<std::string>& members);
-    virtual int sunionstore(const Bytes &destination, const std::vector<Bytes> &keys, int64_t *num);
 	virtual int sscan(const Bytes &name, const Bytes& cursor, const std::string &pattern, uint64_t limit, std::vector<std::string> &resp);
 
 	/* zset */
@@ -232,7 +230,6 @@ private:
     int GetSetItemValInternal(const std::string &item_key);
     SIterator* sscan_internal(const Bytes &name, const Bytes &start, uint16_t version, uint64_t limit, const leveldb::Snapshot *snapshot=nullptr);
     int incr_ssize(leveldb::WriteBatch &batch, const SetMetaVal &sv, const std::string &meta_key,const Bytes &key, int64_t incr);
-    int sunion_internal(const std::vector<Bytes> &keys, int offset, std::set<std::string>& members);
 
     int GetListItemValInternal(const std::string &item_key, std::string *val, const leveldb::ReadOptions &options = leveldb::ReadOptions());
     int GetListMetaVal(const std::string &meta_key, ListMetaVal &lv);

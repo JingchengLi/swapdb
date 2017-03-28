@@ -135,7 +135,9 @@ int SSDBImpl::saddNoLock(const Bytes &key, const std::set<Bytes> &mem_set, int64
     if (iret < 0) {
         return iret;
     } else if (iret == 0) {
-
+        ret = 0;
+    } else {
+        ret = 1;
     }
 
     leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
@@ -144,7 +146,7 @@ int SSDBImpl::saddNoLock(const Bytes &key, const std::set<Bytes> &mem_set, int64
         return STORAGE_ERR;
     }
 
-    return 1;
+    return ret;
 }
 
 int SSDBImpl::sadd(const Bytes &key, const std::set<Bytes> &mem_set, int64_t *num) {
@@ -181,7 +183,9 @@ int SSDBImpl::srem(const Bytes &key, const std::vector<Bytes> &members, int64_t 
     if (iret < 0) {
         return iret;
     } else if (iret == 0) {
-
+        ret = 0;
+    } else {
+        ret = 1;
     }
 
     leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
@@ -208,19 +212,30 @@ int SSDBImpl::scard(const Bytes &key, uint64_t *llen) {
     return ret;
 }
 
-int SSDBImpl::sismember(const Bytes &key, const Bytes &member) {
+int SSDBImpl::sismember(const Bytes &key, const Bytes &member, bool *ismember) {
     SetMetaVal sv;
     std::string meta_key = encode_meta_key(key);
     int ret = GetSetMetaVal(meta_key, sv);
-    if (1 == ret) {
+    if (ret < 0) {
+        return ret;
+    } else if (1 == ret) {
         std::string hkey = encode_set_key(key, member, sv.version);
         ret = GetSetItemValInternal(hkey);
+        if (ret < 0) {
+            return ret;
+        } else if (ret == 0) {
+            *ismember = false;
+        } else {
+            *ismember = true;
+        }
+    } else {
+        //ret == 0;
+        *ismember = false;
     }
-    return ret;
+    return 1;
 }
 
 int SSDBImpl::srandmember(const Bytes &key, std::vector<std::string> &members, int64_t cnt) {
-    members.clear();
     leveldb::WriteBatch batch;
 
     const leveldb::Snapshot *snapshot = nullptr;
@@ -263,8 +278,7 @@ int SSDBImpl::srandmember(const Bytes &key, std::vector<std::string> &members, i
 //            }
 //        }
     } else if (cnt > INT_MAX) {
-        //TODO random int
-        return -1;
+        return INVALID_INT;
     } else {
         if (allow_repear) {
             for (uint64_t i = 0; random_list.size() < cnt; ++i) {
@@ -319,7 +333,6 @@ int SSDBImpl::srandmember(const Bytes &key, std::vector<std::string> &members, i
 }
 
 int SSDBImpl::spop(const Bytes &key, std::vector<std::string> &members, int64_t popcnt) {
-    members.clear();
     leveldb::WriteBatch batch;
 
     const leveldb::Snapshot *snapshot = nullptr;
@@ -353,8 +366,7 @@ int SSDBImpl::spop(const Bytes &key, std::vector<std::string> &members, int64_t 
             random_set.insert(i);
         }
     } else if (popcnt > INT_MAX) {
-        //TODO random int
-        return -1;
+        return INVALID_INT;
     } else {
         for (uint64_t i = 0; random_set.size() < popcnt; ++i) {
             //to do rand only produce int !
@@ -383,8 +395,10 @@ int SSDBImpl::spop(const Bytes &key, std::vector<std::string> &members, int64_t 
     int iret = incr_ssize(batch, sv, meta_key, key, (-1) * (delete_cnt));
     if (iret < 0) {
         return iret;
-    } else if (iret == 0) {
-
+    }  else if (iret == 0) {
+        ret = 0;
+    } else {
+        ret = 1;
     }
 
     leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
@@ -393,23 +407,21 @@ int SSDBImpl::spop(const Bytes &key, std::vector<std::string> &members, int64_t 
         return STORAGE_ERR;
     }
 
-    return 1;
+    return ret;
 }
 
 int SSDBImpl::smembers(const Bytes &key, std::vector<std::string> &members) {
-    members.clear();
-
     const leveldb::Snapshot *snapshot = nullptr;
     SetMetaVal sv;
-    int s;
+    int ret;
 
     {
         RecordLock<Mutex> l(&mutex_record_, key.String());
 
         std::string meta_key = encode_meta_key(key);
-        s = GetSetMetaVal(meta_key, sv);
-        if (s != 1) {
-            return s;
+        ret = GetSetMetaVal(meta_key, sv);
+        if (ret != 1) {
+            return ret;
         }
 
         snapshot = ldb->GetSnapshot();
@@ -422,111 +434,8 @@ int SSDBImpl::smembers(const Bytes &key, std::vector<std::string> &members) {
         members.push_back(std::move(it->key));
     }
 
-    return s;
-}
-
-int SSDBImpl::sunion_internal(const std::vector<Bytes> &keys, int offset, std::set<std::string> &members) {
-    members.clear();
-    int size = (int) keys.size();
-    for (int i = offset; i < size; ++i) {
-
-        const leveldb::Snapshot *snapshot = nullptr;
-        SetMetaVal sv;
-
-        {
-            RecordLock<Mutex> l(&mutex_record_, keys[i].String());
-            std::string meta_key = encode_meta_key(keys[i]);
-            int s = GetSetMetaVal(meta_key, sv);
-            if (s < 0) {
-                members.clear();
-                return s;
-            } else if (s == 0) {
-                continue;
-            }
-
-            snapshot = ldb->GetSnapshot();
-        }
-
-        SnapshotPtr spl(ldb, snapshot); //auto release
-
-        auto it = std::unique_ptr<SIterator>(sscan_internal(keys[i], "", sv.version, -1, snapshot));
-        while (it->next()) {
-            members.insert(it->key);
-        }
-
-    }
     return 1;
 }
-
-int SSDBImpl::sunion(const std::vector<Bytes> &keys, std::set<std::string> &members) {
-
-
-    return sunion_internal(keys, 1, members);
-}
-
-int SSDBImpl::sunionstore(const Bytes &destination, const std::vector<Bytes> &keys, int64_t *num) {
-//    RecordLock<Mutex> l(&mutex_record_, key.String());//TODO
-    leveldb::WriteBatch batch;
-
-    std::set<std::string> members;
-    int ret = sunion_internal(keys, 2, members);
-    if (ret == -1) {
-        return -1;
-    }
-
-    ret = del_key_internal(batch, destination);
-    if (ret < 0) {
-        return ret;
-    }
-
-    *num = members.size();
-    if (*num == 0) {
-        leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
-        if (!s.ok()) {
-            log_error("sunionstore error: %s", s.ToString().c_str());
-            return STORAGE_ERR;
-        }
-        return 1;
-    }
-
-    std::set<std::string>::iterator it = members.begin();
-    std::string val;
-    std::string meta_key = encode_meta_key(destination);
-    leveldb::Status s = ldb->Get(leveldb::ReadOptions(), meta_key, &val);
-    if (s.IsNotFound()) {
-        for (; it != members.end(); ++it) {
-            std::string hkey = encode_set_key(destination, *it, 0);
-            batch.Put(hkey, slice(""));
-        }
-        std::string size_val = encode_set_meta_val((uint64_t) (*num), 0);
-        batch.Put(meta_key, size_val);
-    } else if (s.ok()) {
-        uint16_t version = *(uint16_t *) (val.c_str() + 1);
-        version = be16toh(version);
-        if (version == UINT16_MAX) {
-            version = 0;
-        } else {
-            version += 1;
-        }
-        for (; it != members.end(); ++it) {
-            std::string hkey = encode_set_key(destination, *it, version);
-            batch.Put(hkey, slice(""));
-        }
-        std::string size_val = encode_set_meta_val((uint64_t) (*num), version);
-        batch.Put(meta_key, size_val);
-    } else if (!s.ok()) {
-        log_error("get error: %s", s.ToString().c_str());
-        return -1;
-    }
-
-    s = ldb->Write(leveldb::WriteOptions(), &(batch));
-    if (!s.ok()) {
-        return -1;
-    }
-
-    return 1;
-}
-
 
 int SSDBImpl::GetSetMetaVal(const std::string &meta_key, SetMetaVal &sv) {
     std::string meta_val;

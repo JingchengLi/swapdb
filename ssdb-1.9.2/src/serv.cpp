@@ -70,7 +70,7 @@ DEF_PROC(scard);
 //DEF_PROC(sinterstore);
 DEF_PROC(sismember);
 DEF_PROC(smembers);
-DEF_PROC(smove);
+//DEF_PROC(smove);
 DEF_PROC(spop);
 DEF_PROC(srandmember);
 //DEF_PROC(sunion);
@@ -205,7 +205,7 @@ void SSDBServer::reg_procs(NetworkServer *net){
 //    REG_PROC(sinterstore, "wt");
     REG_PROC(sismember, "rt");
     REG_PROC(smembers, "rt");
-    REG_PROC(smove, "wt");
+//    REG_PROC(smove, "wt");
     REG_PROC(spop, "wt");
     REG_PROC(srandmember, "rt");
 //    REG_PROC(sunion, "rt");

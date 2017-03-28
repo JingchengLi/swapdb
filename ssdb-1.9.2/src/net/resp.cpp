@@ -53,6 +53,13 @@ void Response::add(const std::string &s){
 	resp.push_back(s);
 }
 
+
+void Response::reply_errror(std::string errmsg) {
+	resp.push_back("error");
+	resp.push_back(errmsg);
+}
+
+
 void Response::reply_status(int status, const char *errmsg){
 	if(status == -1){
 		resp.push_back("error");
@@ -136,4 +143,3 @@ void Response::reply_list(int status, const std::vector<std::string> &list, cons
 		}
 	}
 }
-
