@@ -336,7 +336,7 @@ int SSDBImpl::hsize(const Bytes &name, uint64_t *size){
 	}
 }
 
-int SSDBImpl::hmget(const Bytes &name, const std::vector<std::string> &reqKeys, std::map<std::string, std::string> *resMap) {
+int SSDBImpl::hmget(const Bytes &name, const std::vector<std::string> &reqKeys, std::map<std::string, std::string> &resMap) {
 	HashMetaVal hv;
 	const leveldb::Snapshot* snapshot = nullptr;
 
@@ -358,7 +358,7 @@ int SSDBImpl::hmget(const Bytes &name, const std::vector<std::string> &reqKeys, 
 
 		int ret = GetHashItemValInternal(hkey, &val);
 		if (ret == 1) {
-			(*resMap)[reqKey] = val;
+			resMap[reqKey] = val;
 		} else if (ret == 0) {
 			continue;
 		} else {

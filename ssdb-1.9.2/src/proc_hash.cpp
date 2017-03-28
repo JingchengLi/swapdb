@@ -98,7 +98,7 @@ int proc_hmget(NetworkServer *net, Link *link, const Request &req, Response *res
         reqKeys.push_back(key.String());
     }
 
-    int ret = serv->ssdb->hmget(name, reqKeys, &resMap);
+    int ret = serv->ssdb->hmget(name, reqKeys, resMap);
     if (ret == 1) {
         resp->push_back("ok");
 

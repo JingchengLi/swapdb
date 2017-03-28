@@ -207,7 +207,7 @@ int SSDBImpl::set(const Bytes &key, const Bytes &val, int flags){
     return setNoLock(key, val, flags);
 }
 
-int SSDBImpl::getset(const Bytes &key, std::string *val, const Bytes &newval){
+int SSDBImpl::getset(const Bytes &key, std::pair<std::string, bool> &val, const Bytes &newval){
 	RecordLock<Mutex> l(&mutex_record_, key.String());
 	leveldb::WriteBatch batch;
 
@@ -221,7 +221,8 @@ int SSDBImpl::getset(const Bytes &key, std::string *val, const Bytes &newval){
         meta_val = encode_kv_val(newval, kv.version);
     } else{
 		meta_val = encode_kv_val(newval, kv.version);
-		*val = kv.value;
+		val.first = kv.value;
+        val.second = true;
         this->edel_one(batch, key); //del expire ET key
 	}
 	batch.Put(meta_key, meta_val);
@@ -232,7 +233,7 @@ int SSDBImpl::getset(const Bytes &key, std::string *val, const Bytes &newval){
 		return STORAGE_ERR;
 	}
 
-	return ret;
+	return 1;
 }
 
 int SSDBImpl::del_key_internal(leveldb::WriteBatch &batch, const Bytes &key) {
@@ -428,7 +429,7 @@ int SSDBImpl::append(const Bytes &key, const Bytes &value, uint64_t *llen) {
 
 
 
-int SSDBImpl::setbit(const Bytes &key, int64_t bitoffset, int on){
+int SSDBImpl::setbit(const Bytes &key, int64_t bitoffset, int on, int *res){
 	RecordLock<Mutex> l(&mutex_record_, key.String());
 	leveldb::WriteBatch batch;
 
@@ -450,7 +451,7 @@ int SSDBImpl::setbit(const Bytes &key, int64_t bitoffset, int on){
     if (len >= val.size()) {
         val.resize(len + 1, 0);
     }
-    int orig = val[len] & (1 << bit);
+    *res = val[len] & (1 << bit);
     if (on == 1) {
         val[len] |= (1 << bit);
     } else {
@@ -465,22 +466,32 @@ int SSDBImpl::setbit(const Bytes &key, int64_t bitoffset, int on){
 		log_error("set error: %s", s.ToString().c_str());
 		return STORAGE_ERR;
 	}
-	return orig;
+	return 1;
 }
 
-int SSDBImpl::getbit(const Bytes &key, int64_t bitoffset) {
+int SSDBImpl::getbit(const Bytes &key, int64_t bitoffset, int *res) {
     std::string val;
     int ret = this->get(key, &val);
-    if (ret <= 0) {
+    if (ret < 0) {
         return ret;
+    } else if (ret == 0) {
+        *res = 0;
+        return 1;
     }
 
     int64_t len = bitoffset >> 3;
     int64_t bit = 7 - (bitoffset & 0x7);
     if (len >= val.size()) {
-        return 0;
+        *res = 0;
+        return 1;
     }
-    return (val[len] & (1 << bit)) == 0 ? 0 : 1;
+
+    if ((val[len] & (1 << bit)) == 0) {
+        *res = 0;
+    } else {
+        *res = 1;
+    }
+    return 1;
 }
 
 int SSDBImpl::setrange(const Bytes &key, int64_t start, const Bytes &value, uint64_t *new_len) {

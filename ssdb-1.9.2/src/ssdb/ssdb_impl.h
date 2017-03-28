@@ -108,11 +108,11 @@ public:
 	virtual int incrbyfloat(const Bytes &key, long double by, long double *new_val);
 	virtual int multi_set(const std::vector<Bytes> &kvs, int offset=0);
 	virtual int multi_del(const std::vector<Bytes> &keys, int offset=0);
-	virtual int setbit(const Bytes &key, int64_t bitoffset, int on);
-	virtual int getbit(const Bytes &key, int64_t bitoffset);
+	virtual int setbit(const Bytes &key, int64_t bitoffset, int on, int *res);
+	virtual int getbit(const Bytes &key, int64_t bitoffset, int *res);
 	
 	virtual int get(const Bytes &key, std::string *val);
-	virtual int getset(const Bytes &key, std::string *val, const Bytes &newval);
+	virtual int getset(const Bytes &key, std::pair<std::string, bool> &val, const Bytes &newval);
 	virtual int getrange(const Bytes &key, int64_t start, int64_t end, std::string *res);
 	// return (start, end]
 	virtual int setrange(const Bytes &key, int64_t start, const Bytes &value, uint64_t *new_len);
@@ -132,7 +132,7 @@ public:
 	//int multi_hdel(const Bytes &name, const std::vector<Bytes> &keys, int offset=0);
 
 	virtual int hsize(const Bytes &name, uint64_t *size);
-	virtual int hmget(const Bytes &name, const std::vector<std::string> &reqKeys, std::map<std::string, std::string> *val);
+	virtual int hmget(const Bytes &name, const std::vector<std::string> &reqKeys, std::map<std::string, std::string> &val);
 	virtual int hgetall(const Bytes &name, std::map<std::string, std::string> &val);
 	virtual int hget(const Bytes &name, const Bytes &key, std::pair<std::string, bool> &val);
 //	virtual HIterator* hscan(const Bytes &name, const Bytes &start, const Bytes &end, uint64_t limit);

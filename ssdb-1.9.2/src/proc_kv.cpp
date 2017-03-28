@@ -46,12 +46,16 @@ int proc_getset(NetworkServer *net, Link *link, const Request &req, Response *re
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(3);
 
-	std::string val;
-	int ret = serv->ssdb->getset(req[1], &val, req[2]);
+	std::pair<std::string, bool> val;
+	int ret = serv->ssdb->getset(req[1], val, req[2]);
 	if(ret < 0){
-		resp->reply_get(ret, &val, GetErrorInfo(ret).c_str());
+		resp->reply_errror(GetErrorInfo(ret));
 	} else {
-		resp->reply_get(ret, &val);
+		if (val.second){
+			resp->reply_get(1, &val.first);
+		} else {
+			resp->reply_get(0, &val.first);
+		}
 	}
 
 	return 0;
@@ -725,11 +729,12 @@ int proc_getbit(NetworkServer *net, Link *link, const Request &req, Response *re
         return 0;
     }
 
-	int ret = serv->ssdb->getbit(req[1], (int64_t)offset);
-	if(ret < 0){
-		resp->reply_bool(-1, GetErrorInfo(ret).c_str());
-	}else{
-		resp->reply_bool(ret);
+	int res = 0;
+	int ret = serv->ssdb->getbit(req[1], (int64_t)offset, &res);
+	if(ret < 0) {
+		resp->reply_errror(GetErrorInfo(ret));
+	} else {
+		resp->reply_bool(res);
 	}
 
 	return 0;
@@ -755,11 +760,13 @@ int proc_setbit(NetworkServer *net, Link *link, const Request &req, Response *re
 		resp->push_back(msg);
 		return 0;
 	}
-	int ret = serv->ssdb->setbit(key, (int64_t)offset, on);
-	if(ret < 0){
+
+	int res = 0;
+	int ret = serv->ssdb->setbit(key, (int64_t)offset, on, &res);
+	if(ret < 0) {
 		resp->reply_bool(-1, GetErrorInfo(ret).c_str());
-	}else{
-		resp->reply_bool(ret);
+	} else {
+		resp->reply_bool(res);
 	}
 
 	return 0;
