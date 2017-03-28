@@ -4827,7 +4827,7 @@ void storetossdbCommand(client *c) {
 
     keyobj = c->argv[1];
 
-    if (lookupKeyReadWithFlags(c, c->argv[1], LOOKUP_NOTOUCH) == NULL) {
+    if (lookupKeyReadWithFlags(c->db, c->argv[1], LOOKUP_NOTOUCH) == NULL) {
         addReply(c, shared.nullbulk);
         /* The key is not existed any more. */
         serverLog(LL_DEBUG, "Not existed in redis.");
