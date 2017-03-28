@@ -140,7 +140,7 @@ public:
 
 
     /*  list  */
-    virtual int LIndex(const Bytes &key, const int64_t index, std::string *val);
+    virtual int LIndex(const Bytes &key, const int64_t index, std::pair<std::string, bool> &val);
     virtual int LLen(const Bytes &key, uint64_t *llen);
     virtual int LPop(const Bytes &key, std::pair<std::string, bool> &val);
     virtual int LPush(const Bytes &key, const std::vector<Bytes> &val, int offset, uint64_t *llen);

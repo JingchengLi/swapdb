@@ -221,12 +221,16 @@ int proc_qget(NetworkServer *net, Link *link, const Request &req, Response *resp
 		return 0;
 	}
 
-	std::string val;
-	int ret = serv->ssdb->LIndex(req[1], index, &val);
+	std::pair<std::string, bool> val;
+	int ret = serv->ssdb->LIndex(req[1], index, val);
 	if (ret < 0) {
-		resp->reply_get(-1, &val, GetErrorInfo(ret).c_str());
+		resp->reply_errror(GetErrorInfo(ret));
 	} else {
-		resp->reply_get(ret, &val);
+		if (val.second) {
+			resp->reply_get(1, &val.first);
+		} else {
+			resp->reply_get(0, &val.first);
+		}
 	}
 
 	return 0;

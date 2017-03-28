@@ -92,7 +92,7 @@ public:
 	virtual int hscan(const Bytes &name, const Bytes& cursor, const std::string &pattern, uint64_t limit, std::vector<std::string> &resp) = 0;
 
 	/*  list  */
-	virtual int LIndex(const Bytes &key, const int64_t index, std::string *val) = 0;
+	virtual int LIndex(const Bytes &key, const int64_t index, std::pair<std::string, bool> &val) = 0;
 	virtual int LLen(const Bytes &key, uint64_t *llen) = 0;
 	virtual int LPop(const Bytes &key, std::pair<std::string, bool> &val) = 0;
 	virtual int LPush(const Bytes &key, const std::vector<Bytes> &val, int offset, uint64_t *llen) = 0;

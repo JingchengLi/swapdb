@@ -51,7 +51,7 @@ uint64_t getSeqByIndex(int64_t index, const ListMetaVal &meta_val) {
     return seq;
 }
 
-int SSDBImpl::LIndex(const Bytes &key, const int64_t index, std::string *val) {
+int SSDBImpl::LIndex(const Bytes &key, const int64_t index, std::pair<std::string, bool> &val) {
     uint64_t sequence = 0;
     ListMetaVal lv;
     std::string meta_key = encode_meta_key(key);
@@ -59,7 +59,10 @@ int SSDBImpl::LIndex(const Bytes &key, const int64_t index, std::string *val) {
     if (1 == s){
         sequence = getSeqByIndex(index, lv);
         std::string item_key = encode_list_key(key, sequence, lv.version);
-        s = GetListItemValInternal(item_key, val);
+        s = GetListItemValInternal(item_key, &val.first);
+        if (s > 0) {
+            val.second = true;
+        }
         return s;
     }
     return s;

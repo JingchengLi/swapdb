@@ -188,10 +188,12 @@ int proc_hget(NetworkServer *net, Link *link, const Request &req, Response *resp
 
     if (ret < 0) {
         resp->reply_get(-1, &val.first, GetErrorInfo(ret).c_str());
-    } else if (ret == 0) {
-        resp->reply_get(ret);
     } else {
-        resp->reply_get(ret, &val.first);
+        if (val.second) {
+            resp->reply_get(1, &val.first);
+        } else {
+            resp->reply_get(0, &val.first);
+        }
     }
 
     return 0;
