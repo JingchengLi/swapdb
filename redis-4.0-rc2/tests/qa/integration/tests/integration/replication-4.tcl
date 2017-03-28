@@ -15,7 +15,7 @@ start_server {tags {"repl"}} {
         set master_host [srv -1 host]
         set master_port [srv -1 port]
         set slave [srv 0 client]
-        set num 100000
+        set num 10000000
         set load_handle0 [start_bg_complex_data $master_host $master_port 9 $num]
         # set load_handle1 [start_bg_complex_data $master_host $master_port 11 $num]
         # set load_handle2 [start_bg_complex_data $master_host $master_port 12 $num]
@@ -31,6 +31,17 @@ start_server {tags {"repl"}} {
                 # stop_bg_complex_data $load_handle1
                 # stop_bg_complex_data $load_handle2
                 fail "slave can not sync with master during writing"
+            }
+            r -1 select 16
+            set keyslist [r -1 keys *]
+            r -1 select 0
+
+            foreach key $keyslist {
+                wait_for_condition 100 100 {
+                    [ r exists $key ] eq [ r -1 exists $key ]
+                } else {
+                    fail "key:$key in master and slave not identical"
+                }
             }
             stop_bg_complex_data $load_handle0
             # stop_bg_complex_data $load_handle1
