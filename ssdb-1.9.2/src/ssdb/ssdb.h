@@ -94,10 +94,10 @@ public:
 	/*  list  */
 	virtual int LIndex(const Bytes &key, const int64_t index, std::string *val) = 0;
 	virtual int LLen(const Bytes &key, uint64_t *llen) = 0;
-	virtual int LPop(const Bytes &key, std::string *val) = 0;
+	virtual int LPop(const Bytes &key, std::pair<std::string, bool> &val) = 0;
 	virtual int LPush(const Bytes &key, const std::vector<Bytes> &val, int offset, uint64_t *llen) = 0;
 	virtual int LPushX(const Bytes &key, const std::vector<Bytes> &val, int offset, uint64_t *llen) = 0;
-	virtual int RPop(const Bytes &key, std::string *val) = 0;
+	virtual int RPop(const Bytes &key, std::pair<std::string, bool> &val) = 0;
 	virtual int RPush(const Bytes &key, const std::vector<Bytes> &val, int offset, uint64_t *llen) = 0;
 	virtual int RPushX(const Bytes &key, const std::vector<Bytes> &val, int offset, uint64_t *llen) = 0;
 	virtual int LSet(const Bytes &key, const int64_t index, const Bytes &val) = 0;

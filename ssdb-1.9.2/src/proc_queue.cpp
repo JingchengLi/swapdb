@@ -94,12 +94,18 @@ int proc_qpop_front(NetworkServer *net, Link *link, const Request &req, Response
 	SSDBServer *serv = (SSDBServer *)net->data;
 
 	const Bytes &name = req[1];
-	std::string val;
-	int ret = serv->ssdb->LPop(name, &val);
+
+	std::pair<std::string, bool> val;
+	int ret = serv->ssdb->LPop(name, val);
 	if (ret < 0) {
-		resp->reply_get(-1, &val, GetErrorInfo(ret).c_str());
+		resp->reply_errror(GetErrorInfo(ret));
 	} else {
-		resp->reply_get(ret, &val);
+		if (val.second) {
+			resp->reply_get(1, &val.first);
+		} else {
+			resp->reply_get(0, &val.first);
+		};
+
 	}
 
 	return 0;
@@ -109,12 +115,17 @@ int proc_qpop_back(NetworkServer *net, Link *link, const Request &req, Response 
     CHECK_NUM_PARAMS(2);
     SSDBServer *serv = (SSDBServer *)net->data;
 
-    std::string val;
-    int ret = serv->ssdb->RPop(req[1], &val);
+	std::pair<std::string, bool> val;
+    int ret = serv->ssdb->RPop(req[1], val);
 	if (ret < 0) {
-		resp->reply_get(-1, &val, GetErrorInfo(ret).c_str());
+		resp->reply_errror(GetErrorInfo(ret));
 	} else {
-		resp->reply_get(ret, &val);
+		if (val.second) {
+			resp->reply_get(1, &val.first);
+		} else {
+			resp->reply_get(0, &val.first);
+		};
+
 	}
 
 	return 0;

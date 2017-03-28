@@ -54,7 +54,7 @@ void Response::add(const std::string &s){
 }
 
 
-void Response::reply_errror(std::string errmsg) {
+void Response::reply_errror(const std::string &errmsg) {
 	resp.push_back("error");
 	resp.push_back(errmsg);
 }

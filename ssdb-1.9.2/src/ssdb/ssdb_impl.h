@@ -142,10 +142,10 @@ public:
     /*  list  */
     virtual int LIndex(const Bytes &key, const int64_t index, std::string *val);
     virtual int LLen(const Bytes &key, uint64_t *llen);
-    virtual int LPop(const Bytes &key, std::string *val);
+    virtual int LPop(const Bytes &key, std::pair<std::string, bool> &val);
     virtual int LPush(const Bytes &key, const std::vector<Bytes> &val, int offset, uint64_t *llen);
     virtual int LPushX(const Bytes &key, const std::vector<Bytes> &val, int offset, uint64_t *llen);
-	virtual int RPop(const Bytes &key, std::string *val);
+	virtual int RPop(const Bytes &key, std::pair<std::string, bool> &val);
 	virtual int RPush(const Bytes &key, const std::vector<Bytes> &val, int offset, uint64_t *llen);
 	virtual int RPushX(const Bytes &key, const std::vector<Bytes> &val, int offset, uint64_t *llen);
 	virtual int LSet(const Bytes &key, const int64_t index, const Bytes &val);
@@ -233,10 +233,8 @@ private:
 
     int GetListItemValInternal(const std::string &item_key, std::string *val, const leveldb::ReadOptions &options = leveldb::ReadOptions());
     int GetListMetaVal(const std::string &meta_key, ListMetaVal &lv);
-    int doListPop(leveldb::WriteBatch &batch, ListMetaVal &meta_val, const Bytes &key, std::string &meta_key, LIST_POSTION lp, std::string *val);
-    int DoLPush(leveldb::WriteBatch &batch, const Bytes &key, const std::vector<Bytes> &val, int offset, std::string &meta_key, ListMetaVal &meta_val);
-    int DoRPush(leveldb::WriteBatch &batch, const Bytes &key, const std::vector<Bytes> &val, int offset, std::string &meta_key, ListMetaVal &meta_val);
-
+    int doListPop(leveldb::WriteBatch &batch, ListMetaVal &meta_val, const Bytes &key, std::string &meta_key, LIST_POSTION lp, std::pair<std::string, bool> &val);
+    int doListPush(leveldb::WriteBatch &batch, const Bytes &key, const std::vector<Bytes> &val, int offset, std::string &meta_key, ListMetaVal &meta_val, LIST_POSTION lp);
 
     int GetZSetMetaVal(const std::string &meta_key, ZSetMetaVal &zv);
 	int GetZSetItemVal(const std::string &item_key, double *score);

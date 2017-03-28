@@ -25,7 +25,7 @@ public:
 	void add(long double s);
 	void add(const std::string &s);
 
-	void reply_errror(std::string errmsg);
+	void reply_errror(const std::string &errmsg);
 	void reply_status(int status, const char *errmsg=NULL);
 	void reply_bool(int status, const char *errmsg=NULL);
 	void reply_int(int status, int64_t val, const char *errmsg=NULL);
