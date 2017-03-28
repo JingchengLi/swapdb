@@ -14,9 +14,9 @@ SET(EXECUTABLE_OUTPUT_PATH "${CMAKE_SOURCE_DIR}/build")
 IF(GCOV)
     ADD_DEFINITIONS("-fprofile-arcs -ftest-coverage")
     SET(CMAKE_EXE_LINKER_FLAGS "-fprofile-arcs -ftest-coverage")
-    set(CMAKE_C_FLAGS "-std=c99 -pedantic  -U__STRICT_ANSI__ -DMULTIPLE_DC") # that would be bad
+    set(CMAKE_C_FLAGS "-g -std=c99 -pedantic  -U__STRICT_ANSI__ -DMULTIPLE_DC") # that would be bad
 ELSE()
-    set(CMAKE_C_FLAGS "-std=c99 -pedantic  -U__STRICT_ANSI__ -DMULTIPLE_DC") # that would be bad
+    set(CMAKE_C_FLAGS "-g -std=c99 -pedantic  -U__STRICT_ANSI__ -DMULTIPLE_DC") # that would be bad
 ENDIF()
 
 INCLUDE_DIRECTORIES(
