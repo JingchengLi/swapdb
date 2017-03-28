@@ -240,7 +240,7 @@ start_server {tags {"lfu"}} {
             wait_memory_stable
             set num 0
             for {} {$num < 3000} {incr num} {
-                if {5 > [r object freq "key_d:$i"]} {
+                if {5 > [r object freq "key_d:$num"]} {
                     break
                 }
             }
