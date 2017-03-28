@@ -893,7 +893,7 @@ int handleResponseOfCheckWrite(client *c, sds replyString) {
                 serverLog(LL_WARNING, "Sending rr_make_snapshot to SSDB failed.");
             } else {
                 serverLog(LL_WARNING, "Sending rr_make_snapshot to SSDB sucess.");
-                server.ssdb_replication_client->flags |= SSDB_CLIENT_KEEP_REPLY;
+                server.ssdb_replication_client->replication_flags |= SSDB_CLIENT_KEEP_REPLY;
             }
         }
 
@@ -923,7 +923,7 @@ int handleResponseOfPsync(client *c, sds replyString) {
     if (!sdscmp(replyString, shared.makesnapshotok)) {
         server.ssdb_status = MASTER_SSDB_SNAPSHOT_OK;
         server.is_allow_ssdb_write = ALLOW_SSDB_WRITE;
-        c->flags &= ~SSDB_CLIENT_KEEP_REPLY;
+        c->replication_flags &= ~SSDB_CLIENT_KEEP_REPLY;
         serverAssert(c == server.ssdb_replication_client);
         process_status = C_OK;
     } else if (!sdscmp(replyString, shared.makesnapshotnok)) {
