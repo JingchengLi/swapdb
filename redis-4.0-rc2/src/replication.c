@@ -601,6 +601,7 @@ int startBgsaveForReplication(int mincapa) {
         }
         if (server.jdjr_mode && server.use_customized_replication) {
             server.ssdb_status = SSDB_NONE;
+            server.ssdb_replication_client->flags &= ~SSDB_CLIENT_KEEP_REPLY;
         }
         return retval;
     }
@@ -2577,6 +2578,8 @@ void resetCustomizedReplication() {
     server.check_write_begin_time = -1;
     server.is_allow_ssdb_write = ALLOW_SSDB_WRITE;
     server.ssdb_status = SSDB_NONE;
+    server.ssdb_replication_client->flags &= ~SSDB_CLIENT_KEEP_REPLY;
+
 
     listRewind(server.slaves, &li);
 

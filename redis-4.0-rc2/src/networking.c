@@ -888,9 +888,13 @@ int handleResponseOfCheckWrite(client *c, sds replyString) {
             server.ssdb_status = MASTER_SSDB_SNAPSHOT_PRE;
 
             sds finalcmd = sdsnew("*1\r\n$16\r\nrr_make_snapshot\r\n");
-            if (sendCommandToSSDB(server.ssdb_replication_client, finalcmd) != C_OK)
-                // todo: set server.ssdb_replication_client to null and reconnect
+            if (sendCommandToSSDB(server.ssdb_replication_client, finalcmd) != C_OK) {
+                /* TODO: set server.ssdb_replication_client to null and reconnect */
                 serverLog(LL_WARNING, "Sending rr_make_snapshot to SSDB failed.");
+            } else {
+                serverLog(LL_WARNING, "Sending rr_make_snapshot to SSDB sucess.");
+                server.ssdb_replication_client->flags |= SSDB_CLIENT_KEEP_REPLY;
+            }
         }
 
         process_status = C_OK;
@@ -919,6 +923,8 @@ int handleResponseOfPsync(client *c, sds replyString) {
     if (!sdscmp(replyString, shared.makesnapshotok)) {
         server.ssdb_status = MASTER_SSDB_SNAPSHOT_OK;
         server.is_allow_ssdb_write = ALLOW_SSDB_WRITE;
+        c->flags &= ~SSDB_CLIENT_KEEP_REPLY;
+        serverAssert(c == server.ssdb_replication_client);
         process_status = C_OK;
     } else if (!sdscmp(replyString, shared.makesnapshotnok)) {
         /* Reset customized replication status immediately. */
@@ -1607,7 +1613,7 @@ void resetClient(client *c) {
         c->flags &= ~CLIENT_REPLY_SKIP_NEXT;
     }
 
-    if (server.jdjr_mode)
+    if (server.jdjr_mode && server.ssdb_status == SSDB_NONE)
         c->replication_flags &= ~SSDB_CLIENT_KEEP_REPLY;
 }
 
