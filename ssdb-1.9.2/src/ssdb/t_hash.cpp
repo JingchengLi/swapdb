@@ -49,19 +49,21 @@ int SSDBImpl::hmsetNoLock(const Bytes &name, const std::map<Bytes ,Bytes> &kvs, 
 	if (iret < 0) {
 		return iret;
 	} else if (iret == 0) {
-
-	}
+        ret = 0;
+	} else {
+        ret = 1;
+    }
 
 	leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
 	if(!s.ok()){
-		log_error("error: %s", s.ToString().c_str());
+		log_error("[hmsetNoLock] error: %s", s.ToString().c_str());
 		return STORAGE_ERR;
 	}
 
-	return 1;
+	return ret;
 }
 
-int SSDBImpl::hset(const Bytes &name, const Bytes &key, const Bytes &val){
+int SSDBImpl::hset(const Bytes &name, const Bytes &key, const Bytes &val, int *added){
 	RecordLock<Mutex> l(&mutex_record_, name.String());
 	leveldb::WriteBatch batch;
 
@@ -73,17 +75,19 @@ int SSDBImpl::hset(const Bytes &name, const Bytes &key, const Bytes &val){
         return ret;
     }
 
-    int added = hset_one(batch, hv, true, name, key, val);
-	if(added < 0) {
-		return added;
+    *added = hset_one(batch, hv, true, name, key, val);
+	if(*added < 0) {
+		return *added;
 	}
 
-	int iret = incr_hsize(batch, meta_key , hv, name, added);
+	int iret = incr_hsize(batch, meta_key , hv, name, *added);
 	if (iret < 0) {
 		return iret;
 	} else if (iret == 0) {
-
-	}
+        ret = 0;
+	} else {
+        ret = 1;
+    }
 
 	leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
 	if(!s.ok()){
@@ -91,10 +95,10 @@ int SSDBImpl::hset(const Bytes &name, const Bytes &key, const Bytes &val){
 		return STORAGE_ERR;
 	}
 
-	return added;
+	return ret;
 }
 
-int SSDBImpl::hsetnx(const Bytes &name, const Bytes &key, const Bytes &val){
+int SSDBImpl::hsetnx(const Bytes &name, const Bytes &key, const Bytes &val, int *added){
 	RecordLock<Mutex> l(&mutex_record_, name.String());
 	leveldb::WriteBatch batch;
 
@@ -110,25 +114,27 @@ int SSDBImpl::hsetnx(const Bytes &name, const Bytes &key, const Bytes &val){
 
         ret = GetHashItemValInternal(hkey, &dbval);
         if (ret == 1) {
-			return 0;
+            *added = 0;
+			return ret;
 		} else if (ret < 0) {
             return ret;
         }
     }
 
     //ret == 0
-
-	int added = hset_one(batch, hv, false, name, key, val);
+	*added = hset_one(batch, hv, false, name, key, val);
 	if(added < 0) {
-		return added;
+		return *added;
 	}
 
-	int iret =incr_hsize(batch, meta_key , hv, name, added);
+	int iret =incr_hsize(batch, meta_key , hv, name, *added);
 	if (iret < 0) {
 		return iret;
 	} else if (iret == 0) {
-
-	}
+        ret = 0;
+	} else {
+        ret = 1;
+    }
 
 	leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
 	if(!s.ok()){
@@ -136,11 +142,11 @@ int SSDBImpl::hsetnx(const Bytes &name, const Bytes &key, const Bytes &val){
 		return STORAGE_ERR;
 	}
 
-	return added;
+	return ret;
 }
 
 
-int SSDBImpl::hdel(const Bytes &name, const std::set<Bytes> &fields) {
+int SSDBImpl::hdel(const Bytes &name, const std::set<Bytes> &fields, int *deleted) {
 	RecordLock<Mutex> l(&mutex_record_, name.String());
 	leveldb::WriteBatch batch;
 	HashMetaVal hv;
@@ -150,8 +156,6 @@ int SSDBImpl::hdel(const Bytes &name, const std::set<Bytes> &fields) {
 	if (ret != 1){
 		return ret;
 	}
-
-	int deleted = 0;
 
 	for (auto const &key : fields) {
 
@@ -163,16 +167,18 @@ int SSDBImpl::hdel(const Bytes &name, const std::set<Bytes> &fields) {
 			return ret;
 		} else if (ret == 1){
 			batch.Delete(hkey);
-			deleted++;
+            (*deleted) = (*deleted)+1;
 		}
 	}
 
-	int iret = incr_hsize(batch, meta_key , hv, name, -deleted);
+	int iret = incr_hsize(batch, meta_key , hv, name, -(*deleted));
 	if (iret < 0) {
 		return iret;
 	} else if (iret == 0) {
-
-	}
+        ret = 0;
+	} else {
+        ret = 1;
+    }
 
 	leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
 	if(!s.ok()){
@@ -180,7 +186,7 @@ int SSDBImpl::hdel(const Bytes &name, const std::set<Bytes> &fields) {
 		return STORAGE_ERR;
 	}
 
-	return deleted;
+	return ret;
 }
 
 
@@ -240,8 +246,10 @@ int SSDBImpl::hincrbyfloat(const Bytes &name, const Bytes &key, long double by, 
 	if (iret < 0) {
 		return iret;
 	} else if (iret == 0) {
-
-	}
+        ret = 0;
+	} else {
+        ret = 1;
+    }
 
 	leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
 	if(!s.ok()){
@@ -249,7 +257,7 @@ int SSDBImpl::hincrbyfloat(const Bytes &name, const Bytes &key, long double by, 
 		return STORAGE_ERR;
 	}
 
-    return 1;
+    return ret;
 }
 
 int SSDBImpl::hincr(const Bytes &name, const Bytes &key, int64_t by, int64_t *new_val){
@@ -301,16 +309,19 @@ int SSDBImpl::hincr(const Bytes &name, const Bytes &key, int64_t by, int64_t *ne
 	if (iret < 0) {
 		return iret;
 	} else if (iret == 0) {
+        ret = 0;
+    } else {
+        ret = 1;
+    }
 
-	}
 
-	leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
+    leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
 	if(!s.ok()){
 		log_error("error: %s", s.ToString().c_str());
 		return STORAGE_ERR;
 	}
 
-	return 1;
+	return ret;
 }
 
 int SSDBImpl::hsize(const Bytes &name, uint64_t *size){
@@ -348,7 +359,6 @@ int SSDBImpl::hmget(const Bytes &name, const std::vector<std::string> &reqKeys, 
 		int ret = GetHashItemValInternal(hkey, &val);
 		if (ret == 1) {
 			(*resMap)[reqKey] = val;
-
 		} else if (ret == 0) {
 			continue;
 		} else {
@@ -360,7 +370,7 @@ int SSDBImpl::hmget(const Bytes &name, const std::vector<std::string> &reqKeys, 
     return 1;
 }
 
-int SSDBImpl::hget(const Bytes &name, const Bytes &key, std::string *val){
+int SSDBImpl::hget(const Bytes &name, const Bytes &key, std::pair<std::string, bool> &val){
 	HashMetaVal hv;
 	std::string meta_key = encode_meta_key(name);
 	int ret = GetHashMetaVal(meta_key, hv);
@@ -369,7 +379,14 @@ int SSDBImpl::hget(const Bytes &name, const Bytes &key, std::string *val){
 	}
 
 	std::string hkey = encode_hash_key(name, key, hv.version);
-	return GetHashItemValInternal(hkey, val);
+
+    ret = GetHashItemValInternal(hkey, &val.first);
+    if (ret == 0) {
+        val.second = false;
+    } else if (ret > 0) {
+        val.second = true;
+    }
+    return 1;
 }
 
 

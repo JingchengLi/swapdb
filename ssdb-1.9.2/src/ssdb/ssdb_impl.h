@@ -121,9 +121,9 @@ public:
 	/* hash */
 
 	virtual int hmset(const Bytes &name, const std::map<Bytes,Bytes> &kvs);
-	virtual int hset(const Bytes &name, const Bytes &key, const Bytes &val);
-	virtual int hsetnx(const Bytes &name, const Bytes &key, const Bytes &val);
-	virtual int hdel(const Bytes &name, const std::set<Bytes>& fields);
+	virtual int hset(const Bytes &name, const Bytes &key, const Bytes &val, int *added);
+	virtual int hsetnx(const Bytes &name, const Bytes &key, const Bytes &val, int *added);
+	virtual int hdel(const Bytes &name, const std::set<Bytes>& fields, int *deleted);
 
 	// -1: error, 1: ok, 0: value is not an integer or out of range
 	virtual int hincr(const Bytes &name, const Bytes &key, int64_t by, int64_t *new_val);
@@ -134,7 +134,7 @@ public:
 	virtual int hsize(const Bytes &name, uint64_t *size);
 	virtual int hmget(const Bytes &name, const std::vector<std::string> &reqKeys, std::map<std::string, std::string> *val);
 	virtual int hgetall(const Bytes &name, std::map<std::string, std::string> &val);
-	virtual int hget(const Bytes &name, const Bytes &key, std::string *val);
+	virtual int hget(const Bytes &name, const Bytes &key, std::pair<std::string, bool> &val);
 //	virtual HIterator* hscan(const Bytes &name, const Bytes &start, const Bytes &end, uint64_t limit);
 	virtual int hscan(const Bytes &name, const Bytes& cursor, const std::string &pattern, uint64_t limit, std::vector<std::string> &resp);
 

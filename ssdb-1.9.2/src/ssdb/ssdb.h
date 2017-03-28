@@ -77,16 +77,16 @@ public:
 	/* hash */
 
 	virtual int hmset(const Bytes &name, const std::map<Bytes, Bytes> &kvs) = 0;
-	virtual int hset(const Bytes &name, const Bytes &key, const Bytes &val) = 0;
-	virtual int hsetnx(const Bytes &name, const Bytes &key, const Bytes &val) = 0;
-	virtual int hdel(const Bytes &name, const std::set<Bytes>& fields) = 0;
+	virtual int hset(const Bytes &name, const Bytes &key, const Bytes &val, int *added) = 0;
+	virtual int hsetnx(const Bytes &name, const Bytes &key, const Bytes &val, int *added) = 0;
+	virtual int hdel(const Bytes &name, const std::set<Bytes>& fields, int *deleted) = 0;
 
 	// -1: error, 1: ok, 0: value is not an integer or out of range
 	virtual int hincr(const Bytes &name, const Bytes &key, int64_t by, int64_t *new_val) = 0;
 	virtual int hincrbyfloat(const Bytes &name, const Bytes &key, long double by, long double *new_val) = 0;
 
 	virtual int hsize(const Bytes &name, uint64_t *size) = 0;
-	virtual int hget(const Bytes &name, const Bytes &key, std::string *val) = 0;
+	virtual int hget(const Bytes &name, const Bytes &key, std::pair<std::string, bool> &val) = 0;
 	virtual int hgetall(const Bytes &name, std::map<std::string, std::string> &val) = 0;
 	virtual int hmget(const Bytes &name, const std::vector<std::string> &reqKeys, std::map<std::string, std::string> *val) = 0;
 	virtual int hscan(const Bytes &name, const Bytes& cursor, const std::string &pattern, uint64_t limit, std::vector<std::string> &resp) = 0;
