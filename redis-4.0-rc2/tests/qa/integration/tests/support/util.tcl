@@ -161,7 +161,11 @@ proc findKeyWithType {r type} {
 proc createComplexDataset {r ops {opt {}}} {
     set keyslist {}
     for {set j 0} {$j < $ops} {incr j} {
-        set k [randomKey]
+        if {[lsearch -exact $opt samekey] != -1} {
+            set k "key_8888888888"
+        } else {
+            set k [randomKey]
+        }
         lappend keyslist $k
         set f [randomValue]
         set v [randomValue]
@@ -357,6 +361,16 @@ proc start_write_load {host port seconds {interval 0}} {
 
 # Stop a process generating write load executed with start_write_load.
 proc stop_write_load {handle} {
+    catch {exec /bin/kill -9 $handle}
+}
+
+proc start_bg_complex_data {host port db ops {opt {}}} {
+    set tclsh [info nameofexecutable]
+    set db 0
+    exec $tclsh tests/helpers/bg_complex_data.tcl $host $port $db $ops $opt &
+}
+
+proc stop_bg_complex_data {handle} {
     catch {exec /bin/kill -9 $handle}
 }
 

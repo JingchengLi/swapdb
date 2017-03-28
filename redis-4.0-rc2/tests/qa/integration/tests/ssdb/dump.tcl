@@ -92,7 +92,7 @@ overrides {maxmemory 0}} {
         test {RESTORE can detect a syntax error for unrecongized options} {
             catch {sr restore myhash 0 $redisEncoded invalid-option} e
             set e
-        } {*ERR*}
+        } {*syntax*}
     }
 # set type
     foreach valtype {string-encoded mix-encoded integer-encoded overflownumbers} \
@@ -233,7 +233,7 @@ overrides {maxmemory 0}} {
             set e {}
             catch { sr restore foobusy 0 $redisEncoded } e
             list [set e] [ sr get foobusy ]
-        } {*ERR* barbusy}
+        } {*BUSYKEY* barbusy}
 
         test {RESTORE (SSDB) can overwrite an existing key with REPLACE} {
             sr restore foobusy 0 $redisEncoded replace
