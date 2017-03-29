@@ -864,14 +864,13 @@ int proc_getrange(NetworkServer *net, Link *link, const Request &req, Response *
 		return 0;
 	}
 
-	std::string val;
-	int ret = serv->ssdb->getrange(key, start, end, &val);
+	std::pair<std::string, bool> val;
+	int ret = serv->ssdb->getrange(key, start, end, val);
 	if(ret < 0){
-		resp->push_back("error");
-		resp->push_back(GetErrorInfo(ret));
+		resp->reply_errror(GetErrorInfo(ret));
 	} else{
 		resp->push_back("ok");
-		resp->push_back(val);
+		resp->push_back(val.first);
 	}
 	return 0;
 }

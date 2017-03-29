@@ -19,25 +19,20 @@ static bool getNextString(unsigned char *zl, unsigned char **p, std::string &ret
 int SSDBImpl::GetKvMetaVal(const std::string &meta_key, KvMetaVal &kv) {
     std::string meta_val;
     leveldb::Status s = ldb->Get(leveldb::ReadOptions(), meta_key, &meta_val);
-    int ret = 0;
     if (s.IsNotFound()) {
-        ret = 0;
         kv.version = 0;
         kv.del = KEY_ENABLED_MASK;
         kv.type = DataType::KV;
-        return ret;
+        return 0;
 
     } else if (!s.ok()) {
         log_error("error: %s", s.ToString().c_str());
         return STORAGE_ERR;
     } else {
-
-        ret = kv.DecodeMetaVal(meta_val);
+        int ret = kv.DecodeMetaVal(meta_val);
         if (ret < 0) {
             return ret;
         } else if (kv.del == KEY_DELETE_MASK) {
-            ret = 0;
-
             if (kv.version == UINT16_MAX) {
                 kv.version = 0;
             } else {
@@ -46,13 +41,14 @@ int SSDBImpl::GetKvMetaVal(const std::string &meta_key, KvMetaVal &kv) {
 
             kv.del = KEY_ENABLED_MASK;
             kv.type = DataType::KV;
+            return 0;
         } else {
-            ret = 1;
+            return 1;
         }
     }
-    return ret;
 }
 
+//TODO return value fix
 int SSDBImpl::SetGeneric(leveldb::WriteBatch &batch, const Bytes &key, const Bytes &val, int flags, const int64_t expire){
 	if (expire < 0){
 		return INVALID_EX_TIME; //NOT USED
@@ -121,6 +117,7 @@ return_err:
 	return rval;
 }
 
+//TODO return value fix
 int SSDBImpl::multi_del(const std::vector<Bytes> &keys, int offset){ //注：redis中不支持该接口
 	leveldb::WriteBatch batch;
 	std::vector<Bytes> lock_key;
@@ -189,8 +186,10 @@ int SSDBImpl::setNoLock(const Bytes &key, const Bytes &val, int flags) {
     leveldb::WriteBatch batch;
 
     int ret = SetGeneric(batch, key, val, flags, 0);
-    if (ret <= 0){
+    if (ret < 0){
         return ret;
+    } else if (ret == 0) {
+        return 0;
     }
     leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
     if (!s.ok()){
@@ -562,16 +561,15 @@ int SSDBImpl::setrange(const Bytes &key, int64_t start, const Bytes &value, uint
     return 1;
 }
 
-int SSDBImpl::getrange(const Bytes &key, int64_t start, int64_t end, std::string *res) {
+int SSDBImpl::getrange(const Bytes &key, int64_t start, int64_t end, std::pair<std::string, bool> &res) {
     std::string val;
-    *res = "";
     int ret = this->get(key, &val);
     if (ret < 0) {
         return ret;
     }
 
     if (start < 0 && end < 0 && start > end) {
-        return 0;
+        return 1;
     }
     size_t strlen = val.size();
     if (start < 0) start = strlen+start;
@@ -583,9 +581,9 @@ int SSDBImpl::getrange(const Bytes &key, int64_t start, int64_t end, std::string
     /* Precondition: end >= 0 && end < strlen, so the only condition where
      * nothing can be returned is: start > end. */
     if (start > end || strlen == 0) {
-        return 0;
+        return 1;
     } else {
-        res->assign((char*)(val.c_str()) + start, end-start+1);
+        res.first.assign((char*)(val.c_str()) + start, end-start+1);
         return 1;
     }
 }
@@ -596,7 +594,7 @@ int SSDBImpl::getrange(const Bytes &key, int64_t start, int64_t end, std::string
  */
 int SSDBImpl::redisCursorCleanup() {
     redisCursorService.ClearExpireRedisCursor();
-    return 0;
+    return 1;
 }
 
 int SSDBImpl::type(const Bytes &key, std::string *type) {
@@ -654,22 +652,23 @@ int SSDBImpl::exists(const Bytes &key) {
     }
     if (!s.ok()) {
         log_error("get error: %s", s.ToString().c_str());
-        return -1;
+        return STORAGE_ERR;
     }
     if (meta_val[POS_DEL] == KEY_ENABLED_MASK) {
         return 1;
     } else if (meta_val[POS_DEL] == KEY_DELETE_MASK){
         return 0;
     } else {
-        return -1;
+        return MKEY_DECODEC_ERR;
     }
 }
 
 template<typename T>
 int decodeMetaVal(T &mv, const std::string &val) {
 
-    if (mv.DecodeMetaVal(val) == -1) {
-        return -1;
+    int ret = mv.DecodeMetaVal(val);
+    if (ret < 0) {
+        return ret;
     }
 
     return 1;
@@ -694,14 +693,14 @@ int SSDBImpl::dump(const Bytes &key, std::string *res) {
         }
         if (!s.ok()) {
             log_error("get error: %s", s.ToString().c_str());
-            return -1;
+            return STORAGE_ERR;
         }
 
         //decodeMetaVal
         if(meta_val.size()<4) {
             //invalid
             log_error("invalid MetaVal: %s", s.ToString().c_str());
-            return -1;
+            return INVALID_METAVAL;
         }
 
         char del = meta_val[POS_DEL];
@@ -858,13 +857,13 @@ int SSDBImpl::dump(const Bytes &key, std::string *res) {
             break;
         }
         default:
-            return -1;
+            return INVALID_METAVAL;
     }
 
     rdbEncoder.encodeFooter();
     *res = rdbEncoder.toString();
 
-    return ret;
+    return 1;
 }
 
 
@@ -880,7 +879,7 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
     std::string meta_key = encode_meta_key(key);
     s = ldb->Get(leveldb::ReadOptions(), meta_key, &meta_val);
     if (!s.ok() && !s.IsNotFound()) {
-        return -1;
+        return STORAGE_ERR;
     }
 
     if (s.ok()) {
@@ -927,7 +926,7 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
 
             string r = rdbDecoder.rdbGenericLoadStringObject(&ret);
             if (ret != 0) {
-                return ret;
+                return -1;
             }
 
             ret = this->setNoLock(key, r, OBJ_SET_NO_FLAGS);
@@ -948,7 +947,7 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
             while (len--) {
                  std::string r = rdbDecoder.rdbGenericLoadStringObject(&ret);
                 if (ret != 0) {
-                    return ret;
+                    return -1;
                 }
                 t_res.push_back(std::move(r));
             }
@@ -974,7 +973,7 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
                 //shit
                 std::string r = rdbDecoder.rdbGenericLoadStringObject(&ret);
                 if (ret != 0) {
-                    return ret;
+                    return -1;
                 }
 
                 tmp_set.insert(std::move(r));
@@ -1000,7 +999,7 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
             while (len--) {
                 std::string r = rdbDecoder.rdbGenericLoadStringObject(&ret);
                 if (ret != 0) {
-                    return ret;
+                    return -1;
                 }
 
                 double score;
@@ -1036,12 +1035,12 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
 
                 std::string field = rdbDecoder.rdbGenericLoadStringObject(&ret);
                 if (ret != 0) {
-                    return ret;
+                    return -1;
                 }
 
                 std::string value = rdbDecoder.rdbGenericLoadStringObject(&ret);
                 if (ret != 0) {
-                    return ret;
+                    return -1;
                 }
 
                 tmp_map[field] = value;
@@ -1075,7 +1074,7 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
 
                 std::string zipListStr = rdbDecoder.rdbGenericLoadStringObject(&ret);
                 if (ret != 0) {
-                    return ret;
+                    return -1;
                 }
 
                 unsigned char *zl = (unsigned char *) zipListStr.data();
@@ -1107,7 +1106,7 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
 
             std::string insetStr = rdbDecoder.rdbGenericLoadStringObject(&ret);
             if (ret != 0) {
-                return ret;
+                return -1;
             }
 
             const intset *set = (const intset *)insetStr.data();
@@ -1141,7 +1140,7 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
 
             std::string zipListStr = rdbDecoder.rdbGenericLoadStringObject(&ret);
             if (ret != 0) {
-                return ret;
+                return -1;
             }
 
             std::vector<std::string> t_res;
@@ -1168,7 +1167,7 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
 
             std::string zipListStr = rdbDecoder.rdbGenericLoadStringObject(&ret);
             if (ret != 0) {
-                return ret;
+                return -1;
             }
 
             std::map<std::string,std::string> tmp_map;
@@ -1209,7 +1208,7 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
 
             std::string zipListStr = rdbDecoder.rdbGenericLoadStringObject(&ret);
             if (ret != 0) {
-                return ret;
+                return -1;
             }
 
             unsigned char *zl = (unsigned char *) zipListStr.data();
@@ -1247,7 +1246,7 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
     }
 
     *res = "OK";
-    return ret;
+    return 1;
 }
 
 

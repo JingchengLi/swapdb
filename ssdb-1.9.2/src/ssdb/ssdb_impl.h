@@ -113,7 +113,7 @@ public:
 	
 	virtual int get(const Bytes &key, std::string *val);
 	virtual int getset(const Bytes &key, std::pair<std::string, bool> &val, const Bytes &newval);
-	virtual int getrange(const Bytes &key, int64_t start, int64_t end, std::string *res);
+	virtual int getrange(const Bytes &key, int64_t start, int64_t end, std::pair<std::string, bool> &res);
 	// return (start, end]
 	virtual int setrange(const Bytes &key, int64_t start, const Bytes &value, uint64_t *new_len);
 

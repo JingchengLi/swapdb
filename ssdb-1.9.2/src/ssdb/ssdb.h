@@ -67,7 +67,7 @@ public:
 	
 	virtual int get(const Bytes &key, std::string *val) = 0;
 	virtual int getset(const Bytes &key, std::pair<std::string, bool> &val, const Bytes &newval) = 0;
-	virtual int getrange(const Bytes &key, int64_t start, int64_t end, std::string *res) = 0;
+	virtual int getrange(const Bytes &key, int64_t start, int64_t end, std::pair<std::string, bool> &res) = 0;
 	virtual int setrange(const Bytes &key, int64_t start, const Bytes &value, uint64_t *new_len) = 0;
 
 	virtual int scan(const Bytes& cursor, const std::string &pattern, uint64_t limit, std::vector<std::string> &resp) = 0;
