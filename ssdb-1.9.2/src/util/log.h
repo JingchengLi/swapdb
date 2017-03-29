@@ -68,7 +68,9 @@ class Logger{
 		Logger();
 		~Logger();
 
-		int level(){
+	FILE *getFp() const;
+
+	int level(){
 			return level_;
 		}
 
@@ -99,7 +101,7 @@ int log_level();
 void set_log_level(int level);
 void set_log_level(const char *s);
 int log_write(int level, const char *fmt, ...);
-
+FILE * log_fd();
 
 #ifndef IOS
 	#ifdef NDEBUG

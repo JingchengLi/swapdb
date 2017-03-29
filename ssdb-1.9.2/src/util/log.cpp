@@ -20,6 +20,10 @@ int log_level(){
 	return logger.level();
 }
 
+FILE * log_fd(){
+	return logger.getFp();
+}
+
 void set_log_level(int level){
 	logger.set_level(level);
 }
@@ -333,4 +337,8 @@ int Logger::fatal(const char *fmt, ...){
 	int ret = logger.logv(Logger::LEVEL_FATAL, fmt, ap);
 	va_end(ap);
 	return ret;
+}
+
+FILE *Logger::getFp() const {
+	return fp;
 }
