@@ -601,7 +601,7 @@ int startBgsaveForReplication(int mincapa) {
         }
         if (server.jdjr_mode && server.use_customized_replication) {
             server.ssdb_status = SSDB_NONE;
-            server.ssdb_replication_client->flags = 0;
+            server.ssdb_replication_client->replication_flags = 0;
         }
         return retval;
     }

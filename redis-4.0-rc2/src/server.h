@@ -1363,6 +1363,7 @@ extern dictType hashDictType;
 extern dictType replScriptCacheDictType;
 extern dictType keyptrDictType;
 extern dictType modulesDictType;
+extern dictType visitingSSDBKeyDictType;
 
 /*-----------------------------------------------------------------------------
  * Functions prototypes
@@ -1901,6 +1902,7 @@ unsigned long KeyLFUDecrAndReturn(sds key);
 unsigned int dictSdsHash(const void *key);
 int dictSdsKeyCompare(void *privdata, const void *key1, const void *key2);
 void dictSdsDestructor(void *privdata, void *val);
+void *dictSdsDup(void *privdata, const void *val);
 
 /* Git SHA1 */
 char *redisGitSHA1(void);

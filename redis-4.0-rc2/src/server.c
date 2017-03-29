@@ -488,6 +488,14 @@ void dictSdsDestructor(void *privdata, void *val)
     sdsfree(val);
 }
 
+void *dictSdsDup(void *privdata, const void *key)
+{
+    DICT_NOTUSED(privdata);
+
+    return (void *)sdsdup((char *)key);
+}
+
+
 int dictObjKeyCompare(void *privdata, const void *key1,
         const void *key2)
 {
@@ -695,6 +703,16 @@ dictType replScriptCacheDictType = {
     NULL,                       /* key dup */
     NULL,                       /* val dup */
     dictSdsKeyCaseCompare,      /* key compare */
+    dictSdsDestructor,          /* key destructor */
+    NULL                        /* val destructor */
+};
+
+/* Db->visiting_ssdb_keys */
+dictType visitingSSDBKeyDictType = {
+    dictSdsHash,                /* hash function */
+    dictSdsDup,                 /* key dup */
+    NULL,                       /* val dup */
+    dictSdsKeyCompare,          /* key compare */
     dictSdsDestructor,          /* key destructor */
     NULL                        /* val destructor */
 };
@@ -2068,7 +2086,8 @@ void initServer(void) {
     if (server.jdjr_mode) {
         server.db[EVICTED_DATA_DBID].transferring_keys = dictCreate(&keyptrDictType,NULL);
         server.db[EVICTED_DATA_DBID].loading_hot_keys = dictCreate(&keyptrDictType,NULL);
-        server.db[EVICTED_DATA_DBID].visiting_ssdb_keys = dictCreate(&keyptrDictType,NULL);
+        server.db[EVICTED_DATA_DBID].visiting_ssdb_keys = dictCreate(&visitingSSDBKeyDictType,NULL);
+        server.db[EVICTED_DATA_DBID].delete_confirm_keys = dictCreate(&keyptrDictType,NULL);
         server.loadAndEvictCmdDict = dictCreate(&keyptrDictType,NULL);
     }
 
