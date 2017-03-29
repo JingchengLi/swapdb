@@ -199,7 +199,7 @@ int proc_qslice(NetworkServer *net, Link *link, const Request &req, Response *re
 	}
 
 	resp->push_back("ok");
-	int ret = serv->ssdb->lrange(req[1], begin, end, &resp->resp);
+	int ret = serv->ssdb->lrange(req[1], begin, end, resp->resp);
 	if (ret < 0){
 		resp->resp.clear();
 		resp->push_back("error");

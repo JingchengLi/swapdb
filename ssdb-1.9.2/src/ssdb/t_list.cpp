@@ -195,7 +195,7 @@ int SSDBImpl::LPushX(const Bytes &key, const std::vector<Bytes> &val, int offset
         return 1;
     }
 
-    ret = doListPush(batch, key, val, offset, meta_key, meta_val, LIST_POSTION::HEAD);
+    ret = doListPush<Bytes>(batch, key, val, offset, meta_key, meta_val, LIST_POSTION::HEAD);
     *llen = meta_val.length;
 
     return ret;
@@ -215,14 +215,14 @@ int SSDBImpl::LPush(const Bytes &key, const std::vector<Bytes> &val, int offset,
         return ret;
     }
 
-    ret = doListPush(batch, key, val, offset, meta_key, meta_val, LIST_POSTION::HEAD);
+    ret = doListPush<Bytes>(batch, key, val, offset, meta_key, meta_val, LIST_POSTION::HEAD);
     *llen = meta_val.length;
 
     return ret;
 }
 
-
-int SSDBImpl::doListPush(leveldb::WriteBatch &batch, const Bytes &key, const std::vector<Bytes> &val, int offset, std::string &meta_key,
+template <typename T>
+int SSDBImpl::doListPush(leveldb::WriteBatch &batch, const Bytes &key, const std::vector<T> &val, int offset, std::string &meta_key,
                       ListMetaVal &meta_val, LIST_POSTION lp) {
 
     int size = (int)val.size();
@@ -303,7 +303,7 @@ int SSDBImpl::RPushX(const Bytes &key, const std::vector<Bytes> &val, int offset
         return 1;
     }
 
-    ret = doListPush(batch, key, val, offset, meta_key, meta_val, LIST_POSTION::TAIL);
+    ret = doListPush<Bytes>(batch, key, val, offset, meta_key, meta_val, LIST_POSTION::TAIL);
     *llen = meta_val.length;
 
     return ret;
@@ -322,7 +322,7 @@ int SSDBImpl::RPush(const Bytes &key, const std::vector<Bytes> &val, int offset,
         return ret;
     }
 
-    ret = doListPush(batch, key, val, offset, meta_key, meta_val, LIST_POSTION::TAIL);
+    ret = doListPush<Bytes>(batch, key, val, offset, meta_key, meta_val, LIST_POSTION::TAIL);
     *llen = meta_val.length;
 
     return ret;
@@ -369,7 +369,7 @@ int SSDBImpl::GetListMetaVal(const std::string &meta_key, ListMetaVal &lv) {
     return 1;
 }
 
-int SSDBImpl::rpushNoLock(const Bytes &key, const std::vector<Bytes> &val, int offset, uint64_t *llen) {
+int SSDBImpl::rpushNoLock(const Bytes &key, const std::vector<std::string> &val, int offset, uint64_t *llen) {
     leveldb::WriteBatch batch;
 
     *llen = 0;
@@ -381,7 +381,7 @@ int SSDBImpl::rpushNoLock(const Bytes &key, const std::vector<Bytes> &val, int o
         return ret;
     }
 
-    ret = doListPush(batch, key, val, offset, meta_key, meta_val, LIST_POSTION::TAIL);
+    ret = doListPush<std::string>(batch, key, val, offset, meta_key, meta_val, LIST_POSTION::TAIL);
     *llen = meta_val.length;
 
     return ret;
@@ -517,7 +517,7 @@ int SSDBImpl::ltrim(const Bytes &key, int64_t start, int64_t end) {
 }
 
 
-int SSDBImpl::lrange(const Bytes &key, int64_t start, int64_t end, std::vector<std::string> *list){
+int SSDBImpl::lrange(const Bytes &key, int64_t start, int64_t end, std::vector<std::string> &list){
 
     int ret;
 
@@ -565,10 +565,10 @@ int SSDBImpl::lrange(const Bytes &key, int64_t start, int64_t end, std::vector<s
         std::string item_key = encode_list_key(key, cur_seq, meta_val.version);
         ret = GetListItemValInternal(item_key, &val, readOptions);
         if (1 != ret){
-            list->clear();
+            list.clear();
             return -1;
         }
-        list->push_back(val);
+        list.push_back(val);
 
         if (UINT64_MAX == cur_seq) {
             cur_seq = 0;

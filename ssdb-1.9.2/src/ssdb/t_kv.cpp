@@ -939,10 +939,7 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
             if ((len = rdbDecoder.rdbLoadLen(NULL)) == RDB_LENERR) return -1;
 
             std::vector<std::string> t_res;
-            std::vector<Bytes> val;
-
             t_res.reserve(len);
-            val.reserve(len);
 
             while (len--) {
                  std::string r = rdbDecoder.rdbGenericLoadStringObject(&ret);
@@ -952,12 +949,8 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
                 t_res.push_back(std::move(r));
             }
 
-            for (int i = 0; i < t_res.size(); ++i) {
-                val.push_back(Bytes(t_res[i]));
-            }
-
             uint64_t len_t;
-            ret = this->rpushNoLock(key, val, 0, &len_t);
+            ret = this->rpushNoLock(key, t_res, 0, &len_t);
 
             break;
         }
@@ -970,7 +963,6 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
             std::set<Bytes> mem_set;
 
             while (len--) {
-                //shit
                 std::string r = rdbDecoder.rdbGenericLoadStringObject(&ret);
                 if (ret != 0) {
                     return -1;
@@ -1065,10 +1057,7 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
             if ((len = rdbDecoder.rdbLoadLen(NULL)) == RDB_LENERR) return -1;
 
             std::vector<std::string> t_res;
-            std::vector<Bytes> val;
-
             t_res.reserve(len);
-            val.reserve(len);
 
             while (len--) {
 
@@ -1086,12 +1075,8 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
                 }
             }
 
-            for (int i = 0; i < t_res.size(); ++i) {
-                val.push_back(Bytes(t_res[i]));
-            }
-
             uint64_t len_t;
-            ret = this->rpushNoLock(key, val, 0, &len_t);
+            ret = this->rpushNoLock(key, t_res, 0, &len_t);
 
             break;
         }
@@ -1144,7 +1129,6 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
             }
 
             std::vector<std::string> t_res;
-            std::vector<Bytes> val;
 
             unsigned char *zl = (unsigned char *) zipListStr.data();
             unsigned char *p = ziplistIndex(zl, 0);
@@ -1154,12 +1138,8 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
                 t_res.push_back(std::move(r));
             }
 
-            for (int i = 0; i < t_res.size(); ++i) {
-                val.push_back(Bytes(t_res[i]));
-            }
-
             uint64_t len_t;
-            ret = this->rpushNoLock(key, val, 0, &len_t);
+            ret = this->rpushNoLock(key, t_res, 0, &len_t);
 
             break;
         }
@@ -1263,7 +1243,7 @@ bool getNextString(unsigned char *zl, unsigned char **p, std::string &ret_res) {
             //TODO check str with ll2string in redis
             ret_res = str((int64_t) longval);
         } else {
-            ret_res = std::string((char *)value,sz );
+            ret_res = std::string((char *)value, sz);
         }
 
         *p = ziplistNext(zl, *p);

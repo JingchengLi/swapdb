@@ -25,6 +25,7 @@ set ::all_tests {
    unit/type/zset
    unit/type/hash
    unit/scan
+   unit/dump
 
 }
 
@@ -45,6 +46,7 @@ set ::all_tests {
    unit/type/incr
    unit/expire
    unit/scan
+   unit/dump
 
 
 }

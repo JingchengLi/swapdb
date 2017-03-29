@@ -149,7 +149,7 @@ public:
 	virtual int RPush(const Bytes &key, const std::vector<Bytes> &val, int offset, uint64_t *llen);
 	virtual int RPushX(const Bytes &key, const std::vector<Bytes> &val, int offset, uint64_t *llen);
 	virtual int LSet(const Bytes &key, const int64_t index, const Bytes &val);
-	virtual int lrange(const Bytes &key, int64_t start, int64_t end, std::vector<std::string> *list);
+	virtual int lrange(const Bytes &key, int64_t start, int64_t end, std::vector<std::string> &list);
 	virtual int ltrim(const Bytes &key, int64_t start, int64_t end);
 
 
@@ -234,7 +234,9 @@ private:
     int GetListItemValInternal(const std::string &item_key, std::string *val, const leveldb::ReadOptions &options = leveldb::ReadOptions());
     int GetListMetaVal(const std::string &meta_key, ListMetaVal &lv);
     int doListPop(leveldb::WriteBatch &batch, ListMetaVal &meta_val, const Bytes &key, std::string &meta_key, LIST_POSTION lp, std::pair<std::string, bool> &val);
-    int doListPush(leveldb::WriteBatch &batch, const Bytes &key, const std::vector<Bytes> &val, int offset, std::string &meta_key, ListMetaVal &meta_val, LIST_POSTION lp);
+
+	template <typename T>
+	int doListPush(leveldb::WriteBatch &batch, const Bytes &key, const std::vector<T> &val, int offset, std::string &meta_key, ListMetaVal &meta_val, LIST_POSTION lp);
 
     int GetZSetMetaVal(const std::string &meta_key, ZSetMetaVal &zv);
 	int GetZSetItemVal(const std::string &item_key, double *score);
@@ -253,7 +255,7 @@ private:
 	int setNoLock(const Bytes &key, const Bytes &val, int flags);
     int saddNoLock(const Bytes &key, const std::set<Bytes> &mem_set, int64_t *num);
     int hmsetNoLock(const Bytes &name, const std::map<Bytes,Bytes> &kvs, bool check_exists);
-    int rpushNoLock(const Bytes &key, const std::vector<Bytes> &val, int offset, uint64_t *llen);
+    int rpushNoLock(const Bytes &key, const std::vector<std::string> &val, int offset, uint64_t *llen);
 	int zsetNoLock(const Bytes &name, const std::map<Bytes ,Bytes> &sortedSet, int flags);
 	int zdelNoLock(const Bytes &name, const std::set<Bytes> &keys, int64_t *count);
     int zrangeGeneric(const Bytes &name, const Bytes &begin, const Bytes &limit, std::vector<string> &key_score, int reverse);

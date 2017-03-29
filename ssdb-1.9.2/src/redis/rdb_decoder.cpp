@@ -153,9 +153,7 @@ std::string RdbDecoder::rdbGenericLoadStringObject(int *ret) {
     if (len == RDB_LENERR) {
         *ret = -1;
         return "";
-    };
-
-
+    }
 
     std::string tmp;
     if (len && rioReadString(tmp, len) == 0) {

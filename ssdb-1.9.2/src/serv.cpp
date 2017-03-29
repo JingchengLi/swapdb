@@ -420,7 +420,7 @@ int proc_restore(NetworkServer *net, Link *link, const Request &req, Response *r
         if (q4 == "REPLACE") {
             replace = true;
         } else {
-            resp->push_back("error");
+            resp->reply_errror(GetErrorInfo(SYNTAX_ERR));
             return 0;
         }
     }
