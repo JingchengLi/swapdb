@@ -388,7 +388,7 @@ int SSDBImpl::delete_meta_key(const DeleteKey& dk, leveldb::WriteBatch& batch) {
 void SSDBImpl::delete_key_loop(const std::string &del_key) {
     DeleteKey dk;
     if(dk.DecodeDeleteKey(del_key) == -1){
-        log_fatal("delete key error!");
+        log_fatal("delete key error! %s", hexstr(del_key).c_str());
         return;
     }
 
@@ -441,14 +441,14 @@ void SSDBImpl::delete_key_loop(const std::string &del_key) {
 	batch.Delete(del_key);
     RecordLock<Mutex> l(&mutex_record_, dk.key);
     if (delete_meta_key(dk, batch) == -1){
-        log_fatal("delete meta key error!");
+        log_fatal("delete meta key error! %s", hexstr(del_key).c_str());
         return;
     }
 
 	leveldb::WriteOptions write_opts;
 	leveldb::Status s = ldb->Write(write_opts, &batch);
     if (!s.ok()){
-        log_fatal("SSDBImpl::delKey Backend Task error!");
+        log_fatal("SSDBImpl::delKey Backend Task error! %s", hexstr(del_key).c_str());
         return ;
     }
 }
