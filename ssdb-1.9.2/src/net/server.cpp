@@ -39,7 +39,7 @@ void sig_signal_handler(int sig, siginfo_t * info, void * ucontext) {
 
 
     void *array[12];
-    size_t size;
+    int size;
 
     // get void*'s for all entries on the stack
     size = backtrace(array, 12);
