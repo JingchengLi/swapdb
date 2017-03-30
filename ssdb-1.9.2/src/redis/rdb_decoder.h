@@ -45,7 +45,7 @@ public:
 
     size_t rioReadString(std::string &res, size_t len);
 
-    size_t rioReadString(char **start , size_t len);
+    size_t rioReadString(const char **start , size_t len);
 
     std::string rdbLoadIntegerObject(int enctype, int *ret);
 

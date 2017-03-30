@@ -65,13 +65,13 @@ size_t RdbDecoder::rioRead(void *buf, size_t len) {
 }
 
 
-size_t RdbDecoder::rioReadString(char **start, size_t len) {
+size_t RdbDecoder::rioReadString(const char **start, size_t len) {
     if (len > remain_size) {
         return 0;
     }
 
 
-    *start = (char *) p;
+    *start = p;
 
     p = p + len;
     remain_size = remain_size - len;
@@ -129,7 +129,7 @@ std::string RdbDecoder::rdbLoadLzfStringObject(int *ret) {
     /* Allocate our target according to the uncompressed size. */
 
     /* Load the compressed representation and uncompress it to target. */
-    char* tmp_c;
+    const char* tmp_c;
     if (rioReadString(&tmp_c, clen) == 0) {
         *ret = -1;
         return "";
