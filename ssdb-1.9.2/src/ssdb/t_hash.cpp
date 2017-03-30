@@ -347,7 +347,7 @@ int SSDBImpl::hmget(const Bytes &name, const std::vector<std::string> &reqKeys, 
 		if (ret != 1){
 			return ret;
 		}
-		snapshot = ldb->GetSnapshot();
+		snapshot = GetSnapshot();
 	}
 
 	SnapshotPtr spl(ldb, snapshot);
@@ -402,7 +402,7 @@ int SSDBImpl::hgetall(const Bytes &name, std::map<std::string, std::string> &val
 		if (ret != 1){
 			return ret;
 		}
-		snapshot = ldb->GetSnapshot();
+		snapshot = GetSnapshot();
 	}
 
 	SnapshotPtr spl(ldb, snapshot);

@@ -250,7 +250,7 @@ int SSDBImpl::srandmember(const Bytes &key, std::vector<std::string> &members, i
             return ret;
         }
 
-        snapshot = ldb->GetSnapshot();
+        snapshot = GetSnapshot();
     }
 
     SnapshotPtr spl(ldb, snapshot); //auto release
@@ -347,7 +347,7 @@ int SSDBImpl::spop(const Bytes &key, std::vector<std::string> &members, int64_t 
         return ret;
     }
 
-    snapshot = ldb->GetSnapshot();
+    snapshot = GetSnapshot();
     SnapshotPtr spl(ldb, snapshot); //auto release
     auto it = std::unique_ptr<SIterator>(sscan_internal(key, "", sv.version, -1, snapshot));
 
@@ -424,7 +424,7 @@ int SSDBImpl::smembers(const Bytes &key, std::vector<std::string> &members) {
             return ret;
         }
 
-        snapshot = ldb->GetSnapshot();
+        snapshot = GetSnapshot();
     }
 
     SnapshotPtr spl(ldb, snapshot); //auto release

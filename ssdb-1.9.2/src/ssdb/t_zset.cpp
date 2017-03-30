@@ -334,7 +334,7 @@ int SSDBImpl::zrank(const Bytes &name, const Bytes &key, int64_t *rank) {
             return ret;
         }
 
-        snapshot = ldb->GetSnapshot();
+        snapshot = GetSnapshot();
     }
 
     SnapshotPtr spl(ldb, snapshot); //auto release
@@ -372,7 +372,7 @@ int SSDBImpl::zrrank(const Bytes &name, const Bytes &key, int64_t *rank) {
             return ret;
         }
 
-        snapshot = ldb->GetSnapshot();
+        snapshot = GetSnapshot();
     }
 
     SnapshotPtr spl(ldb, snapshot); //auto release
@@ -437,7 +437,7 @@ int SSDBImpl::zrangeGeneric(const Bytes &name, const Bytes &begin, const Bytes &
         if (end >= llen) end = llen - 1;
 
         version = zv.version;
-        snapshot = ldb->GetSnapshot();
+        snapshot = GetSnapshot();
     }
 
     if (reverse) {
@@ -562,7 +562,7 @@ int SSDBImpl::genericZrangebyscore(const Bytes &name, const Bytes &start_score, 
         if (ret <= 0) {
             return ret;
         }
-        snapshot = ldb->GetSnapshot();
+        snapshot = GetSnapshot();
     }
 
     if (reverse) {
@@ -970,7 +970,7 @@ int SSDBImpl::genericZrangebylex(const Bytes &name, const Bytes &key_start, cons
         if (ret <= 0) {
             return ret;
         }
-        snapshot = ldb->GetSnapshot();
+        snapshot = GetSnapshot();
     }
     SnapshotPtr spl(ldb, snapshot); //auto release
 
@@ -1106,7 +1106,7 @@ int SSDBImpl::zrevrangebylex(const Bytes &name, const Bytes &key_start, const By
         if (ret <= 0) {
             return ret;
         }
-        snapshot = ldb->GetSnapshot();
+        snapshot = GetSnapshot();
     }
     SnapshotPtr spl(ldb, snapshot); //auto release
 

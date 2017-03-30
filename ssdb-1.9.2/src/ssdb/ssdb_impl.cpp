@@ -131,7 +131,7 @@ int SSDBImpl::flushdb(){
 
 
     uint64_t total = 0;
-	int ret = 0;
+	int ret = 1;
 	bool stop = false;
 
 	leveldb::ReadOptions iterate_options;
@@ -392,7 +392,7 @@ void SSDBImpl::delete_key_loop(const std::string &del_key) {
         return;
     }
 
-    log_debug("deleting key %s v %d " , hexmem(dk.key.data(),dk.key.length()).c_str() , dk.version);
+    log_debug("deleting key %s , version %d " , hexstr(dk.key).c_str() , dk.version);
 //    char log_type=BinlogType::SYNC;
     std::string start = encode_hash_key(dk.key, "", dk.version);
     std::string z_start = encode_zscore_prefix(dk.key, dk.version);

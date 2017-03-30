@@ -533,7 +533,7 @@ int SSDBImpl::lrange(const Bytes &key, int64_t start, int64_t end, std::vector<s
             return ret;
         }
 
-        snapshot = ldb->GetSnapshot();
+        snapshot = GetSnapshot();
     }
 
     SnapshotPtr spl(ldb, snapshot); //auto release
