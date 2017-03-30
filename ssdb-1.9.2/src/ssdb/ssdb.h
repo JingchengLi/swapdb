@@ -16,6 +16,7 @@ found in the LICENSE file.
 #include "options.h"
 #include "iterator.h"
 #include "internal_error.h"
+#include "t_scan.h"
 
 class Bytes;
 class Config;
@@ -156,9 +157,9 @@ public:
 
 };
 
-
-template <class T>
-bool doScanGeneric(const T &mit, const std::string &pattern, uint64_t limit, std::vector<std::string> &resp);
+//
+//template <class T>
+//bool doScanGeneric(const T &mit, const std::string &pattern, uint64_t limit, std::vector<std::string> &resp);
 
 
 #endif
