@@ -251,10 +251,12 @@ private:
 	int zdel_one(leveldb::WriteBatch &batch, const Bytes &name, const Bytes &key, uint16_t version);
 	int incr_zsize(leveldb::WriteBatch &batch, const ZSetMetaVal &zv, const Bytes &name, int64_t incr);
 
-	int esetNoLock(const Bytes &key, int64_t ts);
 	int setNoLock(const Bytes &key, const Bytes &val, int flags);
     int saddNoLock(const Bytes &key, const std::set<Bytes> &mem_set, int64_t *num);
-    int hmsetNoLock(const Bytes &name, const std::map<Bytes,Bytes> &kvs, bool check_exists);
+
+	template <typename T>
+	int hmsetNoLock(const Bytes &name, const std::map<T,T> &kvs, bool check_exists);
+
     int rpushNoLock(const Bytes &key, const std::vector<std::string> &val, int offset, uint64_t *llen);
 	int zsetNoLock(const Bytes &name, const std::map<Bytes ,Bytes> &sortedSet, int flags);
 	int zdelNoLock(const Bytes &name, const std::set<Bytes> &keys, int64_t *count);

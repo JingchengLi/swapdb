@@ -296,17 +296,27 @@ std::vector<std::string> SSDBImpl::info(){
 	//     of the sstables that make up the db contents.
 	std::vector<std::string> info;
 	std::vector<std::string> keys;
-	/*
+#ifdef USE_LEVELDB
 	for(int i=0; i<7; i++){
 		char buf[128];
 		snprintf(buf, sizeof(buf), "leveldb.num-files-at-level%d", i);
 		keys.push_back(buf);
 	}
-	*/
+
 	keys.push_back("leveldb.stats");
-	keys.push_back("rocksdb.stats");
 	keys.push_back("leveldb.sstables");
-	keys.push_back("rocksdb.sstables");
+
+#else
+    for(int i=0; i<7; i++){
+        char buf[128];
+        snprintf(buf, sizeof(buf), "rocksdb.num-files-at-level%d", i);
+        keys.push_back(buf);
+    }
+
+    keys.push_back("rocksdb.stats");
+    keys.push_back("rocksdb.sstables");
+
+#endif
 
 	for(size_t i=0; i<keys.size(); i++){
 		std::string key = keys[i];

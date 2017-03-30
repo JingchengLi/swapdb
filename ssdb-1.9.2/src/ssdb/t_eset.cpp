@@ -11,10 +11,6 @@ static int eset_one(SSDBImpl *ssdb, leveldb::WriteBatch &batch, const Bytes &key
 
 int SSDBImpl::eset(const Bytes &key, int64_t ts) {
     RecordLock<Mutex> l(&mutex_record_, key.String());
-    return esetNoLock(key, ts);
-}
-
-int SSDBImpl::esetNoLock(const Bytes &key, int64_t ts) {
 
     leveldb::WriteBatch batch;
 

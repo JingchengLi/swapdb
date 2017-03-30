@@ -24,7 +24,7 @@ uint64_t RedisCursorService::GetNewRedisCursor(const std::string &element) {
 }
 
 int RedisCursorService::FindElementByRedisCursor(const std::string &cursor, std::string &element) {
-    uint64_t cursor_int = str_to_uint64(cursor.data(), cursor.size());
+    uint64_t cursor_int = str_to_uint64(cursor);
 
     if (errno == EINVAL) {
         return -1;
@@ -37,7 +37,7 @@ int RedisCursorService::FindElementByRedisCursor(const std::string &cursor, std:
         return -1;
     }
     element = it->second.element;
-    return 0;
+    return 1;
 }
 
 void RedisCursorService::ClearExpireRedisCursor() {

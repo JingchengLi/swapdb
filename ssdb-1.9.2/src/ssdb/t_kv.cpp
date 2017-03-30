@@ -8,6 +8,7 @@ found in the LICENSE file.
 #include "ssdb_impl.h"
 #include "redis/rdb_encoder.h"
 #include "redis/rdb_decoder.h"
+#include "t_hash.h"
 
 extern "C" {
 #include "redis/ziplist.h"
@@ -1019,8 +1020,8 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
 
         case RDB_TYPE_HASH: {
 
+            PTST(HASH , 0.1)
             std::map<std::string,std::string> tmp_map;
-            std::map<Bytes,Bytes> kvs;
 
             if ((len = rdbDecoder.rdbLoadLen(NULL)) == RDB_LENERR) return -1;
             while (len--) {
@@ -1038,16 +1039,10 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
                 tmp_map[field] = value;
             }
 
+            PTE(HASH, "load")
 
-            for(auto const &it : tmp_map)
-            {
-                const std::string &field_key = it.first;
-                const std::string &field_value = it.second;
-
-                kvs[Bytes(field_key)] = Bytes(field_value);
-            }
-
-            ret = this->hmsetNoLock(key, kvs, false);
+            ret = this->hmsetNoLock<std::string>(key, tmp_map, false);
+            PTE(HASH, "hmsetNoLock")
 
             break;
         }
@@ -1183,8 +1178,6 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
         case RDB_TYPE_HASH_ZIPLIST: {
 
             std::map<std::string,std::string> tmp_map;
-            std::map<Bytes,Bytes> kvs;
-
 
             std::string zipListStr = rdbDecoder.rdbGenericLoadStringObject(&ret);
             if (ret != 0) {
@@ -1206,15 +1199,7 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
                 }
             }
 
-            for(auto const &it : tmp_map)
-            {
-                const std::string &field_key = it.first;
-                const std::string &field_value = it.second;
-
-                kvs[Bytes(field_key)] = Bytes(field_value);
-            }
-
-            ret = this->hmsetNoLock(key, kvs, false);
+            ret = this->hmsetNoLock(key, tmp_map, false);
 
             break;
         }

@@ -6,61 +6,14 @@ found in the LICENSE file.
 #include <cfloat>
 #include <util/error.h>
 #include "ssdb_impl.h"
+#include "t_hash.h"
 
 /**
  * @return -1: error, 0: item updated, 1: new item inserted
  */
 int SSDBImpl::hmset(const Bytes &name, const std::map<Bytes ,Bytes> &kvs) {
 	RecordLock<Mutex> l(&mutex_record_, name.String());
-	return hmsetNoLock(name, kvs, true);
-}
-
-int SSDBImpl::hmsetNoLock(const Bytes &name, const std::map<Bytes ,Bytes> &kvs, bool check_exists) {
-
-	leveldb::WriteBatch batch;
-
-	int ret = 0;
-	HashMetaVal hv;
-	std::string meta_key = encode_meta_key(name);
-	ret = this->GetHashMetaVal(meta_key, hv);
-	if (ret < 0){
-		return ret;
-	}
-
-	int sum = 0;
-
-	for(auto const &it : kvs)
-	{
-		const Bytes &key = it.first;
-		const Bytes &val = it.second;
-
-		int added = hset_one(batch, hv, check_exists, name, key, val);
-		if(added < 0){
-			return added;
-		}
-
-		if(added > 0){
-			sum = sum + added;
-		}
-
-	}
-
- 	int iret = incr_hsize(batch, meta_key , hv, name, sum);
-	if (iret < 0) {
-		return iret;
-	} else if (iret == 0) {
-        ret = 0;
-	} else {
-        ret = 1;
-    }
-
-	leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
-	if(!s.ok()){
-		log_error("[hmsetNoLock] error: %s", s.ToString().c_str());
-		return STORAGE_ERR;
-	}
-
-	return ret;
+	return hmsetNoLock<Bytes>(name, kvs, true);
 }
 
 int SSDBImpl::hset(const Bytes &name, const Bytes &key, const Bytes &val, int *added){
