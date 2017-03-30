@@ -518,7 +518,7 @@ int proc_zremrangebyrank(NetworkServer *net, Link *link, const Request &req, Res
 }
 
 
-static int _zrangebylex(SSDB *ssdb, const Request &req, Response *resp, int reverse){
+static int _zrangebylex(SSDB *ssdb, const Request &req, Response *resp, enum DIRECTION direction){
     CHECK_NUM_PARAMS(4);
     long offset = 0, limit = -1;
     int ret = 0;
@@ -531,29 +531,26 @@ static int _zrangebylex(SSDB *ssdb, const Request &req, Response *resp, int reve
             if (remaining >= 3 && !strcasecmp(req[pos].data(),"limit")) {
                 if ( (string2ld(req[pos+1].data(),req[pos+1].size(),&offset) < 0) ||
                      (string2ld(req[pos+2].data(),req[pos+2].size(),&limit) < 0) ){
-                    resp->push_back("error");
-                    resp->push_back(GetErrorInfo(NAN_SCORE));
+                    resp->reply_errror(GetErrorInfo(NAN_SCORE));
                     return 0;
                 }
                 pos += 3; remaining -= 3;
             } else {
-                resp->push_back("error");
-                resp->push_back("ERR syntax error");
+                resp->reply_errror(GetErrorInfo(SYNTAX_ERR));
                 return 0;
             }
         }
     }
 
     resp->push_back("ok");
-    if (reverse){
+    if (direction == DIRECTION::BACKWARD){
         ret = ssdb->zrevrangebylex(req[1], req[2], req[3], resp->resp, offset, limit);
     } else{
         ret = ssdb->zrangebylex(req[1], req[2], req[3], resp->resp, offset, limit);
     }
     if (ret < 0){
         resp->resp.clear();
-        resp->push_back("error");
-        resp->push_back(GetErrorInfo(ret));
+        resp->reply_errror(GetErrorInfo(ret));
         return 0;
     }
 
@@ -562,7 +559,7 @@ static int _zrangebylex(SSDB *ssdb, const Request &req, Response *resp, int reve
 
 int proc_zrangebylex(NetworkServer *net, Link *link, const Request &req, Response *resp){
     SSDBServer *serv = (SSDBServer *)net->data;
-    return _zrangebylex(serv->ssdb, req, resp, 0);
+    return _zrangebylex(serv->ssdb, req, resp, DIRECTION::FORWARD);
 }
 
 int proc_zremrangebylex(NetworkServer *net, Link *link, const Request &req, Response *resp){
@@ -583,7 +580,7 @@ int proc_zremrangebylex(NetworkServer *net, Link *link, const Request &req, Resp
 
 int proc_zrevrangebylex(NetworkServer *net, Link *link, const Request &req, Response *resp){
     SSDBServer *serv = (SSDBServer *)net->data;
-    return _zrangebylex(serv->ssdb, req, resp, 1);
+    return _zrangebylex(serv->ssdb, req, resp, DIRECTION::BACKWARD);
 }
 
 int proc_zlexcount(NetworkServer *net, Link *link, const Request &req, Response *resp){

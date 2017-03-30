@@ -47,9 +47,14 @@ static leveldb::Slice slice(const Bytes &b){
 }
 
 
-enum LIST_POSTION{
+enum LIST_POSITION{
 	HEAD,
 	TAIL,
+};
+
+enum DIRECTION{
+	FORWARD,
+	BACKWARD,
 };
 
 
@@ -233,10 +238,10 @@ private:
 
     int GetListItemValInternal(const std::string &item_key, std::string *val, const leveldb::ReadOptions &options = leveldb::ReadOptions());
     int GetListMetaVal(const std::string &meta_key, ListMetaVal &lv);
-    int doListPop(leveldb::WriteBatch &batch, ListMetaVal &meta_val, const Bytes &key, std::string &meta_key, LIST_POSTION lp, std::pair<std::string, bool> &val);
+    int doListPop(leveldb::WriteBatch &batch, ListMetaVal &meta_val, const Bytes &key, std::string &meta_key, LIST_POSITION lp, std::pair<std::string, bool> &val);
 
 	template <typename T>
-	int doListPush(leveldb::WriteBatch &batch, const Bytes &key, const std::vector<T> &val, int offset, std::string &meta_key, ListMetaVal &meta_val, LIST_POSTION lp);
+	int doListPush(leveldb::WriteBatch &batch, const Bytes &key, const std::vector<T> &val, int offset, std::string &meta_key, ListMetaVal &meta_val, LIST_POSITION lp);
 
     int GetZSetMetaVal(const std::string &meta_key, ZSetMetaVal &zv);
 	int GetZSetItemVal(const std::string &item_key, double *score);
