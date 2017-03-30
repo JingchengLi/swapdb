@@ -1022,7 +1022,7 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
         case RDB_TYPE_HASH: {
 
             PTST(HASH , 0.1)
-            std::unordered_map<std::string,std::string> tmp_map;
+            std::map<std::string,std::string> tmp_map;
 
             if ((len = rdbDecoder.rdbLoadLen(NULL)) == RDB_LENERR) return -1;
             while (len--) {
