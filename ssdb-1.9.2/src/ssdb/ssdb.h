@@ -53,7 +53,7 @@ public:
 
 	/* key value */
 
-	virtual int set(const Bytes &key, const Bytes &val, int flags) = 0;
+	virtual int set(const Bytes &key, const Bytes &val, int flags, int *added) = 0;
 	virtual int del(const Bytes &key) = 0;
 	virtual int append(const Bytes &key, const Bytes &value, uint64_t *new_len) = 0;
 

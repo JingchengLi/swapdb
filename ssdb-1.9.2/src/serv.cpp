@@ -372,7 +372,8 @@ int proc_debug(NetworkServer *net, Link *link, const Request &req, Response *res
 			char vbuf[128] = {0};
 			snprintf(vbuf,sizeof(vbuf),"%s:%lu", "value" , i);
 
-			int ret = serv->ssdb->set(Bytes(kbuf), Bytes(vbuf),OBJ_SET_NO_FLAGS);
+			int added = 0;
+			int ret = serv->ssdb->set(Bytes(kbuf), Bytes(vbuf),OBJ_SET_NO_FLAGS, &added);
 			if(ret < 0){
 				resp->push_back("error");
 				resp->push_back(GetErrorInfo(ret));

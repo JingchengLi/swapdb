@@ -138,13 +138,14 @@ int proc_set(NetworkServer *net, Link *link, const Request &req, Response *resp)
 	if (when > 0) {
 
 		Locking<Mutex> l(&serv->ssdb->expiration->mutex);
-		int ret;
-		ret = serv->ssdb->set(req[1], req[2], flags);
+
+		int added = 0;
+		int ret = serv->ssdb->set(req[1], req[2], flags, &added);
 		if(ret < 0){
 			resp->push_back("error");
 			resp->push_back(GetErrorInfo(ret));
 			return 0;
-		} else if (ret == 0) {
+		} else if (added == 0) {
 			resp->push_back("ok");
 			resp->push_back("0");
 			return 0;
@@ -165,12 +166,12 @@ int proc_set(NetworkServer *net, Link *link, const Request &req, Response *resp)
 
 
 	} else {
-
-		int ret = serv->ssdb->set(req[1], req[2], flags);
+		int added = 0;
+		int ret = serv->ssdb->set(req[1], req[2], flags, &added);
 		if(ret < 0){
 			resp->push_back("error");
 			resp->push_back(GetErrorInfo(ret));
-		} else if (ret == 0) {
+		} else if (added == 0) {
 			resp->push_back("ok");
 			resp->push_back("0");
 		} else{
@@ -187,11 +188,12 @@ int proc_setnx(NetworkServer *net, Link *link, const Request &req, Response *res
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(3);
 
-	int ret = serv->ssdb->set(req[1], req[2], OBJ_SET_NX);
+	int added = 0;
+	int ret = serv->ssdb->set(req[1], req[2], OBJ_SET_NX, &added);
 	if(ret < 0){
 		resp->reply_bool(-1, GetErrorInfo(ret).c_str());
 	} else {
-		resp->reply_bool(ret);
+		resp->reply_bool(added);
 	}
 
 	return 0;
@@ -214,8 +216,9 @@ int proc_setx(NetworkServer *net, Link *link, const Request &req, Response *resp
 	}
 
 	Locking<Mutex> l(&serv->ssdb->expiration->mutex);
-	int ret;
-	ret = serv->ssdb->set(req[1], req[2], OBJ_SET_NO_FLAGS);
+
+	int added = 0;
+	int ret = serv->ssdb->set(req[1], req[2], OBJ_SET_NO_FLAGS, &added);
 	if(ret < 0){
 		resp->push_back("error");
 		resp->push_back(GetErrorInfo(ret));
@@ -250,8 +253,8 @@ int proc_psetx(NetworkServer *net, Link *link, const Request &req, Response *res
 	}
 
 	Locking<Mutex> l(&serv->ssdb->expiration->mutex);
-	int ret;
-	ret = serv->ssdb->set(req[1], req[2], OBJ_SET_NO_FLAGS);
+	int added = 0;
+	int ret = serv->ssdb->set(req[1], req[2], OBJ_SET_NO_FLAGS, &added);
 	if(ret < 0){
 		resp->push_back("error");
 		resp->push_back(GetErrorInfo(ret));

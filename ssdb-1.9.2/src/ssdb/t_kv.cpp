@@ -49,8 +49,7 @@ int SSDBImpl::GetKvMetaVal(const std::string &meta_key, KvMetaVal &kv) {
     }
 }
 
-//TODO return value fix
-int SSDBImpl::SetGeneric(leveldb::WriteBatch &batch, const Bytes &key, const Bytes &val, int flags, const int64_t expire){
+int SSDBImpl::SetGeneric(leveldb::WriteBatch &batch, const Bytes &key, const Bytes &val, int flags, const int64_t expire, int *added){
 	if (expire < 0){
 		return INVALID_EX_TIME; //NOT USED
 	}
@@ -63,20 +62,27 @@ int SSDBImpl::SetGeneric(leveldb::WriteBatch &batch, const Bytes &key, const Byt
         return ret;
     } else if (ret == 0) {
         if (flags & OBJ_SET_XX) {
-            return 0;
+            *added = 0;
+        } else {
+            meta_val = encode_kv_val(val, kv.version);
+            batch.Put(meta_key, meta_val);
+            this->edel_one(batch, key);
+            ret = 1;
+            *added = 1;
         }
-        meta_val = encode_kv_val(val, kv.version);
     } else {
+        // ret = 1
         if (flags & OBJ_SET_NX) {
-            return 0;
+            *added = 0;
+        } else {
+            meta_val = encode_kv_val(val, kv.version);
+            batch.Put(meta_key, meta_val);
+            this->edel_one(batch, key);
+            *added = 1;
         }
-        meta_val = encode_kv_val(val, kv.version);
     }
 
-	batch.Put(meta_key, meta_val);
-	this->edel_one(batch, key);
-
-    return 1;
+    return ret;
 }
 
 int SSDBImpl::multi_set(const std::vector<Bytes> &kvs, int offset){
@@ -96,7 +102,9 @@ int SSDBImpl::multi_set(const std::vector<Bytes> &kvs, int offset){
             lock_key.insert(key);
             rval++;
         }
-		int ret = SetGeneric(batch, key, val, OBJ_SET_NO_FLAGS, 0);
+
+        int added = 0;
+		int ret = SetGeneric(batch, key, val, OBJ_SET_NO_FLAGS, 0, &added);
 		if (ret < 0){
 			rval = ret;
 			goto return_err;
@@ -183,28 +191,29 @@ return_err:
 }
 
 
-int SSDBImpl::setNoLock(const Bytes &key, const Bytes &val, int flags) {
+int SSDBImpl::setNoLock(const Bytes &key, const Bytes &val, int flags, int *added) {
     leveldb::WriteBatch batch;
 
-    int ret = SetGeneric(batch, key, val, flags, 0);
+    int ret = SetGeneric(batch, key, val, flags, 0, added);
     if (ret < 0){
         return ret;
-    } else if (ret == 0) {
-        return 0;
-    }
-    leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
-    if (!s.ok()){
-        log_error("error: %s", s.ToString().c_str());
-        return STORAGE_ERR;
     }
 
-    return 1;
+    if (*added > 0) {
+        leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
+        if (!s.ok()){
+            log_error("error: %s", s.ToString().c_str());
+            return STORAGE_ERR;
+        }
+    }
+
+    return ret;
 }
 
-int SSDBImpl::set(const Bytes &key, const Bytes &val, int flags){
+int SSDBImpl::set(const Bytes &key, const Bytes &val, int flags, int *added) {
 	RecordLock<Mutex> l(&mutex_record_, key.String());
 
-    return setNoLock(key, val, flags);
+    return setNoLock(key, val, flags, added);
 }
 
 int SSDBImpl::getset(const Bytes &key, std::pair<std::string, bool> &val, const Bytes &newval){
@@ -931,7 +940,8 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
                 return -1;
             }
 
-            ret = this->setNoLock(key, r, OBJ_SET_NO_FLAGS);
+            int added = 0;
+            ret = this->setNoLock(key, r, OBJ_SET_NO_FLAGS, &added);
 
             break;
         }
