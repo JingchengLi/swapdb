@@ -748,6 +748,9 @@ void syncCommand(client *c) {
             server.check_write_unresponse_num = listLength(server.clients) - server.special_clients_num;
             server.ssdb_status = MASTER_SSDB_SNAPSHOT_CHECK_WRITE;
 
+            /* Allow to update SSDB after backlog is created. */
+            server.is_allow_ssdb_write = ALLOW_SSDB_WRITE;
+
             server.check_write_begin_time = server.unixtime;
 
             /* Forbbid sending the writing cmds to SSDB. */

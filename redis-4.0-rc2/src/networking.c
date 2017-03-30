@@ -922,7 +922,6 @@ int handleResponseOfPsync(client *c, sds replyString) {
        as soon as rr_make_snapshot is responsed. */
     if (!sdscmp(replyString, shared.makesnapshotok)) {
         server.ssdb_status = MASTER_SSDB_SNAPSHOT_OK;
-        server.is_allow_ssdb_write = ALLOW_SSDB_WRITE;
         c->replication_flags &= ~SSDB_CLIENT_KEEP_REPLY;
         serverAssert(c == server.ssdb_replication_client);
         process_status = C_OK;

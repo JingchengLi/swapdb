@@ -1242,6 +1242,9 @@ void startToEvictIfNeeded() {
         return;
     }
 
+    if (server.is_allow_ssdb_write == DISALLOW_SSDB_WRITE)
+        return;
+
     transfer_lower_threshold = 1.0 * server.ssdb_transfer_lower_limit/100;
     mem_tofree = zmalloc_used_memory() - server.maxmemory * transfer_lower_threshold;
 
@@ -1271,6 +1274,9 @@ void startToLoadIfNeeded() {
     if (memoryReachLoadUpperLimit()) {
         return;
     }
+
+    if (server.is_allow_ssdb_write == DISALLOW_SSDB_WRITE)
+        return;
 
     listRewind(server.hot_keys, &li);
 
