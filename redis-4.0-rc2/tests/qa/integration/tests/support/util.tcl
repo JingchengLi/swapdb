@@ -374,6 +374,20 @@ proc stop_bg_complex_data {handle} {
     catch {exec /bin/kill -9 $handle}
 }
 
+proc start_bg_complex_data_list {host port num clients} {
+    set clientlist {}
+    for {set n 0} {$n < $clients} {incr n} {
+        lappend clientlist [start_bg_complex_data $host $port 0 $num]
+    }
+    return $clientlist
+}
+
+proc stop_bg_complex_data_list {clientlist} {
+    foreach client $clientlist {
+        catch {exec /bin/kill -9 $client}
+    }
+}
+
 proc wait_for_dumpto_ssdb {r key} {
     #wait key dumped to ssdb
     wait_for_condition 100 1 {
@@ -413,30 +427,30 @@ proc ssdbr {args} {
     r {*}$args
 }
 
-proc wait_memory_stable {} {
+proc wait_memory_stable {{level 0}} {
     set current_mem 0
 
-    while {[s used_memory] != $current_mem} {
-        set current_mem [s used_memory]
+    while {[s $level used_memory] != $current_mem} {
+        set current_mem [s $level used_memory]
         after 100
     }
 }
 
 # flag = 1 mean that wait memory used upper than transfer_limit.
 # flag = 0 mean that wait memory used lower than transfer_limit and keep stable.
-proc wait_for_transfer_limit {flag} {
-    set maxmemory [lindex [r config get maxmemory] 1 ]
-    set ssdb_transfer_limit [lindex [r config get ssdb-transfer-lower-limit] 1]
+proc wait_for_transfer_limit {flag {level 0}} {
+    set maxmemory [lindex [r $level config get maxmemory] 1 ]
+    set ssdb_transfer_limit [lindex [r $level config get ssdb-transfer-lower-limit] 1]
     assert {$maxmemory ne 0}
     set current_mem 0
     if {1 == $flag} {
-        while {[s used_memory] < $maxmemory*$ssdb_transfer_limit/100.0} {
+        while {[s $level used_memory] < $maxmemory*$ssdb_transfer_limit/100.0} {
             after 100
         }
     } elseif {0 == $flag} {
-        while {[s used_memory] > $maxmemory*$ssdb_transfer_limit/100.0\
-        || [s used_memory] != $current_mem} {
-            set current_mem [s used_memory]
+        while {[s $level used_memory] > $maxmemory*$ssdb_transfer_limit/100.0\
+        || [s $level used_memory] != $current_mem} {
+            set current_mem [s $level used_memory]
             after 100
         }
     }

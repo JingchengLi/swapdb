@@ -2,15 +2,24 @@ start_server {tags {"ssdb"} } {
     test "multi threads access same key" {
         set host [srv host]
         set port [srv port]
-        set num 10
-        set load_handle0 [start_bg_complex_data $host $port 0 $num samekey]
-        set load_handle1 [start_bg_complex_data $host $port 0 $num samekey]
-        set load_handle2 [start_bg_complex_data $host $port 0 $num samekey]
-        after 500
-        stop_bg_complex_data $load_handle0
-        stop_bg_complex_data $load_handle1
-        stop_bg_complex_data $load_handle2
+        set num 100
+        set clist [start_bg_complex_data_list $host $port $num 10]
+        after 200
+        stop_bg_complex_data_list $clist
         # check redis still work
+        after 100
+        r ping
+    } {PONG}
+
+    test "multi threads complex ops" {
+        set host [srv host]
+        set port [srv port]
+        set num 10000
+        set clist [start_bg_complex_data_list $host $port $num 10]
+        after 200
+        stop_bg_complex_data_list $clist
+        # check redis still work
+        after 100
         r ping
     } {PONG}
 }
