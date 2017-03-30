@@ -9,6 +9,9 @@ found in the LICENSE file.
 #include "redis/rdb_encoder.h"
 #include "redis/rdb_decoder.h"
 #include "t_hash.h"
+#include "t_set.h"
+#include "t_zset.h"
+
 
 extern "C" {
 #include "redis/ziplist.h"
@@ -972,7 +975,6 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
             if ((len = rdbDecoder.rdbLoadLen(NULL)) == RDB_LENERR) return -1;
 
             std::set<std::string> tmp_set;
-            std::set<Bytes> mem_set;
 
             while (len--) {
                 std::string r = rdbDecoder.rdbGenericLoadStringObject(&ret);
@@ -983,12 +985,8 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
                 tmp_set.insert(std::move(r));
             }
 
-            for (auto const &item : tmp_set) {
-                mem_set.insert(Bytes(item));
-            }
-
             int64_t num = 0;
-            ret = this->saddNoLock(key, mem_set, &num);
+            ret = this->saddNoLock<std::string>(key, tmp_set, &num);
 
             break;
         }
@@ -998,7 +996,6 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
             if ((len = rdbDecoder.rdbLoadLen(NULL)) == RDB_LENERR) return -1;
 
             std::map<std::string,std::string> tmp_map;
-            std::map<Bytes,Bytes> sorted_set;
 
             while (len--) {
                 std::string r = rdbDecoder.rdbGenericLoadStringObject(&ret);
@@ -1016,15 +1013,7 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
                 tmp_map[r] = str(score);
             }
 
-            for(auto const &it : tmp_map)
-            {
-                const std::string &field_key = it.first;
-                const std::string &field_value = it.second;
-
-                sorted_set[Bytes(field_key)] = Bytes(field_value);
-            }
-
-            ret = zsetNoLock(key, sorted_set, ZADD_NONE);
+            ret = zsetNoLock(key, tmp_map, ZADD_NONE);
 
             break;
         }
@@ -1104,25 +1093,18 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
             len = intsetLen(set);
 
             std::set<std::string> tmp_set;
-            std::set<Bytes> mem_set;
 
             for (uint32_t j = 0; j < len; ++j) {
                 int64_t t_value;
                 if (intsetGet((intset *) set, j , &t_value) == 1) {
-
                     tmp_set.insert(str(t_value));
-
                 } else {
                     return -1;
                 }
             }
 
-            for (auto const &item : tmp_set) {
-                mem_set.insert(Bytes(item));
-            }
-
             int64_t num = 0;
-            ret = this->saddNoLock(key, mem_set, &num);
+            ret = this->saddNoLock<std::string>(key, tmp_set, &num);
 
             break;
 
@@ -1157,7 +1139,6 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
             }
 
             std::map<std::string,std::string> tmp_map;
-            std::map<Bytes,Bytes> sorted_set;
 
             unsigned char *zl = (unsigned char *) zipListStr.data();
             unsigned char *p = ziplistIndex(zl, 0);
@@ -1173,15 +1154,7 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
                     }
             }
 
-            for(auto const &it : tmp_map)
-            {
-                const std::string &field_key = it.first;
-                const std::string &field_value = it.second;
-
-                sorted_set[Bytes(field_key)] = Bytes(field_value);
-            }
-
-            ret = zsetNoLock(key, sorted_set, ZADD_NONE);
+            ret = zsetNoLock(key, tmp_map, ZADD_NONE);
 
             break;
         }

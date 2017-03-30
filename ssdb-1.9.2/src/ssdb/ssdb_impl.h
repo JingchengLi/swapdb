@@ -8,6 +8,7 @@ found in the LICENSE file.
 
 #include <queue>
 #include <atomic>
+#include "include.h"
 
 #ifdef USE_LEVELDB
 #define SSDB_ENGINE "leveldb"
@@ -257,13 +258,18 @@ private:
 	int incr_zsize(leveldb::WriteBatch &batch, const ZSetMetaVal &zv, const Bytes &name, int64_t incr);
 
 	int setNoLock(const Bytes &key, const Bytes &val, int flags, int *added);
-    int saddNoLock(const Bytes &key, const std::set<Bytes> &mem_set, int64_t *num);
+
+    template <typename T>
+    int saddNoLock(const Bytes &key, const std::set<T> &mem_set, int64_t *num);
 
 	template <typename T>
 	int hmsetNoLock(const Bytes &name, const std::map<T,T> &kvs, bool check_exists);
 
-    int rpushNoLock(const Bytes &key, const std::vector<std::string> &val, int offset, uint64_t *llen);
-	int zsetNoLock(const Bytes &name, const std::map<Bytes ,Bytes> &sortedSet, int flags);
+	template <typename T>
+	int zsetNoLock(const Bytes &name, const std::map<T ,T> &sortedSet, int flags);
+
+	int rpushNoLock(const Bytes &key, const std::vector<std::string> &val, int offset, uint64_t *llen);
+
 	int zdelNoLock(const Bytes &name, const std::set<Bytes> &keys, int64_t *count);
     int zrangeGeneric(const Bytes &name, const Bytes &begin, const Bytes &limit, std::vector<string> &key_score, int reverse);
     int genericZrangebyscore(const Bytes &name, const Bytes &start_score, const Bytes &end_score, std::vector<std::string> &key_score,
