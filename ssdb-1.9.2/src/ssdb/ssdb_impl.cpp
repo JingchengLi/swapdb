@@ -304,7 +304,9 @@ std::vector<std::string> SSDBImpl::info(){
 	}
 	*/
 	keys.push_back("leveldb.stats");
-	//keys.push_back("leveldb.sstables");
+	keys.push_back("rocksdb.stats");
+	keys.push_back("leveldb.sstables");
+	keys.push_back("rocksdb.sstables");
 
 	for(size_t i=0; i<keys.size(); i++){
 		std::string key = keys[i];
