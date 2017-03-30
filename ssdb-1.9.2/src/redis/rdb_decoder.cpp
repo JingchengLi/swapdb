@@ -64,12 +64,28 @@ size_t RdbDecoder::rioRead(void *buf, size_t len) {
     return len;
 }
 
+
+size_t RdbDecoder::rioReadString(char **start, size_t len) {
+    if (len > remain_size) {
+        return 0;
+    }
+
+
+    *start = (char *) p;
+
+    p = p + len;
+    remain_size = remain_size - len;
+    return len;
+}
+
+
 size_t RdbDecoder::rioReadString(std::string &res, size_t len) {
     if (len > remain_size) {
         return 0;
     }
 
-    res = std::string(p, len);
+//    res = std::string(p, len);
+    res.assign(p, len);
 
     p = p + len;
     remain_size = remain_size - len;
@@ -113,15 +129,14 @@ std::string RdbDecoder::rdbLoadLzfStringObject(int *ret) {
     /* Allocate our target according to the uncompressed size. */
 
     /* Load the compressed representation and uncompress it to target. */
-    std::string tmp_c;
-    if (rioReadString(tmp_c, clen) == 0) {
+    char* tmp_c;
+    if (rioReadString(&tmp_c, clen) == 0) {
         *ret = -1;
         return "";
     }
 
-
     t_val = (char *) zmalloc(len);
-    if (lzf_decompress(tmp_c.data(), clen, t_val, len) == 0) {
+    if (lzf_decompress(tmp_c, clen, t_val, len) == 0) {
         free(t_val);
         *ret = -1;
         return "";
@@ -163,7 +178,6 @@ std::string RdbDecoder::rdbGenericLoadStringObject(int *ret) {
         *ret = 0;
         return tmp;
    }
-
 }
 
 bool RdbDecoder::verifyDumpPayload() {
