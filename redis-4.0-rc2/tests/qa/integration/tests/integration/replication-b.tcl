@@ -25,12 +25,18 @@ config {real.conf}} {
         test "MASTER and SLAVE dataset should be identical after complex ops" {
             wait_memory_stable -1
 
-            wait_for_condition 50 100 {
-                [string match {*slave0:*state=online*} [$master info]]
-            } else {
-                fail "Slave not correctly synchronized"
-            }
+      #      wait_for_condition 50 100 {
+      #          [string match {*slave0:*state=online*} [$master info]]
+      #      } else {
+      #          fail "Slave not correctly synchronized"
+      #      }
 
+            set keyslist [$master keys *]
+            foreach key $keyslist {
+                if {[$master locatekey $key] != [$slave_first locatekey $key]} {
+                    fail "$key:Different status between master and slave"
+                }
+            }
             wait_for_condition 10 100 {
                 [$master dbsize] == [$slave_first dbsize]
             } else {
