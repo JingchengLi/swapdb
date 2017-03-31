@@ -691,7 +691,10 @@ int NetworkServer::proc(ProcJob *job){
 	if(job->link->send(job->resp.resp) == -1){
 		log_debug("job->link->send error");
 		job->result = PROC_ERROR;
+		return job->result;
 	}
+	//todo append custom reply
+
 	return job->result;
 }
 

@@ -30,14 +30,19 @@ int ProcWorker::proc(ProcJob *job){
 //	}
 
 	if(job->link->send(job->resp.resp) == -1){
+
 		log_debug("job->link->send error");
 		job->result = PROC_ERROR;
-	}else{
-		int len = job->link->write();
-		if(len < 0){
-			log_debug("job->link->write error");
-			job->result = PROC_ERROR;
-		}
+		return 0;
 	}
+
+	//todo append custom reply
+
+	int len = job->link->write();
+	if(len < 0){
+		log_debug("job->link->write error");
+		job->result = PROC_ERROR;
+	}
+
 	return 0;
 }
