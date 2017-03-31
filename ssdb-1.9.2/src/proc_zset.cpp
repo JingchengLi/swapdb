@@ -38,7 +38,7 @@ int proc_multi_zset(NetworkServer *net, Link *link, const Request &req, Response
         resp->push_back("error");
         resp->push_back("ERR wrong number of arguments for 'zadd' command");
         return 0;
-    } else if(elements == 0 | elements % 2 != 0){
+    } else if((elements == 0) | (elements % 2 != 0)){
 		//wrong args
         reply_err_return(SYNTAX_ERR);
     }
@@ -181,9 +181,7 @@ int proc_zget(NetworkServer *net, Link *link, const Request &req, Response *resp
 	double score = 0;
 	int ret = serv->ssdb->zget(req[1], req[2], &score);
     if (ret < 0) {
-        resp->push_back("error");
-        resp->push_back(GetErrorInfo((int)ret));
-        return 0;
+        reply_err_return(ret);
     } else if(ret == 0){
         resp->push_back("not_found");
         return 0;
@@ -286,9 +284,7 @@ static int _zrangebyscore(SSDB *ssdb, const Request &req, Response *resp, int re
                 }
                 pos += 3; remaining -= 3;
             } else {
-                resp->push_back("error");
-                resp->push_back("ERR syntax error");
-                return 0;
+                reply_err_return(SYNTAX_ERR);
             }
         }
     }

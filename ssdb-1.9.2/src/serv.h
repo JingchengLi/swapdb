@@ -70,5 +70,4 @@ public:
 #endif
 
 
-#define reply_err_return(n) resp->reply_errror(GetErrorInfo(n)); \
-return 0;
+#define reply_err_return(n) resp->reply_errror(GetErrorInfo(n)); return 0

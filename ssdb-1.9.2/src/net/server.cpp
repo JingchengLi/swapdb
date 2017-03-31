@@ -34,7 +34,7 @@ volatile uint32_t g_ticks = 0;
 
 //void sig_signal_handler(int sig){
 void sig_signal_handler(int sig, siginfo_t * info, void * ucontext) {
-    ucontext_t *uc = (ucontext_t*) ucontext;
+//    ucontext_t *uc = (ucontext_t*) ucontext;
     log_error("SSDB %s crashed by signal: %d", SSDB_VERSION, sig);
 
 

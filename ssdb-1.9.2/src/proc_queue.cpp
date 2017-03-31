@@ -133,15 +133,10 @@ int proc_qpop_back(NetworkServer *net, Link *link, const Request &req, Response 
 
 
 int proc_qfix(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(2);
 
-//	int ret = serv->ssdb->qfix(req[1]);
-//	if(ret == -1){
-//		resp->push_back("error");
-//	}else{
-		resp->push_back("ok");
-//	}
+	resp->push_back("ok");
+
 	return 0;
 }
 
