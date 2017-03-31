@@ -68,3 +68,7 @@ public:
 	}while(0)
 
 #endif
+
+
+#define reply_err_return(n) resp->reply_errror(GetErrorInfo(n)); \
+return 0;

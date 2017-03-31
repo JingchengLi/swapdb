@@ -49,9 +49,7 @@ int proc_hmset(NetworkServer *net, Link *link, const Request &req, Response *res
 
     int ret = serv->ssdb->hmset(name, kvs);
     if (ret < 0) {
-        resp->push_back("error");
-        resp->push_back(GetErrorInfo(ret));
-        return 0;
+        reply_err_return(ret);
     }
 
     resp->reply_int(0, 1);
@@ -73,9 +71,7 @@ int proc_hdel(NetworkServer *net, Link *link, const Request &req, Response *resp
     int deleted = 0;
     int ret = serv->ssdb->hdel(key, fields, &deleted);
     if (ret < 0) {
-        resp->push_back("error");
-        resp->push_back(GetErrorInfo(ret));
-        return 0;
+        reply_err_return(ret);
     }
 
     resp->reply_int(0, deleted);
@@ -119,9 +115,7 @@ int proc_hmget(NetworkServer *net, Link *link, const Request &req, Response *res
 
         //nothing
     } else {
-        resp->push_back("error");
-        resp->push_back(GetErrorInfo(ret));
-        return 0;
+        reply_err_return(ret);
     }
 
     return 0;
@@ -209,9 +203,7 @@ int proc_hgetall(NetworkServer *net, Link *link, const Request &req, Response *r
     int ret = serv->ssdb->hgetall(req[1], resMap);
 
     if (ret < 0) {
-        resp->push_back("error");
-        resp->push_back(GetErrorInfo(ret));
-        return 0;
+        reply_err_return(ret);
     } else if (ret == 0) {
         resp->push_back("ok");
 
@@ -240,9 +232,7 @@ int proc_hscan(NetworkServer *net, Link *link, const Request &req, Response *res
 
     cursor.Uint64();
     if (errno == EINVAL) {
-        resp->push_back("error");
-        resp->push_back(GetErrorInfo(INVALID_INT));
-        return 0;
+        reply_err_return(INVALID_INT);
     }
 
     std::string pattern = "*";
@@ -258,14 +248,10 @@ int proc_hscan(NetworkServer *net, Link *link, const Request &req, Response *res
         } else if (key == "count") {
             limit = (*(it + 1)).Uint64();
             if (errno == EINVAL) {
-                resp->push_back("error");
-                resp->push_back(GetErrorInfo(INVALID_INT));
-                return 0;
+                reply_err_return(INVALID_INT);
             }
         } else {
-            resp->push_back("error");
-            resp->push_back(GetErrorInfo(SYNTAX_ERR));
-            return 0;
+            reply_err_return(SYNTAX_ERR);
         }
     }
     resp->push_back("ok");
@@ -292,9 +278,7 @@ int proc_hkeys(NetworkServer *net, Link *link, const Request &req, Response *res
     int ret = serv->ssdb->hgetall(req[1], resMap);
 
     if (ret < 0) {
-        resp->push_back("error");
-        resp->push_back(GetErrorInfo(ret));
-        return 0;
+        reply_err_return(ret);
     } else if (ret == 0) {
         resp->push_back("ok");
 
@@ -323,9 +307,7 @@ int proc_hvals(NetworkServer *net, Link *link, const Request &req, Response *res
     int ret = serv->ssdb->hgetall(req[1], resMap);
 
     if (ret < 0) {
-        resp->push_back("error");
-        resp->push_back(GetErrorInfo(ret));
-        return 0;
+        reply_err_return(ret);
     } else if (ret == 0) {
         resp->push_back("ok");
 
@@ -349,9 +331,7 @@ int proc_hincrbyfloat(NetworkServer *net, Link *link, const Request &req, Respon
 
     long double by = req[3].LDouble();
     if (errno == EINVAL) {
-        resp->push_back("error");
-        resp->push_back(GetErrorInfo(INVALID_DBL));
-        return 0;
+        reply_err_return(INVALID_DBL);
     }
 
     long double new_val;
@@ -372,9 +352,7 @@ int proc_hincr(NetworkServer *net, Link *link, const Request &req, Response *res
     int64_t by = req[3].Int64();
 
     if (errno == EINVAL) {
-        resp->push_back("error");
-        resp->push_back(GetErrorInfo(INVALID_INT));
-        return 0;
+        reply_err_return(INVALID_INT);
     }
 
     int64_t new_val = 0;

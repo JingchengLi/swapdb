@@ -93,8 +93,7 @@ int proc_smembers(NetworkServer *net, Link *link, const Request &req, Response *
 
     if (ret < 0){
         resp->resp.clear();
-        resp->resp.push_back("error");
-        resp->resp.push_back(GetErrorInfo(ret));
+        reply_err_return(ret);
     }
 
     return 0;
@@ -109,9 +108,7 @@ int proc_spop(NetworkServer *net, Link *link, const Request &req, Response *resp
     if (req.size() >2) {
         pop_count = req[2].Int64();
         if (errno == EINVAL){
-            resp->push_back("error");
-            resp->push_back(GetErrorInfo(INVALID_INT));
-            return 0;
+            reply_err_return(INVALID_INT);
         }
     }
 
@@ -120,8 +117,7 @@ int proc_spop(NetworkServer *net, Link *link, const Request &req, Response *resp
 
     if (ret < 0){
         resp->resp.clear();
-        resp->resp.push_back("error");
-        resp->resp.push_back(GetErrorInfo(ret));
+        reply_err_return(ret);
     } else if (ret == 0) {
 
     }
@@ -137,9 +133,7 @@ int proc_srandmember(NetworkServer *net, Link *link, const Request &req, Respons
     if (req.size() >2) {
         count = req[2].Int64();
         if (errno == EINVAL){
-            resp->push_back("error");
-            resp->push_back(GetErrorInfo(INVALID_INT));
-            return 0;
+            reply_err_return(INVALID_INT);
         }
     }
 
@@ -149,8 +143,7 @@ int proc_srandmember(NetworkServer *net, Link *link, const Request &req, Respons
 
     if (ret < 0){
         resp->resp.clear();
-        resp->resp.push_back("error");
-        resp->resp.push_back(GetErrorInfo(ret));
+        reply_err_return(ret);
     }
 
     return 0;
@@ -168,9 +161,7 @@ int proc_sscan(NetworkServer *net, Link *link, const Request &req, Response *res
 
     cursor.Uint64();
     if (errno == EINVAL){
-        resp->push_back("error");
-        resp->push_back(GetErrorInfo(INVALID_INT));
-        return 0;
+        reply_err_return(INVALID_INT);
     }
 
     std::string pattern = "*";
@@ -186,14 +177,10 @@ int proc_sscan(NetworkServer *net, Link *link, const Request &req, Response *res
         } else if (key=="count") {
             limit =  (*(it+1)).Uint64();
             if (errno == EINVAL){
-                resp->push_back("error");
-                resp->push_back(GetErrorInfo(INVALID_INT));
-                return 0;
+                reply_err_return(INVALID_INT);
             }
         } else {
-            resp->push_back("error");
-            resp->push_back(GetErrorInfo(SYNTAX_ERR));
-            return 0;
+            reply_err_return(SYNTAX_ERR);
         }
     }
     resp->push_back("ok");

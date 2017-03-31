@@ -98,7 +98,7 @@ int proc_qpop_front(NetworkServer *net, Link *link, const Request &req, Response
 	std::pair<std::string, bool> val;
 	int ret = serv->ssdb->LPop(name, val);
 	if (ret < 0) {
-		resp->reply_errror(GetErrorInfo(ret));
+		reply_err_return(ret);
 	} else {
 		if (val.second) {
 			resp->reply_get(1, &val.first);
@@ -118,7 +118,7 @@ int proc_qpop_back(NetworkServer *net, Link *link, const Request &req, Response 
 	std::pair<std::string, bool> val;
     int ret = serv->ssdb->RPop(req[1], val);
 	if (ret < 0) {
-		resp->reply_errror(GetErrorInfo(ret));
+		reply_err_return(ret);
 	} else {
 		if (val.second) {
 			resp->reply_get(1, &val.first);
@@ -152,25 +152,19 @@ int proc_qtrim(NetworkServer *net, Link *link, const Request &req, Response *res
 
 	int64_t begin = req[2].Int64();
 	if (errno == EINVAL){
-		resp->push_back("error");
-		resp->push_back(GetErrorInfo(INVALID_INT));
-		return 0;
+		reply_err_return(INVALID_INT);
 	}
 
 	int64_t end = req[3].Int64();
 	if (errno == EINVAL){
-		resp->push_back("error");
-		resp->push_back(GetErrorInfo(INVALID_INT));
-		return 0;
+		reply_err_return(INVALID_INT);
 	}
 
 
 	int ret = serv->ssdb->ltrim(req[1], begin, end);
 	if (ret < 0){
 		resp->resp.clear();
-		resp->push_back("error");
-		resp->push_back(GetErrorInfo(ret));
-		return 0;
+		reply_err_return(ret);
 	} else {
 		resp->reply_status(ret);
 	}
@@ -186,25 +180,19 @@ int proc_qslice(NetworkServer *net, Link *link, const Request &req, Response *re
 
 	int64_t begin = req[2].Int64();
 	if (errno == EINVAL){
-		resp->push_back("error");
-		resp->push_back(GetErrorInfo(INVALID_INT));
-		return 0;
+		reply_err_return(INVALID_INT);
 	}
 
 	int64_t end = req[3].Int64();
 	if (errno == EINVAL){
-		resp->push_back("error");
-		resp->push_back(GetErrorInfo(INVALID_INT));
-		return 0;
+		reply_err_return(INVALID_INT);
 	}
 
 	resp->push_back("ok");
 	int ret = serv->ssdb->lrange(req[1], begin, end, resp->resp);
 	if (ret < 0){
 		resp->resp.clear();
-		resp->push_back("error");
-		resp->push_back(GetErrorInfo(ret));
-		return 0;
+		reply_err_return(ret);
 	}
 
 	return 0;
@@ -216,15 +204,13 @@ int proc_qget(NetworkServer *net, Link *link, const Request &req, Response *resp
 
 	int64_t index = req[2].Int64();
 	if (errno == EINVAL){
-		resp->push_back("error");
-		resp->push_back(GetErrorInfo(INVALID_INT));
-		return 0;
+		reply_err_return(INVALID_INT);
 	}
 
 	std::pair<std::string, bool> val;
 	int ret = serv->ssdb->LIndex(req[1], index, val);
 	if (ret < 0) {
-		resp->reply_errror(GetErrorInfo(ret));
+		reply_err_return(ret);
 	} else {
 		if (val.second) {
 			resp->reply_get(1, &val.first);
@@ -243,16 +229,13 @@ int proc_qset(NetworkServer *net, Link *link, const Request &req, Response *resp
 	const Bytes &name = req[1];
 	int64_t index = req[2].Int64();
 	if (errno == EINVAL){
-		resp->push_back("error");
-		resp->push_back(GetErrorInfo(INVALID_INT));
-		return 0;
+		reply_err_return(INVALID_INT);
 	}
 
 	const Bytes &item = req[3];
 	int ret = serv->ssdb->LSet(name, index, item);
 	if(ret < 0){
-		resp->push_back("error");
-		resp->push_back(GetErrorInfo(ret));
+		reply_err_return(ret);
 	} else if ( ret == 0) {
 		//???
 		resp->push_back("error");

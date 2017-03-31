@@ -375,9 +375,7 @@ int proc_debug(NetworkServer *net, Link *link, const Request &req, Response *res
 			int added = 0;
 			int ret = serv->ssdb->set(Bytes(kbuf), Bytes(vbuf),OBJ_SET_NO_FLAGS, &added);
 			if(ret < 0){
-				resp->push_back("error");
-				resp->push_back(GetErrorInfo(ret));
-				return 0;
+				reply_err_return(ret);
 			}
 
 		}
@@ -421,8 +419,7 @@ int proc_restore(NetworkServer *net, Link *link, const Request &req, Response *r
         if (q4 == "REPLACE") {
             replace = true;
         } else {
-            resp->reply_errror(GetErrorInfo(SYNTAX_ERR));
-            return 0;
+            reply_err_return(SYNTAX_ERR);
         }
     }
 
@@ -481,9 +478,7 @@ int proc_redis_req_restore(NetworkServer *net, Link *link, const Request &req, R
 
 	int64_t ttl = req[2].Int64();
 	if (errno == EINVAL || ttl < 0){
-		resp->push_back("error");
-		resp->push_back(GetErrorInfo(INVALID_INT));
-		return 0;
+		reply_err_return(INVALID_INT);
 	}
 
 	bool replace = false;
@@ -502,9 +497,7 @@ int proc_redis_req_restore(NetworkServer *net, Link *link, const Request &req, R
             } else if (key=="NOREPLY") {
                 noreply = true;
             } else {
-                resp->push_back("error");
-                resp->push_back(GetErrorInfo(SYNTAX_ERR));
-                return 0;
+                reply_err_return(SYNTAX_ERR);
             }
         }
 

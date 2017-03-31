@@ -117,7 +117,7 @@ int64_t ExpirationHandler::pttl(const Bytes &key, TimeUnit tu) {
     ret = ssdb->eget(key, &ex);
     if (ret == 1) {
         ttl = ex - time_ms();
-        if (ttl < 0) return -2;;
+        if (ttl < 0) return -2;
 
         if (tu == TimeUnit::Second) {
             return (ttl + 500) / 1000;

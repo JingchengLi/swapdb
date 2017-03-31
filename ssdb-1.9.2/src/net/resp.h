@@ -16,6 +16,10 @@ class Response
 public:
 	std::vector<std::string> resp;
 
+	bool checkKey = false;
+
+	void mark_check();
+
 	int size() const;
 	void push_back(const std::string &s);
 	void add(int s);
@@ -33,7 +37,7 @@ public:
 	void reply_double(int status, double val);
 	// the same as Redis.REPLY_BULK
 	void reply_get(int status, const std::string *val=NULL, const char *errmsg=NULL);
-	void reply_list(int status, const std::vector<std::string> &list, const char *errmsg=NULL);
+
 };
 
 #endif

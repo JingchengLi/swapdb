@@ -16,9 +16,7 @@ int proc_type(NetworkServer *net, Link *link, const Request &req, Response *resp
 	std::string val;
 	int ret = serv->ssdb->type(req[1], &val);
 	if(ret < 0){
-		resp->push_back("error");
-		resp->push_back(GetErrorInfo(ret));
-		return 0;
+		reply_err_return(ret);
 	}
 
 	resp->push_back("ok");
@@ -49,7 +47,7 @@ int proc_getset(NetworkServer *net, Link *link, const Request &req, Response *re
 	std::pair<std::string, bool> val;
 	int ret = serv->ssdb->getset(req[1], val, req[2]);
 	if(ret < 0){
-		resp->reply_errror(GetErrorInfo(ret));
+		reply_err_return(ret);
 	} else {
 		if (val.second){
 			resp->reply_get(1, &val.first);
@@ -68,8 +66,7 @@ int proc_append(NetworkServer *net, Link *link, const Request &req, Response *re
 	uint64_t newlen = 0;
 	int ret = serv->ssdb->append(req[1], req[2], &newlen);
 	if(ret < 0){
-		resp->push_back("error");
-		resp->push_back(GetErrorInfo(ret));
+		reply_err_return(ret);
 	}else{
 		resp->push_back("ok");
 		resp->push_back(str(newlen));
@@ -107,29 +104,21 @@ int proc_set(NetworkServer *net, Link *link, const Request &req, Response *resp)
 			} else if (key=="ex" || key=="px") {
 				i++;
 				if (i >= req.size()) {
-					resp->push_back("error");
-					resp->push_back(GetErrorInfo(SYNTAX_ERR));
-					return 0;
+					reply_err_return(SYNTAX_ERR);
 
 				} else {
 					when = req[i].Int64();
 					if (errno == EINVAL){
-						resp->push_back("error");
-						resp->push_back(GetErrorInfo(INVALID_INT));
-						return 0;
+						reply_err_return(INVALID_INT);
 					}
 
 					if (when <= 0) {
-						resp->push_back("error");
-						resp->push_back(GetErrorInfo(INVALID_EX_TIME));
-						return 0;
+						reply_err_return(INVALID_EX_TIME);
 					}
 
 				}
 			} else {
-				resp->push_back("error");
-				resp->push_back(GetErrorInfo(SYNTAX_ERR));
-				return 0;
+				reply_err_return(SYNTAX_ERR);
 
 			}
 		}
@@ -142,9 +131,7 @@ int proc_set(NetworkServer *net, Link *link, const Request &req, Response *resp)
 		int added = 0;
 		int ret = serv->ssdb->set(req[1], req[2], flags, &added);
 		if(ret < 0){
-			resp->push_back("error");
-			resp->push_back(GetErrorInfo(ret));
-			return 0;
+			reply_err_return(ret);
 		} else if (added == 0) {
 			resp->push_back("ok");
 			resp->push_back("0");
@@ -155,9 +142,7 @@ int proc_set(NetworkServer *net, Link *link, const Request &req, Response *resp)
 		ret = serv->ssdb->expiration->expire(req[1], (int64_t)when, tu);
 		if(ret < 0){
 			serv->ssdb->del(req[1]);
-			resp->push_back("error");
-			resp->push_back(GetErrorInfo(ret));
-			return 0;
+			reply_err_return(ret);
 		} else {
 			resp->push_back("ok");
 			resp->push_back("1");
@@ -169,8 +154,7 @@ int proc_set(NetworkServer *net, Link *link, const Request &req, Response *resp)
 		int added = 0;
 		int ret = serv->ssdb->set(req[1], req[2], flags, &added);
 		if(ret < 0){
-			resp->push_back("error");
-			resp->push_back(GetErrorInfo(ret));
+			reply_err_return(ret);
 		} else if (added == 0) {
 			resp->push_back("ok");
 			resp->push_back("0");
@@ -205,14 +189,10 @@ int proc_setx(NetworkServer *net, Link *link, const Request &req, Response *resp
 
     long long when;
     if (string2ll(req[3].data(), (size_t)req[3].size(), &when) == 0) {
-		resp->push_back("error");
-		resp->push_back(GetErrorInfo(INVALID_INT));
-        return 0;
+		reply_err_return(INVALID_INT);
     }
 	if (when <= 0) {
-		resp->push_back("error");
-		resp->push_back(GetErrorInfo(INVALID_EX_TIME));
-		return 0;
+		reply_err_return(INVALID_EX_TIME);
 	}
 
 	Locking<Mutex> l(&serv->ssdb->expiration->mutex);
@@ -220,15 +200,12 @@ int proc_setx(NetworkServer *net, Link *link, const Request &req, Response *resp
 	int added = 0;
 	int ret = serv->ssdb->set(req[1], req[2], OBJ_SET_NO_FLAGS, &added);
 	if(ret < 0){
-		resp->push_back("error");
-		resp->push_back(GetErrorInfo(ret));
-		return 0;
+		reply_err_return(ret);
 	}
 	ret = serv->ssdb->expiration->expire(req[1], (int64_t)when, TimeUnit::Second);
 	if(ret < 0){
         serv->ssdb->del(req[1]);
-		resp->push_back("error");
-		resp->push_back(GetErrorInfo(ret));
+		reply_err_return(ret);
 	}else{
 		resp->push_back("ok");
 		resp->push_back("1");
@@ -242,30 +219,23 @@ int proc_psetx(NetworkServer *net, Link *link, const Request &req, Response *res
 
     long long when;
     if (string2ll(req[3].data(), (size_t)req[3].size(), &when) == 0) {
-		resp->push_back("error");
-		resp->push_back(GetErrorInfo(INVALID_INT));
-		return 0;
+		reply_err_return(INVALID_INT);
     }
 	if (when <= 0) {
-		resp->push_back("error");
-		resp->push_back(GetErrorInfo(INVALID_EX_TIME));
-		return 0;
+		reply_err_return(INVALID_EX_TIME);
 	}
 
 	Locking<Mutex> l(&serv->ssdb->expiration->mutex);
 	int added = 0;
 	int ret = serv->ssdb->set(req[1], req[2], OBJ_SET_NO_FLAGS, &added);
 	if(ret < 0){
-		resp->push_back("error");
-		resp->push_back(GetErrorInfo(ret));
-		return 0;
+		reply_err_return(ret);
 	}
 
 	ret = serv->ssdb->expiration->expire(req[1], (int64_t)when, TimeUnit::Millisecond);
 	if(ret < 0){
         serv->ssdb->del(req[1]);
-		resp->push_back("error");
-		resp->push_back(GetErrorInfo(ret));
+		reply_err_return(ret);
 	}else{
 		resp->push_back("ok");
 		resp->push_back("1");
@@ -301,9 +271,7 @@ int proc_pexpire(NetworkServer *net, Link *link, const Request &req, Response *r
 
     long long when;
     if (string2ll(req[2].data(), (size_t)req[2].size(), &when) == 0) {
-		resp->push_back("error");
-		resp->push_back(GetErrorInfo(INVALID_INT));
-		return 0;
+		reply_err_return(INVALID_INT);
     }
 
     Locking<Mutex> l(&serv->ssdb->expiration->mutex);
@@ -316,8 +284,7 @@ int proc_pexpire(NetworkServer *net, Link *link, const Request &req, Response *r
         resp->push_back("ok");
         resp->push_back("0");
     } else{
-        resp->push_back("error");
-		resp->push_back(GetErrorInfo(ret));
+        reply_err_return(ret);
 	}
     return 0;
 }
@@ -328,9 +295,7 @@ int proc_expire(NetworkServer *net, Link *link, const Request &req, Response *re
 
     long long when;
     if (string2ll(req[2].data(), (size_t)req[2].size(), &when) == 0) {
-		resp->push_back("error");
-		resp->push_back(GetErrorInfo(INVALID_INT));
-		return 0;
+		reply_err_return(INVALID_INT);
     }
 
 	Locking<Mutex> l(&serv->ssdb->expiration->mutex);
@@ -343,8 +308,7 @@ int proc_expire(NetworkServer *net, Link *link, const Request &req, Response *re
 		resp->push_back("ok");
 		resp->push_back("0");
 	} else{
-		resp->push_back("error");
-		resp->push_back(GetErrorInfo(ret));
+		reply_err_return(ret);
 	}
 	return 0;
 }
@@ -355,9 +319,7 @@ int proc_expireat(NetworkServer *net, Link *link, const Request &req, Response *
 
     long long ts_ms;
     if (string2ll(req[2].data(), (size_t)req[2].size(), &ts_ms) == 0) {
-		resp->push_back("error");
-		resp->push_back(GetErrorInfo(INVALID_INT));
-		return 0;
+		reply_err_return(INVALID_INT);
     }
 
 	Locking<Mutex> l(&serv->ssdb->expiration->mutex);
@@ -370,8 +332,7 @@ int proc_expireat(NetworkServer *net, Link *link, const Request &req, Response *
 		resp->push_back("ok");
 		resp->push_back("0");
 	} else{
-		resp->push_back("error");
-		resp->push_back(GetErrorInfo(ret));
+		reply_err_return(ret);
 	}
 	return 0;
 }
@@ -390,8 +351,7 @@ int proc_persist(NetworkServer *net, Link *link, const Request &req, Response *r
 		resp->push_back("ok");
 		resp->push_back("0");
 	} else{
-		resp->push_back("error");
-		resp->push_back(GetErrorInfo(ret));
+		reply_err_return(ret);
 	}
 	return 0;
 }
@@ -402,9 +362,7 @@ int proc_pexpireat(NetworkServer *net, Link *link, const Request &req, Response 
 
     long long ts_ms;
     if (string2ll(req[2].data(), (size_t)req[2].size(), &ts_ms) == 0) {
-		resp->push_back("error");
-		resp->push_back(GetErrorInfo(INVALID_INT));
-		return 0;
+		reply_err_return(INVALID_INT);
     }
 
 	Locking<Mutex> l(&serv->ssdb->expiration->mutex);
@@ -417,8 +375,7 @@ int proc_pexpireat(NetworkServer *net, Link *link, const Request &req, Response 
 		resp->push_back("ok");
 		resp->push_back("0");
 	} else{
-		resp->push_back("error");
-		resp->push_back(GetErrorInfo(ret));
+		reply_err_return(ret);
 	}
 	return 0;
 }
@@ -447,8 +404,7 @@ int proc_multi_set(NetworkServer *net, Link *link, const Request &req, Response 
 	}else{
 		int ret = serv->ssdb->multi_set(req, 1);
 		if(ret < 0){
-			resp->push_back("error");
-			resp->push_back(GetErrorInfo(ret));
+			reply_err_return(ret);
 		} else {
 			resp->reply_int(ret, ret);
 		}
@@ -463,8 +419,7 @@ int proc_multi_del(NetworkServer *net, Link *link, const Request &req, Response 
 	Locking<Mutex> l(&serv->ssdb->expiration->mutex);
 	int ret = serv->ssdb->multi_del(req, 1);
 	if(ret < 0){
-		resp->push_back("error");
-		resp->push_back(GetErrorInfo(ret));
+		reply_err_return(ret);
 	} else{
 		resp->reply_int(0, ret);
 	}
@@ -494,8 +449,7 @@ int proc_del(NetworkServer *net, Link *link, const Request &req, Response *resp)
 	Locking<Mutex> l(&serv->ssdb->expiration->mutex);
 	int ret = serv->ssdb->del(req[1]);
 	if(ret < 0){
-		resp->push_back("error");
-		resp->push_back(GetErrorInfo(ret));
+		reply_err_return(ret);
 	} else if(ret == 0){
 		resp->push_back("not_found");
 		resp->push_back("0");
@@ -519,9 +473,7 @@ int proc_scan(NetworkServer *net, Link *link, const Request &req, Response *resp
 
     cursor.Uint64();
 	if (errno == EINVAL){
-		resp->push_back("error");
-		resp->push_back(GetErrorInfo(INVALID_INT));
-		return 0;
+		reply_err_return(INVALID_INT);
 	}
 
 	std::string pattern = "*";
@@ -537,14 +489,10 @@ int proc_scan(NetworkServer *net, Link *link, const Request &req, Response *resp
 		} else if (key=="count") {
 			limit =  (*(it+1)).Uint64();
 			if (errno == EINVAL){
-				resp->push_back("error");
-				resp->push_back(GetErrorInfo(INVALID_INT));
-				return 0;
+				reply_err_return(INVALID_INT);
 			}
 		} else {
-			resp->push_back("error");
-			resp->push_back(GetErrorInfo(SYNTAX_ERR));
-			return 0;
+			reply_err_return(SYNTAX_ERR);
 		}
 	}
     resp->push_back("ok");
@@ -595,9 +543,7 @@ int proc_ssdb_scan(NetworkServer *net, Link *link, const Request &req, Response 
 		} else if (key=="count") {
 			limit =  (*(it+1)).Uint64();
 			if (errno == EINVAL){
-				resp->push_back("error");
-				resp->push_back(GetErrorInfo(INVALID_INT));
-				return 0;
+				reply_err_return(INVALID_INT);
 			}
 		} else if (key=="value") {
 			std::string has_value_s = (*(it+1)).String();
@@ -605,9 +551,7 @@ int proc_ssdb_scan(NetworkServer *net, Link *link, const Request &req, Response 
 
 			need_value = (has_value_s=="on");
 		} else {
-			resp->push_back("error");
-			resp->push_back(GetErrorInfo(SYNTAX_ERR));
-			return 0;
+			reply_err_return(SYNTAX_ERR);
 		}
 	}
 	bool fulliter = (pattern == "*");
@@ -671,9 +615,7 @@ static int _incr(SSDB *ssdb, const Request &req, Response *resp, int dir){
 	if(req.size() > 2){
 		by = req[2].Int64();
 		if (errno == EINVAL){
-			resp->push_back("error");
-			resp->push_back(GetErrorInfo(INVALID_INT));
-			return 0;
+			reply_err_return(INVALID_INT);
 		}
 	}
 	int64_t new_val;
@@ -692,17 +634,14 @@ int proc_incrbyfloat(NetworkServer *net, Link *link, const Request &req, Respons
 	CHECK_NUM_PARAMS(3);
     long double by = req[2].LDouble();
 	if (errno == EINVAL){
-		resp->push_back("error");
-		resp->push_back(GetErrorInfo(INVALID_INT));
-		return 0;
+		reply_err_return(INVALID_INT);
 	}
 
 	long double new_val = 0.0L;
 
 	int ret = serv->ssdb->incrbyfloat(req[1], by, &new_val);
 	if(ret < 0){
-		resp->push_back("error");
-		resp->push_back(GetErrorInfo(ret));
+		reply_err_return(ret);
 	}else{
 		resp->reply_long_double(ret, new_val);
 	}
@@ -735,7 +674,7 @@ int proc_getbit(NetworkServer *net, Link *link, const Request &req, Response *re
 	int res = 0;
 	int ret = serv->ssdb->getbit(req[1], (int64_t)offset, &res);
 	if(ret < 0) {
-		resp->reply_errror(GetErrorInfo(ret));
+		reply_err_return(ret);
 	} else {
 		resp->reply_bool(res);
 	}
@@ -787,17 +726,14 @@ int proc_countbit(NetworkServer *net, Link *link, const Request &req, Response *
 	std::string val;
 	int ret = serv->ssdb->get(key, &val);
 	if(ret < 0){
-		resp->push_back("error");
-		resp->push_back(GetErrorInfo(ret));
+		reply_err_return(ret);
 	} else{
 		std::string str;
 		int size = -1;
 		if(req.size() > 3){
 			size = req[3].Int();
 			if (errno == EINVAL){
-				resp->push_back("error");
-				resp->push_back(GetErrorInfo(INVALID_INT));
-				return 0;
+				reply_err_return(INVALID_INT);
 			}
 
 			str = substr(val, start, size);
@@ -819,25 +755,20 @@ int proc_bitcount(NetworkServer *net, Link *link, const Request &req, Response *
 	if(req.size() > 2){
 		start = req[2].Int();
 		if (errno == EINVAL){
-			resp->push_back("error");
-			resp->push_back(GetErrorInfo(INVALID_INT));
-			return 0;
+			reply_err_return(INVALID_INT);
 		}
 	}
 	int end = -1;
 	if(req.size() > 3){
 		end = req[3].Int();
 		if (errno == EINVAL){
-			resp->push_back("error");
-			resp->push_back(GetErrorInfo(INVALID_INT));
-			return 0;
+			reply_err_return(INVALID_INT);
 		}
 	}
 	std::string val;
 	int ret = serv->ssdb->get(key, &val);
 	if(ret < 0){
-		resp->push_back("error");
-		resp->push_back(GetErrorInfo(ret));
+		reply_err_return(ret);
 	} else{
 		std::string str = str_slice(val, start, end);
 		int count = bitcount(str.data(), str.size());
@@ -854,23 +785,19 @@ int proc_getrange(NetworkServer *net, Link *link, const Request &req, Response *
 	const Bytes &key = req[1];
 	int64_t start = req[2].Int64();
 	if (errno == EINVAL){
-		resp->push_back("error");
-		resp->push_back(GetErrorInfo(INVALID_INT));
-		return 0;
+		reply_err_return(INVALID_INT);
 	}
 
 
 	int64_t end = req[3].Int64();
 	if (errno == EINVAL){
-		resp->push_back("error");
-		resp->push_back(GetErrorInfo(INVALID_INT));
-		return 0;
+		reply_err_return(INVALID_INT);
 	}
 
 	std::pair<std::string, bool> val;
 	int ret = serv->ssdb->getrange(key, start, end, val);
 	if(ret < 0){
-		resp->reply_errror(GetErrorInfo(ret));
+		reply_err_return(ret);
 	} else{
 		resp->push_back("ok");
 		resp->push_back(val.first);
@@ -890,23 +817,18 @@ int proc_setrange(NetworkServer *net, Link *link, const Request &req, Response *
 
  	int64_t start = req[2].Int64();
 	if (errno == EINVAL){
-		resp->push_back("error");
-		resp->push_back(GetErrorInfo(INVALID_INT));
-		return 0;
+		reply_err_return(INVALID_INT);
 	}
 
 	if (start < 0) {
-		resp->push_back("error");
-		resp->push_back(GetErrorInfo(INDEX_OUT_OF_RANGE));
-		return 0;
+		reply_err_return(INDEX_OUT_OF_RANGE);
 	}
 
 	uint64_t new_len = 0;
 
 	int ret = serv->ssdb->setrange(req[1], start, req[3], &new_len);
 	if(ret < 0){
-		resp->push_back("error");
-		resp->push_back(GetErrorInfo(ret));
+		reply_err_return(ret);
 	} else{
 		resp->push_back("ok");
 		resp->push_back(str(new_len));
