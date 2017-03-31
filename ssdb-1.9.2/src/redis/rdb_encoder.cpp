@@ -25,7 +25,7 @@ void RdbEncoder::encodeFooter() {
     rdbWriteRaw(&buf, 2);
 
     uint64_t crc;
-    crc = crc64(0, (unsigned char *) w.data(), w.length());
+    crc = crc64_fast(0, (unsigned char *) w.data(), w.length());
     memrev64ifbe(&crc);
     rdbWriteRaw(&crc, 8);
 
