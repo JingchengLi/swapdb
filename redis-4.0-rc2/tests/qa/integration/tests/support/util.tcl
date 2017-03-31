@@ -168,7 +168,11 @@ proc createComplexDataset {r ops {opt {}}} {
         }
         lappend keyslist $k
         set f [randomValue]
-        set v [randomValue]
+        if {[lsearch -exact $opt bigkey] != -1} {
+            set v [string repeat x 10000000]
+        } else {
+            set v [randomValue]
+        }
 
         set d [randomSignedInt 100000000]
         # randpath {
@@ -374,10 +378,10 @@ proc stop_bg_complex_data {handle} {
     catch {exec /bin/kill -9 $handle}
 }
 
-proc start_bg_complex_data_list {host port num clients} {
+proc start_bg_complex_data_list {host port num clients {opt {}}} {
     set clientlist {}
     for {set n 0} {$n < $clients} {incr n} {
-        lappend clientlist [start_bg_complex_data $host $port 0 $num]
+        lappend clientlist [start_bg_complex_data $host $port 0 $num $opt]
     }
     return $clientlist
 }
@@ -386,6 +390,14 @@ proc stop_bg_complex_data_list {clientlist} {
     foreach client $clientlist {
         catch {exec /bin/kill -9 $client}
     }
+}
+
+proc stop_index_bg_complex_data_in_list {clientlist n} {
+    assert {$n < [llength $clientlist]}
+    catch {exec /bin/kill -9 [lindex $clientlist $n]}
+    # remove the killed handle from list
+    set clientlist [ lreplace $clientlist $n $n ]
+    return $clientlist
 }
 
 proc wait_for_dumpto_ssdb {r key} {
