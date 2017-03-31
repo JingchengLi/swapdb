@@ -1171,10 +1171,6 @@ void transferringOrLoadingBlockedClientTimeOut(client *c) {
         removeClientFromListForBlockedKey(c, keyobj);
         serverAssert(dictDelete(c->bpop.loading_or_transfer_keys, keyobj) == DICT_OK);
         serverLog(LL_DEBUG, "key: %s is deleted from loading_or_transfer_keys.", (char *)keyobj->ptr);
-        if (dictDelete(EVICTED_DATA_DB->transferring_keys, keyobj->ptr) == DICT_OK)
-            serverLog(LL_DEBUG, "key: %s is deleted from transferring_keys.", (char *)keyobj->ptr);
-        if (dictDelete(EVICTED_DATA_DB->loading_hot_keys, keyobj->ptr) == DICT_OK)
-            serverLog(LL_DEBUG, "key: %s is deleted from loading_hot_keys.", (char *)keyobj->ptr);
         serverLog(LL_DEBUG, "client: %d key: %s is timeout.", c->fd, (char *)keyobj->ptr);
     }
 

@@ -1296,9 +1296,28 @@ void unlinkClient(client *c) {
 
         /* Remove from the new added lists in jdjr-mode. */
         if (server.jdjr_mode) {
+            listIter li;
+            client *tmpc;
+            dictIterator *di;
+            dictEntry *de;
+            robj *keyobj;
+            list *l;
+
             ln = listSearchKey(server.no_writing_ssdb_blocked_clients, c);
 
             if (ln) listDelNode(server.no_writing_ssdb_blocked_clients, ln);
+
+            listRewind(server.clients, &li);
+            while((ln = listNext(&li))) {
+                tmpc = listNodeValue(ln);
+                di = dictGetIterator(tmpc->db->ssdb_blocking_keys);
+                while((de = dictNext(di))) {
+                    keyobj = dictGetKey(de);
+                    l = dictFetchValue(tmpc->db->ssdb_blocking_keys, keyobj);
+                    ln = listSearchKey(l, c);
+                    if (ln) listDelNode(l, ln);
+                }
+            }
         }
 
         /* Unregister async I/O handlers and close the socket. */
