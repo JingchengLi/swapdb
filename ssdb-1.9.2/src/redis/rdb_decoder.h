@@ -8,7 +8,9 @@
 #include <cstring>
 #include "string"
 #include "rdb.h"
-
+extern "C" {
+#include "crc64.h"
+};
 
 class RdbDecoder {
 private:

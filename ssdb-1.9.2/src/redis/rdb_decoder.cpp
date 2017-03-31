@@ -8,7 +8,6 @@
 
 extern "C" {
 #include "lzf.h"
-#include "crc64.h"
 #include "endianconv.h"
 #include "util.h"
 #include "zmalloc.h"
@@ -181,6 +180,8 @@ std::string RdbDecoder::rdbGenericLoadStringObject(int *ret) {
 }
 
 bool RdbDecoder::verifyDumpPayload() {
+    crc64speed_init_native();
+
     const char *footer;
     uint16_t rdbver;
     uint64_t crc;
@@ -194,7 +195,7 @@ bool RdbDecoder::verifyDumpPayload() {
     if (rdbver > RDB_VERSION) return false;
 
     /* Verify CRC64 */
-    crc = crc64(0, (const unsigned char *) p, remain_size - 8);
+    crc = crc64speed_native(0, (const unsigned char *) p, remain_size - 8);
     memrev64ifbe(&crc);
 
     remain_size = remain_size - 10;

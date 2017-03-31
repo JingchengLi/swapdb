@@ -204,12 +204,13 @@ set_target_properties(libutil-shared PROPERTIES
 # src
 
 SET( RDB_OBJS
+        src/redis/crc/crc64speed.c
+        src/redis/crc/crcspeed.c
 src/redis/ziplist.c
 src/redis/intset.c
 src/redis/lzf_c.c
 src/redis/lzf_d.c
 src/redis/endianconv.c
-src/redis/crc64.c
 src/redis/zmalloc.c
 src/redis/rdb_encoder.cpp
 src/redis/rdb_decoder.cpp
