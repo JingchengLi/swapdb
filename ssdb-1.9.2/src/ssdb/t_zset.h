@@ -9,7 +9,7 @@
 #include "ssdb_impl.h"
 
 template <typename T>
-int SSDBImpl::zsetNoLock(const Bytes &name, const std::map<T, T> &sortedSet, int flags) {
+int SSDBImpl::zsetNoLock(const Bytes &name, const std::map<T, T> &sortedSet, int flags, int64_t *num) {
     int incr = (flags & ZADD_INCR) != 0;
     int nx = (flags & ZADD_NX) != 0;
     int xx = (flags & ZADD_XX) != 0;
@@ -60,7 +60,7 @@ int SSDBImpl::zsetNoLock(const Bytes &name, const std::map<T, T> &sortedSet, int
         double score = val.Double();
 
         if (score >= ZSET_SCORE_MAX || score <= ZSET_SCORE_MIN) {
-            return -1;
+            return INVALID_DBL;
         }
         int retflags = flags;
 
@@ -89,9 +89,11 @@ int SSDBImpl::zsetNoLock(const Bytes &name, const std::map<T, T> &sortedSet, int
     }
 
     if (ch) {
-        return added + updated;
+        *num = added + updated;
+        return 1;
     } else {
-        return added;
+        *num = added;
+        return 1;
     }
 }
 

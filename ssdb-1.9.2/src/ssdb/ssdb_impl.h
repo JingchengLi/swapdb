@@ -171,14 +171,14 @@ public:
 	virtual int sscan(const Bytes &name, const Bytes& cursor, const std::string &pattern, uint64_t limit, std::vector<std::string> &resp);
 
 	/* zset */
-	virtual int multi_zset(const Bytes &name, const std::map<Bytes ,Bytes> &sortedSet, int flags);
+	virtual int multi_zset(const Bytes &name, const std::map<Bytes ,Bytes> &sortedSet, int flags, int64_t *count);
 	virtual int multi_zdel(const Bytes &name, const std::set<Bytes> &keys, int64_t *count);
 	// -1: error, 1: ok, 0: value is not an integer or out of range
 	virtual int zincr(const Bytes &name, const Bytes &key, double by, int &flags, double *new_val);
 	//int multi_zset(const Bytes &name, const std::vector<Bytes> &kvs, int offset=0);
 	//int multi_zdel(const Bytes &name, const std::vector<Bytes> &keys, int offset=0);
 
-	int64_t zremrangebyscore(const Bytes &name, const Bytes &score_start, const Bytes &score_end, int remove);
+	int zremrangebyscore(const Bytes &name, const Bytes &score_start, const Bytes &score_end, bool remove, int64_t *count);
 
 	virtual int zsize(const Bytes &name, uint64_t *size);
 	/**
@@ -199,12 +199,12 @@ public:
 	 */
 	virtual int zscan(const Bytes &name, const Bytes& cursor, const std::string &pattern, uint64_t limit, std::vector<std::string> &resp);
 
-	virtual int64_t zlexcount(const Bytes &name, const Bytes &key_start, const Bytes &key_end);
+	virtual int zlexcount(const Bytes &name, const Bytes &key_start, const Bytes &key_end, int64_t *count);
     virtual int zrangebylex(const Bytes &name, const Bytes &key_start, const Bytes &key_end, std::vector<std::string> &keys,
 							long offset, long limit);
     virtual int zrevrangebylex(const Bytes &name, const Bytes &key_start, const Bytes &key_end, std::vector<std::string> &keys,
 							   long offset, long limit);
-    virtual int64_t zremrangebylex(const Bytes &name, const Bytes &key_start, const Bytes &key_end);
+    virtual int zremrangebylex(const Bytes &name, const Bytes &key_start, const Bytes &key_end, int64_t *count);
 
 
 	/* eset */
@@ -266,7 +266,7 @@ private:
 	int hmsetNoLock(const Bytes &name, const std::map<T,T> &kvs, bool check_exists);
 
 	template <typename T>
-	int zsetNoLock(const Bytes &name, const std::map<T ,T> &sortedSet, int flags);
+	int zsetNoLock(const Bytes &name, const std::map<T ,T> &sortedSet, int flags, int64_t *num);
 
 	int rpushNoLock(const Bytes &key, const std::vector<std::string> &val, int offset, uint64_t *llen);
 
@@ -275,7 +275,7 @@ private:
     int genericZrangebyscore(const Bytes &name, const Bytes &start_score, const Bytes &end_score, std::vector<std::string> &key_score,
                              int withscores, long offset, long limit, int reverse);
     int genericZrangebylex(const Bytes &name, const Bytes &key_start, const Bytes &key_end, std::vector<string> &keys,
-						   long offset, long limit, int save);
+						   long offset, long limit, int save, int64_t *count);
 
 private:
 	//    pthread_mutex_t mutex_bgtask_;

@@ -116,7 +116,7 @@ public:
 	virtual int sscan(const Bytes &name, const Bytes& cursor, const std::string &pattern, uint64_t limit, std::vector<std::string> &resp) = 0;
 
 	/* zset */
-	virtual int multi_zset(const Bytes &name, const std::map<Bytes ,Bytes> &sortedSet, int flags) = 0;
+	virtual int multi_zset(const Bytes &name, const std::map<Bytes ,Bytes> &sortedSet, int flags, int64_t *num) = 0;
 	virtual int multi_zdel(const Bytes &name, const std::set<Bytes> &keys, int64_t *count) = 0;
 
 	// -1: error, 1: ok, 0: value is not an integer or out of range
@@ -140,12 +140,12 @@ public:
 	 */
     virtual int zscan(const Bytes &name, const Bytes& cursor, const std::string &pattern, uint64_t limit, std::vector<std::string> &resp) = 0;
 
-	virtual int64_t zlexcount(const Bytes &name, const Bytes &key_start, const Bytes &key_end) = 0;
+	virtual int zlexcount(const Bytes &name, const Bytes &key_start, const Bytes &key_end, int64_t *count) = 0;
     virtual int zrangebylex(const Bytes &name, const Bytes &key_start, const Bytes &key_end, std::vector<std::string> &keys,
 							long offset, long limit) = 0;
     virtual int zrevrangebylex(const Bytes &name, const Bytes &key_start, const Bytes &key_end, std::vector<std::string> &keys,
 							   long offset, long limit) = 0;
-    virtual int64_t zremrangebylex(const Bytes &name, const Bytes &key_start, const Bytes &key_end) = 0;
+    virtual int zremrangebylex(const Bytes &name, const Bytes &key_start, const Bytes &key_end, int64_t *count) = 0;
 
 	/* eset */
 	virtual int eset(const Bytes &key, int64_t ts) = 0;

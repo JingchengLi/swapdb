@@ -1013,7 +1013,8 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
                 tmp_map[r] = str(score);
             }
 
-            ret = zsetNoLock(key, tmp_map, ZADD_NONE);
+            int64_t num = 0;
+            ret = zsetNoLock(key, tmp_map, ZADD_NONE, &num);
 
             break;
         }
@@ -1154,7 +1155,8 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
                     }
             }
 
-            ret = zsetNoLock(key, tmp_map, ZADD_NONE);
+            int64_t num = 0;
+            ret = zsetNoLock(key, tmp_map, ZADD_NONE, &num);
 
             break;
         }

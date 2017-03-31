@@ -11,7 +11,6 @@ int proc_multi_zset(NetworkServer *net, Link *link, const Request &req, Response
 	SSDBServer *serv = (SSDBServer *)net->data;
 	int flags = ZADD_NONE;
 
-	int num = 0;
     int elements;
 	const Bytes &name = req[1];
 
@@ -35,11 +34,11 @@ int proc_multi_zset(NetworkServer *net, Link *link, const Request &req, Response
     }
 
     elements = (int)req.size() - scoreidx;
-    if(elements <= 0){
+    if(elements < 0){
         resp->push_back("error");
         resp->push_back("ERR wrong number of arguments for 'zadd' command");
         return 0;
-    } else if(elements % 2 != 0){
+    } else if(elements == 0 | elements % 2 != 0){
 		//wrong args
 		resp->push_back("client_error");
         resp->push_back(GetErrorInfo(SYNTAX_ERR));
@@ -132,13 +131,12 @@ int proc_multi_zset(NetworkServer *net, Link *link, const Request &req, Response
         }
 	}
 
-    int ret = serv->ssdb->multi_zset(name, sortedSet, flags);
+    int64_t num = 0;
+    int ret = serv->ssdb->multi_zset(name, sortedSet, flags, &num);
     if(ret < 0){
         resp->push_back("error");
 		resp->push_back(GetErrorInfo(ret));
         return 0;
-    }else{
-        num += ret;
     }
 
     resp->reply_int(0, num);
@@ -456,11 +454,12 @@ int proc_zcount(NetworkServer *net, Link *link, const Request &req, Response *re
     SSDBServer *serv = (SSDBServer *)net->data;
     CHECK_NUM_PARAMS(4);
 
-    int64_t count = serv->ssdb->zremrangebyscore(req[1], req[2], req[3], 0);
+    int64_t count = 0;
+    int ret = serv->ssdb->zremrangebyscore(req[1], req[2], req[3], false, &count);
 
-    if (count < 0) {
+    if (ret < 0) {
         resp->push_back("error");
-        resp->push_back(GetErrorInfo((int)count));
+        resp->push_back(GetErrorInfo(ret));
         return 0;
     }
 
@@ -472,11 +471,12 @@ int proc_zremrangebyscore(NetworkServer *net, Link *link, const Request &req, Re
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(4);
 
- 	int64_t count = serv->ssdb->zremrangebyscore(req[1], req[2], req[3], 1);
+ 	int64_t count = 0;
+    int ret = serv->ssdb->zremrangebyscore(req[1], req[2], req[3], true, &count);
 
-	if (count < 0) {
+	if (ret < 0) {
 		resp->push_back("error");
-        resp->push_back(GetErrorInfo((int)count));
+        resp->push_back(GetErrorInfo(ret));
 		return 0;
 	}
 
@@ -501,7 +501,7 @@ int proc_zremrangebyrank(NetworkServer *net, Link *link, const Request &req, Res
 
     std::set<Bytes> keys;
     for (int i = 0; i < key_score.size(); i += 2) {
-        keys.insert(key_score[i]);
+        keys.insert(Bytes(key_score[i]));
     }
 
     int64_t count = 0;
@@ -566,15 +566,18 @@ int proc_zremrangebylex(NetworkServer *net, Link *link, const Request &req, Resp
     SSDBServer *serv = (SSDBServer *)net->data;
     CHECK_NUM_PARAMS(4);
 
-    int64_t count = serv->ssdb->zremrangebylex(req[1], req[2], req[3]);
+    int64_t count = 0;
 
-    if (count < 0) {
+    int ret = serv->ssdb->zremrangebylex(req[1], req[2], req[3], &count);
+
+    if (ret < 0) {
         resp->push_back("error");
-        resp->push_back(GetErrorInfo((int)count));
+        resp->push_back(GetErrorInfo(ret));
         return 0;
     }
 
     resp->reply_int(0, count);
+
     return 0;
 }
 
@@ -587,8 +590,10 @@ int proc_zlexcount(NetworkServer *net, Link *link, const Request &req, Response 
     CHECK_NUM_PARAMS(4);
     SSDBServer *serv = (SSDBServer *)net->data;
 
-    int64_t count = serv->ssdb->zlexcount(req[1], req[2], req[3]);
-    if (count < 0){
+    int64_t count = 0;
+
+    int ret = serv->ssdb->zlexcount(req[1], req[2], req[3], &count);
+    if (ret < 0){
         resp->push_back("error");
         resp->push_back(GetErrorInfo(SYNTAX_ERR));
         return 0;
