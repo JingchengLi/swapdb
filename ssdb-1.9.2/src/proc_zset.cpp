@@ -68,7 +68,8 @@ int proc_multi_zset(NetworkServer *net, Link *link, const Request &req, Response
 
         double new_val = 0;
         int ret = serv->ssdb->zincr(name, req[scoreidx], score, flags, &new_val);
-        if(ret < 0){
+        check_key(ret);
+        if (ret < 0){
             reply_err_return(ret);
         }
 
@@ -115,7 +116,8 @@ int proc_multi_zset(NetworkServer *net, Link *link, const Request &req, Response
 
     int64_t num = 0;
     int ret = serv->ssdb->multi_zset(name, sortedSet, flags, &num);
-    if(ret < 0){
+    check_key(ret);
+    if (ret < 0){
         reply_err_return(ret);
     }
 
@@ -138,7 +140,8 @@ int proc_multi_zdel(NetworkServer *net, Link *link, const Request &req, Response
 
     int64_t count = 0;
     int ret = serv->ssdb->multi_zdel(name, keys, &count);
-    if(ret < 0){
+    check_key(ret);
+    if (ret < 0){
         reply_err_return(ret);
     }
 
@@ -153,6 +156,7 @@ int proc_zsize(NetworkServer *net, Link *link, const Request &req, Response *res
 
     uint64_t size = 0;
 	int ret = serv->ssdb->zsize(req[1], &size);
+    check_key(ret);
     if (ret < 0) {
         reply_err_return(ret);
     }
@@ -166,6 +170,7 @@ int proc_zget(NetworkServer *net, Link *link, const Request &req, Response *resp
 
 	double score = 0;
 	int ret = serv->ssdb->zget(req[1], req[2], &score);
+    check_key(ret);
     if (ret < 0) {
         reply_err_return(ret);
     } else if(ret == 0){
@@ -183,6 +188,7 @@ int proc_zrank(NetworkServer *net, Link *link, const Request &req, Response *res
 
     int64_t rank = 0;
 	int ret = serv->ssdb->zrank(req[1], req[2], &rank);
+    check_key(ret);
     if (ret < 0) {
         reply_err_return(ret);
     } else if (ret == 0 || rank == -1) {
@@ -199,6 +205,7 @@ int proc_zrrank(NetworkServer *net, Link *link, const Request &req, Response *re
 
     int64_t rank = 0;
 	int ret = serv->ssdb->zrrank(req[1], req[2], &rank);
+    check_key(ret);
     if (ret < 0) {
         reply_err_return(ret);
     } else if (ret == 0 || rank == -1) {
@@ -215,6 +222,7 @@ int proc_zrange(NetworkServer *net, Link *link, const Request &req, Response *re
 
     resp->reply_list_ready();
     int ret = serv->ssdb->zrange(req[1], req[2], req[3], resp->resp);
+    check_key(ret);
     if (ret < 0){
         resp->resp.clear();
         reply_err_return(ret);
@@ -229,6 +237,7 @@ int proc_zrrange(NetworkServer *net, Link *link, const Request &req, Response *r
 
     resp->reply_list_ready();
     int ret = serv->ssdb->zrrange(req[1], req[2], req[3], resp->resp);
+    check_key(ret);
     if (ret < 0){
         resp->resp.clear();
         reply_err_return(ret);
@@ -335,6 +344,7 @@ int proc_zscan(NetworkServer *net, Link *link, const Request &req, Response *res
     resp->reply_scan_ready();
 
     int ret =  serv->ssdb->zscan(req[1], cursor, pattern, limit, resp->resp);
+    check_key(ret);
     if (ret < 0) {
         resp->resp.clear();
         reply_err_return(ret);
@@ -363,7 +373,7 @@ static int _zincr(SSDB *ssdb, Link *link, const Request &req, Response *resp, in
 
     double new_val = 0;
     int ret = ssdb->zincr(req[1], req[2], dir * score, flags, &new_val);
-    if(ret < 0){
+    if (ret < 0){
         reply_err_return(ret);
     }
 
@@ -403,7 +413,7 @@ int proc_zcount(NetworkServer *net, Link *link, const Request &req, Response *re
 
     int64_t count = 0;
     int ret = serv->ssdb->zremrangebyscore(req[1], req[2], req[3], false, &count);
-
+    check_key(ret);
     if (ret < 0) {
         reply_err_return(ret);
     }
@@ -418,8 +428,8 @@ int proc_zremrangebyscore(NetworkServer *net, Link *link, const Request &req, Re
 
  	int64_t count = 0;
     int ret = serv->ssdb->zremrangebyscore(req[1], req[2], req[3], true, &count);
-
-	if (ret < 0) {
+	check_key(ret);
+    if (ret < 0) {
 		reply_err_return(ret);
 	}
 
@@ -433,6 +443,7 @@ int proc_zremrangebyrank(NetworkServer *net, Link *link, const Request &req, Res
 
     std::vector<std::string> key_score;
     int ret = serv->ssdb->zrange(req[1], req[2], req[3], key_score);
+    check_key(ret);
     if (ret < 0) {
         reply_err_return(ret);
     } else if (ret == 0) {
@@ -447,6 +458,7 @@ int proc_zremrangebyrank(NetworkServer *net, Link *link, const Request &req, Res
 
     int64_t count = 0;
     ret = serv->ssdb->multi_zdel(req[1], keys, &count);
+    check_key(ret);
     if (ret < 0) {
         reply_err_return(ret);
     }
@@ -505,7 +517,7 @@ int proc_zremrangebylex(NetworkServer *net, Link *link, const Request &req, Resp
     int64_t count = 0;
 
     int ret = serv->ssdb->zremrangebylex(req[1], req[2], req[3], &count);
-
+    check_key(ret);
     if (ret < 0) {
         reply_err_return(ret);
     }
@@ -527,6 +539,7 @@ int proc_zlexcount(NetworkServer *net, Link *link, const Request &req, Response 
     int64_t count = 0;
 
     int ret = serv->ssdb->zlexcount(req[1], req[2], req[3], &count);
+    check_key(ret);
     if (ret < 0){
         reply_err_return(SYNTAX_ERR);
     }

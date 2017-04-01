@@ -15,6 +15,7 @@ int proc_type(NetworkServer *net, Link *link, const Request &req, Response *resp
 
 	std::string val;
 	int ret = serv->ssdb->type(req[1], &val);
+	check_key(ret);
 	if(ret < 0){
 		reply_err_return(ret);
 	}
@@ -30,6 +31,7 @@ int proc_get(NetworkServer *net, Link *link, const Request &req, Response *resp)
 
 	std::string val;
 	int ret = serv->ssdb->get(req[1], &val);
+	check_key(ret);
 	if(ret < 0){
 		reply_err_return(ret);
 	} else {
@@ -45,6 +47,7 @@ int proc_getset(NetworkServer *net, Link *link, const Request &req, Response *re
 
 	std::pair<std::string, bool> val;
 	int ret = serv->ssdb->getset(req[1], val, req[2]);
+	check_key(ret);
 	if(ret < 0){
 		reply_err_return(ret);
 	} else {
@@ -64,6 +67,7 @@ int proc_append(NetworkServer *net, Link *link, const Request &req, Response *re
 
 	uint64_t newlen = 0;
 	int ret = serv->ssdb->append(req[1], req[2], &newlen);
+	check_key(ret);
 	if(ret < 0){
 		reply_err_return(ret);
 	}else{
@@ -128,6 +132,7 @@ int proc_set(NetworkServer *net, Link *link, const Request &req, Response *resp)
 
 		int added = 0;
 		int ret = serv->ssdb->set(req[1], req[2], flags, &added);
+		check_key(ret);
 		if(ret < 0){
 			reply_err_return(ret);
 		} else if (added == 0) {
@@ -149,6 +154,7 @@ int proc_set(NetworkServer *net, Link *link, const Request &req, Response *resp)
 	} else {
 		int added = 0;
 		int ret = serv->ssdb->set(req[1], req[2], flags, &added);
+		check_key(ret);
 		if(ret < 0){
 			reply_err_return(ret);
 		}
@@ -166,6 +172,7 @@ int proc_setnx(NetworkServer *net, Link *link, const Request &req, Response *res
 
 	int added = 0;
 	int ret = serv->ssdb->set(req[1], req[2], OBJ_SET_NX, &added);
+	check_key(ret);
 	if(ret < 0){
 		reply_err_return(ret);
 	} else {
@@ -191,6 +198,7 @@ int proc_setx(NetworkServer *net, Link *link, const Request &req, Response *resp
 
 	int added = 0;
 	int ret = serv->ssdb->set(req[1], req[2], OBJ_SET_NO_FLAGS, &added);
+	check_key(ret);
 	if(ret < 0){
 		reply_err_return(ret);
 	}
@@ -219,6 +227,7 @@ int proc_psetx(NetworkServer *net, Link *link, const Request &req, Response *res
 	Locking<Mutex> l(&serv->ssdb->expiration->mutex);
 	int added = 0;
 	int ret = serv->ssdb->set(req[1], req[2], OBJ_SET_NO_FLAGS, &added);
+	check_key(ret);
 	if(ret < 0){
 		reply_err_return(ret);
 	}
@@ -238,6 +247,7 @@ int proc_pttl(NetworkServer *net, Link *link, const Request &req, Response *resp
 	CHECK_NUM_PARAMS(2);
 
 	int64_t ttl = serv->ssdb->expiration->pttl(req[1], TimeUnit::Millisecond);
+	if (ttl == -2) { check_key(0); }
 	resp->reply_int(1, ttl);
 
 	return 0;
@@ -248,6 +258,7 @@ int proc_ttl(NetworkServer *net, Link *link, const Request &req, Response *resp)
 	CHECK_NUM_PARAMS(2);
 
 	int64_t ttl = serv->ssdb->expiration->pttl(req[1], TimeUnit::Second);
+	if (ttl == -2) { check_key(0); }
 	resp->reply_int(1, ttl);
 
 	return 0;
@@ -265,7 +276,7 @@ int proc_pexpire(NetworkServer *net, Link *link, const Request &req, Response *r
     Locking<Mutex> l(&serv->ssdb->expiration->mutex);
     std::string val;
     int ret = serv->ssdb->expiration->expire(req[1], (int64_t)when, TimeUnit::Millisecond);
-	if (ret < 0) {
+    if (ret < 0) {
 		reply_err_return(ret);
 	}
 
@@ -286,7 +297,7 @@ int proc_expire(NetworkServer *net, Link *link, const Request &req, Response *re
 	Locking<Mutex> l(&serv->ssdb->expiration->mutex);
 	std::string val;
 	int ret = serv->ssdb->expiration->expire(req[1], (int64_t)when, TimeUnit::Second);
-	if (ret < 0) {
+    if (ret < 0) {
 		reply_err_return(ret);
 	}
 
@@ -307,7 +318,7 @@ int proc_expireat(NetworkServer *net, Link *link, const Request &req, Response *
 	Locking<Mutex> l(&serv->ssdb->expiration->mutex);
 	std::string val;
 	int ret = serv->ssdb->expiration->expireAt(req[1], (int64_t)ts_ms * 1000);
-	if (ret < 0) {
+    if (ret < 0) {
 		reply_err_return(ret);
 	}
 
@@ -323,6 +334,7 @@ int proc_persist(NetworkServer *net, Link *link, const Request &req, Response *r
 	Locking<Mutex> l(&serv->ssdb->expiration->mutex);
 	std::string val;
 	int ret = serv->ssdb->expiration->persist(req[1]);
+	check_key(ret);
 	if(ret < 0){
 		reply_err_return(ret);
 	}
@@ -419,6 +431,7 @@ int proc_del(NetworkServer *net, Link *link, const Request &req, Response *resp)
 
 	Locking<Mutex> l(&serv->ssdb->expiration->mutex);
 	int ret = serv->ssdb->del(req[1]);
+	check_key(ret);
 	if(ret < 0){
 		reply_err_return(ret);
 	}
@@ -638,6 +651,7 @@ int proc_getbit(NetworkServer *net, Link *link, const Request &req, Response *re
 
 	int res = 0;
 	int ret = serv->ssdb->getbit(req[1], (int64_t)offset, &res);
+	check_key(ret);
 	if(ret < 0) {
 		reply_err_return(ret);
 	} else {
@@ -666,6 +680,7 @@ int proc_setbit(NetworkServer *net, Link *link, const Request &req, Response *re
 
 	int res = 0;
 	int ret = serv->ssdb->setbit(key, (int64_t)offset, on, &res);
+	check_key(ret);
 	if(ret < 0) {
 		reply_err_return(ret);
 	} else {
@@ -686,6 +701,7 @@ int proc_countbit(NetworkServer *net, Link *link, const Request &req, Response *
 	}
 	std::string val;
 	int ret = serv->ssdb->get(key, &val);
+	check_key(ret);
 	if(ret < 0){
 		reply_err_return(ret);
 	} else{
@@ -728,6 +744,7 @@ int proc_bitcount(NetworkServer *net, Link *link, const Request &req, Response *
 	}
 	std::string val;
 	int ret = serv->ssdb->get(key, &val);
+	check_key(ret);
 	if(ret < 0){
 		reply_err_return(ret);
 	} else{
@@ -757,6 +774,7 @@ int proc_getrange(NetworkServer *net, Link *link, const Request &req, Response *
 
 	std::pair<std::string, bool> val;
 	int ret = serv->ssdb->getrange(key, start, end, val);
+	check_key(ret);
 	if(ret < 0){
 		reply_err_return(ret);
 	} else{
@@ -787,6 +805,7 @@ int proc_setrange(NetworkServer *net, Link *link, const Request &req, Response *
 	uint64_t new_len = 0;
 
 	int ret = serv->ssdb->setrange(req[1], start, req[3], &new_len);
+	check_key(ret);
 	if(ret < 0){
 		reply_err_return(ret);
 	} else{
@@ -802,6 +821,7 @@ int proc_strlen(NetworkServer *net, Link *link, const Request &req, Response *re
 	const Bytes &key = req[1];
 	std::string val;
 	int ret = serv->ssdb->get(key, &val);
+	check_key(ret);
 	if(ret < 0) {
 		reply_err_return(ret);
 	} else {

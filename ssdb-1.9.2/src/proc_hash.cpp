@@ -16,7 +16,7 @@ int proc_hexists(NetworkServer *net, Link *link, const Request &req, Response *r
     const Bytes &key = req[2];
     std::pair<std::string, bool> val;
     int ret = serv->ssdb->hget(name, key, val);
-
+    check_key(ret);
     if (ret < 0) {
         reply_err_return(ret);
     } else if (ret == 0) {
@@ -45,6 +45,7 @@ int proc_hmset(NetworkServer *net, Link *link, const Request &req, Response *res
     }
 
     int ret = serv->ssdb->hmset(name, kvs);
+    check_key(ret);
     if (ret < 0) {
         reply_err_return(ret);
     }
@@ -67,6 +68,7 @@ int proc_hdel(NetworkServer *net, Link *link, const Request &req, Response *resp
 
     int deleted = 0;
     int ret = serv->ssdb->hdel(key, fields, &deleted);
+    check_key(ret);
     if (ret < 0) {
         reply_err_return(ret);
     }
@@ -92,6 +94,7 @@ int proc_hmget(NetworkServer *net, Link *link, const Request &req, Response *res
     }
 
     int ret = serv->ssdb->hmget(name, reqKeys, resMap);
+    check_key(ret);
     if (ret == 1) {
         resp->reply_list_ready();
 
@@ -124,6 +127,7 @@ int proc_hsize(NetworkServer *net, Link *link, const Request &req, Response *res
 
     uint64_t size = 0;
     int ret = serv->ssdb->hsize(req[1], &size);
+    check_key(ret);
     if (ret < 0) {
         reply_err_return(ret);
     } else {
@@ -139,7 +143,7 @@ int proc_hset(NetworkServer *net, Link *link, const Request &req, Response *resp
 
     int added = 0;
     int ret = serv->ssdb->hset(req[1], req[2], req[3], &added);
-
+    check_key(ret);
     if (ret < 0) {
         reply_err_return(ret);
     } else if (ret == 0) {
@@ -157,7 +161,7 @@ int proc_hsetnx(NetworkServer *net, Link *link, const Request &req, Response *re
 
     int added = 0;
     int ret = serv->ssdb->hsetnx(req[1], req[2], req[3], &added);
-
+    check_key(ret);
     if (ret < 0) {
         reply_err_return(ret);
     } else if (ret == 0) {
@@ -176,7 +180,7 @@ int proc_hget(NetworkServer *net, Link *link, const Request &req, Response *resp
 
     std::pair<std::string, bool> val;
     int ret = serv->ssdb->hget(req[1], req[2], val);
-
+    check_key(ret);
     if (ret < 0) {
         reply_err_return(ret);
     } else {
@@ -198,7 +202,7 @@ int proc_hgetall(NetworkServer *net, Link *link, const Request &req, Response *r
 
     std::map<std::string, std::string> resMap;
     int ret = serv->ssdb->hgetall(req[1], resMap);
-
+    check_key(ret);
     if (ret < 0) {
         reply_err_return(ret);
     } else if (ret == 0) {
@@ -254,6 +258,7 @@ int proc_hscan(NetworkServer *net, Link *link, const Request &req, Response *res
     resp->reply_scan_ready();
 
     int ret = serv->ssdb->hscan(req[1], cursor, pattern, limit, resp->resp);
+    check_key(ret);
     if (ret < 0) {
         resp->resp.clear();
         reply_err_return(ret);
@@ -272,7 +277,7 @@ int proc_hkeys(NetworkServer *net, Link *link, const Request &req, Response *res
 
     std::map<std::string, std::string> resMap;
     int ret = serv->ssdb->hgetall(req[1], resMap);
-
+    check_key(ret);
     if (ret < 0) {
         reply_err_return(ret);
     } else if (ret == 0) {
@@ -301,7 +306,7 @@ int proc_hvals(NetworkServer *net, Link *link, const Request &req, Response *res
 
     std::map<std::string, std::string> resMap;
     int ret = serv->ssdb->hgetall(req[1], resMap);
-
+    check_key(ret);
     if (ret < 0) {
         reply_err_return(ret);
     } else if (ret == 0) {
@@ -332,6 +337,7 @@ int proc_hincrbyfloat(NetworkServer *net, Link *link, const Request &req, Respon
 
     long double new_val;
     int ret = serv->ssdb->hincrbyfloat(req[1], req[2], by, &new_val);
+    check_key(ret);
     if (ret < 0) {
         reply_err_return(ret);
     } else {
@@ -353,6 +359,7 @@ int proc_hincr(NetworkServer *net, Link *link, const Request &req, Response *res
 
     int64_t new_val = 0;
     int ret = serv->ssdb->hincr(req[1], req[2], by, &new_val);
+    check_key(ret);
     if (ret < 0) {
         reply_err_return(ret);
     } else {

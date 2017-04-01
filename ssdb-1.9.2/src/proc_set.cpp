@@ -18,7 +18,7 @@ int proc_sadd(NetworkServer *net, Link *link, const Request &req, Response *resp
     int64_t num = 0;
 
     int ret = serv->ssdb->sadd(name, mem_set, &num);
-
+    check_key(ret);
     if (ret < 0) {
         reply_err_return(ret);
     } else {
@@ -38,7 +38,7 @@ int proc_srem(NetworkServer *net, Link *link, const Request &req, Response *resp
     int64_t num = 0;
 
     int ret = serv->ssdb->srem(name, req, &num);
-
+    check_key(ret);
     if (ret < 0) {
         reply_err_return(ret);
     } else {
@@ -55,6 +55,7 @@ int proc_scard(NetworkServer *net, Link *link, const Request &req, Response *res
     uint64_t len = 0;
 
     int ret = serv->ssdb->scard(req[1], &len);
+    check_key(ret);
     if (ret < 0) {
         reply_err_return(ret);
     } else {
@@ -71,7 +72,7 @@ int proc_sismember(NetworkServer *net, Link *link, const Request &req, Response 
 
     bool ismember = false;
     int ret = serv->ssdb->sismember(req[1], req[2], &ismember);
-
+    check_key(ret);
     if (ret < 0) {
         reply_err_return(ret);
     } else if (ret == 0) {
@@ -90,7 +91,7 @@ int proc_smembers(NetworkServer *net, Link *link, const Request &req, Response *
     resp->reply_list_ready();
 
     int ret = serv->ssdb->smembers(req[1],  resp->resp);
-
+    check_key(ret);
     if (ret < 0){
         resp->resp.clear();
         reply_err_return(ret);
@@ -115,7 +116,7 @@ int proc_spop(NetworkServer *net, Link *link, const Request &req, Response *resp
     resp->reply_list_ready();
 
     int ret = serv->ssdb->spop(req[1], resp->resp, pop_count);
-
+    check_key(ret);
     if (ret < 0){
         resp->resp.clear();
         reply_err_return(ret);
@@ -141,7 +142,7 @@ int proc_srandmember(NetworkServer *net, Link *link, const Request &req, Respons
     resp->reply_list_ready();
 
     int ret = serv->ssdb->srandmember(req[1], resp->resp, count);
-
+    check_key(ret);
     if (ret < 0){
         resp->resp.clear();
         reply_err_return(ret);
@@ -187,6 +188,7 @@ int proc_sscan(NetworkServer *net, Link *link, const Request &req, Response *res
     resp->reply_scan_ready();
 
     int ret =  serv->ssdb->sscan(req[1], cursor, pattern, limit, resp->resp);
+    check_key(ret);
     if (ret < 0) {
         resp->resp.clear();
         reply_err_return(ret);

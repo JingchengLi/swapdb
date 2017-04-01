@@ -428,12 +428,12 @@ int proc_restore(NetworkServer *net, Link *link, const Request &req, Response *r
 	if (ret > 0 && ttl > 0) {
 		Locking<Mutex> l(&serv->ssdb->expiration->mutex);
 		ret = serv->ssdb->expiration->expire(req[1], ttl, TimeUnit::Millisecond);
-		if (ret < 0) {
+    if (ret < 0) {
 			serv->ssdb->del(req[1]);
 		}
 	}
 
-	if (ret < 0) {
+    if (ret < 0) {
 		log_error("%s : %s", hexmem(req[1].data(),req[1].size()).c_str(), hexmem(req[3].data(),req[3].size()).c_str());
 		reply_err_return(ret);
 	} else {
@@ -453,6 +453,7 @@ int proc_dump(NetworkServer *net, Link *link, const Request &req, Response *resp
 	int ret = serv->ssdb->dump(req[1], &val);
 	PTE(dump, req[1].String())
 
+	check_key(ret);
 	resp->reply_get(ret, &val);
 	return 0;
 }
