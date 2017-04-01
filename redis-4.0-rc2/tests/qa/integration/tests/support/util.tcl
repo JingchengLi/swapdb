@@ -468,6 +468,52 @@ proc wait_for_transfer_limit {flag {level 0}} {
     }
 }
 
+# num: populate different nums in redis or ssdb, unlimited when == -1
+proc populate_diff_keys {r2 r1 num {flag redis}} {
+    if {$flag == "ssdb"} {
+        $r1 select 16
+        $r2 select 16
+    }
+    set list1 [lsort [$r1 keys *]]
+    set list2 [lsort [$r2 keys *]]
+    if {$flag == "ssdb"} {
+        $r1 select 0
+        $r2 select 0
+    }
+    set len1 [llength $list1]
+    set len2 [llength $list2]
+    set diff {}
+    set i 0
+    set j 0
+    while {$i < $len1 && $j < $len2 && $num != 0} {
+        if {[ string compare [lindex $list1 $i] [lindex $list2 $j] ] == -1} {
+            lappend diff [lindex $list1 $i]
+            incr num -1
+            incr i
+        } elseif {[ string compare [lindex $list1 $i] [lindex $list2 $j] ] == 1} {
+            lappend diff [lindex $list2 $j]
+            incr num -1
+            incr j
+        } else {
+            incr i
+            incr j
+        }
+    }
+
+    while {$i < $len1 && $num !=0} {
+        lappend diff [lindex $list1 $i]
+        incr num -1
+        incr i
+    }
+
+    while {$j < $len2 && $num !=0} {
+        lappend diff [lindex $list2 $j]
+        incr num -1
+        incr j
+    }
+    return $diff
+}
+
 proc debug_digest {r {level 0}} {
     set oldmemory [lindex [$r $level config get maxmemory] 1 ]
     $r $level config set maxmemory 0

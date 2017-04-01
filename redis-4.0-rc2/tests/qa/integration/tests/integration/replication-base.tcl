@@ -48,7 +48,7 @@ start_server {tags {"repl"}} {
         test {SET on the master should immediately propagate} {
             r -1 set mykey2 bar
 
-            wait_for_condition 500 100 {
+            wait_for_condition 10 100 {
                 [r 0 get mykey2] eq {bar}
             } else {
                 fail "SET on master did not propagated on slave"

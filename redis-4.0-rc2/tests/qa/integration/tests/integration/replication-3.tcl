@@ -1,6 +1,6 @@
 start_server {tags {"repl"}} {
     start_server {} {
-        test {MASTER and SLAVE consistency with singel key expire} {
+        test {MASTER and SLAVE consistency with single key expire} {
             r -1 slaveof [srv 0 host] [srv 0 port]
             wait_for_condition 50 100 {
                 [s -1 master_link_status] eq {up}
