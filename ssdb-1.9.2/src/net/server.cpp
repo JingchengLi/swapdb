@@ -271,6 +271,10 @@ void NetworkServer::serve(){
 	fdes->set(this->reader->fd(), FDEVENT_IN, 0, this->reader);
 	fdes->set(this->writer->fd(), FDEVENT_IN, 0, this->writer);
 	fdes->set(this->redis->fd(), FDEVENT_IN, 0, this->redis);
+	{
+		SSDBServer *serv = (SSDBServer *)(this->data);
+		fdes->set(serv->fds[0], FDEVENT_IN, 160, NULL);
+	}
 
 	uint32_t status_ticks = g_ticks;
 	uint32_t cursor_ticks = g_ticks;
@@ -422,7 +426,32 @@ void NetworkServer::serve(){
                     delete link;
                     continue;
                 }
-            } else{
+            } else if (fde->data.num == 160){
+				char buf[1] = {0};
+				int n = ::read(serv->fds[0], buf, 1);
+				if(n < 0){
+					if(errno == EINTR){
+						continue;
+					}else{
+						log_error("");
+						continue;
+					}
+				}else if(n == 0){
+					log_error("");
+					continue;
+				}
+				serv->mutex_finish.lock();
+				Slave_info slave = serv->slave_finish.front();
+				serv->slave_finish.pop();
+				serv->mutex_finish.unlock();
+				std::vector<std::string> response;
+				response.push_back("ok");
+				response.push_back("rr_transfer_snapshot finished");
+				if (slave.master_link != NULL){
+					slave.master_link->send(response);
+					slave.master_link->write();
+				}
+			} else{
 				proc_client_event(fde, &ready_list);
 			}
 		}

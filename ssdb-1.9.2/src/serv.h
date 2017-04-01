@@ -48,10 +48,13 @@ public:
 
     std::queue<Slave_info>  slave_infos;
     pthread_mutex_t         mutex;
+	std::queue<Slave_info>  slave_finish;
+	Mutex                   mutex_finish;
 	const leveldb::Snapshot* snapshot;
 	enum Replic_state 		ReplicState;
 	int 					nStartRepliNum;
 	int 					nFinishPeplicNum;
+	int 					fds[2];
 
 	SSDBServer(SSDB *ssdb, SSDB *meta, const Config &conf, NetworkServer *net);
 	~SSDBServer();

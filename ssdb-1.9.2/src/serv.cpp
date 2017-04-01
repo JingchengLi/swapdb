@@ -297,6 +297,10 @@ SSDBServer::SSDBServer(SSDB *ssdb, SSDB *meta, const Config &conf, NetworkServer
     ReplicState       = REPLIC_START;
     nStartRepliNum    = 0;
     nFinishPeplicNum  = 0;
+	if(pipe(fds) == -1){
+		fprintf(stderr, "create pipe error\n");
+		exit(0);
+	}
 
 	{
 		const Config *upstream_conf = conf.get("upstream");
@@ -319,6 +323,8 @@ SSDBServer::~SSDBServer(){
 	if (snapshot != nullptr) {
 		ssdb->ReleaseSnapshot(snapshot);
 	}
+	close(fds[0]);
+	close(fds[1]);
 
 	log_debug("SSDBServer finalized");
 }
@@ -775,22 +781,27 @@ void* thread_replic(void *arg){
 	link->read();
 	delete link;
 
-    if (slave.master_link != NULL){
-        std::vector<std::string> response;
-        response.push_back("ok");
-        response.push_back("rr_transfer_snapshot finished");
-        slave.master_link->send(response);
-        slave.master_link->flush();
-		log_debug("send rr_transfer_snapshot finished!!");
-    }
-	log_debug("replic procedure finish!");
-
     pthread_mutex_lock(&serv->mutex);
     serv->nFinishPeplicNum++;
     if (serv->nFinishPeplicNum == serv->nStartRepliNum){
         serv->ReplicState = REPLIC_END;
     }
     pthread_mutex_unlock(&serv->mutex);
+
+	if (slave.master_link != NULL){
+		serv->mutex_finish.lock();
+		serv->slave_finish.push(slave);
+		serv->mutex_finish.unlock();
+		int len = ::write(serv->fds[1], "s", 1);
+		if (len == -1){
+			fprintf(stderr, "write fds error\n");
+			exit(0);
+		}
+		log_debug("send rr_transfer_snapshot finished!!");
+	} else{
+		log_debug("error:master_link is NULL");
+	}
+	log_debug("replic procedure finish!");
 
     return (void *)NULL;
 }
