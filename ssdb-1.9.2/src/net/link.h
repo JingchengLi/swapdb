@@ -23,6 +23,8 @@ class Link{
 		bool error_;
 		std::vector<Bytes> recv_data;
 	public:
+		bool append_reply;
+
 		const static int MAX_PACKET_SIZE = 128 * 1024 * 1024;
 
 		char remote_ip[INET_ADDRSTRLEN];
@@ -88,6 +90,7 @@ class Link{
 		int send(const Bytes &s1, const Bytes &s2, const Bytes &s3);
 		int send(const Bytes &s1, const Bytes &s2, const Bytes &s3, const Bytes &s4);
 		int send(const Bytes &s1, const Bytes &s2, const Bytes &s3, const Bytes &s4, const Bytes &s5);
+		int send_append_res(const std::vector<std::string> &packet);
 
 		const std::vector<Bytes>* last_recv(){
 			return &recv_data;

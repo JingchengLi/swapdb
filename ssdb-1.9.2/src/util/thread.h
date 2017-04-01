@@ -259,6 +259,32 @@ private:
     void operator=(const RecordLock&);
 };
 
+template <typename T>
+class RecordLocks {
+public:
+	RecordLocks(RecordMutex<T> *mu)
+            : mu_(mu) {
+    }
+    ~RecordLocks() {
+		for (int i = 0; i < keys_.size(); ++i) {
+			mu_->Unlock(keys_[i]);
+		}
+	}
+
+	void Lock(const std::string& key_) {
+		mu_->Lock(key_);
+		keys_.push_back(key_);
+	};
+
+private:
+    RecordMutex<T> *const mu_;
+    std::vector<std::string> keys_;
+
+    // No copying allowed
+	RecordLocks(const RecordLocks&);
+    void operator=(const RecordLocks&);
+};
+
 /*
 class Semaphore {
 	private:

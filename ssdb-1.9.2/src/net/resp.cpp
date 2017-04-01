@@ -151,3 +151,15 @@ void Response::reply_scan_ready() {
 void Response::reply_list_ready() {
 	resp.push_back("ok");
 }
+
+std::vector<std::string> Response::get_append_array() {
+	std::vector<std::string> vec;
+
+	if (checkKey) {
+		vec.push_back("check 1");
+	} else {
+		vec.push_back("check 0");
+	}
+
+	return vec;
+}

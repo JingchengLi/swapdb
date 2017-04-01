@@ -585,6 +585,27 @@ const std::vector<Bytes>* RedisLink::recv_req(Buffer *input){
 	return &recv_bytes;
 }
 
+int RedisLink::send_append_resp(Buffer *output, const std::vector<std::string> &resp_append){
+	if(resp_append.empty()){
+		return 0;
+	}
+
+	char buf[32];
+	snprintf(buf, sizeof(buf), "*%d\r\n", (int) resp_append.size());
+ 	output->append(buf);
+
+	for(int i=0; i<resp_append.size(); i++){
+		const std::string &val = resp_append[i];
+		char buf[32];
+		snprintf(buf, sizeof(buf), "$%d\r\n", (int)val.size());
+		output->append(buf);
+		output->append(val.data(), val.size());
+		output->append("\r\n");
+	}
+
+	return 0;
+}
+
 int RedisLink::send_resp(Buffer *output, const std::vector<std::string> &resp){
 	if(resp.empty()){
 		return 0;

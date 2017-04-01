@@ -29,6 +29,7 @@ int ProcWorker::proc(ProcJob *job){
 		//todo 将req中的命令和参数保存值buffer中，待全量复制结束时发送值从ssdb
 //	}
 
+
 	if(job->link->send(job->resp.resp) == -1){
 
 		log_debug("job->link->send error");
@@ -36,7 +37,16 @@ int ProcWorker::proc(ProcJob *job){
 		return 0;
 	}
 
+
 	//todo append custom reply
+	if (job->link->append_reply) {
+		if(job->link->send_append_res(job->resp.get_append_array()) == -1){
+
+			log_debug("job->link->send_append_res error");
+			job->result = PROC_ERROR;
+			return 0;
+		}
+	}
 
 	int len = job->link->write();
 	if(len < 0){

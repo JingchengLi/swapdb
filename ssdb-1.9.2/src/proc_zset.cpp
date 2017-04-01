@@ -290,6 +290,7 @@ static int _zrangebyscore(SSDB *ssdb, const Request &req, Response *resp, int re
     } else{
         ret = ssdb->zrangebyscore(req[1], req[2], req[3], resp->resp, withscores, offset, limit);
     }
+    check_key(ret);
     if (ret < 0){
         resp->resp.clear();
         reply_err_return(ret);
@@ -373,6 +374,7 @@ static int _zincr(SSDB *ssdb, Link *link, const Request &req, Response *resp, in
 
     double new_val = 0;
     int ret = ssdb->zincr(req[1], req[2], dir * score, flags, &new_val);
+    check_key(ret);
     if (ret < 0){
         reply_err_return(ret);
     }
@@ -497,6 +499,7 @@ static int _zrangebylex(SSDB *ssdb, const Request &req, Response *resp, enum DIR
     } else{
         ret = ssdb->zrangebylex(req[1], req[2], req[3], resp->resp, offset, limit);
     }
+    check_key(ret);
     if (ret < 0){
         resp->resp.clear();
         reply_err_return(ret);

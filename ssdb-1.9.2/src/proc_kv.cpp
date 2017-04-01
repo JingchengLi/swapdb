@@ -400,7 +400,15 @@ int proc_multi_del(NetworkServer *net, Link *link, const Request &req, Response 
 	CHECK_NUM_PARAMS(2);
 
 	Locking<Mutex> l(&serv->ssdb->expiration->mutex);
-	int ret = serv->ssdb->multi_del(req, 1);
+
+	std::set<Bytes> distinct_keys;
+	std::vector<Bytes>::const_iterator it;
+	it = req.begin() + 1;
+	for(; it != req.end(); ++it){
+		distinct_keys.insert(*it);
+	}
+
+	int ret = serv->ssdb->multi_del(distinct_keys);
 	if(ret < 0){
 		reply_err_return(ret);
 	} else{

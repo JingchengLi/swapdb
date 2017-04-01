@@ -17,6 +17,8 @@ found in the LICENSE file.
 
 
 Link::Link(bool is_server) {
+    append_reply = false;
+
     redis = NULL;
 
     sock = -1;
@@ -438,6 +440,17 @@ const std::vector<Bytes> *Link::recv() {
     // not ready
     this->recv_data.clear();
     return &this->recv_data;
+}
+
+int Link::send_append_res(const std::vector<std::string> &resp) {
+    if (resp.empty()) {
+        return 0;
+    }
+    // Redis protocol supports
+    if (this->redis) {
+        return this->redis->send_append_resp(this->output, resp);
+    }
+    return 0;
 }
 
 int Link::send(const std::vector<std::string> &resp) {

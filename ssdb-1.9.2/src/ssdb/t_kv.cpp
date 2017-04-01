@@ -92,6 +92,9 @@ int SSDBImpl::multi_set(const std::vector<Bytes> &kvs, int offset){
 	leveldb::WriteBatch batch;
 	std::set<Bytes> lock_key;
 	std::set<Bytes>::const_iterator iter;
+
+    RecordLocks<Mutex> l(&mutex_record_);
+
     leveldb::Status s;
     int rval = 0;
 
@@ -101,7 +104,7 @@ int SSDBImpl::multi_set(const std::vector<Bytes> &kvs, int offset){
 		const Bytes &key = *it;
 		const Bytes &val = *(it + 1);
         if (lock_key.find(key) == lock_key.end()){
-            mutex_record_.Lock(key.String());
+            l.Lock(key.String());
             lock_key.insert(key);
             rval++;
         }
@@ -109,53 +112,37 @@ int SSDBImpl::multi_set(const std::vector<Bytes> &kvs, int offset){
         int added = 0;
 		int ret = SetGeneric(batch, key, val, OBJ_SET_NO_FLAGS, 0, &added);
 		if (ret < 0){
-			rval = ret;
-			goto return_err;
+            return ret;
 		}
 	}
 	s = ldb->Write(leveldb::WriteOptions(), &(batch));
 	if(!s.ok()){
 		log_error("multi_set error: %s", s.ToString().c_str());
-		rval = STORAGE_ERR;
-		goto return_err;
+        return STORAGE_ERR;
 	}
 
-return_err:
-	iter = lock_key.begin();
-	for (; iter != lock_key.end(); ++iter){
-		const Bytes &key = *iter;
-		mutex_record_.Unlock(key.String());
-	}
 	return rval;
 }
 
 //TODO return value fix
-int SSDBImpl::multi_del(const std::vector<Bytes> &keys, int offset){ //注：redis中不支持该接口
+int SSDBImpl::multi_del(const std::set<Bytes> &distinct_keys){ //注：redis中不支持该接口
 	leveldb::WriteBatch batch;
-	std::vector<Bytes> lock_key;
-	std::vector<Bytes>::const_iterator iter;
-    std::set<Bytes>     distinct_keys;
 
+    RecordLocks<Mutex> l(&mutex_record_);
     int num = 0;
-	std::vector<Bytes>::const_iterator it;
-	it = keys.begin() + offset;
-    for(; it != keys.end(); ++it){
-        distinct_keys.insert(*it);
-    }
+
     std::set<Bytes>::const_iterator itor = distinct_keys.begin();
 	for(; itor != distinct_keys.end(); itor++){
 		const Bytes &key = *itor;
-		mutex_record_.Lock(key.String());
-		lock_key.push_back(key);
+        l.Lock(key.String());
 		std::string meta_key = encode_meta_key(key);
 		std::string meta_val;
 		leveldb::Status s = ldb->Get(leveldb::ReadOptions(), meta_key, &meta_val);
 		if (s.IsNotFound()){
 			continue;
 		} else if (!s.ok()){
-			num = -1;
-			goto return_err;
-		} else{
+            return STORAGE_ERR;
+        } else{
 			if (meta_val.size() >= 4 ){
 				if (meta_val[POS_DEL] == KEY_ENABLED_MASK){
 					meta_val[POS_DEL] = KEY_DELETE_MASK;
@@ -170,8 +157,7 @@ int SSDBImpl::multi_del(const std::vector<Bytes> &keys, int offset){ //注：red
 					continue;
 				}
 			} else{
-				num = -1;
-				goto return_err;
+                return -1;
 			}
 		}
 	}
@@ -181,13 +167,6 @@ int SSDBImpl::multi_del(const std::vector<Bytes> &keys, int offset){ //注：red
 			log_error("multi_del error: %s", s.ToString().c_str());
 			num = STORAGE_ERR;
 		}
-	}
-
-return_err:
-	iter = lock_key.begin();
-	for (; iter != lock_key.end(); ++iter){
-		const Bytes &key = *iter;
-		mutex_record_.Unlock(key.String());
 	}
 
 	return num;
@@ -210,7 +189,7 @@ int SSDBImpl::setNoLock(const Bytes &key, const Bytes &val, int flags, int *adde
         }
     }
 
-    return ret;
+    return 1;
 }
 
 int SSDBImpl::set(const Bytes &key, const Bytes &val, int flags, int *added) {

@@ -339,7 +339,7 @@ void NetworkServer::serve(){
 			if(fde->data.ptr == serv_link){
 				Link *link = accept_link(serv_link);
 				if(link){
-					this->link_count ++;				
+					this->link_count ++;
 					log_debug("new link from %s:%d, fd: %d, links: %d",
 						link->remote_ip, link->remote_port, link->fd(), this->link_count);
 					fdes->set(link->fd(), FDEVENT_IN, 1, link);
@@ -349,6 +349,7 @@ void NetworkServer::serve(){
 			}else if(fde->data.ptr == serv_socket){
 				Link *link = accept_link(serv_socket);
 				if(link){
+                    link->append_reply = true;
 					this->link_count ++;
 					log_debug("new link from %s:%d, fd: %d, links: %d",
 							  link->remote_ip, link->remote_port, link->fd(), this->link_count);
@@ -687,13 +688,20 @@ int NetworkServer::proc(ProcJob *job){
 		job->result = (*p)(this, job->link, *req, &job->resp);
 		job->time_proc = 1000 * (millitime() - job->stime) - job->time_wait;
 	}while(0);
-	
+
 	if(job->link->send(job->resp.resp) == -1){
 		log_debug("job->link->send error");
 		job->result = PROC_ERROR;
 		return job->result;
 	}
-	//todo append custom reply
+
+//	if (job->link->append_reply) {
+//		if(job->link->send_append_res(job->resp.get_append_array()) == -1){
+//			log_debug("job->link->send_append_res error");
+//			job->result = PROC_ERROR;
+//			return job->result;
+//		}
+//	}
 
 	return job->result;
 }

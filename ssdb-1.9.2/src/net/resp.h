@@ -29,6 +29,8 @@ public:
 
 	void mark_check();
 
+	std::vector<std::string> get_append_array();
+
 	int size() const;
 	void push_back(const std::string &s);
 	void add(int s);
