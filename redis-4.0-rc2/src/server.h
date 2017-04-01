@@ -77,9 +77,12 @@ typedef long long mstime_t; /* millisecond time type. */
 #define C_OK                    0
 #define C_ERR                   -1
 #define C_FD_ERR                -2
+#define C_NOTSUPPORT_ERR        -3
+#define C_ANOTHER_FLUSHALL_ERR    -4
 
 /* replication flags in jdjr_mode */
 #define SSDB_CLIENT_KEEP_REPLY (1<<0)
+#define SSDB_FLUSHDB_WAIT_REPLY (1<<1)
 
 /* Default max argc of cmds sended to SSDB. */
 #define SSDB_CMD_DEFAULT_MAX_ARGC 10
@@ -89,6 +92,9 @@ typedef long long mstime_t; /* millisecond time type. */
 /* is_allow_ssdb_write codes */
 #define ALLOW_SSDB_WRITE 1
 #define DISALLOW_SSDB_WRITE 0
+
+#define PROHIBIT_SSDB_READ_WRITE 1
+#define NO_PROHIBIT_SSDB_READ_WRITE 0
 
 /* Static server configuration */
 #define CONFIG_DEFAULT_HZ        10      /* Time interrupt calls/sec. */
@@ -273,7 +279,9 @@ typedef long long mstime_t; /* millisecond time type. */
 #define BLOCKED_SSDB_LOADING_OR_TRANSFER 10 /* Blocked when loading a key becomes hot in SSDB
                                     * or transferring a key becomes cold to SSDB. */
 #define BLOCKED_VISITING_SSDB 11   /* Client is visiting SSDB. */
+#define BLOCKED_BY_FLUSHALL 12
 #define BLOCKED_NO_WRITE_TO_SSDB 13 /* Client is blocked as during the process of psync. */
+#define BLOCKED_NO_READ_WRITE_TO_SSDB 14 /* Client is blocked by ssdb flushall. */
 
 
 /* Client request types */
@@ -325,15 +333,17 @@ typedef long long mstime_t; /* millisecond time type. */
 /* Use by server.ssdb_status(master) and client.ssdb_status(slave). */
 #define SSDB_NONE 0
 /* Master state of SSDB. */
-#define MASTER_SSDB_SNAPSHOT_CHECK_WRITE 1
-#define MASTER_SSDB_SNAPSHOT_PRE 2
-#define MASTER_SSDB_SNAPSHOT_OK 3
+#define MASTER_SSDB_SNAPSHOT_WAIT_FLUSHALL 1
+#define MASTER_SSDB_SNAPSHOT_CHECK_WRITE 2
+#define MASTER_SSDB_SNAPSHOT_PRE 3
+#define MASTER_SSDB_SNAPSHOT_OK 4
 
 /* Slave state of SSDB. */
-#define SLAVE_SSDB_SNAPSHOT_IN_PROCESS 4
-#define SLAVE_SSDB_SNAPSHOT_TRANSFER_PRE 5
-#define SLAVE_SSDB_SNAPSHOT_TRANSFER_START 6
-#define SLAVE_SSDB_SNAPSHOT_TRANSFER_END 7
+#define SLAVE_SSDB_SNAPSHOT_WAIT_FLUSHALL 5
+#define SLAVE_SSDB_SNAPSHOT_IN_PROCESS 6
+#define SLAVE_SSDB_SNAPSHOT_TRANSFER_PRE 7
+#define SLAVE_SSDB_SNAPSHOT_TRANSFER_START 8
+#define SLAVE_SSDB_SNAPSHOT_TRANSFER_END 9
 
 
 /* Slave capabilities. */
@@ -633,10 +643,11 @@ typedef struct redisDb {
     dict *expires;              /* Timeout of keys with a timeout set */
     dict *blocking_keys;        /* Keys with clients waiting for data (BLPOP)*/
     dict *ready_keys;           /* Blocked keys that received a PUSH */
+    dict *watched_keys;         /* WATCHED keys for MULTI/EXEC CAS */
+
     dict *ssdb_blocking_keys;   /* For jdjr_mode: Keys in loading/tranferring state
                                    from/to SSDB. */
     dict *ssdb_ready_keys;      /* For jdjr_mode: Blocked keys that ssdb load/transfer ok. */
-    dict *watched_keys;         /* WATCHED keys for MULTI/EXEC CAS */
     dict *transferring_keys;    /* Keys are in the process of transferring keys to SSDB. */
     dict *loading_hot_keys;     /* keys become hot and in loading state from SSDB. */
     dict *visiting_ssdb_keys;   /* Keys are visiting SSDB, including reading and writing. */
@@ -806,7 +817,8 @@ struct sharedObjectsStruct {
     /* jdjr-mdoe shared sds. */
     sds checkwriteok, checkwritenok, makesnapshotok, makesnapshotnok,
         transfersnapshotok, transfersnapshotnok, transfersnapshotfinished,
-        transfersnapshotunfinished, delsnapshotok, delsnapshotnok;
+        transfersnapshotunfinished, delsnapshotok, delsnapshotnok,
+        flushcheckok, flushchecknok, flushdoneok, flushdonenok;
 };
 
 /* ZSETs use a specialized version of Skiplists */
@@ -1252,14 +1264,23 @@ struct redisServer {
     /* Record the number of keys in the process of evicting to SSDB. */
     long long evicting_keys_num;
 
+    int is_doing_flushall;
+    client* current_flushall_client;
+    int prohibit_ssdb_read_write;
+    list *ssdb_flushall_blocked_clients;
+    /* Check unprocessed read/write ops with SSDB when process flushall/flushdb. */
+    int flush_check_unresponse_num;
+    time_t flush_check_begin_time;
+
     /* Forbbid sending the writing cmds to SSDB. */
     int is_allow_ssdb_write;
     list *no_writing_ssdb_blocked_clients;
+
     int ssdb_status;
     time_t check_write_begin_time;
     /* Calculate the num of unresponsed clients. */
     int check_write_unresponse_num;
-    int special_clients_num;
+
     char **ssdbargv;
     size_t *ssdbargvlen;
     list *loadAndEvictCmdList;
@@ -1458,6 +1479,7 @@ int sendCommandToSSDB(client *c, sds finalcmd);
 sds composeRedisCmd(int argc, const char **argv, const size_t *argvlen);
 int nonBlockConnectToSsdbServer(client *c);
 void sendCheckWriteCommandToSSDB(aeEventLoop *el, int fd, void *privdata, int mask);
+void sendFlushCheckCommandToSSDB(aeEventLoop *el, int fd, void *privdata, int mask);
 void unlinkClient(client *c);
 int writeToClient(int fd, client *c, int handler_installed);
 
@@ -1680,12 +1702,17 @@ int zslLexValueLteMax(sds value, zlexrangespec *spec);
 /* Core functions */
 int freeMemoryIfNeeded(void);
 
-void blockForLoadingkey(client *c, robj **keys, int numkeys, mstime_t timeout);
+void prepareSSDBflush(client* c);
+void cleanKeysToLoadAndEvict();
+void cleanLoadingOrTransferringKeys();
+void emptyEvictionPool();
 void signalBlockingKeyAsReady(redisDb *db, robj* key);
 int blockForLoadingkeys(client *c, robj **keys, int numkeys, mstime_t timeout);
 void handleClientsBlockedOnSSDB(void);
 void handleClientsBlockedOnCustomizedPsync(void);
+void handleClientsBlockedOnFlushall(void);
 void handleLoadAndEvictCmdInSlave(void);
+void prepareSSDBreplication(client* slave);
 int tryEvictingKeysToSSDB(int *mem_tofree);
 size_t objectComputeSize(robj *o, size_t sample_size);
 size_t estimateKeyMemoryUsage(dictEntry *de);
@@ -1889,7 +1916,7 @@ void disconnectAllBlockedClients(void);
 /* expire.c -- Handling of expired keys */
 void activeExpireCycle(int type);
 /* expire.c -- Handling of evicting keys to SSDB. */
-int epilogOfEvictingToSSDB(robj *keyobj, long long *usage);
+int epilogOfEvictingToSSDB(robj *keyobj);
 void expireSlaveKeys(void);
 void rememberSlaveKeyWithExpire(redisDb *db, robj *key);
 void flushSlaveKeysWithExpireList(void);

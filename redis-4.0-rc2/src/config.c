@@ -863,7 +863,6 @@ void configSetCommand(client *c) {
         if (getLongLongFromObject(o,&ll) == C_ERR || ll < 1) goto badfmt;
 
         /* Try to check if the OS is capable of supporting so many FDs. */
-        ll += server.jdjr_mode ? server.special_clients_num : 0;
         server.maxclients = ll;
 
         if (ll > orig_value) {

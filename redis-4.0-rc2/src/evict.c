@@ -149,6 +149,29 @@ void evictionPoolAlloc(void) {
     }
 }
 
+void emptyEvictionPool() {
+    int j;
+    struct evictionPoolEntry *ep;
+    ep = EvictionPoolLRU;
+    for (j = 0; j < EVPOOL_SIZE; j++) {
+        ep[j].idle = 0;
+        if (ep[j].key != NULL && ep[j].key != ep[j].cached) {
+            sdsfree(ep[j].key);
+        }
+        ep[j].key = NULL;
+        ep[j].dbid = 0;
+    }
+    ep = ColdKeyPool;
+    for (j = 0; j < EVPOOL_SIZE; j++) {
+        ep[j].idle = 0;
+        if (ep[j].key != NULL && ep[j].key != ep[j].cached) {
+            sdsfree(ep[j].key);
+        }
+        ep[j].key = NULL;
+        ep[j].dbid = 0;
+    }
+}
+
 //todo 添加配置参数
 #define COLD_KEY_LFU_VAL (255-LFU_INIT_VAL+1)
 void coldKeyPopulate(int dbid, dict *sampledict, dict *keydict, struct evictionPoolEntry *pool) {
@@ -482,17 +505,18 @@ void cleanupEpilogOfEvicting(redisDb *db, robj *keyobj) {
     signalBlockingKeyAsReady(db, keyobj);
 }
 
-int epilogOfEvictingToSSDB(robj *keyobj, long long *usage) {
+int epilogOfEvictingToSSDB(robj *keyobj) {
     redisDb *evicteddb = server.db + EVICTED_DATA_DBID, *db;
     mstime_t eviction_latency;
+    long long usage;
     robj *usage_obj;
     dictEntry *de, *ev_de;
     long long now = mstime(), expiretime;
     /* TODO: clean up getTransferringDB. */
     int dbid = 0;
-    int slaves = listLength(server.slaves);
     sds db_key, evdb_key;
     unsigned int lfu;
+    robj* tmpargv[3];
 
     db = server.db + dbid;
     expiretime = getExpire(db, keyobj);
@@ -516,10 +540,9 @@ int epilogOfEvictingToSSDB(robj *keyobj, long long *usage) {
 
     /* Record the evicted keys in an extra redis db. */
     /* TODO: isolate the mem usage ??? */
-    if (usage) *usage = 0;/* (long long)estimateKeyMemoryUsage(de); */
-    usage_obj = createStringObjectFromLongLong(usage ? *usage : 0);
+    usage = (long long)estimateKeyMemoryUsage(de);
+    usage_obj = createStringObjectFromLongLong(usage);
     setKey(evicteddb, keyobj, usage_obj);
-    decrRefCount(usage_obj);
 
     /* save lfu info when transfer. */
     db_key = dictGetKey(de);
@@ -533,15 +556,32 @@ int epilogOfEvictingToSSDB(robj *keyobj, long long *usage) {
 
     notifyKeyspaceEvent(NOTIFY_STRING,"set",keyobj,evicteddb->id);
 
-    // todo: fix ttl/exists/... commands
+    /* propagate storetossdb command to slaves. */
+    tmpargv[0] = shared.storecmdobj;
+    tmpargv[1] = keyobj;
+    propagate(lookupCommand(shared.storecmdobj->ptr), db->id, tmpargv, 2, PROPAGATE_REPL);
 
-    /* remove expire info from evictdb keys when transfer key to ssdb
-     * for an issue caused by hdel like commands which may implicitly
-     * del the key, redis may expire a key by mistake. */
+    /* propagate aof to del key from redis db.*/
+    robj* delCmdObj = createStringObject("del",3);
+    tmpargv[0] = delCmdObj;
+    tmpargv[1] = keyobj;
+    propagate(lookupCommandByCString((char*)"del"),db->id, tmpargv, 2, PROPAGATE_AOF);
+    decrRefCount(delCmdObj);
+
+    /* propage aof to set key in evict db. */
+    robj* setCmdObj = createStringObject("set",3);
+    tmpargv[0] = setCmdObj;
+    tmpargv[1] = keyobj;
+    tmpargv[2] = usage_obj;
+    propagate(lookupCommandByCString((char*)"set"),EVICTED_DATA_DBID, tmpargv, 3, PROPAGATE_AOF);
+    decrRefCount(setCmdObj);
+
+    decrRefCount(usage_obj);
 
     /* Record the expire info. */
     if (expiretime > 0) {
         char llbuf[LONG_STR_SIZE];
+
         setExpire(NULL, evicteddb, keyobj, expiretime);
         ll2string(llbuf, sizeof(llbuf), expiretime);
         notifyKeyspaceEvent(NOTIFY_GENERIC,
@@ -550,13 +590,14 @@ int epilogOfEvictingToSSDB(robj *keyobj, long long *usage) {
         robj *llbufobj = createObject(OBJ_STRING, (void *)(sdsnew(llbuf)));
         sds cmdname = sdsnew("expire");
         robj *expirecmd = createObject(OBJ_STRING, (void *)cmdname);
-        robj *expireArgv[3] = {expirecmd, keyobj, llbufobj};
+        tmpargv[0] = expirecmd;
+        tmpargv[1] = keyobj;
+        tmpargv[2] = llbufobj;
 
-        propagate(lookupCommand(cmdname), EVICTED_DATA_DBID, expireArgv, 3,
-                  PROPAGATE_AOF | PROPAGATE_REPL);
+        /* propage aof to set expire info in evict db. */
+        propagate(lookupCommand(cmdname), EVICTED_DATA_DBID, tmpargv, 3, PROPAGATE_AOF);
 
         decrRefCount(expirecmd);
-        serverLog(LL_DEBUG, "Appending expire operation to aof.");
         decrRefCount(llbufobj);
     }
 
@@ -591,7 +632,7 @@ int epilogOfEvictingToSSDB(robj *keyobj, long long *usage) {
      * start spending so much time here that is impossible to
      * deliver data to the slaves fast enough, so we force the
      * transmission here inside the loop. */
-    if (slaves) flushSlavesOutputBuffers();
+    if (listLength(server.slaves)) flushSlavesOutputBuffers();
 
     server.evicting_keys_num --;
 
@@ -814,6 +855,9 @@ int freeMemoryIfNeeded(void) {
     /* Check if we are still over the memory limit. */
     if (mem_used <= server.maxmemory) return C_OK;
 
+    /* todo: clean keys in evict db first if memory reach the max
+     * value and memory policy allow keys evict. */
+
     // todo: remove below commented codes
     /* review by lijingcheng: we shoudn't prohibit memory data eviction even if in
      * jdjr_mode, this is due to maxmory policy specified by our users. */
@@ -866,7 +910,7 @@ int freeMemoryIfNeeded(void) {
                  TODO: to be determined if it is allowed to evict data in jdjr-mode. */
                 if (server.jdjr_mode
                     && total_keys <= dictSize(EVICTED_DATA_DB->transferring_keys))
-                  break;
+                    break;
 
                 /* Go backward from best to worst element to evict. */
                 for (k = EVPOOL_SIZE-1; k >= 0; k--) {

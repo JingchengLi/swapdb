@@ -1043,8 +1043,7 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
         run_with_period(5000) {
             serverLog(LL_VERBOSE,
                 "%lu clients connected (%lu slaves), %zu bytes in use",
-                      listLength(server.clients)-listLength(server.slaves)
-                      - (server.jdjr_mode ? server.special_clients_num : 0),
+                      listLength(server.clients)-listLength(server.slaves),
                 listLength(server.slaves),
                 zmalloc_used_memory());
             if (server.jdjr_mode)
@@ -1057,6 +1056,20 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
 
     /* Handle background operations on Redis databases. */
     databasesCron();
+
+    if (server.jdjr_mode) {
+        /* check operations before flushall/flushdb is timeout.*/
+        if (server.flush_check_begin_time != -1 && server.unixtime - server.flush_check_begin_time > 5) {
+            server.flush_check_begin_time = -1;
+            server.flush_check_unresponse_num = -1;
+            server.prohibit_ssdb_read_write = NO_PROHIBIT_SSDB_READ_WRITE;
+            server.is_doing_flushall = 0;
+
+            handleClientsBlockedOnFlushall();
+            /* just disconnected the timeout client doing flushall. */
+            if (server.current_flushall_client) freeClient(server.current_flushall_client);
+        }
+    }
 
     /* Start a scheduled AOF rewrite if this was requested by the user while
      * a BGSAVE was in progress. */
@@ -1242,7 +1255,8 @@ void startToEvictIfNeeded() {
         return;
     }
 
-    if (server.is_allow_ssdb_write == DISALLOW_SSDB_WRITE)
+    if (server.is_allow_ssdb_write == DISALLOW_SSDB_WRITE ||
+        server.prohibit_ssdb_read_write == PROHIBIT_SSDB_READ_WRITE)
         return;
 
     transfer_lower_threshold = 1.0 * server.ssdb_transfer_lower_limit/100;
@@ -1257,6 +1271,7 @@ void startToEvictIfNeeded() {
         }
     }
 }
+
 
 #define RESERVED_MEMORY_WHEN_LOAD (1024*1024*2)
 void startToLoadIfNeeded() {
@@ -1275,7 +1290,8 @@ void startToLoadIfNeeded() {
         return;
     }
 
-    if (server.is_allow_ssdb_write == DISALLOW_SSDB_WRITE)
+    if (server.is_allow_ssdb_write == DISALLOW_SSDB_WRITE ||
+        server.prohibit_ssdb_read_write == PROHIBIT_SSDB_READ_WRITE)
         return;
 
     listRewind(server.hot_keys, &li);
@@ -1326,6 +1342,25 @@ void startToLoadIfNeeded() {
 
     listRelease(server.hot_keys);
     server.hot_keys = tmp;
+}
+
+void cleanKeysToLoadAndEvict() {
+    listIter li;
+    listNode *ln;
+
+    /* clean server.loadAndEvictCmdDict. */
+    dictEmpty(server.loadAndEvictCmdDict, NULL);
+
+    /* clean server.loadAndEvictCmdList */
+    listRewind(server.loadAndEvictCmdList, &li);
+    while((ln = listNext(&li))) {
+        listDelNode(server.loadAndEvictCmdList, ln);
+    }
+
+    /* clean server.hot_keys */
+    listRelease(server.hot_keys);
+    server.hot_keys = listCreate();
+    listSetFreeMethod(server.hot_keys, (void (*)(void*))decrRefCount);
 }
 
 
@@ -1561,6 +1596,10 @@ void createSharedObjects(void) {
     if (server.jdjr_mode) {
         shared.checkwriteok = sdsnew("rr_check_write ok");
         shared.checkwritenok = sdsnew("rr_check_write nok");
+        shared.flushcheckok = sdsnew("rr_flushall_check ok");
+        shared.flushchecknok = sdsnew("rr_flushall_check nok");
+        shared.flushdoneok = sdsnew("rr_do_flushall ok");
+        shared.flushdonenok = sdsnew("rr_do_flushall nok");
         shared.makesnapshotok = sdsnew("rr_make_snapshot ok");
         shared.makesnapshotnok = sdsnew("rr_make_snapshot nok");
         shared.transfersnapshotok = sdsnew("rr_transfer_snapshot ok");
@@ -2051,8 +2090,6 @@ void initServer(void) {
     server.el = aeCreateEventLoop(server.maxclients+CONFIG_FDSET_INCR);
     server.db = zmalloc(sizeof(redisDb)* server.dbnum);
 
-    if (server.jdjr_mode) server.special_clients_num = 0;
-
     /* Open the TCP listening socket for the user commands. */
     if (server.port != 0 &&
         listenToPort(server.port,server.ipfd,&server.ipfd_count) == C_ERR)
@@ -2095,7 +2132,7 @@ void initServer(void) {
         exit(1);
     }
 
-
+    /*
     if (server.jdjr_mode && server.special_clients_num) {
         server.maxclients += server.special_clients_num;
         adjustOpenFilesLimit();
@@ -2109,6 +2146,7 @@ void initServer(void) {
             }
         }
     }
+     */
 
     /* Abort if there are no listening sockets at all. */
     if (server.ipfd_count == 0 && server.sofd < 0) {
@@ -2235,6 +2273,13 @@ void initServer(void) {
         server.ssdbargvlen = zmalloc(sizeof(size_t) * SSDB_CMD_DEFAULT_MAX_ARGC);
         server.loadAndEvictCmdList = listCreate();
         listSetFreeMethod(server.loadAndEvictCmdList, (void (*)(void*))freeMultiCmd);
+
+        server.is_doing_flushall = 0;
+        server.current_flushall_client = NULL;
+        server.prohibit_ssdb_read_write = NO_PROHIBIT_SSDB_READ_WRITE;
+        server.ssdb_flushall_blocked_clients = listCreate();
+        server.flush_check_unresponse_num = -1;
+        server.flush_check_begin_time = -1;
     }
 }
 
@@ -2623,15 +2668,14 @@ int checkKeysInMediateState(client* c) {
     return C_OK;
 }
 
-int processCommandMaybeFlushdb(client *c, int old_bufpos) {
-    sds finalcmd = NULL;
-
+int processCommandMaybeFlushdb(client *c) {
     if ((c->cmd->proc == flushallCommand
          || c->cmd->proc == flushdbCommand)) {
-        finalcmd = sdsnew("*1\r\n$7\r\nflushdb\r\n");
-
-        if (sendCommandToSSDB(c, finalcmd) == C_OK) {
-            c->bufpos = old_bufpos;
+        /* only allow one flushall task running. */
+        if (server.is_doing_flushall) {
+            return C_ANOTHER_FLUSHALL_ERR;
+        } else {
+            prepareSSDBflush(c);
             return C_OK;
         }
     }
@@ -2661,9 +2705,10 @@ void addVisitingSSDBKey(client *c, sds *keysds) {
 /* Process keys may be in SSDB, only handle the command jdjr_mode supported.
  The rest cases will be handled by processCommand. */
 int processCommandMaybeInSSDB(client *c) {
-    if ( !c->cmd ||
-         !((c->cmd->flags & (CMD_READONLY | CMD_WRITE)) && (c->cmd->flags & CMD_JDJR_MODE)) )
+    if ( !c->cmd || !(c->cmd->flags & (CMD_READONLY | CMD_WRITE)) )
         return C_ERR;
+    if (!(c->cmd->flags & CMD_JDJR_MODE))
+        return C_NOTSUPPORT_ERR;
     if (c->argc <= 1 || !dictFind(EVICTED_DATA_DB->dict, c->argv[1]->ptr))
         return C_ERR;
 
@@ -2692,6 +2737,16 @@ int processCommandMaybeInSSDB(client *c) {
         /* TODO: use a suitable timeout. */
         c->bpop.timeout = 5000 + mstime();
         blockClient(c, BLOCKED_NO_WRITE_TO_SSDB);
+
+        return C_OK;
+    }
+
+    if ((server.prohibit_ssdb_read_write == PROHIBIT_SSDB_READ_WRITE)
+        && (c->cmd->flags & (CMD_WRITE | CMD_READONLY)) && (c->cmd->flags & CMD_JDJR_MODE)) {
+        listAddNodeTail(server.ssdb_flushall_blocked_clients, c);
+         /* TODO: use a suitable timeout. */
+        c->bpop.timeout = 5000 + mstime();
+        blockClient(c, BLOCKED_NO_READ_WRITE_TO_SSDB);
 
         return C_OK;
     }
@@ -2753,20 +2808,115 @@ int processCommandMaybeInSSDB(client *c) {
     return C_ERR;
 }
 
-int runCommand(client *c, int* need_return) {
-    int bufpos = c->bufpos;
+void cleanLoadingOrTransferringKeys() {
+    dictEntry *de;
+    dictIterator *di;
 
+    /* signal and unblock clients blocked by all loading/transferring keys. */
+    di = dictGetIterator(server.db[EVICTED_DATA_DBID].transferring_keys);
+    while((de = dictNext(di)) != NULL) {
+        robj *key = dictGetKey(de);
+
+        signalBlockingKeyAsReady(&server.db[0], key);
+    }
+    di = dictGetIterator(server.db[EVICTED_DATA_DBID].loading_hot_keys);
+    while((de = dictNext(di)) != NULL) {
+        robj *key = dictGetKey(de);
+
+        signalBlockingKeyAsReady(&server.db[0], key);
+    }
+    handleClientsBlockedOnSSDB();
+
+    server.evicting_keys_num = 0;
+
+    dictEmpty(server.db[EVICTED_DATA_DBID].transferring_keys, NULL);
+    dictEmpty(server.db[EVICTED_DATA_DBID].loading_hot_keys, NULL);
+    dictEmpty(server.db[EVICTED_DATA_DBID].delete_confirm_keys, NULL);
+}
+
+void prepareSSDBflush(client* c) {
+    listIter li;
+    listNode *ln;
+    client *lc;
+
+    /* STEP 1: clean all intermediate state keys, avoid to cause unexpected issues. */
+
+    /* just free server.ssdb_client to discard unprocessed transferring/loading keys.*/
+    freeClient(server.ssdb_client);
+
+    /* clean transferring_keys/loading_hot_keys dicts. */
+    cleanLoadingOrTransferringKeys();
+
+    emptyEvictionPool();
+
+    cleanKeysToLoadAndEvict();
+
+    server.is_doing_flushall = 1;
+
+    /* save the client doing flushall. */
+    server.current_flushall_client = c;
+
+    //todo: reconnect server.ssdb_client and prohibit to load/transfer keys.
+
+    /* STEP 2: send flushall/flushdb check commands for all connections. */
+    server.flush_check_unresponse_num = listLength(server.clients) - listLength(server.slaves);
+
+    /* process timeout case in serverCron. */
+    server.flush_check_begin_time = server.unixtime;
+    server.prohibit_ssdb_read_write = PROHIBIT_SSDB_READ_WRITE;
+
+    listRewind(server.clients, &li);
+    while ((ln = listNext(&li)) != NULL) {
+        lc = listNodeValue(ln);
+
+        if (server.master && lc == server.master) {
+            /* for slave, we don't send flush check to its master. */
+            server.flush_check_unresponse_num -= 1;
+            continue;
+        }
+
+        if (isSpecialConnection(lc)) continue;
+
+        if (lc->flags & CLIENT_SLAVE) continue;
+
+        if (aeCreateFileEvent(server.el, lc->fd, AE_WRITABLE,
+                              sendFlushCheckCommandToSSDB, lc) == AE_ERR) {
+            /* just free disconnected client and ignore it. */
+            freeClientAsync(lc);
+            server.check_write_unresponse_num -= 1;
+        }
+    }
+}
+
+int runCommand(client *c, int* need_return) {
     /* Exec the command */
-    if (server.jdjr_mode
-        && processCommandMaybeInSSDB(c) == C_OK) {
-        /* The client will be reseted in sendCommandToSSDB if C_FD_ERR
-           is returned in sendCommandToSSDB.
-           Otherwise, return C_ERR to avoid calling resetClient,
-           the resetClient is delayed to ssdbClientUnixHandler. */
-        serverLog(LL_DEBUG, "processing %s, fd: %d in ssdb: %s, argc: %d",
-                  c->cmd->name, c->fd, (char *)c->argv[1]->ptr, c->argc);
+    if (server.jdjr_mode) {
         if (need_return) *need_return = 1;
-        return C_ERR;
+        int ret = processCommandMaybeInSSDB(c);
+        if (ret == C_OK) {
+            /* The client will be reseted in sendCommandToSSDB if C_FD_ERR
+              is returned in sendCommandToSSDB.
+              Otherwise, return C_ERR to avoid calling resetClient,
+              the resetClient is delayed to ssdbClientUnixHandler. */
+            serverLog(LL_DEBUG, "processing %s, fd: %d in ssdb: %s",
+                      c->cmd->name, c->fd, (char *)c->argv[1]->ptr);
+            return C_ERR;
+        } else if (ret == C_NOTSUPPORT_ERR) {
+            addReplyErrorFormat(c, "don't support this command in jdjr mode:%s.", c->cmd->name);
+            return C_OK;
+        }
+
+        ret = processCommandMaybeFlushdb(c);
+        if (C_OK == ret) {
+            /* don't need a timeout, will process timeout case in serverCron. */
+            blockClient(c, BLOCKED_BY_FLUSHALL);
+            if (need_return) *need_return = 1;
+            return C_ERR;
+        } else if (C_ANOTHER_FLUSHALL_ERR == ret) {
+            addReplyError(c, "there is already another flushll task processing!");
+            if (need_return) *need_return = 1;
+            return C_OK;
+        }
     }
 
     if (c->flags & CLIENT_MULTI &&
@@ -2784,14 +2934,6 @@ int runCommand(client *c, int* need_return) {
 
     serverLog(LL_DEBUG, "processing %s, fd: %d in redis: %s, dbid: %d, argc: %d",
               c->cmd->name, c->fd, c->argc > 1 ? (char *)c->argv[1]->ptr : "", c->db->id, c->argc);
-
-    if (server.jdjr_mode
-        && processCommandMaybeFlushdb(c, bufpos) == C_OK) {
-        /* TODO: use a suitable timeout. */
-        c->bpop.timeout = 5000 + mstime();
-        blockClient(c, BLOCKED_VISITING_SSDB);
-        return C_ERR;
-    }
 
     return C_OK;
 }
@@ -2815,6 +2957,9 @@ void handleCustomizedBlockedClients() {
     if ((server.is_allow_ssdb_write == ALLOW_SSDB_WRITE)
         && listLength(server.no_writing_ssdb_blocked_clients))
         handleClientsBlockedOnCustomizedPsync();
+    if ((server.prohibit_ssdb_read_write == NO_PROHIBIT_SSDB_READ_WRITE)
+        && listLength(server.ssdb_flushall_blocked_clients))
+        handleClientsBlockedOnFlushall();
 }
 
 /* If this function gets called we already read a whole

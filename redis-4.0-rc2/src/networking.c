@@ -738,6 +738,21 @@ int sendCommandToSSDB(client *c, sds finalcmd) {
     return C_OK;
 }
 
+void sendFlushCheckCommandToSSDB(aeEventLoop *el, int fd, void *privdata, int mask) {
+    client *c = (client *)privdata;
+    UNUSED(mask);
+    UNUSED(el);
+    UNUSED(fd);
+
+    sds finalcmd = sdsnew("*1\r\n$14\r\nrr_flushall_check\r\n");
+    if (sendCommandToSSDB(c, finalcmd) != C_OK) {
+        server.flush_check_unresponse_num -= 1;
+    } else {
+        c->replication_flags |= SSDB_FLUSHDB_WAIT_REPLY;
+        aeDeleteFileEvent(server.el, c->fd, AE_WRITABLE);
+    }
+}
+
 void sendCheckWriteCommandToSSDB(aeEventLoop *el, int fd, void *privdata, int mask) {
     client *c = (client *)privdata;
     UNUSED(mask);
@@ -876,6 +891,94 @@ void acceptUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
     }
 }
 
+void handleClientsBlockedOnFlushall(void) {
+    listIter li;
+    listNode *ln;
+
+    listRewind(server.ssdb_flushall_blocked_clients, &li);
+    while((ln = listNext(&li))) {
+        client *c = listNodeValue(ln);
+        listDelNode(server.ssdb_flushall_blocked_clients, ln);
+
+        unblockClient(c);
+
+        if (runCommand(c, NULL) == C_OK)
+            resetClient(c);
+    }
+}
+
+int handleResponseOfSSDBflushDone(client *c, sds replyString) {
+    int process_status;
+    UNUSED(c);
+
+    sdstolower(replyString);
+    if (!sdscmp(replyString, shared.flushdoneok)) {
+        /* unblock the client doing flushall and do flushall in redis. */
+        unblockClient(server.current_flushall_client);
+        if (runCommand(server.current_flushall_client, NULL) == C_OK)
+            resetClient(server.current_flushall_client);
+
+        /* allow read/write operations to ssdb. */
+        server.prohibit_ssdb_read_write = NO_PROHIBIT_SSDB_READ_WRITE;
+        server.is_doing_flushall = 0;
+        server.current_flushall_client = NULL;
+
+        handleClientsBlockedOnFlushall();
+
+        process_status = C_OK;
+    } else if (!sdscmp(replyString, shared.flushdonenok)) {
+        unblockClient(server.current_flushall_client);
+        addReplyError(server.current_flushall_client, "do ssdb flushall failed!");
+        resetClient(server.current_flushall_client);
+
+        /* allow read/write operations to ssdb. */
+        server.prohibit_ssdb_read_write = NO_PROHIBIT_SSDB_READ_WRITE;
+        server.is_doing_flushall = 0;
+        server.current_flushall_client = NULL;
+
+        handleClientsBlockedOnFlushall();
+
+        process_status = C_OK;
+    } else
+        process_status = C_ERR;
+
+    return process_status;
+}
+
+int handleResponseOfFlushCheck(client *c, sds replyString) {
+    int process_status;
+    UNUSED(c);
+
+    sdstolower(replyString);
+    if (!sdscmp(replyString, shared.flushcheckok)) {
+        server.flush_check_unresponse_num -= 1;
+        if (server.flush_check_unresponse_num == 0) {
+            server.flush_check_begin_time = -1;
+            server.flush_check_unresponse_num = -1;
+
+            sds finalcmd = sdsnew("*1\r\n$16\r\nrr_do_flushall\r\n");
+            if (!server.current_flushall_client ||
+                sendCommandToSSDB(server.current_flushall_client, finalcmd) != C_OK) {
+                /* set to 0 so flush check will be timeout. exception case
+                 * of flush check will be processed in serverCron.*/
+                server.flush_check_begin_time = 0;
+                serverLog(LL_WARNING, "Sending rr_do_flushall to SSDB failed.");
+            } else {
+                serverLog(LL_DEBUG, "Sending rr_do_flushall to SSDB success.");
+            }
+        }
+        process_status = C_OK;
+    } else if (!sdscmp(replyString, shared.flushchecknok)){
+        /* set to 0 so flush check will be timeout. exception case
+         * of flush check will be processed in serverCron.*/
+        server.flush_check_begin_time = 0;
+        process_status = C_OK;
+    } else
+        process_status = C_ERR;
+
+    return process_status;
+}
+
 int handleResponseOfCheckWrite(client *c, sds replyString) {
     int process_status;
     UNUSED(c);
@@ -896,7 +999,7 @@ int handleResponseOfCheckWrite(client *c, sds replyString) {
                 /* TODO: set server.ssdb_replication_client to null and reconnect */
                 serverLog(LL_WARNING, "Sending rr_make_snapshot to SSDB failed.");
             } else {
-                serverLog(LL_WARNING, "Sending rr_make_snapshot to SSDB sucess.");
+                serverLog(LL_DEBUG, "Sending rr_make_snapshot to SSDB sucess.");
                 server.ssdb_replication_client->replication_flags |= SSDB_CLIENT_KEEP_REPLY;
             }
         }
@@ -911,11 +1014,12 @@ int handleResponseOfCheckWrite(client *c, sds replyString) {
     } else
         process_status = C_ERR;
 
+    // todo : remove SSDB_CLIENT_KEEP_REPLY flag
     c->replication_flags &= ~SSDB_CLIENT_KEEP_REPLY;
     serverLog(LL_DEBUG, "Handle rr_check_write fd: %d, counter: %d", c->fd, server.check_write_unresponse_num);
 
     return process_status;
- }
+}
 
 int handleResponseOfPsync(client *c, sds replyString) {
     int process_status;
@@ -1179,6 +1283,7 @@ void handleSSDBReply(client *c) {
 
     /* Handle the response of rr_check_write. */
     if (server.ssdb_status == MASTER_SSDB_SNAPSHOT_CHECK_WRITE
+        && !isSpecialConnection(c)
         && (c->replication_flags & SSDB_CLIENT_KEEP_REPLY)
         && (reply && reply->type == REDIS_REPLY_STRING)
         && (replyString = sdsnew(reply->str))
@@ -1316,13 +1421,9 @@ int createClientForReplicate() {
     }
 
     if (nonBlockConnectToSsdbServer(server.ssdb_replication_client) == C_OK) {
-        // todo review
-        server.ssdb_replication_client->fd = server.ssdb_replication_client->context->fd;
-        listAddNodeTail(server.clients, server.ssdb_replication_client);
+        /* do nothing */
     } else
         return C_ERR;
-
-    server.special_clients_num ++;
 
     serverLog(LL_NOTICE, "Create SSDB replication socket success.");
     return C_OK;
@@ -1339,12 +1440,9 @@ int createFakeClientForLoadAndEvict() {
     }
 
     if (nonBlockConnectToSsdbServer(server.slave_ssdb_load_evict_client) == C_OK) {
-        server.slave_ssdb_load_evict_client->fd = server.slave_ssdb_load_evict_client->context->fd;
-        listAddNodeTail(server.clients, server.slave_ssdb_load_evict_client);
+        /* do nothing */
     } else
         return C_ERR;
-
-    server.special_clients_num ++;
 
     serverLog(LL_NOTICE, "Create SSDB loadAndEvict socket success.");
     return C_OK;
@@ -1384,13 +1482,9 @@ int createClientForEvicting() {
     }
 
     if (nonBlockConnectToSsdbServer(server.ssdb_client) == C_OK) {
-        // todo review
-        server.ssdb_client->fd = server.ssdb_client->context->fd;
-        listAddNodeTail(server.clients, server.ssdb_client);
+        /* do nothing */
     } else
         return C_ERR;
-
-    server.special_clients_num ++;
 
     serverLog(LL_NOTICE, "Connecting to SSDB Unix socket success.");
     return C_OK;
@@ -1443,12 +1537,11 @@ void unlinkClient(client *c) {
             robj *keyobj;
             list *l;
 
-            ln = listSearchKey(server.no_writing_ssdb_blocked_clients, c);
+            ln = listSearchKey(server.ssdb_flushall_blocked_clients, c);
+            if (ln) listDelNode(server.ssdb_flushall_blocked_clients, ln);
 
-            if (ln) {
-                listDelNode(server.no_writing_ssdb_blocked_clients, ln);
-                serverLog(LL_DEBUG, "client: %ld is deleted from server.no_writing_ssdb_blocked_clients", (long )c);
-            }
+            ln = listSearchKey(server.no_writing_ssdb_blocked_clients, c);
+            if (ln) listDelNode(server.no_writing_ssdb_blocked_clients, ln);
 
             listRewind(server.clients, &li);
             while((ln = listNext(&li))) {
@@ -1507,6 +1600,10 @@ void resetSpecialCient(client *c) {
 
     if (c == server.slave_ssdb_load_evict_client)
         server.slave_ssdb_load_evict_client = NULL;
+
+    /* this is a normal client doing flushall. */
+    if (c == server.current_flushall_client)
+        server.current_flushall_client = NULL;
 }
 
 void freeClient(client *c) {
@@ -2236,9 +2333,6 @@ sds getAllClientsInfoString(void) {
     listRewind(server.clients,&li);
     while ((ln = listNext(&li)) != NULL) {
         client = listNodeValue(ln);
-
-        if (server.jdjr_mode && isSpecialConnection(client))
-            continue;
 
         o = catClientInfoString(o,client);
         o = sdscatlen(o,"\n",1);

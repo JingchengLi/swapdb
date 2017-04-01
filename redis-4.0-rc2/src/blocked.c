@@ -139,6 +139,8 @@ void unblockClient(client *c) {
         unblockClientFromModule(c);
     } else if (server.jdjr_mode
                && (c->btype == BLOCKED_SSDB_LOADING_OR_TRANSFER
+                   || c->btype == BLOCKED_BY_FLUSHALL
+                   || c->btype == BLOCKED_NO_READ_WRITE_TO_SSDB
                    || c->btype == BLOCKED_NO_WRITE_TO_SSDB)) {
         /* Doing nothing. */
     } else if (server.jdjr_mode && c->btype == BLOCKED_VISITING_SSDB) {

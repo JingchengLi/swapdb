@@ -4636,40 +4636,22 @@ void ssdbRespDelCommand(client *c) {
     }
 
     for (j = 1; j < c->argc; j ++) {
-        long long usage;
-        robj* tmpargv[3];
         keyobj = c->argv[j];
 
-        /* propagate storetossdb command to slaves. */
-        tmpargv[0] = shared.storecmdobj;
-        tmpargv[1] = keyobj;
-        propagate(lookupCommand(shared.storecmdobj->ptr), c->db->id, tmpargv, 2, PROPAGATE_REPL);
-
-        if (epilogOfEvictingToSSDB(keyobj, &usage) == C_OK) {
-            robj* delCmdObj = createStringObject("del",3);
-            tmpargv[0] = delCmdObj;
-            tmpargv[1] = keyobj;
-
-            /* propagate aof to del key from redis db.*/
-            propagate(lookupCommandByCString((char*)"del"),c->db->id, tmpargv, 2, PROPAGATE_AOF);
-            decrRefCount(delCmdObj);
-
-            serverLog(LL_DEBUG, "ssdbRespDelCommand fd:%d key: %s dictDelete ok.",
-                      c->fd, (char *)keyobj->ptr);
-            numdel ++;
-
-            /* propage aof to set key in evict db. */
-            robj* setCmdObj = createStringObject("set",3);
-            robj* usage_obj = createStringObjectFromLongLong(usage);
-            tmpargv[0] = setCmdObj;
-            tmpargv[1] = keyobj;
-            tmpargv[2] = usage_obj;
-            propagate(lookupCommandByCString((char*)"set"),EVICTED_DATA_DBID, tmpargv, 3, PROPAGATE_AOF);
-            decrRefCount(setCmdObj);
-            decrRefCount(usage_obj);
-        } else
-            serverLog(LL_WARNING, "ssdbRespDelCommand fd:%d key: %s dictDelete nok.",
-                      c->fd, (char *)keyobj->ptr);
+        if (NULL == dictFind(EVICTED_DATA_DB->transferring_keys, keyobj->ptr) &&
+            NULL == dictFind(c->db->ssdb_blocking_keys, keyobj)) {
+            /* flushall/flushdb can cause this key to be deleted from transferring_keys. */
+        } else {
+            if (epilogOfEvictingToSSDB(keyobj) == C_OK) {
+                serverLog(LL_DEBUG, "ssdbRespDelCommand fd:%d key: %s dictDelete ok.",
+                          c->fd, (char *)keyobj->ptr);
+                numdel ++;
+            } else {
+                /* the key is deleted when transfer is on-going.*/
+                serverLog(LL_DEBUG, "ssdbRespDelCommand fd:%d key: %s is deleted when process transferring.",
+                          c->fd, (char *)keyobj->ptr);
+            }
+        }
     }
     addReplyLongLong(c, numdel);
 }
@@ -4689,64 +4671,68 @@ void ssdbRespRestoreCommand(client *c) {
         return;
     }
 
-    restoreCommand(c);
+    if (NULL == dictFind(EVICTED_DATA_DB->loading_hot_keys, key->ptr) &&
+        NULL == dictFind(c->db->ssdb_blocking_keys, key)) {
+        /* flushall/flushdb can cause this key to be deleted from loading_hot_keys. */
+    } else {
+        restoreCommand(c);
 
-    if (server.load_from_ssdb) {
-        /* Restart redis will lose data in loading_hot_keys. */
-        if (dictDelete(EVICTED_DATA_DB->loading_hot_keys,
-                       key->ptr) == DICT_OK)
-            serverLog(LL_DEBUG, "key: %s is deleted from loading_hot_keys.", (char *)key->ptr);
-        else {
-            serverLog(LL_WARNING, "key: %s failed to be deleted from loading_hot_keys.",
-                      (char *)key->ptr);
-            signalBlockingKeyAsReady(c->db, key);
-            return;
+        if (server.load_from_ssdb) {
+            /* Restart redis will lose data in loading_hot_keys. */
+            if (dictDelete(EVICTED_DATA_DB->loading_hot_keys,
+                           key->ptr) == DICT_OK)
+                serverLog(LL_DEBUG, "key: %s is deleted from loading_hot_keys.", (char *)key->ptr);
+            else {
+                serverLog(LL_WARNING, "key: %s failed to be deleted from loading_hot_keys.",
+                          (char *)key->ptr);
+                signalBlockingKeyAsReady(c->db, key);
+                return;
+            }
+
         }
+
+        /* Delete key from EVICTED_DATA_DB if restoreCommand is OK. */
+        if (server.dirty == old_dirty + 1) {
+            dictEntry* ev_de = dictFind(EVICTED_DATA_DB->dict, c->argv[1]->ptr);
+            dictEntry* de = dictFind(c->db->dict, c->argv[1]->ptr);
+            robj* tmpargv[2];
+
+            /* copy lfu info when load ssdb key to redis.*/
+            sds evdb_key = dictGetKey(ev_de);
+            unsigned int lfu = sdsgetlfu(evdb_key);
+            sds db_key = dictGetKey(de);
+            sdssetlfu(db_key, lfu);
+
+            if (getExpire(EVICTED_DATA_DB, key) != -1)
+                dictDelete(EVICTED_DATA_DB->expires, key->ptr);
+            dictDelete(EVICTED_DATA_DB->dict, key->ptr);
+
+            /* propagate aof */
+            robj** restore_argv = zmalloc(c->argc * sizeof(robj*));
+            restore_argv[0] = createStringObject("restore", strlen("restore"));
+            memcpy(restore_argv+1,c->argv+1,(c->argc-1) * sizeof(robj*));
+
+            propagate(lookupCommandByCString((char*)"restore"),c->db->id,restore_argv,c->argc,PROPAGATE_AOF);
+            decrRefCount(restore_argv[0]);
+            zfree(restore_argv);
+
+            robj* delCmdObj = createStringObject("del",3);
+            tmpargv[0] = delCmdObj;
+            tmpargv[1] = key;
+            propagate(lookupCommandByCString((char*)"del"),EVICTED_DATA_DBID,tmpargv,2,PROPAGATE_AOF);
+            decrRefCount(delCmdObj);
+
+            // progate dumpfromssdb to slaves
+            robj *argv[2] = {shared.dumpcmdobj, key};
+            propagate(lookupCommand(shared.dumpcmdobj->ptr), c->db->id, argv, 2, PROPAGATE_REPL);
+            serverLog(LL_DEBUG, "ssdbRespRestoreCommand succeed.");
+        } else
+            serverLog(LL_WARNING, "ssdbRespRestoreCommand failed.");
+
+        /* Queue the ready key to ssdb_ready_keys. and unblock the
+         * clients blocked by the loading_hot key. */
+        signalBlockingKeyAsReady(c->db, key);
     }
-
-    /* Delete key from EVICTED_DATA_DB if restoreCommand is OK. */
-    if (server.dirty == old_dirty + 1) {
-        dictEntry* ev_de = dictFind(EVICTED_DATA_DB->dict, c->argv[1]->ptr);
-        dictEntry* de = dictFind(c->db->dict, c->argv[1]->ptr);
-        robj* tmpargv[2];
-
-        /* copy lfu info when load ssdb key to redis.*/
-        sds evdb_key = dictGetKey(ev_de);
-        unsigned int lfu = sdsgetlfu(evdb_key);
-        sds db_key = dictGetKey(de);
-        sdssetlfu(db_key, lfu);
-
-        // todo: remove unused codes
-
-        if (getExpire(EVICTED_DATA_DB, key) != -1)
-            dictDelete(EVICTED_DATA_DB->expires, key->ptr);
-        dictDelete(EVICTED_DATA_DB->dict, key->ptr);
-
-        // propagate aof
-        robj** restore_argv = zmalloc(c->argc * sizeof(robj*));
-        restore_argv[0] = createStringObject("restore", strlen("restore"));
-        memcpy(restore_argv+1,c->argv+1,(c->argc-1) * sizeof(robj*));
-
-        propagate(lookupCommandByCString((char*)"restore"),c->db->id,restore_argv,c->argc,PROPAGATE_AOF);
-        decrRefCount(restore_argv[0]);
-        zfree(restore_argv);
-
-        robj* delCmdObj = createStringObject("del",3);
-        tmpargv[0] = delCmdObj;
-        tmpargv[1] = key;
-        propagate(lookupCommandByCString((char*)"del"),EVICTED_DATA_DBID,tmpargv,2,PROPAGATE_AOF);
-        decrRefCount(delCmdObj);
-
-        // progate dumpfromssdb to slaves
-        robj *argv[2] = {shared.dumpcmdobj, key};
-        propagate(lookupCommand(shared.dumpcmdobj->ptr), c->db->id, argv, 2, PROPAGATE_REPL);
-        serverLog(LL_DEBUG, "ssdbRespRestoreCommand succeed.");
-    } else
-        serverLog(LL_WARNING, "ssdbRespRestoreCommand failed.");
-
-    /* Queue the ready key to ssdb_ready_keys. and unblock the
-     * clients blocked by the loading_hot key. */
-    signalBlockingKeyAsReady(c->db, key);
 }
 
 void ssdbRespNotfoundCommand(client *c) {
@@ -4761,28 +4747,33 @@ void ssdbRespNotfoundCommand(client *c) {
     preventCommandPropagation(c);
 
     if (!sdscmp(cmd->ptr, fail_restore)) {
-         if (dictDelete(EVICTED_DATA_DB->loading_hot_keys, keyobj->ptr) == DICT_OK)
-            serverLog(LL_DEBUG, "key: %s is deleted from loading_hot_keys.", (char *)keyobj->ptr);
-         if (getExpire(EVICTED_DATA_DB, keyobj) != -1)
-             dictDelete(EVICTED_DATA_DB->expires, keyobj->ptr);
-         if (dictDelete(EVICTED_DATA_DB->dict, keyobj->ptr) == DICT_OK)
-             serverLog(LL_DEBUG, "key: %s is deleted from EVICTED_DATA_DB->db.", (char *)keyobj->ptr);
+        if (NULL == dictFind(EVICTED_DATA_DB->loading_hot_keys, keyobj->ptr) &&
+            NULL == dictFind(c->db->ssdb_blocking_keys, keyobj)) {
+            /* flushall/flushdb can cause this key to be deleted from loading_hot_keys. */
+        } else {
+            if (dictDelete(EVICTED_DATA_DB->loading_hot_keys, keyobj->ptr) == DICT_OK)
+                serverLog(LL_DEBUG, "key: %s is deleted from loading_hot_keys.", (char *)keyobj->ptr);
+            if (dictDelete(EVICTED_DATA_DB->dict, keyobj->ptr) == DICT_OK)
+                serverLog(LL_DEBUG, "key: %s is deleted from EVICTED_DATA_DB->db.", (char *)keyobj->ptr);
+            if (getExpire(EVICTED_DATA_DB, keyobj) != -1)
+                dictDelete(EVICTED_DATA_DB->expires, keyobj->ptr);
 
-        robj* tmpargv[2];
-        robj* delCmdObj = createStringObject("del",3);
-        tmpargv[0] = delCmdObj;
-        tmpargv[1] = keyobj;
+            robj* tmpargv[2];
+            robj* delCmdObj = createStringObject("del",3);
+            tmpargv[0] = delCmdObj;
+            tmpargv[1] = keyobj;
 
-        //  propagate to delete key in evict db and in slave redis
-        propagate(lookupCommandByCString((char*)"del"),0,tmpargv,2,PROPAGATE_AOF|PROPAGATE_REPL);
-        decrRefCount(tmpargv[0]);
+            /* propagate to delete key in evict db and in slave redis, at slave side, the key is maybe in
+             * redis or ssdb, so we just use db 0 to make sure we can delete it. */
+            propagate(lookupCommandByCString((char*)"del"),0,tmpargv,2,PROPAGATE_AOF|PROPAGATE_REPL);
+            decrRefCount(tmpargv[0]);
+            server.evicting_keys_num --;
 
-        server.evicting_keys_num --;
+            signalBlockingKeyAsReady(c->db, keyobj);
+        }
     } else {
         serverPanic("cmd is not supported.");
     }
-
-    signalBlockingKeyAsReady(c->db, keyobj);
     server.dirty ++;
 
     addReply(c, shared.ok);

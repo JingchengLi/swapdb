@@ -625,6 +625,42 @@ int startBgsaveForReplication(int mincapa) {
     return retval;
 }
 
+void prepareSSDBreplication(client* slave) {
+    listIter li;
+    listNode *ln;
+    client *c;
+
+    serverAssert( (server.ssdb_status == SSDB_NONE && slave->ssdb_status == SSDB_NONE) ||
+                  (server.ssdb_status == MASTER_SSDB_SNAPSHOT_WAIT_FLUSHALL
+                   && slave->ssdb_status == SLAVE_SSDB_SNAPSHOT_WAIT_FLUSHALL));
+
+    slave->ssdb_status = SLAVE_SSDB_SNAPSHOT_IN_PROCESS;
+
+    /* Update the server's status. */
+    server.check_write_unresponse_num = listLength(server.clients);
+    server.ssdb_status = MASTER_SSDB_SNAPSHOT_CHECK_WRITE;
+
+    server.check_write_begin_time = server.unixtime;
+
+    /* Forbbid sending the writing cmds to SSDB. */
+    server.is_allow_ssdb_write = DISALLOW_SSDB_WRITE;
+
+    /* Force all the clients to check the write cmd. */
+    listRewind(server.clients, &li);
+    while ((ln = listNext(&li)) != NULL) {
+        c = listNodeValue(ln);
+
+        if (isSpecialConnection(c)) continue;
+
+        if (aeCreateFileEvent(server.el, c->fd, AE_WRITABLE,
+                              sendCheckWriteCommandToSSDB, c) == AE_ERR) {
+            /* just free disconnected client and ignore it. */
+            freeClientAsync(c);
+            server.check_write_unresponse_num -= 1;
+        }
+    }
+}
+
 /* SYNC and PSYNC command implemenation. */
 void syncCommand(client *c) {
     /* ignore SYNC if already slave or in monitor mode */
@@ -742,31 +778,16 @@ void syncCommand(client *c) {
             client *tc;
 
             serverAssert(server.ssdb_status == SSDB_NONE && c->ssdb_status == SSDB_NONE);
-            c->ssdb_status = SLAVE_SSDB_SNAPSHOT_IN_PROCESS;
-
-            /* Update the server's status. */
-            server.check_write_unresponse_num = listLength(server.clients) - server.special_clients_num;
-            server.ssdb_status = MASTER_SSDB_SNAPSHOT_CHECK_WRITE;
-
-            server.check_write_begin_time = server.unixtime;
-
-            /* Forbbid sending the writing cmds to SSDB. */
-            server.is_allow_ssdb_write = DISALLOW_SSDB_WRITE;
-
-            /* Force all the clients to check the write cmd. */
-            listRewind(server.clients, &li);
-            while ((ln = listNext(&li)) != NULL) {
-                tc = listNodeValue(ln);
-
-                if (isSpecialConnection(tc)) continue;
-
-                if (aeCreateFileEvent(server.el, tc->fd, AE_WRITABLE,
-                                      sendCheckWriteCommandToSSDB, tc) == AE_ERR) {
-                    /* just free disconnected client and ignore it. */
-                    freeClientAsync(tc);
-                    server.check_write_unresponse_num -= 1;
-                }
+            if (server.is_doing_flushall) {
+                /* if redis and ssdb are doing flushall/flushdb, delay the replication
+                 * process to avoid deadlock case because of write check. will do this
+                 * later in replicationCron. */
+                server.ssdb_status = MASTER_SSDB_SNAPSHOT_WAIT_FLUSHALL;
+                c->ssdb_status = SLAVE_SSDB_SNAPSHOT_WAIT_FLUSHALL;
+                return;
             }
+
+            prepareSSDBreplication(c);
             return;
         }
     }
@@ -2682,6 +2703,14 @@ void replicationCron(void) {
             if (write(slave->fd, "\n", 1) == -1) {
                 /* Don't worry about socket errors, it's just a ping. */
             }
+        }
+
+        /* flushall/flushdb is done, and we can begin replication now. */
+        if (!server.is_doing_flushall &&
+            server.ssdb_status == MASTER_SSDB_SNAPSHOT_WAIT_FLUSHALL &&
+            slave->ssdb_status == SLAVE_SSDB_SNAPSHOT_WAIT_FLUSHALL) {
+            prepareSSDBreplication(slave);
+            continue;
         }
 
         if (server.jdjr_mode && server.use_customized_replication
