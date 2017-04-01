@@ -45,9 +45,11 @@ public:
 	void reply_long_double(int status, long double val);
 	void reply_double(int status, double val);
 	void reply_scan_ready();
+	void reply_list_ready();
 	// the same as Redis.REPLY_BULK
 	void reply_get(int status, const std::string *val=NULL, const char *errmsg=NULL);
 
+	void reply_ok();
 };
 
 #endif

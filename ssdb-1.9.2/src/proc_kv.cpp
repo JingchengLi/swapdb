@@ -534,7 +534,7 @@ int proc_ssdb_scan(NetworkServer *net, Link *link, const Request &req, Response 
 	bool fulliter = (pattern == "*");
 
 	auto ssdb_it = std::unique_ptr<Iterator>(serv->ssdb->iterator("", "", -1));
-	resp->push_back("ok");
+	resp->reply_list_ready();
 	while(ssdb_it->next()){
 
 		if (fulliter || stringmatchlen(pattern.data(), pattern.length(), ssdb_it->key().data(), ssdb_it->key().size(), 0)) {
@@ -572,7 +572,7 @@ int proc_keys(NetworkServer *net, Link *link, const Request &req, Response *resp
 	start.append(1, DataType::META);
 
 	auto mit = std::unique_ptr<MIterator>(new MIterator(serv->ssdb->iterator(start, "", -1)));
-    resp->push_back("ok");
+	resp->reply_list_ready();
     while(mit->next()){
 		if (fulliter || stringmatchlen(pattern.data(), pattern.length(), mit->key.data(), mit->key.length(), 0)) {
 			resp->push_back(mit->key);

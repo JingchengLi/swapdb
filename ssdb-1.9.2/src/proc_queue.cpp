@@ -174,7 +174,7 @@ int proc_qslice(NetworkServer *net, Link *link, const Request &req, Response *re
 		reply_err_return(INVALID_INT);
 	}
 
-	resp->push_back("ok");
+	resp->reply_list_ready();
 	int ret = serv->ssdb->lrange(req[1], begin, end, resp->resp);
 	if (ret < 0){
 		resp->resp.clear();
@@ -227,7 +227,7 @@ int proc_qset(NetworkServer *net, Link *link, const Request &req, Response *resp
 		reply_errinfo_return("ERR no such key");
 	} else{
 		//TODO CHECK HERE
-		resp->push_back("ok");
+		resp->reply_ok();
 	}
 	return 0;
 }

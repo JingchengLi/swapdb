@@ -93,7 +93,7 @@ int proc_hmget(NetworkServer *net, Link *link, const Request &req, Response *res
 
     int ret = serv->ssdb->hmget(name, reqKeys, resMap);
     if (ret == 1) {
-        resp->push_back("ok");
+        resp->reply_list_ready();
 
         for (const auto &reqKey : reqKeys) {
 
@@ -108,7 +108,7 @@ int proc_hmget(NetworkServer *net, Link *link, const Request &req, Response *res
         }
 
     } else if (ret == 0) {
-        resp->push_back("ok");
+        resp->reply_list_ready();
 
         //nothing
     } else {
@@ -202,11 +202,11 @@ int proc_hgetall(NetworkServer *net, Link *link, const Request &req, Response *r
     if (ret < 0) {
         reply_err_return(ret);
     } else if (ret == 0) {
-        resp->push_back("ok");
+        resp->reply_list_ready();
 
         //nothing
     } else {
-        resp->push_back("ok");
+        resp->reply_list_ready();
 
         for (const auto &res : resMap) {
             resp->push_back(res.first);
@@ -276,11 +276,11 @@ int proc_hkeys(NetworkServer *net, Link *link, const Request &req, Response *res
     if (ret < 0) {
         reply_err_return(ret);
     } else if (ret == 0) {
-        resp->push_back("ok");
+        resp->reply_list_ready();
 
         //nothing
     } else {
-        resp->push_back("ok");
+        resp->reply_list_ready();
 
         for (const auto &res : resMap) {
             //TODO 这里同时处理了kv 只是没有返回.
@@ -305,11 +305,11 @@ int proc_hvals(NetworkServer *net, Link *link, const Request &req, Response *res
     if (ret < 0) {
         reply_err_return(ret);
     } else if (ret == 0) {
-        resp->push_back("ok");
+        resp->reply_list_ready();
 
         //nothing
     } else {
-        resp->push_back("ok");
+        resp->reply_list_ready();
 
         for (const auto &res : resMap) {
             //TODO 这里同时处理了kv 只是没有返回.

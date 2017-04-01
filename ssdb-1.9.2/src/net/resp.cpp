@@ -54,6 +54,11 @@ void Response::add(const std::string &s){
 }
 
 
+void Response::reply_ok() {
+	resp.push_back("ok");
+}
+
+
 void Response::reply_errror(const std::string &errmsg) {
 	resp.push_back("error");
 	resp.push_back(errmsg);
@@ -141,4 +146,8 @@ void Response::reply_scan_ready() {
 	resp.clear();
 	resp.push_back("ok");
 	resp.push_back("0");
+}
+
+void Response::reply_list_ready() {
+	resp.push_back("ok");
 }

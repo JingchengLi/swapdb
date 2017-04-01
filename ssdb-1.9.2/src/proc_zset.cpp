@@ -213,7 +213,7 @@ int proc_zrange(NetworkServer *net, Link *link, const Request &req, Response *re
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(4);
 
-    resp->push_back("ok");
+    resp->reply_list_ready();
     int ret = serv->ssdb->zrange(req[1], req[2], req[3], resp->resp);
     if (ret < 0){
         resp->resp.clear();
@@ -227,7 +227,7 @@ int proc_zrrange(NetworkServer *net, Link *link, const Request &req, Response *r
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(4);
 
-    resp->push_back("ok");
+    resp->reply_list_ready();
     int ret = serv->ssdb->zrrange(req[1], req[2], req[3], resp->resp);
     if (ret < 0){
         resp->resp.clear();
@@ -275,7 +275,7 @@ static int _zrangebyscore(SSDB *ssdb, const Request &req, Response *resp, int re
         }
     }
 
-    resp->push_back("ok");
+    resp->reply_list_ready();
     if (reverse){
         ret = ssdb->zrevrangebyscore(req[1], req[2], req[3], resp->resp, withscores, offset, limit);
     } else{
@@ -479,7 +479,7 @@ static int _zrangebylex(SSDB *ssdb, const Request &req, Response *resp, enum DIR
         }
     }
 
-    resp->push_back("ok");
+    resp->reply_list_ready();
     if (direction == DIRECTION::BACKWARD){
         ret = ssdb->zrevrangebylex(req[1], req[2], req[3], resp->resp, offset, limit);
     } else{

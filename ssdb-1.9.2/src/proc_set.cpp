@@ -87,7 +87,7 @@ int proc_smembers(NetworkServer *net, Link *link, const Request &req, Response *
     CHECK_NUM_PARAMS(2);
     SSDBServer *serv = (SSDBServer *)net->data;
 
-    resp->resp.push_back("ok");
+    resp->reply_list_ready();
 
     int ret = serv->ssdb->smembers(req[1],  resp->resp);
 
@@ -112,7 +112,8 @@ int proc_spop(NetworkServer *net, Link *link, const Request &req, Response *resp
         }
     }
 
-    resp->resp.push_back("ok");
+    resp->reply_list_ready();
+
     int ret = serv->ssdb->spop(req[1], resp->resp, pop_count);
 
     if (ret < 0){
@@ -137,7 +138,7 @@ int proc_srandmember(NetworkServer *net, Link *link, const Request &req, Respons
         }
     }
 
-    resp->resp.push_back("ok");
+    resp->reply_list_ready();
 
     int ret = serv->ssdb->srandmember(req[1], resp->resp, count);
 

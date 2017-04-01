@@ -330,18 +330,19 @@ int proc_flushdb(NetworkServer *net, Link *link, const Request &req, Response *r
 	SSDBServer *serv = (SSDBServer *)net->data;
 
 	serv->ssdb->flushdb();
-	resp->push_back("ok");
+	resp->reply_ok();
+
 	return 0;
 }
 
 int proc_select(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	resp->push_back("ok");
+	resp->reply_ok();
 	return 0;
 }
 
 
 int proc_client(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	resp->push_back("ok");
+	resp->reply_ok();
 	return 0;
 }
 
@@ -381,13 +382,13 @@ int proc_debug(NetworkServer *net, Link *link, const Request &req, Response *res
 		timer.end(str(count) + " keys");
 	}
 
-	resp->push_back("ok");
+	resp->reply_ok();
 	return 0;
 }
 
 
 int proc_quit(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	resp->push_back("ok");
+	resp->reply_ok();
 	return 0;
 }
 
@@ -528,15 +529,15 @@ int proc_redis_req_dump(NetworkServer *net, Link *link, const Request &req, Resp
 int proc_compact(NetworkServer *net, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *)net->data;
 	serv->ssdb->compact();
-	resp->push_back("ok");
+	resp->reply_ok();
 	return 0;
 }
 
 int proc_dbsize(NetworkServer *net, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *)net->data;
 	uint64_t size = serv->ssdb->size();
-	resp->push_back("ok");
-	resp->push_back(str(size));
+	resp->reply_int(1, size);
+
 	return 0;
 }
 
