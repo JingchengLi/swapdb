@@ -20,7 +20,7 @@ int proc_sadd(NetworkServer *net, Link *link, const Request &req, Response *resp
     int ret = serv->ssdb->sadd(name, mem_set, &num);
 
     if (ret < 0) {
-        resp->reply_int(-1, 0, GetErrorInfo(ret).c_str());
+        reply_err_return(ret);
     } else {
         resp->reply_int(ret, num);
     }
@@ -40,7 +40,7 @@ int proc_srem(NetworkServer *net, Link *link, const Request &req, Response *resp
     int ret = serv->ssdb->srem(name, req, &num);
 
     if (ret < 0) {
-        resp->reply_int(-1, 0, GetErrorInfo(ret).c_str());
+        reply_err_return(ret);
     } else {
         resp->reply_int(ret, num);
     }
@@ -56,7 +56,7 @@ int proc_scard(NetworkServer *net, Link *link, const Request &req, Response *res
 
     int ret = serv->ssdb->scard(req[1], &len);
     if (ret < 0) {
-        resp->reply_int(-1, 0, GetErrorInfo(ret).c_str());
+        reply_err_return(ret);
     } else {
         resp->reply_int(ret, len);
     }

@@ -6,6 +6,7 @@ option(ROCKSDB "enable rocksdb support" ON)
 SET(LEVELDB_PATH=${CMAKE_CURRENT_SOURCE_DIR}/deps/leveldb-1.18)
 SET(JEMALLOC_PATH=${CMAKE_CURRENT_SOURCE_DIR}/deps/jemalloc-4.1.0)
 SET(SNAPPY_PATH=${CMAKE_CURRENT_SOURCE_DIR}/deps/snappy-1.1.0)
+SET(CMAKE_C_FLAGS "--std=gnu99 ${CMAKE_C_FLAGS}")
 
 execute_process(COMMAND                                                                                                                                                                        
     "./build.sh"
@@ -36,6 +37,8 @@ IF(GCOV)
 ELSE()
     SET(CMAKE_CXX_FLAGS "-DNDEBUG -D__STDC_FORMAT_MACROS -Wall -O0 -Wno-sign-compare -std=c++11")
 ENDIF()
+
+
 
 IF(ROCKSDB)
     message("==================use rocksdb===================")
@@ -216,6 +219,16 @@ src/redis/rdb_encoder.cpp
 src/redis/rdb_decoder.cpp
 )
 
+
+ADD_LIBRARY(librdb-static STATIC ${RDB_OBJS})
+ADD_LIBRARY(librdb-shared SHARED ${RDB_OBJS})
+set_target_properties(librdb-static PROPERTIES
+        LINKER_LANGUAGE CXX
+        OUTPUT_NAME "rdb")
+set_target_properties(librdb-shared PROPERTIES
+        LINKER_LANGUAGE CXX
+        OUTPUT_NAME "rdb")
+
 SET( SRC_OBJS
 src/ssdb-server.cpp
 src/client/SSDB_impl.cpp
@@ -229,14 +242,14 @@ src/backend_dump.cpp
 src/serv.cpp
 )
 
-ADD_EXECUTABLE(ssdb-server ${SRC_OBJS} ${RDB_OBJS})
+ADD_EXECUTABLE(ssdb-server ${SRC_OBJS})
 #TARGET_LINK_LIBRARIES(ssdb-server libssdb-static libutil-static libnet-static libcodec-static leveldb gtest gflags snappy jemalloc pthread rt z bz2)
 
 
 IF(ROCKSDB)
-    TARGET_LINK_LIBRARIES(ssdb-server libssdb-static libutil-static libnet-static libcodec-static rocksdb gtest gflags snappy jemalloc pthread rt z bz2)
+    TARGET_LINK_LIBRARIES(ssdb-server libssdb-static librdb-static libutil-static libnet-static libcodec-static rocksdb gtest gflags snappy jemalloc pthread rt z bz2)
 ELSE()
-    TARGET_LINK_LIBRARIES(ssdb-server leveldb libssdb-static libutil-static libnet-static libcodec-static gflags snappy jemalloc pthread rt z bz2)
+    TARGET_LINK_LIBRARIES(ssdb-server leveldb libssdb-static librdb-static libutil-static libnet-static libcodec-static gflags snappy jemalloc pthread rt z bz2)
 ENDIF()
 
 #ADD_EXECUTABLE(hello-ssdb ${CLIENT_OBJS})

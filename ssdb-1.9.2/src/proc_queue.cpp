@@ -15,7 +15,7 @@ int proc_qsize(NetworkServer *net, Link *link, const Request &req, Response *res
 	uint64_t len = 0;
 	int ret = serv->ssdb->LLen(req[1], &len);
 	if (ret < 0) {
-		resp->reply_int(-1, len, GetErrorInfo(ret).c_str());
+		reply_err_return(ret);
 	} else {
 		resp->reply_int(ret, len);
 	}
@@ -32,7 +32,7 @@ int proc_qpush_frontx(NetworkServer *net, Link *link, const Request &req, Respon
 	uint64_t len = 0;
 	int ret = serv->ssdb->LPushX(name, req, 2, &len);
 	if (ret < 0) {
-		resp->reply_int(-1, len, GetErrorInfo(ret).c_str());
+		reply_err_return(ret);
 	} else {
 		resp->reply_int(ret, len);
 	}
@@ -49,7 +49,7 @@ int proc_qpush_front(NetworkServer *net, Link *link, const Request &req, Respons
  	uint64_t len = 0;
 	int ret = serv->ssdb->LPush(name, req, 2, &len);
 	if (ret < 0) {
-		resp->reply_int(-1, len, GetErrorInfo(ret).c_str());
+		reply_err_return(ret);
 	} else {
 		resp->reply_int(ret, len);
 	}
@@ -64,7 +64,7 @@ int proc_qpush_backx(NetworkServer *net, Link *link, const Request &req, Respons
 	uint64_t len = 0;
 	int ret = serv->ssdb->RPushX(req[1], req, 2, &len);
 	if (ret < 0) {
-		resp->reply_int(-1, len, GetErrorInfo(ret).c_str());
+		reply_err_return(ret);
 	} else {
 		resp->reply_int(ret, len);
 	}
@@ -80,7 +80,7 @@ int proc_qpush_back(NetworkServer *net, Link *link, const Request &req, Response
     uint64_t len = 0;
     int ret = serv->ssdb->RPush(req[1], req, 2, &len);
 	if (ret < 0) {
-		resp->reply_int(-1, len, GetErrorInfo(ret).c_str());
+		reply_err_return(ret);
 	} else {
 		resp->reply_int(ret, len);
 	}

@@ -131,8 +131,7 @@ int proc_set(NetworkServer *net, Link *link, const Request &req, Response *resp)
 		if(ret < 0){
 			reply_err_return(ret);
 		} else if (added == 0) {
-			resp->push_back("ok");
-			resp->push_back("0");
+			resp->reply_bool(0);
 			return 0;
 		}
 
@@ -142,8 +141,7 @@ int proc_set(NetworkServer *net, Link *link, const Request &req, Response *resp)
 			serv->ssdb->del(req[1]);
 			reply_err_return(ret);
 		} else {
-			resp->push_back("ok");
-			resp->push_back("1");
+			resp->reply_bool(1);
 			return 0;
 		}
 
@@ -201,8 +199,7 @@ int proc_setx(NetworkServer *net, Link *link, const Request &req, Response *resp
         serv->ssdb->del(req[1]);
 		reply_err_return(ret);
 	}else{
-		resp->push_back("ok");
-		resp->push_back("1");
+		resp->reply_bool(1);
 	}
 	return 0;
 }
@@ -231,8 +228,7 @@ int proc_psetx(NetworkServer *net, Link *link, const Request &req, Response *res
         serv->ssdb->del(req[1]);
 		reply_err_return(ret);
 	}else{
-		resp->push_back("ok");
-		resp->push_back("1");
+		resp->reply_bool(1);
 	}
 	return 0;
 }
@@ -241,10 +237,9 @@ int proc_pttl(NetworkServer *net, Link *link, const Request &req, Response *resp
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(2);
 
-	//todo update
 	int64_t ttl = serv->ssdb->expiration->pttl(req[1], TimeUnit::Millisecond);
-	resp->push_back("ok");
-	resp->push_back(str(ttl));
+	resp->reply_int(1, ttl);
+
 	return 0;
 }
 
@@ -252,10 +247,9 @@ int proc_ttl(NetworkServer *net, Link *link, const Request &req, Response *resp)
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(2);
 
-	//todo update
 	int64_t ttl = serv->ssdb->expiration->pttl(req[1], TimeUnit::Second);
-	resp->push_back("ok");
-	resp->push_back(str(ttl));
+	resp->reply_int(1, ttl);
+
 	return 0;
 }
 
@@ -407,7 +401,7 @@ int proc_multi_get(NetworkServer *net, Link *link, const Request &req, Response 
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(2);
 
-	resp->push_back("ok");
+	resp->reply_list_ready();
 	for(int i=1; i<req.size(); i++){
 		std::string val;
 		int ret = serv->ssdb->get(req[i], &val);
@@ -427,15 +421,11 @@ int proc_del(NetworkServer *net, Link *link, const Request &req, Response *resp)
 	int ret = serv->ssdb->del(req[1]);
 	if(ret < 0){
 		reply_err_return(ret);
-	} else if(ret == 0){
-		resp->push_back("not_found");
-		resp->push_back("0");
-	} else{
-//		serv->ssdb->expiration->persist(req[1]);
-
-		resp->push_back("ok");
-		resp->push_back(str(ret));
 	}
+
+	std::string res = str(ret);
+	resp->reply_get(ret, &res);
+
 	return 0;
 }
 
@@ -813,7 +803,7 @@ int proc_strlen(NetworkServer *net, Link *link, const Request &req, Response *re
 	std::string val;
 	int ret = serv->ssdb->get(key, &val);
 	if(ret < 0) {
-		resp->reply_int(-1, val.size(), GetErrorInfo(ret).c_str());
+		reply_err_return(ret);
 	} else {
 		resp->reply_int(ret, val.size());
 	}
