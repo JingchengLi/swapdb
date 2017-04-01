@@ -20,6 +20,7 @@ set ::all_tests {
     ssdb/basecommands
     ssdb/lfu
     ssdb/lfu-policy
+    ssdb/threads
 
     unit/type/hash
     unit/type/incr
@@ -31,10 +32,12 @@ set ::all_tests {
     unit/type/list-2
     unit/type/list-3
 
+    integration/aof
     integration/replication-base
     integration/replication-2
     integration/replication-3
     integration/replication-4
+    integration/replication-b
     integration/replication-psync
 }
 # next time support
@@ -109,7 +112,7 @@ set ::file ""; # If set, runs only the tests in this comma separated list
 set ::curfile ""; # Hold the filename of the current suite
 set ::accurate 0; # If true runs fuzz tests with more iterations
 set ::force_failure 0
-set ::timeout 600; # 10 minutes without progresses will quit the test.
+set ::timeout 6000; # 10 minutes without progresses will quit the test.
 set ::last_progress [clock seconds]
 set ::steps 0
 set ::active_servers {} ; # Pids of active Redis instances.

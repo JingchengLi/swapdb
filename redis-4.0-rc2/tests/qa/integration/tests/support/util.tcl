@@ -91,6 +91,22 @@ proc wait_for_sync r {
     }
 }
 
+proc wait_for_online r {
+    set retry 500
+    while {$retry} {
+        set info [r -1 info]
+        if {[string match {*slave0:*state=online*} $info]} {
+            break
+        } else {
+            incr retry -1
+            after 100
+        }
+    }
+    if {$retry == 0} {
+        error "assertion:Slaves not correctly synchronized"
+    }
+}
+
 # Random integer between 0 and max (excluded).
 proc randomInt {max} {
     expr {int(rand()*$max)}

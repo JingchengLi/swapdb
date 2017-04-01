@@ -24,6 +24,8 @@ config {real.conf}} {
 
         test "MASTER and SLAVE dataset should be identical after complex ops" {
             wait_memory_stable -1
+            wait_memory_stable ; #wait slave sync done
+            $master config set maxmemory 0
 
             wait_for_condition 50 100 {
                 [string match {*slave0:*state=online*} [$master info]]
