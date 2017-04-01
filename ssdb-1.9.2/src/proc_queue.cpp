@@ -132,15 +132,6 @@ int proc_qpop_back(NetworkServer *net, Link *link, const Request &req, Response 
 }
 
 
-int proc_qfix(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	CHECK_NUM_PARAMS(2);
-
-	resp->push_back("ok");
-
-	return 0;
-}
-
-
 int proc_qtrim(NetworkServer *net, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *)net->data;
 	CHECK_NUM_PARAMS(4);
@@ -235,6 +226,7 @@ int proc_qset(NetworkServer *net, Link *link, const Request &req, Response *resp
 		//???
 		reply_errinfo_return("ERR no such key");
 	} else{
+		//TODO CHECK HERE
 		resp->push_back("ok");
 	}
 	return 0;

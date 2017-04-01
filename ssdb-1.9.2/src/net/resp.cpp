@@ -136,3 +136,9 @@ void Response::reply_get(int status, const std::string *val, const char *errmsg)
 void Response::mark_check() {
 	checkKey = true;
 }
+
+void Response::reply_scan_ready() {
+	resp.clear();
+	resp.push_back("ok");
+	resp.push_back("0");
+}

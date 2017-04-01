@@ -332,8 +332,7 @@ int proc_zscan(NetworkServer *net, Link *link, const Request &req, Response *res
             reply_err_return(SYNTAX_ERR);
         }
     }
-    resp->push_back("ok");
-    resp->push_back("0");
+    resp->reply_scan_ready();
 
     int ret =  serv->ssdb->zscan(req[1], cursor, pattern, limit, resp->resp);
     if (ret < 0) {

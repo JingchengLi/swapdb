@@ -11,6 +11,15 @@ found in the LICENSE file.
 #include <string>
 #include <vector>
 
+
+
+#define reply_err_return(n) resp->reply_errror(GetErrorInfo(n)); return 0
+
+#define reply_errinfo_return(c) resp->reply_errror(c); return 0
+
+#define check_key(ret) if (ret == 0) resp->mark_check()
+
+
 class Response
 {
 public:
@@ -35,6 +44,7 @@ public:
 	void reply_int(int status, int64_t val, const char *errmsg=NULL);
 	void reply_long_double(int status, long double val);
 	void reply_double(int status, double val);
+	void reply_scan_ready();
 	// the same as Redis.REPLY_BULK
 	void reply_get(int status, const std::string *val=NULL, const char *errmsg=NULL);
 

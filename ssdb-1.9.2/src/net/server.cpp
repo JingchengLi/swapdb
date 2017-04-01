@@ -735,8 +735,7 @@ static int proc_auth(NetworkServer *net, Link *link, const Request &req, Respons
 			resp->push_back("ok");
 			resp->push_back("1");
 		}else{
-			resp->push_back("error");
-			resp->push_back("invalid password");
+			reply_errinfo_return("invalid password");
 		}
 	}
 	return 0;

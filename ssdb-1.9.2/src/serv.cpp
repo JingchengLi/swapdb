@@ -105,7 +105,6 @@ DEF_PROC(qpush_back);
 DEF_PROC(qpush_backx);
 DEF_PROC(qpop_front);
 DEF_PROC(qpop_back);
-DEF_PROC(qfix);
 DEF_PROC(qslice);
 DEF_PROC(qtrim);
 DEF_PROC(qget);
@@ -241,7 +240,6 @@ void SSDBServer::reg_procs(NetworkServer *net){
 	REG_PROC(qpush_backx, "wt");
 	REG_PROC(qpop_front, "wt");
 	REG_PROC(qpop_back, "wt");
-	REG_PROC(qfix, "wt");
 	REG_PROC(qslice, "rt");
 	REG_PROC(qget, "rt");
 	REG_PROC(qset, "wt");
@@ -382,8 +380,6 @@ int proc_debug(NetworkServer *net, Link *link, const Request &req, Response *res
 
 		timer.end(str(count) + " keys");
 	}
-
-
 
 	resp->push_back("ok");
 	return 0;

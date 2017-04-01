@@ -19,8 +19,7 @@ int proc_type(NetworkServer *net, Link *link, const Request &req, Response *resp
 		reply_err_return(ret);
 	}
 
-	resp->push_back("ok");
-	resp->push_back(val);
+	resp->reply_get(ret, &val);
 
 	return 0;
 }
@@ -68,8 +67,7 @@ int proc_append(NetworkServer *net, Link *link, const Request &req, Response *re
 	if(ret < 0){
 		reply_err_return(ret);
 	}else{
-		resp->push_back("ok");
-		resp->push_back(str(newlen));
+		resp->reply_int(1, newlen);
 	}
 	return 0;
 }
@@ -155,13 +153,9 @@ int proc_set(NetworkServer *net, Link *link, const Request &req, Response *resp)
 		int ret = serv->ssdb->set(req[1], req[2], flags, &added);
 		if(ret < 0){
 			reply_err_return(ret);
-		} else if (added == 0) {
-			resp->push_back("ok");
-			resp->push_back("0");
-		} else{
-			resp->push_back("ok");
-			resp->push_back("1");
 		}
+
+		resp->reply_bool(added);
 
 	}
 
@@ -277,15 +271,12 @@ int proc_pexpire(NetworkServer *net, Link *link, const Request &req, Response *r
     Locking<Mutex> l(&serv->ssdb->expiration->mutex);
     std::string val;
     int ret = serv->ssdb->expiration->expire(req[1], (int64_t)when, TimeUnit::Millisecond);
-    if(ret == 1){
-        resp->push_back("ok");
-        resp->push_back("1");
-    } else if (ret == 0){
-        resp->push_back("ok");
-        resp->push_back("0");
-    } else{
-        reply_err_return(ret);
+	if (ret < 0) {
+		reply_err_return(ret);
 	}
+
+	resp->reply_bool(ret);
+
     return 0;
 }
 
@@ -301,15 +292,12 @@ int proc_expire(NetworkServer *net, Link *link, const Request &req, Response *re
 	Locking<Mutex> l(&serv->ssdb->expiration->mutex);
 	std::string val;
 	int ret = serv->ssdb->expiration->expire(req[1], (int64_t)when, TimeUnit::Second);
-	if(ret == 1){
-		resp->push_back("ok");
-		resp->push_back("1");
-	} else if (ret == 0){
-		resp->push_back("ok");
-		resp->push_back("0");
-	} else{
+	if (ret < 0) {
 		reply_err_return(ret);
 	}
+
+	resp->reply_bool(ret);
+
 	return 0;
 }
 
@@ -325,15 +313,12 @@ int proc_expireat(NetworkServer *net, Link *link, const Request &req, Response *
 	Locking<Mutex> l(&serv->ssdb->expiration->mutex);
 	std::string val;
 	int ret = serv->ssdb->expiration->expireAt(req[1], (int64_t)ts_ms * 1000);
-	if(ret == 1){
-		resp->push_back("ok");
-		resp->push_back("1");
-	} else if (ret == 0){
-		resp->push_back("ok");
-		resp->push_back("0");
-	} else{
+	if (ret < 0) {
 		reply_err_return(ret);
 	}
+
+	resp->reply_bool(ret);
+
 	return 0;
 }
 
@@ -344,15 +329,11 @@ int proc_persist(NetworkServer *net, Link *link, const Request &req, Response *r
 	Locking<Mutex> l(&serv->ssdb->expiration->mutex);
 	std::string val;
 	int ret = serv->ssdb->expiration->persist(req[1]);
-	if(ret == 1){
-		resp->push_back("ok");
-		resp->push_back("1");
-	} else if (ret == 0){
-		resp->push_back("ok");
-		resp->push_back("0");
-	} else{
+	if(ret < 0){
 		reply_err_return(ret);
 	}
+
+	resp->reply_bool(ret);
 	return 0;
 }
 
@@ -368,15 +349,12 @@ int proc_pexpireat(NetworkServer *net, Link *link, const Request &req, Response 
 	Locking<Mutex> l(&serv->ssdb->expiration->mutex);
 	std::string val;
 	int ret = serv->ssdb->expiration->expireAt(req[1], (int64_t)ts_ms);
-	if(ret == 1){
-		resp->push_back("ok");
-		resp->push_back("1");
-	} else if (ret == 0){
-		resp->push_back("ok");
-		resp->push_back("0");
-	} else{
+	if(ret < 0){
 		reply_err_return(ret);
 	}
+
+	resp->reply_bool(ret);
+
 	return 0;
 }
 
@@ -494,8 +472,8 @@ int proc_scan(NetworkServer *net, Link *link, const Request &req, Response *resp
 			reply_err_return(SYNTAX_ERR);
 		}
 	}
-    resp->push_back("ok");
-    resp->push_back("0");
+
+    resp->reply_scan_ready();
 
     serv->ssdb->scan(cursor, pattern, limit, resp->resp);
 
@@ -792,8 +770,7 @@ int proc_getrange(NetworkServer *net, Link *link, const Request &req, Response *
 	if(ret < 0){
 		reply_err_return(ret);
 	} else{
-		resp->push_back("ok");
-		resp->push_back(val.first);
+		resp->reply_get(1, &val.first);
 	}
 	return 0;
 }
@@ -823,8 +800,7 @@ int proc_setrange(NetworkServer *net, Link *link, const Request &req, Response *
 	if(ret < 0){
 		reply_err_return(ret);
 	} else{
-		resp->push_back("ok");
-		resp->push_back(str(new_len));
+		resp->reply_int(1, new_len);
 	}
 	return 0;
 }
