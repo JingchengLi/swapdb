@@ -349,7 +349,8 @@ void NetworkServer::serve(){
 			}else if(fde->data.ptr == serv_socket){
 				Link *link = accept_link(serv_socket);
 				if(link){
-                    link->append_reply = true;
+//                    link->append_reply = true;
+                    link->append_reply = false;
 					this->link_count ++;
 					log_debug("new link from %s:%d, fd: %d, links: %d",
 							  link->remote_ip, link->remote_port, link->fd(), this->link_count);
