@@ -35,9 +35,7 @@ int proc_multi_zset(NetworkServer *net, Link *link, const Request &req, Response
 
     elements = (int)req.size() - scoreidx;
     if(elements < 0){
-        resp->push_back("error");
-        resp->push_back("ERR wrong number of arguments for 'zadd' command");
-        return 0;
+        reply_errinfo_return("ERR wrong number of arguments for 'zadd' command");
     } else if((elements == 0) | (elements % 2 != 0)){
 		//wrong args
         reply_err_return(SYNTAX_ERR);
@@ -50,30 +48,22 @@ int proc_multi_zset(NetworkServer *net, Link *link, const Request &req, Response
 
     /* XX and NX options at the same time are not compatible. */
     if (nx && xx) {
-        resp->push_back("error");
-        resp->push_back("ERR XX and NX options at the same time are not compatible");
-        return 0;
+        reply_errinfo_return("ERR XX and NX options at the same time are not compatible");
     }
 
     if (incr){
         if (incr && elements > 1){
-            resp->push_back("error");
-            resp->push_back("ERR INCR option supports a single increment-element pair");
-            return 0;
+            reply_errinfo_return("ERR INCR option supports a single increment-element pair");
         }
 
         char* eptr;
         double score = strtod(req[scoreidx+1].data(), &eptr); //check double
         if (eptr[0] != '\n' ) {  // skip for ssdb protocol
             if (eptr[0] != '\0' || errno!= 0 || std::isnan(score) || std::isinf(score)) {
-                resp->push_back("error");
-                resp->push_back("ERR value is not a valid float or a NaN data");
-                return 0;
+                reply_errinfo_return("ERR value is not a valid float or a NaN data");
             }
         }else if (score <= ZSET_SCORE_MIN || score >= ZSET_SCORE_MAX){
-            resp->push_back("error");
-            resp->push_back("ERR value is less than ZSET_SCORE_MIN or greater than ZSET_SCORE_MAX");
-            return 0;
+            reply_errinfo_return("ERR value is less than ZSET_SCORE_MIN or greater than ZSET_SCORE_MAX");
         }
 
         double new_val = 0;
@@ -110,14 +100,10 @@ int proc_multi_zset(NetworkServer *net, Link *link, const Request &req, Response
 		double score = strtod(val.data(), &eptr); //check double
 		if (eptr[0] != '\n' ) {  // skip for ssdb protocol
 			if (eptr[0] != '\0' || errno!= 0 || std::isnan(score)) {
-				resp->push_back("error");
-                resp->push_back("ERR value is not a valid float");
-				return 0;
+                reply_errinfo_return("ERR value is not a valid float");
 			}
 		}else if (score <= ZSET_SCORE_MIN || score >= ZSET_SCORE_MAX){
-            resp->push_back("error");
-            resp->push_back("ERR value is less than ZSET_SCORE_MIN or greater than ZSET_SCORE_MAX");
-            return 0;
+            reply_errinfo_return("ERR value is less than ZSET_SCORE_MIN or greater than ZSET_SCORE_MAX");
         }
 
         if (nx) {
@@ -352,7 +338,7 @@ int proc_zscan(NetworkServer *net, Link *link, const Request &req, Response *res
     int ret =  serv->ssdb->zscan(req[1], cursor, pattern, limit, resp->resp);
     if (ret < 0) {
         resp->resp.clear();
-        resp->reply_int(-1, ret, GetErrorInfo(ret).c_str());
+        reply_err_return(ret);
     } else if (ret == 0) {
     }
 
@@ -370,14 +356,10 @@ static int _zincr(SSDB *ssdb, Link *link, const Request &req, Response *resp, in
     double score = strtod(req[3].data(), &eptr); //check double
     if (eptr[0] != '\n' ) {  // skip for ssdb protocol
         if (eptr[0] != '\0' || errno!= 0 || std::isnan(score) || std::isinf(score)) {
-            resp->push_back("error");
-            resp->push_back("ERR value is not a valid float or a NaN data");
-            return 0;
+            reply_errinfo_return("ERR value is not a valid float or a NaN data");
         }
     } else if (score <= ZSET_SCORE_MIN || score >= ZSET_SCORE_MAX){
-        resp->push_back("error");
-        resp->push_back("ERR value is less than ZSET_SCORE_MIN or greater than ZSET_SCORE_MAX");
-        return 0;
+        reply_errinfo_return("ERR value is less than ZSET_SCORE_MIN or greater than ZSET_SCORE_MAX");
     }
 
     double new_val = 0;

@@ -408,8 +408,7 @@ int proc_restore(NetworkServer *net, Link *link, const Request &req, Response *r
 
 	int64_t ttl = req[2].Int64();
 	if (errno == EINVAL || ttl < 0){
-		resp->push_back("error");
-		return 0;
+		reply_err_return(INVALID_EX_TIME);
 	}
 
     bool replace = false;
@@ -439,7 +438,7 @@ int proc_restore(NetworkServer *net, Link *link, const Request &req, Response *r
 
 	if (ret < 0) {
 		log_error("%s : %s", hexmem(req[1].data(),req[1].size()).c_str(), hexmem(req[3].data(),req[3].size()).c_str());
-		resp->reply_get(ret, &val, GetErrorInfo(ret).c_str());
+		reply_err_return(ret);
 	} else {
 		resp->reply_get(ret, &val);
 	}

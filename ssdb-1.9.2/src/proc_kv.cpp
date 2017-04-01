@@ -32,7 +32,7 @@ int proc_get(NetworkServer *net, Link *link, const Request &req, Response *resp)
 	std::string val;
 	int ret = serv->ssdb->get(req[1], &val);
 	if(ret < 0){
-		resp->reply_get(ret, &val, GetErrorInfo(ret).c_str());
+		reply_err_return(ret);
 	} else {
 		resp->reply_get(ret, &val);
 	}
@@ -175,7 +175,7 @@ int proc_setnx(NetworkServer *net, Link *link, const Request &req, Response *res
 	int added = 0;
 	int ret = serv->ssdb->set(req[1], req[2], OBJ_SET_NX, &added);
 	if(ret < 0){
-		resp->reply_bool(-1, GetErrorInfo(ret).c_str());
+		reply_err_return(ret);
 	} else {
 		resp->reply_bool(added);
 	}
@@ -399,8 +399,7 @@ int proc_exists(NetworkServer *net, Link *link, const Request &req, Response *re
 int proc_multi_set(NetworkServer *net, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *)net->data;
 	if(req.size() < 3 || req.size() % 2 != 1){
-		resp->push_back("client_error");
-		resp->push_back("ERR wrong number of arguments for MSET");
+		reply_errinfo_return("ERR wrong number of arguments for MSET");
 	}else{
 		int ret = serv->ssdb->multi_set(req, 1);
 		if(ret < 0){
@@ -621,7 +620,7 @@ static int _incr(SSDB *ssdb, const Request &req, Response *resp, int dir){
 	int64_t new_val;
 	int ret = ssdb->incr(req[1], dir * by, &new_val);
 	if(ret < 0){
-		resp->reply_int(-1, ret, GetErrorInfo(ret).c_str());
+		reply_err_return(ret);
 	}else{
 		resp->reply_int(ret, new_val);
 	}
@@ -666,9 +665,7 @@ int proc_getbit(NetworkServer *net, Link *link, const Request &req, Response *re
 	string2ll(req[2].data(), (size_t)req[2].size(), &offset);
     if(offset < 0 || ((uint64_t)offset >> 3) >= Link::MAX_PACKET_SIZE * 4){
         std::string msg = "offset is is not an integer or out of range";
-        resp->push_back("client_error");
-        resp->push_back(msg);
-        return 0;
+		reply_errinfo_return(msg);
     }
 
 	int res = 0;
@@ -692,21 +689,17 @@ int proc_setbit(NetworkServer *net, Link *link, const Request &req, Response *re
 
 	int on = req[3].Int();
 	if(on & ~1){
-		resp->push_back("client_error");
-		resp->push_back("bit is not an integer or out of range");
-		return 0;
+		reply_errinfo_return("bit is not an integer or out of range");
 	}
 	if(offset < 0 || ((uint64_t)offset >> 3) >= Link::MAX_PACKET_SIZE * 4){
 		std::string msg = "offset is out of range [0, 4294967296)";
-		resp->push_back("client_error");
-		resp->push_back(msg);
-		return 0;
+		reply_errinfo_return(msg);
 	}
 
 	int res = 0;
 	int ret = serv->ssdb->setbit(key, (int64_t)offset, on, &res);
 	if(ret < 0) {
-		resp->reply_bool(-1, GetErrorInfo(ret).c_str());
+		reply_err_return(ret);
 	} else {
 		resp->reply_bool(res);
 	}

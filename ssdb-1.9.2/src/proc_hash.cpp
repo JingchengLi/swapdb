@@ -18,7 +18,7 @@ int proc_hexists(NetworkServer *net, Link *link, const Request &req, Response *r
     int ret = serv->ssdb->hget(name, key, val);
 
     if (ret < 0) {
-        resp->reply_bool(-1, GetErrorInfo(ret).c_str());
+        reply_err_return(ret);
     } else if (ret == 0) {
         resp->reply_bool(0);
     } else {
@@ -32,10 +32,7 @@ int proc_hexists(NetworkServer *net, Link *link, const Request &req, Response *r
 int proc_hmset(NetworkServer *net, Link *link, const Request &req, Response *resp) {
     SSDBServer *serv = (SSDBServer *) net->data;
     if (req.size() < 4 || req.size() % 2 != 0) {
-        resp->push_back("client_error");
-        resp->push_back("wrong number of arguments for 'hmset' command");
-        return 0;
-
+        reply_errinfo_return("wrong number of arguments for 'hmset' command");
     }
 
     std::map<Bytes, Bytes> kvs;
@@ -128,7 +125,7 @@ int proc_hsize(NetworkServer *net, Link *link, const Request &req, Response *res
     uint64_t size = 0;
     int ret = serv->ssdb->hsize(req[1], &size);
     if (ret < 0) {
-        resp->reply_int(-1, ret, GetErrorInfo(ret).c_str());
+        reply_err_return(ret);
     } else {
         resp->reply_int(ret, size);
     }
@@ -144,7 +141,7 @@ int proc_hset(NetworkServer *net, Link *link, const Request &req, Response *resp
     int ret = serv->ssdb->hset(req[1], req[2], req[3], &added);
 
     if (ret < 0) {
-        resp->reply_bool(-1, GetErrorInfo(ret).c_str());
+        reply_err_return(ret);
     } else if (ret == 0) {
         resp->reply_bool(ret);
     } else {
@@ -162,7 +159,7 @@ int proc_hsetnx(NetworkServer *net, Link *link, const Request &req, Response *re
     int ret = serv->ssdb->hsetnx(req[1], req[2], req[3], &added);
 
     if (ret < 0) {
-        resp->reply_bool(-1, GetErrorInfo(ret).c_str());
+        reply_err_return(ret);
     } else if (ret == 0) {
         resp->reply_bool(ret);
     } else {
@@ -181,7 +178,7 @@ int proc_hget(NetworkServer *net, Link *link, const Request &req, Response *resp
     int ret = serv->ssdb->hget(req[1], req[2], val);
 
     if (ret < 0) {
-        resp->reply_get(-1, &val.first, GetErrorInfo(ret).c_str());
+        reply_err_return(ret);
     } else {
         if (val.second) {
             resp->reply_get(1, &val.first);
@@ -260,7 +257,7 @@ int proc_hscan(NetworkServer *net, Link *link, const Request &req, Response *res
     int ret = serv->ssdb->hscan(req[1], cursor, pattern, limit, resp->resp);
     if (ret < 0) {
         resp->resp.clear();
-        resp->reply_int(-1, ret, GetErrorInfo(ret).c_str());
+        reply_err_return(ret);
     } else if (ret == 0) {
     }
 
@@ -337,7 +334,7 @@ int proc_hincrbyfloat(NetworkServer *net, Link *link, const Request &req, Respon
     long double new_val;
     int ret = serv->ssdb->hincrbyfloat(req[1], req[2], by, &new_val);
     if (ret < 0) {
-        resp->reply_status(-1, GetErrorInfo(ret).c_str());
+        reply_err_return(ret);
     } else {
         resp->reply_long_double(ret, new_val);
     }
@@ -358,7 +355,7 @@ int proc_hincr(NetworkServer *net, Link *link, const Request &req, Response *res
     int64_t new_val = 0;
     int ret = serv->ssdb->hincr(req[1], req[2], by, &new_val);
     if (ret < 0) {
-        resp->reply_status(-1, GetErrorInfo(ret).c_str());
+        reply_err_return(ret);
     } else {
         resp->reply_int(ret, new_val);
     }

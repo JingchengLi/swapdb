@@ -73,7 +73,7 @@ int proc_sismember(NetworkServer *net, Link *link, const Request &req, Response 
     int ret = serv->ssdb->sismember(req[1], req[2], &ismember);
 
     if (ret < 0) {
-        resp->reply_bool(-1, GetErrorInfo(ret).c_str());
+        reply_err_return(ret);
     } else if (ret == 0) {
         resp->reply_bool(ret);
     } else {
@@ -189,7 +189,7 @@ int proc_sscan(NetworkServer *net, Link *link, const Request &req, Response *res
     int ret =  serv->ssdb->sscan(req[1], cursor, pattern, limit, resp->resp);
     if (ret < 0) {
         resp->resp.clear();
-        resp->reply_int(-1, ret, GetErrorInfo(ret).c_str());
+        reply_err_return(ret);
     } else if (ret == 0) {
     }
 
