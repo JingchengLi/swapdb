@@ -4915,11 +4915,6 @@ void dumpfromssdbCommand(client *c) {
 
     robj *keyobj = c->argv[1], *o;
 
-    if ((o = lookupKeyReadWithFlags(c->db, c->argv[1], LOOKUP_NOTOUCH)) != NULL) {
-        addReplyError(c, "Already in redis.");
-        return;
-    }
-
     if ((de = dictFind(EVICTED_DATA_DB->transferring_keys, keyobj->ptr))) {
         addReplyError(c, "In transferring_keys.");
         server.cmdNotDone = 1;
@@ -4939,6 +4934,11 @@ void dumpfromssdbCommand(client *c) {
 
     if ((o = lookupKeyReadWithFlags(EVICTED_DATA_DB,c->argv[1], LOOKUP_NOTOUCH)) == NULL) {
         addReply(c, shared.nullbulk);
+        return;
+    }
+
+    if ((o = lookupKeyReadWithFlags(c->db, c->argv[1], LOOKUP_NOTOUCH)) != NULL) {
+        addReplyError(c, "Already in redis.");
         return;
     }
 

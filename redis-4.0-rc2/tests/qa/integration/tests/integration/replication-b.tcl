@@ -1,4 +1,5 @@
 # slaveof master that owns huge data.
+for {set n 0} {$n < 10} {incr n} {
 start_server {tags {"repl"}
 config {real.conf}} {
     start_server {config {real.conf}} {
@@ -24,7 +25,9 @@ config {real.conf}} {
 
         test "MASTER and SLAVE dataset should be identical after complex ops" {
             wait_memory_stable -1
+            wait_memory_stable
 
+            $master config set maxmemory 0
             wait_for_condition 50 100 {
                 [string match {*slave0:*state=online*} [$master info]]
             } else {
@@ -39,4 +42,5 @@ config {real.conf}} {
             }
         }
     }
+}
 }
