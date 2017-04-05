@@ -143,7 +143,7 @@ int proc_hset(NetworkServer *net, Link *link, const Request &req, Response *resp
 
     int added = 0;
     int ret = serv->ssdb->hset(req[1], req[2], req[3], &added);
-    check_key(ret);
+//    check_key(ret);
     if (ret < 0) {
         reply_err_return(ret);
     } else if (ret == 0) {
@@ -337,7 +337,6 @@ int proc_hincrbyfloat(NetworkServer *net, Link *link, const Request &req, Respon
 
     long double new_val;
     int ret = serv->ssdb->hincrbyfloat(req[1], req[2], by, &new_val);
-    check_key(ret);
     if (ret < 0) {
         reply_err_return(ret);
     } else {
@@ -359,7 +358,6 @@ int proc_hincr(NetworkServer *net, Link *link, const Request &req, Response *res
 
     int64_t new_val = 0;
     int ret = serv->ssdb->hincr(req[1], req[2], by, &new_val);
-    check_key(ret);
     if (ret < 0) {
         reply_err_return(ret);
     } else {
