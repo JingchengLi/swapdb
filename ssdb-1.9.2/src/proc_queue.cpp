@@ -50,7 +50,6 @@ int proc_qpush_front(NetworkServer *net, Link *link, const Request &req, Respons
 	const Bytes &name = req[1];
  	uint64_t len = 0;
 	int ret = serv->ssdb->LPush(name, req, 2, &len);
-	check_key(ret);
     if (ret < 0) {
 		reply_err_return(ret);
 	} else {
@@ -83,7 +82,6 @@ int proc_qpush_back(NetworkServer *net, Link *link, const Request &req, Response
 
     uint64_t len = 0;
     int ret = serv->ssdb->RPush(req[1], req, 2, &len);
-	check_key(ret);
     if (ret < 0) {
 		reply_err_return(ret);
 	} else {

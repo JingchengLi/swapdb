@@ -192,7 +192,7 @@ int SSDBImpl::LPushX(const Bytes &key, const std::vector<Bytes> &val, int offset
         return ret;
     } else if (ret == 0){
         *llen = 0;
-        return 1;
+        return 0;
     }
 
     ret = doListPush<Bytes>(batch, key, val, offset, meta_key, meta_val, LIST_POSITION::HEAD);
@@ -300,7 +300,7 @@ int SSDBImpl::RPushX(const Bytes &key, const std::vector<Bytes> &val, int offset
         return ret;
     } else if (ret == 0){
         *llen = 0;
-        return 1;
+        return 0;
     }
 
     ret = doListPush<Bytes>(batch, key, val, offset, meta_key, meta_val, LIST_POSITION::TAIL);
