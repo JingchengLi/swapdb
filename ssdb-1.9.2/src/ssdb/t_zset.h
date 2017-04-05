@@ -46,6 +46,7 @@ int SSDBImpl::zsetNoLock(const Bytes &name, const std::map<T, T> &sortedSet, int
     } else if (ret == 0) {
         needCheck = false;
     } else {
+        ret = 1;
         needCheck = true;
     }
 
@@ -90,10 +91,10 @@ int SSDBImpl::zsetNoLock(const Bytes &name, const std::map<T, T> &sortedSet, int
 
     if (ch) {
         *num = added + updated;
-        return 1;
+        return (ret + *num) > 0 ? 1 : 0;
     } else {
         *num = added;
-        return 1;
+        return (ret + *num) > 0 ? 1 : 0;
     }
 }
 

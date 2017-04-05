@@ -68,7 +68,6 @@ int proc_multi_zset(NetworkServer *net, Link *link, const Request &req, Response
 
         double new_val = 0;
         int ret = serv->ssdb->zincr(name, req[scoreidx], score, flags, &new_val);
-        check_key(ret);
         if (ret < 0){
             reply_err_return(ret);
         }
@@ -374,7 +373,6 @@ static int _zincr(SSDB *ssdb, Link *link, const Request &req, Response *resp, in
 
     double new_val = 0;
     int ret = ssdb->zincr(req[1], req[2], dir * score, flags, &new_val);
-    check_key(ret);
     if (ret < 0){
         reply_err_return(ret);
     }
