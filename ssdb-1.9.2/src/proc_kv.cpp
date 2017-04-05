@@ -246,7 +246,9 @@ int proc_pttl(NetworkServer *net, Link *link, const Request &req, Response *resp
 	CHECK_NUM_PARAMS(2);
 
 	int64_t ttl = serv->ssdb->expiration->pttl(req[1], TimeUnit::Millisecond);
-	if (ttl == -2) { check_key(0); }
+	if (ttl == -2) {
+		check_key(0);
+	}
 	resp->reply_int(1, ttl);
 
 	return 0;
@@ -257,7 +259,9 @@ int proc_ttl(NetworkServer *net, Link *link, const Request &req, Response *resp)
 	CHECK_NUM_PARAMS(2);
 
 	int64_t ttl = serv->ssdb->expiration->pttl(req[1], TimeUnit::Second);
-	if (ttl == -2) { check_key(0); }
+	if (ttl == -2) {
+		check_key(0);
+	}
 	resp->reply_int(1, ttl);
 
 	return 0;
