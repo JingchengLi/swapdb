@@ -1225,8 +1225,7 @@ int SSDBImpl::parse_replic(const std::vector<std::string> &kvs) {
 }
 
 
-int
-SSDBImpl::scan(const Bytes& cursor, const std::string &pattern, uint64_t limit, std::vector<std::string> &resp) {
+int SSDBImpl::scan(const Bytes& cursor, const std::string &pattern, uint64_t limit, std::vector<std::string> &resp) {
     // ignore cursor
 
     std::string start;

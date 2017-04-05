@@ -67,7 +67,6 @@ int proc_append(NetworkServer *net, Link *link, const Request &req, Response *re
 
 	uint64_t newlen = 0;
 	int ret = serv->ssdb->append(req[1], req[2], &newlen);
-	check_key(ret);
 	if(ret < 0){
 		reply_err_return(ret);
 	}else{
@@ -278,6 +277,8 @@ int proc_pexpire(NetworkServer *net, Link *link, const Request &req, Response *r
     int ret = serv->ssdb->expiration->expire(req[1], (int64_t)when, TimeUnit::Millisecond);
     if (ret < 0) {
 		reply_err_return(ret);
+	} else if (ret < 2) {
+		check_key(0);
 	}
 
 	resp->reply_bool(ret);
@@ -298,6 +299,8 @@ int proc_expire(NetworkServer *net, Link *link, const Request &req, Response *re
 	int ret = serv->ssdb->expiration->expire(req[1], (int64_t)when, TimeUnit::Second);
     if (ret < 0) {
 		reply_err_return(ret);
+	} else if (ret < 2) {
+		check_key(0);
 	}
 
 	resp->reply_bool(ret);
@@ -319,6 +322,8 @@ int proc_expireat(NetworkServer *net, Link *link, const Request &req, Response *
 	int ret = serv->ssdb->expiration->expireAt(req[1], (int64_t)ts_ms * 1000);
     if (ret < 0) {
 		reply_err_return(ret);
+	} else if (ret < 2) {
+		check_key(0);
 	}
 
 	resp->reply_bool(ret);
@@ -356,6 +361,8 @@ int proc_pexpireat(NetworkServer *net, Link *link, const Request &req, Response 
 	int ret = serv->ssdb->expiration->expireAt(req[1], (int64_t)ts_ms);
 	if(ret < 0){
 		reply_err_return(ret);
+	} else if (ret < 2) {
+		check_key(0);
 	}
 
 	resp->reply_bool(ret);
@@ -415,6 +422,7 @@ int proc_multi_del(NetworkServer *net, Link *link, const Request &req, Response 
 		check_key(0);
 		resp->reply_int(0, num);
 	}
+
 	return 0;
 }
 
@@ -426,6 +434,10 @@ int proc_multi_get(NetworkServer *net, Link *link, const Request &req, Response 
 	for(int i=1; i<req.size(); i++){
 		std::string val;
 		int ret = serv->ssdb->get(req[i], &val);
+		if(ret < 0){
+			resp->resp.clear();
+			reply_err_return(ret);
+		}
 		if(ret == 1){
 			resp->push_back(req[i].String());
 			resp->push_back(val);
@@ -814,7 +826,6 @@ int proc_setrange(NetworkServer *net, Link *link, const Request &req, Response *
 	uint64_t new_len = 0;
 
 	int ret = serv->ssdb->setrange(req[1], start, req[3], &new_len);
-	check_key(ret);
 	if(ret < 0){
 		reply_err_return(ret);
 	} else{
