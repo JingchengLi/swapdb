@@ -73,6 +73,7 @@ int SSDBImpl::zincr(const Bytes &name, const Bytes &key, double by, int &flags, 
     } else if (ret == 0) {
         needCheck = false;
     } else {
+        ret = 1;
         needCheck = true;
     }
 
@@ -86,17 +87,19 @@ int SSDBImpl::zincr(const Bytes &name, const Bytes &key, double by, int &flags, 
         if (iret < 0) {
             return iret;
         } else if (iret == 0) {
-
+            ret = 0;
+        } else {
+            ret = 1;
         }
-
     }
+
     leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
     if (!s.ok()) {
         log_error("zset error: %s", s.ToString().c_str());
         return STORAGE_ERR;
     }
 
-    return 1;
+    return ret;
 }
 
 int SSDBImpl::zsize(const Bytes &name, uint64_t *size) {
