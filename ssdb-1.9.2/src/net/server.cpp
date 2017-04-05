@@ -724,13 +724,13 @@ int NetworkServer::proc(ProcJob *job){
 		return job->result;
 	}
 
-//	if (job->link->append_reply) {
-//		if(job->link->send_append_res(job->resp.get_append_array()) == -1){
-//			log_debug("job->link->send_append_res error");
-//			job->result = PROC_ERROR;
-//			return job->result;
-//		}
-//	}
+	if (job->link->append_reply) {
+		if(job->link->send_append_res(job->resp.get_append_array()) == -1){
+			log_debug("job->link->send_append_res error");
+			job->result = PROC_ERROR;
+			return job->result;
+		}
+	}
 
 	return job->result;
 }
