@@ -18,7 +18,6 @@ int proc_sadd(NetworkServer *net, Link *link, const Request &req, Response *resp
     int64_t num = 0;
 
     int ret = serv->ssdb->sadd(name, mem_set, &num);
-    check_key(ret);
     if (ret < 0) {
         reply_err_return(ret);
     } else {
