@@ -281,7 +281,6 @@ int proc_pexpire(NetworkServer *net, Link *link, const Request &req, Response *r
 	}
 
 	resp->reply_bool(ret);
-
     return 0;
 }
 
@@ -408,11 +407,13 @@ int proc_multi_del(NetworkServer *net, Link *link, const Request &req, Response 
 		distinct_keys.insert(*it);
 	}
 
-	int ret = serv->ssdb->multi_del(distinct_keys);
+	int64_t num = 0;
+	int ret = serv->ssdb->multi_del(distinct_keys, &num);
 	if(ret < 0){
 		reply_err_return(ret);
 	} else{
-		resp->reply_int(0, ret);
+		check_key(0);
+		resp->reply_int(0, num);
 	}
 	return 0;
 }

@@ -124,12 +124,10 @@ int SSDBImpl::multi_set(const std::vector<Bytes> &kvs, int offset){
 	return rval;
 }
 
-//TODO return value fix
-int SSDBImpl::multi_del(const std::set<Bytes> &distinct_keys){ //注：redis中不支持该接口
+int SSDBImpl::multi_del(const std::set<Bytes> &distinct_keys, int64_t *num){ //注：redis中不支持该接口
 	leveldb::WriteBatch batch;
 
     RecordLocks<Mutex> l(&mutex_record_);
-    int num = 0;
 
     std::set<Bytes>::const_iterator itor = distinct_keys.begin();
 	for(; itor != distinct_keys.end(); itor++){
@@ -152,7 +150,7 @@ int SSDBImpl::multi_del(const std::set<Bytes> &distinct_keys){ //注：redis中�
 					batch.Put(meta_key, meta_val);
 					batch.Put(del_key, "");
                     this->edel_one(batch, key); //del expire ET key
-                    num++;
+                    (*num) = (*num) + 1;
 				} else{
 					continue;
 				}
@@ -161,15 +159,15 @@ int SSDBImpl::multi_del(const std::set<Bytes> &distinct_keys){ //注：redis中�
 			}
 		}
 	}
-	if (num > 0){
+	if ((*num) > 0){
 		leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
 		if(!s.ok()){
 			log_error("multi_del error: %s", s.ToString().c_str());
-			num = STORAGE_ERR;
+			return STORAGE_ERR;
 		}
 	}
 
-	return num;
+	return 1;
 }
 
 
@@ -189,7 +187,7 @@ int SSDBImpl::setNoLock(const Bytes &key, const Bytes &val, int flags, int *adde
         }
     }
 
-    return 1;
+    return ((*added + ret) > 0) ? 1 : 0;
 }
 
 int SSDBImpl::set(const Bytes &key, const Bytes &val, int flags, int *added) {

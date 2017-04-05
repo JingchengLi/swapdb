@@ -62,7 +62,7 @@ public:
 	virtual int incr(const Bytes &key, int64_t by, int64_t *new_val) = 0;
 	virtual int incrbyfloat(const Bytes &key, long double by, long double *new_val) = 0;
 	virtual int multi_set(const std::vector<Bytes> &kvs, int offset=0) = 0;
-	virtual int multi_del(const std::set<Bytes> &keys) = 0;
+	virtual int multi_del(const std::set<Bytes> &keys, int64_t *count) = 0;
 	virtual int setbit(const Bytes &key, int64_t bitoffset, int on, int *res) = 0;
 	virtual int getbit(const Bytes &key, int64_t bitoffset, int *res) = 0;
 	

@@ -63,7 +63,7 @@ int ExpirationHandler::expire(const Bytes &key, int64_t ttl, TimeUnit tu) {
 
     int64_t pexpireat = time_ms() + ttl;
     if (pexpireat <= time_ms()) {
-        int r = ssdb->del(key);
+        int r = ssdb->del(key); // <0 for err , 0 for nothing , 1 for deleted
         return r;
     }
 
@@ -91,7 +91,7 @@ int ExpirationHandler::expireAt(const Bytes &key, int64_t ts_ms) {
         //log_debug("don't put in fast_keys");
     }
 
-    return 1;
+    return 2;
 
 }
 
