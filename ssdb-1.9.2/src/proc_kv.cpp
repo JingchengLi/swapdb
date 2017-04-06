@@ -438,10 +438,10 @@ int proc_multi_get(NetworkServer *net, Link *link, const Request &req, Response 
 	for(int i=1; i<req.size(); i++){
 		std::string val;
 		int ret = serv->ssdb->get(req[i], &val);
-		if(ret < 0){
-			resp->resp.clear();
-			reply_err_return(ret);
-		}
+//		if(ret < 0){
+//			resp->resp.clear();
+//			reply_err_return(ret);
+//		}
 		if(ret == 1){
 			resp->push_back(req[i].String());
 			resp->push_back(val);
