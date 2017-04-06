@@ -663,7 +663,12 @@ void* thread_replic(void *arg){
             response.push_back("error");
             response.push_back("rr_transfer_snapshot error");
             slave.master_link->send(response);
-            slave.master_link->flush();
+            if (slave.master_link->append_reply) {
+                response.clear();
+                response.push_back("check 0");
+                slave.master_link->send_append_res(response);
+            }
+            slave.master_link->write();
             log_error("send rr_transfer_snapshot error!!");
         }
         return 0;
@@ -677,7 +682,12 @@ void* thread_replic(void *arg){
             response.push_back("error");
             response.push_back("rr_transfer_snapshot error");
             slave.master_link->send(response);
-            slave.master_link->flush();
+            if (slave.master_link->append_reply) {
+                response.clear();
+                response.push_back("check 0");
+                slave.master_link->send_append_res(response);
+            }
+            slave.master_link->write();
             log_error("send rr_transfer_snapshot error!!");
         }
         return 0;
@@ -685,7 +695,7 @@ void* thread_replic(void *arg){
     std::vector<std::string> req;
     req.push_back(std::string("sync150"));
     link->send(req);
-    link->flush();
+    link->write();
     link->response();
 
 	Buffer *buffer = new Buffer(8*1024);
@@ -718,14 +728,19 @@ void* thread_replic(void *arg){
 
 			link->output->append(buffer->data(), buffer->size());
 
-			if(link->flush() == -1){
+			if(link->write() == -1){
 				log_error("fd: %d, send error: %s", link->fd(), strerror(errno));
                 if(slave.master_link != NULL){
                     std::vector<std::string> response;
                     response.push_back("error");
                     response.push_back("rr_transfer_snapshot error");
                     slave.master_link->send(response);
-                    slave.master_link->flush();
+                    if (slave.master_link->append_reply) {
+                        response.clear();
+                        response.push_back("check 0");
+                        slave.master_link->send_append_res(response);
+                    }
+                    slave.master_link->write();
                     log_error("send rr_transfer_snapshot error!!");
                 }
                 delete buffer;
@@ -752,14 +767,19 @@ void* thread_replic(void *arg){
 
 		link->output->append(buffer->data(), buffer->size());
 
-		if(link->flush() == -1){
+		if(link->write() == -1){
 			log_error("fd: %d, send error: %s", link->fd(), strerror(errno));
             if(slave.master_link != NULL){
                 std::vector<std::string> response;
                 response.push_back("error");
                 response.push_back("rr_transfer_snapshot error");
                 slave.master_link->send(response);
-                slave.master_link->flush();
+                if (slave.master_link->append_reply) {
+                    response.clear();
+                    response.push_back("check 0");
+                    slave.master_link->send_append_res(response);
+                }
+                slave.master_link->write();
                 log_error("send rr_transfer_snapshot error!!");
             }
             delete buffer;
@@ -777,7 +797,7 @@ void* thread_replic(void *arg){
 	ssdb_save_len((uint64_t)oper.size(), oper_len);
 	link->output->append(oper_len.c_str(), (int)oper_len.size());
 	link->output->append(oper.c_str(), (int)oper.size());
-	link->flush();
+	link->write();
 	link->read();
 	delete link;
 

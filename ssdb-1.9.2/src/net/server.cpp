@@ -449,6 +449,11 @@ void NetworkServer::serve(){
 				response.push_back("rr_transfer_snapshot finished");
 				if (slave.master_link != NULL){
 					slave.master_link->send(response);
+					if (slave.master_link->append_reply) {
+						response.clear();
+						response.push_back("check 0");
+						slave.master_link->send_append_res(response);
+					}
 					slave.master_link->write();
 				}
 			} else{
