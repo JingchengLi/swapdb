@@ -37,8 +37,11 @@ set ::all_tests {
     integration/replication-2
     integration/replication-3
     integration/replication-4
+    integration/replication-5
+    integration/replication-a
     integration/replication-b
     integration/replication-psync
+    integration/psync2
 }
 # next time support
     # unit/scan

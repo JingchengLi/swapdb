@@ -50,18 +50,16 @@ start_server {} {
             }
         }
 
-        # 2) Attach all the slaves to a random instance
+        # 2) Attach all the slaves to master
         while {[llength $used] != 5} {
             while 1 {
                 set slave_id [randomInt 5]
                 if {[lsearch -exact $used $slave_id] == -1} break
             }
-            set rand [randomInt [llength $used]]
-            set mid [lindex $used $rand]
-            set master_host $R_host($mid)
-            set master_port $R_port($mid)
+            set master_host $R_host($master_id)
+            set master_port $R_port($master_id)
 
-            test "PSYNC2: Set $R_port($slave_id)#$slave_id to replicate from $R_port($mid)#$mid" {
+            test "PSYNC2: Set $R_port($slave_id)#$slave_id to replicate from $R_port($master_id)#$master_id" {
                 $R($slave_id) slaveof $master_host $master_port
             }
             lappend used $slave_id
@@ -120,6 +118,7 @@ start_server {} {
         # which we move slaves away is not important, each will have full
         # history (otherwise PINGs will make certain slaves have more history),
         # and sometimes a full resync will be needed.
+
         $R($master_id) slaveof 127.0.0.1 0 ;# We use port zero to make it fail.
 
         if {$debug_msg} {
