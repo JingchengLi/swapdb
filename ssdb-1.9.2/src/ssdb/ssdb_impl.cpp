@@ -137,9 +137,9 @@ int SSDBImpl::flushdb(){
 	leveldb::ReadOptions iterate_options;
 	iterate_options.fill_cache = false;
 	leveldb::WriteOptions write_opts;
-	leveldb::Iterator *it;
 
-	it = ldb->NewIterator(iterate_options);
+	unique_ptr<leveldb::Iterator> it = unique_ptr<leveldb::Iterator>(ldb->NewIterator(iterate_options));
+
 	it->SeekToFirst();
 
 	while(!stop){
@@ -167,15 +167,12 @@ int SSDBImpl::flushdb(){
 	}
 
 
-	delete it;
-
 //#ifdef USE_LEVELDB
 //
 //#else
 //	leveldb::CompactRangeOptions compactRangeOptions = leveldb::CompactRangeOptions();
 //	ldb->CompactRange(compactRangeOptions, &begin, &end);
 //#endif
-
 
 	log_info("[flushdb] %d keys deleted by iteration", total);
 

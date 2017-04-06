@@ -295,9 +295,7 @@ int SSDBImpl::spop(const Bytes &key, std::vector<std::string> &members, int64_t 
         return ret;
     }
 
-    snapshot = GetSnapshot();
-    SnapshotPtr spl(ldb, snapshot); //auto release
-    auto it = std::unique_ptr<SIterator>(sscan_internal(key, "", sv.version, -1, snapshot));
+    auto it = std::unique_ptr<SIterator>(sscan_internal(key, "", sv.version, -1));
 
     std::set<uint64_t> random_set;
     /* we random key by random index :)
