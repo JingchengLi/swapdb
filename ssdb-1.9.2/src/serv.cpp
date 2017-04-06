@@ -645,6 +645,22 @@ static int ssdb_save_len(uint64_t len, std::string &res){
 	return (int)nwritten;
 }
 
+static void send_error_to_redis(Link* link){
+    if(link != NULL){
+        std::vector<std::string> response;
+        response.push_back("error");
+        response.push_back("rr_transfer_snapshot error");
+        link->send(response);
+        if (link->append_reply) {
+            response.clear();
+            response.push_back("check 0");
+            link->send_append_res(response);
+        }
+        link->write();
+        log_error("send rr_transfer_snapshot error!!");
+    }
+}
+
 void* thread_replic(void *arg){
 	SSDBServer *serv = (SSDBServer *)arg;
     pthread_mutex_lock(&serv->mutex);
@@ -658,38 +674,14 @@ void* thread_replic(void *arg){
 
     if (serv->snapshot == NULL){
         log_error("snapshot is null, maybe rr_make_snapshot not receive or error!");
-        if(slave.master_link != NULL){
-            std::vector<std::string> response;
-            response.push_back("error");
-            response.push_back("rr_transfer_snapshot error");
-            slave.master_link->send(response);
-            if (slave.master_link->append_reply) {
-                response.clear();
-                response.push_back("check 0");
-                slave.master_link->send_append_res(response);
-            }
-            slave.master_link->write();
-            log_error("send rr_transfer_snapshot error!!");
-        }
+        send_error_to_redis(slave.master_link);
         return 0;
     }
 
     Link* link = Link::connect((slave.ip).c_str(), slave.port);
     if(link == NULL){
         log_error("fail to connect to slave ssdb! ip[%s] port[%d]", slave.ip.c_str(), slave.port);
-        if(slave.master_link != NULL){
-            std::vector<std::string> response;
-            response.push_back("error");
-            response.push_back("rr_transfer_snapshot error");
-            slave.master_link->send(response);
-            if (slave.master_link->append_reply) {
-                response.clear();
-                response.push_back("check 0");
-                slave.master_link->send_append_res(response);
-            }
-            slave.master_link->write();
-            log_error("send rr_transfer_snapshot error!!");
-        }
+        send_error_to_redis(slave.master_link);
         return 0;
     }
     std::vector<std::string> req;
@@ -730,19 +722,7 @@ void* thread_replic(void *arg){
 
 			if(link->write() == -1){
 				log_error("fd: %d, send error: %s", link->fd(), strerror(errno));
-                if(slave.master_link != NULL){
-                    std::vector<std::string> response;
-                    response.push_back("error");
-                    response.push_back("rr_transfer_snapshot error");
-                    slave.master_link->send(response);
-                    if (slave.master_link->append_reply) {
-                        response.clear();
-                        response.push_back("check 0");
-                        slave.master_link->send_append_res(response);
-                    }
-                    slave.master_link->write();
-                    log_error("send rr_transfer_snapshot error!!");
-                }
+                send_error_to_redis(slave.master_link);
                 delete buffer;
                 delete link;
                 return 0;
@@ -769,19 +749,7 @@ void* thread_replic(void *arg){
 
 		if(link->write() == -1){
 			log_error("fd: %d, send error: %s", link->fd(), strerror(errno));
-            if(slave.master_link != NULL){
-                std::vector<std::string> response;
-                response.push_back("error");
-                response.push_back("rr_transfer_snapshot error");
-                slave.master_link->send(response);
-                if (slave.master_link->append_reply) {
-                    response.clear();
-                    response.push_back("check 0");
-                    slave.master_link->send_append_res(response);
-                }
-                slave.master_link->write();
-                log_error("send rr_transfer_snapshot error!!");
-            }
+            send_error_to_redis(slave.master_link);
             delete buffer;
             delete link;
             return 0;
