@@ -46,6 +46,7 @@ public:
 	void reply_int(int status, int64_t val, const char *errmsg=NULL);
 	void reply_long_double(int status, long double val);
 	void reply_double(int status, double val);
+	void reply_not_found();
 	void reply_scan_ready();
 	void reply_list_ready();
 	// the same as Redis.REPLY_BULK

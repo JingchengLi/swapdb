@@ -163,3 +163,7 @@ std::vector<std::string> Response::get_append_array() {
 
 	return vec;
 }
+
+void Response::reply_not_found() {
+	resp.push_back("not_found");
+}

@@ -174,7 +174,7 @@ int proc_zget(NetworkServer *net, Link *link, const Request &req, Response *resp
     if (ret < 0) {
         reply_err_return(ret);
     } else if(ret == 0){
-        resp->push_back("not_found");
+        resp->reply_not_found();
         return 0;
     } else{
 		resp->reply_double(ret, score);
@@ -192,7 +192,7 @@ int proc_zrank(NetworkServer *net, Link *link, const Request &req, Response *res
     if (ret < 0) {
         reply_err_return(ret);
     } else if (ret == 0 || rank == -1) {
-        resp->push_back("not_found");
+        resp->reply_not_found();
     } else {
 		resp->reply_int(ret, rank);
 	}
@@ -209,7 +209,7 @@ int proc_zrrank(NetworkServer *net, Link *link, const Request &req, Response *re
     if (ret < 0) {
         reply_err_return(ret);
     } else if (ret == 0 || rank == -1) {
-        resp->push_back("not_found");
+        resp->reply_not_found();
     } else{
 		resp->reply_int(ret, rank);
 	}

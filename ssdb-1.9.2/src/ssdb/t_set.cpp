@@ -283,7 +283,6 @@ int SSDBImpl::srandmember(const Bytes &key, std::vector<std::string> &members, i
 int SSDBImpl::spop(const Bytes &key, std::vector<std::string> &members, int64_t popcnt) {
     leveldb::WriteBatch batch;
 
-    const leveldb::Snapshot *snapshot = nullptr;
     SetMetaVal sv;
     int ret;
 
