@@ -91,11 +91,16 @@ proc wait_for_sync r {
     }
 }
 
-proc wait_for_online r {
+proc wait_for_online {r {num 1}} {
+    incr num -1
     set retry 500
+    set patten "*"
+    for {set n 0} {$n <= $num} {incr n 1} {
+        append patten "slave$n:*state=online*"
+    }
     while {$retry} {
-        set info [r -1 info]
-        if {[string match {*slave0:*state=online*} $info]} {
+        set info [$r info]
+        if {[string match {$patten} $info]} {
             break
         } else {
             incr retry -1
@@ -184,8 +189,16 @@ proc createComplexDataset {r ops {opt {}}} {
         }
         lappend keyslist $k
         set f [randomValue]
-        if {[lsearch -exact $opt bigkey] != -1} {
+        if {[lsearch -exact $opt 10M] != -1} {
             set v [string repeat x 10000000]
+        } elseif {[lsearch -exact $opt 1M] != -1} {
+            set v [string repeat x 1000000]
+        } elseif {[lsearch -exact $opt 100k] != -1} {
+            set v [string repeat x 100000]
+        } elseif {[lsearch -exact $opt 10k] != -1} {
+            set v [string repeat x 100000]
+        } elseif {[lsearch -exact $opt 1k] != -1} {
+            set v [string repeat x 1000]
         } else {
             set v [randomValue]
         }

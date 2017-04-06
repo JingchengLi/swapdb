@@ -37,7 +37,7 @@ start_server {tags {"repl"}} {
         } {slave}
 
         wait_for_sync r
-        wait_for_online r
+        wait_for_online [srv -1 client]
 
         test {Sync should have transferred keys from master} {
             r get mykey
