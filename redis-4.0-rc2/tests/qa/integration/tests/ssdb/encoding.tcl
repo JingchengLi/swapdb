@@ -1,5 +1,5 @@
 #verify redis be cold(storetossdb) and be hot(read) function
-start_server {tags {"redis-ssdb"}
+start_server {tags {"ssdb"}
 overrides {maxmemory 0}} {
 
 #string type
