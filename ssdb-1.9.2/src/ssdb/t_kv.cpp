@@ -141,22 +141,12 @@ int SSDBImpl::multi_del(const std::set<Bytes> &distinct_keys, int64_t *num){ //æ
 		} else if (!s.ok()){
             return STORAGE_ERR;
         } else{
-			if (meta_val.size() >= 4 ){
-				if (meta_val[POS_DEL] == KEY_ENABLED_MASK){
-					meta_val[POS_DEL] = KEY_DELETE_MASK;
-					uint16_t version = *(uint16_t *)(meta_val.c_str()+1);
-					version = be16toh(version);
-					std::string del_key = encode_delete_key(key, version);
-					batch.Put(meta_key, meta_val);
-					batch.Put(del_key, "");
-                    this->edel_one(batch, key); //del expire ET key
-                    (*num) = (*num) + 1;
-				} else{
-					continue;
-				}
-			} else{
-                return -1;
-			}
+            int iret = mark_key_deleted(batch, key, meta_key, meta_val);
+            if (iret < 0) {
+                return iret;
+            }
+
+            *num = (*num) + iret;
 		}
 	}
 	if ((*num) > 0){
