@@ -40,6 +40,7 @@ set ::all_tests {
     integration/replication-5
     integration/replication-a
     integration/replication-b
+    integration/replication-c
     integration/replication-psync
     integration/psync2
 }

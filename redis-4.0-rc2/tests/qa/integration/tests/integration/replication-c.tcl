@@ -35,7 +35,6 @@ proc test_psync {descr duration backlog_size backlog_ttl delay cond reconnect} {
                 if ($reconnect) {
                     for {set j 0} {$j < $duration*10} {incr j} {
                         after 100
-                        puts "connect $j"
 
                         if {($j % 20) == 0} {
                             catch {

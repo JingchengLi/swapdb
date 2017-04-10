@@ -94,13 +94,13 @@ proc wait_for_sync r {
 proc wait_for_online {r {num 1}} {
     incr num -1
     set retry 500
-    set patten "*"
+    set pattern "*"
     for {set n 0} {$n <= $num} {incr n 1} {
-        append patten "slave$n:*state=online*"
+        append pattern "slave$n:*state=online*"
     }
     while {$retry} {
         set info [$r info]
-        if {[string match {$patten} $info]} {
+        if {[string match $pattern $info]} {
             break
         } else {
             incr retry -1

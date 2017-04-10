@@ -302,6 +302,8 @@ proc start_server {options {code undefined}} {
     dict set srv "stdout" $stdout
     dict set srv "stderr" $stderr
     dict set srv "ssdbpid" $ssdbpid
+    dict set srv "ssdbstdout" $ssdbstdout
+    dict set srv "ssdbstderr" $ssdbstderr
 
     # if a block of code is supplied, we wait for the server to become
     # available, create a client object and kill the server afterwards

@@ -67,9 +67,14 @@ overrides { save ""
     test "Basic AOF rewrite" {
         r set foo bar
         r set hello world
+        r set mykey value
         r storetossdb foo
+        r storetossdb mykey
 
         wait_for_dumpto_ssdb r foo
+
+        r dumpfromssdb mykey
+        wait_for_restoreto_redis r mykey
 
         r bgrewriteaof
         waitForBgrewriteaof r
@@ -83,8 +88,8 @@ overrides { save ""
         # Make sure they are the same
         assert {$d1 eq $d2}
 
-        list [sr exists foo] [r get foo] [r locatekey hello] [r get hello]
-    } {1 bar redis world}
+        list [sr exists foo] [r get foo] [r locatekey hello] [r get hello] [r locatekey mykey] [r get mykey]
+    } {1 bar redis world redis value}
 
     foreach d {string int} {
         foreach e {quicklist} {

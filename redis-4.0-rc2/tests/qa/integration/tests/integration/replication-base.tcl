@@ -147,21 +147,26 @@ start_server {tags {"repl"}} {
                 # Send SLAVEOF commands to slaves
                 [lindex $slaves 0] slaveof $master_host $master_port
                 [lindex $slaves 1] slaveof $master_host $master_port
-                # Wait for all the slaves to reach the "online"
-                # state from the POV of the master.
-                set retry 500
-                while {$retry} {
-                    set info [r -2 info]
-                    if {[string match {*slave0:*state=online*slave1:*state=online*} $info]} {
-                        break
-                    } else {
-                        incr retry -1
-                        after 100
-                    }
-                }
-                if {$retry == 1} {
-                    error "assertion:Slaves not correctly synchronized"
-                }
+                wait_for_online $master 2
+            }
+        }
+    }
+}
+
+start_server {tags {"repl"}} {
+    set master [srv 0 client]
+    set master_host [srv 0 host]
+    set master_port [srv 0 port]
+    set slaves {}
+    start_server {} {
+        lappend slaves [srv 0 client]
+        start_server {} {
+            lappend slaves [srv 0 client]
+            test {Two slaves slaveof in turn} {
+                [lindex $slaves 0] slaveof $master_host $master_port
+                wait_for_online $master 1
+                [lindex $slaves 1] slaveof $master_host $master_port
+                wait_for_online $master 2
             }
         }
     }
