@@ -69,7 +69,7 @@ proc kill_server config {
             catch {exec kill -KILL $pid}
             catch {exec kill -KILL $ssdbpid}
         } elseif {$wait % 1000 == 0} {
-            puts "Waiting for process $pid to exit..."
+            puts "Waiting for process $pid and $ssdbpid to exit..."
         }
         after 10
     }
@@ -81,6 +81,7 @@ proc kill_server config {
 
     # Remove this pid from the set of active pids in the test server.
     send_data_packet $::test_server_fd server-killed $pid
+    send_data_packet $::test_server_fd server-killed $ssdbpid
 }
 
 proc is_alive config {
@@ -255,6 +256,7 @@ proc start_server {options {code undefined}} {
 
     # Tell the test server about this new instance.
     send_data_packet $::test_server_fd server-spawned $pid
+    send_data_packet $::test_server_fd server-spawned $ssdbpid
 
     # check that the server actually started
     # ugly but tries to be as fast as possible...
@@ -295,6 +297,7 @@ proc start_server {options {code undefined}} {
 
     # setup config dict
     dict set srv "config_file" $config_file
+    dict set srv "ssdb_config_file" $ssdb_config_file
     dict set srv "config" $config
     dict set srv "pid" $pid
     dict set srv "host" $host
@@ -332,6 +335,8 @@ proc start_server {options {code undefined}} {
         if {[catch { uplevel 1 $code } error]} {
             set backtrace $::errorInfo
 
+            # srv may be updated by code.
+            set srv [lindex $::servers end]
             # Kill the server without checking for leaks
             dict set srv "skipleaks" 1
             puts "kill_server"
@@ -355,6 +360,8 @@ proc start_server {options {code undefined}} {
             dict set srv "skipleaks" 1
         }
 
+        # srv may be updated by code.
+        set srv [lindex $::servers end]
         # pop the server object
         set ::servers [lrange $::servers 0 end-1]
 

@@ -567,3 +567,88 @@ proc debug_digest {r {level 0}} {
     $r $level config set maxmemory $oldmemory
     return $digest
 }
+
+proc is_ssdb_alive {{level 0}} {
+    set config [lindex $::servers end+$level]
+    set ssdbpid [dict get $config ssdbpid]
+    if {[catch {exec ps -p $ssdbpid} err]} {
+        return 0
+    } else {
+        return 1
+    }
+}
+
+proc kill_ssdb_server {{level 0}} {
+    set config [lindex $::servers end+$level]
+    # nothing to kill when running against external server
+    if {$::external} return
+
+    # nevermind if its already dead
+    if {![is_ssdb_alive $level]} { return }
+    set ssdbpid [dict get $config ssdbpid]
+
+    # kill ssdb server and wait for the process to be totally exited
+    catch {exec kill -9 $ssdbpid}
+    if {$::valgrind} {
+        set max_wait 60000
+    } else {
+        set max_wait 10000
+    }
+    while {[is_ssdb_alive $level]} {
+        incr wait 10
+
+        if {$wait >= $max_wait} {
+            puts "Forcing process $ssdbpid to exit..."
+            catch {exec kill -KILL $ssdbpid}
+        } elseif {$wait % 1000 == 0} {
+            puts "Waiting for process $ssdbpid to exit..."
+        }
+        after 10
+    }
+
+    # Check valgrind errors if needed
+    if {$::valgrind} {
+        check_valgrind_errors [dict get $config ssdbstderr]
+    }
+}
+
+proc wait_log_pattern {pattern log} {
+    set retry 10000
+    while {$retry} {
+        catch {[exec grep $pattern $log]} err
+        if {![string match "*child process*" $err]} {
+            break
+        }
+        incr retry -1
+        after 1
+    }
+    if {$retry == 0} {
+        error "assertion:expected log \"$pattern\" not found on log file"
+    }
+}
+
+proc wait_start_ssdb_server {{level 0}} {
+    set config [lindex $::servers end+$level]
+    set ssdbstdout [dict get $config "ssdbstdout"]
+    wait_log_pattern "ssdb server started" $ssdbstdout
+}
+
+proc restart_ssdb_server {{level 0}} {
+    set config [lindex $::servers end+$level]
+    set host [dict get $config "host"]
+    set port [dict get $config "port"]
+    set ssdb_config_file [dict get $config ssdb_config_file]
+    set ssdbstdout [dict get $config ssdbstdout]
+    set ssdbstderr [dict get $config ssdbstderr]
+    set ssdbpid [exec ssdb-server $ssdb_config_file > $ssdbstdout 2> $ssdbstderr &]
+
+    wait_start_ssdb_server $level
+    send_data_packet $::test_server_fd server-spawned $ssdbpid
+    dict set config "ssdbpid" $ssdbpid
+    # reconnect new client after restart ssdb
+    set client [redis $host $port]
+    dict set config "client" $client
+
+    # re-set withe new ssdbpid in the servers list
+    lset ::servers end+$level $config
+}
