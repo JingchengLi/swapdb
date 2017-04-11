@@ -19,12 +19,11 @@ struct DumpData {
 
     int64_t expire;
     bool replace;
-    bool noreply;
 
-    DumpData(const std::string &key, const std::string &data, int64_t expire, bool replace, bool noreply) : key(key), data(data),
+    DumpData(const std::string &key, const std::string &data, int64_t expire, bool replace) : key(key), data(data),
                                                                                               expire(expire),
-                                                                                              replace(replace),
-                                                                                              noreply(noreply) {}
+                                                                                              replace(replace)
+                                                                                              {}
 };
 
 #endif //SSDB_BLOCKING_QUEUE_H

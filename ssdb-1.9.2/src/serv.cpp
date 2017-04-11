@@ -485,7 +485,6 @@ int proc_redis_req_restore(NetworkServer *net, Link *link, const Request &req, R
 	}
 
 	bool replace = false;
-	bool noreply = false;
 
 
 	if (req.size()>4) {
@@ -497,8 +496,6 @@ int proc_redis_req_restore(NetworkServer *net, Link *link, const Request &req, R
 
             if (key=="REPLACE") {
                 replace = true;
-            } else if (key=="NOREPLY") {
-                noreply = true;
             } else {
                 reply_err_return(SYNTAX_ERR);
             }
@@ -507,7 +504,7 @@ int proc_redis_req_restore(NetworkServer *net, Link *link, const Request &req, R
 
  	}
 
-	TransferJob* job = new TransferJob(serv, COMMAND_DATA_SAVE, req[1].String(), new DumpData(req[1].String(), req[3].String(), ttl, replace, noreply));
+	TransferJob* job = new TransferJob(serv, COMMAND_DATA_SAVE, req[1].String(), new DumpData(req[1].String(), req[3].String(), ttl, replace));
 	job->proc = BPROC(COMMAND_DATA_SAVE);
 
 	net->redis->push(job);
