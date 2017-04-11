@@ -20,7 +20,7 @@ int proc_type(NetworkServer *net, Link *link, const Request &req, Response *resp
 		reply_err_return(ret);
 	}
 
-	resp->reply_get(ret, &val);
+	resp->reply_get(1, &val);
 
 	return 0;
 }
