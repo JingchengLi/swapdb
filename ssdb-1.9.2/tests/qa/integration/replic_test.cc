@@ -52,6 +52,10 @@ public:
     uint32_t keysNum, counts;
     int64_t ret;
     double score, getScore;
+    static const int threadsNum = 2;
+    pthread_t bg_tid[threadsNum];
+    void * status;
+    static void* replic_thread_func(void *arg);
 
     void fillMasterData();
     void checkSlaveDataOK(int);
@@ -63,6 +67,16 @@ protected:
     string slave_ip;
     int slave_port;
 };
+
+void* ReplicTest::replic_thread_func(void *arg) {
+
+    SlaveClient* replicClient = new SlaveClient("127.0.0.1", 8888);
+    replicClient->client()->replic("127.0.0.1", *((int*)arg));
+
+    std::string result = replicClient->client()->response();
+    replicClient->client()->del_snapshot();
+    delete replicClient;
+}
 
 void ReplicTest::fillMasterData(){
     keys.clear();
@@ -195,7 +209,7 @@ void ReplicTest::checkSlaveDataNotFound() {
 }
 
 void ReplicTest::replic(const string &slave_ip, int slave_port) {
-    SlaveClient* replicClient = new SlaveClient(ip, port);;
+    SlaveClient* replicClient = new SlaveClient(ip, port);
     s = replicClient->client()->replic(slave_ip, slave_port);
 
     std::string result = replicClient->client()->response();
@@ -205,7 +219,7 @@ void ReplicTest::replic(const string &slave_ip, int slave_port) {
 }
 
 void ReplicTest::replic(const std::vector<std::string> &items) {
-    SlaveClient* replicClient = new SlaveClient(ip, port);;
+    SlaveClient* replicClient = new SlaveClient(ip, port);
     s = replicClient->client()->replic(items);
 
     std::string result = replicClient->client()->response();
@@ -315,6 +329,26 @@ TEST_F(ReplicTest, Test_replic_multi_slaves) {
     // replic(items);
     for (auto port : slave_ports) {
         replic(slave_ip, port);
+    }
+
+    for (auto port : slave_ports) {
+        sclient = new SlaveClient(slave_ip, port);
+        checkSlaveDataOK();
+        sclient->client()->multi_del(keys);
+        delete sclient;
+    }
+    client->multi_del(keys);
+}
+
+TEST_F(ReplicTest, Test_replic_multi_slaves_mthreads) {
+    fillMasterData();
+
+    std::vector<int> slave_ports = {8889, 8890};
+    for (int n = 0; n < threadsNum; n++) {
+        pthread_create(&bg_tid[n], NULL, &replic_thread_func, &slave_ports[n]);
+    }
+    for(int n = 0; n < threadsNum; n++) {
+        pthread_join(bg_tid[n], &status);
     }
 
     for (auto port : slave_ports) {
