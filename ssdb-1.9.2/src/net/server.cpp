@@ -135,6 +135,8 @@ NetworkServer::~NetworkServer(){
 
 	redis->stop();
 	delete redis;
+
+	log_info("NetworkServer finalized");
 }
 
 NetworkServer* NetworkServer::init(const char *conf_file, int num_readers, int num_writers){

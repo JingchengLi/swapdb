@@ -40,8 +40,10 @@ SSDBImpl::~SSDBImpl(){
 //	if(expiration){
 //		delete expiration;
 //	}
-	Locking<Mutex> l(&this->mutex_bgtask_);
 	this->stop();
+
+	log_info("SSDBImpl finalized");
+
 #ifdef USE_LEVELDB
     //auto memory man in rocks
 	if(options.block_cache){
@@ -347,11 +349,11 @@ void SSDBImpl::start() {
 }
 
 void SSDBImpl::stop() {
-    mutex_bgtask_.lock();
+	Locking<Mutex> l(&this->mutex_bgtask_);
+
     this->bgtask_flag_ = false;
     std::queue<std::string> tmp_tasks_;
     tasks_.swap(tmp_tasks_);
-    mutex_bgtask_.unlock();
 }
 
 void SSDBImpl::load_delete_keys_from_db(int num) {

@@ -326,7 +326,7 @@ SSDBServer::~SSDBServer(){
 	close(fds[0]);
 	close(fds[1]);
 
-	log_debug("SSDBServer finalized");
+	log_info("SSDBServer finalized");
 }
 
 /*********************/
