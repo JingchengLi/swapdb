@@ -545,16 +545,18 @@ proc populate_diff_keys {r2 r1 num {flag redis}} {
 
 proc debug_digest {r {level 0}} {
     set oldmemory [lindex [$r $level config get maxmemory] 1 ]
-    $r $level config set maxmemory 0
-    $r $level select 16
-    set keyslist [$r $level keys *]
-    $r $level select 0
-
+    set keyslist {}
+    # avoid keys transfer to ssdb again after debug digest.
     if {[lindex [$r $level role] 0] == "master"} {
+        assert_equal 0 $oldmemory "maxmemory should be 0 for all keys load to redis"
+        $r $level select 16
+        set keyslist [$r $level keys *]
+        $r $level select 0
         foreach key $keyslist {
             $r $level exists $key ;#load keys to redis
         }
     }
+
     $r $level select 16
     wait_for_condition 300 100 {
         [$r $level dbsize] eq 0
@@ -564,7 +566,6 @@ proc debug_digest {r {level 0}} {
     $r $level select 0
 
     set digest [$r $level debug digest]
-    $r $level config set maxmemory $oldmemory
     return $digest
 }
 

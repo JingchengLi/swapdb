@@ -189,7 +189,8 @@ start_server {tags {"repl"}} {
             set count [randomInt 100]
             set result [$master spop myset $count]
 
-           assert_equal [debug_digest r -1] [debug_digest r] "SPOP replication inconsistency"
+            r -1 config set maxmemory 0
+            assert_equal [debug_digest r -1] [debug_digest r] "SPOP replication inconsistency"
         }
     }
 }
