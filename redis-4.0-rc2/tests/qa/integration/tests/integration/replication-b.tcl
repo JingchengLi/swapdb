@@ -35,7 +35,7 @@ config {real.conf}} {
                     fail "Different number of keys between master and slave after too long time."
                 }
                 assert_equal [$master debug digest] [[lindex $slaves 0] debug digest] "Different digest between master and slave"
-                assert_equal [[[lindex $slaves 0] debug digest] [[lindex $slaves 1] debug digest] "Different digest between slaves"
+                assert_equal [[lindex $slaves 0] debug digest] [[lindex $slaves 1] debug digest] "Different digest between slaves"
                 $master config set maxmemory 1000MB
             }
         }
@@ -48,6 +48,7 @@ config {real.conf}} {
         set master [srv -1 client]
         set master_host [srv -1 host]
         set master_port [srv -1 port]
+        set slaves {}
         lappend slaves [srv 0 client]
 
         set num 3000

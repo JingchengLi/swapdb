@@ -12,6 +12,7 @@ source tests/support/test.tcl
 source tests/support/util.tcl
 
 set ::all_tests {
+
     ssdb/communicate-base
     ssdb/encoding
     ssdb/dump
@@ -31,7 +32,6 @@ set ::all_tests {
     unit/type/zset-2
     unit/type/list-2
     unit/type/list-3
-
     integration/aof
     integration/replication-base
     integration/replication-2
@@ -41,6 +41,7 @@ set ::all_tests {
     integration/replication-a
     integration/replication-b
     integration/replication-c
+    integration/replication-A
     integration/replication-psync
     integration/psync2
 }

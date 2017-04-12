@@ -54,8 +54,9 @@ proc kill_server config {
     }
 
     # kill server and wait for the process to be totally exited
+    after 1000
     catch {exec kill $pid}
-    catch {exec kill -9 $ssdbpid}
+    catch {exec kill $ssdbpid}
     if {$::valgrind} {
         set max_wait 60000
     } else {

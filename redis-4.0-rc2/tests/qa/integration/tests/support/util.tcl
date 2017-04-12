@@ -543,6 +543,33 @@ proc populate_diff_keys {r2 r1 num {flag redis}} {
     return $diff
 }
 
+proc compare_debug_digest {{levels {0 -1}}} {
+    assert {[llength $levels] > 1}
+    set master_level 1
+    set master_digest {}
+    set master_memory 0
+    foreach level $levels {
+        if {[lindex [r $level role] 0] == "master"} {
+            set master_level $level
+        }
+    }
+
+    if {$master_level ne 1} {
+        set master_memory [lindex [r $master_level config get maxmemory] 1 ]
+        r $master_level config set maxmemory 0
+        set master_digest [debug_digest r $master_level]
+    } else {
+        fail "no master cannot debug digest!!"
+    }
+
+    foreach level $levels {
+        if {$master_level ne $level} {
+            assert_equal $master_digest [debug_digest r $level] "master digest should equal to each slave"
+        }
+    }
+    r $master_level config set maxmemory $master_memory
+}
+
 proc debug_digest {r {level 0}} {
     set oldmemory [lindex [$r $level config get maxmemory] 1 ]
     set keyslist {}
