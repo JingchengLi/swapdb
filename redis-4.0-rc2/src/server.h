@@ -1411,6 +1411,7 @@ int isSpecialConnection(client *c);
 int createClientForEvicting();
 int createClientForReplicate();
 int createFakeClientForLoadAndEvict();
+int createDeleteConfirmClient();
 void readQueryFromClient(aeEventLoop *el, int fd, void *privdata, int mask);
 void addReplyString(client *c, const char *s, size_t len);
 void addReplyBulk(client *c, robj *obj);

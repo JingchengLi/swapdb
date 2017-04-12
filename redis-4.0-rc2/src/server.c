@@ -2688,7 +2688,7 @@ int processCommandMaybeInSSDB(client *c) {
     if ((server.is_allow_ssdb_write == DISALLOW_SSDB_WRITE)
         && (c->cmd->flags & CMD_WRITE) && (c->cmd->flags & CMD_JDJR_MODE)) {
         listAddNodeTail(server.no_writing_ssdb_blocked_clients, c);
-        serverLog(LL_DEBUG, "client: %ld is added to server.no_writing_ssdb_blocked_clients", c);
+        serverLog(LL_DEBUG, "client: %ld is added to server.no_writing_ssdb_blocked_clients", (long)c);
         /* TODO: use a suitable timeout. */
         c->bpop.timeout = 5000 + mstime();
         blockClient(c, BLOCKED_NO_WRITE_TO_SSDB);
@@ -3005,11 +3005,10 @@ int processCommand(client *c) {
         && server.masterhost
         && (c->cmd->proc == storetossdbCommand
             || c->cmd->proc == dumpfromssdbCommand)) {
-        int currcmd_is_load = (c->cmd->proc == dumpfromssdbCommand) ? 1 : 0;
         loadAndEvictCmd *cmdinfo = createLoadAndEvictCmd(c->argv, c->argc, c->cmd);
         listAddNodeTail(server.loadAndEvictCmdList, cmdinfo);
         /* Keep c->argv alocated memory. */
-        serverLog(LL_DEBUG, "load_or_store cmd: %s, key: %s is added to loadAndEvictCmdList.", c->cmd->name, c->argv[1]->ptr);
+        serverLog(LL_DEBUG, "load_or_store cmd: %s, key: %s is added to loadAndEvictCmdList.", c->cmd->name, (char *)c->argv[1]->ptr);
         c->argv = NULL;
 
         return C_OK;

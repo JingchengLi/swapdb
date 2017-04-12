@@ -1017,16 +1017,16 @@ int handleResponseOfDeleteCheckConfirm(client *c) {
         else
             dbSyncDelete(EVICTED_DATA_DB, c->argv[1]);
 
-        serverLog(LL_DEBUG, "key: %s is delete from EVICTED_DATA_DB->dict.", c->argv[1]->ptr);
+        serverLog(LL_DEBUG, "key: %s is delete from EVICTED_DATA_DB->dict.", (char *)c->argv[1]->ptr);
 
         propagate(lookupCommandByCString("del"), 0, argv, 2,
                   PROPAGATE_REPL | PROPAGATE_AOF);
-        serverLog(LL_DEBUG, "propagate key: %s to slave", c->argv[1]->ptr);
+        serverLog(LL_DEBUG, "propagate key: %s to slave", (char *)c->argv[1]->ptr);
         decrRefCount(argv[0]);
     }
 
     serverAssert(dictDelete(EVICTED_DATA_DB->delete_confirm_keys, c->argv[1]->ptr) == DICT_OK);
-    serverLog(LL_DEBUG, "delete_confirm_key: %s is deleted.", c->argv[1]->ptr);
+    serverLog(LL_DEBUG, "delete_confirm_key: %s is deleted.", (char *)c->argv[1]->ptr);
     /* Queue the ready key to ssdb_ready_keys. */
     signalBlockingKeyAsReady(c->db, c->argv[1]);
 
@@ -1067,7 +1067,6 @@ int handleExtraSSDBReply(client *c) {
     redisReply *element, *reply;
     int *keys = NULL;
     int numkeys = 0, j;
-    dictEntry *de = NULL;
     robj **keyobjs = NULL;
 
     reply = c->ssdb_replies[1];
@@ -1090,7 +1089,7 @@ int handleExtraSSDBReply(client *c) {
         /* TODO: support multi keys. */
         dictAddOrFind(EVICTED_DATA_DB->delete_confirm_keys, keyobjs[0]->ptr);
         serverLog(LL_DEBUG, "replyString str: %s", element->str);
-        serverLog(LL_DEBUG, "cmd: %s, key: %s is added to delete_confirm_keys.", keyobjs[0]->ptr, c->cmd->name);
+        serverLog(LL_DEBUG, "cmd: %s, key: %s is added to delete_confirm_keys.", (char *)keyobjs[0]->ptr, c->cmd->name);
 
         if (numkeys && keyobjs) zfree(keyobjs);
         if (keys) getKeysFreeResult(keys);
@@ -1448,7 +1447,7 @@ void unlinkClient(client *c) {
 
             if (ln) {
                 listDelNode(server.no_writing_ssdb_blocked_clients, ln);
-                serverLog(LL_DEBUG, "client: %ld is deleted from server.no_writing_ssdb_blocked_clients");
+                serverLog(LL_DEBUG, "client: %ld is deleted from server.no_writing_ssdb_blocked_clients", (long )c);
             }
 
             listRewind(server.clients, &li);

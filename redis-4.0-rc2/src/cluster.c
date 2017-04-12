@@ -4683,10 +4683,10 @@ void ssdbRespRestoreCommand(client *c) {
     preventCommandPropagation(c);
 
     if (expireIfNeeded(EVICTED_DATA_DB, key)) {
-        serverLog(LL_DEBUG, "key: %s is expired in redis.", key->ptr);
+        serverLog(LL_DEBUG, "key: %s is expired in redis.", (char *)key->ptr);
         dictDelete(EVICTED_DATA_DB->loading_hot_keys, key->ptr);
         signalBlockingKeyAsReady(c->db, key);
-        return C_ERR;
+        return;
     }
 
     restoreCommand(c);

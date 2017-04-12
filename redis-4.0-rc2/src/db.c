@@ -1175,7 +1175,7 @@ int expireIfNeeded(redisDb *db, robj *key) {
     /* Delete the key */
     server.stat_expiredkeys++;
 
-    serverLog(LL_DEBUG, "expireIfNeeded: %s, now: %ld, when: %ld", key->ptr, now, when);
+    serverLog(LL_DEBUG, "expireIfNeeded: %s, now: %lld, when: %lld", (char *)key->ptr, now, when);
     if (server.jdjr_mode) {
         if (dictFind(EVICTED_DATA_DB->dict, key->ptr)) {
             dictAddOrFind(EVICTED_DATA_DB->delete_confirm_keys, key->ptr);

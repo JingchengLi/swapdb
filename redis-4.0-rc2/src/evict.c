@@ -600,10 +600,9 @@ int epilogOfEvictingToSSDB(robj *keyobj, long long *usage) {
 
 int prologOfLoadingFromSSDB(robj *keyobj) {
     rio cmd;
-    long long expiretime;
 
     if (expireIfNeeded(EVICTED_DATA_DB, keyobj)) {
-        serverLog(LL_DEBUG, "key: %s is expired in redis.", keyobj->ptr);
+        serverLog(LL_DEBUG, "key: %s is expired in redis.", (char *)keyobj->ptr);
         return C_ERR;
     }
 
@@ -634,13 +633,13 @@ int prologOfEvictingToSSDB(robj *keyobj, redisDb *db) {
 
     de = dictFind(db->dict, keyobj->ptr);
     if (!de) {
-        serverLog(LL_DEBUG, "key: %s is not existed in redis.", keyobj->ptr);
+        serverLog(LL_DEBUG, "key: %s is not existed in redis.", (char *)keyobj->ptr);
         return C_ERR;
     }
     expiretime = getExpire(db, keyobj);
 
     if (expireIfNeeded(db, keyobj)) {
-        serverLog(LL_DEBUG, "key: %s is expired in redis, dbid: %d", keyobj->ptr, db->id);
+        serverLog(LL_DEBUG, "key: %s is expired in redis, dbid: %d", (char *)keyobj->ptr, db->id);
         return C_ERR;
     }
 
@@ -1119,7 +1118,7 @@ void signalBlockingKeyAsReady(redisDb *db, robj *key) {
      * check. */
     incrRefCount(key);
     serverAssert(dictAdd(db->ssdb_ready_keys,key,NULL) == DICT_OK);
-    serverLog(LL_DEBUG, "singal key: %s, dbid: %d", key->ptr, db->id);
+    serverLog(LL_DEBUG, "singal key: %s, dbid: %d", (char *)key->ptr, db->id);
 }
 
 int blockForLoadingkeys(client *c, robj **keys, int numkeys, mstime_t timeout) {
