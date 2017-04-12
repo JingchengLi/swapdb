@@ -40,3 +40,52 @@ foreach flag {New Mid Old} {
         } {OK}
     }
 }
+
+# 从节点ssdb在开始传输快照时重启，验证同步完成后key基本读写情况。
+start_server {tags {"repl-abnormal"}} {
+    start_server {} {
+
+        set master [srv -1 client]
+        set master_host [srv -1 host]
+        set master_port [srv -1 port]
+        $master set mykey foo
+        set slave [srv 0 client]
+
+        test "slave ssdb restart when master start to transfer snapshot" {
+            $slave slaveof $master_host $master_port
+            set pattern "receive.*rr_transfer_snapshot"
+            wait_log_pattern $pattern [srv -1 ssdbstdout]
+
+            kill_ssdb_server
+            restart_ssdb_server
+
+            set slave [srv 0 client]
+            wait_for_condition 50 500 {
+                [lindex [$slave role] 0] eq {slave} &&
+                [string match {*master_link_status:up*} [$slave info replication]]
+            } else {
+                fail "slave can not sync with master during writing"
+            }
+            wait_for_online $master
+        }
+
+        test {Sync should have transferred keys from master} {
+            $slave get mykey
+        } {foo}
+
+        test {SET on the master should immediately propagate} {
+            $master set mykey2 bar
+            wait_for_condition 10 100 {
+                [$slave get mykey2] eq {bar}
+            } else {
+                fail "SET on master did not propagated on slave"
+            }
+        }
+
+        after 100
+
+        test {slave should ping-pong after sometime} {
+            $slave ping
+        } {PONG}
+    }
+}
