@@ -142,7 +142,8 @@ void unblockClient(client *c) {
                    || c->btype == BLOCKED_NO_WRITE_TO_SSDB)) {
         /* Doing nothing. */
     } else if (server.jdjr_mode && c->btype == BLOCKED_VISITING_SSDB) {
-        removeVisitingSSDBKey(c);
+        if (c != server.delete_confirm_client)
+            removeVisitingSSDBKey(c);
     } else {
         serverPanic("Unknown btype in unblockClient().");
     }

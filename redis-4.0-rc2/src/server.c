@@ -708,7 +708,7 @@ dictType replScriptCacheDictType = {
 };
 
 /* Db->visiting_ssdb_keys */
-dictType visitingSSDBKeyDictType = {
+dictType keyDictType = {
     dictSdsHash,                /* hash function */
     dictSdsDup,                 /* key dup */
     NULL,                       /* val dup */
@@ -1290,9 +1290,11 @@ void startToLoadIfNeeded() {
         if (dictFind(EVICTED_DATA_DB->transferring_keys, keyobj->ptr))
             continue;
 
+        if (dictFind(EVICTED_DATA_DB->delete_confirm_keys, keyobj->ptr))
+            continue;
+
         /* Try to load the keys in the next loop. */
-        if (dictFind(EVICTED_DATA_DB->visiting_ssdb_keys, keyobj->ptr) ||
-                dictFind(EVICTED_DATA_DB->delete_confirm_keys, keyobj->ptr)) {
+        if (dictFind(EVICTED_DATA_DB->visiting_ssdb_keys, keyobj->ptr)) {
             incrRefCount(keyobj);
             listAddNodeTail(tmp, keyobj);
             continue;
@@ -1318,8 +1320,8 @@ void startToLoadIfNeeded() {
         }
 
         serverLog(LL_DEBUG, "Try loading key: %s from SSDB.", (char *)keyobj->ptr);
-        setLoadingDB(keyobj);
-        prologOfLoadingFromSSDB(keyobj);
+        if (prologOfLoadingFromSSDB(keyobj) == C_OK)
+            setLoadingDB(keyobj);
     }
 
     listRelease(server.hot_keys);
@@ -1337,28 +1339,61 @@ void startToHandleCmdListInSlave(void) {
     while((node = listNext(&iter)) != NULL) {
         loadAndEvictCmd *cmdinfo = node->value;
         robj *keyobj = cmdinfo->argv[1];
+
+        /* TODO: optimization. */
+        if (dictFind(EVICTED_DATA_DB->transferring_keys, keyobj->ptr)
+            || dictFind(EVICTED_DATA_DB->loading_hot_keys, keyobj->ptr)
+            || dictFind(EVICTED_DATA_DB->delete_confirm_keys, keyobj->ptr))
+            break;
+
         server.cmdNotDone = 0;
         restoreLoadEvictCommandVector(server.slave_ssdb_load_evict_client,
                                       cmdinfo->argc , cmdinfo->argv, cmdinfo->cmd);
 
-        if (dictFind(server.loadAndEvictCmdDict, keyobj->ptr)) {
             server.slave_ssdb_load_evict_client->lastcmd = server.slave_ssdb_load_evict_client->cmd;
-
             runCommand(server.slave_ssdb_load_evict_client, NULL);
-
             if (!server.cmdNotDone) {
                 serverLog(LL_DEBUG, "beforesleep processing cmd: %s",
                           server.slave_ssdb_load_evict_client->cmd->name);
-                dictDelete(server.loadAndEvictCmdDict, keyobj->ptr);
             } else {
                 serverLog(LL_DEBUG, "beforesleep processing cmd: %s failed.",
                           server.slave_ssdb_load_evict_client->cmd->name);
                 break;
             }
-        }
 
         resetClient(server.slave_ssdb_load_evict_client);
         listDelNode(server.loadAndEvictCmdList, node);
+    }
+}
+
+void handleDeleteConfirmKeys(void) {
+    dictIterator *di;
+    dictEntry *de;
+
+    if (dictSize(EVICTED_DATA_DB->delete_confirm_keys) == 0
+        || (server.delete_confirm_client->flags & CLIENT_BLOCKED))
+        return;
+
+    di = dictGetIterator(EVICTED_DATA_DB->delete_confirm_keys);
+
+    while((de = dictNext(di))) {
+        if (dictFind(EVICTED_DATA_DB->visiting_ssdb_keys, de->key))
+            continue;
+
+        server.delete_confirm_client->argc = 2;
+        server.delete_confirm_client->argv = zmalloc(sizeof(robj *)
+                                                     * server.delete_confirm_client->argc);
+
+        server.delete_confirm_client->argv[0] = createObject(OBJ_STRING, sdsnew("exists"));
+        server.delete_confirm_client->argv[1] = createObject(OBJ_STRING, sdsdup(de->key));
+        server.delete_confirm_client->cmd = lookupCommandByCString("exists");
+
+        sendCommandToSSDB(server.delete_confirm_client, NULL);
+
+        /* TODO: use a suitable timeout. */
+        server.delete_confirm_client->bpop.timeout = 5000 + mstime();
+        blockClient(server.delete_confirm_client, BLOCKED_VISITING_SSDB);
+        break;
     }
 }
 
@@ -1426,6 +1461,8 @@ void beforeSleep(struct aeEventLoop *eventLoop) {
     /* Call handleCustomizedBlockedClients in beforeSleep to
        avoid timeout when there's only 1 real client. */
     if (server.jdjr_mode) handleCustomizedBlockedClients();
+
+    if (server.jdjr_mode) handleDeleteConfirmKeys();
 }
 
 /* =========================== Server initialization ======================== */
@@ -2052,6 +2089,12 @@ void initServer(void) {
         exit(1);
     }
 
+    if (server.jdjr_mode
+        && createDeleteConfirmClient() != C_OK) {
+        serverLog(LL_WARNING, "create SSDB delete_confirm socket failed.");
+        exit(1);
+    }
+
 
     if (server.jdjr_mode && server.special_clients_num) {
         server.maxclients += server.special_clients_num;
@@ -2090,11 +2133,10 @@ void initServer(void) {
     }
 
     if (server.jdjr_mode) {
-        server.db[EVICTED_DATA_DBID].transferring_keys = dictCreate(&keyptrDictType,NULL);
-        server.db[EVICTED_DATA_DBID].loading_hot_keys = dictCreate(&keyptrDictType,NULL);
-        server.db[EVICTED_DATA_DBID].visiting_ssdb_keys = dictCreate(&visitingSSDBKeyDictType,NULL);
-        server.db[EVICTED_DATA_DBID].delete_confirm_keys = dictCreate(&keyptrDictType,NULL);
-        server.loadAndEvictCmdDict = dictCreate(&keyptrDictType,NULL);
+        server.db[EVICTED_DATA_DBID].transferring_keys = dictCreate(&keyDictType,NULL);
+        server.db[EVICTED_DATA_DBID].loading_hot_keys = dictCreate(&keyDictType,NULL);
+        server.db[EVICTED_DATA_DBID].visiting_ssdb_keys = dictCreate(&keyDictType,NULL);
+        server.db[EVICTED_DATA_DBID].delete_confirm_keys = dictCreate(&keyDictType,NULL);
     }
 
     evictionPoolAlloc(); /* Initialize the LRU keys pool. */
@@ -2598,6 +2640,24 @@ int processCommandMaybeFlushdb(client *c, int old_bufpos) {
 }
 
 
+void addVisitingSSDBKey(client *c, sds *keysds) {
+    dictEntry *entry, *existing;
+    uint64_t clients_visiting_num = 0;
+    entry = dictAddRaw(EVICTED_DATA_DB->visiting_ssdb_keys, keysds, &existing);
+    if (NULL == entry) {
+        /* there are already some clients visiting this key. just increase client visiting count. */
+        clients_visiting_num = dictGetUnsignedIntegerVal(existing);
+        clients_visiting_num++;
+        dictSetUnsignedIntegerVal(existing, clients_visiting_num);
+    } else {
+        /* no other clients are visiting this key, set client visiting num to 1. */
+        dictSetUnsignedIntegerVal(entry, 1);
+    }
+    serverLog(LL_DEBUG, "key: %s is added to visiting_ssdb_keys, fd: %d, counter: %ld",
+              (char *)keysds, c->fd,
+              clients_visiting_num ? clients_visiting_num : 1);
+}
+
 /* Process keys may be in SSDB, only handle the command jdjr_mode supported.
  The rest cases will be handled by processCommand. */
 int processCommandMaybeInSSDB(client *c) {
@@ -2628,6 +2688,7 @@ int processCommandMaybeInSSDB(client *c) {
     if ((server.is_allow_ssdb_write == DISALLOW_SSDB_WRITE)
         && (c->cmd->flags & CMD_WRITE) && (c->cmd->flags & CMD_JDJR_MODE)) {
         listAddNodeTail(server.no_writing_ssdb_blocked_clients, c);
+        serverLog(LL_DEBUG, "client: %ld is added to server.no_writing_ssdb_blocked_clients", c);
         /* TODO: use a suitable timeout. */
         c->bpop.timeout = 5000 + mstime();
         blockClient(c, BLOCKED_NO_WRITE_TO_SSDB);
@@ -2648,23 +2709,8 @@ int processCommandMaybeInSSDB(client *c) {
             {
                 int *keys = NULL, numkeys = 0, j;
                 keys = getKeysFromCommand(c->cmd, c->argv, c->argc, &numkeys);
-                for (j = 0; j < numkeys; j ++) {
-                    dictEntry *entry, *existing;
-                    uint64_t clients_visiting_num = 0;
-                    entry = dictAddRaw(EVICTED_DATA_DB->visiting_ssdb_keys, c->argv[keys[j]]->ptr, &existing);
-                    if (NULL == entry) {
-                        /* there are already some clients visiting this key. just increase client visiting count. */
-                        clients_visiting_num = dictGetUnsignedIntegerVal(existing);
-                        clients_visiting_num++;
-                        dictSetUnsignedIntegerVal(existing, clients_visiting_num);
-                   } else {
-                        /* no other clients are visiting this key, set client visiting num to 1. */
-                        dictSetUnsignedIntegerVal(entry, 1);
-                    }
-                    serverLog(LL_DEBUG, "key: %s is added to visiting_ssdb_keys, fd: %d, counter: %ld",
-                              (char *)c->argv[keys[j]]->ptr, c->fd,
-                              clients_visiting_num ? clients_visiting_num : 1);
-                }
+                for (j = 0; j < numkeys; j ++)
+                    addVisitingSSDBKey(c, c->argv[keys[j]]->ptr);
 
                 if (keys) getKeysFreeResult(keys);
 
@@ -2717,8 +2763,8 @@ int runCommand(client *c, int* need_return) {
            is returned in sendCommandToSSDB.
            Otherwise, return C_ERR to avoid calling resetClient,
            the resetClient is delayed to ssdbClientUnixHandler. */
-        serverLog(LL_DEBUG, "processing %s, fd: %d in ssdb: %s",
-                  c->cmd->name, c->fd, (char *)c->argv[1]->ptr);
+        serverLog(LL_DEBUG, "processing %s, fd: %d in ssdb: %s, argc: %d",
+                  c->cmd->name, c->fd, (char *)c->argv[1]->ptr, c->argc);
         if (need_return) *need_return = 1;
         return C_ERR;
     }
@@ -2736,8 +2782,8 @@ int runCommand(client *c, int* need_return) {
         if (need_return) *need_return = 0;
     }
 
-    serverLog(LL_DEBUG, "processing %s, fd: %d in redis: %s",
-              c->cmd->name, c->fd, c->argc > 1 ? (char *)c->argv[1]->ptr : "");
+    serverLog(LL_DEBUG, "processing %s, fd: %d in redis: %s, dbid: %d, argc: %d",
+              c->cmd->name, c->fd, c->argc > 1 ? (char *)c->argv[1]->ptr : "", c->db->id, c->argc);
 
     if (server.jdjr_mode
         && processCommandMaybeFlushdb(c, bufpos) == C_OK) {
@@ -2960,13 +3006,11 @@ int processCommand(client *c) {
         && (c->cmd->proc == storetossdbCommand
             || c->cmd->proc == dumpfromssdbCommand)) {
         int currcmd_is_load = (c->cmd->proc == dumpfromssdbCommand) ? 1 : 0;
-
-        if (updateLoadAndEvictCmdDict(c->argv[1], currcmd_is_load) == C_OK) {
-            loadAndEvictCmd *cmdinfo = createLoadAndEvictCmd(c->argv, c->argc, c->cmd);
-            listAddNodeTail(server.loadAndEvictCmdList, cmdinfo);
-            /* Keep c->argv alocated memory. */
-            c->argv = NULL;
-        }
+        loadAndEvictCmd *cmdinfo = createLoadAndEvictCmd(c->argv, c->argc, c->cmd);
+        listAddNodeTail(server.loadAndEvictCmdList, cmdinfo);
+        /* Keep c->argv alocated memory. */
+        serverLog(LL_DEBUG, "load_or_store cmd: %s, key: %s is added to loadAndEvictCmdList.", c->cmd->name, c->argv[1]->ptr);
+        c->argv = NULL;
 
         return C_OK;
     }

@@ -1095,25 +1095,6 @@ void setLoadingDB(robj *key) {
     serverLog(LL_DEBUG, "key: %s is added to loading_hot_keys.", (char *)key->ptr);
 }
 
-int updateLoadAndEvictCmdDict(robj *key, int currcmd_is_load) {
-    dictEntry *de;
-    int prevcmd_is_load;
-    de = dictFind(server.loadAndEvictCmdDict, key->ptr);
-
-    if (de) {
-        prevcmd_is_load = dictGetSignedIntegerVal(de);
-        if (prevcmd_is_load != currcmd_is_load)
-            dictDelete(server.loadAndEvictCmdDict, key->ptr);
-
-        return C_ERR;
-    } else {
-        de = dictAddOrFind(server.loadAndEvictCmdDict, key->ptr);
-        dictSetSignedIntegerVal(de, currcmd_is_load);
-
-        return C_OK;
-    }
-}
-
 long long getTransferringDB(robj *key) {
     redisDb *db = EVICTED_DATA_DB;
     dictEntry *de;
@@ -1193,7 +1174,17 @@ int expireIfNeeded(redisDb *db, robj *key) {
 
     /* Delete the key */
     server.stat_expiredkeys++;
-    propagateExpire(db,key,server.lazyfree_lazy_expire);
+
+    serverLog(LL_DEBUG, "expireIfNeeded: %s, now: %ld, when: %ld", key->ptr, now, when);
+    if (server.jdjr_mode) {
+        if (dictFind(EVICTED_DATA_DB->dict, key->ptr)) {
+            dictAddOrFind(EVICTED_DATA_DB->delete_confirm_keys, key->ptr);
+            return 1;
+        } else
+            db = server.db + 0;
+    } else
+        propagateExpire(db,key,server.lazyfree_lazy_expire);
+
     notifyKeyspaceEvent(NOTIFY_EXPIRED,
         "expired",key,db->id);
     return server.lazyfree_lazy_expire ? dbAsyncDelete(db,key) :

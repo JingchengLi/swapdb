@@ -124,6 +124,9 @@ client *createClient(int fd) {
         c->ssdb_status = SSDB_NONE;
         c->bpop.loading_or_transfer_keys = dictCreate(&objectKeyPointerValueDictType,NULL);
         c->replication_flags = 0;
+        c->ssdb_replies[0] = NULL;
+        c->ssdb_replies[1] = NULL;
+        c->add_reply_len = 0;
     }
     c->bpop.target = NULL;
     c->bpop.numreplicas = 0;
@@ -754,6 +757,7 @@ void sendCheckWriteCommandToSSDB(aeEventLoop *el, int fd, void *privdata, int ma
         c->replication_flags |= SSDB_CLIENT_KEEP_REPLY;
         aeDeleteFileEvent(server.el, c->fd, AE_WRITABLE);
     }
+    serverLog(LL_DEBUG, "Sending rr_check_write to SSDB counter: %d", server.check_write_unresponse_num);
 }
 
 
@@ -908,6 +912,7 @@ int handleResponseOfCheckWrite(client *c, sds replyString) {
         process_status = C_ERR;
 
     c->replication_flags &= ~SSDB_CLIENT_KEEP_REPLY;
+    serverLog(LL_DEBUG, "Handle rr_check_write fd: %d, counter: %d", c->fd, server.check_write_unresponse_num);
 
     return process_status;
  }
@@ -984,6 +989,7 @@ int handleResponseOfTransferSnapshot(client *c, sds replyString) {
 
     } else if (c->ssdb_status == SLAVE_SSDB_SNAPSHOT_TRANSFER_START) {
         if (!sdscmp(replyString, shared.transfersnapshotfinished)) {
+            serverLog(LL_DEBUG, "snapshot transfer finished.");
             c->ssdb_status = SLAVE_SSDB_SNAPSHOT_TRANSFER_END;
             process_status = C_OK;
         } else if (!sdscmp(replyString, shared.transfersnapshotunfinished)) {
@@ -999,9 +1005,39 @@ int handleResponseOfTransferSnapshot(client *c, sds replyString) {
     return process_status;
 }
 
+int handleResponseOfDeleteCheckConfirm(client *c) {
+    redisReply *reply = c->ssdb_replies[0];
+
+    if (reply->type == REDIS_REPLY_INTEGER
+        && reply->integer == 0) {
+        robj *argv[2] = {createStringObject("del", 3), c->argv[1]};
+
+        if (server.lazyfree_lazy_eviction)
+            dbAsyncDelete(EVICTED_DATA_DB, c->argv[1]);
+        else
+            dbSyncDelete(EVICTED_DATA_DB, c->argv[1]);
+
+        serverLog(LL_DEBUG, "key: %s is delete from EVICTED_DATA_DB->dict.", c->argv[1]->ptr);
+
+        propagate(lookupCommandByCString("del"), 0, argv, 2,
+                  PROPAGATE_REPL | PROPAGATE_AOF);
+        serverLog(LL_DEBUG, "propagate key: %s to slave", c->argv[1]->ptr);
+        decrRefCount(argv[0]);
+    }
+
+    serverAssert(dictDelete(EVICTED_DATA_DB->delete_confirm_keys, c->argv[1]->ptr) == DICT_OK);
+    serverLog(LL_DEBUG, "delete_confirm_key: %s is deleted.", c->argv[1]->ptr);
+    /* Queue the ready key to ssdb_ready_keys. */
+    signalBlockingKeyAsReady(c->db, c->argv[1]);
+
+    return C_OK;
+}
+
 static void revertClientBufReply(client *c, size_t revertlen) {
     listNode *ln;
     sds tail;
+
+    if (c->flags & CLIENT_MASTER) return;
 
     if (listLength(c->reply) > 0
         && (ln = listLast(c->reply))
@@ -1025,6 +1061,46 @@ static void revertClientBufReply(client *c, size_t revertlen) {
         serverAssert(c->bufpos >= (int)revertlen);
         c->bufpos -= revertlen;
     }
+}
+
+int handleExtraSSDBReply(client *c) {
+    redisReply *element, *reply;
+    int *keys = NULL;
+    int numkeys = 0, j;
+    dictEntry *de = NULL;
+    robj **keyobjs = NULL;
+
+    reply = c->ssdb_replies[1];
+    serverAssert(reply->type == REDIS_REPLY_ARRAY && reply->elements == 1);
+    element = reply->element[0];
+    serverAssert(element->type == REDIS_REPLY_STRING);
+
+    serverLog(LL_DEBUG, "element->str: %s", element->str);
+    if (!isSpecialConnection(c)
+        && !strcmp(element->str, "check 1")) {
+        keys = getKeysFromCommand(c->cmd, c->argv, c->argc, &numkeys);
+
+        /* TODO: optimized zmalloc. */
+        if (numkeys)
+            keyobjs = zmalloc(sizeof(robj *) * numkeys);
+
+        for (j = 0; j < numkeys; j ++)
+            keyobjs[j] = c->argv[keys[j]];
+
+        /* TODO: support multi keys. */
+        dictAddOrFind(EVICTED_DATA_DB->delete_confirm_keys, keyobjs[0]->ptr);
+        serverLog(LL_DEBUG, "replyString str: %s", element->str);
+        serverLog(LL_DEBUG, "cmd: %s, key: %s is added to delete_confirm_keys.", keyobjs[0]->ptr, c->cmd->name);
+
+        if (numkeys && keyobjs) zfree(keyobjs);
+        if (keys) getKeysFreeResult(keys);
+    }
+
+    /*Handle the common extra reply from SSDB:
+      length 17: '*1\r\n$7\r\ncheck 0\r\n' */
+    if (!isSpecialConnection(c)) revertClientBufReply(c, 17);
+
+    return C_OK;
 }
 
 void removeVisitingSSDBKey(client *c) {
@@ -1061,56 +1137,32 @@ void removeVisitingSSDBKey(client *c) {
 int isSpecialConnection(client *c) {
     if (c == server.ssdb_client
         || c == server.slave_ssdb_load_evict_client
-        || c == server.ssdb_replication_client)
+        || c == server.ssdb_replication_client
+        || c == server.delete_confirm_client)
         return 1;
     else
         return 0;
 }
 
-/* TODO: Implement ssdbClientUnixHandler. Only handle AE_READABLE. */
-void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
-    UNUSED(el);
-    UNUSED(mask);
-    UNUSED(fd);
-
-    client * c = (client *)privdata;
-    void *aux = NULL;
-    redisReply *reply = NULL;
-    int j, add_reply_len = 0;
+void handleSSDBReply(client *c) {
     sds replyString = NULL;
+    redisReply *reply;
+    int j;
 
-    if (!c || !c->context)
-        return;
-
-    redisReader *r = c->context->reader;
-
-    do {
-        int oldlen = r->len;
-
-        if (redisBufferRead(c->context) == REDIS_OK
-            && !isSpecialConnection(c)) {
-            add_reply_len = r->len - oldlen;
-            addReplyString(c, r->buf + oldlen, add_reply_len);
-        }
-
-        /* Return early when the context has seen an error. */
-        if (c->context->err) {
-            serverLog(LL_WARNING, "Error: Could not connect to SSDB, %s ", c->context->errstr);
-            freeClient(c);
-            return;
-        }
-
-        if (redisGetReplyFromReader(c->context, &aux) == REDIS_ERR)
-            break;
-    } while (aux == NULL);
-
-    reply = (redisReply *)aux;
-
+    reply = c->ssdb_replies[0];
     if (reply && reply->type == REDIS_REPLY_ERROR)
         serverLog(LL_WARNING, "Reply from SSDB is ERROR: %s", reply->str);
+    if (reply && reply->type == REDIS_REPLY_STRING)
+        serverLog(LL_DEBUG, "replyString: %s", reply->str);
 
-    if (c == server.ssdb_client)
+    /* Handle special connections. */
+    if (c == server.ssdb_client) return;
+
+    if (c == server.delete_confirm_client
+        && handleResponseOfDeleteCheckConfirm(c) == C_OK) {
+        revertClientBufReply(c, c->add_reply_len);
         goto cleanup;
+    }
 
     /* Maintain the EVICTED_DATA_DB. */
     if (c->cmd && (c->cmd->proc == delCommand)) {
@@ -1126,26 +1178,13 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
         }
     }
 
-    /* Unblock the current client. */
-    if (c->btype == BLOCKED_VISITING_SSDB) {
-        unblockClient(c);
-
-        // todo: review
-        if ((c->cmd->flags & CMD_WRITE)
-            && server.masterhost == NULL) {
-            propagate(c->cmd, c->db->id, c->argv, c->argc, PROPAGATE_REPL);
-        }
-
-        resetClient(c);
-    }
-
     /* Handle the response of rr_check_write. */
     if (server.ssdb_status == MASTER_SSDB_SNAPSHOT_CHECK_WRITE
         && (c->replication_flags & SSDB_CLIENT_KEEP_REPLY)
         && (reply && reply->type == REDIS_REPLY_STRING)
         && (replyString = sdsnew(reply->str))
         && handleResponseOfCheckWrite(c, replyString) == C_OK) {
-        revertClientBufReply(c, add_reply_len);
+        revertClientBufReply(c, c->add_reply_len);
         goto cleanup;
     }
 
@@ -1155,7 +1194,7 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
         && (reply && reply->type == REDIS_REPLY_STRING)
         && (replyString = sdsnew(reply->str))
         && handleResponseOfPsync(c, replyString) == C_OK) {
-        revertClientBufReply(c, add_reply_len);
+        revertClientBufReply(c, c->add_reply_len);
         goto cleanup;
     }
 
@@ -1167,7 +1206,7 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
         && (reply && reply->type == REDIS_REPLY_STRING)
         && (replyString = sdsnew(reply->str))
         && handleResponseOfTransferSnapshot(c, replyString) == C_OK) {
-        revertClientBufReply(c, add_reply_len);
+        revertClientBufReply(c, c->add_reply_len);
         goto cleanup;
     }
 
@@ -1177,13 +1216,93 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
         && (reply && reply->type == REDIS_REPLY_STRING)
         && (replyString = sdsnew(reply->str))
         && handleResponseOfDelSnapshot(c, replyString) == C_OK) {
-        revertClientBufReply(c, add_reply_len);
+        revertClientBufReply(c, c->add_reply_len);
         goto cleanup;
     }
 
+    handleExtraSSDBReply(c);
+
 cleanup:
-    if (reply) freeReplyObject(reply);
     if (replyString) sdsfree(replyString);
+
+    /* Unblock the current client. */
+    if (c->btype == BLOCKED_VISITING_SSDB) {
+        unblockClient(c);
+
+        // todo: review
+        if ((c->cmd
+             && (c->cmd->flags & CMD_WRITE)
+             && server.masterhost == NULL)) {
+            propagate(c->cmd, c->db->id, c->argv, c->argc, PROPAGATE_REPL);
+        }
+
+        resetClient(c);
+    }
+}
+
+/* TODO: Implement ssdbClientUnixHandler. Only handle AE_READABLE. */
+void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
+    UNUSED(el);
+    UNUSED(mask);
+    UNUSED(fd);
+
+    client * c = (client *)privdata;
+    void *aux = NULL;
+
+    if (!c || !c->context)
+        return;
+
+    redisReader *r = c->context->reader;
+
+    do {
+        int oldlen = r->len;
+
+        if (redisBufferRead(c->context) == REDIS_OK
+            && !isSpecialConnection(c)
+            && !c->ssdb_replies[0]) {
+            c->add_reply_len = r->len - oldlen;
+            addReplyString(c, r->buf + oldlen, c->add_reply_len);
+        }
+
+        /* Return early when the context has seen an error. */
+        if (c->context->err) {
+            serverLog(LL_WARNING, "Error: Could not connect to SSDB, %s ", c->context->errstr);
+            freeClient(c);
+            return;
+        }
+
+        if (redisGetReplyFromReader(c->context, &aux) == REDIS_ERR)
+            break;
+
+        /* Record 1th reply. */
+        if (aux && !c->ssdb_replies[0]) {
+            c->ssdb_replies[0] = aux;
+            aux = NULL;
+            serverAssert(!c->ssdb_replies[1]);
+            continue;
+        }
+
+        /* Record 2th reply. */
+        if (aux && c->ssdb_replies[0] && !c->ssdb_replies[1]) {
+            c->ssdb_replies[1] = aux;
+            break;
+        }
+    } while (aux == NULL);
+
+    /* Continue to read the next callback from SSDB. */
+    if (!c->ssdb_replies[0] || !c->ssdb_replies[1])
+        return;
+
+    handleSSDBReply(c);
+
+    if (c->ssdb_replies[0]) {
+        freeReplyObject((redisReply *)c->ssdb_replies[0]);
+        c->ssdb_replies[0] = NULL;
+    }
+    if (c->ssdb_replies[1]) {
+        freeReplyObject((redisReply *)c->ssdb_replies[1]);
+        c->ssdb_replies[1] = NULL;
+    }
 }
 
 /* Create a client for keepalive with SSDB. */
@@ -1229,6 +1348,28 @@ int createFakeClientForLoadAndEvict() {
     server.special_clients_num ++;
 
     serverLog(LL_NOTICE, "Create SSDB loadAndEvict socket success.");
+    return C_OK;
+}
+
+
+int createDeleteConfirmClient() {
+    if (server.delete_confirm_client && server.delete_confirm_client->fd != -1)
+        unlinkClient(server.delete_confirm_client);
+
+    server.delete_confirm_client = createClient(-1);
+    if (!server.delete_confirm_client) {
+        serverLog(LL_WARNING, "Error creating new client.");
+        return C_ERR;
+    }
+
+    if (nonBlockConnectToSsdbServer(server.delete_confirm_client) == C_OK) {
+        server.delete_confirm_client->fd = server.delete_confirm_client->context->fd;
+        listAddNodeTail(server.clients, server.delete_confirm_client);
+    } else
+        return C_ERR;
+
+    server.special_clients_num ++;
+    serverLog(LL_NOTICE, "Create SSDB delete_confirm socket success.");
     return C_OK;
 }
 
@@ -1305,7 +1446,10 @@ void unlinkClient(client *c) {
 
             ln = listSearchKey(server.no_writing_ssdb_blocked_clients, c);
 
-            if (ln) listDelNode(server.no_writing_ssdb_blocked_clients, ln);
+            if (ln) {
+                listDelNode(server.no_writing_ssdb_blocked_clients, ln);
+                serverLog(LL_DEBUG, "client: %ld is deleted from server.no_writing_ssdb_blocked_clients");
+            }
 
             listRewind(server.clients, &li);
             while((ln = listNext(&li))) {

@@ -473,6 +473,15 @@ unsigned long KeyLFUDecrAndReturn(sds key) {
     return counter;
 }
 
+void cleanupEpilogOfEvicting(redisDb *db, robj *keyobj) {
+    if (dictSize(EVICTED_DATA_DB->transferring_keys) > 0) {
+        serverAssert(dictDelete(EVICTED_DATA_DB->transferring_keys,
+                                keyobj->ptr) == DICT_OK);
+        serverLog(LL_DEBUG, "key: %s is deleted from transferring_keys.", (char *)keyobj->ptr);
+    }
+    signalBlockingKeyAsReady(db, keyobj);
+}
+
 int epilogOfEvictingToSSDB(robj *keyobj, long long *usage) {
     redisDb *evicteddb = server.db + EVICTED_DATA_DBID, *db;
     mstime_t eviction_latency;
@@ -491,17 +500,23 @@ int epilogOfEvictingToSSDB(robj *keyobj, long long *usage) {
     /* Only transfer effective data. */
     if (expiretime > 0 && now > expiretime) {
         expireIfNeeded(db, keyobj);
+        /* TODO: del expire keys. */
         serverLog(LL_DEBUG, "The key: %s has expired.", (char *)keyobj->ptr);
-        return C_OK;
+        cleanupEpilogOfEvicting(db, keyobj);
+        return C_ERR;
     }
 
     de = dictFind(db->dict, keyobj->ptr);
 
     /* The key may be deleted before the callback ssdb-resp-del. */
-    if (!de) return C_ERR;
+    if (!de) {
+        cleanupEpilogOfEvicting(db, keyobj);
+        return C_ERR;
+    }
 
     /* Record the evicted keys in an extra redis db. */
-    if (usage) *usage = (long long)estimateKeyMemoryUsage(de);
+    /* TODO: isolate the mem usage ??? */
+    if (usage) *usage = 0;/* (long long)estimateKeyMemoryUsage(de); */
     usage_obj = createStringObjectFromLongLong(usage ? *usage : 0);
     setKey(evicteddb, keyobj, usage_obj);
     decrRefCount(usage_obj);
@@ -525,8 +540,8 @@ int epilogOfEvictingToSSDB(robj *keyobj, long long *usage) {
      * del the key, redis may expire a key by mistake. */
 
     /* Record the expire info. */
-    /*
     if (expiretime > 0) {
+        char llbuf[LONG_STR_SIZE];
         setExpire(NULL, evicteddb, keyobj, expiretime);
         ll2string(llbuf, sizeof(llbuf), expiretime);
         notifyKeyspaceEvent(NOTIFY_GENERIC,
@@ -544,16 +559,8 @@ int epilogOfEvictingToSSDB(robj *keyobj, long long *usage) {
         serverLog(LL_DEBUG, "Appending expire operation to aof.");
         decrRefCount(llbufobj);
     }
-    */
 
-    if (dictSize(EVICTED_DATA_DB->transferring_keys) > 0) {
-        serverAssert(dictDelete(EVICTED_DATA_DB->transferring_keys,
-                                keyobj->ptr) == DICT_OK);
-        serverLog(LL_DEBUG, "key: %s is deleted from transferring_keys.", (char *)keyobj->ptr);
-    }
-
-    /* Queue the ready key to ssdb_ready_keys. */
-    signalBlockingKeyAsReady(db, keyobj);
+    cleanupEpilogOfEvicting(db, keyobj);
 
      /* We compute the amount of memory freed by db*Delete() alone.
      * It is possible that actually the memory needed to propagate
@@ -593,6 +600,12 @@ int epilogOfEvictingToSSDB(robj *keyobj, long long *usage) {
 
 int prologOfLoadingFromSSDB(robj *keyobj) {
     rio cmd;
+    long long expiretime;
+
+    if (expireIfNeeded(EVICTED_DATA_DB, keyobj)) {
+        serverLog(LL_DEBUG, "key: %s is expired in redis.", keyobj->ptr);
+        return C_ERR;
+    }
 
     rioInitWithBuffer(&cmd, sdsempty());
     serverAssert(rioWriteBulkCount(&cmd, '*', 2));
@@ -621,12 +634,15 @@ int prologOfEvictingToSSDB(robj *keyobj, redisDb *db) {
 
     de = dictFind(db->dict, keyobj->ptr);
     if (!de) {
+        serverLog(LL_DEBUG, "key: %s is not existed in redis.", keyobj->ptr);
         return C_ERR;
     }
     expiretime = getExpire(db, keyobj);
 
-    if (expiretime > 0 && now > expiretime)
+    if (expireIfNeeded(db, keyobj)) {
+        serverLog(LL_DEBUG, "key: %s is expired in redis, dbid: %d", keyobj->ptr, db->id);
         return C_ERR;
+    }
 
     if (expiretime != -1) {
         /* todo: to optimize for keys with very little ttl time, we
@@ -987,8 +1003,8 @@ static void removeClientFromListForBlockedKey(client* c, robj* key) {
     listDelNode(l, listSearchKey(l,c));
     /* If the list is empty we need to remove it to avoid wasting memory */
     if (listLength(l) == 0) {
-        serverLog(LL_DEBUG, "key: %s is deleted from ssdb_blocking_keys.", (char *)key->ptr);
-        dictDelete(c->db->ssdb_blocking_keys,key);
+        serverLog(LL_DEBUG, "key: %s  is deleted from ssdb_blocking_keys.", (char *)key->ptr);
+        serverAssert(dictDelete(c->db->ssdb_blocking_keys,key) == DICT_OK);
     }
 }
 
@@ -1103,6 +1119,7 @@ void signalBlockingKeyAsReady(redisDb *db, robj *key) {
      * check. */
     incrRefCount(key);
     serverAssert(dictAdd(db->ssdb_ready_keys,key,NULL) == DICT_OK);
+    serverLog(LL_DEBUG, "singal key: %s, dbid: %d", key->ptr, db->id);
 }
 
 int blockForLoadingkeys(client *c, robj **keys, int numkeys, mstime_t timeout) {

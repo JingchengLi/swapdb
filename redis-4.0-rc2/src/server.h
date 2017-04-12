@@ -273,8 +273,8 @@ typedef long long mstime_t; /* millisecond time type. */
 #define BLOCKED_SSDB_LOADING_OR_TRANSFER 10 /* Blocked when loading a key becomes hot in SSDB
                                     * or transferring a key becomes cold to SSDB. */
 #define BLOCKED_VISITING_SSDB 11   /* Client is visiting SSDB. */
-#define BLOCKED_VISITING_SSDB_TIMEOUT 12 /* Client is visiting SSDB and may be out of time. */
 #define BLOCKED_NO_WRITE_TO_SSDB 13 /* Client is blocked as during the process of psync. */
+
 
 /* Client request types */
 #define PROTO_REQ_INLINE 1
@@ -770,6 +770,8 @@ typedef struct client {
     int replication_flags;
     char ssdb_status; /* Record the ssdb state. */
     char client_ip[NET_IP_STR_LEN]; /* Used by customized-replication in jdjr-mode. */
+    redisReply *ssdb_replies[2]; /* Pointers for ssdb replies. */
+    int add_reply_len; /* Used to revert "rr_checkwrite ok", etc. The reply must smaller than 16k. */
 } client;
 
 struct saveparam {
@@ -1263,6 +1265,7 @@ struct redisServer {
     list *loadAndEvictCmdList;
     dict *loadAndEvictCmdDict;
     int cmdNotDone;
+    client *delete_confirm_client;
 };
 
 typedef struct pubsubPattern {
@@ -1363,7 +1366,7 @@ extern dictType hashDictType;
 extern dictType replScriptCacheDictType;
 extern dictType keyptrDictType;
 extern dictType modulesDictType;
-extern dictType visitingSSDBKeyDictType;
+extern dictType keyDictType;
 
 /*-----------------------------------------------------------------------------
  * Functions prototypes
@@ -1797,7 +1800,6 @@ int expireIfNeeded(redisDb *db, robj *key);
 long long getExpire(redisDb *db, robj *key);
 void setTransferringDB(redisDb *db, robj *key);
 void setLoadingDB(robj *key);
-int updateLoadAndEvictCmdDict(robj *key, int currcmd_is_load);
 long long getTransferringDB(robj *key);
 void setExpire(client *c, redisDb *db, robj *key, long long when);
 robj *lookupKey(redisDb *db, robj *key, int flags);
