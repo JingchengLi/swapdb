@@ -1176,14 +1176,18 @@ int expireIfNeeded(redisDb *db, robj *key) {
     server.stat_expiredkeys++;
 
     serverLog(LL_DEBUG, "expireIfNeeded: %s, now: %lld, when: %lld", (char *)key->ptr, now, when);
-    if (server.jdjr_mode) {
-        if (dictFind(EVICTED_DATA_DB->dict, key->ptr)) {
+    if (server.jdjr_mode && server.active_expire_enabled) {
+        if (dictFind(EVICTED_DATA_DB->dict, key->ptr)
+            && dictFind(EVICTED_DATA_DB->visiting_ssdb_keys, key->ptr)) {
             dictAddOrFind(EVICTED_DATA_DB->delete_confirm_keys, key->ptr);
             return 1;
-        } else
-            db = server.db + 0;
-    } else
-        propagateExpire(db,key,server.lazyfree_lazy_expire);
+        } else {
+            if (db->id == EVICTED_DATA_DBID)
+                db = server.db + 0;
+        }
+    }
+
+    propagateExpire(db,key,server.lazyfree_lazy_expire);
 
     notifyKeyspaceEvent(NOTIFY_EXPIRED,
         "expired",key,db->id);
