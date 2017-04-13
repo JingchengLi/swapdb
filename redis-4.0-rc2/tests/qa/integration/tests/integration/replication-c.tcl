@@ -50,7 +50,7 @@ proc test_psync {descr duration backlog_size backlog_ttl delay cond reconnect} {
                         }
                     }
                 }
-                stop_bg_complex_data_list  $clist
+                stop_bg_client_list  $clist
                 wait_memory_stable -1; wait_memory_stable
 
                 $master config set maxmemory 0

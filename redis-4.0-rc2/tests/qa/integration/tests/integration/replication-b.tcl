@@ -23,7 +23,7 @@ config {real.conf}} {
             }
             wait_for_transfer_limit 1 -2
             after 1000
-            stop_bg_complex_data_list  $clist
+            stop_bg_client_list  $clist
 
             test "MASTER and SLAVES dataset should be identical after complex ops" {
                 wait_memory_stable -2; wait_memory_stable -1; wait_memory_stable
@@ -67,7 +67,7 @@ config {real.conf}} {
 
         wait_for_transfer_limit 1 -1
         after 1000
-        stop_bg_complex_data_list $clist
+        stop_bg_client_list $clist
 
         test "MASTER and one SLAVE dataset should be identical after complex ops" {
             wait_memory_stable -1; wait_memory_stable ; #wait slave sync done
@@ -95,7 +95,7 @@ config {real.conf}} {
             } {slave}
             wait_for_online $master 2
 
-            stop_bg_complex_data_list  $clist
+            stop_bg_client_list  $clist
 
             test "MASTER and two SLAVES dataset should be identical after complex ops" {
                 wait_memory_stable -2; wait_memory_stable -1; wait_memory_stable

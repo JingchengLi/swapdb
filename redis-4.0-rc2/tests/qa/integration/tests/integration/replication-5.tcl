@@ -22,7 +22,7 @@ start_server {tags {"repl"}} {
                     } else {
                         [lindex $slaves 1] slaveof NO ONE
                         [lindex $slaves 0] slaveof $master_host $master_port
-                        stop_bg_complex_data_list  $clist
+                        stop_bg_client_list  $clist
                     }
                     after 1000
                 }
@@ -31,7 +31,7 @@ start_server {tags {"repl"}} {
 
             test "stress test loop slaveof and connect/disconnect one client each time" {
                 if {[llength $clist] > 0} {
-                    stop_bg_complex_data_list  $clist
+                    stop_bg_client_list  $clist
                 }
 
                 set clist [ start_bg_complex_data_list $master_host $master_port $num $clients ]
@@ -49,7 +49,7 @@ start_server {tags {"repl"}} {
                     [lindex $slaves 1] slaveof $master_host $master_port
                     after 100
                 }
-                stop_bg_complex_data_list $clist
+                stop_bg_client_list $clist
                 list [$master ping] [[lindex $slaves 0] ping] [[lindex $slaves 1] ping]
             } {PONG PONG PONG}
         }

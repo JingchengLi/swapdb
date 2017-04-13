@@ -415,7 +415,17 @@ proc start_bg_complex_data_list {host port num clients {opt {}}} {
     return $clientlist
 }
 
-proc stop_bg_complex_data_list {clientlist} {
+proc start_bg_command_list {host port {clients 1} args} {
+    set tclsh [info nameofexecutable]
+    # set clients 2
+    set clientlist {}
+    for {set n 0} {$n < $clients} {incr n} {
+        lappend clientlist [exec $tclsh tests/helpers/bg_command.tcl $host $port {*}$args &]
+    }
+    return $clientlist
+}
+
+proc stop_bg_client_list {clientlist} {
     foreach client $clientlist {
         catch {exec /bin/kill -9 $client}
     }
@@ -643,7 +653,7 @@ proc kill_ssdb_server {{level 0}} {
 proc wait_log_pattern {pattern log} {
     set retry 10000
     while {$retry} {
-        catch {[exec grep $pattern $log]} err
+        catch {[exec grep $pattern $log | wc -l]} err
         if {![string match "*child process*" $err]} {
             break
         }
@@ -668,7 +678,8 @@ proc restart_ssdb_server {{level 0}} {
     set ssdb_config_file [dict get $config ssdb_config_file]
     set ssdbstdout [dict get $config ssdbstdout]
     set ssdbstderr [dict get $config ssdbstderr]
-    set ssdbpid [exec ssdb-server $ssdb_config_file > $ssdbstdout 2> $ssdbstderr &]
+    exec cat $ssdbstdout >> $ssdbstderr
+    set ssdbpid [exec ssdb-server $ssdb_config_file > $ssdbstdout 2>> $ssdbstderr &]
 
     wait_start_ssdb_server $level
     send_data_packet $::test_server_fd server-spawned $ssdbpid
