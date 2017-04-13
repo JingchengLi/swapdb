@@ -133,6 +133,8 @@ DEF_PROC(ssdb_dbsize);
 DEF_PROC(redis_req_dump);
 DEF_PROC(redis_req_restore);
 
+DEF_PROC(rr_do_flushall);
+DEF_PROC(rr_flushall_check);
 DEF_PROC(rr_check_write);
 DEF_PROC(rr_make_snapshot);
 DEF_PROC(rr_transfer_snapshot);
@@ -272,6 +274,8 @@ void SSDBServer::reg_procs(NetworkServer *net){
 	REG_PROC(ssdb_scan, "wt");
 	REG_PROC(ssdb_dbsize, "wt");
 
+    REG_PROC(rr_do_flushall, "wt");
+    REG_PROC(rr_flushall_check, "wt");
     REG_PROC(rr_check_write, "wt");
     REG_PROC(rr_make_snapshot, "w");
     REG_PROC(rr_transfer_snapshot, "w");
@@ -940,6 +944,28 @@ int proc_sync150(NetworkServer *net, Link *link, const Request &req, Response *r
 int proc_rr_check_write(NetworkServer *net, Link *link, const Request &req, Response *resp){
     resp->push_back("ok");
     resp->push_back("rr_check_write ok");
+    return 0;
+}
+
+int proc_rr_flushall_check(NetworkServer *net, Link *link, const Request &req, Response *resp){
+    resp->push_back("ok");
+    resp->push_back("rr_flushall_check ok");
+    return 0;
+}
+
+
+int rr_do_flushall(NetworkServer *net, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *)net->data;
+
+	int ret = serv->ssdb->flushdb();
+	if (ret < 0) {
+		resp->push_back("ok");
+		resp->push_back("rr_do_flushall nok");
+	} else {
+		resp->push_back("ok");
+		resp->push_back("rr_do_flushall ok");
+	}
+
     return 0;
 }
 
