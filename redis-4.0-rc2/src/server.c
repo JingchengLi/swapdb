@@ -860,6 +860,39 @@ int clientsCronResizeQueryBuffer(client *c) {
     return 0;
 }
 
+void reconnectSpecialSSDBclients() {
+    int ret;
+    if (!server.is_doing_flushall) {
+        if (!server.ssdb_client) {
+            ret = createClientForEvicting();
+            if (ret != C_OK)
+                serverLog(LOG_WARNING, "create server.ssdb_client(cold key"
+                        " transfer/hot keys load client) failed!");
+        }
+
+        if (!server.delete_confirm_client) {
+            ret = createDeleteConfirmClient();
+            if (ret != C_OK)
+                serverLog(LOG_WARNING, "create server.delete_confirm_client"
+                        "(delete key confirm client) failed!");
+        }
+
+        if (!server.slave_ssdb_load_evict_client) {
+            ret = createFakeClientForLoadAndEvict();
+            if (ret != C_OK)
+                serverLog(LOG_WARNING, "create server.slave_ssdb_load_evict_client"
+                        "(slave ssdb load/evict client)failed!");
+        }
+    }
+
+    if (!server.ssdb_replication_client) {
+        ret = createClientForReplicate();
+        if (ret != C_OK)
+            serverLog(LOG_WARNING, "create server.ssdb_replication_client("
+                    "ssdb replication client) failed!");
+    }
+}
+
 #define CLIENTS_CRON_MIN_ITERATIONS 5
 void clientsCron(void) {
     /* Make sure to process at least numclients/server.hz of clients
@@ -893,6 +926,8 @@ void clientsCron(void) {
         if (clientsCronHandleTimeout(c,now)) continue;
         if (clientsCronResizeQueryBuffer(c)) continue;
     }
+
+    if (server.jdjr_mode) reconnectSpecialSSDBclients();
 }
 
 /* This function handles 'background' operations we are required to do
@@ -2655,7 +2690,7 @@ int checkKeysInMediateState(client* c) {
         keyobjs[j] = c->argv[keys[j]];
 
     /* TODO: use a suitable timeout */
-    blockednum = blockForLoadingkeys(c, keyobjs, numkeys, 100 + mstime());
+    blockednum = blockForLoadingkeys(c, keyobjs, numkeys, 5000 + mstime());
 
     if (numkeys && keyobjs) zfree(keyobjs);
     if (keys) getKeysFreeResult(keys);
@@ -2822,6 +2857,13 @@ void cleanLoadingOrTransferringKeys() {
 
         signalBlockingKeyAsReady(&server.db[0], key);
     }
+    di = dictGetIterator(server.db[EVICTED_DATA_DBID].delete_confirm_keys);
+    while((de = dictNext(di)) != NULL) {
+        robj *key = dictGetKey(de);
+
+        signalBlockingKeyAsReady(&server.db[0], key);
+    }
+
     handleClientsBlockedOnSSDB();
 
     server.evicting_keys_num = 0;
@@ -2838,8 +2880,11 @@ void prepareSSDBflush(client* c) {
 
     /* STEP 1: clean all intermediate state keys, avoid to cause unexpected issues. */
 
-    /* just free server.ssdb_client to discard unprocessed transferring/loading keys.*/
+    /* just free specail clients to discard unprocessed transferring/loading keys.*/
     if (server.ssdb_client) freeClient(server.ssdb_client);
+    if (server.slave_ssdb_load_evict_client) freeClient(server.slave_ssdb_load_evict_client);
+    // todo: fix crash issue when uncomment this line
+    //if (server.delete_confirm_client) freeClient(server.delete_confirm_client);
 
     /* clean transferring_keys/loading_hot_keys dicts. */
     cleanLoadingOrTransferringKeys();
@@ -2856,7 +2901,12 @@ void prepareSSDBflush(client* c) {
     //todo: reconnect server.ssdb_client and prohibit to load/transfer keys.
 
     /* STEP 2: send flushall/flushdb check commands for all connections. */
+#ifdef TEST_FLUSHALL_TIMEOUT_CASE
+    // TEST timeout case ONLY !!!
+    server.flush_check_unresponse_num = listLength(server.clients) - listLength(server.slaves) + 9999;
+#else
     server.flush_check_unresponse_num = listLength(server.clients) - listLength(server.slaves);
+#endif
 
     /* process timeout case in serverCron. */
     server.flush_check_begin_time = server.unixtime;

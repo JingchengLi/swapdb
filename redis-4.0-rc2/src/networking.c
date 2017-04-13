@@ -1432,7 +1432,7 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
 
 /* Create a client for keepalive with SSDB. */
 int createClientForReplicate() {
-    if (server.ssdb_replication_client && server.ssdb_replication_client->fd != -1)
+    if (server.ssdb_replication_client)
         unlinkClient(server.ssdb_replication_client);
 
     server.ssdb_replication_client = createClient(-1);
@@ -1451,7 +1451,7 @@ int createClientForReplicate() {
 }
 
 int createFakeClientForLoadAndEvict() {
-    if (server.slave_ssdb_load_evict_client && server.slave_ssdb_load_evict_client->fd != -1)
+    if (server.slave_ssdb_load_evict_client)
         unlinkClient(server.slave_ssdb_load_evict_client);
 
     server.slave_ssdb_load_evict_client = createClient(-1);
@@ -1471,7 +1471,7 @@ int createFakeClientForLoadAndEvict() {
 
 
 int createDeleteConfirmClient() {
-    if (server.delete_confirm_client && server.delete_confirm_client->fd != -1)
+    if (server.delete_confirm_client)
         unlinkClient(server.delete_confirm_client);
 
     server.delete_confirm_client = createClient(-1);
@@ -1491,7 +1491,7 @@ int createDeleteConfirmClient() {
 
 /* Create a client for evciting data to SSDB, loading data from SSDB. */
 int createClientForEvicting() {
-    if (server.ssdb_client && server.ssdb_client->fd != -1)
+    if (server.ssdb_client)
         unlinkClient(server.ssdb_client);
 
     server.ssdb_client = createClient(-1);
