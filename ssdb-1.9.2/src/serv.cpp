@@ -116,6 +116,7 @@ DEF_PROC(version);
 DEF_PROC(dbsize);
 DEF_PROC(compact);
 DEF_PROC(flushdb);
+DEF_PROC(dreply);
 
 DEF_PROC(cursor_cleanup);
 DEF_PROC(debug);
@@ -260,6 +261,7 @@ void SSDBServer::reg_procs(NetworkServer *net){
 	REG_PROC(sync150, "r");
 
 
+	REG_PROC(dreply, "w");
 	REG_PROC(flushdb, "wt");
 
 	REG_PROC(dump2, "b");
@@ -335,6 +337,14 @@ SSDBServer::~SSDBServer(){
 
 /*********************/
 
+
+int proc_dreply(NetworkServer *net, Link *link, const Request &req, Response *resp){
+	//for QA only
+	link->append_reply = true;
+	resp->reply_ok();
+
+	return 0;
+}
 
 int proc_flushdb(NetworkServer *net, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *)net->data;
