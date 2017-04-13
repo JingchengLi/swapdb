@@ -57,7 +57,7 @@ int TransferWorker::proc(TransferJob *job) {
     avg_process = (process_time * 1.0 - avg_process) * 1.0 / (count * 1.0) + avg_process;
     count++;
 
-    if (count > 1000) {
+    if (count > 10000) {
         count = 1; //reset count.
         avg_wait = current - job->ts;
         avg_process = process_time;
@@ -66,8 +66,7 @@ int TransferWorker::proc(TransferJob *job) {
     if ((current - last) > 2000) {
          last = time_ms();
 
-        log_info("task avg wait %f ms", avg_wait);
-        log_info("task avg process %f ms", avg_process);
+        log_info("trans_task avg w:%f p:%f", avg_wait, avg_process);
         if (wait_time > 100) {
             log_warn("task %s had waited %d ms",  job->dump().c_str(), wait_time);
         }
