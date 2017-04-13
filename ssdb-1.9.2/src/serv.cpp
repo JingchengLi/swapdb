@@ -954,7 +954,7 @@ int proc_rr_flushall_check(NetworkServer *net, Link *link, const Request &req, R
 }
 
 
-int rr_do_flushall(NetworkServer *net, Link *link, const Request &req, Response *resp){
+int proc_rr_do_flushall(NetworkServer *net, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *)net->data;
 
 	int ret = serv->ssdb->flushdb();
