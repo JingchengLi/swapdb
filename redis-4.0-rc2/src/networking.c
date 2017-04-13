@@ -907,12 +907,45 @@ void handleClientsBlockedOnFlushall(void) {
     }
 }
 
+static void revertClientBufReply(client *c, size_t revertlen) {
+    listNode *ln;
+    sds tail;
+
+    if (c->flags & CLIENT_MASTER) return;
+
+    if (listLength(c->reply) > 0
+        && (ln = listLast(c->reply))
+        && (tail = listNodeValue(ln))) {
+        /* May need handle both c->reply and c->buf. */
+        size_t length = sdslen(tail);
+
+        if (length > revertlen) {
+            /* Only need to handle c->reply. */
+            sdsrange(tail, 0, length - revertlen - 1);
+        } else if (length == revertlen) {
+            /* Only need to handle c->reply. */
+            listDelNode(c->reply, ln);
+        } else {
+            /* Need to handle c->reply and c->buf. */
+            listDelNode(c->reply, ln);
+            c->bufpos -= (revertlen - length);
+        }
+    } else {
+        /* Only need to handle c->buf. */
+        serverAssert(c->bufpos >= (int)revertlen);
+        c->bufpos -= revertlen;
+    }
+}
+
 int handleResponseOfSSDBflushDone(client *c, sds replyString) {
     int process_status;
     UNUSED(c);
 
     sdstolower(replyString);
     if (!sdscmp(replyString, shared.flushdoneok)) {
+        /* clean the ssdb reply*/
+        revertClientBufReply(c, c->add_reply_len);
+
         /* unblock the client doing flushall and do flushall in redis. */
         unblockClient(server.current_flushall_client);
         if (runCommand(server.current_flushall_client, NULL) == C_OK)
@@ -927,6 +960,9 @@ int handleResponseOfSSDBflushDone(client *c, sds replyString) {
 
         process_status = C_OK;
     } else if (!sdscmp(replyString, shared.flushdonenok)) {
+        /* clean the ssdb reply*/
+        revertClientBufReply(c, c->add_reply_len);
+
         unblockClient(server.current_flushall_client);
         addReplyError(server.current_flushall_client, "do ssdb flushall failed!");
         resetClient(server.current_flushall_client);
@@ -1137,35 +1173,6 @@ int handleResponseOfDeleteCheckConfirm(client *c) {
     return C_OK;
 }
 
-static void revertClientBufReply(client *c, size_t revertlen) {
-    listNode *ln;
-    sds tail;
-
-    if (c->flags & CLIENT_MASTER) return;
-
-    if (listLength(c->reply) > 0
-        && (ln = listLast(c->reply))
-        && (tail = listNodeValue(ln))) {
-        /* May need handle both c->reply and c->buf. */
-        size_t length = sdslen(tail);
-
-        if (length > revertlen) {
-            /* Only need to handle c->reply. */
-            sdsrange(tail, 0, length - revertlen - 1);
-        } else if (length == revertlen) {
-            /* Only need to handle c->reply. */
-            listDelNode(c->reply, ln);
-        } else {
-            /* Need to handle c->reply and c->buf. */
-            listDelNode(c->reply, ln);
-            c->bufpos -= (revertlen - length);
-        }
-    } else {
-        /* Only need to handle c->buf. */
-        serverAssert(c->bufpos >= (int)revertlen);
-        c->bufpos -= revertlen;
-    }
-}
 
 int handleExtraSSDBReply(client *c) {
     redisReply *element, *reply;
@@ -1282,14 +1289,16 @@ void handleSSDBReply(client *c) {
     }
 
     if (server.is_doing_flushall && reply && reply->type == REDIS_REPLY_STRING
-           && handleResponseOfFlushCheck(c, replyString) == C_OK) {
+        && (replyString = sdsnew(reply->str))
+        && handleResponseOfFlushCheck(c, replyString) == C_OK) {
         revertClientBufReply(c, c->add_reply_len);
         goto cleanup;
     }
 
     if (server.is_doing_flushall && reply && reply->type == REDIS_REPLY_STRING
-           && handleResponseOfSSDBflushDone(c, replyString) == C_OK ) {
-        revertClientBufReply(c, c->add_reply_len);
+        && (replyString = sdsnew(reply->str))
+        && handleResponseOfSSDBflushDone(c, replyString) == C_OK ) {
+        /* we need reply the flushall result to user client. */
         goto cleanup;
     }
 

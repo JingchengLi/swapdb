@@ -2902,19 +2902,6 @@ int runCommand(client *c, int* need_return) {
             addReplyErrorFormat(c, "don't support this command in jdjr mode:%s.", c->cmd->name);
             return C_OK;
         }
-
-        ret = processCommandMaybeFlushdb(c);
-        if (C_OK == ret) {
-            /* don't need a timeout, will process timeout case in serverCron. */
-            c->bpop.timeout = 0;
-            blockClient(c, BLOCKED_BY_FLUSHALL);
-            if (need_return) *need_return = 1;
-            return C_ERR;
-        } else if (C_ANOTHER_FLUSHALL_ERR == ret) {
-            addReplyError(c, "there is already another flushll task processing!");
-            if (need_return) *need_return = 1;
-            return C_OK;
-        }
     }
 
     if (c->flags & CLIENT_MULTI &&
@@ -3155,6 +3142,19 @@ int processCommand(client *c) {
         c->argv = NULL;
 
         return C_OK;
+    }
+
+    if (server.jdjr_mode) {
+        ret = processCommandMaybeFlushdb(c);
+        if (C_OK == ret) {
+            /* don't need a timeout, will process timeout case in serverCron. */
+            c->bpop.timeout = 0;
+            blockClient(c, BLOCKED_BY_FLUSHALL);
+            return C_ERR;
+        } else if (C_ANOTHER_FLUSHALL_ERR == ret) {
+            addReplyError(c, "there is already another flushll task processing!");
+            return C_OK;
+        }
     }
 
     /* Check if current cmd contains blocked keys. */
