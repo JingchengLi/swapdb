@@ -1284,7 +1284,6 @@ struct redisServer {
     char **ssdbargv;
     size_t *ssdbargvlen;
     list *loadAndEvictCmdList;
-    dict *loadAndEvictCmdDict;
     int cmdNotDone;
     client *delete_confirm_client;
 };

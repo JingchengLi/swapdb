@@ -1348,9 +1348,6 @@ void cleanKeysToLoadAndEvict() {
     listIter li;
     listNode *ln;
 
-    /* clean server.loadAndEvictCmdDict. */
-    dictEmpty(server.loadAndEvictCmdDict, NULL);
-
     /* clean server.loadAndEvictCmdList */
     listRewind(server.loadAndEvictCmdList, &li);
     while((ln = listNext(&li))) {
