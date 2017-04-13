@@ -2723,7 +2723,7 @@ void replicationCron(void) {
         listRewind(server.slaves,&li);
         while((ln = listNext(&li))) {
             client *slave = ln->value;
-            if (slave->replstate >= SLAVE_STATE_WAIT_BGSAVE_END &&
+            if (slave->replstate >= SLAVE_STATE_WAIT_BGSAVE_START &&
                     slave->replstate < SLAVE_STATE_ONLINE) {
                 has_slave_in_transfer = 1;
             }
@@ -2734,6 +2734,7 @@ void replicationCron(void) {
             && !has_slave_in_transfer) {
             /* Notify ssdb to release snapshot. */
             sds cmdsds = sdsnew("*1\r\n$15\r\nrr_del_snapshot\r\n");
+            serverLog(LL_DEBUG, "send rr_del_snapshot to SSDB.");
 
             /* TODO: maybe we can retry if rr_del_snapshot fails. but it's also
              * the duty of SSDB party to delete snapshot by rule.*/
