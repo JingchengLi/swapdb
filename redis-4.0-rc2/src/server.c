@@ -2906,6 +2906,7 @@ int runCommand(client *c, int* need_return) {
         ret = processCommandMaybeFlushdb(c);
         if (C_OK == ret) {
             /* don't need a timeout, will process timeout case in serverCron. */
+            c->bpop.timeout = 0;
             blockClient(c, BLOCKED_BY_FLUSHALL);
             if (need_return) *need_return = 1;
             return C_ERR;

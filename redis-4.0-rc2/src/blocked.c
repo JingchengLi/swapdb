@@ -176,6 +176,7 @@ void replyToBlockedClientTimedOut(client *c) {
         transferringOrLoadingBlockedClientTimeOut(c);
     } else if (server.jdjr_mode
                && (c->btype == BLOCKED_VISITING_SSDB
+                   || c->btype == BLOCKED_BY_FLUSHALL
                    || c->btype == BLOCKED_NO_WRITE_TO_SSDB)) {
         addReplyError(c, "timeout");
         resetClient(c);

@@ -1281,6 +1281,18 @@ void handleSSDBReply(client *c) {
         }
     }
 
+    if (server.is_doing_flushall && reply && reply->type == REDIS_REPLY_STRING
+           && handleResponseOfFlushCheck(c, replyString) == C_OK) {
+        revertClientBufReply(c, c->add_reply_len);
+        goto cleanup;
+    }
+
+    if (server.is_doing_flushall && reply && reply->type == REDIS_REPLY_STRING
+           && handleResponseOfSSDBflushDone(c, replyString) == C_OK ) {
+        revertClientBufReply(c, c->add_reply_len);
+        goto cleanup;
+    }
+
     /* Handle the response of rr_check_write. */
     if (server.ssdb_status == MASTER_SSDB_SNAPSHOT_CHECK_WRITE
         && !isSpecialConnection(c)
