@@ -609,7 +609,7 @@ int clientHasPendingReplies(client *c) {
 }
 
 /* Connecting to SSDB unix socket. */
-static int nonBlockConnectToSsdbServer(client *c) {
+int nonBlockConnectToSsdbServer(client *c) {
     redisContext *context = NULL;
     if (server.ssdb_server_unixsocket != NULL) {
         context = redisConnectUnixNonBlock(server.ssdb_server_unixsocket);

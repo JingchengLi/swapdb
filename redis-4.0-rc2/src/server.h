@@ -1456,6 +1456,7 @@ int handleClientsWithPendingWrites(void);
 int clientHasPendingReplies(client *c);
 int sendCommandToSSDB(client *c, sds finalcmd);
 sds composeRedisCmd(int argc, const char **argv, const size_t *argvlen);
+int nonBlockConnectToSsdbServer(client *c);
 void sendCheckWriteCommandToSSDB(aeEventLoop *el, int fd, void *privdata, int mask);
 void unlinkClient(client *c);
 int writeToClient(int fd, client *c, int handler_installed);

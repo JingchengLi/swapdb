@@ -1170,27 +1170,8 @@ void replicationCreateMasterClient(int fd, int dbid) {
         server.master->flags |= CLIENT_PRE_PSYNC;
     if (dbid != -1) selectDb(server.master,dbid);
 
-    if (server.jdjr_mode) {
-        redisContext *context = redisConnectUnixNonBlock(server.ssdb_server_unixsocket);
-
-        if (context->err) {
-            serverLog(LL_VERBOSE, "Could not connect to SSDB server.");
-            redisFree(context);
-            return;
-        } else
-            server.master->context = context;
-
-        server.master->context = redisConnectUnixNonBlock(server.ssdb_server_unixsocket);
-
-        anetKeepAlive(NULL, server.master->context->fd, server.tcpkeepalive);
-
-        if (aeCreateFileEvent(server.el, server.master->context->fd,
-                              AE_READABLE, ssdbClientUnixHandler, server.master) == AE_ERR)
-            serverLog(LL_VERBOSE, "Unrecoverable error creating ssdbFd file event.");
-        else
-            serverLog(LL_DEBUG, "rfd:%d connecting to SSDB Unix socket succeeded: sfd:%d",
-                      server.master->fd, server.master->context->fd);
-    }
+    if (server.jdjr_mode)
+        nonBlockConnectToSsdbServer(server.master);
 }
 
 void restartAOF() {
@@ -2307,6 +2288,9 @@ void replicationResurrectCachedMaster(int newfd) {
             freeClientAsync(server.master); /* Close ASAP. */
         }
     }
+
+    if (server.jdjr_mode)
+        nonBlockConnectToSsdbServer(server.master);
 }
 
 /* ------------------------- MIN-SLAVES-TO-WRITE  --------------------------- */
