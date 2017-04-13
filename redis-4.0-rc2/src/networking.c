@@ -1460,12 +1460,10 @@ int createDeleteConfirmClient() {
     }
 
     if (nonBlockConnectToSsdbServer(server.delete_confirm_client) == C_OK) {
-        server.delete_confirm_client->fd = server.delete_confirm_client->context->fd;
-        listAddNodeTail(server.clients, server.delete_confirm_client);
+        /* do nothing */
     } else
         return C_ERR;
 
-    server.special_clients_num ++;
     serverLog(LL_NOTICE, "Create SSDB delete_confirm socket success.");
     return C_OK;
 }
