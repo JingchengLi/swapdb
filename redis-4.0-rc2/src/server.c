@@ -2839,7 +2839,7 @@ void prepareSSDBflush(client* c) {
     /* STEP 1: clean all intermediate state keys, avoid to cause unexpected issues. */
 
     /* just free server.ssdb_client to discard unprocessed transferring/loading keys.*/
-    freeClient(server.ssdb_client);
+    if (server.ssdb_client) freeClient(server.ssdb_client);
 
     /* clean transferring_keys/loading_hot_keys dicts. */
     cleanLoadingOrTransferringKeys();
