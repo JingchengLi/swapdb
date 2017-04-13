@@ -744,7 +744,7 @@ void sendFlushCheckCommandToSSDB(aeEventLoop *el, int fd, void *privdata, int ma
     UNUSED(el);
     UNUSED(fd);
 
-    sds finalcmd = sdsnew("*1\r\n$14\r\nrr_flushall_check\r\n");
+    sds finalcmd = sdsnew("*1\r\n$17\r\nrr_flushall_check\r\n");
     if (sendCommandToSSDB(c, finalcmd) != C_OK) {
         server.flush_check_unresponse_num -= 1;
     } else {
@@ -956,7 +956,7 @@ int handleResponseOfFlushCheck(client *c, sds replyString) {
             server.flush_check_begin_time = -1;
             server.flush_check_unresponse_num = -1;
 
-            sds finalcmd = sdsnew("*1\r\n$16\r\nrr_do_flushall\r\n");
+            sds finalcmd = sdsnew("*1\r\n$14\r\nrr_do_flushall\r\n");
             if (!server.current_flushall_client ||
                 sendCommandToSSDB(server.current_flushall_client, finalcmd) != C_OK) {
                 /* set to 0 so flush check will be timeout. exception case
