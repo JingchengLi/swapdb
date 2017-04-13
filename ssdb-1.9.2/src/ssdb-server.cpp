@@ -63,6 +63,11 @@ void MyApplication::run(){
 	log_info("binlog_capacity  : %d", option.binlog_capacity);
 	log_info("sync_speed       : %d MB/s", conf->get_num("replication.sync_speed"));
 
+#ifdef PTIMER
+	log_info("ptimer           : enable");
+#endif
+
+
 	SSDB *data_db = nullptr;
 	SSDB *meta_db = nullptr;
 	data_db = SSDB::open(option, data_db_dir);

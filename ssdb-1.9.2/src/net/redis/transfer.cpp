@@ -42,25 +42,36 @@ int TransferWorker::proc(TransferJob *job) {
         log_error("bg_job failed %s ", job->dump().c_str());
     }
 
-    avg_wait = ((current - job->ts) * 1.0 - avg_wait) * 1.0 / count * 1.0 + avg_wait;
-    avg_process = ((time_ms() - current) * 1.0 - avg_process) * 1.0 / count * 1.0 + avg_process;
+    int64_t process_time = time_ms() - current;
+    int64_t wait_time = current -  job->ts;
+
+    if (process_time > 100) {
+        log_warn("task %s process %d ms",  job->dump().c_str(), process_time);
+    }
+
+    if (wait_time > 100) {
+        log_debug("task %s had waited %d ms",  job->dump().c_str(), wait_time);
+    }
+
+    avg_wait = (wait_time * 1.0 - avg_wait) * 1.0 / (count * 1.0) + avg_wait;
+    avg_process = (process_time * 1.0 - avg_process) * 1.0 / (count * 1.0) + avg_process;
     count++;
 
     if (count > 1000) {
         count = 1; //reset count.
         avg_wait = current - job->ts;
-        avg_process = time_ms() - current;
+        avg_process = process_time;
     }
 
-    if ((current - last) > 5000) {
+    if ((current - last) > 2000) {
          last = time_ms();
 
         log_info("task avg wait %f ms", avg_wait);
         log_info("task avg process %f ms", avg_process);
-
-        if ((current -  job->ts) > 1000) {
-            log_warn("task %s had waited %d ms",  job->dump().c_str(), ((current -  job->ts)));
+        if (wait_time > 100) {
+            log_warn("task %s had waited %d ms",  job->dump().c_str(), wait_time);
         }
+
     }
 
 

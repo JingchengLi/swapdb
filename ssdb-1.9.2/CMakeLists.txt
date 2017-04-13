@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 2.8)
 project(ssdb)
 
 option(ROCKSDB "enable rocksdb support" ON)
+option(PTIMER "performance monitor" ON)
 
 SET(LEVELDB_PATH=${CMAKE_CURRENT_SOURCE_DIR}/deps/leveldb-1.18)
 SET(JEMALLOC_PATH=${CMAKE_CURRENT_SOURCE_DIR}/deps/jemalloc-4.1.0)

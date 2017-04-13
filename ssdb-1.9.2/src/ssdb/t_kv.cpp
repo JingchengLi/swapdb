@@ -886,10 +886,8 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
 
     }
 
-    PTST(Decode , 0.1)
     RdbDecoder rdbDecoder(data.data(), data.size());
     bool ok = rdbDecoder.verifyDumpPayload();
-    PTE(Decode, "verifyDumpPayload")
 
     if (!ok) {
         log_warn("checksum failed %s:%s", hexmem(key.data(), key.size()).c_str(),hexmem(data.data(), data.size()).c_str());
@@ -988,7 +986,6 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
 
         case RDB_TYPE_HASH: {
 
-            PTST(HASH , 0.1)
             std::map<std::string,std::string> tmp_map;
 
             if ((len = rdbDecoder.rdbLoadLen(NULL)) == RDB_LENERR) return -1;
@@ -1007,10 +1004,7 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
                 tmp_map[field] = value;
             }
 
-            PTE(HASH, "load")
-
             ret = this->hmsetNoLock<std::string>(key, tmp_map, false);
-            PTE(HASH, "hmsetNoLock")
 
             break;
         }

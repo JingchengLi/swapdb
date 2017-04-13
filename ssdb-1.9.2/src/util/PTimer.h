@@ -36,7 +36,7 @@ public:
         double delta = (double) ((t_end.tv_sec - t_start.tv_sec) * 1000000 + (t_end.tv_usec - t_start.tv_usec)) /
                        1000000.0;                                       //second
         if (delta > threshold) {
-            log_info("%s costs: %f second %s", name.c_str(), delta, tag.c_str());
+            log_info("[PTimer] %s costs: %f second %s", name.c_str(), delta, tag.c_str());
         }
 
      }

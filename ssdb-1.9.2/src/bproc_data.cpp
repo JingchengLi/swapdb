@@ -19,7 +19,11 @@ int bproc_COMMAND_DATA_SAVE(SSDBServer *serv, TransferWorker *worker, const std:
 
     int64_t pttl = dumpData->expire;
     std::string val;
+
+    PTST(restore, 0.03)
     int ret = serv->ssdb->restore(dumpData->key, dumpData->expire, dumpData->data, dumpData->replace, &val);
+    PTE(restore, hexstr(data_key))
+
 
     if (ret < 0) {
         //notify failed
@@ -61,7 +65,12 @@ int bproc_COMMAND_DATA_DUMP(SSDBServer *serv, TransferWorker *worker, const std:
     RecordLock<Mutex> l(&serv->transfer_mutex_record_, data_key);
 
     std::string val;
+
+    PTST(dump, 0.03)
     int ret = serv->ssdb->dump(data_key, &val);
+    PTE(dump, hexstr(data_key))
+
+
     if (ret < 0) {
         //notify failed
         return notifyFailedToRedis(worker->redisUpstream, cmd, data_key);
