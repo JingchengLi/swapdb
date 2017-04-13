@@ -303,10 +303,10 @@ struct redisCommand redisCommandTable[] = {
     {"latency",latencyCommand,-2,"aslt",0,NULL,0,0,0,0,0},
 
     /* Interfaces called by SSDB. */
-    {"ssdb-resp-del",ssdbRespDelCommand,-2,"w",0,NULL,1,-1,1,0,0},
-    {"ssdb-resp-restore",ssdbRespRestoreCommand,-4,"wm",0,NULL,1,1,1,0,0},
-    {"ssdb-resp-fail",ssdbRespFailCommand,3,"w",0,NULL,1,1,1,0,0},
-    {"ssdb-resp-notfound",ssdbRespNotfoundCommand,3,"w",0,NULL,1,1,1,0,0},
+    {"ssdb-resp-del",ssdbRespDelCommand,-2,"wJ",0,NULL,1,-1,1,0,0},
+    {"ssdb-resp-restore",ssdbRespRestoreCommand,-4,"wmJ",0,NULL,1,1,1,0,0},
+    {"ssdb-resp-fail",ssdbRespFailCommand,3,"wJ",0,NULL,1,1,1,0,0},
+    {"ssdb-resp-notfound",ssdbRespNotfoundCommand,3,"wJ",0,NULL,1,1,1,0,0},
 
     {"storetossdb",storetossdbCommand,-2,"wJ",0,NULL,1,1,1,0,0},
     {"dumpfromssdb",dumpfromssdbCommand,2,"wJ",0,NULL,1,1,1,0,0},
