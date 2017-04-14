@@ -4863,7 +4863,6 @@ void storetossdbCommand(client *c) {
     addReply(c,shared.ok);
 }
 
-// todo: fix locatekey timeout issue.
 void locatekeyCommand(client *c) {
     char *replyString;
     robj *replyObj;
