@@ -43,16 +43,16 @@ int bproc_COMMAND_DATA_SAVE(SSDBServer *serv, TransferWorker *worker, const std:
 
 
     std::vector<std::string> req = {del_cmd, data_key};
-    log_debug("[request->redis] : %s %s", req[0].c_str(), req[1].c_str());
+    log_debug("[request->redis] : %s %s", hexstr(req[0]).c_str(), hexstr(req[1]).c_str());
 
     RedisResponse *t_res = worker->redisUpstream->sendCommand(req);
     if (t_res == nullptr) {
-        log_error("[%s %s] redis response is null", req[0].c_str(), req[1].c_str());
+        log_error("[%s %s] redis response is null", hexstr(req[0]).c_str(), hexstr(req[1]).c_str());
         //redis res failed
         return -1;
     }
 
-    log_debug("[response<-redis] : %s %s %s", req[0].c_str(), req[1].c_str(), t_res->toString().c_str());
+    log_debug("[response<-redis] : %s %s %s", hexstr(req[0]).c_str(), hexstr(req[1]).c_str(), t_res->toString().c_str());
 
     delete t_res;
 
@@ -89,16 +89,16 @@ int bproc_COMMAND_DATA_DUMP(SSDBServer *serv, TransferWorker *worker, const std:
 
 
         std::vector<std::string> req = {cmd, data_key, str(pttl), val, "replace"};
-        log_debug("[request->redis] : %s %s", req[0].c_str(), req[1].c_str());
+        log_debug("[request->redis] : %s %s", hexstr(req[0]).c_str(), hexstr(req[1]).c_str());
 
         RedisResponse *t_res = worker->redisUpstream->sendCommand(req);
         if (t_res == nullptr) {
-            log_error("[%s %s] redis response is null", req[0].c_str(), req[1].c_str());
+            log_error("[%s %s] redis response is null", hexstr(req[0]).c_str(), hexstr(req[1]).c_str());
             //redis res failed
             return -1;
         }
 
-        log_debug("[response<-redis] : %s %s %s", req[0].c_str(), req[1].c_str(), t_res->toString().c_str());
+        log_debug("[response<-redis] : %s %s %s", hexstr(req[0]).c_str(), hexstr(req[1]).c_str(), t_res->toString().c_str());
 
 
         if (t_res->isOk()) {
@@ -118,16 +118,16 @@ int notifyFailedToRedis(RedisUpstream *redisUpstream, std::string responseComman
     const std::string cmd = "ssdb-resp-fail";
 
     std::vector<std::string> req = {cmd, responseCommand, dataKey};
-    log_debug("[request->redis] : %s %s %s", req[0].c_str(), req[1].c_str(), req[2].c_str());
+    log_debug("[request->redis] : %s %s %s", hexstr(req[0]).c_str(), hexstr(req[1]).c_str(), hexstr(req[2]).c_str());
 
     RedisResponse *t_res = redisUpstream->sendCommand(req);
     if (t_res == nullptr) {
-        log_error("[%s %s %s] redis response is null", req[0].c_str(), req[1].c_str(), req[2].c_str());
+        log_error("[%s %s %s] redis response is null", hexstr(req[0]).c_str(), hexstr(req[1]).c_str(), hexstr(req[2]).c_str());
         //redis res failed
         return -1;
     }
 
-    log_debug("[response<-redis] : %s %s  %s %s", req[0].c_str(), req[1].c_str(), req[2].c_str(),
+    log_debug("[response<-redis] : %s %s  %s %s", hexstr(req[0]).c_str(), hexstr(req[1]).c_str(), hexstr(req[2]).c_str(),
               t_res->toString().c_str());
 
     delete t_res;
@@ -138,16 +138,16 @@ int notifyNotFoundToRedis(RedisUpstream *redisUpstream, std::string responseComm
     const std::string cmd = "ssdb-resp-notfound";
 
     std::vector<std::string> req = {cmd, responseCommand, dataKey};
-    log_debug("[request->redis] : %s %s %s", req[0].c_str(), req[1].c_str(), req[2].c_str());
+    log_debug("[request->redis] : %s %s %s", hexstr(req[0]).c_str(), hexstr(req[1]).c_str(), hexstr(req[2]).c_str());
 
     RedisResponse *t_res = redisUpstream->sendCommand(req);
     if (t_res == nullptr) {
-        log_error("[%s %s %s] redis response is null", req[0].c_str(), req[1].c_str(), req[2].c_str());
+        log_error("[%s %s %s] redis response is null", hexstr(req[0]).c_str(), hexstr(req[1]).c_str(), hexstr(req[2]).c_str());
         //redis res failed
         return -1;
     }
 
-    log_debug("[response<-redis] : %s %s  %s %s", req[0].c_str(), req[1].c_str(), req[2].c_str(),
+    log_debug("[response<-redis] : %s %s  %s %s", hexstr(req[0]).c_str(), hexstr(req[1]).c_str(), hexstr(req[2]).c_str(),
               t_res->toString().c_str());
 
     delete t_res;
