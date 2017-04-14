@@ -2678,7 +2678,9 @@ int checkKeysInMediateState(client* c) {
 
     /* Command from SSDB should not be blocked. */
     if (c->cmd->proc == ssdbRespDelCommand
-        || c->cmd->proc == ssdbRespRestoreCommand)
+        || c->cmd->proc == ssdbRespRestoreCommand
+        || c->cmd->proc == ssdbRespFailCommand
+        || c->cmd->proc == ssdbRespNotfoundCommand)
         return C_OK;
 
     keys = getKeysFromCommand(c->cmd, c->argv, c->argc, &numkeys);
@@ -2739,6 +2741,14 @@ void addVisitingSSDBKey(client *c, sds *keysds) {
 int processCommandMaybeInSSDB(client *c) {
     if ( !c->cmd || !(c->cmd->flags & (CMD_READONLY | CMD_WRITE)) )
         return C_ERR;
+
+     /* Command from SSDB should not be send to ssdb. */
+    if (c->cmd->proc == ssdbRespDelCommand
+        || c->cmd->proc == ssdbRespRestoreCommand
+        || c->cmd->proc == ssdbRespFailCommand
+        || c->cmd->proc == ssdbRespNotfoundCommand)
+        return C_ERR;
+
     if (!(c->cmd->flags & CMD_JDJR_MODE))
         return C_NOTSUPPORT_ERR;
     if (c->argc <= 1 || !dictFind(EVICTED_DATA_DB->dict, c->argv[1]->ptr))

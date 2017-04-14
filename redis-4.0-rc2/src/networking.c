@@ -900,6 +900,7 @@ void handleClientsBlockedOnFlushall(void) {
         client *c = listNodeValue(ln);
         listDelNode(server.ssdb_flushall_blocked_clients, ln);
 
+        serverLog(LOG_DEBUG, "[!!!!]unblocked by handleClientsBlockedOnFlushall:%p", c);
         unblockClient(c);
 
         if (runCommand(c, NULL) == C_OK)

@@ -1170,6 +1170,7 @@ int blockForLoadingkeys(client *c, robj **keys, int numkeys, mstime_t timeout) {
     list *l;
     int j, blockednum = 0;
 
+    c->bpop.timeout = timeout;
     for (j = 0; j < numkeys; j++) {
         if (((c->cmd->flags & CMD_WRITE)
              && (dictFind(EVICTED_DATA_DB->transferring_keys, keys[j]->ptr)
@@ -1212,7 +1213,6 @@ int blockForLoadingkeys(client *c, robj **keys, int numkeys, mstime_t timeout) {
     }
 
     if (blockednum) {
-        c->bpop.timeout = timeout;
         blockClient(c, BLOCKED_SSDB_LOADING_OR_TRANSFER);
     }
 
