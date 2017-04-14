@@ -19,6 +19,10 @@ found in the LICENSE file.
 Link::Link(bool is_server) {
     append_reply = false;
 
+#ifdef DREPLY
+    append_reply = true;
+#endif
+
     redis = NULL;
 
     sock = -1;

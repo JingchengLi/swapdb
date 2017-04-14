@@ -78,6 +78,11 @@ IF(PTIMER)
 ENDIF()
 
 
+IF(DREPLY)
+    add_compile_options(-DDREPLY)
+ENDIF()
+
+
 ADD_LIBRARY(libjemalloc-static deps/jemalloc-4.1.0/lib)
 SET_TARGET_PROPERTIES(libjemalloc-static PROPERTIES 
     LINKER_LANGUAGE C
