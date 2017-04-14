@@ -82,8 +82,8 @@ public:
 
     std::vector<SlowlogEntry> history;
 
-    uint64_t slowlog_entry_max_len = 10;
-    uint64_t slowlog_log_slower_than = 10;
+    uint64_t slowlog_entry_max_len = 20;
+    uint64_t slowlog_log_slower_than = 10; //ms
 
     uint64_t slowlog_entry_id = 0;
     int64_t slowlog_min_duration = 0;
