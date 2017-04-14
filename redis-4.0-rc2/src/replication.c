@@ -1191,8 +1191,6 @@ void replicationCreateMasterClient(int fd, int dbid) {
         server.master->flags |= CLIENT_PRE_PSYNC;
     if (dbid != -1) selectDb(server.master,dbid);
 
-    if (server.jdjr_mode)
-        nonBlockConnectToSsdbServer(server.master);
 }
 
 void restartAOF() {
@@ -1383,6 +1381,15 @@ void readSyncBulkPayload(aeEventLoop *el, int fd, void *privdata, int mask) {
         zfree(server.repl_transfer_tmpfile);
         close(server.repl_transfer_fd);
         replicationCreateMasterClient(server.repl_transfer_s,rsi.repl_stream_db);
+        if (server.jdjr_mode) {
+            if (C_OK != nonBlockConnectToSsdbServer(server.master)) {
+                serverLog(LL_WARNING, "Failed to connect SSDB when sync");
+                cancelReplicationHandshake();
+                if (aof_is_enabled) restartAOF();
+                return;
+            }
+        }
+
         server.repl_state = REPL_STATE_CONNECTED;
         /* After a full resynchroniziation we use the replication ID and
          * offset of the master. The secondary ID / offset are cleared since
@@ -2310,8 +2317,12 @@ void replicationResurrectCachedMaster(int newfd) {
         }
     }
 
-    if (server.jdjr_mode)
-        nonBlockConnectToSsdbServer(server.master);
+    if (server.jdjr_mode) {
+        if (C_OK != nonBlockConnectToSsdbServer(server.master)) {
+            serverLog(LL_WARNING,"Error resurrecting the cached master, can't connect SSDB");
+            freeClientAsync(server.master); /* Close ASAP. */
+        }
+    }
 }
 
 /* ------------------------- MIN-SLAVES-TO-WRITE  --------------------------- */

@@ -179,7 +179,7 @@ void replyToBlockedClientTimedOut(client *c) {
                    || c->btype == BLOCKED_BY_FLUSHALL
                    || c->btype == BLOCKED_NO_WRITE_TO_SSDB)) {
         addReplyError(c, "timeout");
-        serverLog(LOG_DEBUG, "[!!!!]reset by replyToBlockedClientTimedOut:%p", c);
+        serverLog(LOG_DEBUG, "[!!!!]reset by replyToBlockedClientTimedOut:%p", (void*)c);
         resetClient(c);
     } else {
         serverPanic("Unknown btype in replyToBlockedClientTimedOut().");

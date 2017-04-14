@@ -615,7 +615,7 @@ int nonBlockConnectToSsdbServer(client *c) {
         context = redisConnectUnixNonBlock(server.ssdb_server_unixsocket);
 
         if (context->err) {
-            serverLog(LL_VERBOSE, "Could not connect to SSDB server.");
+            serverLog(LL_VERBOSE, "Could not connect to SSDB server:%s", context->errstr);
             redisFree(context);
             return C_ERR;
         } else
@@ -624,9 +624,10 @@ int nonBlockConnectToSsdbServer(client *c) {
         anetKeepAlive(NULL, c->context->fd, server.tcpkeepalive);
 
         if (aeCreateFileEvent(server.el, c->context->fd,
-                              AE_READABLE, ssdbClientUnixHandler, c) == AE_ERR)
+                              AE_READABLE, ssdbClientUnixHandler, c) == AE_ERR) {
             serverLog(LL_VERBOSE, "Unrecoverable error creating ssdbFd file event.");
-        else
+            return C_ERR;
+        } else
             serverLog(LL_DEBUG, "rfd:%d connecting to SSDB Unix socket succeeded: sfd:%d",
                       c->fd, c->context->fd);
 
@@ -848,7 +849,9 @@ static void acceptCommonHandler(int fd, int flags, char *ip) {
 
     if (server.jdjr_mode) {
         strncpy(c->client_ip, ip, NET_IP_STR_LEN);
-        nonBlockConnectToSsdbServer(c);
+        // todo: don't free client but reconnect SSDB
+        if (C_OK != nonBlockConnectToSsdbServer(c))
+            freeClient(c);
     }
 }
 
@@ -900,7 +903,7 @@ void handleClientsBlockedOnFlushall(void) {
         client *c = listNodeValue(ln);
         listDelNode(server.ssdb_flushall_blocked_clients, ln);
 
-        serverLog(LOG_DEBUG, "[!!!!]unblocked by handleClientsBlockedOnFlushall:%p", c);
+        serverLog(LOG_DEBUG, "[!!!!]unblocked by handleClientsBlockedOnFlushall:%p", (void*)c);
         unblockClient(c);
 
         if (runCommand(c, NULL) == C_OK)
@@ -1431,20 +1434,30 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
     }
 }
 
+static client* createSpecialSSDBclient() {
+    client* c;
+
+    c = createClient(-1);
+    if (!c) {
+        serverLog(LL_WARNING, "Error creating specical SSDB client.");
+        return NULL;
+    }
+
+    if (C_OK != nonBlockConnectToSsdbServer(c)) {
+        freeClient(c);
+        return NULL;
+    }
+    serverLog(LL_VERBOSE, "client address:%p, fd:%d", (void*)c, c->context->fd);
+    return c;
+}
+
 /* Create a client for keepalive with SSDB. */
 int createClientForReplicate() {
     if (server.ssdb_replication_client)
-        unlinkClient(server.ssdb_replication_client);
+        freeClient(server.ssdb_replication_client);
 
-    server.ssdb_replication_client = createClient(-1);
-    if (!server.ssdb_replication_client) {
-        serverLog(LL_WARNING, "Error creating new client.");
-        return C_ERR;
-    }
-
-    if (nonBlockConnectToSsdbServer(server.ssdb_replication_client) == C_OK) {
-        /* do nothing */
-    } else
+    server.ssdb_replication_client = createSpecialSSDBclient();
+    if (!server.ssdb_replication_client)
         return C_ERR;
 
     serverLog(LL_NOTICE, "Create SSDB replication socket success.");
@@ -1453,17 +1466,10 @@ int createClientForReplicate() {
 
 int createFakeClientForLoadAndEvict() {
     if (server.slave_ssdb_load_evict_client)
-        unlinkClient(server.slave_ssdb_load_evict_client);
+        freeClient(server.slave_ssdb_load_evict_client);
 
-    server.slave_ssdb_load_evict_client = createClient(-1);
-    if (!server.slave_ssdb_load_evict_client) {
-        serverLog(LL_WARNING, "Error creating new client.");
-        return C_ERR;
-    }
-
-    if (nonBlockConnectToSsdbServer(server.slave_ssdb_load_evict_client) == C_OK) {
-        /* do nothing */
-    } else
+    server.slave_ssdb_load_evict_client = createSpecialSSDBclient();
+    if (!server.slave_ssdb_load_evict_client)
         return C_ERR;
 
     serverLog(LL_NOTICE, "Create SSDB loadAndEvict socket success.");
@@ -1473,17 +1479,10 @@ int createFakeClientForLoadAndEvict() {
 
 int createDeleteConfirmClient() {
     if (server.delete_confirm_client)
-        unlinkClient(server.delete_confirm_client);
+        freeClient(server.delete_confirm_client);
 
-    server.delete_confirm_client = createClient(-1);
-    if (!server.delete_confirm_client) {
-        serverLog(LL_WARNING, "Error creating new client.");
-        return C_ERR;
-    }
-
-    if (nonBlockConnectToSsdbServer(server.delete_confirm_client) == C_OK) {
-        /* do nothing */
-    } else
+    server.delete_confirm_client = createSpecialSSDBclient();
+    if (!server.delete_confirm_client)
         return C_ERR;
 
     serverLog(LL_NOTICE, "Create SSDB delete_confirm socket success.");
@@ -1493,17 +1492,10 @@ int createDeleteConfirmClient() {
 /* Create a client for evciting data to SSDB, loading data from SSDB. */
 int createClientForEvicting() {
     if (server.ssdb_client)
-        unlinkClient(server.ssdb_client);
+        freeClient(server.ssdb_client);
 
-    server.ssdb_client = createClient(-1);
-    if (!server.ssdb_client) {
-        serverLog(LL_WARNING, "Error creating new client.");
-        return C_ERR;
-    }
-
-    if (nonBlockConnectToSsdbServer(server.ssdb_client) == C_OK) {
-        /* do nothing */
-    } else
+    server.ssdb_client = createSpecialSSDBclient();
+    if (!server.ssdb_client)
         return C_ERR;
 
     serverLog(LL_NOTICE, "Connecting to SSDB Unix socket success.");
