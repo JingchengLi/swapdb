@@ -5,7 +5,7 @@ start_server {tags {"ssdb"} } {
         set num 100000
         set clist [start_bg_complex_data_list $host $port $num 100 samekey]
         after 500
-        stop_bg_complex_data_list $clist
+        stop_bg_client_list $clist
         # check redis still work
         after 200
         r ping
@@ -17,7 +17,7 @@ start_server {tags {"ssdb"} } {
         set num 100000
         set clist [start_bg_complex_data_list $host $port $num 100]
         after 500
-        stop_bg_complex_data_list $clist
+        stop_bg_client_list $clist
         # check redis still work
         after 200
         r ping

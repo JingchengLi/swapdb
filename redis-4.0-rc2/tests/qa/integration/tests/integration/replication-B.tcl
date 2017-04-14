@@ -88,8 +88,8 @@ start_server {tags {"repl-abnormal"}} {
     }
 }
 
- ssdb做快照后，如果redis挂掉并且没有发送rr_transfer_snapshot的时候，ssdb要处理这种异常，释放快照。
- redis挂掉不监控重启,在集群中测试其failover
+# ssdb做快照后，如果redis挂掉并且没有发送rr_transfer_snapshot的时候，ssdb要处理这种异常，释放快照。
+# redis挂掉不监控重启,在集群中测试其failover
 start_server {tags {"repl-abnormal"}} {
     start_server {} {
         set master [srv -1 client]

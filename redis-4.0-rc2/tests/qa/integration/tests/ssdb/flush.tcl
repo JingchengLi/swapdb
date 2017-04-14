@@ -1,24 +1,29 @@
 # only flush exec on master
+start_server {tags {"ssdb"}
+overrides {maxmemory 0}} {
+    foreach flush {flushdb flushall} {
+        test "$flush command" {
+            r $flush
+        } {OK}
+
+        test "$flush key in ssdb and redis" {
+            r set foo bar
+            r set fooxxx barxxx
+            dumpto_ssdb_and_wait r fooxxx
+
+            r $flush
+            list [r get foo] [sr get fooxxx] [r get fooxxx]
+        } {{} {} {}}
+    }
+}
+
 start_server {tags {"ssdb"}} {
     set master [srv client]
-    set master_port [srv port]
+    set master_host [srv host]
     set master_port [srv port]
     start_server {} {
         set slave [srv client]
         foreach flush {flushdb flushall} {
-            test "$flush command" {
-                r $flush
-            } {OK}
-
-            test "$flush key in ssdb and redis" {
-                r set foo bar
-                r set fooxxx barxxx
-                dumpto_ssdb_and_wait r fooxxx
-    
-                r $flush
-                list [r get foo] [sr get fooxxx] [r get fooxxx]
-            } {{} {} {}}
-
             test "single client $flush all keys" {
                 $master debug populate 1000000
                 after 100
