@@ -121,6 +121,11 @@ struct redisServer server; /* server global state */
  *    its execution as long as the kernel scheduler is giving us time.
  *    Note that commands that may trigger a DEL as a side effect (like SET)
  *    are not fast commands.
+ * J: For jdjr mode and commands with read/write flag only, this indicates SSDB
+ *    can process this command and we can transfer this command to SSDB.
+ * j: For jdjr mode and commands with read/write flag only, this indicates redis
+ *    can process this command but SSDB can't and we can't transfer this command
+ *    to SSDB.
  */
 struct redisCommand redisCommandTable[] = {
     {"module",moduleCommand,-2,"as",0,NULL,1,1,1,0,0},
@@ -242,8 +247,8 @@ struct redisCommand redisCommandTable[] = {
     {"multi",multiCommand,1,"sF",0,NULL,0,0,0,0,0},
     {"exec",execCommand,1,"sM",0,NULL,0,0,0,0,0},
     {"discard",discardCommand,1,"sF",0,NULL,0,0,0,0,0},
-    {"sync",syncCommand,1,"arsJ",0,NULL,0,0,0,0,0},
-    {"psync",syncCommand,3,"arsJ",0,NULL,0,0,0,0,0},
+    {"sync",syncCommand,1,"arsj",0,NULL,0,0,0,0,0},
+    {"psync",syncCommand,3,"arsj",0,NULL,0,0,0,0,0},
     {"replconf",replconfCommand,-1,"aslt",0,NULL,0,0,0,0,0},
     {"flushdb",flushdbCommand,-1,"wJ",0,NULL,0,0,0,0,0},
     {"flushall",flushallCommand,-1,"wJ",0,NULL,0,0,0,0,0},
@@ -274,7 +279,7 @@ struct redisCommand redisCommandTable[] = {
     {"readonly",readonlyCommand,1,"F",0,NULL,0,0,0,0,0},
     {"readwrite",readwriteCommand,1,"F",0,NULL,0,0,0,0,0},
     {"dump",dumpCommand,2,"rJ",0,NULL,1,1,1,0,0},
-    {"object",objectCommand,3,"r",0,NULL,2,2,2,0,0},
+    {"object",objectCommand,3,"rj",0,NULL,2,2,2,0,0},
     {"memory",memoryCommand,-2,"r",0,NULL,0,0,0,0,0},
     {"client",clientCommand,-2,"as",0,NULL,0,0,0,0,0},
     {"eval",evalCommand,-3,"s",0,evalGetKeys,0,0,0,0,0},
@@ -303,17 +308,17 @@ struct redisCommand redisCommandTable[] = {
     {"latency",latencyCommand,-2,"aslt",0,NULL,0,0,0,0,0},
 
     /* Interfaces called by SSDB. */
-    {"ssdb-resp-del",ssdbRespDelCommand,-2,"wJ",0,NULL,1,-1,1,0,0},
-    {"ssdb-resp-restore",ssdbRespRestoreCommand,-4,"wmJ",0,NULL,1,1,1,0,0},
-    {"ssdb-resp-fail",ssdbRespFailCommand,3,"wJ",0,NULL,1,1,1,0,0},
-    {"ssdb-resp-notfound",ssdbRespNotfoundCommand,3,"wJ",0,NULL,1,1,1,0,0},
+    {"ssdb-resp-del",ssdbRespDelCommand,-2,"wj",0,NULL,1,-1,1,0,0},
+    {"ssdb-resp-restore",ssdbRespRestoreCommand,-4,"wmj",0,NULL,1,1,1,0,0},
+    {"ssdb-resp-fail",ssdbRespFailCommand,3,"wj",0,NULL,1,1,1,0,0},
+    {"ssdb-resp-notfound",ssdbRespNotfoundCommand,3,"wj",0,NULL,1,1,1,0,0},
 
-    {"storetossdb",storetossdbCommand,-2,"wJ",0,NULL,1,1,1,0,0},
-    {"dumpfromssdb",dumpfromssdbCommand,2,"wJ",0,NULL,1,1,1,0,0},
-    {"locatekey",locatekeyCommand,2,"rJ",0,NULL,1,1,1,0,0},
+    {"storetossdb",storetossdbCommand,-2,"wj",0,NULL,1,1,1,0,0},
+    {"dumpfromssdb",dumpfromssdbCommand,2,"wj",0,NULL,1,1,1,0,0},
+    {"locatekey",locatekeyCommand,2,"rj",0,NULL,1,1,1,0,0},
 
     /* Only be handled by slaves. */
-    {"slavedel",slaveDelCommand,-2,"wJ",0,NULL,1,-1,1,0,0},
+    {"slavedel",slaveDelCommand,-2,"wj",0,NULL,1,-1,1,0,0},
 };
 
 /*============================ Utility functions ============================ */
@@ -2342,6 +2347,7 @@ void populateCommandTable(void) {
             case 'k': c->flags |= CMD_ASKING; break;
             case 'F': c->flags |= CMD_FAST; break;
             case 'J': c->flags |= CMD_JDJR_MODE; break;
+            case 'j': c->flags |= CMD_JDJR_REDIS_ONLY; break;
             default: serverPanic("Unsupported command flag"); break;
             }
             f++;
@@ -2741,14 +2747,8 @@ void addVisitingSSDBKey(client *c, sds *keysds) {
 int processCommandMaybeInSSDB(client *c) {
     if ( !c->cmd || !(c->cmd->flags & (CMD_READONLY | CMD_WRITE)) )
         return C_ERR;
-
-     /* Command from SSDB should not be send to ssdb. */
-    if (c->cmd->proc == ssdbRespDelCommand
-        || c->cmd->proc == ssdbRespRestoreCommand
-        || c->cmd->proc == ssdbRespFailCommand
-        || c->cmd->proc == ssdbRespNotfoundCommand)
+    if (c->cmd->flags & CMD_JDJR_REDIS_ONLY)
         return C_ERR;
-
     if (!(c->cmd->flags & CMD_JDJR_MODE))
         return C_NOTSUPPORT_ERR;
     if (c->argc <= 1 || !dictFind(EVICTED_DATA_DB->dict, c->argv[1]->ptr))

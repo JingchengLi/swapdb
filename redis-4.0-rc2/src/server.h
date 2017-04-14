@@ -230,6 +230,7 @@ typedef long long mstime_t; /* millisecond time type. */
 #define CMD_MODULE_NO_CLUSTER (1<<15) /* Deny on Redis Cluster. */
 
 #define CMD_JDJR_MODE (1<<22)       /* "J" flag */
+#define CMD_JDJR_REDIS_ONLY (1<<23) /* "j" flag */
 
 /* AOF states */
 #define AOF_OFF 0             /* AOF is off */
