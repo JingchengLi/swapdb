@@ -30,6 +30,7 @@ std::map<int, std::string> SSDBErrMap = {
         {ZSET_INVALID_STR, "ERR min or max not valid string range item"},
         {BUSY_KEY_EXISTS,  "BUSYKEY Target key name already exists."},
         {INVALID_DUMP_STR,  "ERR DUMP payload version or checksum are wrong"},
+        {INVALID_ARGS,  "ERR wrong number of arguments"},
 };
 
 

@@ -97,7 +97,7 @@ DEF_PROC(zlexcount);
 DEF_PROC(zrangebylex);
 DEF_PROC(zremrangebylex);
 DEF_PROC(zrevrangebylex);
-	
+
 DEF_PROC(qsize);
 DEF_PROC(qpush_front);
 DEF_PROC(qpush_frontx);
@@ -127,6 +127,7 @@ DEF_PROC(client);
 DEF_PROC(quit);
 DEF_PROC(replic);
 DEF_PROC(sync150);
+DEF_PROC(slowlog);
 
 DEF_PROC(ssdb_scan);
 DEF_PROC(ssdb_dbsize);
@@ -264,6 +265,8 @@ void SSDBServer::reg_procs(NetworkServer *net){
 	REG_PROC(dreply, "w");
 	REG_PROC(flushdb, "wt");
 
+	REG_PROC(slowlog, "w"); // attention!
+
 	REG_PROC(dump2, "b");
 	REG_PROC(info, "r");
 	REG_PROC(version, "r");
@@ -365,6 +368,37 @@ int proc_client(NetworkServer *net, Link *link, const Request &req, Response *re
 	resp->reply_ok();
 	return 0;
 }
+
+
+int proc_slowlog(NetworkServer *net, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *)net->data;
+	CHECK_NUM_PARAMS(2);
+	std::string action = req[1].String();
+	strtolower(&action);
+
+	if (action == "reset") {
+        net->slowlog.reset();
+        resp->reply_ok();
+
+	} else if (action == "len") {
+        uint64_t len = net->slowlog.len();
+        resp->reply_int(1, len);
+    }else if (action == "get") {
+
+        resp->reply_list_ready();
+		const auto & history = net->slowlog.history;
+
+		for (int i = 0; i < history.size(); ++i) {
+			const SlowlogEntry &h = history[i];
+            resp->push_back(h.String());
+		}
+
+
+	} else {
+		reply_err_return(INVALID_ARGS);
+	}
+}
+
 
 
 int proc_debug(NetworkServer *net, Link *link, const Request &req, Response *resp){
@@ -587,7 +621,7 @@ int proc_info(NetworkServer *net, Link *link, const Request &req, Response *resp
 		resp->push_back("total_calls");
 		resp->add(calls);
 	}
-	
+
 	{
 		uint64_t size = serv->ssdb->size();
 		resp->push_back("dbsize");
@@ -618,7 +652,7 @@ int proc_info(NetworkServer *net, Link *link, const Request &req, Response *resp
 			resp->push_back(buf);
 		}
 	}
-	
+
 	return 0;
 }
 

@@ -27,5 +27,6 @@
 #define ZSET_INVALID_STR             -19
 #define BUSY_KEY_EXISTS              -20
 #define INVALID_DUMP_STR             -21
+#define INVALID_ARGS                 -22
 
 #endif //SSDB_REDIS_ERROR_H

@@ -9,6 +9,7 @@ found in the LICENSE file.
 #include "../include.h"
 #include <string>
 #include <vector>
+#include <util/slowlog.h>
 
 #include "fde.h"
 #include "proc.h"
@@ -67,6 +68,9 @@ public:
 	static NetworkServer* init(const char *conf_file, int num_readers=-1, int num_writers=-1);
 	static NetworkServer* init(const Config &conf, int num_readers=-1, int num_writers=-1);
 	void serve();
+
+	Slowlog slowlog;
+
 };
 
 
