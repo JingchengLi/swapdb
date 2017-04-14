@@ -128,6 +128,16 @@ void processUnblockedClients(void) {
     }
 }
 
+void removeClientWaitingSSDBflushall(client* c) {
+    listNode* ln = listSearchKey(server.ssdb_flushall_blocked_clients, c);
+    if (ln) listDelNode(server.ssdb_flushall_blocked_clients, ln);
+}
+
+void removeClientWaitingSSDBcheckWrite(client* c) {
+    listNode* ln = listSearchKey(server.no_writing_ssdb_blocked_clients, c);
+    if (ln) listDelNode(server.no_writing_ssdb_blocked_clients, ln);
+}
+
 /* Unblock a client calling the right function depending on the kind
  * of operation the client is blocking for. */
 void unblockClient(client *c) {
@@ -174,10 +184,23 @@ void replyToBlockedClientTimedOut(client *c) {
         moduleBlockedClientTimedOut(c);
     } else if (server.jdjr_mode && c->btype == BLOCKED_SSDB_LOADING_OR_TRANSFER) {
         transferringOrLoadingBlockedClientTimeOut(c);
+    } else if (server.jdjr_mode && c->btype == BLOCKED_NO_WRITE_TO_SSDB) {
+        /* remove this client from server.no_writing_ssdb_blocked_clients to avoid
+         * it processed by handleClientsBlockedOnCustomizedPsync again.*/
+        removeClientWaitingSSDBcheckWrite(c);
+        addReplyError(c, "timeout");
+        serverLog(LOG_DEBUG, "[!!!!]reset by replyToBlockedClientTimedOut:%p", (void *) c);
+        resetClient(c);
+    } else if (server.jdjr_mode && c->btype == BLOCKED_NO_READ_WRITE_TO_SSDB) {
+        /* remove this client from server.ssdb_flushall_blocked_clients to avoid
+         * it processed by handleClientsBlockedOnFlushall again.*/
+        removeClientWaitingSSDBflushall(c);
+        addReplyError(c, "timeout");
+        serverLog(LOG_DEBUG, "[!!!!]reset by replyToBlockedClientTimedOut:%p", (void*)c);
+        resetClient(c);
     } else if (server.jdjr_mode
                && (c->btype == BLOCKED_VISITING_SSDB
-                   || c->btype == BLOCKED_BY_FLUSHALL
-                   || c->btype == BLOCKED_NO_WRITE_TO_SSDB)) {
+                   || c->btype == BLOCKED_BY_FLUSHALL)) {
         addReplyError(c, "timeout");
         serverLog(LOG_DEBUG, "[!!!!]reset by replyToBlockedClientTimedOut:%p", (void*)c);
         resetClient(c);
