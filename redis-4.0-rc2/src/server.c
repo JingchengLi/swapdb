@@ -2749,7 +2749,9 @@ int processCommandMaybeInSSDB(client *c) {
         return C_ERR;
     if (c->cmd->flags & CMD_JDJR_REDIS_ONLY)
         return C_ERR;
-    if (!(c->cmd->flags & CMD_JDJR_MODE))
+    /* TODO: ignore C_NOTSUPPORT_ERR in LL_DEBUG temporary. */
+    if (server.verbosity != LL_DEBUG
+        && !(c->cmd->flags & CMD_JDJR_MODE))
         return C_NOTSUPPORT_ERR;
     if (c->argc <= 1 || !dictFind(EVICTED_DATA_DB->dict, c->argv[1]->ptr))
         return C_ERR;
