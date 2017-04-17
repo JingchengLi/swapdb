@@ -55,7 +55,7 @@ overrides {maxmemory 0}} {
         } {}
 
         test {SET 10000 numeric keys and access all them in reverse order} {
-            ssdbr flushdb
+            ssdbr flushall
             set err {}
             for {set x 0} {$x < 10000} {incr x} {
                 ssdbr set $x $x

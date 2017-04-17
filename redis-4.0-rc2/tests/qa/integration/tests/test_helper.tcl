@@ -11,8 +11,14 @@ source tests/support/tmpfile.tcl
 source tests/support/test.tcl
 source tests/support/util.tcl
 
+    ## unit/type/zset-2 score range
+    ## unit/type/list-3 too slow
+    ## ssdb/flush
+    ## integration/replication-base flushall延迟
+    ## integration/replication-b 第二个节点同步
+    ## integration/replication-c
+    ## integration/replication-A close client
 set ::all_tests {
-
     ssdb/communicate-base
     ssdb/encoding
     ssdb/dump
@@ -25,13 +31,13 @@ set ::all_tests {
 
     unit/type/hash
     unit/type/incr
+
     unit/type/string
     unit/type/list
     unit/type/set
     unit/type/zset
     unit/type/zset-2
     unit/type/list-2
-    unit/type/list-3
     integration/aof
     integration/replication-base
     integration/replication-2
@@ -41,9 +47,11 @@ set ::all_tests {
     integration/replication-a
     integration/replication-b
     integration/replication-c
-    integration/replication-A
     integration/replication-psync
     integration/psync2
+    ssdb/flush
+    integration/replication-A
+    unit/type/list-3
 }
 # next time support
     # unit/scan

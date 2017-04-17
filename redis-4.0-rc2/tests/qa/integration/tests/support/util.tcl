@@ -669,6 +669,8 @@ proc wait_log_pattern {pattern log} {
     }
     if {$retry == 0} {
         error "assertion:expected log \"$pattern\" not found on log file"
+    } else {
+        puts "wait [expr 10000-$retry]ms for $pattern!"
     }
 }
 
@@ -714,6 +716,12 @@ proc wait_ssdb_reconnect {{level 0}} {
     if {$retry == 0} {
         error "timeout for ssdb reconnect"
     } else {
-        puts "wait [expr (10000 - $retry)]ms for ssdb reconnect!"
+        puts "wait [expr 10000-$retry]ms for ssdb reconnect!"
     }
+}
+
+proc wait_flushall {{level 0}} {
+    set config [lindex $::servers end+$level]
+    set stdout [dict get $config "stdout"]
+    wait_log_pattern "rr_do_flushall ok" $stdout
 }

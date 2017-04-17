@@ -111,6 +111,7 @@ start_server {tags {"repl"}} {
 
         test {FLUSHALL should replicate} {
             r -1 flushall
+            wait_flushall
             if {$::valgrind} {after 2000}
             list [r -1 dbsize] [r 0 dbsize]
         } {0 0}
@@ -223,18 +224,13 @@ foreach dl {no} {
                 stop_write_load $load_handle3
                 stop_write_load $load_handle4
 
-                # Make sure that slave and master have same
-                # number of keys
                 wait_for_condition 500 100 {
-                    [$master dbsize] == [r dbsize]
+                    [$master debug digest] == [[lindex $slaves 0] debug digest]
                 } else {
-                    fail "Different number of keys between master and single slave after too long time."
+                    fail "Different digest between master and single slave after too long time."
                 }
 
-                set digest [$master debug digest]
-                set digest0 [[lindex $slaves 0] debug digest]
-                assert {$digest ne 0000000000000000000000000000000000000000}
-                assert {$digest eq $digest0}
+                assert {[$master debug digest] ne 0000000000000000000000000000000000000000}
 
                 # Check digests when all keys be hot
                 r -1 config set maxmemory 0
