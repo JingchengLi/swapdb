@@ -508,8 +508,6 @@ void cleanupEpilogOfEvicting(redisDb *db, robj *keyobj) {
 int epilogOfEvictingToSSDB(robj *keyobj) {
     redisDb *evicteddb = server.db + EVICTED_DATA_DBID, *db;
     mstime_t eviction_latency;
-    long long usage;
-    robj *usage_obj;
     dictEntry *de, *ev_de;
     long long now = mstime(), expiretime;
     /* TODO: clean up getTransferringDB. */
@@ -539,10 +537,7 @@ int epilogOfEvictingToSSDB(robj *keyobj) {
     }
 
     /* Record the evicted keys in an extra redis db. */
-    /* TODO: isolate the mem usage ??? */
-    usage = (long long)estimateKeyMemoryUsage(de);
-    usage_obj = createStringObjectFromLongLong(usage);
-    setKey(evicteddb, keyobj, usage_obj);
+    setKey(evicteddb, keyobj, shared.space);
 
     /* save lfu info when transfer. */
     db_key = dictGetKey(de);
@@ -572,11 +567,9 @@ int epilogOfEvictingToSSDB(robj *keyobj) {
     robj* setCmdObj = createStringObject("set",3);
     tmpargv[0] = setCmdObj;
     tmpargv[1] = keyobj;
-    tmpargv[2] = usage_obj;
+    tmpargv[2] = shared.space;
     propagate(lookupCommandByCString((char*)"set"),EVICTED_DATA_DBID, tmpargv, 3, PROPAGATE_AOF);
     decrRefCount(setCmdObj);
-
-    decrRefCount(usage_obj);
 
     /* Record the expire info. */
     if (expiretime > 0) {

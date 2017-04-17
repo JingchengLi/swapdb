@@ -773,10 +773,6 @@ void syncCommand(client *c) {
                 return;
             }
         } else {
-            listIter li;
-            listNode *ln;
-            client *tc;
-
             serverAssert(server.ssdb_status == SSDB_NONE && c->ssdb_status == SSDB_NONE);
             if (server.is_doing_flushall) {
                 /* if redis and ssdb are doing flushall/flushdb, delay the replication
@@ -2764,7 +2760,7 @@ void replicationCron(void) {
         while((ln = listNext(&li))) {
             client *slave = ln->value;
             if (slave->replstate >= SLAVE_STATE_WAIT_BGSAVE_START &&
-                    slave->replstate < SLAVE_STATE_ONLINE) {
+                slave->replstate < SLAVE_STATE_ONLINE) {
                 has_slave_in_transfer = 1;
             }
 
