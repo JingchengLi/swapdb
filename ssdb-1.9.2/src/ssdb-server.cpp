@@ -66,6 +66,9 @@ void MyApplication::run(){
 #ifdef PTIMER
 	log_info("ptimer           : enable");
 #endif
+#ifdef DREPLY
+	log_info("dreply           : enable");
+#endif
 
 
 	SSDB *data_db = nullptr;
