@@ -515,7 +515,7 @@ void randomkeyCommand(client *c) {
 }
 
 void keysCommand(client *c) {
-    dictIterator *di;
+    dictIterator *di, *ev_di;
     dictEntry *de;
     sds pattern = c->argv[1]->ptr;
     int plen = sdslen(pattern), allkeys;
@@ -523,6 +523,7 @@ void keysCommand(client *c) {
     void *replylen = addDeferredMultiBulkLength(c);
 
     di = dictGetSafeIterator(c->db->dict);
+
     allkeys = (pattern[0] == '*' && pattern[1] == '\0');
     while((de = dictNext(di)) != NULL) {
         sds key = dictGetKey(de);
@@ -538,6 +539,23 @@ void keysCommand(client *c) {
         }
     }
     dictReleaseIterator(di);
+    if (server.jdjr_mode) {
+        ev_di = dictGetSafeIterator(EVICTED_DATA_DB->dict);
+        while((de = dictNext(ev_di)) != NULL) {
+            sds key = dictGetKey(de);
+            robj *keyobj;
+
+            if (allkeys || stringmatchlen(pattern,plen,key,sdslen(key),0)) {
+                keyobj = createStringObject(key,sdslen(key));
+                if (expireIfNeeded(c->db,keyobj) == 0) {
+                    addReplyBulk(c,keyobj);
+                    numkeys++;
+                }
+                decrRefCount(keyobj);
+            }
+        }
+        dictReleaseIterator(ev_di);
+    }
     setDeferredMultiBulkLength(c,replylen,numkeys);
 }
 
@@ -787,7 +805,10 @@ void scanCommand(client *c) {
 }
 
 void dbsizeCommand(client *c) {
-    addReplyLongLong(c,dictSize(c->db->dict));
+    if (server.jdjr_mode) {
+        addReplyLongLong(c,dictSize(c->db->dict) + dictSize(EVICTED_DATA_DB->dict));
+    } else
+        addReplyLongLong(c,dictSize(c->db->dict));
 }
 
 void lastsaveCommand(client *c) {
