@@ -1352,8 +1352,9 @@ void readSyncBulkPayload(aeEventLoop *el, int fd, void *privdata, int mask) {
         serverLog(LL_NOTICE, "MASTER <-> SLAVE sync: Flushing old data");
         /* We need to stop any AOFRW fork before flusing and parsing
          * RDB, otherwise we'll create a copy-on-write disaster. */
-        if(aof_is_enabled) stopAppendOnly();
+        if (aof_is_enabled) stopAppendOnly();
         signalFlushedDb(-1);
+        if (server.jdjr_mode) cleanSpecialClientsAndIntermediateKeys();
         emptyDb(
             -1,
             server.repl_slave_lazy_flush ? EMPTYDB_ASYNC : EMPTYDB_NO_FLAGS,

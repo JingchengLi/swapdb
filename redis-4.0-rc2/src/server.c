@@ -2885,13 +2885,7 @@ void cleanLoadingOrTransferringKeys() {
     dictEmpty(server.db[EVICTED_DATA_DBID].delete_confirm_keys, NULL);
 }
 
-void prepareSSDBflush(client* c) {
-    listIter li;
-    listNode *ln;
-    client *lc;
-
-    /* STEP 1: clean all intermediate state keys, avoid to cause unexpected issues. */
-
+void cleanSpecialClientsAndIntermediateKeys() {
     /* just free specail clients to discard unprocessed transferring/loading keys.*/
     if (server.ssdb_client) freeClient(server.ssdb_client);
     if (server.slave_ssdb_load_evict_client) freeClient(server.slave_ssdb_load_evict_client);
@@ -2903,13 +2897,20 @@ void prepareSSDBflush(client* c) {
     emptyEvictionPool();
 
     cleanKeysToLoadAndEvict();
+}
+
+void prepareSSDBflush(client* c) {
+    listIter li;
+    listNode *ln;
+    client *lc;
+
+    /* STEP 1: clean all intermediate state keys, avoid to cause unexpected issues. */
+    cleanSpecialClientsAndIntermediateKeys();
 
     server.is_doing_flushall = 1;
 
     /* save the client doing flushall. */
     server.current_flushall_client = c;
-
-    //todo: reconnect server.ssdb_client and prohibit to load/transfer keys.
 
     /* STEP 2: send flushall/flushdb check commands for all connections. */
 #ifdef TEST_FLUSHALL_TIMEOUT_CASE

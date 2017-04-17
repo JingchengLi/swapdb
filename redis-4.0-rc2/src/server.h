@@ -1703,6 +1703,7 @@ int zslLexValueLteMax(sds value, zlexrangespec *spec);
 /* Core functions */
 int freeMemoryIfNeeded(void);
 
+void cleanSpecialClientsAndIntermediateKeys();
 void prepareSSDBflush(client* c);
 void cleanKeysToLoadAndEvict();
 void cleanLoadingOrTransferringKeys();
