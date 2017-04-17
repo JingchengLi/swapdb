@@ -729,10 +729,35 @@ int NetworkServer::proc(ProcJob *job){
 		job->time_proc = 1000 * (millitime() - job->stime) - job->time_wait;
 	}while(0);
 
-	if(job->link->send(job->resp.resp) == -1){
-		log_debug("job->link->send error");
-		job->result = PROC_ERROR;
-		return job->result;
+
+
+	if (job->resp.redisResponse != nullptr && job->link->redis != nullptr) {
+		// raw redis protocol
+		if(job->link->output->append(job->resp.redisResponse->toRedis()) == -1) {
+			log_debug("job->link->send error");
+			job->result = PROC_ERROR;
+
+			delete job->resp.redisResponse;
+			job->resp.redisResponse = nullptr;
+			return 0;
+		}
+
+		delete job->resp.redisResponse;
+		job->resp.redisResponse = nullptr;
+
+	} else {
+		if (job->resp.redisResponse != nullptr) {
+			delete job->resp.redisResponse;
+			job->resp.redisResponse = nullptr;
+		}
+
+		if(job->link->send(job->resp.resp) == -1){
+
+			log_debug("job->link->send error");
+			job->result = PROC_ERROR;
+			return 0;
+		}
+
 	}
 
 	if (job->link->append_reply) {

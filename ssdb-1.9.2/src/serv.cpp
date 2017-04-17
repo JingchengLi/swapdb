@@ -393,10 +393,65 @@ int proc_slowlog(NetworkServer *net, Link *link, const Request &req, Response *r
             resp->push_back(h.String());
 		}
 
+		RedisResponse* r = new RedisResponse();
+		resp->redisResponse = r;
+
+		r->type = REDIS_REPLY_ARRAY;
+
+		for (int i = 0; i < history.size(); ++i) {
+			const SlowlogEntry &h = history[i];
+			auto t1 = new RedisResponse();
+            t1->type = REDIS_REPLY_ARRAY;
+
+			{
+				auto t = new RedisResponse();
+                t->type = REDIS_REPLY_INTEGER;
+				t->integer = (long long int) h.id;
+
+				t1->element.push_back(t);
+			}
+
+			{
+				auto t = new RedisResponse();
+                t->type = REDIS_REPLY_INTEGER;
+                t->integer = h.ts;
+
+				t1->element.push_back(t);
+			}
+
+			{
+				auto t = new RedisResponse();
+                t->type = REDIS_REPLY_INTEGER;
+                t->integer = h.duration * 1000;
+
+				t1->element.push_back(t);
+			}
+
+			{
+				auto t = new RedisResponse();
+                t->type = REDIS_REPLY_ARRAY;
+
+                for (const auto &it :h.req) {
+					auto cmd_t = new RedisResponse();
+                    cmd_t->type = REDIS_REPLY_STRING;
+                    cmd_t->str= it;
+
+					t->element.push_back(cmd_t);
+                }
+
+				t1->element.push_back(t);
+			}
+
+
+			r->element.push_back(t1);
+		}
+
 
 	} else {
 		reply_err_return(INVALID_ARGS);
 	}
+
+	return 0;
 }
 
 

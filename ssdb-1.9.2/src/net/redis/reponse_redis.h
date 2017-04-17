@@ -68,12 +68,12 @@ public:
             case REDIS_REPLY_ERROR:
                 return str;
             case REDIS_REPLY_INTEGER:
-                return ::str((int64_t) integer);
+                return std::to_string(integer);
             case REDIS_REPLY_ARRAY: {
                 std::string tmp;
                 for (int i = 0; i < element.size(); ++i) {
                     tmp.append("(");
-                    tmp.append(::str(i));
+                    tmp.append(std::to_string(i));
                     tmp.append(")");
                     tmp.append(element[i]->toString());
                     tmp.append("\n");
@@ -88,10 +88,49 @@ public:
 
     }
 
-    bool isOk(){
+    bool isOk() {
         return (status == 1 && str == "OK");
     }
 
+
+    std::string toRedis() {
+
+        std::string tmp;
+
+        switch (type) {
+            case REDIS_REPLY_NIL:
+                tmp += "$0\r\n";
+                break;
+
+            case REDIS_REPLY_STRING:
+                tmp += "$" + std::to_string(str.length()) + "\r\n";
+                tmp += str + "\r\n";
+                break;
+
+            case REDIS_REPLY_STATUS:
+                tmp += "+" + str + "\r\n";
+                break;
+
+            case REDIS_REPLY_ERROR:
+                tmp += "-ERR " + str + "\r\n";
+                break;
+
+            case REDIS_REPLY_INTEGER:
+                tmp += ":" + std::to_string(integer) + "\r\n";
+                break;
+
+            case REDIS_REPLY_ARRAY: {
+                tmp += "*" + std::to_string(element.size()) + "\r\n";
+                for (int i = 0; i < element.size(); ++i) {
+                    tmp += element[i]->toRedis();
+                }
+                break;
+            }
+
+        }
+
+        return tmp;
+    }
 };
 
 #endif //SSDB_REPONSE_REDIS_H

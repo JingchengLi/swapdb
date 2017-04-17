@@ -10,6 +10,7 @@ found in the LICENSE file.
 #include <inttypes.h>
 #include <string>
 #include <vector>
+#include "redis/reponse_redis.h"
 
 
 
@@ -24,6 +25,8 @@ class Response
 {
 public:
 	std::vector<std::string> resp;
+
+	RedisResponse *redisResponse = nullptr;
 
 	bool checkKey = false;
 
