@@ -190,7 +190,7 @@ void *ExpirationHandler::thread_func(void *arg) {
         handler->expire_loop();
     }
 
-    log_debug("ExpirationHandler thread quit");
+    log_info("ExpirationHandler thread quit");
     handler->thread_quit = false;
     return (void *) NULL;
 }

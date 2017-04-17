@@ -12,7 +12,7 @@ BackendDump::BackendDump(SSDB *ssdb){
 }
 
 BackendDump::~BackendDump(){
-	log_debug("BackendDump finalized");
+	log_info("BackendDump finalized");
 }
 
 void BackendDump::proc(const Link *link){

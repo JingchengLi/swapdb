@@ -37,9 +37,9 @@ SSDBImpl::~SSDBImpl(){
 	if(ldb){
 		delete ldb;
 	}
-//	if(expiration){
-//		delete expiration;
-//	}
+	if(expiration){
+		delete expiration;
+	}
 	this->stop();
 
 	log_info("SSDBImpl finalized");
