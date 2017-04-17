@@ -1613,6 +1613,9 @@ void resetSpecialCient(client *c) {
     if (c == server.slave_ssdb_load_evict_client)
         server.slave_ssdb_load_evict_client = NULL;
 
+    if (c == server.delete_confirm_client)
+        server.delete_confirm_client = NULL;
+
     /* this is a normal client doing flushall. */
     if (c == server.current_flushall_client)
         server.current_flushall_client = NULL;
