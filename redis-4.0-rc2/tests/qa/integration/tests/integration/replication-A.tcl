@@ -20,6 +20,7 @@ foreach flag {New Mid Old} {
             if {"New" == $flag} {
                 set client [redis [srv host] [srv port]]
             }
+            after 3000
             $client ping
         } {PONG}
 
@@ -37,7 +38,7 @@ foreach flag {New Mid Old} {
 
         test "After restart ssdb del cold key ($flag client)" {
             $client del foo
-        } {OK}
+        } {1}
     }
 }
 

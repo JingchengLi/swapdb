@@ -34,7 +34,7 @@ start_server {tags {"repl"}} {
             }
         }
 
-        if {$::accurate} {set numops 50000} else {set numops 5000}
+        if {$::valgrind} {set numops 5000} else {set numops 500}
 
         test {MASTER and SLAVE consistency with expire} {
             set keyslist [ createComplexDataset r $numops useexpire ]

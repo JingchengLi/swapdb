@@ -81,7 +81,11 @@ start_server {tags {"repl"}} {
         after 1000
 
         test {MASTER and SLAVE dataset should be identical after complex ops} {
-            set keyslist [createComplexDataset r 100000]
+            if {$::valgrind} {
+                set keyslist [createComplexDataset r 100000]
+            } else {
+                set keyslist [createComplexDataset r 1000]
+            }
 
             r config set maxmemory 0
             r -1 config set maxmemory 0
