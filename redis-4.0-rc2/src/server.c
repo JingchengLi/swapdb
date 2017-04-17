@@ -2895,7 +2895,6 @@ void prepareSSDBflush(client* c) {
     /* just free specail clients to discard unprocessed transferring/loading keys.*/
     if (server.ssdb_client) freeClient(server.ssdb_client);
     if (server.slave_ssdb_load_evict_client) freeClient(server.slave_ssdb_load_evict_client);
-    // todo: fix crash issue when uncomment this line
     if (server.delete_confirm_client) freeClient(server.delete_confirm_client);
 
     /* clean transferring_keys/loading_hot_keys dicts. */
