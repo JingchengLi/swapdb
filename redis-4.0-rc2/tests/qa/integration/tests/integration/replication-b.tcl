@@ -1,4 +1,4 @@
-# real config during writeing master
+# real config during writing master
 # 1. connect two slaves
 # 2. connect one slave and then another slave.
 start_server {tags {"repl"}
@@ -13,7 +13,7 @@ config {real.conf}} {
         start_server {config {real.conf}} {
             lappend slaves [srv 0 client]
 
-            set num 3000
+            set num 30000
             set clients 10
             set clist [ start_bg_complex_data_list $master_host $master_port $num $clients 100k]
             test "Two slaves slaveof at the same time during writing" {
@@ -32,6 +32,7 @@ config {real.conf}} {
                     [$master dbsize] == [[lindex $slaves 0] dbsize] &&
                     [[lindex $slaves 0] dbsize] == [[lindex $slaves 1] dbsize]
                 } else {
+
                     fail "Different number of keys between master and slave after too long time."
                 }
                 assert_equal [$master debug digest] [[lindex $slaves 0] debug digest] "Different digest between master and slave"

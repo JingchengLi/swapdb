@@ -21,8 +21,8 @@ overrides {maxmemory 0}} {
     foreach ttl {0 1000} {
         test "Initialize Hot key only store in redis with ttl($ttl)" {
             r flushall
+            wait_ssdb_reconnect
             r del foo
-            sr flushdb
 
             if {$ttl > 0} {
                 r setex foo $ttl bar

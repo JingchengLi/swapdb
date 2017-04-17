@@ -95,6 +95,7 @@ overrides { save ""
         foreach e {quicklist} {
             test "AOF rewrite of list with $e encoding, $d data" {
                 r flushall
+                wait_ssdb_reconnect
 
                 set len 1000
                 for {set j 0} {$j < $len} {incr j} {
@@ -144,8 +145,7 @@ overrides { save ""
         foreach e {intset hashtable} {
             test "AOF rewrite of set with $e encoding, $d data" {
                 r flushall
-                #TODO del flushdb after flushall issue fixed
-                sr flushdb
+                wait_ssdb_reconnect
                 # r del ssdbkey key
                 if {$e eq {intset}} {set len 10} else {set len 1000}
                 for {set j 0} {$j < $len} {incr j} {
@@ -212,6 +212,7 @@ overrides { save ""
         foreach e {ziplist hashtable} {
             test "AOF rewrite of hash with $e encoding, $d data" {
                 r flushall
+                wait_ssdb_reconnect
                 if {$e eq {ziplist}} {set len 10} else {set len 1000}
                 for {set j 0} {$j < $len} {incr j} {
                     if {$d eq {string}} {
@@ -274,7 +275,7 @@ overrides { save ""
         foreach e {ziplist skiplist} {
             test "AOF rewrite of zset with $e encoding, $d data" {
                 r flushall
-                sr flushdb
+                wait_ssdb_reconnect
                 if {$e eq {ziplist}} {set len 10} else {set len 1000}
                 for {set j 0} {$j < $len} {incr j} {
                     if {$d eq {string}} {

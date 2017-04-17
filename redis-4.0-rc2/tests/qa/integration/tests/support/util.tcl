@@ -513,12 +513,10 @@ proc populate_diff_keys {r2 r1 num {flag redis}} {
         $r1 select 16
         $r2 select 16
     }
+    $r1 config set jdjr-mode no
+    $r2 config set jdjr-mode no
     set list1 [lsort [$r1 keys *]]
     set list2 [lsort [$r2 keys *]]
-    if {$flag == "ssdb"} {
-        $r1 select 0
-        $r2 select 0
-    }
     set len1 [llength $list1]
     set len2 [llength $list2]
     set diff {}
@@ -534,10 +532,19 @@ proc populate_diff_keys {r2 r1 num {flag redis}} {
             incr num -1
             incr j
         } else {
+            if {[ string compare [$r1 dump [lindex $list1 $i]] [$r2 dump [lindex $list2 $j]]] != 0} {
+                lappend diff [lindex $list3 $i]
+            }
             incr i
             incr j
         }
     }
+    if {$flag == "ssdb"} {
+        $r1 select 0
+        $r2 select 0
+    }
+    $r1 config set jdjr-mode yes
+    $r2 config set jdjr-mode yes
 
     while {$i < $len1 && $num !=0} {
         lappend diff [lindex $list1 $i]
@@ -690,4 +697,23 @@ proc restart_ssdb_server {{level 0}} {
 
     # re-set withe new ssdbpid in the servers list
     lset ::servers end+$level $config
+}
+
+proc wait_ssdb_reconnect {{level 0}} {
+    set retry 10000
+    r $level set foonull null
+    while {$retry} {
+        catch {[r $level storetossdb foonull]} err
+        if {![string match "*ERR*Failed*restore*" $err]} {
+            break
+        }
+        incr retry -1
+        after 1
+    }
+    r $level del foonull
+    if {$retry == 0} {
+        error "timeout for ssdb reconnect"
+    } else {
+        puts "wait [expr (10000 - $retry)]ms for ssdb reconnect!"
+    }
 }

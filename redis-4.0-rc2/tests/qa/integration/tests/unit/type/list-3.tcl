@@ -17,7 +17,7 @@ start_server {
 
     tags {slow} {
         test {ziplist implementation: value encoding and backlink} {
-            if {$::accurate} {set iterations 100} else {set iterations 10}
+            if {$::accurate} {set iterations 100} else {set iterations 1}
             for {set j 0} {$j < $iterations} {incr j} {
                 ssdbr del l
                 set l {}

@@ -1,7 +1,7 @@
 # only flush exec on master
 start_server {tags {"ssdb"}
 overrides {maxmemory 0}} {
-    foreach flush {flushdb flushall} {
+    foreach flush {flushall flushdb} {
         test "$flush command" {
             r $flush
         } {OK}
@@ -9,6 +9,7 @@ overrides {maxmemory 0}} {
         test "$flush key in ssdb and redis" {
             r set foo bar
             r set fooxxx barxxx
+            wait_ssdb_reconnect
             dumpto_ssdb_and_wait r fooxxx
 
             r $flush
@@ -23,45 +24,61 @@ start_server {tags {"ssdb"}} {
     set master_port [srv port]
     start_server {} {
         set slave [srv client]
-        foreach flush {flushdb flushall} {
+        foreach flush {flushall flushdb} {
             test "single client $flush all keys" {
                 $master debug populate 1000000
                 after 100
                 $master $flush
+                wait_ssdb_reconnect -1
+                
                 assert_equal "0000000000000000000000000000000000000000" [$master debug digest]
-                sr -1 keys *
-            } {}
+                wait_for_condition 10 100 {
+                    [ sr -1 keys * ] eq {}
+                } else {
+                    fail "ssdb not clear up:[ sr -1 keys * ]"
+                }
+            }
 
             test "multi clients $flush all keys" {
                 $master debug populate 1000000
+                after 100
                 set clist [start_bg_command_list $master_host $master_port 100 $flush]
                 after 1000
                 stop_bg_client_list $clist
 
+                wait_ssdb_reconnect -1
                 assert_equal "0000000000000000000000000000000000000000" [$master debug digest]
-                sr -1 key *
-            } {}
+                wait_for_condition 10 100 {
+                    [ sr -1 keys * ] eq {}
+                } else {
+                    fail "ssdb not clear up:[ sr -1 keys * ]"
+                }
+            }
 
             test "$flush and then replicate" {
-                $master debug populate 1000000
-                $slave debug populate 1000000
-                $master $flush
+                $master debug populate 10000
+                $slave debug populate 10000
+                after 100
+                catch {[ $master $flush ]} err
                 $slave slaveof $master_host $master_port
+                after 3000
                 assert_equal "0000000000000000000000000000000000000000" [$master debug digest] "master null db after $flush"
                 assert_equal "0000000000000000000000000000000000000000" [$slave debug digest] "slave null db after $flush"
-                list [sr key *] [sr -1 key *]
+                list [sr keys *] [sr -1 keys *]
             } {{} {}}
 
             test "replicate and then $flush" {
                 $master debug populate 1000000
                 $slave debug populate 1000000
+                after 100
                 $slave slaveof $master_host $master_port
                 set pattern "Sending rr_make_snapshot to SSDB"
-                wait_log_pattern $pattern [srv stdout]
+                wait_log_pattern $pattern [srv -1 stdout]
                 $master $flush
+                after 5000000
                 assert_equal "0000000000000000000000000000000000000000" [$master debug digest] "master null db after $flush"
                 assert_equal "0000000000000000000000000000000000000000" [$slave debug digest] "slave null db after $flush"
-                list [sr key *] [sr -1 key *]
+                list [sr keys *] [sr -1 keys *]
             } {{} {}}
         }
     }
@@ -73,7 +90,7 @@ start_server {tags {"ssdb"}} {
     set master_port [srv port]
     start_server {} {
         set slave [srv client]
-        foreach flush {flushdb flushall} {
+        foreach flush {flushall flushdb} {
 
             test "multi clients $flush all keys during writing" {
                 set num 100000

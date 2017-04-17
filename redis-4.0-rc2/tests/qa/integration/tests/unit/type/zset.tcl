@@ -796,7 +796,12 @@ overrides {maxmemory 0}} {
             }
 
             assert_encoding $encoding zset
-            for {set i 0} {$i < 100} {incr i} {
+            if {$::accurate} {
+                set num 100
+            } else {
+                set num 10
+            }
+            for {set i 0} {$i < $num} {incr i} {
                 set min [expr rand()]
                 set max [expr rand()]
                 if {$min > $max} {
@@ -946,7 +951,8 @@ overrides {maxmemory 0}} {
             set lexset [lsort -unique $lexset]
             for {set j 0} {$j < 100} {incr j} {
                 # Copy...
-                ssdbr zunionstore zsetcopy 1 zset
+                r restore zsetcopy 0 [r dump zset] replace
+                # ssdbr zunionstore zsetcopy 1 zset
                 set lexsetcopy $lexset
 
                 set min [randstring 0 30 alpha]
