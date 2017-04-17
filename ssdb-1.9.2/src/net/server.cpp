@@ -48,7 +48,7 @@ void sig_signal_handler(int sig, siginfo_t * info, void * ucontext) {
     fprintf(stderr, "Error: signal %d (%s)\n", sig, strsignal(sig));
     backtrace_symbols_fd(array, size, STDERR_FILENO);
     backtrace_symbols_fd(array, size, log_fd()->_fileno);
-	abort();
+//	abort();
 	exit(sig);
 }
 
