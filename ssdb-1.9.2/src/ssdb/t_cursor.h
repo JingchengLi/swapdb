@@ -29,6 +29,8 @@ public:
 
     void ClearExpireRedisCursor();
 
+    void ClearAllCursor();
+
 private:
     const int scan_cursor_expire_after = 60 * 1000;
 

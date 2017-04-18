@@ -318,6 +318,7 @@ class Queue{
 
 		bool empty();
 		int size();
+		std::queue<T> discard();
 		int push(const T item);
 		// TODO: with timeout
 		int pop(T *data);
@@ -384,7 +385,8 @@ class WorkerPool{
 		
 		int start(int num_workers);
 		int stop();
-		
+
+		std::queue<JOB> discard();
 		int queued();
 		int push(JOB job);
 		int pop(JOB *job);
@@ -426,6 +428,18 @@ int Queue<T>::size(){
 	ret = items.size();
 	pthread_mutex_unlock(&mutex);
 	return ret;
+}
+
+template <class T>
+std::queue<T> Queue<T>::discard(){
+	std::queue<T> empty;
+	if(pthread_mutex_lock(&mutex) != 0){
+		return empty;
+	}
+	std::swap(items, empty);
+
+	pthread_mutex_unlock(&mutex);
+	return empty;
 }
 
 template <class T>
@@ -571,6 +585,12 @@ int WorkerPool<W, JOB>::queued(){
 }
 
 template<class W, class JOB>
+std::queue<JOB>  WorkerPool<W, JOB>::discard() {
+	return this->jobs.discard();;
+}
+
+
+template<class W, class JOB>
 int WorkerPool<W, JOB>::pop(JOB *job){
 	return this->results.pop(job);
 }
@@ -640,8 +660,6 @@ int WorkerPool<W, JOB>::stop(){
 	started = false;
 	return 0;
 }
-
-
 
 #if 0
 class MyWorker : public WorkerPool<MyWorker, int>::Worker{

@@ -452,8 +452,9 @@ int proc_dreply(NetworkServer *net, Link *link, const Request &req, Response *re
 int proc_flushdb(NetworkServer *net, Link *link, const Request &req, Response *resp) {
     SSDBServer *serv = (SSDBServer *) net->data;
 
-    serv->ssdb->flushdb();
-    resp->reply_ok();
+	log_warn("[!!!] do flushdb");
+	serv->ssdb->flushdb();
+	resp->reply_ok();
 
     return 0;
 }
@@ -1136,14 +1137,27 @@ int proc_rr_flushall_check(NetworkServer *net, Link *link, const Request &req, R
 int proc_rr_do_flushall(NetworkServer *net, Link *link, const Request &req, Response *resp) {
     SSDBServer *serv = (SSDBServer *) net->data;
 
-    int ret = serv->ssdb->flushdb();
-    if (ret < 0) {
-        resp->push_back("ok");
-        resp->push_back("rr_do_flushall nok");
-    } else {
-        resp->push_back("ok");
-        resp->push_back("rr_do_flushall ok");
-    }
+	log_warn("[!!!] do flushall");
+	std::queue<TransferJob *> discarded_jobs = net->redis->discard();
+
+	log_warn("[!!!] discard %d TransferJob waiting for remain jobs", discarded_jobs.size());
+	while (!discarded_jobs.empty())
+	{
+		delete discarded_jobs.front();
+		discarded_jobs.pop();
+	}
+
+	Locking<RecordMutex<Mutex>> gl(&serv->transfer_mutex_record_);
+
+	log_warn("[!!!] TransferJob clear done , starting flushdb");
+	int ret = serv->ssdb->flushdb();
+	if (ret < 0) {
+		resp->push_back("ok");
+		resp->push_back("rr_do_flushall nok");
+	} else {
+		resp->push_back("ok");
+		resp->push_back("rr_do_flushall ok");
+	}
 
     return 0;
 }

@@ -57,3 +57,8 @@ void RedisCursorService::ClearExpireRedisCursor() {
         }
     }
 }
+
+void RedisCursorService::ClearAllCursor() {
+    Locking<SpinMutexLock> l(&mutex);
+    m_redis_cursor_table.clear();
+}

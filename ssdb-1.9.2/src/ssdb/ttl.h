@@ -35,6 +35,10 @@ public:
 	int expireAt(const Bytes &key, int64_t ts_ms);
 
 
+	void clear() {
+		fast_keys.clear();
+	}
+
 private:
 	SSDB *ssdb;
 	volatile bool thread_quit;
