@@ -1109,12 +1109,14 @@ int proc_rr_del_snapshot(NetworkServer *net, Link *link, const Request &req, Res
     SSDBServer *serv = (SSDBServer *)net->data;
     pthread_mutex_lock(&serv->mutex);
     if(serv->ReplicState != REPLIC_END){
+        pthread_mutex_unlock(&serv->mutex);
         log_error("The replication is not finish");
         resp->push_back("error");
         resp->push_back("rr_del_snapshot error");
         return 0;
     }
     pthread_mutex_unlock(&serv->mutex);
+
     if (serv->snapshot != nullptr){
         serv->ssdb->ReleaseSnapshot(serv->snapshot);
         serv->snapshot = nullptr;
