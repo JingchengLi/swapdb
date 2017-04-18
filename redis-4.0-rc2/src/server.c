@@ -834,7 +834,6 @@ int clientsCronHandleTimeout(client *c, mstime_t now_ms) {
                     case BLOCKED_NO_READ_WRITE_TO_SSDB:
                     case BLOCKED_VISITING_SSDB:
                     case BLOCKED_BY_FLUSHALL:
-                        serverLog(LOG_DEBUG, "[!!!!]reset because timeout:%p", (void*)c);
                         need_reset = 1;
                         break;
                     default: break;
