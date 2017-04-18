@@ -828,6 +828,17 @@ int clientsCronHandleTimeout(client *c, mstime_t now_ms) {
             /* Handle blocking operation specific timeout. */
             replyToBlockedClientTimedOut(c);
             unblockClient(c);
+            if (server.jdjr_mode) {
+                switch(c->btype) {
+                    case BLOCKED_NO_WRITE_TO_SSDB:
+                    case BLOCKED_NO_READ_WRITE_TO_SSDB:
+                    case BLOCKED_VISITING_SSDB:
+                    case BLOCKED_BY_FLUSHALL:
+                        resetClient(c);
+                        break;
+                    default: break;
+                }
+            }
         } else if (server.cluster_enabled) {
             /* Cluster: handle unblock & redirect of clients blocked
              * into keys no longer served by this server. */
