@@ -825,20 +825,22 @@ int clientsCronHandleTimeout(client *c, mstime_t now_ms) {
          * server.hz. */
 
         if (c->bpop.timeout != 0 && c->bpop.timeout < now_ms) {
+            int need_reset = 0;
             /* Handle blocking operation specific timeout. */
             replyToBlockedClientTimedOut(c);
-            unblockClient(c);
             if (server.jdjr_mode) {
                 switch(c->btype) {
                     case BLOCKED_NO_WRITE_TO_SSDB:
                     case BLOCKED_NO_READ_WRITE_TO_SSDB:
                     case BLOCKED_VISITING_SSDB:
                     case BLOCKED_BY_FLUSHALL:
-                        resetClient(c);
+                        need_reset = 1;
                         break;
                     default: break;
                 }
             }
+            unblockClient(c);
+            if (server.jdjr_mode && need_reset) resetClient(c);
         } else if (server.cluster_enabled) {
             /* Cluster: handle unblock & redirect of clients blocked
              * into keys no longer served by this server. */
