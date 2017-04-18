@@ -9,11 +9,14 @@ Buffer::Buffer(int total){
 	size_ = 0;
 	total_ = total;
 	buf = (char *)malloc(total);
+	memset(buf, 0, total);
 	data_ = buf;
 }
 
 Buffer::~Buffer(){
 	free(buf);
+	buf = NULL;
+	data_ = NULL;
 }
 
 void Buffer::nice(){

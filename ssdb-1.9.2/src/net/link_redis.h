@@ -35,6 +35,10 @@ public:
 	RedisLink(){
 		req_desc = NULL;
 	}
+
+	~RedisLink(){
+		req_desc = NULL;
+	}
 	
 	const std::vector<Bytes>* recv_req(Buffer *input);
 	int recv_res(Buffer *input, RedisResponse *r, int shit);

@@ -28,6 +28,7 @@ LINK_DIRECTORIES(
     ${CMAKE_CURRENT_SOURCE_DIR}/src/client
     ${CMAKE_CURRENT_SOURCE_DIR}/src/util
     ${CMAKE_CURRENT_SOURCE_DIR}/src/net
+        /usr/local/lib
     )
 
 

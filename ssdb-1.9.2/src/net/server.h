@@ -69,6 +69,8 @@ public:
 	static NetworkServer* init(const Config &conf, int num_readers=-1, int num_writers=-1);
 	void serve();
 
+	void FdeventsDel(int fd){ fdes->del(fd); }
+
 	Slowlog slowlog;
 
 };

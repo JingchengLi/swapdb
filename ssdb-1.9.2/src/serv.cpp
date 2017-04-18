@@ -845,20 +845,21 @@ void *thread_replic(void *arg) {
     }
     pthread_mutex_unlock(&serv->mutex);
 
-    if (slave.master_link != NULL) {
-        serv->mutex_finish.lock();
-        serv->slave_finish.push(slave);
-        serv->mutex_finish.unlock();
-        int len = ::write(serv->fds[1], "s", 1);
-        if (len == -1) {
-            fprintf(stderr, "write fds error\n");
-            exit(0);
-        }
-        log_debug("send rr_transfer_snapshot finished!!");
-    } else {
-        log_debug("error:master_link is NULL");
-    }
-    log_debug("replic procedure finish!");
+	if (slave.master_link != NULL){
+		serv->mutex_finish.lock();
+		serv->slave_finish.push(slave);
+		serv->mutex_finish.unlock();
+		int len = ::write(serv->fds[1], "s", 1);
+		if (len == -1){
+			fprintf(stderr, "write fds error\n");
+			exit(0);
+		}
+        log_debug("a:link address:%lld", slave.master_link);
+		log_debug("send rr_transfer_snapshot finished!!");
+	} else{
+		log_debug("error:master_link is NULL");
+	}
+	log_debug("replic procedure finish!");
 
     return (void *) NULL;
 }
@@ -1057,8 +1058,9 @@ int proc_rr_do_flushall(NetworkServer *net, Link *link, const Request &req, Resp
     return 0;
 }
 
-int proc_rr_make_snapshot(NetworkServer *net, Link *link, const Request &req, Response *resp) {
-    SSDBServer *serv = (SSDBServer *) net->data;
+int proc_rr_make_snapshot(NetworkServer *net, Link *link, const Request &req, Response *resp){
+    SSDBServer *serv = (SSDBServer *)net->data;
+    log_debug("1:link address:%lld", link);
 
     if (serv->snapshot != nullptr) {
         serv->ssdb->ReleaseSnapshot(serv->snapshot);
@@ -1079,6 +1081,7 @@ int proc_rr_make_snapshot(NetworkServer *net, Link *link, const Request &req, Re
 int proc_rr_transfer_snapshot(NetworkServer *net, Link *link, const Request &req, Response *resp) {
     SSDBServer *serv = (SSDBServer *) net->data;
     CHECK_NUM_PARAMS(3);
+    log_debug("2:link address:%lld", link);
 
     std::string ip = req[1].String();
     int port = req[2].Int();
@@ -1095,17 +1098,28 @@ int proc_rr_transfer_snapshot(NetworkServer *net, Link *link, const Request &req
         log_fatal("can't create thread: %s", strerror(err));
         exit(0);
     }
+
+    net->FdeventsDel(link->fd());
     resp->push_back("ok");
     resp->push_back("rr_transfer_snapshot ok");
     return 0;
 }
 
-int proc_rr_del_snapshot(NetworkServer *net, Link *link, const Request &req, Response *resp) {
-    SSDBServer *serv = (SSDBServer *) net->data;
-    if (serv->snapshot != nullptr) {
+int proc_rr_del_snapshot(NetworkServer *net, Link *link, const Request &req, Response *resp){
+    SSDBServer *serv = (SSDBServer *)net->data;
+    pthread_mutex_lock(&serv->mutex);
+    if(serv->ReplicState != REPLIC_END){
+        log_error("The replication is not finish");
+        resp->push_back("error");
+        resp->push_back("rr_del_snapshot error");
+        return 0;
+    }
+    pthread_mutex_unlock(&serv->mutex);
+    if (serv->snapshot != nullptr){
         serv->ssdb->ReleaseSnapshot(serv->snapshot);
         serv->snapshot = nullptr;
     }
+    log_debug("3:link address:%lld", link);
 
     pthread_mutex_lock(&serv->mutex);
     serv->ReplicState = REPLIC_START;

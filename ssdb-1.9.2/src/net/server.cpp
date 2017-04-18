@@ -318,7 +318,8 @@ void NetworkServer::serve(){
 				} else {
 					Request request;
 					Response response;
-					cmd->proc(this, nullptr, request, &response);
+//					cmd->proc(this, nullptr, request, &response);
+                    log_debug("snapshot not delete");
 				}
 				nLoopNum = 0;
 			}
@@ -450,6 +451,7 @@ void NetworkServer::serve(){
                 std::vector<std::string> response;
                 response.push_back("ok");
                 response.push_back("rr_transfer_snapshot finished");
+                log_debug("before send finish rr_link address:%lld", slave.master_link);
                 if (slave.master_link != NULL){
                     slave.master_link->send(response);
                     if (slave.master_link->append_reply) {
@@ -458,6 +460,8 @@ void NetworkServer::serve(){
                         slave.master_link->send_append_res(response);
                     }
                     slave.master_link->write();
+                } else{
+                    log_error("The link from redis is off!");
                 }
             } else{
                 proc_client_event(fde, &ready_list);
@@ -470,6 +474,7 @@ void NetworkServer::serve(){
 				this->link_count --;
 				fdes->del(link->fd());
 				delete link;
+                link = NULL;
 				continue;
 			}
 
@@ -480,6 +485,7 @@ void NetworkServer::serve(){
 				this->link_count --;
 				fdes->del(link->fd());
 				delete link;
+                link = NULL;
 				continue;
 			}
 			if(req->empty()){

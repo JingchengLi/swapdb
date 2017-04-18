@@ -9,6 +9,7 @@ found in the LICENSE file.
 #include <sys/socket.h>
 #include <netdb.h>
 #include <sys/un.h>
+#include <util/log.h>
 #include "link.h"
 #include "link_redis.cpp"
 
@@ -42,14 +43,18 @@ Link::Link(bool is_server) {
 }
 
 Link::~Link() {
+    log_debug("~rr_link address:%lld", this);
     if (redis) {
         delete redis;
+        redis = NULL;
     }
     if (input) {
         delete input;
+        input = NULL;
     }
     if (output) {
         delete output;
+        output = NULL;
     }
     this->close();
 }
@@ -461,6 +466,9 @@ int Link::send(const std::vector<std::string> &resp) {
     if (resp.empty()) {
         //fatal error here
        return 0;
+    }
+    if (!this->redis && !this->output){
+        return 0;
     }
     // Redis protocol supports
     if (this->redis) {
