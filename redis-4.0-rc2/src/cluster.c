@@ -4884,24 +4884,6 @@ void locatekeyCommand(client *c) {
     decrRefCount(replyObj);
 }
 
-// todo: remove unused codes
-void slaveDelCommand(client *c) {
-    sds finalcmd;
-    if (server.jdjr_mode) {
-        if (server.masterhost) {
-            server.ssdbargv[0] = sdsnew("del");
-            server.ssdbargv[1] = c->argv[1]->ptr;
-            server.ssdbargvlen[0] = 3;
-
-            server.ssdbargvlen[1] = sdslen((sds)(c->argv[1]->ptr));
-            finalcmd = composeRedisCmd(2, (const char**)server.ssdbargv, server.ssdbargvlen);
-            sendCommandToSSDB(c, finalcmd);
-        } else
-            addReplyError(c, "Only supported in slaves.");
-    } else
-        addReplyError(c, "Only supported in jdjr-mode.");
-}
-
 void dumpfromssdbCommand(client *c) {
     dictEntry *de;
 
@@ -4941,10 +4923,16 @@ void dumpfromssdbCommand(client *c) {
         return;
     }
 
-    if (prologOfLoadingFromSSDB(keyobj) == C_OK)
+    if (prologOfLoadingFromSSDB(keyobj) == C_OK) {
         setLoadingDB(keyobj);
-
-    addReply(c,shared.ok);
+        addReply(c,shared.ok);
+    } else {
+        // todo improve
+        if (server.ssdb_client == NULL)
+            addReplyError(c, "client for cold key transfer/hot keys load is disconnected!");
+        else
+            addReplyError(c, "the key is expired.");
+    }
 }
 
 

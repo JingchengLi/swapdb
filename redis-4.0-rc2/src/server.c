@@ -250,7 +250,9 @@ struct redisCommand redisCommandTable[] = {
     {"sync",syncCommand,1,"arsj",0,NULL,0,0,0,0,0},
     {"psync",syncCommand,3,"arsj",0,NULL,0,0,0,0,0},
     {"replconf",replconfCommand,-1,"aslt",0,NULL,0,0,0,0,0},
-    {"flushdb",flushdbCommand,-1,"wJ",0,NULL,0,0,0,0,0},
+    /* for jdjr mode, we replace flushdb by flushall */
+    //{"flushdb",flushdbCommand,-1,"wJ",0,NULL,0,0,0,0,0},
+    {"flushdb",flushallCommand,-1,"wJ",0,NULL,0,0,0,0,0},
     {"flushall",flushallCommand,-1,"wJ",0,NULL,0,0,0,0,0},
     {"sort",sortCommand,-2,"wm",0,sortGetKeys,1,1,1,0,0},
     {"info",infoCommand,-1,"lt",0,NULL,0,0,0,0,0},
@@ -316,9 +318,6 @@ struct redisCommand redisCommandTable[] = {
     {"storetossdb",storetossdbCommand,-2,"wj",0,NULL,1,1,1,0,0},
     {"dumpfromssdb",dumpfromssdbCommand,2,"wj",0,NULL,1,1,1,0,0},
     {"locatekey",locatekeyCommand,2,"rj",0,NULL,1,1,1,0,0},
-
-    /* Only be handled by slaves. */
-    {"slavedel",slaveDelCommand,-2,"wj",0,NULL,1,-1,1,0,0},
 };
 
 /*============================ Utility functions ============================ */
@@ -1443,7 +1442,8 @@ void handleDeleteConfirmKeys(void) {
     dictEntry *de;
 
     if (dictSize(EVICTED_DATA_DB->delete_confirm_keys) == 0
-        || (server.delete_confirm_client->flags & CLIENT_BLOCKED))
+        || (!server.delete_confirm_client) ||
+        (server.delete_confirm_client->flags & CLIENT_BLOCKED))
         return;
 
     di = dictGetIterator(EVICTED_DATA_DB->delete_confirm_keys);
@@ -3214,7 +3214,7 @@ int processCommand(client *c) {
             blockClient(c, BLOCKED_BY_FLUSHALL);
             return C_ERR;
         } else if (C_ANOTHER_FLUSHALL_ERR == ret) {
-            addReplyError(c, "there is already another flushll task processing!");
+            addReplyError(c, "there is already another flushall task processing!");
             return C_OK;
         }
     }

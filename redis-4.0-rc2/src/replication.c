@@ -1374,10 +1374,6 @@ void readSyncBulkPayload(aeEventLoop *el, int fd, void *privdata, int mask) {
             if (aof_is_enabled) restartAOF();
             return;
         }
-        /* Final setup of the connected slave <- master link */
-        zfree(server.repl_transfer_tmpfile);
-        close(server.repl_transfer_fd);
-        replicationCreateMasterClient(server.repl_transfer_s,rsi.repl_stream_db);
         if (server.jdjr_mode) {
             if (C_OK != nonBlockConnectToSsdbServer(server.master)) {
                 serverLog(LL_WARNING, "Failed to connect SSDB when sync");
@@ -1386,6 +1382,10 @@ void readSyncBulkPayload(aeEventLoop *el, int fd, void *privdata, int mask) {
                 return;
             }
         }
+        /* Final setup of the connected slave <- master link */
+        zfree(server.repl_transfer_tmpfile);
+        close(server.repl_transfer_fd);
+        replicationCreateMasterClient(server.repl_transfer_s,rsi.repl_stream_db);
 
         server.repl_state = REPL_STATE_CONNECTED;
         /* After a full resynchroniziation we use the replication ID and
