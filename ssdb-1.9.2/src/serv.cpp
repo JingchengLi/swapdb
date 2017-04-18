@@ -480,11 +480,24 @@ int proc_slowlog(NetworkServer *net, Link *link, const Request &req, Response *r
         net->slowlog.reset();
         resp->reply_ok();
 
+        {
+            /*
+             * raw redis reply
+             */
+            resp->redisResponse = new RedisResponse("OK");
+            resp->redisResponse->type = REDIS_REPLY_STATUS;
+        }
     } else if (action == "len") {
         uint64_t len = net->slowlog.len();
         resp->reply_int(1, len);
-    } else if (action == "get") {
 
+        {
+            /*
+             * raw redis reply
+             */
+            resp->redisResponse = new RedisResponse((long long int) net->slowlog.len());
+        }
+    } else if (action == "get") {
         resp->reply_list_ready();
         const auto &history = net->slowlog.history;
 
@@ -494,7 +507,6 @@ int proc_slowlog(NetworkServer *net, Link *link, const Request &req, Response *r
         }
 
         {
-
             /*
              * raw redis reply
              */
