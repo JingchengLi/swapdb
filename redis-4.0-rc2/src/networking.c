@@ -1258,6 +1258,10 @@ int isSpecialConnection(client *c) {
         return 0;
 }
 
+void handleSSSDBresponses(client *c) {
+
+}
+
 void handleSSDBReply(client *c) {
     sds replyString = NULL;
     redisReply *reply;
@@ -1292,6 +1296,7 @@ void handleSSDBReply(client *c) {
         }
     }
 
+    /////////////////////////
     if (server.is_doing_flushall && reply && reply->type == REDIS_REPLY_STRING
         && (replyString = sdsnew(reply->str))
         && handleResponseOfFlushCheck(c, replyString) == C_OK) {

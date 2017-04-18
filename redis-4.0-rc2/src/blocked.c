@@ -189,18 +189,15 @@ void replyToBlockedClientTimedOut(client *c) {
          * it processed by handleClientsBlockedOnCustomizedPsync again.*/
         removeClientWaitingSSDBcheckWrite(c);
         addReplyError(c, "timeout");
-        serverLog(LOG_DEBUG, "[!!!!]reset by replyToBlockedClientTimedOut:%p", (void *) c);
     } else if (server.jdjr_mode && c->btype == BLOCKED_NO_READ_WRITE_TO_SSDB) {
         /* remove this client from server.ssdb_flushall_blocked_clients to avoid
          * it processed by handleClientsBlockedOnFlushall again.*/
         removeClientWaitingSSDBflushall(c);
         addReplyError(c, "timeout");
-        serverLog(LOG_DEBUG, "[!!!!]reset by replyToBlockedClientTimedOut:%p", (void*)c);
     } else if (server.jdjr_mode
                && (c->btype == BLOCKED_VISITING_SSDB
                    || c->btype == BLOCKED_BY_FLUSHALL)) {
         addReplyError(c, "timeout");
-        serverLog(LOG_DEBUG, "[!!!!]reset by replyToBlockedClientTimedOut:%p", (void*)c);
     } else {
         serverPanic("Unknown btype in replyToBlockedClientTimedOut().");
     }
