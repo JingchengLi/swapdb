@@ -2767,6 +2767,8 @@ void replicationCron(void) {
             }
 
             max_replstate = slave->replstate > max_replstate ? slave->replstate: max_replstate;
+            serverLog(LL_DEBUG, "slave->replstate: %d, max_replstate: %d, slave->ssdb_status: %d",
+                      slave->replstate, max_replstate, slave->ssdb_status);
         }
         if (max_replstate >= SLAVE_STATE_SEND_BULK_FINISHED
             && !has_slave_in_transfer) {

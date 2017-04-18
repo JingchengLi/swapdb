@@ -1404,7 +1404,8 @@ void startToHandleCmdListInSlave(void) {
     listIter iter;
     listNode *node;
 
-    if (listLength(server.loadAndEvictCmdList) == 0) return;
+    if (listLength(server.loadAndEvictCmdList) == 0
+        || !server.slave_ssdb_load_evict_client) return;
 
     listRewind(server.loadAndEvictCmdList, &iter);
     while((node = listNext(&iter)) != NULL) {
