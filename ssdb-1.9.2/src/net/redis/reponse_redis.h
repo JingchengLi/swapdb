@@ -135,8 +135,12 @@ public:
                 break;
 
             case REDIS_REPLY_STRING:
-                tmp += "$" + std::to_string(str.length()) + "\r\n";
-                tmp += str + "\r\n";
+                if (str.length() == 0) {
+                    tmp += "$-1\r\n";
+                } else {
+                    tmp += "$" + std::to_string(str.length()) + "\r\n";
+                    tmp += str + "\r\n";
+                }
                 break;
 
             case REDIS_REPLY_STATUS:
