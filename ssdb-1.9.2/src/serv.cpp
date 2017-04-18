@@ -1039,7 +1039,13 @@ int proc_rr_do_flushall(NetworkServer *net, Link *link, const Request &req, Resp
 	Locking<RecordMutex<Mutex>> gl(&serv->transfer_mutex_record_);
 
 	log_warn("[!!!] TransferJob clear done , starting flushdb");
-	int ret = serv->ssdb->flushdb();
+
+    if (serv->ssdb->expiration != nullptr) {
+        Locking<Mutex> l(&serv->ssdb->expiration->mutex);
+        serv->ssdb->expiration->clear();
+    }
+
+    int ret = serv->ssdb->flushdb();
 	if (ret < 0) {
 		resp->push_back("ok");
 		resp->push_back("rr_do_flushall nok");

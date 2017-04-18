@@ -121,11 +121,7 @@ int SSDBImpl::flushdb(){
 //lock
 
     Locking<RecordMutex<Mutex>> gl(&mutex_record_);
-
-	Locking<Mutex> l(&expiration->mutex);
-	expiration->clear();
 	redisCursorService.ClearAllCursor();
-
 
 #ifdef USE_LEVELDB
 
