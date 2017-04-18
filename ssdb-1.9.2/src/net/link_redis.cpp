@@ -510,7 +510,7 @@ int RedisLink::recv_res(Buffer *input, RedisResponse *r, int shit) {
 				int pt = recv_res(input, tmp, parsed);
 				if (tmp->status == REDIS_RESPONSE_DONE) {
 					parsed = parsed + pt;
-					r->element.push_back(tmp);
+					r->push_back(tmp);
 					r->status = tmp->status;
 					continue;
 				} else if (tmp->status == REDIS_RESPONSE_ERR){

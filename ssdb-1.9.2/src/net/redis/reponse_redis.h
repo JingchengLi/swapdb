@@ -20,6 +20,11 @@
 #define REDIS_RESPONSE_RETRY -2
 
 class RedisResponse {
+private:
+    std::vector<RedisResponse *> element;
+
+
+
 public:
     int status = 0;
 
@@ -27,7 +32,34 @@ public:
     long long integer;
 
     std::string str;
-    std::vector<RedisResponse *> element;
+
+    RedisResponse() {}
+
+
+    RedisResponse(long long int integer) : integer(integer) {
+        type = REDIS_REPLY_INTEGER;
+    }
+
+    RedisResponse(const std::string &str) : str(str) {
+        type = REDIS_REPLY_STRING;
+    }
+
+    RedisResponse(const char *str) : str(str) {
+        type = REDIS_REPLY_STRING;
+    }
+
+    RedisResponse(const std::vector<std::string> &v) {
+        type = REDIS_REPLY_ARRAY;
+        for (const auto &it :v) {
+            element.push_back(new RedisResponse(it));
+        }
+    }
+
+    void push_back(RedisResponse *response) {
+        element.push_back(response);
+    }
+
+
 
     void reset() {
         status = 0;
