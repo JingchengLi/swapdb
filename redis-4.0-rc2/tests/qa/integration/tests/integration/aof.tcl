@@ -1,6 +1,9 @@
 set defaults { appendonly {yes} appendfilename {appendonly.aof} }
 set server_path [tmpdir server.aof]
 set aof_path "$server_path/appendonly.aof"
+if {![file exists ../../../src/redis-check-aof]} {
+    exec make -C ../../../src redis-check-aof &>/dev/null &
+}
 
 proc append_to_aof {str} {
     upvar fp fp
