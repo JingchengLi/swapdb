@@ -2,6 +2,15 @@
 start_server {tags {"ssdb"}
 overrides {maxmemory 0}} {
     foreach flush {flushall flushdb} {
+        test "set key in ssdb and redis" {
+            r set foo bar
+            r set fooxxx barxxx
+            wait_ssdb_reconnect
+            dumpto_ssdb_and_wait r fooxxx
+
+            list [r get foo] [sr get fooxxx]
+        } {bar barxxx}
+
         test "$flush command" {
             r $flush
         } {OK}
@@ -26,107 +35,186 @@ start_server {tags {"ssdb"}} {
         set slave [srv client]
         foreach flush {flushall flushdb} {
             test "single client $flush all keys" {
-                $master debug populate 1000000
-                after 100
+                $master debug populate 100000
+                after 500
                 $master $flush
                 wait_ssdb_reconnect -1
-                
+
                 assert_equal "0000000000000000000000000000000000000000" [$master debug digest]
                 wait_for_condition 10 100 {
-                    [ sr -1 keys * ] eq {}
+                    [lindex [sr -1 scan 0] 0] eq 0
                 } else {
-                    fail "ssdb not clear up:[ sr -1 keys * ]"
+                    fail "ssdb not clear up:[ sr -1 scan 0]"
                 }
             }
 
             test "multi clients $flush all keys" {
-                $master debug populate 1000000
-                after 100
+                $master debug populate 100000
+                after 500
                 set clist [start_bg_command_list $master_host $master_port 100 $flush]
                 after 1000
                 stop_bg_client_list $clist
 
                 wait_ssdb_reconnect -1
-                assert_equal "0000000000000000000000000000000000000000" [$master debug digest]
-                wait_for_condition 10 100 {
-                    [ sr -1 keys * ] eq {}
+                wait_for_condition 100 100 {
+                    [$master debug digest] == 0000000000000000000000000000000000000000
                 } else {
-                    fail "ssdb not clear up:[ sr -1 keys * ]"
+                    fail "Digest not null:master([$master debug digest]) after too long time."
+                }
+                wait_for_condition 10 100 {
+                    [lindex [sr -1 scan 0] 0] eq 0
+                } else {
+                    fail "ssdb not clear up:[ sr -1 scan 0]"
                 }
             }
 
             test "$flush and then replicate" {
-                $master debug populate 10000
-                $slave debug populate 10000
-                after 100
-                catch {[ $master $flush ]} err
+                $master debug populate 100000
+                $slave debug populate 100000
+                after 500
+                $master $flush
                 $slave slaveof $master_host $master_port
-                after 3000
-                assert_equal "0000000000000000000000000000000000000000" [$master debug digest] "master null db after $flush"
-                assert_equal "0000000000000000000000000000000000000000" [$slave debug digest] "slave null db after $flush"
-                list [sr keys *] [sr -1 keys *]
-            } {{} {}}
+                wait_for_condition 100 100 {
+                    [$master debug digest] == 0000000000000000000000000000000000000000 &&
+                    [$slave debug digest] == 0000000000000000000000000000000000000000
+                } else {
+                    fail "Digest not null:master([$master debug digest]) and slave([$slave debug digest]) after too long time."
+                }
+                list [lindex [sr scan 0] 0] [lindex [sr -1 scan 0] 0]
+            } {0 0}
 
             test "replicate and then $flush" {
-                $master debug populate 1000000
-                $slave debug populate 1000000
-                after 100
+                $master debug populate 100000
+                $slave debug populate 100000
+                after 500
                 $slave slaveof $master_host $master_port
                 set pattern "Sending rr_make_snapshot to SSDB"
                 wait_log_pattern $pattern [srv -1 stdout]
                 $master $flush
-                after 5000000
-                assert_equal "0000000000000000000000000000000000000000" [$master debug digest] "master null db after $flush"
-                assert_equal "0000000000000000000000000000000000000000" [$slave debug digest] "slave null db after $flush"
-                list [sr keys *] [sr -1 keys *]
-            } {{} {}}
+                wait_for_condition 100 100 {
+                    [$master debug digest] == 0000000000000000000000000000000000000000 &&
+                    [$slave debug digest] == 0000000000000000000000000000000000000000
+                } else {
+                    fail "Digest not null:master([$master debug digest]) and slave([$slave debug digest]) after too long time."
+                }
+                list [lindex [sr scan 0] 0] [lindex [sr -1 scan 0] 0]
+            } {0 0}
+
+            test "replicate done and then $flush" {
+                $master debug populate 100000
+                $slave debug populate 100000
+                after 500
+                $slave slaveof $master_host $master_port
+                wait_for_online $master 1
+                wait_for_condition 100 100 {
+                    [$master debug digest] == [$slave debug digest]
+                } else {
+                    fail "Different digest between master([$master debug digest]) and slave([$slave debug digest]) after too long time."
+                }
+                assert {[$master dbsize] == 100000}
+                $master $flush
+                wait_for_condition 100 100 {
+                    [$master debug digest] == 0000000000000000000000000000000000000000 &&
+                    [$slave debug digest] == 0000000000000000000000000000000000000000
+                } else {
+                    fail "Digest not null:master([$master debug digest]) and slave([$slave debug digest]) after $flush."
+                }
+                list [lindex [sr scan 0] 0] [lindex [sr -1 scan 0] 0]
+            } {0 0}
         }
     }
 }
 
 start_server {tags {"ssdb"}} {
     set master [srv client]
-    set master_port [srv port]
+    set master_host [srv host]
     set master_port [srv port]
     start_server {} {
-        set slave [srv client]
-        foreach flush {flushall flushdb} {
+        set slaves {}
+        lappend slaves [srv 0 client]
+        start_server {} {
+            lappend slaves [srv 0 client]
+            foreach flush {flushall flushdb} {
+                test "multi clients $flush all keys during writing" {
+                    set num 100000
+                    set clients 10
+                    set clist [ start_bg_complex_data_list $master_host $master_port $num $clients ]
+                    [lindex $slaves 0] slaveof $master_host $master_port
+                    wait_for_online $master 1
+                    wait_for_condition 100 100 {
+                        [sr -1 dbsize] > 0
+                    } else {
+                        fail "No keys store to slave ssdb"
+                    }
+                    stop_bg_client_list $clist
+                    after 1000
+                    set flushclist [start_bg_command_list $master_host $master_port 1 $flush]
+                    after 1000
+                    stop_bg_client_list $flushclist
+                    $master ping
+                } {PONG}
 
-            test "multi clients $flush all keys during writing" {
-                set num 100000
-                set clients 10
-                set clist [ start_bg_complex_data_list $master_host $master_port $num $clients ]
-                set flushclist [start_bg_command_list $master_host $master_port 100 $flush]
-                after 1000
-                stop_bg_client_list $flushclist
-            }
-
-            test "clients can write keys after $flush" {
-                wait_for_condition 100 100 {
-                    [sr dbsize] > 0
-                } else {
-                    fail "No keys store to ssdb after $flush"
+                test "sync with first node after $flush" {
+                    wait_for_condition 300 100 {
+                        [$master dbsize] == [[lindex $slaves 0] dbsize]
+                    } else {
+                        fail "Different number of keys between master and slaves after too long time."
+                    }
+                    wait_for_condition 100 100 {
+                        [$master debug digest] == [[lindex $slaves 0] debug digest] &&
+                        [$master debug digest] == [[lindex $slaves 1] debug digest]
+                    } else {
+                        fail "Different digest between master([$master debug digest]) and slave1([[lindex $slaves 0] debug digest]) slave2([[lindex $slaves 1] debug digest]) after too long time."
+                    }
                 }
-                stop_bg_client_list $clist
-            }
 
-            test "master and slave are identical" {
-                wait_for_condition 300 100 {
-                    [$master dbsize] == [$slave dbsize]
-                } else {
-                    fail "Different number of keys between master and slave after too long time."
+                test "sync with another node after $flush" {
+                    set clist [ start_bg_complex_data_list $master_host $master_port $num $clients ]
+                    after 1000
+                    [lindex $slaves 1] slaveof $master_host $master_port
+                    wait_for_online $master 2
                 }
-                assert_equal [$slave debug digest] [$master debug digest]
-            }
 
-            test "master and slave are clear after $flush again" {
-                $master $flush
-                wait_for_condition 300 100 {
-                    "0000000000000000000000000000000000000000" eq [$slave debug digest] &&
-                    [$slave debug digest] eq [$master debug digest]
-                } else {
-                    fail "Different number of keys between master and slave after too long time."
+                test "clients write keys after $flush" {
+                    wait_for_condition 100 100 {
+                        [sr -2 dbsize] > 0 &&
+                        [sr -1 dbsize] > 0 &&
+                        [sr dbsize] > 0
+                    } else {
+                        fail "No keys store to ssdb after $flush"
+                    }
+                    stop_bg_client_list $clist
                 }
+
+                test "master and slaves are identical" {
+                    wait_for_condition 300 100 {
+                        [$master dbsize] == [[lindex $slaves 0] dbsize] &&
+                        [$master dbsize] == [[lindex $slaves 1] dbsize]
+                    } else {
+                        puts "Different number of keys between master and slaves after too long time."
+                        after 1000000
+                    }
+                    assert {[$master dbsize] > 0}
+                    wait_for_condition 100 100 {
+                        [$master debug digest] == [[lindex $slaves 0] debug digest] &&
+                        [$master debug digest] == [[lindex $slaves 1] debug digest]
+                    } else {
+                        fail "Different digest between master([$master debug digest]) and slave1([[lindex $slaves 0] debug digest]) slave2([[lindex $slaves 1] debug digest]) after too long time."
+                    }
+                }
+
+                test "master and slaves are clear after $flush again" {
+                    $master $flush
+                    wait_for_condition 100 100 {
+                        [$master debug digest] == 0000000000000000000000000000000000000000 &&
+                        [[lindex $slaves 0] debug digest] == 0000000000000000000000000000000000000000 &&
+                        [[lindex $slaves 1] debug digest] == 0000000000000000000000000000000000000000
+                    } else {
+                        fail "Digest not null:master([$master debug digest]) and slave1([[lindex $slaves 0] debug digest]) slave2([[lindex $slaves 1] debug digest]) after too long time."
+                    }
+                    list [sr keys *] [sr -1 keys *] [sr -2 keys *]
+                } {{} {} {}}
+
             }
         }
     }
