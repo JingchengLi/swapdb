@@ -2870,25 +2870,33 @@ int processCommandMaybeInSSDB(client *c) {
 void cleanLoadingOrTransferringKeys() {
     dictEntry *de;
     dictIterator *di;
+    sds key;
+    robj* o;
 
     /* signal and unblock clients blocked by all loading/transferring keys. */
     di = dictGetIterator(server.db[EVICTED_DATA_DBID].transferring_keys);
     while((de = dictNext(di)) != NULL) {
-        robj *key = dictGetKey(de);
+        key = dictGetKey(de);
+        o = createObject(OBJ_STRING, sdsdup(key));
 
-        signalBlockingKeyAsReady(&server.db[0], key);
+        signalBlockingKeyAsReady(&server.db[0], o);
+        decrRefCount(o);
     }
     di = dictGetIterator(server.db[EVICTED_DATA_DBID].loading_hot_keys);
     while((de = dictNext(di)) != NULL) {
-        robj *key = dictGetKey(de);
+        key = dictGetKey(de);
+        o = createObject(OBJ_STRING, sdsdup(key));
 
-        signalBlockingKeyAsReady(&server.db[0], key);
+        signalBlockingKeyAsReady(&server.db[0], o);
+        decrRefCount(o);
     }
     di = dictGetIterator(server.db[EVICTED_DATA_DBID].delete_confirm_keys);
     while((de = dictNext(di)) != NULL) {
-        robj *key = dictGetKey(de);
+        key = dictGetKey(de);
+        o = createObject(OBJ_STRING, sdsdup(key));
 
-        signalBlockingKeyAsReady(&server.db[0], key);
+        signalBlockingKeyAsReady(&server.db[0], o);
+        decrRefCount(o);
     }
 
     handleClientsBlockedOnSSDB();
