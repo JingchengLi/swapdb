@@ -995,11 +995,12 @@ int handleResponseOfFlushCheck(client *c, sds replyString) {
     sdstolower(replyString);
     if (!sdscmp(replyString, shared.flushcheckok)) {
         server.flush_check_unresponse_num -= 1;
+        serverLog(LL_DEBUG, "[flushall]receive flush check ok, unresponse num:%d", server.flush_check_unresponse_num);
         if (server.flush_check_unresponse_num == 0) {
             server.flush_check_begin_time = -1;
             server.flush_check_unresponse_num = -1;
 
-            serverLog(LL_DEBUG, "[flushall]receive all flush check responses, check ok");
+            serverLog(LL_DEBUG, "[flushall]all flush check responses received, check ok");
 
             sds finalcmd = sdsnew("*1\r\n$14\r\nrr_do_flushall\r\n");
             if (!server.current_flushall_client ||
