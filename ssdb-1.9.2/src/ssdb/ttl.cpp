@@ -30,6 +30,8 @@ ExpirationHandler::~ExpirationHandler() {
 
 void ExpirationHandler::start() {
     thread_quit = false;
+    fast_keys.clear();
+    first_timeout = 0;
     pthread_t tid;
     int err = pthread_create(&tid, NULL, &ExpirationHandler::thread_func, this);
     if (err != 0) {
@@ -46,6 +48,8 @@ void ExpirationHandler::stop() {
         }
         usleep(10 * 1000);
     }
+    fast_keys.clear();
+    first_timeout = 0;
 }
 
 int ExpirationHandler::expire(const Bytes &key, int64_t ttl, TimeUnit tu) {

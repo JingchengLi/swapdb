@@ -34,7 +34,8 @@ public:
 	int expire(const Bytes &key, int64_t ttl, TimeUnit tu);
 	int expireAt(const Bytes &key, int64_t ts_ms);
 
-
+	void start();
+	void stop();
 	void clear() {
 		fast_keys.clear();
 	}
@@ -46,8 +47,6 @@ private:
 	int64_t first_timeout;
 	SortedSet<int64_t> fast_keys;
 
-	void start();
-	void stop();
 	void expire_loop();
 	static void* thread_func(void *arg);
 	void load_expiration_keys_from_db(int num);

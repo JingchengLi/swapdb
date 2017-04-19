@@ -465,8 +465,8 @@ void SSDBImpl::delete_key_loop(const std::string &del_key) {
 }
 
 void SSDBImpl::runBGTask() {
+	mutex_bgtask_.lock();
 	while (bgtask_flag_){
-		mutex_bgtask_.lock();
         if (tasks_.empty()){
             load_delete_keys_from_db(1000);
             if (tasks_.empty()){

@@ -703,8 +703,7 @@ int NetworkServer::proc(ProcJob *job){
 
 			SSDBServer *serv = (SSDBServer *)(this->data);
 			if (serv->ssdb->expiration){
-				delete serv->ssdb->expiration;
-				serv->ssdb->expiration = NULL;
+				serv->ssdb->expiration->stop();
 			}
 			serv->ssdb->stop();
 

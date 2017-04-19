@@ -1001,10 +1001,8 @@ int proc_sync150(NetworkServer *net, Link *link, const Request &req, Response *r
     ret = serv->ssdb->parse_replic(kvs);
     if (resp->size() > 0) {
         if (serv->ssdb->expiration != nullptr) {
-            delete serv->ssdb->expiration;
-            serv->ssdb->expiration = nullptr;
+            serv->ssdb->expiration->start();
         }
-        serv->ssdb->expiration = new ExpirationHandler(serv->ssdb);
         serv->ssdb->start();
     }
 
