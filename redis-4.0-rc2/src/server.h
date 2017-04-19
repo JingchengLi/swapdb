@@ -80,9 +80,9 @@ typedef long long mstime_t; /* millisecond time type. */
 #define C_NOTSUPPORT_ERR        -3
 #define C_ANOTHER_FLUSHALL_ERR    -4
 
-/* replication flags in jdjr_mode */
-#define SSDB_CLIENT_KEEP_REPLY (1<<0)
-#define SSDB_FLUSHDB_WAIT_REPLY (1<<1)
+/* connection flags in jdjr_mode */
+#define CONN_WAIT_WRITE_CHECK_REPLY (1<<0)
+#define CONN_WAIT_FLUSH_CHECK_REPLY (1<<1)
 
 /* Default max argc of cmds sended to SSDB. */
 #define SSDB_CMD_DEFAULT_MAX_ARGC 10
@@ -780,7 +780,7 @@ typedef struct client {
     char buf[PROTO_REPLY_CHUNK_BYTES];
 
     redisContext *context;  /* Used by redis client in jdjr-mode. */
-    int replication_flags;
+    int ssdb_conn_flags;
     char ssdb_status; /* Record the ssdb state. */
     char client_ip[NET_IP_STR_LEN]; /* Used by customized-replication in jdjr-mode. */
     redisReply *ssdb_replies[2]; /* Pointers for ssdb replies. */

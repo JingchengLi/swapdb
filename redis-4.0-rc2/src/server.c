@@ -1113,7 +1113,7 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
     if (server.jdjr_mode) {
         /* check operations before flushall/flushdb is timeout.*/
         if (server.flush_check_begin_time != -1 && server.unixtime - server.flush_check_begin_time > 5) {
-            serverLog(LL_DEBUG, "[flushall] flush check timeout. there are [%d] flush check responses unreceived:%d",
+            serverLog(LL_DEBUG, "[flushall] flush check timeout. there are [%d] flush check responses unreceived",
                       server.flush_check_unresponse_num);
             server.flush_check_begin_time = -1;
             server.flush_check_unresponse_num = -1;
