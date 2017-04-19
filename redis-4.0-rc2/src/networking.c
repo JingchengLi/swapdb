@@ -747,6 +747,7 @@ void sendFlushCheckCommandToSSDB(aeEventLoop *el, int fd, void *privdata, int ma
 
     sds finalcmd = sdsnew("*1\r\n$17\r\nrr_flushall_check\r\n");
     if (sendCommandToSSDB(c, finalcmd) != C_OK) {
+        serverLog(LL_DEBUG, "[flushall]server.flush_check_unresponse_num decrease by 1");
         server.flush_check_unresponse_num -= 1;
     } else {
         c->replication_flags |= SSDB_FLUSHDB_WAIT_REPLY;
@@ -947,6 +948,7 @@ int handleResponseOfSSDBflushDone(client *c, sds replyString) {
 
     sdstolower(replyString);
     if (!sdscmp(replyString, shared.flushdoneok)) {
+        serverLog(LL_DEBUG, "[flushall] receive do flush ok");
         /* clean the ssdb reply*/
         revertClientBufReply(c, c->add_reply_len);
 
@@ -964,6 +966,7 @@ int handleResponseOfSSDBflushDone(client *c, sds replyString) {
 
         process_status = C_OK;
     } else if (!sdscmp(replyString, shared.flushdonenok)) {
+        serverLog(LL_DEBUG, "[flushall] receive do flush nok, ssdb flushall failed");
         /* clean the ssdb reply*/
         revertClientBufReply(c, c->add_reply_len);
 
@@ -996,6 +999,8 @@ int handleResponseOfFlushCheck(client *c, sds replyString) {
             server.flush_check_begin_time = -1;
             server.flush_check_unresponse_num = -1;
 
+            serverLog(LL_DEBUG, "[flushall]receive all flush check responses, check ok");
+
             sds finalcmd = sdsnew("*1\r\n$14\r\nrr_do_flushall\r\n");
             if (!server.current_flushall_client ||
                 sendCommandToSSDB(server.current_flushall_client, finalcmd) != C_OK) {
@@ -1009,6 +1014,7 @@ int handleResponseOfFlushCheck(client *c, sds replyString) {
         }
         process_status = C_OK;
     } else if (!sdscmp(replyString, shared.flushchecknok)){
+        serverLog(LL_DEBUG, "[flushall]receive flush check failed response, check failed and abort");
         /* set to 0 so flush check will be timeout. exception case
          * of flush check will be processed in serverCron.*/
         server.flush_check_begin_time = 0;

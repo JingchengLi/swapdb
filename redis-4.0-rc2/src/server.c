@@ -1113,6 +1113,8 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
     if (server.jdjr_mode) {
         /* check operations before flushall/flushdb is timeout.*/
         if (server.flush_check_begin_time != -1 && server.unixtime - server.flush_check_begin_time > 5) {
+            serverLog(LL_DEBUG, "[flushall] flush check timeout. there are [%d] flush check responses unreceived:%d",
+                      server.flush_check_unresponse_num);
             server.flush_check_begin_time = -1;
             server.flush_check_unresponse_num = -1;
             server.prohibit_ssdb_read_write = NO_PROHIBIT_SSDB_READ_WRITE;
@@ -2942,6 +2944,7 @@ void prepareSSDBflush(client* c) {
 #else
     server.flush_check_unresponse_num = listLength(server.clients) - listLength(server.slaves);
 #endif
+    serverLog(LL_DEBUG, "[flushall]initial server.flush_check_unresponse_num:%d", server.flush_check_unresponse_num);
 
     /* process timeout case in serverCron. */
     server.flush_check_begin_time = server.unixtime;
@@ -2954,6 +2957,7 @@ void prepareSSDBflush(client* c) {
         if (server.master && lc == server.master) {
             /* for slave, we don't send flush check to its master. */
             server.flush_check_unresponse_num -= 1;
+            serverLog(LL_DEBUG, "[flushall]server.flush_check_unresponse_num decrease by 1");
             continue;
         }
 
@@ -2966,6 +2970,7 @@ void prepareSSDBflush(client* c) {
             /* just free disconnected client and ignore it. */
             freeClientAsync(lc);
             server.check_write_unresponse_num -= 1;
+            serverLog(LL_DEBUG, "[flushall]server.flush_check_unresponse_num decrease by 1");
         }
     }
 }
