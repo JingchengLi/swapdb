@@ -465,7 +465,8 @@ void NetworkServer::serve(){
                         fdes->del(slave.master_link->fd());
                         delete slave.master_link;
                     } else{
-                        fdes->set(slave.master_link->fd(), FDEVENT_IN, 1, slave.master_link);
+                        slave.master_link->bflag_del_read = false;
+						fdes->set(slave.master_link->fd(), FDEVENT_IN, 1, slave.master_link);
                     }
                 } else{
                     log_error("The link from redis is off!");
@@ -549,7 +550,6 @@ Link* NetworkServer::accept_link(Link *l){
 
 int NetworkServer::proc_result(ProcJob *job, ready_list_t *ready_list){
 	Link *link = job->link;
-    Command *cmd = job->cmd;
 	int result = job->result;
 			
 	if(log_level() >= Logger::LEVEL_DEBUG){
@@ -607,15 +607,13 @@ int NetworkServer::proc_result(ProcJob *job, ready_list_t *ready_list){
 	if(!link->output->empty()){
 		fdes->set(link->fd(), FDEVENT_OUT, 1, link);
 	}
-	if(link->input->empty()){
+	if(link->input->empty() && !link->bflag_del_read){
 		fdes->set(link->fd(), FDEVENT_IN, 1, link);
 	}else{
 		fdes->clr(link->fd(), FDEVENT_IN);
 		ready_list->push_back(link);
 	}
-    if (cmd == proc_map.get_proc("rr_transfer_snapshot")){
-        fdes->del(link->fd());
-    }
+
 	return PROC_OK;
 
 proc_err:

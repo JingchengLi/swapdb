@@ -19,6 +19,7 @@ found in the LICENSE file.
 
 Link::Link(bool is_server) {
     append_reply = false;
+    bflag_del_read = false;
 
 #ifdef DREPLY
     append_reply = true;

@@ -1098,6 +1098,7 @@ int proc_rr_transfer_snapshot(NetworkServer *net, Link *link, const Request &req
     }
 
     net->FdeventsDel(link->fd());
+    link->bflag_del_read = true;
     resp->push_back("ok");
     resp->push_back("rr_transfer_snapshot ok");
     return 0;
