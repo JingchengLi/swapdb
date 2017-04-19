@@ -13,7 +13,7 @@ config {real.conf}} {
 
         test {Slave should be able to synchronize with the master} {
             $slave slaveof $master_host $master_port
-            after 100000
+            after 500000
             assert {[s -1 sync_full] < 2}
             # redis 5 s
             set info [r -1 info]

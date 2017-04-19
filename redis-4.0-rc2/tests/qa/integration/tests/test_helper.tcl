@@ -49,8 +49,10 @@ set ::all_tests {
     integration/replication-c
     integration/replication-psync
     integration/psync2
+    integration/replication-stable
     ssdb/flush
     integration/replication-A
+    integration/replication-B
     unit/type/list-3
 }
 # next time support
@@ -125,7 +127,7 @@ set ::file ""; # If set, runs only the tests in this comma separated list
 set ::curfile ""; # Hold the filename of the current suite
 set ::accurate 0; # If true runs fuzz tests with more iterations
 set ::force_failure 0
-set ::timeout 6000; # 10 minutes without progresses will quit the test.
+set ::timeout 200000; # 10 minutes(not enough) without progresses will quit the test.
 set ::last_progress [clock seconds]
 set ::steps 0
 set ::active_servers {} ; # Pids of active Redis instances.
@@ -476,7 +478,7 @@ proc the_end {} {
             foreach failed $::failed_tests {
                 puts "*** $failed"
             }
-            cleanup
+            #cleanup
             exit 1
         }
         puts "\n[colorstr bold-white {\o/}] [colorstr bold-green {All tests passed without errors!}]\n"
