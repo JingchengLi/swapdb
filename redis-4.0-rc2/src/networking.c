@@ -712,7 +712,7 @@ int sendCommandToSSDB(client *c, sds finalcmd) {
         return C_ERR;
     }
 
-    serverLog(LL_DEBUG, "sendCommandToSSDB fd: %d", c->context->fd);
+    serverLog(LL_DEBUG, "sendCommandToSSDB context fd: %d, redis fd:%d", c->context->fd, c->fd);
 
     while (finalcmd && sdslen(finalcmd) > 0) {
         nwritten = write(c->context->fd, finalcmd, sdslen(finalcmd));
