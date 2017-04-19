@@ -4623,6 +4623,7 @@ void restoreCommand(client *c) {
     server.dirty++;
 }
 
+/* must reply to SSDB avoid SSDB blocked. */
 void ssdbRespDelCommand(client *c) {
     robj *keyobj;
     int numdel = 0, j;
@@ -4638,9 +4639,9 @@ void ssdbRespDelCommand(client *c) {
     for (j = 1; j < c->argc; j ++) {
         keyobj = c->argv[j];
 
-        if (NULL == dictFind(EVICTED_DATA_DB->transferring_keys, keyobj->ptr) &&
-            NULL == dictFind(c->db->ssdb_blocking_keys, keyobj)) {
-            /* flushall/flushdb can cause this key to be deleted from transferring_keys. */
+        if (server.is_doing_flushall) {
+            addReplyError(c, "flushall is going");
+            return;
         } else {
             if (epilogOfEvictingToSSDB(keyobj) == C_OK) {
                 serverLog(LL_DEBUG, "ssdbRespDelCommand fd:%d key: %s dictDelete ok.",
@@ -4656,6 +4657,7 @@ void ssdbRespDelCommand(client *c) {
     addReplyLongLong(c, numdel);
 }
 
+/* must reply to SSDB avoid SSDB blocked. */
 void ssdbRespRestoreCommand(client *c) {
     robj * key = c->argv[1];
     long long old_dirty = server.dirty;
@@ -4668,12 +4670,13 @@ void ssdbRespRestoreCommand(client *c) {
         serverLog(LL_DEBUG, "key: %s is expired in redis.", (char *)key->ptr);
         dictDelete(EVICTED_DATA_DB->loading_hot_keys, key->ptr);
         signalBlockingKeyAsReady(c->db, key);
+        addReplyError(c, "key expired");
         return;
     }
 
-    if (NULL == dictFind(EVICTED_DATA_DB->loading_hot_keys, key->ptr) &&
-        NULL == dictFind(c->db->ssdb_blocking_keys, key)) {
-        /* flushall/flushdb can cause this key to be deleted from loading_hot_keys. */
+    if (server.is_doing_flushall) {
+        addReplyError(c, "flushall is going");
+        return;
     } else {
         restoreCommand(c);
 
@@ -4747,9 +4750,9 @@ void ssdbRespNotfoundCommand(client *c) {
     preventCommandPropagation(c);
 
     if (!sdscmp(cmd->ptr, fail_restore)) {
-        if (NULL == dictFind(EVICTED_DATA_DB->loading_hot_keys, keyobj->ptr) &&
-            NULL == dictFind(c->db->ssdb_blocking_keys, keyobj)) {
-            /* flushall/flushdb can cause this key to be deleted from loading_hot_keys. */
+        if (server.is_doing_flushall) {
+            addReplyError(c, "flushall is going");
+            return;
         } else {
             if (dictDelete(EVICTED_DATA_DB->loading_hot_keys, keyobj->ptr) == DICT_OK)
                 serverLog(LL_DEBUG, "key: %s is deleted from loading_hot_keys.", (char *)keyobj->ptr);
