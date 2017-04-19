@@ -73,7 +73,9 @@ RedisClient *RedisClient::connect(const char *host, int port) {
     return redisClient;
 }
 
-RedisClient::RedisClient(Link *link) : so_link(link) {}
+RedisClient::RedisClient(Link *link) : so_link(link) {
+//    link->settimeout(1, 0);
+}
 
 RedisClient::~RedisClient() {
     delete so_link;

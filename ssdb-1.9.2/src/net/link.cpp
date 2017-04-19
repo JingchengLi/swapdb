@@ -84,6 +84,13 @@ void Link::noblock(bool enable) {
     }
 }
 
+void Link::settimeout(long sec, long usc) {
+    struct timeval tv;
+    tv.tv_sec = sec;
+    tv.tv_usec = usc;
+    ::setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv,sizeof(struct timeval));
+}
+
 // TODO: check less than 256
 static bool is_ip(const char *host) {
     int dot_count = 0;
