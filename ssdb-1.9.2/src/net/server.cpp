@@ -459,7 +459,14 @@ void NetworkServer::serve(){
                         response.push_back("check 0");
                         slave.master_link->send_append_res(response);
                     }
-                    slave.master_link->write();
+                    if (slave.master_link->write() <= 0){
+                        log_error("The link write error, delete link! fd:%d", slave.master_link->fd());
+                        this->link_count --;
+                        fdes->del(slave.master_link->fd());
+                        delete slave.master_link;
+                    } else{
+                        fdes->set(slave.master_link->fd(), FDEVENT_IN, 1, slave.master_link);
+                    }
                 } else{
                     log_error("The link from redis is off!");
                 }
@@ -542,6 +549,7 @@ Link* NetworkServer::accept_link(Link *l){
 
 int NetworkServer::proc_result(ProcJob *job, ready_list_t *ready_list){
 	Link *link = job->link;
+    Command *cmd = job->cmd;
 	int result = job->result;
 			
 	if(log_level() >= Logger::LEVEL_DEBUG){
@@ -605,6 +613,9 @@ int NetworkServer::proc_result(ProcJob *job, ready_list_t *ready_list){
 		fdes->clr(link->fd(), FDEVENT_IN);
 		ready_list->push_back(link);
 	}
+    if (cmd == proc_map.get_proc("rr_transfer_snapshot")){
+        fdes->del(link->fd());
+    }
 	return PROC_OK;
 
 proc_err:
