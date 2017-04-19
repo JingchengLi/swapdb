@@ -283,6 +283,7 @@ typedef long long mstime_t; /* millisecond time type. */
 #define BLOCKED_BY_FLUSHALL 12
 #define BLOCKED_NO_WRITE_TO_SSDB 13 /* Client is blocked as during the process of psync. */
 #define BLOCKED_NO_READ_WRITE_TO_SSDB 14 /* Client is blocked by ssdb flushall. */
+#define BLOCKED_BY_DELETE_CONFIRM  15 /* Client is blocked by delete key confirm. */
 
 
 /* Client request types */

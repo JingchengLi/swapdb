@@ -151,10 +151,10 @@ void unblockClient(client *c) {
                && (c->btype == BLOCKED_SSDB_LOADING_OR_TRANSFER
                    || c->btype == BLOCKED_BY_FLUSHALL
                    || c->btype == BLOCKED_NO_READ_WRITE_TO_SSDB
-                   || c->btype == BLOCKED_NO_WRITE_TO_SSDB)) {
+                   || c->btype == BLOCKED_NO_WRITE_TO_SSDB
+                   || c->btype == BLOCKED_BY_DELETE_CONFIRM)) {
         /* Doing nothing. */
     } else if (server.jdjr_mode && c->btype == BLOCKED_VISITING_SSDB) {
-        if (c != server.delete_confirm_client)
             removeVisitingSSDBKey(c);
     } else {
         serverPanic("Unknown btype in unblockClient().");
@@ -198,7 +198,8 @@ void replyToBlockedClientTimedOut(client *c) {
         serverLog(LOG_DEBUG, "[!!!!]reset by replyToBlockedClientTimedOut:%p", (void*)c);
     } else if (server.jdjr_mode
                && (c->btype == BLOCKED_VISITING_SSDB
-                   || c->btype == BLOCKED_BY_FLUSHALL)) {
+                   || c->btype == BLOCKED_BY_FLUSHALL
+                   || c->btype == BLOCKED_BY_DELETE_CONFIRM)) {
         addReplyError(c, "timeout");
         serverLog(LOG_DEBUG, "[!!!!]reset by replyToBlockedClientTimedOut:%p", (void*)c);
     } else {

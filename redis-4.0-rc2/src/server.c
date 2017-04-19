@@ -834,6 +834,7 @@ int clientsCronHandleTimeout(client *c, mstime_t now_ms) {
                     case BLOCKED_NO_READ_WRITE_TO_SSDB:
                     case BLOCKED_VISITING_SSDB:
                     case BLOCKED_BY_FLUSHALL:
+                    case BLOCKED_BY_DELETE_CONFIRM:
                         need_reset = 1;
                         break;
                     default: break;
@@ -1478,7 +1479,7 @@ void handleDeleteConfirmKeys(void) {
 
         /* TODO: use a suitable timeout. */
         server.delete_confirm_client->bpop.timeout = 5000 + mstime();
-        blockClient(server.delete_confirm_client, BLOCKED_VISITING_SSDB);
+        blockClient(server.delete_confirm_client, BLOCKED_BY_DELETE_CONFIRM);
         break;
     }
 }
