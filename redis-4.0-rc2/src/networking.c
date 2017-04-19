@@ -1361,7 +1361,8 @@ cleanup:
     if (replyString) sdsfree(replyString);
 
     /* Unblock the current client. */
-    if (c->btype == BLOCKED_VISITING_SSDB) {
+    if (c->btype == BLOCKED_VISITING_SSDB
+        || c->btype == BLOCKED_BY_DELETE_CONFIRM) {
         unblockClient(c);
 
         // todo: review
