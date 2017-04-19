@@ -160,7 +160,10 @@ set ::numclients 16
 proc execute_tests name {
     set path "tests/$name.tcl"
     set ::curfile $path
-    source $path
+    if {[catch {source $path} err ]} {
+        set estr "Executing test client: $err.\n$::errorInfo"
+        send_data_packet $::test_server_fd err "Exception:$estr"
+    }
     send_data_packet $::test_server_fd done "$name"
 }
 
