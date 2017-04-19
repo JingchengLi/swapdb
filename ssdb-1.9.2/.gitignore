@@ -47,3 +47,8 @@ hello-ssdb
 tests/qa/integration/gtest/*
 tests/qa/integration/integ-test
 tests/qa/integration/Makefile
+
+ssdb.cbp
+deps/rocksdb-4.11.2/Makefile
+ssdb_slave1.conf
+/Makefile
