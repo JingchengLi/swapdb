@@ -170,6 +170,8 @@ SET(redis-server_files
         src/scripting.c
         src/sds.c
         src/server.c
+        src/rax.c
+        src/siphash.c
         src/defrag.c
         src/sentinel.c
         src/setproctitle.c
