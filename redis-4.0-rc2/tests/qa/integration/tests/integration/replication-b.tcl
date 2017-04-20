@@ -27,7 +27,7 @@ config {real.conf}} {
 
             test "MASTER and SLAVES dataset should be identical after complex ops" {
                 wait_memory_stable -2; wait_memory_stable -1; wait_memory_stable
-                $master config set maxmemory 0
+                # $master config set maxmemory 0
                 wait_for_condition 100 100 {
                     [$master dbsize] == [[lindex $slaves 0] dbsize] &&
                     [[lindex $slaves 0] dbsize] == [[lindex $slaves 1] dbsize]
@@ -35,9 +35,15 @@ config {real.conf}} {
 
                     fail "Different number of keys between master and slave after too long time."
                 }
-                assert_equal [$master debug digest] [[lindex $slaves 0] debug digest] "Different digest between master and slave"
-                assert_equal [[lindex $slaves 0] debug digest] [[lindex $slaves 1] debug digest] "Different digest between slaves"
-                $master config set maxmemory 1000MB
+                wait_for_condition 100 100 {
+                    [$master debug digest] == [[lindex $slaves 0] debug digest] &&
+                    [[lindex $slaves 0] debug digest] == [[lindex $slaves 1] debug digest]
+                } else {
+                    fail "Different digest between master([$master debug digest]) and slave1([[lindex $slaves 0] debug digest]) slave2([[lindex $slaves 1] debug digest]) after too long time."
+                }
+                # assert_equal [$master debug digest] [[lindex $slaves 0] debug digest] "Different digest between master and slave"
+                # assert_equal [[lindex $slaves 0] debug digest] [[lindex $slaves 1] debug digest] "Different digest between slaves"
+                # $master config set maxmemory 1000MB
             }
         }
     }
@@ -52,7 +58,7 @@ config {real.conf}} {
         set slaves {}
         lappend slaves [srv 0 client]
 
-        set num 3000
+        set num 30000
         set clients 10
         set clist [ start_bg_complex_data_list $master_host $master_port $num $clients 100k]
 
@@ -72,7 +78,7 @@ config {real.conf}} {
 
         test "MASTER and one SLAVE dataset should be identical after complex ops" {
             wait_memory_stable -1; wait_memory_stable ; #wait slave sync done
-            $master config set maxmemory 0
+            # $master config set maxmemory 0
 
             wait_for_condition 10 100 {
                 [$master dbsize] == [[lindex $slaves 0] dbsize]
@@ -80,8 +86,12 @@ config {real.conf}} {
                 puts [ populate_diff_keys $master [lindex $slaves 0] 5 ]
                 fail "Different number of keys between master and slave after too long time."
             }
-            assert_equal [$master debug digest] [[lindex $slaves 0] debug digest] "Different digest between master and slave"
-            $master config set maxmemory 1000MB
+            wait_for_condition 100 100 {
+                [$master debug digest] == [[lindex $slaves 0] debug digest]
+            } else {
+                fail "Different digest between master([$master debug digest]) and slave1([[lindex $slaves 0] debug digest]) after too long time."
+            }
+            # $master config set maxmemory 1000MB
         }
 
         start_server {config {real.conf}} {
@@ -100,16 +110,21 @@ config {real.conf}} {
 
             test "MASTER and two SLAVES dataset should be identical after complex ops" {
                 wait_memory_stable -2; wait_memory_stable -1; wait_memory_stable
-                $master config set maxmemory 0
+                # $master config set maxmemory 0
                 wait_for_condition 10 100 {
                     [$master dbsize] == [[lindex $slaves 0] dbsize] &&
                     [[lindex $slaves 0] dbsize] == [[lindex $slaves 1] dbsize]
                 } else {
                     fail "Different number of keys between master and slave after too long time."
                 }
-                assert_equal [$master debug digest] [[lindex $slaves 0] debug digest] "Different digest between master and slave"
-                assert_equal [[[lindex $slaves 0] debug digest] [[lindex $slaves 1] debug digest] "Different digest between slaves"
-                $master config set maxmemory 1000MB
+
+                wait_for_condition 100 100 {
+                    [$master debug digest] == [[lindex $slaves 0] debug digest] &&
+                    [[lindex $slaves 0] debug digest] == [[lindex $slaves 1] debug digest]
+                } else {
+                    fail "Different digest between master([$master debug digest]) and slave1([[lindex $slaves 0] debug digest]) slave2([[lindex $slaves 1] debug digest]) after too long time."
+                }
+                # $master config set maxmemory 1000MB
             }
         }
     }
