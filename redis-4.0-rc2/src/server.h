@@ -776,7 +776,7 @@ typedef struct client {
     sds peerid;             /* Cached peer ID. */
 
     /* Response buffer */
-    int bufpos;
+    int bufpos;             /* the used lenth of buf. */
     char buf[PROTO_REPLY_CHUNK_BYTES];
 
     redisContext *context;  /* Used by redis client in jdjr-mode. */
