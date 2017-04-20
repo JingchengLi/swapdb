@@ -1272,7 +1272,8 @@ void handleSSDBReply(client *c) {
 
     reply = c->ssdb_replies[0];
     if (reply && reply->type == REDIS_REPLY_ERROR)
-        serverLog(LL_WARNING, "Reply from SSDB is ERROR: %s", reply->str);
+        serverLog(LL_WARNING, "Reply from SSDB is ERROR: %s, c->fd:%d, context fd:%d",
+                  reply->str, c->fd, c->context->fd);
     if (reply && reply->type == REDIS_REPLY_STRING)
         serverLog(LL_DEBUG, "replyString: %s", reply->str);
 
@@ -1868,6 +1869,7 @@ int handleClientsWithPendingWrites(void) {
 
 /* resetClient prepare the client to process the next command */
 void resetClient(client *c) {
+    serverLog(LL_DEBUG, "resetClient called: redis fd: %d, context fd:%d", c->fd, c->context->fd);
     redisCommandProc *prevcmd = c->cmd ? c->cmd->proc : NULL;
 
     freeClientArgv(c);
