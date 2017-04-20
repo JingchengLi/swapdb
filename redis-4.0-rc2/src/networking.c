@@ -919,30 +919,30 @@ static void revertClientBufReply(client *c, size_t revertlen) {
     if (c->flags & CLIENT_MASTER) return;
 
     while (revertlen > 0) {
-    if (listLength(c->reply) > 0
-        && (ln = listLast(c->reply))
-        && (tail = listNodeValue(ln))) {
-        size_t length = sdslen(tail);
+        if (listLength(c->reply) > 0
+            && (ln = listLast(c->reply))
+            && (tail = listNodeValue(ln))) {
+            size_t length = sdslen(tail);
 
-        if (length > revertlen) {
-            sdsrange(tail, 0, length - revertlen - 1);
-            c->reply_bytes -= revertlen;
-            break;
-        } else if (length == revertlen) {
-            listDelNode(c->reply, ln);
-            c->reply_bytes -= length;
-            break;
+            if (length > revertlen) {
+                sdsrange(tail, 0, length - revertlen - 1);
+                c->reply_bytes -= revertlen;
+                break;
+            } else if (length == revertlen) {
+                listDelNode(c->reply, ln);
+                c->reply_bytes -= length;
+                break;
+            } else {
+                listDelNode(c->reply, ln);
+                c->reply_bytes -= length;
+                revertlen -= length;
+            }
         } else {
-            listDelNode(c->reply, ln);
-            c->reply_bytes -= length;
-            revertlen -= length;
+            /* Only need to handle c->buf. */
+            serverAssert(c->bufpos >= (int)revertlen);
+            c->bufpos -= revertlen;
+            break;
         }
-    } else {
-        /* Only need to handle c->buf. */
-        serverAssert(c->bufpos >= (int)revertlen);
-        c->bufpos -= revertlen;
-        break;
-    }
     }
 }
 
