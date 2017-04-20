@@ -1383,6 +1383,7 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
         return;
 
     redisReader *r = c->context->reader;
+    c->add_reply_len = 0;
 
     do {
         int oldlen = r->len;
@@ -1390,7 +1391,9 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
         if (redisBufferRead(c->context) == REDIS_OK
             && !isSpecialConnection(c)
             && !c->ssdb_replies[0]) {
-            c->add_reply_len = r->len - oldlen;
+            /* the returned 'aux' may be NULL when redisGetReplyFromReader return REDIS_OK,
+             * so we may need to read multiple times to get a completed response. */
+            c->add_reply_len += r->len - oldlen;
             addReplyString(c, r->buf + oldlen, c->add_reply_len);
         }
 
@@ -1401,6 +1404,7 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
             return;
         }
 
+        /* the returned 'aux' may be NULL when redisGetReplyFromReader return REDIS_OK */
         if (redisGetReplyFromReader(c->context, &aux) == REDIS_ERR)
             break;
 
@@ -1426,11 +1430,11 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
     handleSSDBReply(c);
 
     if (c->ssdb_replies[0]) {
-        freeReplyObject((redisReply *)c->ssdb_replies[0]);
+        freeReplyObject(c->ssdb_replies[0]);
         c->ssdb_replies[0] = NULL;
     }
     if (c->ssdb_replies[1]) {
-        freeReplyObject((redisReply *)c->ssdb_replies[1]);
+        freeReplyObject(c->ssdb_replies[1]);
         c->ssdb_replies[1] = NULL;
     }
 }
