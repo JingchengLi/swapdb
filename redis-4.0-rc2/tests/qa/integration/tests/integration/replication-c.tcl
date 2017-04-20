@@ -53,9 +53,13 @@ proc test_psync {descr duration backlog_size backlog_ttl delay cond reconnect} {
                 stop_bg_client_list  $clist
                 wait_memory_stable -1; wait_memory_stable
 
-                $master config set maxmemory 0
 
-                assert_equal [debug_digest r -1] [debug_digest r] "master and slave not identical"
+                wait_for_online $master 1
+                wait_for_condition 200 100 {
+                    [$master debug digest] == [$slave debug digest]
+                } else {
+                    fail "Different digest between master([$master debug digest]) and slave([$slave debug digest]) after too long time."
+                }
                 assert {[$master dbsize] > 0}
 
                 eval $cond
@@ -68,7 +72,8 @@ proc test_psync {descr duration backlog_size backlog_ttl delay cond reconnect} {
 test_psync {no reconnection, just sync} 6 1000000 3600 0 {
 } 0
 
-test_psync {ok psync} 6 1000000 3600 0 {
+# incr 1M to 50M
+test_psync {ok psync} 6 50000000 3600 0 {
     assert {[s -1 sync_partial_ok] > 0}
 } 1
 

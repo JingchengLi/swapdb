@@ -27,6 +27,7 @@ overrides {maxmemory 0}} {
     }
 }
 
+# debug populate
 start_server {tags {"ssdb"}} {
     set master [srv client]
     set master_host [srv host]
@@ -40,7 +41,12 @@ start_server {tags {"ssdb"}} {
                 $master $flush
                 wait_ssdb_reconnect -1
 
-                assert_equal "0000000000000000000000000000000000000000" [$master debug digest]
+                wait_for_condition 100 100 {
+                    [$master debug digest] == 0000000000000000000000000000000000000000
+                } else {
+                    puts "Digest not null:master([$master debug digest]) after too long time."
+                    after 10000000
+                }
                 wait_for_condition 10 100 {
                     [lindex [sr -1 scan 0] 0] eq 0
                 } else {
@@ -59,7 +65,8 @@ start_server {tags {"ssdb"}} {
                 wait_for_condition 100 100 {
                     [$master debug digest] == 0000000000000000000000000000000000000000
                 } else {
-                    fail "Digest not null:master([$master debug digest]) after too long time."
+                    puts "Digest not null:master([$master debug digest]) after too long time."
+                    after 10000000
                 }
                 wait_for_condition 10 100 {
                     [lindex [sr -1 scan 0] 0] eq 0
@@ -125,6 +132,83 @@ start_server {tags {"ssdb"}} {
     }
 }
 
+# TODO flush IO reply error
+# flush during clients writing
+start_server {tags {"ssdb"}} {
+    set master [srv client]
+    set master_host [srv host]
+    set master_port [srv port]
+    start_server {} {
+        set slaves {}
+        lappend slaves [srv 0 client]
+        start_server {} {
+            lappend slaves [srv 0 client]
+            set num 10000
+            set clients 10
+            foreach flush {flushall flushdb} {
+                test "single $flush all keys during clients writing after sync" {
+                    set clist [ start_bg_complex_data_list $master_host $master_port $num $clients ]
+                    [lindex $slaves 0] slaveof $master_host $master_port
+                    wait_for_online $master 1
+                    $master $flush
+                    after 1000
+                    wait_ssdb_reconnect -1
+
+                    stop_bg_client_list $clist
+                    $master ping
+                } {PONG}
+
+                test "master and one slave are identical after $flush" {
+                    wait_for_condition 300 100 {
+                        [$master dbsize] == [[lindex $slaves 0] dbsize]
+                    } else {
+                        puts "Different number of keys between master and slaves after too long time."
+                        after 1000000
+                    }
+                    assert {[$master dbsize] > 0}
+                    wait_for_condition 100 100 {
+                        [$master debug digest] == [[lindex $slaves 0] debug digest]
+                    } else {
+                        fail "Different digest between master([$master debug digest]) and slave1([[lindex $slaves 0] debug digest]) after too long time."
+                    }
+                }
+
+                test "multi $flush all keys during clients writing and sync" {
+                    set clist [ start_bg_complex_data_list $master_host $master_port $num $clients ]
+                    [lindex $slaves 1] slaveof $master_host $master_port
+                    set pattern "Sending rr_make_snapshot to SSDB"
+                    wait_log_pattern $pattern [srv -2 stdout]
+                    set flushclist [start_bg_command_list $master_host $master_port 100 $flush]
+                    after 1000
+                    stop_bg_client_list $flushclist
+                    after 1000
+                    wait_ssdb_reconnect -1
+                    stop_bg_client_list $clist
+                    $master ping
+                } {PONG}
+
+                test "master and two slaves are identical after $flush" {
+                    wait_for_condition 300 100 {
+                        [$master dbsize] == [[lindex $slaves 0] dbsize] &&
+                        [$master dbsize] == [[lindex $slaves 1] dbsize]
+                    } else {
+                        puts "Different number of keys between master and slaves after too long time."
+                    }
+                    assert {[$master dbsize] > 0}
+                    wait_for_condition 100 100 {
+                        [$master debug digest] == [[lindex $slaves 0] debug digest] &&
+                        [$master debug digest] == [[lindex $slaves 1] debug digest]
+                    } else {
+                        fail "Different digest between master([$master debug digest]) and slave1([[lindex $slaves 0] debug digest]) slave2([[lindex $slaves 1] debug digest]) after too long time."
+                    }
+                }
+
+            }
+        }
+    }
+}
+
+# flush after write
 start_server {tags {"ssdb"}} {
     set master [srv client]
     set master_host [srv host]
@@ -135,8 +219,8 @@ start_server {tags {"ssdb"}} {
         start_server {} {
             lappend slaves [srv 0 client]
             foreach flush {flushall flushdb} {
-                test "multi clients $flush all keys during writing" {
-                    set num 100000
+                test "multi clients $flush all keys after write and sync" {
+                    set num 10000
                     set clients 10
                     set clist [ start_bg_complex_data_list $master_host $master_port $num $clients ]
                     [lindex $slaves 0] slaveof $master_host $master_port
@@ -148,15 +232,16 @@ start_server {tags {"ssdb"}} {
                     }
                     stop_bg_client_list $clist
                     after 1000
-                    set flushclist [start_bg_command_list $master_host $master_port 1 $flush]
+                    set flushclist [start_bg_command_list $master_host $master_port 10 $flush]
                     after 1000
                     stop_bg_client_list $flushclist
                     $master ping
                 } {PONG}
 
-                test "sync with first node after $flush" {
+                test "master and slave are both null after $flush" {
                     wait_for_condition 300 100 {
-                        [$master dbsize] == [[lindex $slaves 0] dbsize]
+                        [$master dbsize] == 0 &&
+                        [[lindex $slaves 0] dbsize] == 0
                     } else {
                         fail "Different number of keys between master and slaves after too long time."
                     }
@@ -168,7 +253,7 @@ start_server {tags {"ssdb"}} {
                     }
                 }
 
-                test "sync with another node after $flush" {
+                test "sync with second slave after $flush" {
                     set clist [ start_bg_complex_data_list $master_host $master_port $num $clients ]
                     after 1000
                     [lindex $slaves 1] slaveof $master_host $master_port
@@ -191,8 +276,7 @@ start_server {tags {"ssdb"}} {
                         [$master dbsize] == [[lindex $slaves 0] dbsize] &&
                         [$master dbsize] == [[lindex $slaves 1] dbsize]
                     } else {
-                        puts "Different number of keys between master and slaves after too long time."
-                        after 1000000
+                        fail "Different number of keys between master and slaves after too long time."
                     }
                     assert {[$master dbsize] > 0}
                     wait_for_condition 100 100 {
@@ -212,8 +296,8 @@ start_server {tags {"ssdb"}} {
                     } else {
                         fail "Digest not null:master([$master debug digest]) and slave1([[lindex $slaves 0] debug digest]) slave2([[lindex $slaves 1] debug digest]) after too long time."
                     }
-                    list [sr keys *] [sr -1 keys *] [sr -2 keys *]
-                } {{} {} {}}
+                    list [lindex [sr scan 0] 0] [lindex [sr -1 scan 0] 0] [lindex [sr -2 scan 0] 0]
+                } {0 0 0}
 
             }
         }
