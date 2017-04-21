@@ -912,11 +912,17 @@ void handleClientsBlockedOnFlushall(void) {
     }
 }
 
+//#define TEST_CLIENT_BUF
 static void revertClientBufReply(client *c, size_t revertlen) {
     listNode *ln;
     sds tail;
 
     if (c->flags & CLIENT_MASTER) return;
+#ifdef TEST_CLIENT_BUF
+    sds debug_s = sdsnewlen(NULL, revertlen+1);
+    int initial = revertlen;
+    sds cursor = debug_s + initial;
+#endif
 
     while (revertlen > 0) {
         if (listLength(c->reply) > 0
@@ -925,14 +931,24 @@ static void revertClientBufReply(client *c, size_t revertlen) {
             size_t length = sdslen(tail);
 
             if (length > revertlen) {
+#ifdef TEST_CLIENT_BUF
+                sdscpylen(debug_s, tail+length-revertlen, revertlen);
+#endif
                 sdsrange(tail, 0, length - revertlen - 1);
                 c->reply_bytes -= revertlen;
                 break;
             } else if (length == revertlen) {
+#ifdef TEST_CLIENT_BUF
+                sdscpylen(debug_s, tail+length-revertlen, revertlen);
+#endif
                 listDelNode(c->reply, ln);
                 c->reply_bytes -= length;
                 break;
             } else {
+#ifdef TEST_CLIENT_BUF
+                cursor = cursor-length;
+                sdscpylen(cursor, tail, length);
+#endif
                 listDelNode(c->reply, ln);
                 c->reply_bytes -= length;
                 revertlen -= length;
@@ -940,10 +956,17 @@ static void revertClientBufReply(client *c, size_t revertlen) {
         } else {
             /* Only need to handle c->buf. */
             serverAssert(c->bufpos >= (int)revertlen);
+#ifdef TEST_CLIENT_BUF
+            sdscpylen(debug_s, c->buf+c->bufpos-revertlen, revertlen);
+#endif
             c->bufpos -= revertlen;
             break;
         }
     }
+#ifdef TEST_CLIENT_BUF
+    *(debug_s+initial) = 0;
+    serverLog(LL_DEBUG, "[TEST_CLIENT_BUF]revert content:%s", debug_s);
+#endif
 }
 
 #define IsReplyEqual(reply, sds_response) (sdslen(sds_response) == (reply)->len && \
@@ -1384,6 +1407,10 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
 
     redisReader *r = c->context->reader;
     c->add_reply_len = 0;
+#ifdef TEST_CLIENT_BUF
+    // debug only
+    sds debug_s = sdsempty();
+#endif
 
     do {
         int oldlen = r->len;
@@ -1394,6 +1421,9 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
              * so we may need to read multiple times to get a completed response. */
             c->add_reply_len += r->len - oldlen;
             addReplyString(c, r->buf + oldlen, r->len - oldlen);
+#ifdef TEST_CLIENT_BUF
+            debug_s = sdscatlen(debug_s, r->buf+oldlen, r->len - oldlen);
+#endif
         }
 
         /* Return early when the context has seen an error. */
@@ -1411,6 +1441,10 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
         if (aux && !c->ssdb_replies[0]) {
             c->ssdb_replies[0] = aux;
             aux = NULL;
+#ifdef TEST_CLIENT_BUF
+            serverLog(LL_DEBUG, "[TEST_CLIENT_BUF]debug_s:%s, debug_s len:%d", debug_s, sdslen(debug_s));
+            serverLog(LL_DEBUG, "[TEST_CLIENT_BUF]c->ssdb_replies[0]: %s", c->ssdb_replies[0]->str);
+#endif
             serverAssert(!c->ssdb_replies[1]);
             continue;
         }
@@ -1418,6 +1452,9 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
         /* Record 2th reply. */
         if (aux && c->ssdb_replies[0] && !c->ssdb_replies[1]) {
             c->ssdb_replies[1] = aux;
+#ifdef TEST_CLIENT_BUF
+            serverLog(LL_DEBUG, "[TEST_CLIENT_BUF]c->ssdb_replies[1]: %s", c->ssdb_replies[1]->element[0]->str);
+#endif
             break;
         }
     } while (aux == NULL);
