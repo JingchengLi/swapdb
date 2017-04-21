@@ -1279,7 +1279,7 @@ void handleSSDBReply(client *c) {
         serverLog(LL_WARNING, "Reply from SSDB is ERROR: %s, c->fd:%d, context fd:%d",
                   reply->str, c->fd, c->context->fd);
     if (reply && reply->type == REDIS_REPLY_STRING)
-        serverLog(LL_DEBUG, "replyString: %s", reply->str);
+        serverLog(LL_DEBUG, "reply str: %s, reply len:%d, c->add_reply_len:%d", reply->str, reply->len, c->add_reply_len);
 
     /* Handle special connections. */
     if (c == server.ssdb_client) return;
@@ -1387,14 +1387,13 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
 
     do {
         int oldlen = r->len;
-
         if (redisBufferRead(c->context) == REDIS_OK
             && !isSpecialConnection(c)
             && !c->ssdb_replies[0]) {
             /* the returned 'aux' may be NULL when redisGetReplyFromReader return REDIS_OK,
              * so we may need to read multiple times to get a completed response. */
             c->add_reply_len += r->len - oldlen;
-            addReplyString(c, r->buf + oldlen, c->add_reply_len);
+            addReplyString(c, r->buf + oldlen, r->len - oldlen);
         }
 
         /* Return early when the context has seen an error. */
