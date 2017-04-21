@@ -972,14 +972,14 @@ static void revertClientBufReply(client *c, size_t revertlen) {
 #define IsReplyEqual(reply, sds_response) (sdslen(sds_response) == (reply)->len && \
     0 == memcmp((reply)->str, sds_response, (reply)->len))
 
-int handleResponseOfSSDBflushDone(client *c, redisReply* reply) {
+int handleResponseOfSSDBflushDone(client *c, redisReply* reply, int revert_len) {
     int process_status;
     UNUSED(c);
 
     if (IsReplyEqual(reply, shared.flushdoneok)) {
         serverLog(LL_DEBUG, "[flushall] receive do flush ok");
         /* clean the ssdb reply*/
-        revertClientBufReply(c, c->add_reply_len);
+        revertClientBufReply(c, revert_len);
 
         /* unblock the client doing flushall and do flushall in redis. */
         unblockClient(server.current_flushall_client);
@@ -997,7 +997,7 @@ int handleResponseOfSSDBflushDone(client *c, redisReply* reply) {
     } else if (IsReplyEqual(reply, shared.flushdonenok)) {
         serverLog(LL_DEBUG, "[flushall] receive do flush nok, ssdb flushall failed");
         /* clean the ssdb reply*/
-        revertClientBufReply(c, c->add_reply_len);
+        revertClientBufReply(c, revert_len);
 
         unblockClient(server.current_flushall_client);
         addReplyError(server.current_flushall_client, "do ssdb flushall failed!");
@@ -1245,9 +1245,10 @@ int handleExtraSSDBReply(client *c) {
         if (keys) getKeysFreeResult(keys);
     }
 
+    // todo: review and remove
     /*Handle the common extra reply from SSDB:
       length 17: '*1\r\n$7\r\ncheck 0\r\n' */
-    if (!isSpecialConnection(c)) revertClientBufReply(c, 17);
+    //if (!isSpecialConnection(c)) revertClientBufReply(c, 17);
 
     return C_OK;
 }
@@ -1293,7 +1294,7 @@ int isSpecialConnection(client *c) {
         return 0;
 }
 
-void handleSSDBReply(client *c) {
+void handleSSDBReply(client *c, int revert_len) {
     redisReply *reply;
     int j;
 
@@ -1309,7 +1310,7 @@ void handleSSDBReply(client *c) {
 
     if (c == server.delete_confirm_client
         && handleResponseOfDeleteCheckConfirm(c) == C_OK) {
-        revertClientBufReply(c, c->add_reply_len);
+        //revertClientBufReply(c, c->add_reply_len);
         goto cleanup;
     }
 
@@ -1329,11 +1330,11 @@ void handleSSDBReply(client *c) {
 
     if (reply && reply->type == REDIS_REPLY_STRING) {
         if (server.is_doing_flushall && handleResponseOfFlushCheck(c, reply) == C_OK) {
-            revertClientBufReply(c, c->add_reply_len);
+            revertClientBufReply(c, revert_len);
             goto cleanup;
         }
 
-        if (server.is_doing_flushall && handleResponseOfSSDBflushDone(c, reply) == C_OK ) {
+        if (server.is_doing_flushall && handleResponseOfSSDBflushDone(c, reply, revert_len) == C_OK ) {
             /* we need reply the flushall result to user client. */
             goto cleanup;
         }
@@ -1343,7 +1344,7 @@ void handleSSDBReply(client *c) {
             && !isSpecialConnection(c)
             && (c->ssdb_conn_flags & CONN_WAIT_WRITE_CHECK_REPLY)
             && handleResponseOfCheckWrite(c, reply) == C_OK) {
-            revertClientBufReply(c, c->add_reply_len);
+            revertClientBufReply(c, revert_len);
             goto cleanup;
         }
 
@@ -1351,7 +1352,7 @@ void handleSSDBReply(client *c) {
         if (c == server.ssdb_replication_client
             && server.ssdb_status == MASTER_SSDB_SNAPSHOT_PRE
             && handleResponseOfPsync(c, reply) == C_OK) {
-            revertClientBufReply(c, c->add_reply_len);
+            //revertClientBufReply(c, c->add_reply_len);
             goto cleanup;
         }
 
@@ -1361,7 +1362,7 @@ void handleSSDBReply(client *c) {
             && c->lastcmd
             && (c->lastcmd->proc == syncCommand)
             && handleResponseOfTransferSnapshot(c, reply) == C_OK) {
-            revertClientBufReply(c, c->add_reply_len);
+            revertClientBufReply(c, revert_len);
             goto cleanup;
         }
 
@@ -1369,7 +1370,7 @@ void handleSSDBReply(client *c) {
         if (c == server.ssdb_replication_client
             && server.ssdb_status == MASTER_SSDB_SNAPSHOT_OK
             && handleResponseOfDelSnapshot(c, reply) == C_OK) {
-            revertClientBufReply(c, c->add_reply_len);
+            //revertClientBufReply(c, c->add_reply_len);
             goto cleanup;
         }
     }
@@ -1393,6 +1394,7 @@ cleanup:
     }
 }
 
+#define TEST_CLIENT_BUF
 /* TODO: Implement ssdbClientUnixHandler. Only handle AE_READABLE. */
 void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
     UNUSED(el);
@@ -1411,18 +1413,18 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
     // debug only
     sds debug_s = sdsempty();
 #endif
+    char* reply_start;
+    int first_reply_len;
 
     do {
         int reply_len = 0;
+#ifdef TEST_CLIENT_BUF
         int oldlen = r->len;
-        if (redisBufferRead(c->context) == REDIS_OK
-            && !isSpecialConnection(c)
-            && !c->ssdb_replies[0]) {
+#endif
+        if (redisBufferRead(c->context) == REDIS_OK) {
+
             /* the returned 'aux' may be NULL when redisGetReplyFromReader return REDIS_OK,
              * so we may need to read multiple times to get a completed response. */
-            // todo: fix and remove c->add_reply_len
-            c->add_reply_len += r->len - oldlen;
-            addReplyString(c, r->buf + oldlen, r->len - oldlen);
 #ifdef TEST_CLIENT_BUF
             debug_s = sdscatlen(debug_s, r->buf+oldlen, r->len - oldlen);
 #endif
@@ -1436,33 +1438,48 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
         }
 
         /* the returned 'aux' may be NULL when redisGetReplyFromReader return REDIS_OK */
-        if (redisGetReplyFromReader(c->context, &aux, &reply_len) == REDIS_ERR)
+        if (redisGetSSDBreplyFromReader(c->context, &aux, &reply_len) == REDIS_ERR)
             break;
-        // todo: process reply_len
 
         /* Record 1th reply. */
         if (aux && !c->ssdb_replies[0]) {
             c->ssdb_replies[0] = aux;
             aux = NULL;
+
+            reply_start = r->buf+r->pos-reply_len;
+            /* add this reply to redis user buffer. */
+            if (!isSpecialConnection(c)) addReplyString(c, reply_start, reply_len);
+            discardSSDBreaderBuffer(c->context->reader);
+            /* save the first reply len and we may need to revert it from the user buffer.*/
+            first_reply_len = reply_len;
+
 #ifdef TEST_CLIENT_BUF
-            serverLog(LL_DEBUG, "[TEST_CLIENT_BUF]debug_s:%s, debug_s len:%d", debug_s, sdslen(debug_s));
+            serverLog(LL_DEBUG, "[TEST_CLIENT_BUF]is special client:%s, debug_s:%s, debug_s len:%d",
+                      isSpecialConnection(c) ? "yes" : "no", debug_s, sdslen(debug_s));
             serverLog(LL_DEBUG, "[TEST_CLIENT_BUF]c->ssdb_replies[0]: %s", c->ssdb_replies[0]->str);
 #endif
             serverAssert(!c->ssdb_replies[1]);
-        }
 
-        /* the returned 'aux' may be NULL when redisGetReplyFromReader return REDIS_OK */
-        /* the 'redisBufferRead' may read muliple responses, so we just try to get the sencond replies. */
-        if (redisGetReplyFromReader(c->context, &aux, &reply_len) == REDIS_ERR)
-            break;
-        // todo: process reply_len
+            /* the returned 'aux' may be NULL when redisGetReplyFromReader return REDIS_OK */
+            /* the 'redisBufferRead' may read muliple responses, so we just try to get the sencond replies. */
+            if (redisGetSSDBreplyFromReader(c->context, &aux, &reply_len) == REDIS_ERR)
+                break;
+        }
 
         /* Record 2th reply. */
         if (aux && c->ssdb_replies[0] && !c->ssdb_replies[1]) {
             c->ssdb_replies[1] = aux;
 #ifdef TEST_CLIENT_BUF
-            serverLog(LL_DEBUG, "[TEST_CLIENT_BUF]c->ssdb_replies[1]: %s", c->ssdb_replies[1]->element[0]->str);
+            sds tmp = sdsnewlen(NULL, reply_len+1);
+
+            reply_start = r->buf+r->pos-reply_len;
+            sdscpylen(tmp, reply_start, reply_len);
+            *(reply_start+reply_len) = 0;
+            serverLog(LL_DEBUG, "[TEST_CLIENT_BUF]c->ssdb_replies[1]: %s, len:%d", tmp, reply_len);
 #endif
+
+            discardSSDBreaderBuffer(c->context->reader);
+
             break;
         }
     } while (aux == NULL);
@@ -1471,7 +1488,7 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
     if (!c->ssdb_replies[0] || !c->ssdb_replies[1])
         return;
 
-    handleSSDBReply(c);
+    handleSSDBReply(c, first_reply_len);
 
     if (c->ssdb_replies[0]) {
         freeReplyObject(c->ssdb_replies[0]);

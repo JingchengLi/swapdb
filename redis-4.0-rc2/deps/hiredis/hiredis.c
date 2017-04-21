@@ -614,7 +614,24 @@ int redisReaderFeed(redisReader *r, const char *buf, size_t len) {
     return REDIS_OK;
 }
 
-int redisReaderGetReply(redisReader *r, void **reply, int* reply_len) {
+/* if consumed reader buffer discard operation has been deferred in
+ * redisReaderGetReply(when 'is_ssdb' is not 0), we need to discard
+ * it after we process the raw reply string(for jdjr mode, we need
+ * to preserve the raw reply string from SSDB and copy it to the client
+ * buffer of redis). */
+void discardSSDBreaderBuffer(redisReader *r) {
+    /* Discard part of the buffer when we've consumed at least 1k, to avoid
+     * doing unnecessary calls to memmove() in sds.c. */
+    if (r->pos >= 1024) {
+        sdsrange(r->buf,r->pos,-1);
+        r->pos = 0;
+        r->len = sdslen(r->buf);
+    }
+}
+
+/* NOTE:this function has been modified in jdjr mode (:add two arguments 'reply_len'
+ * and 'is_ssdb'.)*/
+int redisReaderGetReply(redisReader *r, void **reply, int* reply_len, int is_ssdb) {
     /* Default target pointer to NULL. */
     if (reply != NULL)
         *reply = NULL;
@@ -654,7 +671,7 @@ int redisReaderGetReply(redisReader *r, void **reply, int* reply_len) {
 
     /* Discard part of the buffer when we've consumed at least 1k, to avoid
      * doing unnecessary calls to memmove() in sds.c. */
-    if (r->pos >= 1024) {
+    if (!is_ssdb && r->pos >= 1024) {
         sdsrange(r->buf,r->pos,-1);
         r->pos = 0;
         r->len = sdslen(r->buf);
@@ -1202,10 +1219,22 @@ int redisBufferWrite(redisContext *c, int *done) {
     return REDIS_OK;
 }
 
+/* we need to discard the consumed buffer by calling 'discardSSDBreaderBuffer'
+ * after we process the raw reply string (for jdjr mode, we need
+ * to preserve the raw reply string from SSDB and copy it to the client
+ * buffer of redis). */
+int redisGetSSDBreplyFromReader(redisContext *c, void **reply, int* reply_len) {
+    if (redisReaderGetReply(c->reader,reply, reply_len, 1) == REDIS_ERR) {
+        __redisSetError(c,c->reader->err,c->reader->errstr);
+        return REDIS_ERR;
+    }
+    return REDIS_OK;
+}
+
 /* Internal helper function to try and get a reply from the reader,
  * or set an error in the context otherwise. */
 int redisGetReplyFromReader(redisContext *c, void **reply, int* reply_len) {
-    if (redisReaderGetReply(c->reader,reply, reply_len) == REDIS_ERR) {
+    if (redisReaderGetReply(c->reader,reply, reply_len, 0) == REDIS_ERR) {
         __redisSetError(c,c->reader->err,c->reader->errstr);
         return REDIS_ERR;
     }

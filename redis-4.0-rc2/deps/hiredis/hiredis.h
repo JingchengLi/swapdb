@@ -143,7 +143,8 @@ typedef struct redisReader {
 redisReader *redisReaderCreate(void);
 void redisReaderFree(redisReader *r);
 int redisReaderFeed(redisReader *r, const char *buf, size_t len);
-int redisReaderGetReply(redisReader *r, void **reply, int* reply_len);
+int redisReaderGetReply(redisReader *r, void **reply, int* reply_len, int is_ssdb);
+void discardSSDBreaderBuffer(redisReader *r);
 
 /* Backwards compatibility, can be removed on big version bump. */
 #define redisReplyReaderCreate redisReaderCreate
@@ -193,6 +194,7 @@ int redisBufferWrite(redisContext *c, int *done);
  * context, it will return unconsumed replies until there are no more. */
 int redisGetReply(redisContext *c, void **reply);
 int redisGetReplyFromReader(redisContext *c, void **reply, int* reply_len);
+int redisGetSSDBreplyFromReader(redisContext *c, void **reply, int* reply_len);
 
 /* Write a formatted command to the output buffer. Use these functions in blocking mode
  * to get a pipeline of commands. */
