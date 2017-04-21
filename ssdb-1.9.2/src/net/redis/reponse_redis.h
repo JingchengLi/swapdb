@@ -131,14 +131,12 @@ public:
 
         switch (type) {
             case REDIS_REPLY_NIL:
-                tmp += "$0\r\n";
+                tmp += "$-1\r\n";
                 break;
 
             case REDIS_REPLY_STRING:
-                if (str.length() == 0) {
-                    tmp += "$-1\r\n";
-                } else {
-                    tmp += "$" + std::to_string(str.length()) + "\r\n";
+                tmp += "$" + std::to_string(str.length()) + "\r\n";
+                if (str.length() != 0) {
                     tmp += str + "\r\n";
                 }
                 break;
@@ -148,7 +146,7 @@ public:
                 break;
 
             case REDIS_REPLY_ERROR:
-                tmp += "-ERR " + str + "\r\n";
+                tmp += "-" + str + "\r\n";
                 break;
 
             case REDIS_REPLY_INTEGER:
