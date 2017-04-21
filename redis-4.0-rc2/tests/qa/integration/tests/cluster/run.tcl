@@ -4,7 +4,7 @@
 
 set ::steps 0
 set ::class 0
-cd tests/qa/integration/cluster
+cd tests/cluster
 source cluster.tcl
 source ../instances.tcl
 source ../../support/cluster.tcl ; # Redis Cluster client.

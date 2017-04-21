@@ -1,0 +1,26 @@
+################################## INCLUDES ###################################
+################################ GENERAL  #####################################
+daemonize yes
+pidfile /var/run/wy/redis_xxxx.pid
+bind zzzz
+port xxxx
+logfile /export/log/wy/redis_xxxx.log
+################################ SNAPSHOTTING  ################################
+dbfilename dump_xxxx.rdb
+dir /export/wy/redis_data/xxxx
+############################## APPEND ONLY MODE ###############################
+appendonly yes
+appendfilename "appendonly_xxxx.aof"
+appendfsync everysec
+################################ REDIS CLUSTER  ###############################
+cluster-enabled yes
+cluster-config-file nodes_xxxx.conf
+##################################### OTHER ###################################
+maxmemory yyyy
+maxmemory-policy allkeys-lfu
+
+##################################### NEW ###################################
+#client-output-buffer-limit slave 2147483648 1073741824 60
+#repl-backlog-size 64mb
+cluster-require-full-coverage no
+latency-monitor-threshold 10

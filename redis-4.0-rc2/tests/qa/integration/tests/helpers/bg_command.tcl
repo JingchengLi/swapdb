@@ -6,7 +6,7 @@ proc bg_command {host port args} {
     catch {[$r {*}[lrange {*}$args 0 end]]} err
     # ERR there is already another flushll task processing
     if {![string match "*ERR*another*task*" $err]} {
-        puts $err
+        puts "Log:$err"
     }
 }
 

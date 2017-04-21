@@ -25,12 +25,13 @@ set ::redis_instances {}
 set ::sentinel_base_port 20000
 set ::redis_base_port 30000
 set ::pids {} ; # We kill everything at exit
+set ::ssdbpids {} ; # We kill everything ssdb at exit
 set ::dirs {} ; # We remove all the temp dirs at exit
 set ::run_matching {} ; # If non empty, only tests matching pattern are run.
 # tranfer tcl script name to test function as class name in test result report xml
 set ::curscript ""
 # cluster test result report xml path
-set ::cfgdir "../../../../../jenkins/report/integration/"
+set ::cfgdir "../../../../../../jenkins/report/integration/"
 set curpath [pwd]
 cd $::cfgdir
 set ::cfgdir [pwd]
@@ -60,8 +61,20 @@ proc exec_instance {type cfgfile} {
     if {$::valgrind} {
         set pid [exec valgrind --track-origins=yes --suppressions=../../../src/valgrind.sup --show-reachable=no --show-possibly-lost=no --leak-check=full ../../../src/${prgname} $cfgfile &]
     } else {
-        set pid [exec ../../../../../src/${prgname} $cfgfile &]
+        if {[file exists ../../../../../../build/${prgname}]} {
+            set pid [exec ../../../../../../build/${prgname} $cfgfile &]
+        } elseif {[file exists ../../../../../src/${prgname}]} {
+            set pid [exec ../../../../../../src/${prgname} $cfgfile &]
+        } else {
+            error "no redis-server found in src or build directory!!!"
+        }
+        # set pid [exec ../../../../../src/${prgname} $cfgfile &]
     }
+    return $pid
+}
+
+proc exec_ssdb_instance {cfgfile} {
+    set pid [exec ssdb-server $cfgfile 2> /dev/null &]
     return $pid
 }
 
@@ -77,6 +90,22 @@ proc spawn_instance {type base_port count {conf {}}} {
         lappend ::dirs $dirname
         catch {exec rm -rf $dirname}
         file mkdir $dirname
+
+    # write new configuration to temporary ssdb file
+    set ssdbport [expr $port+20000]
+    set workdir "../$dirname"
+    set ssdb_config_file [file join $dirname ssdb.conf]
+    set ssdbbaseconfig "ssdb_default.conf"
+    set ssdbdata [exec cat "../../assets/$ssdbbaseconfig"]
+    set fp [open $ssdb_config_file w+]
+    set ssdbdata [regsub -all {{work_dir}} $ssdbdata $workdir]
+    set ssdbdata [regsub -all {{ssdbport}} $ssdbdata $ssdbport]
+    set ssdbdata [regsub -all {{redisport}} $ssdbdata $port]
+    set ssdbdata [regsub -all {stdout} $ssdbdata "ssdblog.txt"]
+    puts $fp $ssdbdata
+    close $fp
+    set ssdbpid [exec_ssdb_instance $ssdb_config_file]
+    lappend ::ssdbpids $ssdbpid
 
         # Write the instance config file.
         set cfgfile [file join $dirname $type.conf]
@@ -107,6 +136,7 @@ proc spawn_instance {type base_port count {conf {}}} {
             host 127.0.0.1 \
             port $port \
             link $link \
+            ssdbpid $ssdbpid \
         ]
     }
 }
@@ -131,6 +161,10 @@ proc cleanup {} {
     puts "Cleaning up..."
     log_crashes
     foreach pid $::pids {
+        catch {exec kill -9 $pid}
+    }
+
+    foreach pid $::ssdbpids {
         catch {exec kill -9 $pid}
     }
 
@@ -477,25 +511,36 @@ proc get_instance_id_by_port {type port} {
 # The instance can be restarted with restart-instance.
 proc kill_instance {type id} {
     set pid [get_instance_attrib $type $id pid]
+    set ssdbpid [get_instance_attrib $type $id ssdbpid]
     set port [get_instance_attrib $type $id port]
 
     if {$pid == -1} {
-        error "You tried to kill $type $id twice."
+        error "You tried to kill redis $type $id twice."
+    }
+
+    if {$ssdbpid == -1} {
+        error "You tried to kill ssdb $type $id twice."
     }
 
     exec kill -9 $pid
+    exec kill -9 $ssdbpid
     set_instance_attrib $type $id pid -1
+    set_instance_attrib $type $id ssdbpid -1
     set_instance_attrib $type $id link you_tried_to_talk_with_killed_instance
 
     # Remove the PID from the list of pids to kill at exit.
     set ::pids [lsearch -all -inline -not -exact $::pids $pid]
+    set ::ssdbpids [lsearch -all -inline -not -exact $::ssdbpids $ssdbpid]
 
     # Wait for the port it was using to be available again, so that's not
     # an issue to start a new server ASAP with the same port.
     set retry 10
     while {[incr retry -1]} {
         set port_is_free [catch {set s [socket 127.0.0.1 $port]}]
-        if {$port_is_free} break
+        if {$port_is_free} continue
+        catch {close $s}
+        set ssdbport_is_free [catch {set s [socket 127.0.0.1 [expr $port+20000]]}]
+        if {$ssdbport_is_free} break
         catch {close $s}
         after 1000
     }
@@ -514,13 +559,16 @@ proc instance_is_killed {type id} {
 proc restart_instance {type id} {
     set dirname "${type}_${id}"
     set cfgfile [file join $dirname $type.conf]
+    set ssdbcfgfile [file join $dirname ssdb.conf]
     set port [get_instance_attrib $type $id port]
 
     # Execute the instance with its old setup and append the new pid
     # file for cleanup.
+    set ssdbpid [exec_ssdb_instance $ssdbcfgfile]
     set pid [exec_instance $type $cfgfile]
     set_instance_attrib $type $id pid $pid
     lappend ::pids $pid
+    lappend ::ssdbpids $ssdbpid
 
     # Check that the instance is running
     if {[server_is_up 127.0.0.1 $port 100] == 0} {

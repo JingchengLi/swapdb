@@ -11,4 +11,6 @@ then
     echo "You need tcl 8.5 or newer in order to run the Redis Sentinel test"
     exit 1
 fi
-$TCLSH tests/qa/integration/cluster/run.tcl $*
+mkdir -p ../jenkins/report/integration
+cd tests/qa/integration
+$TCLSH tests/cluster/run.tcl $*
