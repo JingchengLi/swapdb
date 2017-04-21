@@ -614,7 +614,7 @@ int redisReaderFeed(redisReader *r, const char *buf, size_t len) {
     return REDIS_OK;
 }
 
-int redisReaderGetReply(redisReader *r, void **reply) {
+int redisReaderGetReply(redisReader *r, void **reply, int* reply_len) {
     /* Default target pointer to NULL. */
     if (reply != NULL)
         *reply = NULL;
@@ -626,6 +626,8 @@ int redisReaderGetReply(redisReader *r, void **reply) {
     /* When the buffer is empty, there will never be a reply. */
     if (r->len == 0)
         return REDIS_OK;
+
+    int old_pos = r->pos;
 
     /* Set first item to process when the stack is empty. */
     if (r->ridx == -1) {
@@ -646,6 +648,9 @@ int redisReaderGetReply(redisReader *r, void **reply) {
     /* Return ASAP when an error occurred. */
     if (r->err)
         return REDIS_ERR;
+
+    /* before consume context buffer, we save the reply length for jdjr mode. */
+    if (reply_len) *reply_len = r->pos - old_pos;
 
     /* Discard part of the buffer when we've consumed at least 1k, to avoid
      * doing unnecessary calls to memmove() in sds.c. */
@@ -1199,8 +1204,8 @@ int redisBufferWrite(redisContext *c, int *done) {
 
 /* Internal helper function to try and get a reply from the reader,
  * or set an error in the context otherwise. */
-int redisGetReplyFromReader(redisContext *c, void **reply) {
-    if (redisReaderGetReply(c->reader,reply) == REDIS_ERR) {
+int redisGetReplyFromReader(redisContext *c, void **reply, int* reply_len) {
+    if (redisReaderGetReply(c->reader,reply, reply_len) == REDIS_ERR) {
         __redisSetError(c,c->reader->err,c->reader->errstr);
         return REDIS_ERR;
     }
@@ -1212,7 +1217,7 @@ int redisGetReply(redisContext *c, void **reply) {
     void *aux = NULL;
 
     /* Try to read pending replies */
-    if (redisGetReplyFromReader(c,&aux) == REDIS_ERR)
+    if (redisGetReplyFromReader(c,&aux,NULL) == REDIS_ERR)
         return REDIS_ERR;
 
     /* For the blocking context, flush output buffer and read reply */
@@ -1227,7 +1232,7 @@ int redisGetReply(redisContext *c, void **reply) {
         do {
             if (redisBufferRead(c) == REDIS_ERR)
                 return REDIS_ERR;
-            if (redisGetReplyFromReader(c,&aux) == REDIS_ERR)
+            if (redisGetReplyFromReader(c,&aux,NULL) == REDIS_ERR)
                 return REDIS_ERR;
         } while (aux == NULL);
     }

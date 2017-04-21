@@ -1841,7 +1841,7 @@ static void pipeMode(void) {
 
             /* Consume replies. */
             do {
-                if (redisReaderGetReply(reader,(void**)&reply) == REDIS_ERR) {
+                if (redisReaderGetReply(reader,(void**)&reply, NULL) == REDIS_ERR) {
                     fprintf(stderr, "Error reading replies from server\n");
                     exit(1);
                 }

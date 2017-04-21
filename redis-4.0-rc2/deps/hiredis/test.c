@@ -248,7 +248,7 @@ static void test_reply_reader(void) {
     test("Error handling in reply parser: ");
     reader = redisReaderCreate();
     redisReaderFeed(reader,(char*)"@foo\r\n",6);
-    ret = redisReaderGetReply(reader,NULL);
+    ret = redisReaderGetReply(reader,NULL,NULL);
     test_cond(ret == REDIS_ERR &&
               strcasecmp(reader->errstr,"Protocol error, got \"@\" as reply type byte") == 0);
     redisReaderFree(reader);
@@ -260,7 +260,7 @@ static void test_reply_reader(void) {
     redisReaderFeed(reader,(char*)"*2\r\n",4);
     redisReaderFeed(reader,(char*)"$5\r\nhello\r\n",11);
     redisReaderFeed(reader,(char*)"@foo\r\n",6);
-    ret = redisReaderGetReply(reader,NULL);
+    ret = redisReaderGetReply(reader,NULL,NULL);
     test_cond(ret == REDIS_ERR &&
               strcasecmp(reader->errstr,"Protocol error, got \"@\" as reply type byte") == 0);
     redisReaderFree(reader);
@@ -272,7 +272,7 @@ static void test_reply_reader(void) {
         redisReaderFeed(reader,(char*)"*1\r\n",4);
     }
 
-    ret = redisReaderGetReply(reader,NULL);
+    ret = redisReaderGetReply(reader,NULL,NULL);
     test_cond(ret == REDIS_ERR &&
               strncasecmp(reader->errstr,"No support for",14) == 0);
     redisReaderFree(reader);
@@ -281,7 +281,7 @@ static void test_reply_reader(void) {
     reader = redisReaderCreate();
     reader->fn = NULL;
     redisReaderFeed(reader,(char*)"+OK\r\n",5);
-    ret = redisReaderGetReply(reader,&reply);
+    ret = redisReaderGetReply(reader,&reply,NULL);
     test_cond(ret == REDIS_OK && reply == (void*)REDIS_REPLY_STATUS);
     redisReaderFree(reader);
 
@@ -289,10 +289,10 @@ static void test_reply_reader(void) {
     reader = redisReaderCreate();
     reader->fn = NULL;
     redisReaderFeed(reader,(char*)"+OK\r",4);
-    ret = redisReaderGetReply(reader,&reply);
+    ret = redisReaderGetReply(reader,&reply,NULL);
     assert(ret == REDIS_OK && reply == NULL);
     redisReaderFeed(reader,(char*)"\n",1);
-    ret = redisReaderGetReply(reader,&reply);
+    ret = redisReaderGetReply(reader,&reply,NULL);
     test_cond(ret == REDIS_OK && reply == (void*)REDIS_REPLY_STATUS);
     redisReaderFree(reader);
 
@@ -300,9 +300,9 @@ static void test_reply_reader(void) {
     reader = redisReaderCreate();
     reader->fn = NULL;
     redisReaderFeed(reader,(char*)"x",1);
-    ret = redisReaderGetReply(reader,&reply);
+    ret = redisReaderGetReply(reader,&reply,NULL);
     assert(ret == REDIS_ERR);
-    ret = redisReaderGetReply(reader,&reply);
+    ret = redisReaderGetReply(reader,&reply,NULL);
     test_cond(ret == REDIS_ERR && reply == NULL);
     redisReaderFree(reader);
 
@@ -310,7 +310,7 @@ static void test_reply_reader(void) {
     test("Don't do empty allocation for empty multi bulk: ");
     reader = redisReaderCreate();
     redisReaderFeed(reader,(char*)"*0\r\n",4);
-    ret = redisReaderGetReply(reader,&reply);
+    ret = redisReaderGetReply(reader,&reply,NULL);
     test_cond(ret == REDIS_OK &&
         ((redisReply*)reply)->type == REDIS_REPLY_ARRAY &&
         ((redisReply*)reply)->elements == 0);

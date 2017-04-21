@@ -1413,12 +1413,14 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
 #endif
 
     do {
+        int reply_len = 0;
         int oldlen = r->len;
         if (redisBufferRead(c->context) == REDIS_OK
             && !isSpecialConnection(c)
             && !c->ssdb_replies[0]) {
             /* the returned 'aux' may be NULL when redisGetReplyFromReader return REDIS_OK,
              * so we may need to read multiple times to get a completed response. */
+            // todo: fix and remove c->add_reply_len
             c->add_reply_len += r->len - oldlen;
             addReplyString(c, r->buf + oldlen, r->len - oldlen);
 #ifdef TEST_CLIENT_BUF
@@ -1434,8 +1436,9 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
         }
 
         /* the returned 'aux' may be NULL when redisGetReplyFromReader return REDIS_OK */
-        if (redisGetReplyFromReader(c->context, &aux) == REDIS_ERR)
+        if (redisGetReplyFromReader(c->context, &aux, &reply_len) == REDIS_ERR)
             break;
+        // todo: process reply_len
 
         /* Record 1th reply. */
         if (aux && !c->ssdb_replies[0]) {
@@ -1446,8 +1449,13 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
             serverLog(LL_DEBUG, "[TEST_CLIENT_BUF]c->ssdb_replies[0]: %s", c->ssdb_replies[0]->str);
 #endif
             serverAssert(!c->ssdb_replies[1]);
-            continue;
         }
+
+        /* the returned 'aux' may be NULL when redisGetReplyFromReader return REDIS_OK */
+        /* the 'redisBufferRead' may read muliple responses, so we just try to get the sencond replies. */
+        if (redisGetReplyFromReader(c->context, &aux, &reply_len) == REDIS_ERR)
+            break;
+        // todo: process reply_len
 
         /* Record 2th reply. */
         if (aux && c->ssdb_replies[0] && !c->ssdb_replies[1]) {
