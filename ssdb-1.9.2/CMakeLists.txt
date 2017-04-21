@@ -200,6 +200,7 @@ src/util/config.cpp
 src/util/bytes.cpp
 #src/util/sorted_set.cpp
 src/util/app.cpp
+src/util/backtrace.cpp
 )
 
 ADD_LIBRARY(libutil-static STATIC ${UTIL_OBJS})                                                                                                                                                  
