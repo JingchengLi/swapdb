@@ -564,13 +564,7 @@ int NetworkServer::proc_result(ProcJob *job, ready_list_t *ready_list){
 		job->cmd->time_proc += job->time_proc;
 	}
 
-	//TODO slowlog
-	if (job->time_proc > 1000) { //ms
-		log_info("[SLOW COMMAND] Costs: %.3fms, Req: %s", job->time_proc, serialize_req(*job->req).c_str());
-	}
-
 	slowlog.pushEntryIfNeeded(job->req, (int64_t) job->time_proc);
-
 
 	if(result == PROC_ERROR){
 
