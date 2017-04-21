@@ -1876,7 +1876,7 @@ int handleClientsWithPendingWrites(void) {
 
 /* resetClient prepare the client to process the next command */
 void resetClient(client *c) {
-    serverLog(LL_DEBUG, "resetClient called: redis fd: %d, context fd:%d", c->fd, c->context->fd);
+    serverLog(LL_DEBUG, "resetClient called: redis fd: %d, context fd:%d", c->fd, c->context ? c->context->fd : -1);
     redisCommandProc *prevcmd = c->cmd ? c->cmd->proc : NULL;
 
     freeClientArgv(c);
