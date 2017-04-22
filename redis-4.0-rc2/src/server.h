@@ -784,7 +784,6 @@ typedef struct client {
     char ssdb_status; /* Record the ssdb state. */
     char client_ip[NET_IP_STR_LEN]; /* Used by customized-replication in jdjr-mode. */
     redisReply *ssdb_replies[2]; /* Pointers for ssdb replies. */
-    int add_reply_len; /* Used to revert "rr_checkwrite ok", etc. The reply must smaller than 16k. */
 } client;
 
 struct saveparam {

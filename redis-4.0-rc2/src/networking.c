@@ -126,7 +126,6 @@ client *createClient(int fd) {
         c->ssdb_conn_flags = 0;
         c->ssdb_replies[0] = NULL;
         c->ssdb_replies[1] = NULL;
-        c->add_reply_len = 0;
     }
     c->bpop.target = NULL;
     c->bpop.numreplicas = 0;
@@ -1301,9 +1300,9 @@ void handleSSDBReply(client *c, int revert_len) {
     reply = c->ssdb_replies[0];
     if (reply && reply->type == REDIS_REPLY_ERROR)
         serverLog(LL_WARNING, "Reply from SSDB is ERROR: %s, c->fd:%d, context fd:%d",
-                  reply->str, c->fd, c->context->fd);
+                  reply->str, c->fd, c->context ? c->context->fd : -1);
     if (reply && reply->type == REDIS_REPLY_STRING)
-        serverLog(LL_DEBUG, "reply str: %s, reply len:%d, c->add_reply_len:%d", reply->str, reply->len, c->add_reply_len);
+        serverLog(LL_DEBUG, "reply str: %s, reply len:%d", reply->str, reply->len);
 
     /* Handle special connections. */
     if (c == server.ssdb_client) return;
@@ -1408,7 +1407,6 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
         return;
 
     redisReader *r = c->context->reader;
-    c->add_reply_len = 0;
 #ifdef TEST_CLIENT_BUF
     // debug only
     sds debug_s = sdsempty();
@@ -1456,7 +1454,11 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
 #ifdef TEST_CLIENT_BUF
             serverLog(LL_DEBUG, "[TEST_CLIENT_BUF]is special client:%s, debug_s:%s, debug_s len:%d",
                       isSpecialConnection(c) ? "yes" : "no", debug_s, sdslen(debug_s));
-            serverLog(LL_DEBUG, "[TEST_CLIENT_BUF]c->ssdb_replies[0]: %s", c->ssdb_replies[0]->str);
+
+            sds tmp = sdsnewlen(NULL, reply_len+1);
+            sdscpylen(tmp, reply_start, reply_len);
+            *(reply_start+reply_len) = 0;
+            serverLog(LL_DEBUG, "[TEST_CLIENT_BUF]c->ssdb_replies[0]: %s, len:%d", tmp, reply_len);
 #endif
             serverAssert(!c->ssdb_replies[1]);
 
