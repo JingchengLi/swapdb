@@ -911,7 +911,7 @@ void handleClientsBlockedOnFlushall(void) {
     }
 }
 
-//#define TEST_CLIENT_BUF
+#define TEST_CLIENT_BUF
 static void revertClientBufReply(client *c, size_t revertlen) {
     listNode *ln;
     sds tail;
@@ -965,6 +965,7 @@ static void revertClientBufReply(client *c, size_t revertlen) {
 #ifdef TEST_CLIENT_BUF
     *(debug_s+initial) = 0;
     serverLog(LL_DEBUG, "[TEST_CLIENT_BUF]revert content:%s", debug_s);
+    sdsfree(debug_s);
 #endif
 }
 
@@ -1309,7 +1310,7 @@ void handleSSDBReply(client *c, int revert_len) {
 
     if (c == server.delete_confirm_client
         && handleResponseOfDeleteCheckConfirm(c) == C_OK) {
-        //revertClientBufReply(c, c->add_reply_len);
+        //revertClientBufReply(c, revert_len);
         goto cleanup;
     }
 
@@ -1351,7 +1352,7 @@ void handleSSDBReply(client *c, int revert_len) {
         if (c == server.ssdb_replication_client
             && server.ssdb_status == MASTER_SSDB_SNAPSHOT_PRE
             && handleResponseOfPsync(c, reply) == C_OK) {
-            //revertClientBufReply(c, c->add_reply_len);
+            //revertClientBufReply(c, revert_len);
             goto cleanup;
         }
 
@@ -1369,7 +1370,7 @@ void handleSSDBReply(client *c, int revert_len) {
         if (c == server.ssdb_replication_client
             && server.ssdb_status == MASTER_SSDB_SNAPSHOT_OK
             && handleResponseOfDelSnapshot(c, reply) == C_OK) {
-            //revertClientBufReply(c, c->add_reply_len);
+            //revertClientBufReply(c, revert_len);
             goto cleanup;
         }
     }
@@ -1393,7 +1394,7 @@ cleanup:
     }
 }
 
-#define TEST_CLIENT_BUF
+//#define TEST_CLIENT_BUF
 /* TODO: Implement ssdbClientUnixHandler. Only handle AE_READABLE. */
 void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
     UNUSED(el);
@@ -1409,7 +1410,7 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
     redisReader *r = c->context->reader;
 #ifdef TEST_CLIENT_BUF
     // debug only
-    sds debug_s = sdsempty();
+    //sds debug_s = sdsempty();
 #endif
     char* reply_start;
     int first_reply_len;
@@ -1424,7 +1425,7 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
             /* the returned 'aux' may be NULL when redisGetReplyFromReader return REDIS_OK,
              * so we may need to read multiple times to get a completed response. */
 #ifdef TEST_CLIENT_BUF
-            debug_s = sdscatlen(debug_s, r->buf+oldlen, r->len - oldlen);
+            //debug_s = sdscatlen(debug_s, r->buf+oldlen, r->len - oldlen);
 #endif
         }
 
@@ -1447,19 +1448,17 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
             reply_start = r->buf+r->pos-reply_len;
             /* add this reply to redis user buffer. */
             if (!isSpecialConnection(c)) addReplyString(c, reply_start, reply_len);
+ #ifdef TEST_CLIENT_BUF
+            sds tmp = sdsnewlen(NULL, reply_len+1);
+            sdscpylen(tmp, reply_start, reply_len);
+            *(tmp+reply_len) = 0;
+            serverLog(LL_DEBUG, "[TEST_CLIENT_BUF]c->ssdb_replies[0]: %s, len:%d", tmp, reply_len);
+            sdsfree(tmp);
+#endif
             discardSSDBreaderBuffer(c->context->reader);
             /* save the first reply len and we may need to revert it from the user buffer.*/
             first_reply_len = reply_len;
 
-#ifdef TEST_CLIENT_BUF
-            serverLog(LL_DEBUG, "[TEST_CLIENT_BUF]is special client:%s, debug_s:%s, debug_s len:%d",
-                      isSpecialConnection(c) ? "yes" : "no", debug_s, sdslen(debug_s));
-
-            sds tmp = sdsnewlen(NULL, reply_len+1);
-            sdscpylen(tmp, reply_start, reply_len);
-            *(reply_start+reply_len) = 0;
-            serverLog(LL_DEBUG, "[TEST_CLIENT_BUF]c->ssdb_replies[0]: %s, len:%d", tmp, reply_len);
-#endif
             serverAssert(!c->ssdb_replies[1]);
 
             /* the returned 'aux' may be NULL when redisGetReplyFromReader return REDIS_OK */
@@ -1476,8 +1475,9 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
 
             reply_start = r->buf+r->pos-reply_len;
             sdscpylen(tmp, reply_start, reply_len);
-            *(reply_start+reply_len) = 0;
+            *(tmp+reply_len) = 0;
             serverLog(LL_DEBUG, "[TEST_CLIENT_BUF]c->ssdb_replies[1]: %s, len:%d", tmp, reply_len);
+            sdsfree(tmp);
 #endif
 
             discardSSDBreaderBuffer(c->context->reader);
