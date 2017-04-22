@@ -31,6 +31,7 @@
 #include <sys/uio.h>
 #include <math.h>
 #include <ctype.h>
+//#define TEST_CLIENT_BUF
 
 static void setProtocolError(const char *errstr, client *c, int pos);
 
@@ -911,7 +912,6 @@ void handleClientsBlockedOnFlushall(void) {
     }
 }
 
-#define TEST_CLIENT_BUF
 static void revertClientBufReply(client *c, size_t revertlen) {
     listNode *ln;
     sds tail;
@@ -1394,7 +1394,6 @@ cleanup:
     }
 }
 
-//#define TEST_CLIENT_BUF
 /* TODO: Implement ssdbClientUnixHandler. Only handle AE_READABLE. */
 void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
     UNUSED(el);
