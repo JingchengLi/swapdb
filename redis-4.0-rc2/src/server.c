@@ -2957,38 +2957,38 @@ void prepareSSDBflush(client* c) {
             blockClient(c, BLOCKED_BY_FLUSHALL);
         }
     } else {
-    /* save the client doing flushall. */
-    server.current_flushall_client = c;
+        /* save the client doing flushall. */
+        server.current_flushall_client = c;
 
-    /* STEP 2: send flushall/flushdb check commands for all connections. */
+        /* STEP 2: send flushall/flushdb check commands for all connections. */
 #ifdef TEST_FLUSHALL_TIMEOUT_CASE
-    // TEST timeout case ONLY !!!
+        // TEST timeout case ONLY !!!
     server.flush_check_unresponse_num = listLength(server.clients) - listLength(server.slaves) + 9999;
 #else
-    server.flush_check_unresponse_num = listLength(server.clients) - listLength(server.slaves);
+        server.flush_check_unresponse_num = listLength(server.clients) - listLength(server.slaves);
 #endif
-    serverLog(LL_DEBUG, "[flushall]initial server.flush_check_unresponse_num:%d", server.flush_check_unresponse_num);
+        serverLog(LL_DEBUG, "[flushall]initial server.flush_check_unresponse_num:%d", server.flush_check_unresponse_num);
 
-    /* process timeout case in serverCron. */
-    server.flush_check_begin_time = server.unixtime;
-    server.prohibit_ssdb_read_write = PROHIBIT_SSDB_READ_WRITE;
+        /* process timeout case in serverCron. */
+        server.flush_check_begin_time = server.unixtime;
+        server.prohibit_ssdb_read_write = PROHIBIT_SSDB_READ_WRITE;
 
-    listRewind(server.clients, &li);
-    while ((ln = listNext(&li)) != NULL) {
-        lc = listNodeValue(ln);
+        listRewind(server.clients, &li);
+        while ((ln = listNext(&li)) != NULL) {
+            lc = listNodeValue(ln);
 
-        if (isSpecialConnection(lc)) continue;
+            if (isSpecialConnection(lc)) continue;
 
-        if (lc->flags & CLIENT_SLAVE) continue;
+            if (lc->flags & CLIENT_SLAVE) continue;
 
-        if (aeCreateFileEvent(server.el, lc->fd, AE_WRITABLE,
-                              sendFlushCheckCommandToSSDB, lc) == AE_ERR) {
-            /* just free disconnected client and ignore it. */
-            freeClientAsync(lc);
-            server.check_write_unresponse_num -= 1;
-            serverLog(LL_DEBUG, "[flushall]server.flush_check_unresponse_num decrease by 1");
+            if (aeCreateFileEvent(server.el, lc->fd, AE_WRITABLE,
+                                  sendFlushCheckCommandToSSDB, lc) == AE_ERR) {
+                /* just free disconnected client and ignore it. */
+                freeClientAsync(lc);
+                server.check_write_unresponse_num -= 1;
+                serverLog(LL_DEBUG, "[flushall]server.flush_check_unresponse_num decrease by 1");
+            }
         }
-    }
     }
 }
 
