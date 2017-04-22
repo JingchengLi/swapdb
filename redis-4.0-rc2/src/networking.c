@@ -974,6 +974,7 @@ static void revertClientBufReply(client *c, size_t revertlen) {
 
 int handleResponseOfSSDBflushDone(client *c, redisReply* reply, int revert_len) {
     int process_status;
+    client* cur_flush_client;
     UNUSED(c);
 
     if (IsReplyEqual(reply, shared.flushdoneok)) {
@@ -981,10 +982,18 @@ int handleResponseOfSSDBflushDone(client *c, redisReply* reply, int revert_len) 
         /* clean the ssdb reply*/
         revertClientBufReply(c, revert_len);
 
+        /* if this server is a slave, it use server.master->context->fd to do
+         * ssdb flushall. */
+        if (server.masterhost) {
+            cur_flush_client = c;
+        } else {
+            cur_flush_client = server.current_flushall_client;
+        }
+
         /* unblock the client doing flushall and do flushall in redis. */
-        unblockClient(server.current_flushall_client);
-        if (runCommand(server.current_flushall_client, NULL) == C_OK)
-            resetClient(server.current_flushall_client);
+        unblockClient(cur_flush_client);
+        if (runCommand(cur_flush_client, NULL) == C_OK)
+            resetClient(cur_flush_client);
 
         /* allow read/write operations to ssdb. */
         server.prohibit_ssdb_read_write = NO_PROHIBIT_SSDB_READ_WRITE;
@@ -996,12 +1005,23 @@ int handleResponseOfSSDBflushDone(client *c, redisReply* reply, int revert_len) 
         process_status = C_OK;
     } else if (IsReplyEqual(reply, shared.flushdonenok)) {
         serverLog(LL_DEBUG, "[flushall] receive do flush nok, ssdb flushall failed");
+
         /* clean the ssdb reply*/
         revertClientBufReply(c, revert_len);
 
-        unblockClient(server.current_flushall_client);
-        addReplyError(server.current_flushall_client, "do ssdb flushall failed!");
-        resetClient(server.current_flushall_client);
+        /* if this server is a slave, it use server.master->context->fd to do
+         * ssdb flushall. */
+        if (server.masterhost) {
+            /* todo: for slave, we must make sure every command to be processed success,
+             * and don't process next command before successd process of current command. */
+            cur_flush_client = c;
+        } else {
+            cur_flush_client = server.current_flushall_client;
+        }
+
+        unblockClient(cur_flush_client);
+        addReplyError(cur_flush_client, "do ssdb flushall failed!");
+        resetClient(cur_flush_client);
 
         /* allow read/write operations to ssdb. */
         server.prohibit_ssdb_read_write = NO_PROHIBIT_SSDB_READ_WRITE;
@@ -1223,6 +1243,10 @@ int handleExtraSSDBReply(client *c) {
     serverAssert(reply->type == REDIS_REPLY_ARRAY && reply->elements == 1);
     element = reply->element[0];
     serverAssert(element->type == REDIS_REPLY_STRING);
+
+    /* for slave, don't do delete check, because our master will propagate 'del'
+     * if the index of this key need to delete. */
+    if (server.masterhost) return C_OK;
 
     serverLog(LL_DEBUG, "element->str: %s", element->str);
     if (!isSpecialConnection(c)

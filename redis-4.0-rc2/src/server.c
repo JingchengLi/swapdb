@@ -1426,31 +1426,34 @@ void startToHandleCmdListInSlave(void) {
     listRewind(server.loadAndEvictCmdList, &iter);
     while((node = listNext(&iter)) != NULL) {
         loadAndEvictCmd *cmdinfo = node->value;
-        robj *keyobj = cmdinfo->argv[1];
+        //robj *keyobj = cmdinfo->argv[1];
 
-        /* TODO: optimization. */
+        /* todo: remove unnecessary codes, 'storetossdb' and 'dumpfromssdb' will
+         * determine this. */
+        /*
         if (dictFind(EVICTED_DATA_DB->transferring_keys, keyobj->ptr)
             || dictFind(EVICTED_DATA_DB->loading_hot_keys, keyobj->ptr)
             || dictFind(EVICTED_DATA_DB->delete_confirm_keys, keyobj->ptr))
             break;
+            */
 
         server.cmdNotDone = 0;
         restoreLoadEvictCommandVector(server.slave_ssdb_load_evict_client,
                                       cmdinfo->argc , cmdinfo->argv, cmdinfo->cmd);
 
-            server.slave_ssdb_load_evict_client->lastcmd = server.slave_ssdb_load_evict_client->cmd;
-            runCommand(server.slave_ssdb_load_evict_client, NULL);
-            if (!server.cmdNotDone) {
-                serverLog(LL_DEBUG, "beforesleep processing cmd: %s",
-                          server.slave_ssdb_load_evict_client->cmd->name);
-            } else {
-                serverLog(LL_DEBUG, "beforesleep processing cmd: %s failed.",
-                          server.slave_ssdb_load_evict_client->cmd->name);
-                break;
-            }
-
+        server.slave_ssdb_load_evict_client->lastcmd = server.slave_ssdb_load_evict_client->cmd;
+        runCommand(server.slave_ssdb_load_evict_client, NULL);
+        if (server.cmdNotDone) {
+            serverLog(LL_DEBUG, "beforesleep processing cmd: %s, blocked by write, will try the next time",
+                      server.slave_ssdb_load_evict_client->cmd->name);
+            /* preserve the cmdinfo for the next time, avoid to be reseted by resetClient. */
+            server.slave_ssdb_load_evict_client->argv = NULL;
+        } else {
+            serverLog(LL_DEBUG, "beforesleep processing cmd: %s",
+                      server.slave_ssdb_load_evict_client->cmd->name);
+            listDelNode(server.loadAndEvictCmdList, node);
+        }
         resetClient(server.slave_ssdb_load_evict_client);
-        listDelNode(server.loadAndEvictCmdList, node);
     }
 }
 
@@ -1477,10 +1480,12 @@ void handleDeleteConfirmKeys(void) {
         server.delete_confirm_client->argv[1] = createObject(OBJ_STRING, sdsdup(de->key));
         server.delete_confirm_client->cmd = lookupCommandByCString("exists");
 
-        sendCommandToSSDB(server.delete_confirm_client, NULL);
+        if (C_OK != sendCommandToSSDB(server.delete_confirm_client, NULL)) {
+            break;
+        }
 
         /* TODO: use a suitable timeout. */
-        server.delete_confirm_client->bpop.timeout = 5000 + mstime();
+        server.delete_confirm_client->bpop.timeout = 2000 + mstime();
         blockClient(server.delete_confirm_client, BLOCKED_BY_DELETE_CONFIRM);
         break;
     }
@@ -1544,14 +1549,14 @@ void beforeSleep(struct aeEventLoop *eventLoop) {
     /* Try to load keys from SSDB to redis. */
     if (server.jdjr_mode && server.masterhost == NULL) startToLoadIfNeeded();
 
+    if (server.jdjr_mode && server.masterhost == NULL) handleDeleteConfirmKeys();
+
     /* Try to handle cmds(load/evict cmds) in an extra list in slave. */
     if (server.jdjr_mode && server.masterhost) startToHandleCmdListInSlave();
 
     /* Call handleCustomizedBlockedClients in beforeSleep to
        avoid timeout when there's only 1 real client. */
     if (server.jdjr_mode) handleCustomizedBlockedClients();
-
-    if (server.jdjr_mode) handleDeleteConfirmKeys();
 }
 
 /* =========================== Server initialization ======================== */
@@ -2934,6 +2939,24 @@ void prepareSSDBflush(client* c) {
 
     server.is_doing_flushall = 1;
 
+    /* if this is a slave, we don't need to do flush check, just tell SSDB to do flushall*/
+    if (server.masterhost) {
+        sds finalcmd = sdsnew("*1\r\n$14\r\nrr_do_flushall\r\n");
+        if (sendCommandToSSDB(c, finalcmd) != C_OK) {
+            // todo: 保存当前命令及参数，重连SSDB后重试当前命令
+
+            /* todo: for slave, we must make sure every command to be processed success,
+             * and don't process next command before successd process of current command. */
+        } else {
+            serverLog(LL_DEBUG, "Sending rr_do_flushall to SSDB success.");
+        }
+        if (!c) {
+            /* todo: we can do nothing but retry 'flushall', we can't call resetClient even if
+              block timeout. because this cause inconsistent data with my master. */
+            c->bpop.timeout = 0;
+            blockClient(c, BLOCKED_BY_FLUSHALL);
+        }
+    } else {
     /* save the client doing flushall. */
     server.current_flushall_client = c;
 
@@ -2954,13 +2977,6 @@ void prepareSSDBflush(client* c) {
     while ((ln = listNext(&li)) != NULL) {
         lc = listNodeValue(ln);
 
-        if (server.master && lc == server.master) {
-            /* for slave, we don't send flush check to its master. */
-            server.flush_check_unresponse_num -= 1;
-            serverLog(LL_DEBUG, "[flushall]server.flush_check_unresponse_num decrease by 1");
-            continue;
-        }
-
         if (isSpecialConnection(lc)) continue;
 
         if (lc->flags & CLIENT_SLAVE) continue;
@@ -2972,6 +2988,7 @@ void prepareSSDBflush(client* c) {
             server.check_write_unresponse_num -= 1;
             serverLog(LL_DEBUG, "[flushall]server.flush_check_unresponse_num decrease by 1");
         }
+    }
     }
 }
 
