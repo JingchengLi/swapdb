@@ -110,6 +110,7 @@ proc wait_for_online {r {num 1}} {
     if {$retry == 0} {
         error "assertion:Slaves not correctly synchronized"
     }
+    return [expr (500 - $retry)*0.1]
 }
 
 # Random integer between 0 and max (excluded).

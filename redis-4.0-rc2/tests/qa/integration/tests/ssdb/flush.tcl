@@ -152,7 +152,7 @@ start_server {tags {"ssdb"}} {
                     wait_for_online $master 1
                     $master $flush
                     after 1000
-                    wait_ssdb_reconnect -1
+                    wait_ssdb_reconnect -2
 
                     stop_bg_client_list $clist
                     $master ping
@@ -182,7 +182,7 @@ start_server {tags {"ssdb"}} {
                     after 1000
                     stop_bg_client_list $flushclist
                     after 1000
-                    wait_ssdb_reconnect -1
+                    wait_ssdb_reconnect -2
                     stop_bg_client_list $clist
                     $master ping
                 } {PONG}
