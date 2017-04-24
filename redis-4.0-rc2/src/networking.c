@@ -1498,14 +1498,6 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
             c->ssdb_replies[0] = aux;
             aux = NULL;
 
-            //reply_start = r->buf+r->pos-reply_len;
-            /* add this reply to redis user buffer. */
-            //if (!isSpecialConnection(c)) addReplyString(c, reply_start, reply_len);
-
-            //discardSSDBreaderBuffer(c->context->reader);
-            /* save the first reply len and we may need to revert it from the user buffer.*/
-            //first_reply_len = reply_len;
-
             serverAssert(!c->ssdb_replies[1]);
 
             /* the returned 'aux' may be NULL when redisGetReplyFromReader return REDIS_OK */
@@ -1550,11 +1542,10 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
             freeClient(c);
             return;
         }
-
-        /* Continue to read the next callback from SSDB. */
-        if (!c->ssdb_replies[0] || !c->ssdb_replies[1])
-            return;
     }
+    /* Continue to read the next callback from SSDB. */
+    if (!c->ssdb_replies[0] || !c->ssdb_replies[1])
+        return;
 
     handleSSDBReply(c, first_reply_len);
 
