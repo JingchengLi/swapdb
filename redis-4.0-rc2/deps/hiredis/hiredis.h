@@ -145,6 +145,7 @@ void redisReaderFree(redisReader *r);
 int redisReaderFeed(redisReader *r, const char *buf, size_t len);
 int redisReaderGetReply(redisReader *r, void **reply, int* reply_len, int is_ssdb);
 void discardSSDBreaderBuffer(redisReader *r);
+void redisReaderSetSSDBCheckError(redisReader *r);
 
 /* Backwards compatibility, can be removed on big version bump. */
 #define redisReplyReaderCreate redisReaderCreate

@@ -1240,6 +1240,7 @@ int handleExtraSSDBReply(client *c) {
     robj **keyobjs = NULL;
 
     reply = c->ssdb_replies[1];
+
     serverAssert(reply->type == REDIS_REPLY_ARRAY && reply->elements == 1);
     element = reply->element[0];
     serverAssert(element->type == REDIS_REPLY_STRING);
@@ -1430,9 +1431,13 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
     if (!c || !c->context)
         return;
 
+    int total_reply_len = 0;
     redisReader *r = c->context->reader;
     char* reply_start;
     int first_reply_len;
+#ifdef TEST_CLIENT_BUF
+    sds tmp = sdsempty();
+#endif
 
     do {
         int reply_len = 0;
@@ -1464,25 +1469,42 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
         /* the returned 'aux' may be NULL when redisGetReplyFromReader return REDIS_OK */
         if (redisGetSSDBreplyFromReader(c->context, &aux, &reply_len) == REDIS_ERR)
             break;
+        total_reply_len += reply_len;
 
-        /* Record 1th reply. */
+        /* maybe we don't get a reply, but r->pos maybe has changed.*/
+        if (!c->ssdb_replies[0]) {
+            if (reply_len) {
+                reply_start = r->buf+r->pos-reply_len;
+                if (!isSpecialConnection(c)) addReplyString(c, reply_start, reply_len);
+#ifdef TEST_CLIENT_BUF
+                tmp = sdscatlen(tmp, reply_start, reply_len);
+#endif
+                /* NOTE: this may change r->pos */
+                discardSSDBreaderBuffer(c->context->reader);
+            }
+        }
+
+        /* we get a reply, record 1th reply. */
         if (aux && !c->ssdb_replies[0]) {
+#ifdef TEST_CLIENT_BUF
+            tmp = sdscatlen(tmp, "\0", 1);
+            serverLog(LL_DEBUG, "[TEST_CLIENT_BUF]c->ssdb_replies[0]: %s, len:%d", tmp, total_reply_len);
+            sdsfree(tmp);
+#endif
+            /* save the first reply len and we may need to revert it from the user buffer.*/
+            first_reply_len = total_reply_len;
+            /* reset total reply len for the second reply. */
+            total_reply_len = 0;
             c->ssdb_replies[0] = aux;
             aux = NULL;
 
-            reply_start = r->buf+r->pos-reply_len;
+            //reply_start = r->buf+r->pos-reply_len;
             /* add this reply to redis user buffer. */
-            if (!isSpecialConnection(c)) addReplyString(c, reply_start, reply_len);
- #ifdef TEST_CLIENT_BUF
-            sds tmp = sdsnewlen(NULL, reply_len+1);
-            sdscpylen(tmp, reply_start, reply_len);
-            *(tmp+reply_len) = 0;
-            serverLog(LL_DEBUG, "[TEST_CLIENT_BUF]c->ssdb_replies[0]: %s, len:%d", tmp, reply_len);
-            sdsfree(tmp);
-#endif
-            discardSSDBreaderBuffer(c->context->reader);
+            //if (!isSpecialConnection(c)) addReplyString(c, reply_start, reply_len);
+
+            //discardSSDBreaderBuffer(c->context->reader);
             /* save the first reply len and we may need to revert it from the user buffer.*/
-            first_reply_len = reply_len;
+            //first_reply_len = reply_len;
 
             serverAssert(!c->ssdb_replies[1]);
 
@@ -1490,30 +1512,49 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
             /* the 'redisBufferRead' may read muliple responses, so we just try to get the sencond replies. */
             if (redisGetSSDBreplyFromReader(c->context, &aux, &reply_len) == REDIS_ERR)
                 break;
+            total_reply_len += reply_len;
         }
 
         /* Record 2th reply. */
         if (aux && c->ssdb_replies[0] && !c->ssdb_replies[1]) {
             c->ssdb_replies[1] = aux;
 #ifdef TEST_CLIENT_BUF
-            sds tmp = sdsnewlen(NULL, reply_len+1);
+            tmp = sdsnewlen(NULL, total_reply_len+1);
 
-            reply_start = r->buf+r->pos-reply_len;
-            sdscpylen(tmp, reply_start, reply_len);
-            *(tmp+reply_len) = 0;
-            serverLog(LL_DEBUG, "[TEST_CLIENT_BUF]c->ssdb_replies[1]: %s, len:%d", tmp, reply_len);
+            reply_start = r->buf+r->pos-total_reply_len;
+            sdscpylen(tmp, reply_start, total_reply_len);
+            *(tmp+total_reply_len) = 0;
+            serverLog(LL_DEBUG, "[TEST_CLIENT_BUF]c->ssdb_replies[1]: %s, len:%d", tmp, total_reply_len);
             sdsfree(tmp);
 #endif
 
+            /* NOTE: this may change r->pos */
             discardSSDBreaderBuffer(c->context->reader);
 
             break;
         }
     } while (aux == NULL);
 
-    /* Continue to read the next callback from SSDB. */
-    if (!c->ssdb_replies[0] || !c->ssdb_replies[1])
-        return;
+    /* check if the second reply is 'check 0' or 'check 1' */
+    if (c->ssdb_replies[1]) {
+        redisReply* reply = c->ssdb_replies[1];
+
+        if (reply->type != REDIS_REPLY_ARRAY || reply->elements != 1) {
+            redisReaderSetSSDBCheckError(c->context->reader);
+            freeClient(c);
+            return;
+        }
+        redisReply* element = reply->element[0];
+        if (element->type != REDIS_REPLY_STRING || (strcmp(element->str, "check 1") && strcmp(element->str, "check 0"))) {
+            redisReaderSetSSDBCheckError(c->context->reader);
+            freeClient(c);
+            return;
+        }
+
+        /* Continue to read the next callback from SSDB. */
+        if (!c->ssdb_replies[0] || !c->ssdb_replies[1])
+            return;
+    }
 
     handleSSDBReply(c, first_reply_len);
 

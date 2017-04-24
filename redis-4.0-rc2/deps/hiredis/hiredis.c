@@ -242,6 +242,10 @@ static void __redisReaderSetErrorProtocolByte(redisReader *r, char byte) {
     __redisReaderSetError(r,REDIS_ERR_PROTOCOL,sbuf);
 }
 
+void redisReaderSetSSDBCheckError(redisReader *r) {
+    __redisReaderSetError(r,REDIS_ERR_OTHER,"the second SSDB reply should be \"check 1\" or \"check 0\"");
+}
+
 static void __redisReaderSetErrorOOM(redisReader *r) {
     __redisReaderSetError(r,REDIS_ERR_OOM,"Out of memory");
 }
