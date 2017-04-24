@@ -534,7 +534,8 @@ proc populate_diff_keys {r2 r1 num {flag redis}} {
             incr j
         } else {
             if {[ string compare [$r1 dump [lindex $list1 $i]] [$r2 dump [lindex $list2 $j]]] != 0} {
-                lappend diff [lindex $list3 $i]
+                lappend diff [lindex $list2 $i]
+                incr num -1
             }
             incr i
             incr j

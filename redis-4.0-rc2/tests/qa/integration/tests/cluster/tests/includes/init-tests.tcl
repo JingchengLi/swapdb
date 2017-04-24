@@ -32,7 +32,7 @@ test "Cluster nodes hard reset" {
             set node_timeout 10000
         } else {
         # product env
-            set node_timeout 15000
+            set node_timeout 5000
         }
         catch {R $id flushall} ; # May fail for readonly slaves.
         R $id MULTI

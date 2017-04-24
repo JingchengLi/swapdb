@@ -12,13 +12,12 @@ start_server {tags {"repl"}} {
             after 2000 ;# Make sure everything expired before taking the digest
 
             set oldmaxmemory [lindex [ r config get maxmemory ] 1]
-            r config set maxmemory 0 ;# load all keys to redis
-                wait_for_condition 100 100 {
-                    [ r exists foo ] eq [ r -1 exists foo ]
-                } else {
-                    fail "key in master and slave not identical"
-                }
-            r config set maxmemory $oldmaxmemory
+            wait_for_condition 10 100 {
+                [ r exists foo ] == 0 &&
+                [ r -1 exists foo ] == 0
+            } else {
+                fail "key in master and slave not identical"
+            }
         }
     }
 }
