@@ -133,7 +133,7 @@ test "Send CLUSTER FAILOVER to instance #5" {
 
 test "Instance #5 is still a slave after some time (no failover)" {
     after 5000
-    assert {[RI 5 role] eq {master}}
+    assert {[RI 5 role] eq {slave}}
 }
 
 test "Wait for instance #0 to return back alive" {

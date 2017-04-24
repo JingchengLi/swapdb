@@ -73,7 +73,7 @@ test "Cluster consistency during live resharding" {
             flush stdout
             set target [dict get [get_myself [randomInt 5]] id]
             set tribpid [lindex [exec \
-                ../../../src/redis-trib.rb reshard \
+                ../../../../../../src/redis-trib.rb reshard \
                 --from all \
                 --to $target \
                 --slots 100 \

@@ -534,10 +534,14 @@ proc kill_instance {type id} {
 
     # Wait for the port it was using to be available again, so that's not
     # an issue to start a new server ASAP with the same port.
-    set retry 10
+    set retry 500
     while {[incr retry -1]} {
         set port_is_free [catch {set s [socket 127.0.0.1 $port]}]
-        if {$port_is_free} continue
+
+        if {!$port_is_free} {
+            after 1000
+            continue
+        }
         catch {close $s}
         set ssdbport_is_free [catch {set s [socket 127.0.0.1 [expr $port+20000]]}]
         if {$ssdbport_is_free} break
@@ -567,6 +571,7 @@ proc restart_instance {type id} {
     set ssdbpid [exec_ssdb_instance $ssdbcfgfile]
     set pid [exec_instance $type $cfgfile]
     set_instance_attrib $type $id pid $pid
+    set_instance_attrib $type $id ssdbpid $ssdbpid
     lappend ::pids $pid
     lappend ::ssdbpids $ssdbpid
 
