@@ -31,7 +31,7 @@
 #include <sys/uio.h>
 #include <math.h>
 #include <ctype.h>
-//#define TEST_CLIENT_BUF
+#define TEST_CLIENT_BUF
 
 static void setProtocolError(const char *errstr, client *c, int pos);
 
@@ -969,7 +969,7 @@ static void revertClientBufReply(client *c, size_t revertlen) {
 #endif
 }
 
-#define IsReplyEqual(reply, sds_response) (sdslen(sds_response) == (reply)->len && \
+#define IsReplyEqual(reply, sds_response) (sdslen(sds_response) == (unsigned)((reply)->len) && \
     0 == memcmp((reply)->str, sds_response, (reply)->len))
 
 int handleResponseOfSSDBflushDone(client *c, redisReply* reply, int revert_len) {
@@ -1433,7 +1433,7 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
     redisReader *r = c->context->reader;
 #ifdef TEST_CLIENT_BUF
     // debug only
-    //sds debug_s = sdsempty();
+    sds debug_s = sdsempty();
 #endif
     char* reply_start;
     int first_reply_len;
@@ -1448,7 +1448,11 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
             /* the returned 'aux' may be NULL when redisGetReplyFromReader return REDIS_OK,
              * so we may need to read multiple times to get a completed response. */
 #ifdef TEST_CLIENT_BUF
-            //debug_s = sdscatlen(debug_s, r->buf+oldlen, r->len - oldlen);
+            debug_s = sdscatlen(debug_s, r->buf+oldlen, r->len - oldlen);
+            debug_s = sdscatlen(debug_s, "\0", 1);
+
+            serverLog(LL_DEBUG, "[read from SSDB]%s", debug_s);
+            sdsfree(debug_s);
 #endif
         }
 
