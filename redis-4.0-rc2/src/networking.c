@@ -1431,10 +1431,6 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
         return;
 
     redisReader *r = c->context->reader;
-#ifdef TEST_CLIENT_BUF
-    // debug only
-    sds debug_s = sdsempty();
-#endif
     char* reply_start;
     int first_reply_len;
 
@@ -1448,6 +1444,8 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
             /* the returned 'aux' may be NULL when redisGetReplyFromReader return REDIS_OK,
              * so we may need to read multiple times to get a completed response. */
 #ifdef TEST_CLIENT_BUF
+            // debug only
+            sds debug_s = sdsempty();
             debug_s = sdscatlen(debug_s, r->buf+oldlen, r->len - oldlen);
             debug_s = sdscatlen(debug_s, "\0", 1);
 
