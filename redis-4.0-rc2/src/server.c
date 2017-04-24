@@ -2949,8 +2949,7 @@ void prepareSSDBflush(client* c) {
              * and don't process next command before successd process of current command. */
         } else {
             serverLog(LL_DEBUG, "Sending rr_do_flushall to SSDB success.");
-        }
-        if (!c) {
+
             /* todo: we can do nothing but retry 'flushall', we can't call resetClient even if
               block timeout. because this cause inconsistent data with my master. */
             c->bpop.timeout = 0;
