@@ -969,7 +969,7 @@ static void revertClientBufReply(client *c, size_t revertlen) {
 #endif
 }
 
-#define IsReplyEqual(reply, sds_response) (sdslen(sds_response) == (unsigned)((reply)->len) && \
+#define IsReplyEqual(reply, sds_response) (sdslen(sds_response) == (size_t)(reply)->len && \
     0 == memcmp((reply)->str, sds_response, (reply)->len))
 
 int handleResponseOfSSDBflushDone(client *c, redisReply* reply, int revert_len) {

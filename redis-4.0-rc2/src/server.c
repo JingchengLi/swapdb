@@ -2823,8 +2823,7 @@ int processCommandMaybeInSSDB(client *c) {
         robj* val = lookupKey(EVICTED_DATA_DB, c->argv[1], LOOKUP_NONE);
         if (val) {
             int ret = sendCommandToSSDB(c, NULL);
-            if (ret == C_ERR) return C_ERR;
-            if (ret == C_FD_ERR) return C_OK;
+            if (ret != C_OK) return ret;
 
             /* Record the keys visting SSDB. */
             {
@@ -3007,7 +3006,8 @@ int runCommand(client *c, int* need_return) {
         } else if (ret == C_NOTSUPPORT_ERR) {
             addReplyErrorFormat(c, "don't support this command in jdjr mode:%s.", c->cmd->name);
             return C_OK;
-        }
+        } else if (ret == C_FD_ERR)
+            return C_FD_ERR;
     }
 
     if (c->flags & CLIENT_MULTI &&
