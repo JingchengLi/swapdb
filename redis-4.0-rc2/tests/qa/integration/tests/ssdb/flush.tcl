@@ -150,20 +150,19 @@ start_server {tags {"ssdb"}} {
                     set clist [ start_bg_complex_data_list $master_host $master_port $num $clients ]
                     [lindex $slaves 0] slaveof $master_host $master_port
                     wait_for_online $master 1
-                    $master $flush
-                    after 1000
-                    wait_ssdb_reconnect -2
-
+                    set size_before [$master dbsize]
+                    catch { $master $flush } err
                     stop_bg_client_list $clist
-                    $master ping
-                } {PONG}
+                    set size_after [$master dbsize]
+                    assert_equal {OK} $err "$flush should return OK"
+                    assert {$size_after < $size_before}
+                }
 
                 test "master and one slave are identical after $flush" {
                     wait_for_condition 300 100 {
                         [$master dbsize] == [[lindex $slaves 0] dbsize]
                     } else {
-                        puts "Different number of keys between master and slaves after too long time."
-                        after 1000000
+                        fail "Different number of keys between master and slaves after too long time."
                     }
                     assert {[$master dbsize] > 0}
                     wait_for_condition 100 100 {
