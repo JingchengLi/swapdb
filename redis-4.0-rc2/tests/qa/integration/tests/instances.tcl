@@ -75,6 +75,7 @@ proc exec_instance {type cfgfile} {
 
 proc exec_ssdb_instance {cfgfile} {
     set pid [exec ssdb-server $cfgfile 2> /dev/null &]
+    after 250
     return $pid
 }
 
@@ -102,6 +103,7 @@ proc spawn_instance {type base_port count {conf {}}} {
     set ssdbdata [regsub -all {{ssdbport}} $ssdbdata $ssdbport]
     set ssdbdata [regsub -all {{redisport}} $ssdbdata $port]
     set ssdbdata [regsub -all {stdout} $ssdbdata "ssdblog.txt"]
+
     puts $fp $ssdbdata
     close $fp
     set ssdbpid [exec_ssdb_instance $ssdb_config_file]
@@ -522,8 +524,11 @@ proc kill_instance {type id} {
         error "You tried to kill ssdb $type $id twice."
     }
 
-    exec kill -9 $pid
-    exec kill -9 $ssdbpid
+    catch { exec kill -9 $pid } err
+    puts "redis:$pid $err"
+    # TODO when restart ssdb err and make kill return child process exit abornormally.
+    catch { exec kill -9 $ssdbpid } err
+    puts "ssdb:$ssdbpid $err"
     set_instance_attrib $type $id pid -1
     set_instance_attrib $type $id ssdbpid -1
     set_instance_attrib $type $id link you_tried_to_talk_with_killed_instance

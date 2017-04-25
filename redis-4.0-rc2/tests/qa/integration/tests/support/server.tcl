@@ -202,7 +202,7 @@ proc start_server {options {code undefined}} {
     # start every server on a different port
     set ::port [find_available_port [expr {$::port+1}]]
     dict set config port $::port
-    dict set config ssdb_server_unixsocket "/tmp/ssdb$::port.sock"
+    # dict set config ssdb_server_unixsocket "/tmp/ssdb$::port.sock"
 
     # apply overrides from global space and arguments
     foreach {directive arguments} [concat $::global_overrides $overrides] {
@@ -232,9 +232,9 @@ proc start_server {options {code undefined}} {
     close $fp
     set ssdbstdout [format "%s/%s" [dict get $config "dir"] "ssdbstdout"]
     set ssdbstderr [format "%s/%s" [dict get $config "dir"] "ssdbstderr"]
-    puts "start ssdb:$ssdb_config_file"
-    set ssdbpid [exec ~/workspace/wy_redis/ssdb-1.9.2/ssdb-server $ssdb_config_file > $ssdbstdout 2> $ssdbstderr &]
-    after 1000
+    puts "start dir: $workdir"
+    set ssdbpid [exec ssdb-server $ssdb_config_file > $ssdbstdout 2> $ssdbstderr &]
+    after 250
 
 
     set stdout [format "%s/%s" [dict get $config "dir"] "stdout"]

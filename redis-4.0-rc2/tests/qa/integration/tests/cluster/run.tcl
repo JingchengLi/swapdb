@@ -9,7 +9,7 @@ source cluster.tcl
 source ../instances.tcl
 source ../../support/cluster.tcl ; # Redis Cluster client.
 
-set ::instances_count 30 ; # How many instances we use at max.
+set ::instances_count 20 ; # How many instances we use at max.
 set ::nodePairs 3
 #       "daemonize yes"
 
@@ -19,12 +19,20 @@ proc main {} {
         "cluster-enabled yes"
         "appendonly yes"
         "appendfsync everysec"
-        "cluster-require-full-coverage no"
         "latency-monitor-threshold 10"
         "cluster-slave-validity-factor 10"
-        "maxmemory-policy allkeys-lru"
-        "cluster-migration-barrier 100"
+        "maxmemory-policy allkeys-lfu"
+        "loglevel debug"
+        "cluster-require-full-coverage yes"
+        "cluster-migration-barrier 1"
+        "maxmemory 100M"
+        "jdjr-mode yes"
+        "ssdb_server_unixsocket ssdb.sock"
     }
+
+    # if {![file exists ../../../../../src/redis-check-aof]} {
+        # catch {exec make -C ../../../../../src} info
+    # }
     run_tests
     cleanup
     end_tests

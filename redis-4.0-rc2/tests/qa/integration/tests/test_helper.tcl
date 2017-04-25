@@ -49,10 +49,10 @@ set ::all_tests {
     integration/replication-c
     integration/replication-psync
     integration/psync2
-    integration/replication-stable
     ssdb/flush
     integration/replication-A
     integration/replication-B
+    integration/replication-stable
     unit/type/list-3
 }
 # next time support
@@ -485,11 +485,11 @@ proc the_end {} {
             foreach failed $::failed_tests {
                 puts "*** $failed"
             }
-            cleanup
+            #cleanup
             exit 1
         }
         puts "\n[colorstr bold-white {\o/}] [colorstr bold-green {All tests passed without errors!}]\n"
-        # cleanup
+        cleanup
         exit 0
             
     } else {
