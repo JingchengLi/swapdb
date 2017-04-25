@@ -2611,6 +2611,7 @@ void resetCustomizedReplication() {
 /* Replication cron function, called 1 time per second. */
 void replicationCron(void) {
     static long long replication_cron_loops = 0;
+    serverLog(LL_DEBUG, "Replication log: replicationCron");
 
     /* Non blocking connection timeout? */
     if (server.masterhost &&
@@ -2697,6 +2698,7 @@ void replicationCron(void) {
      * timeouts are set at a few seconds (example: PSYNC response). */
 
     listRewind(server.slaves,&li);
+    serverLog(LL_DEBUG, "Replication log: slaves length: %ld", listLength(server.slaves));
     while((ln = listNext(&li))) {
         client *slave = ln->value;
 
@@ -2719,6 +2721,8 @@ void replicationCron(void) {
             continue;
         }
 
+        serverLog(LL_DEBUG, "Replication log: server.ssdb_status: %d, slave->ssdb_status: %d, slave->replstate: %d",
+                  server.ssdb_status, slave->ssdb_status, slave->replstate);
         if (server.jdjr_mode && server.use_customized_replication
             && (server.ssdb_status == MASTER_SSDB_SNAPSHOT_OK)
             && (slave->ssdb_status == SLAVE_SSDB_SNAPSHOT_TRANSFER_PRE)) {
@@ -2737,10 +2741,11 @@ void replicationCron(void) {
 
             if (cmdsds && sendCommandToSSDB(slave, cmdsds) != C_OK) {
                 serverLog(LL_WARNING,
-                          "Sending rr_transfer_snapshot to SSDB failed.");
+                          "Replication log: Sending rr_transfer_snapshot to SSDB failed.");
                 /* continue to avoid acess invalid slave pointer later. */
                 continue;
-            }
+            } else
+                serverLog(LL_DEBUG, "Replication log: Sending rr_transfer_snapshot to SSDB, fd: %d", slave->fd);
         }
 
         if (server.jdjr_mode && server.use_customized_replication
@@ -2748,6 +2753,7 @@ void replicationCron(void) {
             && slave->ssdb_status == SLAVE_SSDB_SNAPSHOT_TRANSFER_END) {
             putSlaveOnline(slave);
             slave->ssdb_status = SSDB_NONE;
+            serverLog(LL_DEBUG, "Replication log: replication done: %d", slave->fd);
         }
     }
 
@@ -2764,21 +2770,21 @@ void replicationCron(void) {
             }
 
             max_replstate = slave->replstate > max_replstate ? slave->replstate: max_replstate;
-            serverLog(LL_DEBUG, "slave->replstate: %d, max_replstate: %d, slave->ssdb_status: %d",
+            serverLog(LL_DEBUG, "Replication log: slave->replstate: %d, max_replstate: %d, slave->ssdb_status: %d",
                       slave->replstate, max_replstate, slave->ssdb_status);
         }
         if (max_replstate >= SLAVE_STATE_SEND_BULK_FINISHED
             && !has_slave_in_transfer) {
             /* Notify ssdb to release snapshot. */
             sds cmdsds = sdsnew("*1\r\n$15\r\nrr_del_snapshot\r\n");
-            serverLog(LL_DEBUG, "send rr_del_snapshot to SSDB.");
 
             /* TODO: maybe we can retry if rr_del_snapshot fails. but it's also
              * the duty of SSDB party to delete snapshot by rule.*/
             if (sendCommandToSSDB(server.ssdb_replication_client, cmdsds) != C_OK) {
                 // todo: set server.ssdb_replication_client to null and reconnect
                 serverLog(LL_WARNING, "Sending rr_del_snapshot to SSDB failed.");
-            }
+            } else
+                serverLog(LL_DEBUG, "Replication log: send rr_del_snapshot to SSDB");
         }
     }
 

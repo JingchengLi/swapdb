@@ -1181,3 +1181,17 @@ void disableWatchdog(void) {
     sigaction(SIGALRM, &act, NULL);
     server.watchdog_period = 0;
 }
+
+/* Print the backtrace for debugging. */
+void debugBT() {
+    char **strings;
+    void *buffer[100];
+    int j, nptrs;
+    nptrs = backtrace(buffer, 100);
+    serverLog(LL_DEBUG, "backtrace_symbols");
+    strings = backtrace_symbols(buffer, nptrs);
+
+    for (j = 0; j < nptrs; j ++)
+        serverLog(LL_DEBUG, "%s", strings[j]);
+    zlibc_free(strings);
+}

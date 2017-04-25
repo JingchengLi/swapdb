@@ -770,11 +770,11 @@ void sendCheckWriteCommandToSSDB(aeEventLoop *el, int fd, void *privdata, int ma
         serverLog(LL_WARNING, "Sending rr_check_write to SSDB failed.");
         server.check_write_unresponse_num -= 1;
     } else {
-        serverLog(LL_DEBUG, "Sending rr_check_write to SSDB, fd: %d.", fd);
+        serverLog(LL_DEBUG, "Replication log: Sending rr_check_write to SSDB, fd: %d, rr_check_write counter: %d",
+                  fd, server.check_write_unresponse_num);
         c->ssdb_conn_flags |= CONN_WAIT_WRITE_CHECK_REPLY;
         aeDeleteFileEvent(server.el, c->fd, AE_WRITABLE);
     }
-    serverLog(LL_DEBUG, "Sending rr_check_write to SSDB counter: %d", server.check_write_unresponse_num);
 }
 
 
@@ -1091,7 +1091,7 @@ int handleResponseOfCheckWrite(client *c, redisReply* reply) {
          * we can ignore this client in freeClient and don't decrease server.check_write_unresponse_num. */
         c->ssdb_conn_flags &= ~CONN_WAIT_WRITE_CHECK_REPLY;
 
-        serverLog(LL_DEBUG, "Handle rr_check_write fd: %d, counter: %d", c->fd, server.check_write_unresponse_num);
+        serverLog(LL_DEBUG, "Replication log: rr_check_write fd: %d, counter: %d", c->fd, server.check_write_unresponse_num);
 
         if (server.check_write_unresponse_num == 0) {
             server.check_write_begin_time = -1;
@@ -1101,9 +1101,9 @@ int handleResponseOfCheckWrite(client *c, redisReply* reply) {
             sds finalcmd = sdsnew("*1\r\n$16\r\nrr_make_snapshot\r\n");
             if (sendCommandToSSDB(server.ssdb_replication_client, finalcmd) != C_OK) {
                 /* TODO: set server.ssdb_replication_client to null and reconnect */
-                serverLog(LL_WARNING, "Sending rr_make_snapshot to SSDB failed.");
+                serverLog(LL_WARNING, "Replication log: Sending rr_make_snapshot to SSDB failed.");
             } else {
-                serverLog(LL_DEBUG, "Sending rr_make_snapshot to SSDB sucess.");
+                serverLog(LL_DEBUG, "Replication log: Sending rr_make_snapshot to SSDB sucess.");
             }
         }
 
@@ -1130,6 +1130,7 @@ int handleResponseOfPsync(client *c, redisReply* reply) {
         server.ssdb_status = MASTER_SSDB_SNAPSHOT_OK;
         serverAssert(c == server.ssdb_replication_client);
         process_status = C_OK;
+        serverLog(LL_DEBUG, "Replication log: rr_make_snapshot ok.");
     } else if (IsReplyEqual(reply, shared.makesnapshotnok)) {
         /* Reset customized replication status immediately. */
         resetCustomizedReplication();
@@ -1178,17 +1179,20 @@ int handleResponseOfTransferSnapshot(client *c, redisReply* reply) {
                 freeClientAsync(c);
 
             process_status = C_OK;
+
+            serverLog(LL_DEBUG, "Replication log: transfersnapshotok, fd: %d", c->fd);
         } else if (IsReplyEqual(reply, shared.transfersnapshotnok)) {
             serverAssert(server.ssdb_status == MASTER_SSDB_SNAPSHOT_OK);
             addReplyError(c, "snapshot transfer nok");
             freeClientAsync(c);
             process_status = C_OK;
+            serverLog(LL_DEBUG, "Replication log: transfersnapshotnok, fd: %d", c->fd);
         } else
             process_status = C_ERR;
 
     } else if (c->ssdb_status == SLAVE_SSDB_SNAPSHOT_TRANSFER_START) {
         if (IsReplyEqual(reply, shared.transfersnapshotfinished)) {
-            serverLog(LL_DEBUG, "snapshot transfer finished.");
+            serverLog(LL_DEBUG, "Replication log: snapshot transfer finished, fd: %d", c->fd);
             c->ssdb_status = SLAVE_SSDB_SNAPSHOT_TRANSFER_END;
             process_status = C_OK;
         } else if (IsReplyEqual(reply, shared.transfersnapshotunfinished)) {
@@ -1196,6 +1200,7 @@ int handleResponseOfTransferSnapshot(client *c, redisReply* reply) {
             addReplyError(c, "snapshot transfer unfinished");
             freeClientAsync(c);
             process_status = C_OK;
+            serverLog(LL_DEBUG, "Replication log: snapshot transfer unfinished, fd: %d", c->fd);
         } else
             process_status = C_ERR;
     } else
