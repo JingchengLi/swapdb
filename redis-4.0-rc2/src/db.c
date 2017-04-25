@@ -447,6 +447,24 @@ void flushallCommand(client *c) {
 void delGenericCommand(client *c, int lazy) {
     int numdel = 0, j;
 
+    // todo: remove , debug only
+    if (server.jdjr_mode) {
+        if (dictFind(EVICTED_DATA_DB->dict, c->argv[1]->ptr)) {
+            serverLog(LL_DEBUG, "!!!key is in SSDB");
+        }
+        if (dictFind(server.db->dict, c->argv[1]->ptr)) {
+            serverLog(LL_DEBUG, "!!!key is in redis");
+        }
+        if (c->db == EVICTED_DATA_DB) {
+            serverLog(LL_DEBUG, "!!!db is evictdb");
+        } else {
+            serverLog(LL_DEBUG, "!!!db is not evictdb");
+        }
+        serverLog(LL_DEBUG,"!!!redis dict size:%d", dictSize(EVICTED_DATA_DB->dict));
+        serverLog(LL_DEBUG,"!!!ssdb dict size:%d", dictSize(server.db->dict));
+    }
+
+
     for (j = 1; j < c->argc; j++) {
         expireIfNeeded(c->db,c->argv[j]);
         int deleted  = lazy ? dbAsyncDelete(c->db,c->argv[j]) :
@@ -459,6 +477,9 @@ void delGenericCommand(client *c, int lazy) {
             numdel++;
         }
     }
+    // todo: remove , debug only
+    serverLog(LL_DEBUG,"!!![del]redis dict size:%d", dictSize(EVICTED_DATA_DB->dict));
+    serverLog(LL_DEBUG,"!!![del]ssdb dict size:%d", dictSize(server.db->dict));
     addReplyLongLong(c,numdel);
 }
 
@@ -1158,6 +1179,7 @@ void propagateExpire(redisDb *db, robj *key, int lazy) {
 int expireIfNeeded(redisDb *db, robj *key) {
     mstime_t when = getExpire(db,key);
     mstime_t now;
+    redisDb* propagete_db = db;
 
     if (when < 0) return 0; /* No expire for this key */
 
@@ -1194,11 +1216,16 @@ int expireIfNeeded(redisDb *db, robj *key) {
             return 1;
         } else {
             if (db->id == EVICTED_DATA_DBID)
-                db = server.db + 0;
+                propagete_db = server.db + 0;
         }
     }
 
-    propagateExpire(db,key,server.lazyfree_lazy_expire);
+    if (server.jdjr_mode) {
+        serverLog(LL_DEBUG, "db->id:%d,propagete_db->id:%d", db->id, propagete_db->id);
+        propagateExpire(propagete_db,key,server.lazyfree_lazy_expire);
+    } else {
+        propagateExpire(db,key,server.lazyfree_lazy_expire);
+    }
 
     notifyKeyspaceEvent(NOTIFY_EXPIRED,
         "expired",key,db->id);

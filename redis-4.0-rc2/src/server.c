@@ -1549,7 +1549,7 @@ void beforeSleep(struct aeEventLoop *eventLoop) {
     /* Try to load keys from SSDB to redis. */
     if (server.jdjr_mode && server.masterhost == NULL) startToLoadIfNeeded();
 
-    if (server.jdjr_mode && server.masterhost == NULL) handleDeleteConfirmKeys();
+    if (server.jdjr_mode) handleDeleteConfirmKeys();
 
     /* Try to handle cmds(load/evict cmds) in an extra list in slave. */
     if (server.jdjr_mode && server.masterhost) startToHandleCmdListInSlave();
@@ -2656,11 +2656,6 @@ void call(client *c, int flags) {
          * propagation is needed. */
         if (propagate_flags != PROPAGATE_NONE) {
             propagate(c->cmd,c->db->id,c->argv,c->argc,propagate_flags);
-            // todo: review
-            //if (server.jdjr_mode && c->cmd->proc == ssdbRespRestoreCommand) {
-            //    robj *argv[2] = {shared.slavedelcmdobj, c->argv[1]};
-            //    propagate(lookupCommand(shared.slavedelcmdobj->ptr), 0, argv, 2, PROPAGATE_REPL);
-            //}
         }
     }
 

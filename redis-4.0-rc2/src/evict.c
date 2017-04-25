@@ -554,7 +554,7 @@ int epilogOfEvictingToSSDB(robj *keyobj) {
     /* propagate storetossdb command to slaves. */
     tmpargv[0] = shared.storecmdobj;
     tmpargv[1] = keyobj;
-    propagate(lookupCommand(shared.storecmdobj->ptr), db->id, tmpargv, 2, PROPAGATE_REPL);
+    propagate(lookupCommand(shared.storecmdobj->ptr), 0, tmpargv, 2, PROPAGATE_REPL);
 
     /* propagate aof to del key from redis db.*/
     robj* delCmdObj = createStringObject("del",3);

@@ -1223,8 +1223,7 @@ int handleResponseOfDeleteCheckConfirm(client *c) {
 
         serverLog(LL_DEBUG, "key: %s is delete from EVICTED_DATA_DB->dict.", (char *)c->argv[1]->ptr);
 
-        propagate(lookupCommandByCString("del"), 0, argv, 2,
-                  PROPAGATE_REPL | PROPAGATE_AOF);
+        propagate(lookupCommandByCString("del"), 0, argv, 2, PROPAGATE_REPL | PROPAGATE_AOF);
         serverLog(LL_DEBUG, "propagate key: %s to slave", (char *)c->argv[1]->ptr);
         decrRefCount(argv[0]);
     }
@@ -1250,10 +1249,6 @@ int handleExtraSSDBReply(client *c) {
     element = reply->element[0];
     serverAssert(element->type == REDIS_REPLY_STRING);
 
-    /* for slave, don't do delete check, because our master will propagate 'del'
-     * if the index of this key need to delete. */
-    if (server.masterhost) return C_OK;
-
     serverLog(LL_DEBUG, "element->str: %s", element->str);
     if (!isSpecialConnection(c)
         && !strcmp(element->str, "check 1")) {
@@ -1269,7 +1264,7 @@ int handleExtraSSDBReply(client *c) {
         /* TODO: support multi keys. */
         dictAddOrFind(EVICTED_DATA_DB->delete_confirm_keys, keyobjs[0]->ptr);
         serverLog(LL_DEBUG, "replyString str: %s", element->str);
-        serverLog(LL_DEBUG, "cmd: %s, key: %s is added to delete_confirm_keys.", (char *)keyobjs[0]->ptr, c->cmd->name);
+        serverLog(LL_DEBUG, "cmd: %s, key: %s is added to delete_confirm_keys.", c->cmd->name, (char *)keyobjs[0]->ptr);
 
         if (numkeys && keyobjs) zfree(keyobjs);
         if (keys) getKeysFreeResult(keys);
