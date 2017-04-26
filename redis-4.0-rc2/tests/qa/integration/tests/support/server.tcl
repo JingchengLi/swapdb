@@ -234,7 +234,9 @@ proc start_server {options {code undefined}} {
     set ssdbstderr [format "%s/%s" [dict get $config "dir"] "ssdbstderr"]
     puts "start dir: $workdir"
     set ssdbpid [exec ssdb-server $ssdb_config_file > $ssdbstdout 2> $ssdbstderr &]
-    after 250
+    wait_log_pattern "ssdb server started" $ssdbstdout
+    # wait more 200ms make sure ssdb is ready to accept redis link.
+    after 200
 
 
     set stdout [format "%s/%s" [dict get $config "dir"] "stdout"]
