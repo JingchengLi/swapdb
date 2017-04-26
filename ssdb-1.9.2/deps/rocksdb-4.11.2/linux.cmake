@@ -1,4 +1,4 @@
-set(CMAKE_CXX_FLAGS "-DOS_LINUX -DROCKSDB_PLATFORM_POSIX -DGFLAGS=gflags")
+set(CMAKE_CXX_FLAGS "-std=c++11 -DOS_LINUX -DROCKSDB_PLATFORM_POSIX -DGFLAGS=gflags")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DROCKSDB_LIB_IO_POSIX")
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DZLIB -DBZIP2 -DSNAPPY -DLZ4")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DSNAPPY")
@@ -11,8 +11,22 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse -msse4.2 -Woverloaded-virtual")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wnon-virtual-dtor")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-missing-field-initializers")
 
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} \
-    -fno-omit-frame-pointer -momit-leaf-frame-pointer -DNDEBUG")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -fno-omit-frame-pointer -momit-leaf-frame-pointer -DNDEBUG")
+execute_process(
+	COMMAND "cd ../bzip2-1.0.6; make" WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+	COMMAND "cd ../gflags-2.2.0; cmake .; make" WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+)
+
+INCLUDE_DIRECTORIES(
+	${PROJECT_SOURCE_DIR}/../bzip2-1.0.6
+	${PROJECT_SOURCE_DIR}/../gflags-2.2.0/include
+	${PROJECT_SOURCE_DIR}/../snappy-1.1.0
+)
+LINK_DIRECTORIES(
+	${PROJECT_SOURCE_DIR}/../bzip2-1.0.6
+	${PROJECT_SOURCE_DIR}/../gflags-2.2.0/lib
+	${PROJECT_SOURCE_DIR}/../snappy-1.1.0/.libs
+)
 
 add_library(rocksdb-static STATIC ${SOURCES})
 add_library(rocksdb-shared SHARED ${SOURCES})
