@@ -307,7 +307,7 @@ void NetworkServer::serve(){
 		}
 
 		SSDBServer *serv = (SSDBServer *)(this->data);
-		static int nLoopNum = 0;
+		/*static int nLoopNum = 0;
 		pthread_mutex_lock(&serv->mutex);
 		if (serv->ReplicState == REPLIC_END){
 			pthread_mutex_unlock(&serv->mutex);
@@ -320,7 +320,6 @@ void NetworkServer::serve(){
 					Request request;
 					Response response;
 //					cmd->proc(this, nullptr, request, &response);
-                    log_debug("snapshot not delete");
 				}
 				nLoopNum = 0;
 			}
@@ -328,7 +327,7 @@ void NetworkServer::serve(){
 			pthread_mutex_unlock(&serv->mutex);
 			nLoopNum = 0;
 		}
-		
+*/
 		ready_list.swap(ready_list_2);
 		ready_list_2.clear();
 		
