@@ -18,6 +18,9 @@ INCLUDE_DIRECTORIES(
     ${CMAKE_CURRENT_SOURCE_DIR}/deps/jemalloc-4.1.0/include
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${CMAKE_CURRENT_SOURCE_DIR}/src/client
+    ${CMAKE_CURRENT_SOURCE_DIR}/deps/bzip2-1.0.6
+    ${CMAKE_CURRENT_SOURCE_DIR}/deps/gflags-2.2.0/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/deps/snappy-1.1.0
     )
 
 
@@ -28,7 +31,9 @@ LINK_DIRECTORIES(
     ${CMAKE_CURRENT_SOURCE_DIR}/src/client
     ${CMAKE_CURRENT_SOURCE_DIR}/src/util
     ${CMAKE_CURRENT_SOURCE_DIR}/src/net
-        /usr/local/lib
+    ${CMAKE_CURRENT_SOURCE_DIR}/deps/bzip2-1.0.6
+    ${CMAKE_CURRENT_SOURCE_DIR}/deps/gflags-2.2.0/lib
+    ${CMAKE_CURRENT_SOURCE_DIR}/deps/snappy-1.1.0/.libs
     )
 
 
