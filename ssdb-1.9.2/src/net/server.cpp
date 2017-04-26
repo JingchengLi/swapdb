@@ -554,10 +554,12 @@ int NetworkServer::proc_result(ProcJob *job, ready_list_t *ready_list){
 	int result = job->result;
 			
 	if(log_level() >= Logger::LEVEL_DEBUG){
-		log_debug("[result] w:%.3f,p:%.3f, req: %s, resp: %s",
+        auto dreply = job->resp.get_append_array();
+		log_debug("[result] w:%.3f,p:%.3f, req: %s, resp: %s, dreply: %s",
 			job->time_wait, job->time_proc,
 			serialize_req(*job->req).c_str(),
-			serialize_req(job->resp.resp).c_str());
+			serialize_req(job->resp.resp).c_str(),
+			serialize_req(dreply).c_str());
 	}
 	if(job->cmd){
 		job->cmd->calls += 1;
