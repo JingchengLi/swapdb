@@ -7,7 +7,7 @@ start_server {tags {"repl-abnormal"}} {
         set master_host [srv -1 host]
         set master_port [srv -1 port]
         set slave [srv 0 client]
-        set num 10000
+        set num 100000
         set clients 1
         set clist {}
         set clist [ start_bg_complex_data_list $master_host $master_port $num $clients ]
@@ -15,7 +15,7 @@ start_server {tags {"repl-abnormal"}} {
 
         test "slave ssdb restart when master start to transfer snapshot" {
             $slave slaveof $master_host $master_port
-            set pattern "receive.*rr_transfer_snapshot"
+            set pattern "transfer_snapshot start"
             wait_log_pattern $pattern [srv -1 ssdbstdout]
 
             kill_ssdb_server
@@ -31,6 +31,11 @@ start_server {tags {"repl-abnormal"}} {
             }
             wait_for_online $master
             stop_bg_client_list $clist
+            wait_for_condition 100 100 {
+                [$master dbsize] == [$slave dbsize]
+            } else {
+                fail "Different number of keys between master and slave after too long time."
+            }
             compare_debug_digest
         }
 
@@ -38,6 +43,11 @@ start_server {tags {"repl-abnormal"}} {
             set clist [ start_bg_complex_data_list $master_host $master_port $num $clients ]
             after 1000
             stop_bg_client_list $clist
+            wait_for_condition 100 100 {
+                [$master dbsize] == [$slave dbsize]
+            } else {
+                fail "Different number of keys between master and slave after too long time."
+            }
             compare_debug_digest
         }
     }
@@ -66,6 +76,7 @@ start_server {tags {"repl-abnormal"}} {
             kill_ssdb_server -1
             restart_ssdb_server -1
             set slave [srv 0 client]
+            set master [srv -1 client]
 
             wait_for_condition 50 500 {
                 [lindex [$slave role] 0] eq {slave} &&
@@ -76,6 +87,11 @@ start_server {tags {"repl-abnormal"}} {
             }
             wait_for_online $master
             stop_bg_client_list $clist
+            wait_for_condition 100 100 {
+                [$master dbsize] == [$slave dbsize]
+            } else {
+                fail "Different number of keys between master and slave after too long time."
+            }
             compare_debug_digest
         }
 
@@ -83,6 +99,11 @@ start_server {tags {"repl-abnormal"}} {
             set clist [ start_bg_complex_data_list $master_host $master_port $num $clients ]
             after 1000
             stop_bg_client_list $clist
+            wait_for_condition 100 100 {
+                [$master dbsize] == [$slave dbsize]
+            } else {
+                fail "Different number of keys between master and slave after too long time."
+            }
             compare_debug_digest
         }
     }
@@ -103,8 +124,8 @@ start_server {tags {"repl-abnormal"}} {
 
         test "master redis down when ssdb make snapshot" {
             $slave slaveof $master_host $master_port
-            set pattern "receive.*rr_make_snapshot"
-            wait_log_pattern $pattern [srv -1 ssdbstdout]
+            set pattern "rr_make_snapshot ok"
+            wait_log_pattern $pattern [srv -1 stdout]
             catch {exec kill [srv -1 pid]}
 
             # TODO verify identical
@@ -112,34 +133,7 @@ start_server {tags {"repl-abnormal"}} {
         }
     }
 }
-# 如果在快照删除的超时时间内redis又发了rr_make_snapshot，ssdb也要释放前一次的快照并重新生成，即保证ssdb中只存在一份快照。
-start_server {tags {"repl-abnormal"}} {
-    set master [srv 0 client]
-    set master_host [srv 0 host]
-    set master_port [srv 0 port]
-    set slaves {}
-    start_server {} {
-        lappend slaves [srv 0 client]
-        start_server {} {
-            lappend slaves [srv 0 client]
-            set num 10000
-            set clients 1
-            set clist [ start_bg_complex_data_list $master_host $master_port $num $clients ]
-            after 1000
 
-            test "make snapshot again during deleting snapshot" {
-                [lindex $slaves 0] slaveof $master_host $master_port
-                set pattern "send rr_transfer_snapshot finished"
-                wait_log_pattern $pattern [srv -2 ssdbstdout]
-                [lindex $slaves 1] slaveof $master_host $master_port
-                wait_for_online $master 2
-
-                stop_bg_client_list $clist
-                compare_debug_digest [list 0 -1 -2]
-            }
-        }
-    }
-}
 # 如果刚好加载/转存ssdb key时redis挂了，导致redis的db[0]和evictdb中同时存在一个key的情况。
 # TODO
 # redis client double free问题。
@@ -153,15 +147,14 @@ foreach {log pattern} {slaveredis "SLAVE OF.*enabled"
     masterssdb "receive.*rr_check_write"
     masterssdb "result.*rr_check_write"
     masterredis "Sending rr_make_snapshot to SSDB"
-    masterssdb "receive.*rr_make_snapshot"
+    masterssdb "rr_make_snapshot ok"
     slaveredis "MASTER <-> SLAVE sync started"
     masterssdb "result.*rr_make_snapshot"
     masterredis "Starting BGSAVE for SYNC with target"
     slaveredis "Full resync from master"
     masterredis "DB saved on disk"
     masterredis "Background saving terminated"
-    masterssdb "receive.*rr_transfer_snapshot"
-    masterssdb "result.*rr_transfer_snapshot"
+    masterssdb "transfer_snapshot start"
     slaveredis "MASTER <-> SLAVE sync: Flushing old data"
     slaveredis "MASTER <-> SLAVE sync: Finished with success"
     slavessdb "reply replic finish ok"
@@ -191,21 +184,28 @@ foreach {log pattern} {slaveredis "SLAVE OF.*enabled"
                 set clist [ start_bg_complex_data_list $master_host $master_port $num $clients ]
                 # after 1000
 
-                test "slave redis down after $pattern" {
+                test "slave ssdb restart after $pattern" {
                     [lindex $slaves 0] slaveof $master_host $master_port
                     # [lindex $slaves 1] slaveof $master_host $master_port
-                    after 1000000
                     wait_log_pattern $pattern $log
 
-                    puts "$pattern"
-                    # kill_ssdb_server -1
-                    # restart_ssdb_server -1
-                    # wait_for_online $master 2
+                    kill_ssdb_server -1
+                    restart_ssdb_server -1
+                    # new client
+                    set master [srv -1 client]
+                    wait_for_online $master 1
 
-                    # TODO verify identical
                     stop_bg_client_list  $clist
                 }
-                # after 1000000
+
+                test "master and slave are identical" {
+                    wait_for_condition 100 100 {
+                        [$master dbsize] == [[lindex $slaves 0] dbsize]
+                    } else {
+                        fail "Different number of keys between master and slave after too long time."
+                    }
+                    compare_debug_digest
+                }
             }
         }
     # {}

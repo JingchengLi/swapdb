@@ -42,6 +42,7 @@ foreach flag {New Mid Old} {
     }
 }
 
+# swap-34
 # 从节点ssdb在开始传输快照时重启，验证同步完成后key基本读写情况。
 start_server {tags {"repl-abnormal"}} {
     start_server {} {
@@ -91,6 +92,7 @@ start_server {tags {"repl-abnormal"}} {
     }
 }
 
+# swap-45
 ## 如果在快照删除的超时时间内redis又发了rr_make_snapshot，ssdb也要释放前一次的快照并重新生成，即保证ssdb中只存在一份快照。
 start_server {tags {"repl-abnormal"}} {
     set master [srv 0 client]

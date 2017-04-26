@@ -273,24 +273,12 @@ foreach dl {no} {
 
                         # Wait for all the three slaves to reach the "online"
                         # state from the POV of the master.
-                        set retry 500
-                        while {$retry} {
-                            set info [r -3 info]
-                            if {[string match {*slave0:*state=online*slave1:*state=online*slave2:*state=online*} $info]} {
-                                break
-                            } else {
-                                incr retry -1
-                                after 100
-                            }
-                        }
-                        if {$retry == 0} {
-                            error "assertion:Slaves not correctly synchronized"
-                        }
+                        puts "cost [wait_for_online $master 3]s to be online!"
 
                         # Wait that slaves acknowledge they are online so
                         # we are sure that DBSIZE and DEBUG DIGEST will not
                         # fail because of timing issues.
-                        wait_for_condition 500 100 {
+                        wait_for_condition 100 100 {
                             [lindex [[lindex $slaves 0] role] 3] eq {connected} &&
                             [lindex [[lindex $slaves 1] role] 3] eq {connected} &&
                             [lindex [[lindex $slaves 2] role] 3] eq {connected}
@@ -307,7 +295,7 @@ foreach dl {no} {
 
                         # Make sure that slaves and master have same
                         # number of keys
-                        wait_for_condition 500 100 {
+                        wait_for_condition 300 100 {
                             [$master dbsize] == [[lindex $slaves 0] dbsize] &&
                             [$master dbsize] == [[lindex $slaves 1] dbsize] &&
                             [$master dbsize] == [[lindex $slaves 2] dbsize]
@@ -315,14 +303,14 @@ foreach dl {no} {
                             fail "Different number of keys between master and slave after too long time."
                         }
 
-                        set digest [$master debug digest]
-                        set digest0 [[lindex $slaves 0] debug digest]
-                        set digest1 [[lindex $slaves 1] debug digest]
-                        set digest2 [[lindex $slaves 2] debug digest]
-                        assert {$digest ne 0000000000000000000000000000000000000000}
-                        assert {$digest eq $digest0}
-                        assert {$digest eq $digest1}
-                        assert {$digest eq $digest2}
+                        wait_for_condition 100 100 {
+                            [$master debug digest] == [[lindex $slaves 0] debug digest] &&
+                            [[lindex $slaves 0] debug digest] == [[lindex $slaves 1] debug digest] &&
+                            [[lindex $slaves 1] debug digest] == [[lindex $slaves 2] debug digest]
+                        } else {
+                            fail "Different digest between master([$master debug digest]) and slave1([[lindex $slaves 0] debug digest]) slave2([[lindex $slaves 1] debug digest]) slave3([[lindex $slaves 2] debug digest]) after too long time."
+                        }
+                        assert {[$master debug digest] ne 0000000000000000000000000000000000000000}
 
                         # Check digests when all keys be hot
                         r -3 config set maxmemory 0
