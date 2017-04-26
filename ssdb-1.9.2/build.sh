@@ -4,6 +4,8 @@ JEMALLOC_PATH="$BASE_DIR/deps/jemalloc-4.1.0"
 LEVELDB_PATH="$BASE_DIR/deps/leveldb-1.18"
 SNAPPY_PATH="$BASE_DIR/deps/snappy-1.1.0"
 ROCKSDB_PATH="$BASE_DIR/deps/rocksdb-4.11.2"
+BZ2_PATH="$BASE_DIR/deps/bzip2-1.0.6"
+GFLAGS_PATH="$BASE_DIR/deps/gflags-2.2.0"
 
 # dependency check
 which autoconf > /dev/null 2>&1
@@ -78,6 +80,20 @@ if [ ! -f Makefile ]; then
 	make
 	echo "##### building snappy finished #####"
 	echo ""
+fi
+
+cd "$DIR"
+DIR=`pwd`
+cd $BZ2_PATH
+make
+	
+
+cd "$DIR"
+DIR=`pwd`
+cd $GFLAGS_PATH
+if [ ! -f Makefile ];then
+	cmake .
+	make
 fi
 
 cd "$DIR"

@@ -13,6 +13,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-missing-field-initializers")
 
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -fno-omit-frame-pointer -momit-leaf-frame-pointer -DNDEBUG")
 execute_process(
+	COMMAND "cd ../snappy-1.1.0; ./configure; make" WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
 	COMMAND "cd ../bzip2-1.0.6; make" WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
 	COMMAND "cd ../gflags-2.2.0; cmake .; make" WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
 )
