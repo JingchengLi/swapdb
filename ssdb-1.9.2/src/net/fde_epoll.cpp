@@ -6,6 +6,9 @@ found in the LICENSE file.
 #ifndef UTIL_FDE_EPOLL_H
 #define UTIL_FDE_EPOLL_H
 
+#include <util/log.h>
+#include "fde.h"
+
 Fdevents::Fdevents(){
 	ep_fd = epoll_create(1024);
 }
@@ -27,6 +30,8 @@ bool Fdevents::isset(int fd, int flag){
 }
 
 int Fdevents::set(int fd, int flags, int data_num, void *data_ptr){
+	log_debug("fd: %d, Fdevents::set %d", fd, flags);
+
 	struct Fdevent *fde = get_fde(fd);
 	if(fde->s_flags & flags){
 		return 0;
@@ -51,6 +56,8 @@ int Fdevents::set(int fd, int flags, int data_num, void *data_ptr){
 }
 
 int Fdevents::del(int fd){
+	log_debug("fd: %d, Fdevents::del", fd);
+
 	struct epoll_event epe;
 	int ret = epoll_ctl(ep_fd, EPOLL_CTL_DEL, fd, &epe);
 	if(ret == -1){
@@ -63,6 +70,8 @@ int Fdevents::del(int fd){
 }
 
 int Fdevents::clr(int fd, int flags){
+	log_debug("fd: %d, Fdevents::clr %d", fd, flags);
+
 	struct Fdevent *fde = get_fde(fd);
 	if(!(fde->s_flags & flags)){
 		return 0;

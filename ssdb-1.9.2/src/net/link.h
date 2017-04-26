@@ -24,7 +24,6 @@ class Link{
 		std::vector<Bytes> recv_data;
 	public:
 		bool append_reply;
-		bool bflag_del_read;
 
 		const static int MAX_PACKET_SIZE = 128 * 1024 * 1024;
 

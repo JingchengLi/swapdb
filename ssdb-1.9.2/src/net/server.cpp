@@ -38,18 +38,19 @@ void sig_signal_handler(int sig, siginfo_t * info, void * ucontext) {
     log_error("SSDB %s crashed by signal: %d", SSDB_VERSION, sig);
 
 
-    void *array[12];
+    void *array[20];
     int size;
 
     // get void*'s for all entries on the stack
-    size = backtrace(array, 12);
+    size = backtrace(array, 20);
 
     // print out all the frames to stderr
     fprintf(stderr, "Error: signal %d (%s)\n", sig, strsignal(sig));
     backtrace_symbols_fd(array, size, STDERR_FILENO);
     backtrace_symbols_fd(array, size, log_fd()->_fileno);
 //	abort();
-	exit(sig);
+//	exit(sig);
+	close(log_fd()->_fileno);
 }
 
 void signal_handler(int sig){
@@ -465,8 +466,8 @@ void NetworkServer::serve(){
                         fdes->del(slave.master_link->fd());
                         delete slave.master_link;
                     } else{
-                        slave.master_link->bflag_del_read = false;
-						fdes->set(slave.master_link->fd(), FDEVENT_IN, 1, slave.master_link);
+                        slave.master_link->noblock(true);
+                        fdes->set(slave.master_link->fd(), FDEVENT_IN, 1, slave.master_link);
                     }
                 } else{
                     log_error("The link from redis is off!");
@@ -498,6 +499,7 @@ void NetworkServer::serve(){
 			}
 			if(req->empty()){
 				fdes->set(link->fd(), FDEVENT_IN, 1, link);
+                log_debug("fd: %d, req is empty ", link->fd());
 				continue;
 			}
 
@@ -510,7 +512,6 @@ void NetworkServer::serve(){
 			int result = this->proc(job);
 			if(result == PROC_THREAD){
 				log_debug("[receive] req: %s", serialize_req(*job->req).c_str());
-
 				fdes->del(link->fd());
 			}else if(result == PROC_BACKEND){
 				fdes->del(link->fd());
@@ -601,7 +602,7 @@ int NetworkServer::proc_result(ProcJob *job, ready_list_t *ready_list){
 	if(!link->output->empty()){
 		fdes->set(link->fd(), FDEVENT_OUT, 1, link);
 	}
-	if(link->input->empty() && !link->bflag_del_read){
+	if(link->input->empty()){
 		fdes->set(link->fd(), FDEVENT_IN, 1, link);
 	}else{
 		fdes->clr(link->fd(), FDEVENT_IN);
@@ -651,7 +652,7 @@ int NetworkServer::proc_client_event(const Fdevent *fde, ready_list_t *ready_lis
 		//log_debug("fd: %d read: %d", link->fd(), len);
 		if(len <= 0){
 			double serv_time = millitime() - link->create_time;
-			log_debug("fd: %d, read: %d, delete link, s:%.3f", link->fd(), len, serv_time);
+			log_debug("fd: %d, read: %d, delete link, s:%.3f, e:%d, f:%d", link->fd(), len, serv_time, fde->events, fde->s_flags);
 			link->mark_error();
 			return 0;
 		}
@@ -662,7 +663,7 @@ int NetworkServer::proc_client_event(const Fdevent *fde, ready_list_t *ready_lis
 		}
 		int len = link->write();
 		if(len <= 0){
-			log_debug("fd: %d, write: %d, delete link", link->fd(), len);
+			log_debug("fd: %d, write: %d, delete link, e:%d, f:%d", link->fd(), len, fde->events, fde->s_flags);
 			link->mark_error();
 			return 0;
 		}
@@ -769,12 +770,15 @@ int NetworkServer::proc(ProcJob *job){
 	}
 
 	if (job->link->append_reply) {
-		if(job->link->send_append_res(job->resp.get_append_array()) == -1){
-			log_debug("job->link->send_append_res error");
-			job->result = PROC_ERROR;
-			return job->result;
-		}
-	}
+        if (!job->resp.resp.empty()) {
+            if(job->link->send_append_res(job->resp.get_append_array()) == -1){
+                log_debug("job->link->send_append_res error");
+                job->result = PROC_ERROR;
+                return job->result;
+            }
+
+        }
+    }
 
 	return job->result;
 }

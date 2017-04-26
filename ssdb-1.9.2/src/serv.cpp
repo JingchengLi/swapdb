@@ -252,10 +252,10 @@ void SSDBServer::reg_procs(NetworkServer *net) {
     REG_PROC(sync150, "r");
 
 
-    REG_PROC(dreply, "w");
+    REG_PROC(dreply, "r");
     REG_PROC(flushdb, "wt");
 
-    REG_PROC(slowlog, "w"); // attention!
+    REG_PROC(slowlog, "r"); // attention!
 
     REG_PROC(dump2, "b");
     REG_PROC(info, "r");
@@ -272,8 +272,8 @@ void SSDBServer::reg_procs(NetworkServer *net) {
     REG_PROC(rr_do_flushall, "wt");
     REG_PROC(rr_flushall_check, "wt");
     REG_PROC(rr_check_write, "wt");
-    REG_PROC(rr_make_snapshot, "w");
-    REG_PROC(rr_transfer_snapshot, "w");
+    REG_PROC(rr_make_snapshot, "r");
+    REG_PROC(rr_transfer_snapshot, "b");
     REG_PROC(rr_del_snapshot, "r");
 }
 
@@ -1090,6 +1090,24 @@ int proc_rr_transfer_snapshot(NetworkServer *net, Link *link, const Request &req
     serv->nStartRepliNum++;
     pthread_mutex_unlock(&serv->mutex);
 
+    resp->resp.clear();
+
+    log_debug("transfer_snapshot start %s:%d", ip.c_str(), port);
+    {
+        link->noblock(false);
+        std::vector<std::string> response;
+        response.push_back("ok");
+        response.push_back("rr_transfer_snapshot ok");
+
+        link->send(response);
+        if (link->append_reply) {
+            response.clear();
+            response.push_back("check 0");
+            link->send_append_res(response);
+        }
+        link->write();
+    }
+
     pthread_t tid;
     int err = pthread_create(&tid, NULL, &thread_replic, serv);
     if (err != 0) {
@@ -1097,11 +1115,8 @@ int proc_rr_transfer_snapshot(NetworkServer *net, Link *link, const Request &req
         exit(0);
     }
 
-    net->FdeventsDel(link->fd());
-    link->bflag_del_read = true;
-    resp->push_back("ok");
-    resp->push_back("rr_transfer_snapshot ok");
-    return 0;
+    resp->resp.clear();
+    return PROC_BACKEND;
 }
 
 int proc_rr_del_snapshot(NetworkServer *net, Link *link, const Request &req, Response *resp){

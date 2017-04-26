@@ -34,15 +34,16 @@ SSDBImpl::SSDBImpl()
 }
 
 SSDBImpl::~SSDBImpl(){
-	if(ldb){
-		delete ldb;
-	}
-	if(expiration){
-		delete expiration;
-	}
-	this->stop();
+    if(expiration){
+        delete expiration;
+    }
 
-	log_info("SSDBImpl finalized");
+    this->stop();
+
+    if(ldb){
+        delete ldb;
+    }
+    log_info("SSDBImpl finalized");
 
 #ifdef USE_LEVELDB
     //auto memory man in rocks

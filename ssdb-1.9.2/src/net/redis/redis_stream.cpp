@@ -31,6 +31,7 @@ RedisClient *RedisUpstream::getLink() {
 RedisClient *RedisUpstream::reset() {
     if (client != nullptr) {
         delete client;
+        client = nullptr;
     }
     client = getNewLink();
     return client;

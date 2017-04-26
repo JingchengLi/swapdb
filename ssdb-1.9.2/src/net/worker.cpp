@@ -62,11 +62,13 @@ int ProcWorker::proc(ProcJob *job){
 
 	//todo append custom reply
 	if (job->link->append_reply) {
-		if(job->link->send_append_res(job->resp.get_append_array()) == -1){
+		if (!job->resp.resp.empty()) {
+				if(job->link->send_append_res(job->resp.get_append_array()) == -1){
 
-			log_debug("job->link->send_append_res error");
-			job->result = PROC_ERROR;
-			return 0;
+				log_debug("job->link->send_append_res error");
+				job->result = PROC_ERROR;
+				return 0;
+			}
 		}
 	}
 

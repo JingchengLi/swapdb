@@ -19,7 +19,6 @@ found in the LICENSE file.
 
 Link::Link(bool is_server) {
     append_reply = false;
-    bflag_del_read = false;
 
 #ifdef DREPLY
     append_reply = true;
@@ -44,7 +43,7 @@ Link::Link(bool is_server) {
 }
 
 Link::~Link() {
-    log_debug("~rr_link address:%lld", this);
+    log_debug("fd: %d, ~rr_link address:%lld", sock, this);
     if (redis) {
         delete redis;
         redis = NULL;
@@ -281,11 +280,11 @@ int Link::read() {
             } else if (errno == EWOULDBLOCK) {
                 break;
             } else {
-                //log_debug("fd: %d, read: -1, want: %d, error: %s", sock, want, strerror(errno));
+                log_debug("fd: %d, read: -1, want: %d, error: %s", sock, want, strerror(errno));
                 return -1;
             }
         } else {
-            //log_debug("fd: %d, want=%d, read: %d", sock, want, len);
+            log_debug("fd: %d, want=%d, read: %d", sock, want, len);
             if (len == 0) {
                 return 0;
             }
@@ -314,11 +313,11 @@ int Link::write() {
             } else if (errno == EWOULDBLOCK) {
                 break;
             } else {
-                //log_debug("fd: %d, write: -1, error: %s", sock, strerror(errno));
+                log_debug("fd: %d, write: -1, error: %s", sock, strerror(errno));
                 return -1;
             }
         } else {
-            //log_debug("fd: %d, want: %d, write: %d", sock, want, len);
+            log_debug("fd: %d, want: %d, write: %d", sock, want, len, hexmem( output->data(),len).c_str());
             if (len == 0) {
                 // ?
                 break;
