@@ -4727,7 +4727,7 @@ void ssdbRespRestoreCommand(client *c) {
 
             // progate dumpfromssdb to slaves
             robj *argv[2] = {shared.dumpcmdobj, key};
-            propagate(lookupCommand(shared.dumpcmdobj->ptr), c->db->id, argv, 2, PROPAGATE_REPL);
+            propagate(lookupCommand(shared.dumpcmdobj->ptr), 0, argv, 2, PROPAGATE_REPL);
             serverLog(LL_DEBUG, "ssdbRespRestoreCommand succeed.");
         } else
             serverLog(LL_WARNING, "ssdbRespRestoreCommand failed.");

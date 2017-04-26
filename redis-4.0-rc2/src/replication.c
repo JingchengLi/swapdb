@@ -190,6 +190,12 @@ void replicationFeedSlaves(list *slaves, int dictid, robj **argv, int argc) {
     /* We can't have slaves attached and no backlog. */
     serverAssert(!(listLength(slaves) != 0 && server.repl_backlog == NULL));
 
+    /* in jdjr mode, we only use dbid 0 to propagate command to slaves. to
+     * avoid some issues because of inconsistent hot/cold keys. */
+    if (server.jdjr_mode) {
+        dictid = 0;
+    }
+
     /* Send SELECT command to every slave if needed. */
     if (server.slaveseldb != dictid) {
         robj *selectcmd;
@@ -220,7 +226,10 @@ void replicationFeedSlaves(list *slaves, int dictid, robj **argv, int argc) {
 
         if (dictid < 0 || dictid >= PROTO_SHARED_SELECT_CMDS)
             decrRefCount(selectcmd);
+
+        serverLog(LL_DEBUG, "dbid changed. propagate select db command to slaves.");
     }
+    serverLog(LL_DEBUG, "propagate command(%s) to slaves", argv[0]->ptr);
     server.slaveseldb = dictid;
 
     /* Write the command to the replication backlog if any. */

@@ -1412,7 +1412,7 @@ cleanup:
         if ((c->cmd
              && (c->cmd->flags & CMD_WRITE)
              && server.masterhost == NULL)) {
-            propagate(c->cmd, c->db->id, c->argv, c->argc, PROPAGATE_REPL);
+            propagate(c->cmd, 0, c->argv, c->argc, PROPAGATE_REPL);
         }
 
         resetClient(c);
