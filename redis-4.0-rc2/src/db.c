@@ -447,24 +447,6 @@ void flushallCommand(client *c) {
 void delGenericCommand(client *c, int lazy) {
     int numdel = 0, j;
 
-    // todo: remove , debug only
-    if (server.jdjr_mode) {
-        if (dictFind(EVICTED_DATA_DB->dict, c->argv[1]->ptr)) {
-            serverLog(LL_DEBUG, "!!!key is in SSDB");
-        }
-        if (dictFind(server.db->dict, c->argv[1]->ptr)) {
-            serverLog(LL_DEBUG, "!!!key is in redis");
-        }
-        if (c->db == EVICTED_DATA_DB) {
-            serverLog(LL_DEBUG, "!!!db is evictdb");
-        } else {
-            serverLog(LL_DEBUG, "!!!db is not evictdb");
-        }
-        serverLog(LL_DEBUG,"!!!redis dict size:%d", dictSize(EVICTED_DATA_DB->dict));
-        serverLog(LL_DEBUG,"!!!ssdb dict size:%d", dictSize(server.db->dict));
-    }
-
-
     for (j = 1; j < c->argc; j++) {
         expireIfNeeded(c->db,c->argv[j]);
         int deleted  = lazy ? dbAsyncDelete(c->db,c->argv[j]) :
@@ -477,9 +459,6 @@ void delGenericCommand(client *c, int lazy) {
             numdel++;
         }
     }
-    // todo: remove , debug only
-    serverLog(LL_DEBUG,"!!![del]redis dict size:%d", dictSize(EVICTED_DATA_DB->dict));
-    serverLog(LL_DEBUG,"!!![del]ssdb dict size:%d", dictSize(server.db->dict));
     addReplyLongLong(c,numdel);
 }
 
