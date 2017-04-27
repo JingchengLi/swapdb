@@ -1093,15 +1093,9 @@ int proc_rr_transfer_snapshot(NetworkServer *net, Link *link, const Request &req
     log_debug("transfer_snapshot start %s:%d", ip.c_str(), port);
     {
         link->noblock(false);
-        std::vector<std::string> response;
-        response.push_back("ok");
-        response.push_back("rr_transfer_snapshot ok");
-
-        link->send(response);
+        link->send(std::vector<std::string>({"ok","rr_transfer_snapshot ok"}));
         if (link->append_reply) {
-            response.clear();
-            response.push_back("check 0");
-            link->send_append_res(response);
+            link->send_append_res(std::vector<std::string>({"check 0"}));
         }
         link->write();
     }
