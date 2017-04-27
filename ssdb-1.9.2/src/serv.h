@@ -61,13 +61,6 @@ public:
 };
 
 
-class ReplicJob{
-public:
-    ReplicJob(SSDBServer *serv, const SlaveInfo &slave_info) : serv(serv), slave_info(slave_info) {}
-    SSDBServer *serv;
-    SlaveInfo slave_info;
-};
-
 #define CHECK_NUM_PARAMS(n) do{ \
 		if(req.size() < n){ \
 			resp->push_back("client_error"); \
