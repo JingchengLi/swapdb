@@ -277,7 +277,7 @@ void NetworkServer::serve(){
 	fdes->set(this->redis->fd(), FDEVENT_IN, 0, this->redis);
 	{
 		SSDBServer *serv = (SSDBServer *)(this->data);
-		fdes->set(serv->fds[0], FDEVENT_IN, 160, NULL);
+		fdes->set(serv->replicPipe[0], FDEVENT_IN, 160, NULL);
 	}
 
 	uint32_t status_ticks = g_ticks;
@@ -432,7 +432,7 @@ void NetworkServer::serve(){
                 }
             } else if (fde->data.num == 160){
                 char buf[1] = {0};
-                int n = ::read(serv->fds[0], buf, 1);
+                int n = ::read(serv->replicPipe[0], buf, 1);
                 if(n < 0){
                     if(errno == EINTR){
                         continue;

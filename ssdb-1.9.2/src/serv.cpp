@@ -294,12 +294,12 @@ SSDBServer::SSDBServer(SSDB *ssdb, SSDB *meta, const Config &conf, NetworkServer
 
     backend_dump = new BackendDump(this->ssdb);
 
-    snapshot = nullptr;
-    pthread_mutex_init(&mutex, NULL);
-    ReplicState = REPLIC_START;
-    nStartRepliNum = 0;
-    nFinishPeplicNum = 0;
-    if (pipe(fds) == -1) {
+    replicSnapshot = nullptr;
+
+    replicState = REPLIC_START;
+    replicNumStarted = 0;
+    replicNumFinished = 0;
+    if (pipe(replicPipe) == -1) {
         fprintf(stderr, "create pipe error\n");
         exit(0);
     }
@@ -320,13 +320,11 @@ SSDBServer::SSDBServer(SSDB *ssdb, SSDB *meta, const Config &conf, NetworkServer
 SSDBServer::~SSDBServer() {
     delete backend_dump;
 
-    pthread_mutex_destroy(&mutex);
-
-    if (snapshot != nullptr) {
-        ssdb->ReleaseSnapshot(snapshot);
+    if (replicSnapshot != nullptr) {
+        ssdb->ReleaseSnapshot(replicSnapshot);
     }
-    close(fds[0]);
-    close(fds[1]);
+    close(replicPipe[0]);
+    close(replicPipe[1]);
 
     log_info("SSDBServer finalized");
 }
@@ -739,16 +737,19 @@ static void send_error_to_redis(Link *link) {
  */
 void *thread_replic(void *arg) {
     SSDBServer *serv = (SSDBServer *) arg;
-    pthread_mutex_lock(&serv->mutex);
-    if (serv->slave_infos.empty()) {
-        log_fatal("get slave info error!");
-        exit(0);
-    }
-    Slave_info slave = serv->slave_infos.front();
-    serv->slave_infos.pop();
-    pthread_mutex_unlock(&serv->mutex);
 
-    if (serv->snapshot == NULL) {
+    Slave_info slave;
+    {
+        Locking<Mutex> l(&serv->replicMutex);
+        if (serv->slave_infos.empty()) {
+            log_fatal("get slave info error!");
+            exit(0);
+        }
+        slave = serv->slave_infos.front();
+        serv->slave_infos.pop();
+    }
+
+    if (serv->replicSnapshot == NULL) {
         log_error("snapshot is null, maybe rr_make_snapshot not receive or error!");
         send_error_to_redis(slave.master_link);
         return 0;
@@ -770,7 +771,7 @@ void *thread_replic(void *arg) {
     std::string oper = "mset";
     std::string oper_len;
     ssdb_save_len((uint64_t) oper.size(), oper_len);
-    const leveldb::Snapshot *snapshot = serv->snapshot;
+    const leveldb::Snapshot *snapshot = serv->replicSnapshot;
     auto fit = std::unique_ptr<Iterator>(serv->ssdb->iterator("", "", -1, snapshot));
     while (fit->next()) {
         saveStrToBuffer(buffer.get(), fit->key());
@@ -816,18 +817,19 @@ void *thread_replic(void *arg) {
     link->read();
     delete link;
 
-    pthread_mutex_lock(&serv->mutex);
-    serv->nFinishPeplicNum++;
-    if (serv->nFinishPeplicNum == serv->nStartRepliNum) {
-        serv->ReplicState = REPLIC_END;
+    {
+        Locking<Mutex> l(&serv->replicMutex);
+        serv->replicNumFinished++;
+        if (serv->replicNumFinished == serv->replicNumStarted) {
+            serv->replicState = REPLIC_END;
+        }
     }
-    pthread_mutex_unlock(&serv->mutex);
 
 	if (slave.master_link != NULL){
 		serv->mutex_finish.lock();
 		serv->slave_finish.push(slave);
 		serv->mutex_finish.unlock();
-		int len = ::write(serv->fds[1], "s", 1);
+		int len = ::write(serv->replicPipe[1], "s", 1);
 		if (len == -1){
 			fprintf(stderr, "write fds error\n");
 			exit(0);
@@ -866,11 +868,13 @@ int proc_replic(NetworkServer *net, Link *link, const Request &req, Response *re
     CHECK_NUM_PARAMS(3);
     std::string ip = req[1].String();
     int port = req[2].Int();
-    pthread_mutex_lock(&serv->mutex);
-    serv->slave_infos.push(Slave_info{ip, port, link});
-    pthread_mutex_unlock(&serv->mutex);
 
-    serv->snapshot = serv->ssdb->GetSnapshot();
+    {
+        Locking<Mutex> l(&serv->replicMutex);
+        serv->slave_infos.push(Slave_info{ip, port, link});
+    }
+
+    serv->replicSnapshot = serv->ssdb->GetSnapshot();
 //	breplication = true; //todo 设置全量复制开始标志
 
     pthread_t tid;
@@ -1057,16 +1061,17 @@ int proc_rr_make_snapshot(NetworkServer *net, Link *link, const Request &req, Re
     SSDBServer *serv = (SSDBServer *)net->data;
     log_debug("1:link address:%lld", link);
 
-    if (serv->snapshot != nullptr) {
-        serv->ssdb->ReleaseSnapshot(serv->snapshot);
+    if (serv->replicSnapshot != nullptr) {
+        serv->ssdb->ReleaseSnapshot(serv->replicSnapshot);
     }
-    serv->snapshot = serv->ssdb->GetSnapshot();
+    serv->replicSnapshot = serv->ssdb->GetSnapshot();
 
-    pthread_mutex_lock(&serv->mutex);
-    serv->ReplicState = REPLIC_START;
-    serv->nStartRepliNum = 0;
-    serv->nFinishPeplicNum = 0;
-    pthread_mutex_unlock(&serv->mutex);
+    {
+        Locking<Mutex> l(&serv->replicMutex);
+        serv->replicState = REPLIC_START;
+        serv->replicNumStarted = 0;
+        serv->replicNumFinished = 0;
+    }
 
     resp->push_back("ok");
     resp->push_back("rr_make_snapshot ok");
@@ -1081,11 +1086,12 @@ int proc_rr_transfer_snapshot(NetworkServer *net, Link *link, const Request &req
     std::string ip = req[1].String();
     int port = req[2].Int();
 
-    pthread_mutex_lock(&serv->mutex);
-    serv->slave_infos.push(Slave_info{ip, port, link});
-    serv->ReplicState = REPLIC_TRANS;
-    serv->nStartRepliNum++;
-    pthread_mutex_unlock(&serv->mutex);
+    {
+        Locking<Mutex> l(&serv->replicMutex);
+        serv->slave_infos.push(Slave_info{ip, port, link});
+        serv->replicState = REPLIC_TRANS;
+        serv->replicNumStarted++;
+    }
 
     resp->resp.clear();
 
@@ -1118,27 +1124,30 @@ int proc_rr_transfer_snapshot(NetworkServer *net, Link *link, const Request &req
 
 int proc_rr_del_snapshot(NetworkServer *net, Link *link, const Request &req, Response *resp){
     SSDBServer *serv = (SSDBServer *)net->data;
-    pthread_mutex_lock(&serv->mutex);
-    if(serv->ReplicState == REPLIC_TRANS){
-        pthread_mutex_unlock(&serv->mutex);
-        log_error("The replication is not finish");
-        resp->push_back("error");
-        resp->push_back("rr_del_snapshot error");
-        return 0;
-    }
-    pthread_mutex_unlock(&serv->mutex);
 
-    if (serv->snapshot != nullptr){
-        serv->ssdb->ReleaseSnapshot(serv->snapshot);
-        serv->snapshot = nullptr;
+    {
+        Locking<Mutex> l(&serv->replicMutex);
+
+        if(serv->replicState == REPLIC_TRANS){
+            log_error("The replication is not finish");
+            resp->push_back("error");
+            resp->push_back("rr_del_snapshot error");
+            return 0;
+        }
+    }
+
+    if (serv->replicSnapshot != nullptr){
+        serv->ssdb->ReleaseSnapshot(serv->replicSnapshot);
+        serv->replicSnapshot = nullptr;
     }
     log_debug("3:link address:%lld", link);
 
-    pthread_mutex_lock(&serv->mutex);
-    serv->ReplicState = REPLIC_START;
-    serv->nStartRepliNum = 0;
-    serv->nFinishPeplicNum = 0;
-    pthread_mutex_unlock(&serv->mutex);
+    {
+        Locking<Mutex> l(&serv->replicMutex);
+        serv->replicState = REPLIC_START;
+        serv->replicNumStarted = 0;
+        serv->replicNumFinished = 0;
+    }
 
     resp->push_back("ok");
     resp->push_back("rr_del_snapshot ok");
