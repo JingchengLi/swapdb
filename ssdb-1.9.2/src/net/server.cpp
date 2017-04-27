@@ -138,6 +138,9 @@ NetworkServer::~NetworkServer(){
 	redis->stop();
 	delete redis;
 
+    replication->stop();
+	delete replication;
+
 	log_info("NetworkServer finalized");
 }
 
@@ -263,6 +266,9 @@ void NetworkServer::serve(){
 	redis = new TransferWorkerPool("transfer");
 	redis->start(num_transfers);
 
+    replication = new ReplicationWorkerPool("replication");
+    replication->start(2);
+
 	ready_list_t ready_list;
 	ready_list_t ready_list_2;
 	ready_list_t::iterator it;
@@ -275,10 +281,7 @@ void NetworkServer::serve(){
 	fdes->set(this->reader->fd(), FDEVENT_IN, 0, this->reader);
 	fdes->set(this->writer->fd(), FDEVENT_IN, 0, this->writer);
 	fdes->set(this->redis->fd(), FDEVENT_IN, 0, this->redis);
-	{
-		SSDBServer *serv = (SSDBServer *)(this->data);
-		fdes->set(serv->replicPipe[0], FDEVENT_IN, 160, NULL);
-	}
+	fdes->set(this->replication->fd(), FDEVENT_IN, 0, this->replication);
 
 	uint32_t status_ticks = g_ticks;
 	uint32_t cursor_ticks = g_ticks;
@@ -365,9 +368,42 @@ void NetworkServer::serve(){
 				}else{
 					log_debug("accept return NULL");
 				}
-			}else if(fde->data.ptr == this->redis){
+			}else if(fde->data.ptr == this->replication){
+                ReplicationWorkerPool *worker = (ReplicationWorkerPool *)fde->data.ptr;
+                ReplicationJob *job = nullptr;
+                if(worker->pop(&job) == 0){
+                    log_fatal("reading result from workers error!");
+                    exit(0);
+                }
+
+                SlaveInfo *slave = job->slaveInfo;
+
+                log_debug("before send finish rr_link address:%lld", slave->master_link);
+                if (slave->master_link != NULL){
+                    slave->master_link->send(std::vector<std::string>({"ok" , "rr_transfer_snapshot finished"}));
+                    if (slave->master_link->append_reply) {
+                        slave->master_link->send_append_res(std::vector<std::string>({"check 0"}));
+                    }
+                    if (slave->master_link->write() <= 0){
+                        log_error("The link write error, delete link! fd:%d", slave->master_link->fd());
+                        this->link_count --;
+                        fdes->del(slave->master_link->fd());
+                        delete slave->master_link;
+                    } else{
+                        slave->master_link->noblock(true);
+                        fdes->set(slave->master_link->fd(), FDEVENT_IN, 1, slave->master_link);
+                    }
+                } else{
+                    log_error("The link from redis is off!");
+                }
+                
+                if (job != nullptr) {
+                    delete job;
+                }
+
+            }else if(fde->data.ptr == this->redis){
 					TransferWorkerPool *worker = (TransferWorkerPool *)fde->data.ptr;
-					TransferJob *job = NULL;
+					TransferJob *job = nullptr;
 					if(worker->pop(&job) == 0){
 						log_fatal("reading result from workers error!");
 						exit(0);
@@ -386,7 +422,7 @@ void NetworkServer::serve(){
 //
 //					log_debug("job process done %s", job->dump().c_str());
 
-					if (job != NULL) {
+					if (job != nullptr) {
 						delete job;
 					}
 
@@ -429,47 +465,6 @@ void NetworkServer::serve(){
                     fdes->del(link->fd());
                     delete link;
                     continue;
-                }
-            } else if (fde->data.num == 160){
-                char buf[1] = {0};
-                int n = ::read(serv->replicPipe[0], buf, 1);
-                if(n < 0){
-                    if(errno == EINTR){
-                        continue;
-                    }else{
-                        log_error("");
-                        continue;
-                    }
-                }else if(n == 0){
-                    log_error("");
-                    continue;
-                }
-                serv->mutex_finish.lock();
-                SlaveInfo slave = serv->slave_finish.front();
-                serv->slave_finish.pop();
-                serv->mutex_finish.unlock();
-                std::vector<std::string> response;
-                response.push_back("ok");
-                response.push_back("rr_transfer_snapshot finished");
-                log_debug("before send finish rr_link address:%lld", slave.master_link);
-                if (slave.master_link != NULL){
-                    slave.master_link->send(response);
-                    if (slave.master_link->append_reply) {
-                        response.clear();
-                        response.push_back("check 0");
-                        slave.master_link->send_append_res(response);
-                    }
-                    if (slave.master_link->write() <= 0){
-                        log_error("The link write error, delete link! fd:%d", slave.master_link->fd());
-                        this->link_count --;
-                        fdes->del(slave.master_link->fd());
-                        delete slave.master_link;
-                    } else{
-                        slave.master_link->noblock(true);
-                        fdes->set(slave.master_link->fd(), FDEVENT_IN, 1, slave.master_link);
-                    }
-                } else{
-                    log_error("The link from redis is off!");
                 }
             } else{
                 proc_client_event(fde, &ready_list);

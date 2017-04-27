@@ -10,6 +10,7 @@ found in the LICENSE file.
 #include <string>
 #include <vector>
 #include <util/slowlog.h>
+#include <replication.h>
 
 #include "fde.h"
 #include "proc.h"
@@ -54,6 +55,7 @@ protected:
 
 public:
 	TransferWorkerPool *redis;
+	ReplicationWorkerPool *replication;
 
 	IpFilter *ip_filter;
 	void *data;

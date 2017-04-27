@@ -20,16 +20,11 @@ found in the LICENSE file.
 #include <util/error.h>
 
 struct SlaveInfo{
+	SlaveInfo(const string &ip, int port, Link *master_link) : ip(ip), port(port), master_link(master_link) {}
+
 	std::string ip;
 	int port;
     Link    *master_link;
-};
-
-class ReplicJob{
-public:
-    ReplicJob(SSDBServer *serv, const SlaveInfo &slave_info) : serv(serv), slave_info(slave_info) {}
-    SSDBServer *serv;
-    SlaveInfo slave_info;
 };
 
 enum ReplicState{
@@ -53,21 +48,25 @@ public:
 
 	RecordMutex<Mutex> transfer_mutex_record_;
 
-	std::queue<SlaveInfo>  slave_finish;
-	Mutex                   mutex_finish;
 
 	const leveldb::Snapshot* replicSnapshot;
     Mutex         			 replicMutex;
     enum ReplicState 		 replicState;
 	int 					 replicNumStarted;
 	int 					 replicNumFinished;
-	int 					 replicPipe[2];
 
 	SSDBServer(SSDB *ssdb, SSDB *meta, const Config &conf, NetworkServer *net);
 	~SSDBServer();
 
 };
 
+
+class ReplicJob{
+public:
+    ReplicJob(SSDBServer *serv, const SlaveInfo &slave_info) : serv(serv), slave_info(slave_info) {}
+    SSDBServer *serv;
+    SlaveInfo slave_info;
+};
 
 #define CHECK_NUM_PARAMS(n) do{ \
 		if(req.size() < n){ \
