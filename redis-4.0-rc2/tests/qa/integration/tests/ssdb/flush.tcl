@@ -1,7 +1,13 @@
 # only flush exec on master
+if {$::accurate} {
+    set allflush {flushall flushdb}
+} else {
+    set allflush {flushall}
+}
+
 start_server {tags {"ssdb"}
 overrides {maxmemory 0}} {
-    foreach flush {flushall flushdb} {
+    foreach flush $allflush {
         test "set key in ssdb and redis" {
             r set foo bar
             r set fooxxx barxxx
@@ -34,7 +40,7 @@ start_server {tags {"ssdb"}} {
     set master_port [srv port]
     start_server {} {
         set slave [srv client]
-        foreach flush {flushall flushdb} {
+        foreach flush $allflush {
             test "single client $flush all keys" {
                 $master debug populate 100000
                 after 500
@@ -44,8 +50,7 @@ start_server {tags {"ssdb"}} {
                 wait_for_condition 100 100 {
                     [$master debug digest] == 0000000000000000000000000000000000000000
                 } else {
-                    puts "Digest not null:master([$master debug digest]) after too long time."
-                    after 10000000
+                    fail "Digest not null:master([$master debug digest]) after too long time."
                 }
                 wait_for_condition 10 100 {
                     [lindex [sr -1 scan 0] 0] eq 0
@@ -65,8 +70,7 @@ start_server {tags {"ssdb"}} {
                 wait_for_condition 100 100 {
                     [$master debug digest] == 0000000000000000000000000000000000000000
                 } else {
-                    puts "Digest not null:master([$master debug digest]) after too long time."
-                    after 10000000
+                    fail "Digest not null:master([$master debug digest]) after too long time."
                 }
                 wait_for_condition 10 100 {
                     [lindex [sr -1 scan 0] 0] eq 0
@@ -145,7 +149,7 @@ start_server {tags {"ssdb"}} {
             lappend slaves [srv 0 client]
             set num 10000
             set clients 10
-            foreach flush {flushall flushdb} {
+            foreach flush $allflush {
                 test "single $flush all keys during clients writing after sync" {
                     set clist [ start_bg_complex_data_list $master_host $master_port $num $clients ]
                     [lindex $slaves 0] slaveof $master_host $master_port
@@ -186,6 +190,10 @@ start_server {tags {"ssdb"}} {
                     $master ping
                 } {PONG}
 
+                test "wait two slaves sync" {
+                    wait_for_online $master 2
+                }
+
                 test "master and two slaves are identical after $flush" {
                     wait_for_condition 300 100 {
                         [$master dbsize] == [[lindex $slaves 0] dbsize] &&
@@ -217,7 +225,7 @@ start_server {tags {"ssdb"}} {
         lappend slaves [srv 0 client]
         start_server {} {
             lappend slaves [srv 0 client]
-            foreach flush {flushall flushdb} {
+            foreach flush $allflush {
                 test "multi clients $flush all keys after write and sync" {
                     set num 10000
                     set clients 10
