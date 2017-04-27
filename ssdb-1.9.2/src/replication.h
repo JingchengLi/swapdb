@@ -11,24 +11,22 @@
 #include <sstream>
 #include <util/strings.h>
 #include <util/thread.h>
+#include <net/redis/redis_client.h>
 
 class SSDBServer;
-class SlaveInfo;
 
 
 class ReplicationJob {
 public:
     SSDBServer *serv;
-    SlaveInfo  *slaveInfo;
+    HostAndPort hnp;
+    Link *upstreamRedis;
+
     int64_t ts  ;
 
 
-    ReplicationJob(SSDBServer *serv, SlaveInfo *slaveInfo) : serv(serv), slaveInfo(slaveInfo) {
+    ReplicationJob(SSDBServer *serv, const HostAndPort &hnp, Link *link) : serv(serv), hnp(hnp), upstreamRedis(link) {
         ts = time_ms();
-    }
-
-    virtual ~ReplicationJob() {
-        delete slaveInfo;
     }
 
 

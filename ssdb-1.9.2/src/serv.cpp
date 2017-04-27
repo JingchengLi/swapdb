@@ -682,7 +682,7 @@ int proc_replic(NetworkServer *net, Link *link, const Request &req, Response *re
 
     serv->replicSnapshot = serv->ssdb->GetSnapshot();
 
-    ReplicationJob *job = new ReplicationJob(serv, new SlaveInfo(ip, port, link));
+    ReplicationJob *job = new ReplicationJob(serv, HostAndPort{ip, port}, link);
 
     net->replication->push(job);
 
@@ -906,7 +906,7 @@ int proc_rr_transfer_snapshot(NetworkServer *net, Link *link, const Request &req
         link->write();
     }
 
-    ReplicationJob *job = new ReplicationJob(serv, new SlaveInfo(ip, port, link));
+    ReplicationJob *job = new ReplicationJob(serv, HostAndPort{ip, port}, link);
 
     net->replication->push(job);
     resp->resp.clear();

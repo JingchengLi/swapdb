@@ -376,22 +376,23 @@ void NetworkServer::serve(){
                     exit(0);
                 }
 
-                SlaveInfo *slave = job->slaveInfo;
-
-                log_debug("before send finish rr_link address:%lld", slave->master_link);
-                if (slave->master_link != NULL){
-                    slave->master_link->send(std::vector<std::string>({"ok" , "rr_transfer_snapshot finished"}));
-                    if (slave->master_link->append_reply) {
-                        slave->master_link->send_append_res(std::vector<std::string>({"check 0"}));
+				HostAndPort hnp = job->hnp;
+				Link *master_link = job->upstreamRedis;
+				
+                log_debug("before send finish rr_link address:%lld", master_link);
+                if (master_link != NULL){
+                    master_link->send(std::vector<std::string>({"ok" , "rr_transfer_snapshot finished"}));
+                    if (master_link->append_reply) {
+                        master_link->send_append_res(std::vector<std::string>({"check 0"}));
                     }
-                    if (slave->master_link->write() <= 0){
-                        log_error("The link write error, delete link! fd:%d", slave->master_link->fd());
+                    if (master_link->write() <= 0){
+                        log_error("The link write error, delete link! fd:%d", master_link->fd());
                         this->link_count --;
-                        fdes->del(slave->master_link->fd());
-                        delete slave->master_link;
+                        fdes->del(master_link->fd());
+                        delete master_link;
                     } else{
-                        slave->master_link->noblock(true);
-                        fdes->set(slave->master_link->fd(), FDEVENT_IN, 1, slave->master_link);
+                        master_link->noblock(true);
+                        fdes->set(master_link->fd(), FDEVENT_IN, 1, master_link);
                     }
                 } else{
                     log_error("The link from redis is off!");

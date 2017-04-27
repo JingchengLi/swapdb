@@ -26,19 +26,20 @@ void ReplicationWorker::init() {
 
 int ReplicationWorker::proc(ReplicationJob *job) {
     SSDBServer *serv = job->serv;
-    SlaveInfo *slave = job->slaveInfo;
-
+    HostAndPort hnp = job->hnp;
+    Link *master_link = job->upstreamRedis;
+    
     if (serv->replicSnapshot == nullptr) {
         log_error("snapshot is null, maybe rr_make_snapshot not receive or error!");
-        send_error_to_redis(slave->master_link);
+        send_error_to_redis(master_link);
         return 0;
     }
 
-    Link *link = Link::connect((slave->ip).c_str(), slave->port);
+    Link *link = Link::connect((hnp.ip).c_str(), hnp.port);
 
     if (link == nullptr) {
-        log_error("fail to connect to slave ssdb! ip[%s] port[%d]", slave->ip.c_str(), slave->port);
-        send_error_to_redis(slave->master_link);
+        log_error("fail to connect to slave ssdb! ip[%s] port[%d]", hnp.ip.c_str(), hnp.port);
+        send_error_to_redis(master_link);
         return 0;
     }
 
@@ -64,7 +65,7 @@ int ReplicationWorker::proc(ReplicationJob *job) {
 
             if (link->write() == -1) {
                 log_error("fd: %d, send error: %s", link->fd(), strerror(errno));
-                send_error_to_redis(slave->master_link);
+                send_error_to_redis(master_link);
                 delete link;
                 return 0;
             }
@@ -82,7 +83,7 @@ int ReplicationWorker::proc(ReplicationJob *job) {
 
         if (link->write() == -1) {
             log_error("fd: %d, send error: %s", link->fd(), strerror(errno));
-            send_error_to_redis(slave->master_link);
+            send_error_to_redis(master_link);
             delete link;
             return 0;
         }

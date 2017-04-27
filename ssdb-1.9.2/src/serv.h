@@ -19,13 +19,6 @@ found in the LICENSE file.
 #include "net/link.h"
 #include <util/error.h>
 
-struct SlaveInfo{
-	SlaveInfo(const string &ip, int port, Link *master_link) : ip(ip), port(port), master_link(master_link) {}
-
-	std::string ip;
-	int port;
-    Link    *master_link;
-};
 
 enum ReplicState{
 	REPLIC_START = 0,
