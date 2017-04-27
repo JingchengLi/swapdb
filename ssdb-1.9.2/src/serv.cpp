@@ -135,6 +135,10 @@ DEF_PROC(rr_del_snapshot);
 DEF_BPROC(COMMAND_DATA_SAVE);
 DEF_BPROC(COMMAND_DATA_DUMP);
 
+void prepareDataForLink(const Link *link, const unique_ptr<Buffer> &buffer);
+
+void saveStrToBuffer(unique_ptr<Buffer> &buffer, const Bytes &fit);
+
 #define REG_PROC(c, f)     net->proc_map.set_proc(#c, f, proc_##c)
 
 #define BPROC(c)  bproc_##c
@@ -751,51 +755,36 @@ void *thread_replic(void *arg) {
     }
 
     Link *link = Link::connect((slave.ip).c_str(), slave.port);
+
     if (link == NULL) {
         log_error("fail to connect to slave ssdb! ip[%s] port[%d]", slave.ip.c_str(), slave.port);
         send_error_to_redis(slave.master_link);
         return 0;
     }
-    std::vector<std::string> req;
-    req.push_back(std::string("sync150"));
-    link->send(req);
+
+    link->send(std::vector<std::string>({"sync150"}));
     link->write();
     link->response();
 
-    Buffer *buffer = new Buffer(8 * 1024);
+    std::unique_ptr<Buffer> buffer = std::unique_ptr<Buffer>(new Buffer(8 * 1024));
     std::string oper = "mset";
     std::string oper_len;
     ssdb_save_len((uint64_t) oper.size(), oper_len);
     const leveldb::Snapshot *snapshot = serv->snapshot;
     auto fit = std::unique_ptr<Iterator>(serv->ssdb->iterator("", "", -1, snapshot));
     while (fit->next()) {
-        std::string key_len, val_len;
-        ssdb_save_len((uint64_t) (fit->key().size()), key_len);
-        ssdb_save_len((uint64_t) (fit->val().size()), val_len);
-
-        buffer->append(key_len.c_str(), (int) key_len.size());
-        buffer->append(fit->key());
-        buffer->append(val_len.c_str(), (int) val_len.size());
-        buffer->append(fit->val());
+        saveStrToBuffer(buffer, fit->key());
+        saveStrToBuffer(buffer, fit->val());
 
         if (buffer->size() > 1024) {
-            link->output->append(oper_len.c_str(), (int) oper_len.size());
-            link->output->append(oper.c_str(), (int) oper.size());
+            link->output->append(oper_len);
+            link->output->append(oper);
 
-            char buf[32] = {0};
-            ll2string(buf, sizeof(buf) - 1, (long long) buffer->size());
-            std::string buffer_size(buf);
-            std::string buffer_len;
-            ssdb_save_len((uint64_t) buffer_size.size(), buffer_len);
-            link->output->append(buffer_len.c_str(), (int) buffer_len.size());
-            link->output->append(buffer_size.c_str(), (int) buffer_size.size());
-
-            link->output->append(buffer->data(), buffer->size());
+            prepareDataForLink(link, buffer);
 
             if (link->write() == -1) {
                 log_error("fd: %d, send error: %s", link->fd(), strerror(errno));
                 send_error_to_redis(slave.master_link);
-                delete buffer;
                 delete link;
                 return 0;
             }
@@ -806,37 +795,23 @@ void *thread_replic(void *arg) {
     }
 
     if (buffer->size() > 0) {
-        link->output->append(oper_len.c_str(), (int) oper_len.size());
-        link->output->append(oper.c_str(), (int) oper.size());
+        link->output->append(oper_len);
+        link->output->append(oper);
 
-        char buf[32] = {0};
-        ll2string(buf, sizeof(buf) - 1, (long long) buffer->size());
-        std::string buffer_size(buf);
-        std::string buffer_len;
-        ssdb_save_len((uint64_t) buffer_size.size(), buffer_len);
-        link->output->append(buffer_len.c_str(), (int) buffer_len.size());
-        link->output->append(buffer_size.c_str(), (int) buffer_size.size());
-
-        link->output->append(buffer->data(), buffer->size());
+        prepareDataForLink(link, buffer);
 
         if (link->write() == -1) {
             log_error("fd: %d, send error: %s", link->fd(), strerror(errno));
             send_error_to_redis(slave.master_link);
-            delete buffer;
             delete link;
             return 0;
         }
 
         buffer->decr(buffer->size());
         buffer->nice();
-        delete buffer;
     }
 
-    oper = "complete";
-    oper_len.clear();
-    ssdb_save_len((uint64_t) oper.size(), oper_len);
-    link->output->append(oper_len.c_str(), (int) oper_len.size());
-    link->output->append(oper.c_str(), (int) oper.size());
+    saveStrToBuffer(buffer, "complete");
     link->write();
     link->read();
     delete link;
@@ -865,6 +840,25 @@ void *thread_replic(void *arg) {
 	log_debug("replic procedure finish!");
 
     return (void *) NULL;
+}
+
+void saveStrToBuffer(unique_ptr<Buffer> &buffer, const Bytes &fit) {
+    string val_len;
+    ssdb_save_len((uint64_t) (fit.size()), val_len);
+    buffer->append(val_len);
+    buffer->append(fit);
+}
+
+void prepareDataForLink(const Link *link, const unique_ptr<Buffer> &buffer) {
+    char buf[32] = {0};
+    ll2string(buf, sizeof(buf) - 1, (long long) buffer->size());
+    string buffer_size(buf);
+    string buffer_len;
+    ssdb_save_len((uint64_t) buffer_size.size(), buffer_len);
+    link->output->append(buffer_len);
+    link->output->append(buffer_size);
+
+    link->output->append(buffer->data(), buffer->size());
 }
 
 int proc_replic(NetworkServer *net, Link *link, const Request &req, Response *resp) {
