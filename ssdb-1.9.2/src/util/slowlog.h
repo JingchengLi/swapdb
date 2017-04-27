@@ -103,16 +103,20 @@ public:
 
     void pushEntryIfNeeded(const std::vector<Bytes> *req, int64_t duration) {
 
-        bool full = history.size() == slowlog_entry_max_len;
+        bool full = (history.size() == slowlog_entry_max_len);
 
         if (duration < slowlog_log_slower_than) {
             return;
         } else if (slowlog_entry_max_len == 0) {
             return;
-        } else {
-            if (duration > slowlog_min_duration && full) {
+        }
+
+        if (full) {
+            if (duration > slowlog_min_duration) {
                 //remove first
                 history.erase(history.begin());
+            } else {
+                return;
             }
         }
 
