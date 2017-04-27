@@ -137,7 +137,7 @@ DEF_BPROC(COMMAND_DATA_DUMP);
 
 void prepareDataForLink(const Link *link, const unique_ptr<Buffer> &buffer);
 
-void saveStrToBuffer(unique_ptr<Buffer> &buffer, const Bytes &fit);
+void saveStrToBuffer(Buffer *buffer, const Bytes &fit);
 
 #define REG_PROC(c, f)     net->proc_map.set_proc(#c, f, proc_##c)
 
@@ -773,8 +773,8 @@ void *thread_replic(void *arg) {
     const leveldb::Snapshot *snapshot = serv->snapshot;
     auto fit = std::unique_ptr<Iterator>(serv->ssdb->iterator("", "", -1, snapshot));
     while (fit->next()) {
-        saveStrToBuffer(buffer, fit->key());
-        saveStrToBuffer(buffer, fit->val());
+        saveStrToBuffer(buffer.get(), fit->key());
+        saveStrToBuffer(buffer.get(), fit->val());
 
         if (buffer->size() > 1024) {
             link->output->append(oper_len);
@@ -811,7 +811,7 @@ void *thread_replic(void *arg) {
         buffer->nice();
     }
 
-    saveStrToBuffer(buffer, "complete");
+    saveStrToBuffer(link->output, "complete");
     link->write();
     link->read();
     delete link;
@@ -842,7 +842,7 @@ void *thread_replic(void *arg) {
     return (void *) NULL;
 }
 
-void saveStrToBuffer(unique_ptr<Buffer> &buffer, const Bytes &fit) {
+void saveStrToBuffer(Buffer *buffer, const Bytes &fit) {
     string val_len;
     ssdb_save_len((uint64_t) (fit.size()), val_len);
     buffer->append(val_len);
