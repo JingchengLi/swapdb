@@ -730,6 +730,9 @@ static void send_error_to_redis(Link *link) {
     }
 }
 
+/*TODO
+ * 异常状态下未修改技术, snapshot可能无法正确释放
+ */
 void *thread_replic(void *arg) {
     SSDBServer *serv = (SSDBServer *) arg;
     pthread_mutex_lock(&serv->mutex);
