@@ -100,7 +100,9 @@ proc ping_server {host port} {
     if {[catch {
         set fd [socket $host $port]
         fconfigure $fd -translation binary
-        puts $fd "PING\r\n"
+        # for ssdb ping
+        puts $fd "*1\r\n\$4\r\nping\r\n"
+        # puts $fd "PING\r\n"
         flush $fd
         set reply [gets $fd]
         if {[string range $reply 0 0] eq {+} ||
@@ -234,9 +236,15 @@ proc start_server {options {code undefined}} {
     set ssdbstderr [format "%s/%s" [dict get $config "dir"] "ssdbstderr"]
     puts "start dir: $workdir"
     set ssdbpid [exec ssdb-server $ssdb_config_file > $ssdbstdout 2> $ssdbstderr &]
-    wait_log_pattern "ssdb server started" $ssdbstdout
-    # wait more 200ms make sure ssdb is ready to accept redis link.
-    after 200
+    if {[server_is_up 127.0.0.1 $ssdbport 100] == 0} {
+        set err {}
+        append err "Cant' start the ssdb server\n"
+        send_data_packet $::test_server_fd err $err
+        return
+    }
+#    wait_log_pattern "ssdb server started" $ssdbstdout
+#    # wait more 200ms make sure ssdb is ready to accept redis link.
+#    after 200
 
 
     set stdout [format "%s/%s" [dict get $config "dir"] "stdout"]

@@ -75,7 +75,6 @@ proc exec_instance {type cfgfile} {
 
 proc exec_ssdb_instance {cfgfile} {
     set pid [exec ssdb-server $cfgfile 2> /dev/null &]
-    after 250
     return $pid
 }
 
@@ -108,6 +107,9 @@ proc spawn_instance {type base_port count {conf {}}} {
     close $fp
     set ssdbpid [exec_ssdb_instance $ssdb_config_file]
     lappend ::ssdbpids $ssdbpid
+    if {[server_is_up 127.0.0.1 $ssdbport 100] == 0} {
+        abort_sentinel_test "Problems starting $type #$j: ssdb ping timeout"
+    }
 
         # Write the instance config file.
         set cfgfile [file join $dirname $type.conf]
@@ -570,10 +572,14 @@ proc restart_instance {type id} {
     set cfgfile [file join $dirname $type.conf]
     set ssdbcfgfile [file join $dirname ssdb.conf]
     set port [get_instance_attrib $type $id port]
+    set ssdbport [expr $port+20000]
 
     # Execute the instance with its old setup and append the new pid
     # file for cleanup.
     set ssdbpid [exec_ssdb_instance $ssdbcfgfile]
+    if {[server_is_up 127.0.0.1 $ssdbport 100] == 0} {
+        abort_sentinel_test "Problems starting $type #$j: ssdb ping timeout"
+    }
     set pid [exec_instance $type $cfgfile]
     set_instance_attrib $type $id pid $pid
     set_instance_attrib $type $id ssdbpid $ssdbpid

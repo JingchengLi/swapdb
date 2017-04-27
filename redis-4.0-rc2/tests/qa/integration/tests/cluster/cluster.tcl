@@ -49,12 +49,19 @@ proc CI {n field} {
 
 # Assuming nodes are reest, this function performs slots allocation.
 # Only the first 'n' nodes are used.
+# update: allocate continous slots to nodes
 proc cluster_allocate_slots {n} {
     set slot 16383
+    set num [expr $slot/$n]
     while {$slot >= 0} {
         # Allocate successive slots to random nodes.
-        set node [randomInt $n]
-        lappend slots_$node $slot
+        # set node [randomInt $n]
+        # lappend slots_$node $slot
+        if {$slot/$num >= $n} {
+            lappend slots_[expr $n-1] $slot
+        } else {
+            lappend slots_[expr $slot/$num] $slot
+        }
         incr slot -1
     }
     for {set j 0} {$j < $n} {incr j} {
