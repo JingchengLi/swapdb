@@ -736,31 +736,29 @@ static void send_error_to_redis(Link *link) {
  * 异常状态下未修改技术, snapshot可能无法正确释放
  */
 void *thread_replic(void *arg) {
-    SSDBServer *serv = (SSDBServer *) arg;
+    SSDBServer *serv;
+    SlaveInfo slave;
 
-    Slave_info slave;
     {
-        Locking<Mutex> l(&serv->replicMutex);
-        if (serv->slave_infos.empty()) {
-            log_fatal("get slave info error!");
-            exit(0);
-        }
-        slave = serv->slave_infos.front();
-        serv->slave_infos.pop();
+        ReplicJob *replicJob = (ReplicJob *) arg;
+        serv = replicJob->serv;
+        slave = replicJob->slave_info;
+        delete replicJob;
+        arg = nullptr;
     }
 
-    if (serv->replicSnapshot == NULL) {
+    if (serv->replicSnapshot == nullptr) {
         log_error("snapshot is null, maybe rr_make_snapshot not receive or error!");
         send_error_to_redis(slave.master_link);
-        return 0;
+        return nullptr;
     }
 
     Link *link = Link::connect((slave.ip).c_str(), slave.port);
 
-    if (link == NULL) {
+    if (link == nullptr) {
         log_error("fail to connect to slave ssdb! ip[%s] port[%d]", slave.ip.c_str(), slave.port);
         send_error_to_redis(slave.master_link);
-        return 0;
+        return nullptr;
     }
 
     link->send(std::vector<std::string>({"sync150"}));
@@ -787,7 +785,7 @@ void *thread_replic(void *arg) {
                 log_error("fd: %d, send error: %s", link->fd(), strerror(errno));
                 send_error_to_redis(slave.master_link);
                 delete link;
-                return 0;
+                return nullptr;
             }
 
             buffer->decr(buffer->size());
@@ -805,7 +803,7 @@ void *thread_replic(void *arg) {
             log_error("fd: %d, send error: %s", link->fd(), strerror(errno));
             send_error_to_redis(slave.master_link);
             delete link;
-            return 0;
+            return nullptr;
         }
 
         buffer->decr(buffer->size());
@@ -841,7 +839,7 @@ void *thread_replic(void *arg) {
 	}
 	log_debug("replic procedure finish!");
 
-    return (void *) NULL;
+    return nullptr;
 }
 
 void saveStrToBuffer(Buffer *buffer, const Bytes &fit) {
@@ -869,16 +867,13 @@ int proc_replic(NetworkServer *net, Link *link, const Request &req, Response *re
     std::string ip = req[1].String();
     int port = req[2].Int();
 
-    {
-        Locking<Mutex> l(&serv->replicMutex);
-        serv->slave_infos.push(Slave_info{ip, port, link});
-    }
+    ReplicJob* replicJob = new ReplicJob(serv, SlaveInfo{ip, port, link});
 
     serv->replicSnapshot = serv->ssdb->GetSnapshot();
 //	breplication = true; //todo 设置全量复制开始标志
 
     pthread_t tid;
-    int err = pthread_create(&tid, NULL, &thread_replic, serv);
+    int err = pthread_create(&tid, NULL, &thread_replic, replicJob);
     if (err != 0) {
         log_fatal("can't create thread: %s", strerror(err));
         exit(0);
@@ -1088,11 +1083,11 @@ int proc_rr_transfer_snapshot(NetworkServer *net, Link *link, const Request &req
 
     {
         Locking<Mutex> l(&serv->replicMutex);
-        serv->slave_infos.push(Slave_info{ip, port, link});
         serv->replicState = REPLIC_TRANS;
         serv->replicNumStarted++;
     }
 
+    ReplicJob* replicJob = new ReplicJob(serv, SlaveInfo{ip, port, link});
     resp->resp.clear();
 
     log_debug("transfer_snapshot start %s:%d", ip.c_str(), port);
@@ -1112,7 +1107,7 @@ int proc_rr_transfer_snapshot(NetworkServer *net, Link *link, const Request &req
     }
 
     pthread_t tid;
-    int err = pthread_create(&tid, NULL, &thread_replic, serv);
+    int err = pthread_create(&tid, NULL, &thread_replic, replicJob);
     if (err != 0) {
         log_fatal("can't create thread: %s", strerror(err));
         exit(0);

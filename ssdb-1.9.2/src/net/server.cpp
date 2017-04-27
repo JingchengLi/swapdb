@@ -445,7 +445,7 @@ void NetworkServer::serve(){
                     continue;
                 }
                 serv->mutex_finish.lock();
-                Slave_info slave = serv->slave_finish.front();
+                SlaveInfo slave = serv->slave_finish.front();
                 serv->slave_finish.pop();
                 serv->mutex_finish.unlock();
                 std::vector<std::string> response;

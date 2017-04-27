@@ -19,13 +19,20 @@ found in the LICENSE file.
 #include "net/link.h"
 #include <util/error.h>
 
-struct Slave_info{
+struct SlaveInfo{
 	std::string ip;
 	int port;
     Link    *master_link;
 };
 
-enum Replic_state{
+class ReplicJob{
+public:
+    ReplicJob(SSDBServer *serv, const SlaveInfo &slave_info) : serv(serv), slave_info(slave_info) {}
+    SSDBServer *serv;
+    SlaveInfo slave_info;
+};
+
+enum ReplicState{
 	REPLIC_START = 0,
 	REPLIC_TRANS	,
 	REPLIC_END
@@ -46,13 +53,12 @@ public:
 
 	RecordMutex<Mutex> transfer_mutex_record_;
 
-    std::queue<Slave_info>  slave_infos;
-	std::queue<Slave_info>  slave_finish;
+	std::queue<SlaveInfo>  slave_finish;
 	Mutex                   mutex_finish;
 
 	const leveldb::Snapshot* replicSnapshot;
     Mutex         			 replicMutex;
-    enum Replic_state 		 replicState;
+    enum ReplicState 		 replicState;
 	int 					 replicNumStarted;
 	int 					 replicNumFinished;
 	int 					 replicPipe[2];
