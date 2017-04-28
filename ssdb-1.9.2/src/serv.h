@@ -42,11 +42,12 @@ public:
 	RecordMutex<Mutex> transfer_mutex_record_;
 
 
-	const leveldb::Snapshot* replicSnapshot;
+	const leveldb::Snapshot* replicSnapshot = nullptr;
     Mutex         			 replicMutex;
-    enum ReplicState 		 replicState;
-	int 					 replicNumStarted;
-	int 					 replicNumFinished;
+    enum ReplicState 		 replicState = REPLIC_START;
+	int 					 replicNumStarted = 0;
+	int 					 replicNumFinished = 0;
+	int 					 replicNumFailed = 0;
 
 	SSDBServer(SSDB *ssdb, SSDB *meta, const Config &conf, NetworkServer *net);
 	~SSDBServer();

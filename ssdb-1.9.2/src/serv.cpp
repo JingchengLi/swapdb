@@ -290,12 +290,6 @@ SSDBServer::SSDBServer(SSDB *ssdb, SSDB *meta, const Config &conf, NetworkServer
 
     backend_dump = new BackendDump(this->ssdb);
 
-    replicSnapshot = nullptr;
-
-    replicState = REPLIC_START;
-    replicNumStarted = 0;
-    replicNumFinished = 0;
-
     {
         const Config *upstream_conf = conf.get("upstream");
         if (upstream_conf != NULL) {
@@ -312,8 +306,11 @@ SSDBServer::SSDBServer(SSDB *ssdb, SSDB *meta, const Config &conf, NetworkServer
 SSDBServer::~SSDBServer() {
     delete backend_dump;
 
-    if (replicSnapshot != nullptr) {
-        ssdb->ReleaseSnapshot(replicSnapshot);
+    {
+        Locking<Mutex> l(&replicMutex);
+        if (replicSnapshot != nullptr) {
+            ssdb->ReleaseSnapshot(replicSnapshot);
+        }
     }
 
     log_info("SSDBServer finalized");
@@ -679,8 +676,10 @@ int proc_replic(NetworkServer *net, Link *link, const Request &req, Response *re
     std::string ip = req[1].String();
     int port = req[2].Int();
 
-
-    serv->replicSnapshot = serv->ssdb->GetSnapshot();
+    {
+        Locking<Mutex> l(&serv->replicMutex);
+        serv->replicSnapshot = serv->ssdb->GetSnapshot();
+    }
 
     ReplicationJob *job = new ReplicationJob(serv, HostAndPort{ip, port}, link);
 
@@ -865,16 +864,20 @@ int proc_rr_make_snapshot(NetworkServer *net, Link *link, const Request &req, Re
     SSDBServer *serv = (SSDBServer *)net->data;
     log_debug("1:link address:%lld", link);
 
-    if (serv->replicSnapshot != nullptr) {
-        serv->ssdb->ReleaseSnapshot(serv->replicSnapshot);
-    }
-    serv->replicSnapshot = serv->ssdb->GetSnapshot();
 
     {
         Locking<Mutex> l(&serv->replicMutex);
+
+        //TODO 判断snapshot是否已经无效.再release
+        if (serv->replicSnapshot != nullptr) {
+            serv->ssdb->ReleaseSnapshot(serv->replicSnapshot);
+        }
+        serv->replicSnapshot = serv->ssdb->GetSnapshot();
+
         serv->replicState = REPLIC_START;
         serv->replicNumStarted = 0;
         serv->replicNumFinished = 0;
+        serv->replicNumFailed = 0;
     }
 
     resp->push_back("ok");
@@ -919,23 +922,21 @@ int proc_rr_del_snapshot(NetworkServer *net, Link *link, const Request &req, Res
     {
         Locking<Mutex> l(&serv->replicMutex);
 
-        if(serv->replicState == REPLIC_TRANS){
+        if(serv->replicState == REPLIC_TRANS) {
             log_error("The replication is not finish");
             reply_errinfo_return("rr_del_snapshot error");
         }
-    }
 
-    if (serv->replicSnapshot != nullptr){
-        serv->ssdb->ReleaseSnapshot(serv->replicSnapshot);
-        serv->replicSnapshot = nullptr;
-    }
-    log_debug("3:link address:%lld", link);
+        if (serv->replicSnapshot != nullptr){
+            serv->ssdb->ReleaseSnapshot(serv->replicSnapshot);
+            serv->replicSnapshot = nullptr;
+        }
+        log_debug("3:link address:%lld", link);
 
-    {
-        Locking<Mutex> l(&serv->replicMutex);
         serv->replicState = REPLIC_START;
         serv->replicNumStarted = 0;
         serv->replicNumFinished = 0;
+        serv->replicNumFailed = 0;
     }
 
     resp->push_back("ok");
