@@ -778,6 +778,8 @@ void syncCommand(client *c) {
                 serverLog(LL_NOTICE,
                           "Another replication task is running, and we can't use the same rdb "
                                   "and SSDB snapshot. BGSAVE for replication delayed");
+                /* Slave will connect Master later. */
+                freeClientAsync(c);
                 return;
             }
         } else {
