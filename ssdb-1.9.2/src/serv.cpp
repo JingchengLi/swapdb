@@ -921,9 +921,7 @@ int proc_rr_del_snapshot(NetworkServer *net, Link *link, const Request &req, Res
 
         if(serv->replicState == REPLIC_TRANS){
             log_error("The replication is not finish");
-            resp->push_back("error");
-            resp->push_back("rr_del_snapshot error");
-            return 0;
+            reply_errinfo_return("rr_del_snapshot error");
         }
     }
 
