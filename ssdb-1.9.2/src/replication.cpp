@@ -22,6 +22,7 @@ ReplicationWorker::~ReplicationWorker() {
 }
 
 void ReplicationWorker::init() {
+    log_debug("%s %d init", this->name.c_str(), this->id);
 }
 
 int ReplicationWorker::proc(ReplicationJob *job) {
@@ -31,7 +32,7 @@ int ReplicationWorker::proc(ReplicationJob *job) {
     Link *master_link = job->upstreamRedis;
     const leveldb::Snapshot *snapshot = nullptr;
 
-    log_info("[ReplicationWorker] send snapshot to %s:%d", hnp.ip.c_str(), hnp.port);
+    log_info("[ReplicationWorker] send snapshot to %s:%d start!", hnp.ip.c_str(), hnp.port);
 
     {
         Locking<Mutex> l(&serv->replicMutex);
@@ -82,7 +83,7 @@ int ReplicationWorker::proc(ReplicationJob *job) {
 
             if (ssdb_slave_link->write() == -1) {
                 log_error("fd: %d, send error: %s", ssdb_slave_link->fd(), strerror(errno));
-                log_debug("replic send snapshot failed!");
+                log_error("replic send snapshot failed!");
                 send_error_to_redis(master_link);
                 delete ssdb_slave_link;
                 {
@@ -108,7 +109,7 @@ int ReplicationWorker::proc(ReplicationJob *job) {
 
         if (ssdb_slave_link->write() == -1) {
             log_error("fd: %d, send error: %s", ssdb_slave_link->fd(), strerror(errno));
-            log_debug("replic send snapshot failed!");
+            log_error("replic send snapshot failed!");
             send_error_to_redis(master_link);
             delete ssdb_slave_link;
 
@@ -139,8 +140,9 @@ int ReplicationWorker::proc(ReplicationJob *job) {
         }
     }
 
+    log_info("[ReplicationWorker] send snapshot to %s:%d finished!", hnp.ip.c_str(), hnp.port);
     log_debug("send rr_transfer_snapshot finished!!");
-    log_debug("replic procedure finish!");
+    log_error("replic procedure finish!");
 
     return 0;
 }
