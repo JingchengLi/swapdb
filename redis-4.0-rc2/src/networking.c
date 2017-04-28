@@ -1733,12 +1733,14 @@ void resetSpecialCient(client *c) {
         server.ssdb_replication_client = NULL;
 
     if (c == server.slave_ssdb_load_evict_client) {
+        cleanAndSignalLoadingOrTransferringKeys();
         server.slave_ssdb_load_evict_client = NULL;
     }
 
-    if (c == server.delete_confirm_client)
+    if (c == server.delete_confirm_client) {
         cleanAndSignalDeleteConfirmKeys();
         server.delete_confirm_client = NULL;
+    }
 
     /* this is a normal client doing flushall. */
     if (c == server.current_flushall_client)
