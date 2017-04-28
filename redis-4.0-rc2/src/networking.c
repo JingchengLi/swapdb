@@ -1655,10 +1655,6 @@ void unlinkClient(client *c) {
      * If the client was already unlinked or if it's a "fake client" the
      * fd is already set to -1. */
     if (c->fd != -1) {
-        /* Remove from the list of active clients. */
-        ln = listSearchKey(server.clients,c);
-        serverAssert(ln != NULL);
-        listDelNode(server.clients,ln);
 
         /* Remove from the new added lists in jdjr-mode. */
         if (server.jdjr_mode) {
@@ -1675,18 +1671,34 @@ void unlinkClient(client *c) {
             ln = listSearchKey(server.no_writing_ssdb_blocked_clients, c);
             if (ln) listDelNode(server.no_writing_ssdb_blocked_clients, ln);
 
+            // todo: review and remove
+#if 0
             listRewind(server.clients, &li);
             while((ln = listNext(&li))) {
                 tmpc = listNodeValue(ln);
                 di = dictGetIterator(tmpc->db->ssdb_blocking_keys);
                 while((de = dictNext(di))) {
                     keyobj = dictGetKey(de);
+
                     l = dictFetchValue(tmpc->db->ssdb_blocking_keys, keyobj);
                     ln = listSearchKey(l, c);
                     if (ln) listDelNode(l, ln);
                 }
             }
+#else
+            di = dictGetIterator(server.db->ssdb_blocking_keys);
+            while((de = dictNext(di))) {
+                keyobj = dictGetKey(de);
+
+                removeClientFromListForBlockedKey(c, keyobj);
+            }
+#endif
         }
+
+        /* Remove from the list of active clients. */
+        ln = listSearchKey(server.clients,c);
+        serverAssert(ln != NULL);
+        listDelNode(server.clients,ln);
 
         /* Unregister async I/O handlers and close the socket. */
         aeDeleteFileEvent(server.el,c->fd,AE_READABLE);

@@ -1033,15 +1033,18 @@ cant_free:
     return C_ERR;
 }
 
-static void removeClientFromListForBlockedKey(client* c, robj* key) {
+void removeClientFromListForBlockedKey(client* c, robj* key) {
     /* Remove this client from the list of clients blocking on this key. */
-    list *l = dictFetchValue(c->db->ssdb_blocking_keys, key);
-    serverAssertWithInfo(c,key,l != NULL);
-    listDelNode(l, listSearchKey(l,c));
-    /* If the list is empty we need to remove it to avoid wasting memory */
-    if (listLength(l) == 0) {
-        serverLog(LL_DEBUG, "key: %s  is deleted from ssdb_blocking_keys.", (char *)key->ptr);
-        serverAssert(dictDelete(c->db->ssdb_blocking_keys,key) == DICT_OK);
+    list *l = dictFetchValue(server.db[0].ssdb_blocking_keys, key);
+    serverAssert(l != NULL);
+    listNode* node = listSearchKey(l,c);
+    if (node) {
+        listDelNode(l, node);
+        /* If the list is empty we need to remove it to avoid wasting memory */
+        if (listLength(l) == 0) {
+            serverLog(LL_DEBUG, "key: %s  is deleted from ssdb_blocking_keys.", (char *)key->ptr);
+            serverAssert(dictDelete(server.db[0].ssdb_blocking_keys,key) == DICT_OK);
+        }
     }
 }
 
