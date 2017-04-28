@@ -21,24 +21,31 @@ foreach flag {New Mid Old} {
                 set client [redis [srv host] [srv port]]
             }
             after 3000
-            $client ping
-        } {PONG}
+            if {"New" == $flag} {
+                assert_equal {PONG} [$client ping] "New client should connect"
+            } else {
+                catch {$client ping} err
+                assert_equal {PONG} $err "Currently cannot support $flag client reconnect."
+            }
+        }
 
-        test "After restart ssdb access cold key ($flag client)" {
-            $client get foo
-        } {bar}
+        if {"New" == $flag} {
+            test "After restart ssdb access cold key ($flag client)" {
+                $client get foo
+            } {bar}
 
-        test "After restart ssdb set new key ($flag client)" {
-            $client set hello world
-        } {OK}
+            test "After restart ssdb set new key ($flag client)" {
+                $client set hello world
+            } {OK}
 
-        test "After restart ssdb access new key ($flag client)" {
-            $client get hello
-        } {world}
+            test "After restart ssdb access new key ($flag client)" {
+                $client get hello
+            } {world}
 
-        test "After restart ssdb del cold key ($flag client)" {
-            $client del foo
-        } {1}
+            test "After restart ssdb del cold key ($flag client)" {
+                $client del foo
+            } {1}
+        }
     }
 }
 
@@ -55,7 +62,7 @@ start_server {tags {"repl-abnormal"}} {
 
         test "slave ssdb restart when master start to transfer snapshot" {
             $slave slaveof $master_host $master_port
-            set pattern "receive.*rr_transfer_snapshot"
+            set pattern "transfer_snapshot start"
             wait_log_pattern $pattern [srv -1 ssdbstdout]
 
             kill_ssdb_server
@@ -107,8 +114,8 @@ start_server {tags {"repl-abnormal"}} {
 
             test "all slaves online after make snapshot again during deleting snapshot" {
                 [lindex $slaves 0] slaveof $master_host $master_port
-                set pattern "send rr_transfer_snapshot finished"
-                wait_log_pattern $pattern [srv -2 ssdbstdout]
+                set pattern "snapshot transfer finished"
+                wait_log_pattern $pattern [srv -2 stdout]
                 [lindex $slaves 1] slaveof $master_host $master_port
                 wait_for_online $master 2
             }
