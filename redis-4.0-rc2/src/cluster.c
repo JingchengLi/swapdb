@@ -4625,8 +4625,8 @@ void restoreCommand(client *c) {
 
 /* must reply to SSDB avoid SSDB blocked. */
 void ssdbRespDelCommand(client *c) {
-    robj *keyobj;
-    int numdel = 0, j;
+    int numdel = 0;
+    robj* keyobj = c->argv[1];
 
     preventCommandPropagation(c);
 
@@ -4636,22 +4636,24 @@ void ssdbRespDelCommand(client *c) {
         return;
     }
 
-    for (j = 1; j < c->argc; j ++) {
-        keyobj = c->argv[j];
+    if (!dictFind(EVICTED_DATA_DB->transferring_keys, keyobj->ptr)) {
+        addReplyError(c, "key is already unblocked");
+        return;
+    }
 
-        if (server.is_doing_flushall) {
-            addReplyError(c, "flushall is going");
-            return;
+    if (server.is_doing_flushall) {
+        addReplyError(c, "flushall is going");
+        return;
+    } else {
+        if (epilogOfEvictingToSSDB(keyobj) == C_OK) {
+            serverLog(LL_DEBUG, "ssdbRespDelCommand fd:%d key: %s dictDelete ok.",
+                      c->fd, (char *)keyobj->ptr);
+            numdel = 1;
         } else {
-            if (epilogOfEvictingToSSDB(keyobj) == C_OK) {
-                serverLog(LL_DEBUG, "ssdbRespDelCommand fd:%d key: %s dictDelete ok.",
-                          c->fd, (char *)keyobj->ptr);
-                numdel ++;
-            } else {
-                /* the key is deleted when transfer is on-going.*/
-                serverLog(LL_DEBUG, "ssdbRespDelCommand fd:%d key: %s is deleted when process transferring.",
-                          c->fd, (char *)keyobj->ptr);
-            }
+            /* the key is deleted when transfer is on-going.*/
+            serverLog(LL_DEBUG, "ssdbRespDelCommand fd:%d key: %s is deleted when process transferring.",
+                      c->fd, (char *)keyobj->ptr);
+            numdel = 0;
         }
     }
     addReplyLongLong(c, numdel);
@@ -4668,9 +4670,14 @@ void ssdbRespRestoreCommand(client *c) {
 
     if (expireIfNeeded(EVICTED_DATA_DB, key)) {
         serverLog(LL_DEBUG, "key: %s is expired in redis.", (char *)key->ptr);
-        dictDelete(EVICTED_DATA_DB->loading_hot_keys, key->ptr);
-        signalBlockingKeyAsReady(c->db, key);
+        if (dictDelete(EVICTED_DATA_DB->loading_hot_keys, key->ptr) == DICT_OK)
+            signalBlockingKeyAsReady(c->db, key);
         addReplyError(c, "key expired");
+        return;
+    }
+
+    if (!dictFind(EVICTED_DATA_DB->loading_hot_keys, key->ptr)) {
+        addReplyError(c, "key is already unblocked");
         return;
     }
 
@@ -4680,21 +4687,7 @@ void ssdbRespRestoreCommand(client *c) {
     } else {
         restoreCommand(c);
 
-        if (server.load_from_ssdb) {
-            /* Restart redis will lose data in loading_hot_keys. */
-            if (dictDelete(EVICTED_DATA_DB->loading_hot_keys,
-                           key->ptr) == DICT_OK)
-                serverLog(LL_DEBUG, "key: %s is deleted from loading_hot_keys.", (char *)key->ptr);
-            else {
-                serverLog(LL_WARNING, "key: %s failed to be deleted from loading_hot_keys.",
-                          (char *)key->ptr);
-                signalBlockingKeyAsReady(c->db, key);
-                return;
-            }
-
-        }
-
-        /* Delete key from EVICTED_DATA_DB if restoreCommand is OK. */
+       /* Delete key from EVICTED_DATA_DB if restoreCommand is OK. */
         if (server.dirty == old_dirty + 1) {
             dictEntry* ev_de = dictFind(EVICTED_DATA_DB->dict, c->argv[1]->ptr);
             dictEntry* de = dictFind(c->db->dict, c->argv[1]->ptr);
@@ -4734,7 +4727,12 @@ void ssdbRespRestoreCommand(client *c) {
 
         /* Queue the ready key to ssdb_ready_keys. and unblock the
          * clients blocked by the loading_hot key. */
-        signalBlockingKeyAsReady(c->db, key);
+        /* Restart redis will lose data in loading_hot_keys. */
+        if (dictDelete(EVICTED_DATA_DB->loading_hot_keys,
+                       key->ptr) == DICT_OK) {
+            signalBlockingKeyAsReady(c->db, key);
+            serverLog(LL_DEBUG, "key: %s is deleted from loading_hot_keys.", (char *)key->ptr);
+        }
     }
 }
 
@@ -4749,13 +4747,17 @@ void ssdbRespNotfoundCommand(client *c) {
 
     preventCommandPropagation(c);
 
+    if (!dictFind(EVICTED_DATA_DB->loading_hot_keys, keyobj->ptr)) {
+        addReplyError(c, "key is already unblocked");
+        return;
+    }
+
     if (!sdscmp(cmd->ptr, fail_restore)) {
         if (server.is_doing_flushall) {
             addReplyError(c, "flushall is going");
             return;
         } else {
-            if (dictDelete(EVICTED_DATA_DB->loading_hot_keys, keyobj->ptr) == DICT_OK)
-                serverLog(LL_DEBUG, "key: %s is deleted from loading_hot_keys.", (char *)keyobj->ptr);
+
             if (dictDelete(EVICTED_DATA_DB->dict, keyobj->ptr) == DICT_OK)
                 serverLog(LL_DEBUG, "key: %s is deleted from EVICTED_DATA_DB->db.", (char *)keyobj->ptr);
             if (getExpire(EVICTED_DATA_DB, keyobj) != -1)
@@ -4772,7 +4774,10 @@ void ssdbRespNotfoundCommand(client *c) {
             decrRefCount(tmpargv[0]);
             server.evicting_keys_num --;
 
-            signalBlockingKeyAsReady(c->db, keyobj);
+            if (dictDelete(EVICTED_DATA_DB->loading_hot_keys, keyobj->ptr) == DICT_OK) {
+                serverLog(LL_DEBUG, "key: %s is unblocked and deleted from loading_hot_keys.", (char *)keyobj->ptr);
+                signalBlockingKeyAsReady(c->db, keyobj);
+            }
         }
     } else {
         serverPanic("cmd is not supported.");
@@ -4790,6 +4795,12 @@ void ssdbRespFailCommand(client *c) {
 
     preventCommandPropagation(c);
 
+    if (!dictFind(EVICTED_DATA_DB->loading_hot_keys, keyobj->ptr)
+        && !dictFind(EVICTED_DATA_DB->transferring_keys, keyobj->ptr)) {
+        addReplyError(c, "key is already unblocked");
+        return;
+    }
+
     /* TODO: make sds vars shared. */
     sds fail_restore = sdsnew("ssdb-resp-restore");
     sds fail_dump = sdsnew("ssdb-resp-dump");
@@ -4797,17 +4808,18 @@ void ssdbRespFailCommand(client *c) {
     serverAssert(c->db->id == 0);
 
     if (!sdscmp(cmd->ptr, fail_restore)) {
-        if (dictDelete(EVICTED_DATA_DB->loading_hot_keys, keyobj->ptr) == DICT_OK)
-            serverLog(LL_DEBUG, "key: %s is deleted from loading_hot_keys.", (char *)keyobj->ptr);
+        if (dictDelete(EVICTED_DATA_DB->loading_hot_keys, keyobj->ptr) == DICT_OK) {
+            signalBlockingKeyAsReady(c->db, keyobj);
+            serverLog(LL_DEBUG, "key: %s is unblocked and deleted from loading_hot_keys.", (char *)keyobj->ptr);
+        }
     } else if (!sdscmp(cmd->ptr, fail_dump)) {
-        if (dictDelete(EVICTED_DATA_DB->transferring_keys, keyobj->ptr) == DICT_OK)
-            serverLog(LL_DEBUG, "key: %s is deleted from transferring_keys.", (char *)keyobj->ptr);
+        if (dictDelete(EVICTED_DATA_DB->transferring_keys, keyobj->ptr) == DICT_OK) {
+            signalBlockingKeyAsReady(c->db, keyobj);
+            serverLog(LL_DEBUG, "key: %s is unblocked and deleted from transferring_keys.", (char *)keyobj->ptr);
+        }
     } else {
         serverPanic("cmd is not supported.");
     }
-
-    signalBlockingKeyAsReady(c->db, keyobj);
-
     addReply(c, shared.ok);
 
     sdsfree(fail_restore);

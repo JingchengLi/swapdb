@@ -229,7 +229,7 @@ void replicationFeedSlaves(list *slaves, int dictid, robj **argv, int argc) {
 
         serverLog(LL_DEBUG, "dbid changed. propagate select db command to slaves.");
     }
-    serverLog(LL_DEBUG, "propagate command(%s) to slaves", (char* )argv[0]->ptr);
+    serverLog(LL_DEBUG, "propagate command(%s) to slaves", (sds)argv[0]->ptr);
     server.slaveseldb = dictid;
 
     /* Write the command to the replication backlog if any. */

@@ -2218,16 +2218,15 @@ void initServer(void) {
         server.db[j].blocking_keys = dictCreate(&keylistDictType,NULL);
         server.db[j].ready_keys = dictCreate(&objectKeyPointerValueDictType,NULL);
         server.db[j].watched_keys = dictCreate(&keylistDictType,NULL);
-        if (server.jdjr_mode) {
-            server.db[j].ssdb_blocking_keys = dictCreate(&keylistDictType,NULL);
-            server.db[j].ssdb_ready_keys = dictCreate(&objectKeyPointerValueDictType,NULL);
-        }
 
         server.db[j].id = j;
         server.db[j].avg_ttl = 0;
     }
 
     if (server.jdjr_mode) {
+        server.db[0].ssdb_blocking_keys = dictCreate(&keylistDictType,NULL);
+        server.db[0].ssdb_ready_keys = dictCreate(&objectKeyPointerValueDictType,NULL);
+
         server.db[EVICTED_DATA_DBID].transferring_keys = dictCreate(&keyDictType,NULL);
         server.db[EVICTED_DATA_DBID].loading_hot_keys = dictCreate(&keyDictType,NULL);
         server.db[EVICTED_DATA_DBID].visiting_ssdb_keys = dictCreate(&keyDictType,NULL);
@@ -2866,7 +2865,26 @@ int processCommandMaybeInSSDB(client *c) {
     return C_ERR;
 }
 
-void cleanLoadingOrTransferringKeys() {
+void cleanAndSignalDeleteConfirmKeys() {
+    dictEntry *de;
+    dictIterator *di;
+    sds key;
+    robj* o;
+
+    di = dictGetIterator(server.db[EVICTED_DATA_DBID].delete_confirm_keys);
+    while((de = dictNext(di)) != NULL) {
+        key = dictGetKey(de);
+        o = createObject(OBJ_STRING, sdsdup(key));
+
+        signalBlockingKeyAsReady(&server.db[0], o);
+        decrRefCount(o);
+    }
+    handleClientsBlockedOnSSDB();
+
+    dictEmpty(server.db[EVICTED_DATA_DBID].delete_confirm_keys, NULL);
+}
+
+void cleanAndSignalLoadingOrTransferringKeys() {
     dictEntry *de;
     dictIterator *di;
     sds key;
@@ -2889,14 +2907,6 @@ void cleanLoadingOrTransferringKeys() {
         signalBlockingKeyAsReady(&server.db[0], o);
         decrRefCount(o);
     }
-    di = dictGetIterator(server.db[EVICTED_DATA_DBID].delete_confirm_keys);
-    while((de = dictNext(di)) != NULL) {
-        key = dictGetKey(de);
-        o = createObject(OBJ_STRING, sdsdup(key));
-
-        signalBlockingKeyAsReady(&server.db[0], o);
-        decrRefCount(o);
-    }
 
     handleClientsBlockedOnSSDB();
 
@@ -2904,21 +2914,22 @@ void cleanLoadingOrTransferringKeys() {
 
     dictEmpty(server.db[EVICTED_DATA_DBID].transferring_keys, NULL);
     dictEmpty(server.db[EVICTED_DATA_DBID].loading_hot_keys, NULL);
-    dictEmpty(server.db[EVICTED_DATA_DBID].delete_confirm_keys, NULL);
 }
 
 void cleanSpecialClientsAndIntermediateKeys() {
     /* just free specail clients to discard unprocessed transferring/loading keys.*/
     if (server.ssdb_client) freeClient(server.ssdb_client);
-    if (server.slave_ssdb_load_evict_client) freeClient(server.slave_ssdb_load_evict_client);
+    if (server.masterhost && server.slave_ssdb_load_evict_client) freeClient(server.slave_ssdb_load_evict_client);
     if (server.delete_confirm_client) freeClient(server.delete_confirm_client);
 
+    /* clean delete_confirm_keys dict. */
+    cleanAndSignalDeleteConfirmKeys();
     /* clean transferring_keys/loading_hot_keys dicts. */
-    cleanLoadingOrTransferringKeys();
+    cleanAndSignalLoadingOrTransferringKeys();
 
     emptyEvictionPool();
 
-    cleanKeysToLoadAndEvict();
+    if (server.masterhost) cleanKeysToLoadAndEvict();
 }
 
 void prepareSSDBflush(client* c) {

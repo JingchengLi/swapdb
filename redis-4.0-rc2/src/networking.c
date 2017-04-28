@@ -1236,7 +1236,7 @@ int handleResponseOfDeleteCheckConfirm(client *c) {
     return C_OK;
 }
 
-
+/*Handle the common extra reply from SSDB: length 17: '*1\r\n$7\r\ncheck 0\r\n' */
 int handleExtraSSDBReply(client *c) {
     redisReply *element, *reply;
     int *keys = NULL;
@@ -1269,11 +1269,6 @@ int handleExtraSSDBReply(client *c) {
         if (numkeys && keyobjs) zfree(keyobjs);
         if (keys) getKeysFreeResult(keys);
     }
-
-    // todo: review and remove
-    /*Handle the common extra reply from SSDB:
-      length 17: '*1\r\n$7\r\ncheck 0\r\n' */
-    //if (!isSpecialConnection(c)) revertClientBufReply(c, 17);
 
     return C_OK;
 }
@@ -1729,16 +1724,20 @@ void unlinkClient(client *c) {
 }
 
 void resetSpecialCient(client *c) {
-    if (c == server.ssdb_client)
+    if (c == server.ssdb_client) {
+        if (!server.masterhost) cleanAndSignalLoadingOrTransferringKeys();
         server.ssdb_client = NULL;
+    }
 
     if (c == server.ssdb_replication_client)
         server.ssdb_replication_client = NULL;
 
-    if (c == server.slave_ssdb_load_evict_client)
+    if (c == server.slave_ssdb_load_evict_client) {
         server.slave_ssdb_load_evict_client = NULL;
+    }
 
     if (c == server.delete_confirm_client)
+        cleanAndSignalDeleteConfirmKeys();
         server.delete_confirm_client = NULL;
 
     /* this is a normal client doing flushall. */
@@ -1998,7 +1997,7 @@ int handleClientsWithPendingWrites(void) {
 
 /* resetClient prepare the client to process the next command */
 void resetClient(client *c) {
-    serverLog(LL_DEBUG, "resetClient called: redis fd: %d, context fd:%d", c->fd, c->context ? c->context->fd : -1);
+    //serverLog(LL_DEBUG, "resetClient called: redis fd: %d, context fd:%d", c->fd, c->context ? c->context->fd : -1);
     redisCommandProc *prevcmd = c->cmd ? c->cmd->proc : NULL;
 
     freeClientArgv(c);

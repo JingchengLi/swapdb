@@ -498,11 +498,12 @@ unsigned long KeyLFUDecrAndReturn(sds key) {
 
 void cleanupEpilogOfEvicting(redisDb *db, robj *keyobj) {
     if (dictSize(EVICTED_DATA_DB->transferring_keys) > 0) {
-        serverAssert(dictDelete(EVICTED_DATA_DB->transferring_keys,
-                                keyobj->ptr) == DICT_OK);
-        serverLog(LL_DEBUG, "key: %s is deleted from transferring_keys.", (char *)keyobj->ptr);
+        if (dictDelete(EVICTED_DATA_DB->transferring_keys, keyobj->ptr) == DICT_OK) {
+            signalBlockingKeyAsReady(db, keyobj);
+            serverLog(LL_DEBUG, "key: %s is unblocked and deleted from transferring_keys.",
+                      (char *)keyobj->ptr);
+        }
     }
-    signalBlockingKeyAsReady(db, keyobj);
 }
 
 int epilogOfEvictingToSSDB(robj *keyobj) {
