@@ -1444,8 +1444,6 @@ void startToHandleCmdListInSlave(void) {
         server.slave_ssdb_load_evict_client->lastcmd = server.slave_ssdb_load_evict_client->cmd;
         runCommand(server.slave_ssdb_load_evict_client, NULL);
         if (server.cmdNotDone) {
-            serverLog(LL_DEBUG, "beforesleep processing cmd: %s, blocked by write, will try the next time",
-                      server.slave_ssdb_load_evict_client->cmd->name);
             /* preserve the cmdinfo for the next time, avoid to be reseted by resetClient. */
             server.slave_ssdb_load_evict_client->argv = NULL;
         } else {
