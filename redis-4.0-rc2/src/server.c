@@ -1840,6 +1840,9 @@ void handleDeleteConfirmKeys(void) {
 void beforeSleep(struct aeEventLoop *eventLoop) {
     UNUSED(eventLoop);
 
+    /* Give some run time to modules threads using thread safe contexts. */
+    moduleCooperativeMultiTaskingCycle();
+
     /* Call the Redis Cluster before sleep function. Note that this function
      * may change the state of Redis Cluster (from ok to fail or vice versa),
      * so it's a good idea to call it before serving the unblocked clients
