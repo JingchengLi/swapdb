@@ -4852,6 +4852,10 @@ void storetossdbCommand(client *c) {
         addReplyError(c, "In visiting_ssdb_keys.");
         server.cmdNotDone = 1;
         return;
+    } else if (dictFind(EVICTED_DATA_DB->delete_confirm_keys, keyobj->ptr)) {
+        addReplyError(c, "In delete_confirm_keys.");
+        server.cmdNotDone = 1;
+        return;
     }
 
     /* Try restoring the redis dumped data to SSDB. */
