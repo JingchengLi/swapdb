@@ -1761,6 +1761,7 @@ void freeClient(client *c) {
                           CLIENT_BLOCKED|
                           CLIENT_UNBLOCKED)))
         {
+            if (server.jdjr_mode) resetClient(c);
             replicationCacheMaster(c);
             return;
         }
