@@ -105,6 +105,7 @@ int ReplicationWorker::proc(ReplicationJob *job) {
         }
     }
 
+    log_debug("send rr_transfer_snapshot finished!!");
     log_debug("replic procedure finish!");
 
     return 0;
