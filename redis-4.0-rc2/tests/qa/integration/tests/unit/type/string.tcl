@@ -42,7 +42,12 @@ overrides {maxmemory 0}} {
                 set payload($j) $buf
                 ssdbr set bigpayload_$j $buf
             }
-            for {set j 0} {$j < 1000} {incr j} {
+            if {$::accurate} {
+                set loops 1000
+            } else {
+                set loops 100
+            }
+            for {set j 0} {$j < $loops} {incr j} {
                 set index [randomInt 100]
                 set buf [ssdbr get bigpayload_$index]
                 if {$buf != $payload($index)} {

@@ -32,7 +32,11 @@ overrides {maxmemory 0}} {
         assert_equal -inf [ssdbr zscore ztmp y]
     }
 
-    set elements 500
+    if {$::accurate} {
+        set elements 500
+    } else {
+        set elements 50
+    }
     test "Big score int range +/- 2.8e12" {
     #   127.0.0.1:41212>  zadd zk 3021985275215 q
     #   (integer) 1

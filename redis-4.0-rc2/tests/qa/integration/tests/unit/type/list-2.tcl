@@ -25,7 +25,12 @@ start_server {
                     lappend mylist $str
                 }
 
-                for {set i 0} {$i < 1000} {incr i} {
+                if {$::accurate} {
+                    set loops 500
+                } else {
+                    set loops 1
+                }
+                for {set i 0} {$i < $loops} {incr i} {
                     set min [expr {int(rand()*$startlen)}]
                     set max [expr {$min+int(rand()*$startlen)}]
                     set before_len [llength $mylist]

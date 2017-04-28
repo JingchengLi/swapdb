@@ -566,7 +566,12 @@ start_server {
 #
     tags {slow} {
         test {intsets implementation stress testing} {
-            for {set j 0} {$j < 20} {incr j} {
+            if {$::accurate} {
+                set loops 20
+            } else {
+                set loops 2
+            }
+            for {set j 0} {$j < 2} {incr j} {
                 unset -nocomplain s
                 array set s {}
                 ssdbr del s

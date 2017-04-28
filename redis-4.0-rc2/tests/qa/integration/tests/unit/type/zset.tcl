@@ -1,6 +1,6 @@
 start_server {tags {"type"}
 overrides {maxmemory 0}} {
-    proc create_zset {key items} {
+   proc create_zset {key items} {
         ssdbr del $key
         foreach {score entry} $items {
             ssdbr zadd $key $score $entry
@@ -671,7 +671,7 @@ overrides {maxmemory 0}} {
         } elseif {$encoding == "skiplist"} {
             ssdbr config set zset-max-ziplist-entries 0
             ssdbr config set zset-max-ziplist-value 0
-            if {$::accurate} {set elements 1000} else {set elements 100}
+            if {$::accurate} {set elements 1000} else {set elements 50}
         } else {
             puts "Unknown sorted set encoding"
             exit
@@ -799,7 +799,7 @@ overrides {maxmemory 0}} {
             if {$::accurate} {
                 set num 100
             } else {
-                set num 10
+                set num 1
             }
             for {set i 0} {$i < $num} {incr i} {
                 set min [expr rand()]
@@ -884,7 +884,12 @@ overrides {maxmemory 0}} {
                 ssdbr zadd zset 0 $e
             }
             set lexset [lsort -unique $lexset]
-            for {set j 0} {$j < 100} {incr j} {
+            if {$::accurate} {
+                set num 100
+            } else {
+                set num 2
+            }
+            for {set j 0} {$j < $num} {incr j} {
                 set min [randstring 0 30 alpha]
                 set max [randstring 0 30 alpha]
                 set mininc [randomInt 2]
@@ -949,7 +954,12 @@ overrides {maxmemory 0}} {
                 ssdbr zadd zset 0 $e
             }
             set lexset [lsort -unique $lexset]
-            for {set j 0} {$j < 100} {incr j} {
+            if {$::accurate} {
+                set num 100
+            } else {
+                set num 2
+            }
+            for {set j 0} {$j < $num} {incr j} {
                 # Copy...
                 r restore zsetcopy 0 [r dump zset] replace
                 # ssdbr zunionstore zsetcopy 1 zset
@@ -1002,7 +1012,12 @@ overrides {maxmemory 0}} {
         test "ZSETs ZRANK augmented skip list stress testing - $encoding" {
             set err {}
             ssdbr del myzset
-            for {set k 0} {$k < 500} {incr k} {
+            if {$::accurate} {
+                set loops 500
+            } else {
+                set loops 50
+            }
+            for {set k 0} {$k < $loops} {incr k} {
                 set i [expr {$k % $elements}]
                 if {[expr rand()] < .2} {
                     ssdbr zrem myzset $i

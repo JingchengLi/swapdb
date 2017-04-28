@@ -563,6 +563,9 @@ proc populate_diff_keys {r2 r1 num {flag redis}} {
 }
 
 proc compare_debug_digest {{levels {0 -1}}} {
+    if {$::accurate} {
+        return
+    }
     assert {[llength $levels] > 1}
     set master_level 1
     set master_digest {}

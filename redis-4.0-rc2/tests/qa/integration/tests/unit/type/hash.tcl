@@ -462,7 +462,12 @@ overrides {maxmemory 0}} {
 
     foreach size {10 512} {
         test "Hash fuzzing #1 - $size fields" {
-            for {set times 0} {$times < 10} {incr times} {
+            if {$::accurate} {
+                set loops 10
+            } else {
+                set loops 2
+            }
+            for {set times 0} {$times < $loops} {incr times} {
                 catch {unset hash}
                 array set hash {}
                 ssdbr del hash
@@ -484,7 +489,12 @@ overrides {maxmemory 0}} {
         }
 
         test "Hash fuzzing #2 - $size fields" {
-            for {set times 0} {$times < 10} {incr times} {
+            if {$::accurate} {
+                set loops 10
+            } else {
+                set loops 2
+            }
+            for {set times 0} {$times < $loops} {incr times} {
                 catch {unset hash}
                 array set hash {}
                 ssdbr del hash
@@ -523,7 +533,12 @@ overrides {maxmemory 0}} {
 
     test {Stress test the hash ziplist -> hashtable encoding conversion} {
         ssdbr config set hash-max-ziplist-entries 32
-        for {set j 0} {$j < 100} {incr j} {
+        if {$::accurate} {
+            set loops 50
+        } else {
+            set loops 2
+        }
+        for {set j 0} {$j < $loops} {incr j} {
             ssdbr del myhash
             for {set i 0} {$i < 64} {incr i} {
                 ssdbr hset myhash [randomValue] [randomValue]

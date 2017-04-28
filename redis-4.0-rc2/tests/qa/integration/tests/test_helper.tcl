@@ -28,16 +28,18 @@ set ::all_tests {
     ssdb/lfu
     ssdb/lfu-policy
     ssdb/threads
+    ssdb/flush
 
     unit/type/hash
     unit/type/incr
-
     unit/type/string
     unit/type/list
     unit/type/set
     unit/type/zset
     unit/type/zset-2
     unit/type/list-2
+    unit/type/list-3
+
     integration/aof
     integration/replication-base
     integration/replication-2
@@ -49,11 +51,10 @@ set ::all_tests {
     integration/replication-c
     integration/replication-psync
     integration/psync2
-    ssdb/flush
     integration/replication-A
     integration/replication-B
+    integration/replication-C
     integration/replication-stable
-    unit/type/list-3
 }
 # next time support
     # unit/scan

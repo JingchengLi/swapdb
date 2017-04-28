@@ -1,58 +1,4 @@
 # abnormal case
-# redis和ssdb都开始传输快照后，如果ssdb挂掉，没有收到ssdb的“快照传输完成”的响应。
-start_server {tags {"repl-abnormal"}} {
-    start_server {} {
-
-        set master [srv -1 client]
-        set master_host [srv -1 host]
-        set master_port [srv -1 port]
-        set slave [srv 0 client]
-        set num 100000
-        set clients 1
-        set clist {}
-        set clist [ start_bg_complex_data_list $master_host $master_port $num $clients ]
-        after 1000
-
-        test "slave ssdb restart when master start to transfer snapshot" {
-            $slave slaveof $master_host $master_port
-            set pattern "transfer_snapshot start"
-            wait_log_pattern $pattern [srv -1 ssdbstdout]
-
-            kill_ssdb_server
-            restart_ssdb_server
-            set slave [srv 0 client]
-
-            wait_for_condition 50 500 {
-                [lindex [$slave role] 0] eq {slave} &&
-                [string match {*master_link_status:up*} [$slave info replication]]
-            } else {
-                stop_bg_client_list $clist
-                fail "slave can not sync with master during writing"
-            }
-            wait_for_online $master
-            stop_bg_client_list $clist
-            wait_for_condition 100 100 {
-                [$master dbsize] == [$slave dbsize]
-            } else {
-                fail "Different number of keys between master and slave after too long time."
-            }
-            compare_debug_digest
-        }
-
-        test "complex ops after restore sync from ssdb restart" {
-            set clist [ start_bg_complex_data_list $master_host $master_port $num $clients ]
-            after 1000
-            stop_bg_client_list $clist
-            wait_for_condition 100 100 {
-                [$master dbsize] == [$slave dbsize]
-            } else {
-                fail "Different number of keys between master and slave after too long time."
-            }
-            compare_debug_digest
-        }
-    }
-}
-
 # ssdb开始复制数据时，snapshot为空（redis未发送rr_make_snapshot），返回redis错误
 # 即在ssdb  make snapshot完成后重启ssdb清空snapshot。
 start_server {tags {"repl-abnormal"}} {
@@ -139,10 +85,13 @@ start_server {tags {"repl-abnormal"}} {
 # redis client double free问题。
 # TODO
 
+
 ## 在主从复制的任一阶段，将redis或ssdb搞挂，恢复后是否还能重新发起主从复制。
-foreach {log pattern} {slaveredis "SLAVE OF.*enabled" 
-    slaveredis "processing slaveof" 
-    slaveredis "Connecting to MASTER" 
+if {$::accurate} {
+    set pairs {
+    slaveredis "SLAVE OF.*enabled"
+    slaveredis "processing slaveof"
+    slaveredis "Connecting to MASTER"
     masterredis "Sending rr_check_write to SSDB"
     masterssdb "receive.*rr_check_write"
     masterssdb "result.*rr_check_write"
@@ -162,7 +111,13 @@ foreach {log pattern} {slaveredis "SLAVE OF.*enabled"
     masterssdb "replic procedure finish"
     masterredis "processing replconf"
     masterssdb "result.*rr_del_snapshot"
-} {
+    }
+} else {
+    set pairs {
+    masterredis "Starting BGSAVE for SYNC with target"
+    }
+}
+foreach {log pattern} $pairs {
     start_server {tags {"repl-abnormal"}} {
         set master [srv 0 client]
         set master_host [srv 0 host]

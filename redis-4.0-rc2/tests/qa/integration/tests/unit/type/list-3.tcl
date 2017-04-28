@@ -17,7 +17,7 @@ start_server {
 
     tags {slow} {
         test {ziplist implementation: value encoding and backlink} {
-            if {$::accurate} {set iterations 100} else {set iterations 1}
+            if {$::accurate} {set iterations 20} else {set iterations 2}
             for {set j 0} {$j < $iterations} {incr j} {
                 ssdbr del l
                 set l {}
@@ -54,7 +54,12 @@ start_server {
         }
 
         test {ziplist implementation: encoding stress testing} {
-            for {set j 0} {$j < 200} {incr j} {
+            if {$::accurate} {
+                set nums 50
+            } else {
+                set nums 2
+            }
+            for {set j 0} {$j < $nums} {incr j} {
                 ssdbr del l
                 set l {}
                 set len [randomInt 400]
