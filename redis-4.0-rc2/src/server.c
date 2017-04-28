@@ -2922,10 +2922,11 @@ void cleanSpecialClientsAndIntermediateKeys() {
     if (server.masterhost && server.slave_ssdb_load_evict_client) freeClient(server.slave_ssdb_load_evict_client);
     if (server.delete_confirm_client) freeClient(server.delete_confirm_client);
 
+    // todo: review and remove
     /* clean delete_confirm_keys dict. */
-    cleanAndSignalDeleteConfirmKeys();
+    //cleanAndSignalDeleteConfirmKeys();
     /* clean transferring_keys/loading_hot_keys dicts. */
-    cleanAndSignalLoadingOrTransferringKeys();
+    //cleanAndSignalLoadingOrTransferringKeys();
 
     emptyEvictionPool();
 
