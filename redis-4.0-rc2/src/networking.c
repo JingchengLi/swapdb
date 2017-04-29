@@ -1737,6 +1737,7 @@ void unlinkClient(client *c) {
 
 void resetSpecialCient(client *c) {
     if (c == server.ssdb_client) {
+        /* for master */
         if (!server.masterhost) cleanAndSignalLoadingOrTransferringKeys();
         server.ssdb_client = NULL;
     }
@@ -1745,7 +1746,8 @@ void resetSpecialCient(client *c) {
         server.ssdb_replication_client = NULL;
 
     if (c == server.slave_ssdb_load_evict_client) {
-        cleanAndSignalLoadingOrTransferringKeys();
+        /* for slave */
+        if (server.masterhost) cleanAndSignalLoadingOrTransferringKeys();
         server.slave_ssdb_load_evict_client = NULL;
     }
 
