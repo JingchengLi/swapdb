@@ -1403,16 +1403,18 @@ void cleanKeysToLoadAndEvict() {
     listIter li;
     listNode *ln;
 
-    /* clean server.loadAndEvictCmdList */
-    listRewind(server.loadAndEvictCmdList, &li);
-    while((ln = listNext(&li))) {
-        listDelNode(server.loadAndEvictCmdList, ln);
+    if (server.masterhost) {
+        /* clean server.loadAndEvictCmdList */
+        listRewind(server.loadAndEvictCmdList, &li);
+        while((ln = listNext(&li))) {
+            listDelNode(server.loadAndEvictCmdList, ln);
+        }
+    } else {
+        /* clean server.hot_keys */
+        listRelease(server.hot_keys);
+        server.hot_keys = listCreate();
+        listSetFreeMethod(server.hot_keys, (void (*)(void*))decrRefCount);
     }
-
-    /* clean server.hot_keys */
-    listRelease(server.hot_keys);
-    server.hot_keys = listCreate();
-    listSetFreeMethod(server.hot_keys, (void (*)(void*))decrRefCount);
 }
 
 
@@ -2930,7 +2932,7 @@ void cleanSpecialClientsAndIntermediateKeys() {
 
     emptyEvictionPool();
 
-    if (server.masterhost) cleanKeysToLoadAndEvict();
+    cleanKeysToLoadAndEvict();
 }
 
 void prepareSSDBflush(client* c) {

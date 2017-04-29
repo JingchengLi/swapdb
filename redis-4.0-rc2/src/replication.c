@@ -2041,6 +2041,8 @@ int cancelReplicationHandshake(void) {
 void replicationSetMaster(char *ip, int port) {
     int was_master = server.masterhost == NULL;
 
+    if (server.jdjr_mode)  cleanKeysToLoadAndEvict();
+
     sdsfree(server.masterhost);
     server.masterhost = sdsnew(ip);
     server.masterport = port;
@@ -2063,6 +2065,8 @@ void replicationSetMaster(char *ip, int port) {
 /* Cancel replication, setting the instance as a master itself. */
 void replicationUnsetMaster(void) {
     if (server.masterhost == NULL) return; /* Nothing to do. */
+
+    if (server.jdjr_mode)  cleanKeysToLoadAndEvict();
     sdsfree(server.masterhost);
     server.masterhost = NULL;
     /* When a slave is turned into a master, the current replication ID
