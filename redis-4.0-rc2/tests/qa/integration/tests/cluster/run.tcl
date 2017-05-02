@@ -30,9 +30,6 @@ proc main {} {
         "ssdb_server_unixsocket ssdb.sock"
     }
 
-    # if {![file exists ../../../../../src/redis-check-aof]} {
-        # catch {exec make -C ../../../../../src} info
-    # }
     run_tests
     cleanup
     end_tests
@@ -41,6 +38,7 @@ proc main {} {
 if {[catch main e]} {
     puts $::errorInfo
     if {$::pause_on_error} pause_on_error
+    set ::failed 1;# set failed to 1 when exception avoid to rm tmp.
     cleanup
     exit 1
 }
