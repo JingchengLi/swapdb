@@ -2763,8 +2763,18 @@ void replicationCron(void) {
                           "Replication log: Sending rr_transfer_snapshot to SSDB failed.");
                 /* continue to avoid acess invalid slave pointer later. */
                 continue;
-            } else
+            } else {
+                // todo: test and use a suitable timeout
+                /* handle response timeout in timer function. */
+                long long timer_id = aeCreateTimeEvent(server.el,5000,handleResponseTimeoutOfTransferSnapshot,slave,NULL);
+                if (timer_id  == AE_ERR) {
+                    freeClient(slave);
+                    /* continue to avoid acess invalid slave pointer later. */
+                    continue;
+                }
+                slave->repl_timer_id = timer_id;
                 serverLog(LL_DEBUG, "Replication log: Sending rr_transfer_snapshot to SSDB, fd: %d", slave->fd);
+            }
         }
 
         if (server.jdjr_mode && server.use_customized_replication

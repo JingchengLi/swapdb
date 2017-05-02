@@ -122,6 +122,7 @@ client *createClient(int fd) {
     c->bpop.timeout = 0;
     c->bpop.keys = dictCreate(&objectKeyPointerValueDictType,NULL);
     if (server.jdjr_mode) {
+        c->repl_timer_id = -1;
         c->ssdb_status = SSDB_NONE;
         c->bpop.loading_or_transfer_keys = dictCreate(&objectKeyPointerValueDictType,NULL);
         c->ssdb_conn_flags = 0;
@@ -1174,11 +1175,27 @@ int handleResponseOfDelSnapshot(client *c, redisReply* reply) {
     return process_status;
 }
 
+int handleResponseTimeoutOfTransferSnapshot(struct aeEventLoop *eventLoop, long long id, void *clientData) {
+    client* c = clientData;
+
+    if (c->ssdb_status == SLAVE_SSDB_SNAPSHOT_TRANSFER_PRE)
+        freeClientAsync(c);
+    else {
+        /* we only use this timer once, remove it. */
+        aeDeleteTimeEvent(eventLoop,id);
+        c->repl_timer_id = -1;
+    }
+}
+
 int handleResponseOfTransferSnapshot(client *c, redisReply* reply) {
     int process_status;
 
     if (c->ssdb_status == SLAVE_SSDB_SNAPSHOT_TRANSFER_PRE) {
         if (IsReplyEqual(reply, shared.transfersnapshotok)) {
+            if (c->repl_timer_id != -1) {
+                aeDeleteTimeEvent(server.el,c->repl_timer_id);
+                c->repl_timer_id = -1;
+            }
             c->ssdb_status = SLAVE_SSDB_SNAPSHOT_TRANSFER_START;
 
             aeDeleteFileEvent(server.el, c->fd, AE_WRITABLE);
@@ -1191,6 +1208,10 @@ int handleResponseOfTransferSnapshot(client *c, redisReply* reply) {
             serverLog(LL_DEBUG, "Replication log: transfersnapshotok, fd: %d", c->fd);
         } else if (IsReplyEqual(reply, shared.transfersnapshotnok)) {
             serverAssert(server.ssdb_status == MASTER_SSDB_SNAPSHOT_OK);
+            if (c->repl_timer_id != -1) {
+                aeDeleteTimeEvent(server.el,c->repl_timer_id);
+                c->repl_timer_id = -1;
+            }
             addReplyError(c, "snapshot transfer nok");
             freeClientAsync(c);
             process_status = C_OK;
@@ -1707,6 +1728,10 @@ void unlinkClient(client *c) {
         ln = listSearchKey(server.clients,c);
         serverAssert(ln != NULL);
         listDelNode(server.clients,ln);
+
+        /* remove replication timeout timer. */
+        if (server.jdjr_mode && c->repl_timer_id != -1)
+            aeDeleteTimeEvent(server.el, c->repl_timer_id);
 
         /* Unregister async I/O handlers and close the socket. */
         aeDeleteFileEvent(server.el,c->fd,AE_READABLE);

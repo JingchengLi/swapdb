@@ -784,6 +784,7 @@ typedef struct client {
     char ssdb_status; /* Record the ssdb state. */
     char client_ip[NET_IP_STR_LEN]; /* Used by customized-replication in jdjr-mode. */
     redisReply *ssdb_replies[2]; /* Pointers for ssdb replies. */
+    long long repl_timer_id; /* the timer event id which is used to delete the timer event. */
 } client;
 
 struct saveparam {
@@ -2140,6 +2141,7 @@ void removeVisitingSSDBKey(client *c);
 void handleCustomizedBlockedClients();
 void removeClientFromListForBlockedKey(client* c, robj* key);
 void sendDelSSDBsnapshot();
+int handleResponseTimeoutOfTransferSnapshot(struct aeEventLoop *eventLoop, long long id, void *clientData);
 
 #if defined(__GNUC__)
 void *calloc(size_t count, size_t size) __attribute__ ((deprecated));
