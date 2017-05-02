@@ -4844,6 +4844,7 @@ void storetossdbCommand(client *c) {
         addReply(c, shared.nullbulk);
         /* The key is not existed any more. */
         serverLog(LL_DEBUG, "Not existed in redis.");
+        server.cmdNotDone = 1;
         return;
     }
 
@@ -4932,13 +4933,9 @@ void dumpfromssdbCommand(client *c) {
         return;
     }
 
-    if ((o = lookupKeyReadWithFlags(EVICTED_DATA_DB,c->argv[1], LOOKUP_NOTOUCH)) == NULL) {
-        addReply(c, shared.nullbulk);
-        return;
-    }
-
     if ((o = lookupKeyReadWithFlags(c->db, c->argv[1], LOOKUP_NOTOUCH)) != NULL) {
         addReplyError(c, "Already in redis.");
+        server.cmdNotDone = 1;
         return;
     }
 
@@ -5563,6 +5560,17 @@ clusterNode *getNodeByQuery(client *c, struct redisCommand *cmd, robj **argv, in
      * myself, set error_code to MOVED since we need to issue a rediretion. */
     if (n != myself && error_code) *error_code = CLUSTER_REDIR_MOVED;
     return n;
+}
+
+int isSsdbRespCmd(struct redisCommand *cmd) {
+    if (server.jdjr_mode && cmd
+        && (cmd->proc == ssdbRespDelCommand
+            || cmd->proc == ssdbRespRestoreCommand
+            || cmd->proc == ssdbRespFailCommand
+            || cmd->proc == ssdbRespNotfoundCommand)) {
+        return C_OK;
+    } else
+        return C_ERR;
 }
 
 /* Send the client the right redirection code, according to error_code
