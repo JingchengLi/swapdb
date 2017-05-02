@@ -4840,14 +4840,6 @@ void storetossdbCommand(client *c) {
 
     keyobj = c->argv[1];
 
-    if (lookupKeyReadWithFlags(c->db, c->argv[1], LOOKUP_NOTOUCH) == NULL) {
-        addReply(c, shared.nullbulk);
-        /* The key is not existed any more. */
-        serverLog(LL_DEBUG, "Not existed in redis.");
-        server.cmdNotDone = 1;
-        return;
-    }
-
     if (c->argc != 2) {
         addReply(c, shared.syntaxerr);
         return;
@@ -4868,6 +4860,13 @@ void storetossdbCommand(client *c) {
     } else if (dictFind(EVICTED_DATA_DB->delete_confirm_keys, keyobj->ptr)) {
         addReplyError(c, "In delete_confirm_keys.");
         server.cmdNotDone = 1;
+        return;
+    }
+
+    if (lookupKeyReadWithFlags(c->db, c->argv[1], LOOKUP_NOTOUCH) == NULL) {
+        addReply(c, shared.nullbulk);
+        /* The key is not existed any more. */
+        serverLog(LL_DEBUG, "Not existed in redis.");
         return;
     }
 
@@ -4935,7 +4934,6 @@ void dumpfromssdbCommand(client *c) {
 
     if ((o = lookupKeyReadWithFlags(c->db, c->argv[1], LOOKUP_NOTOUCH)) != NULL) {
         addReplyError(c, "Already in redis.");
-        server.cmdNotDone = 1;
         return;
     }
 
