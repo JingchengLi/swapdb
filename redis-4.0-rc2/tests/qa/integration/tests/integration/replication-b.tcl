@@ -16,13 +16,13 @@ config {real.conf}} {
             set num 30000
             set clients 10
             set clist [ start_bg_complex_data_list $master_host $master_port $num $clients 100k]
+            wait_for_transfer_limit 1 -2
+            after 1000
             test "Two slaves slaveof at the same time during writing" {
                 [lindex $slaves 0] slaveof $master_host $master_port
                 [lindex $slaves 1] slaveof $master_host $master_port
-                # wait_for_online $master 2
+                wait_for_online $master 2
             }
-            wait_for_transfer_limit 1 -2
-            after 1000
             stop_bg_client_list  $clist
 
             test "MASTER and SLAVES dataset should be identical after complex ops" {
@@ -62,6 +62,8 @@ config {real.conf}} {
         set clients 10
         set clist [ start_bg_complex_data_list $master_host $master_port $num $clients 100k]
 
+        wait_for_transfer_limit 1 -1
+        after 1000
         test "First server should have role slave after SLAVEOF" {
             [lindex $slaves 0] slaveof $master_host $master_port
             after 1000
@@ -72,8 +74,6 @@ config {real.conf}} {
             wait_for_online $master 1
         }
 
-        wait_for_transfer_limit 1 -1
-        after 1000
         stop_bg_client_list $clist
 
         test "MASTER and one SLAVE dataset should be identical after complex ops" {
@@ -104,7 +104,10 @@ config {real.conf}} {
                 after 1000
                 s 0 role
             } {slave}
-            wait_for_online $master 2
+
+            test "Two slaves should correctly synchronized" {
+                wait_for_online $master 2
+            }
 
             stop_bg_client_list  $clist
 

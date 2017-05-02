@@ -701,6 +701,8 @@ proc restart_ssdb_server {{level 0}} {
     # reconnect new client after restart ssdb
     set client [redis $host $port]
     dict set config "client" $client
+    set ssdbclient [redis $host [expr $port+$::ssdbport]]
+    dict set srv "ssdbclient" $client
 
     # re-set withe new ssdbpid in the servers list
     lset ::servers end+$level $config

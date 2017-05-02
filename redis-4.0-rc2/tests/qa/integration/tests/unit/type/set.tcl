@@ -571,7 +571,7 @@ start_server {
             } else {
                 set loops 2
             }
-            for {set j 0} {$j < 2} {incr j} {
+            for {set j 0} {$j < $loops} {incr j} {
                 unset -nocomplain s
                 array set s {}
                 ssdbr del s

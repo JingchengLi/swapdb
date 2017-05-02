@@ -203,8 +203,10 @@ proc sr {args} {
         set level [lindex $args 0]
         set args [lrange $args 1 end]
     }
-    set ssdbport [expr [srv $level port]+$::ssdbport]
-    [redis $::host $ssdbport] {*}$args
+    after 1
+    [srv $level "ssdbclient"] {*}$args
+    # set ssdbport [expr [srv $level port]+$::ssdbport]
+    # [redis $::host $ssdbport] {*}$args
 }
 
 proc reconnect {args} {
@@ -219,6 +221,8 @@ proc reconnect {args} {
     set config [dict get $srv "config"]
     set client [redis $host $port]
     dict set srv "client" $client
+    set ssdbclient [redis $host [expr $port+$::ssdbport]]
+    dict set srv "ssdbclient" $ssdbclient
 
     # select the right db when we don't have to authenticate
     if {![dict exists $config "requirepass"]} {

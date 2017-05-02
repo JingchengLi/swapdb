@@ -63,7 +63,7 @@ proc exec_instance {type cfgfile} {
     } else {
         if {[file exists ../../../../../../build/${prgname}]} {
             set pid [exec ../../../../../../build/${prgname} $cfgfile &]
-        } elseif {[file exists ../../../../../src/${prgname}]} {
+        } elseif {[file exists ../../../../../../src/${prgname}]} {
             set pid [exec ../../../../../../src/${prgname} $cfgfile &]
         } else {
             error "no redis-server found in src or build directory!!!"
