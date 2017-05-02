@@ -24,6 +24,7 @@ public:
 
     int64_t ts  ;
 
+    volatile bool quit = false;
 
     ReplicationJob(SSDBServer *serv, const HostAndPort &hnp, Link *link) : serv(serv), hnp(hnp), upstreamRedis(link) {
         ts = time_ms();
