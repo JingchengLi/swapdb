@@ -382,10 +382,10 @@ void NetworkServer::serve(){
 
 				HostAndPort hnp = job->hnp;
 				Link *master_link = job->upstreamRedis;
-				
-                log_debug("before send finish rr_link address:%lld", master_link);
-                if (master_link != NULL){
-                    master_link->send(std::vector<std::string>({"ok" , "rr_transfer_snapshot finished"}));
+                if (master_link != nullptr){
+					log_debug("before send finish rr_link address:%lld", master_link);
+
+					master_link->send(std::vector<std::string>({"ok" , "rr_transfer_snapshot finished"}));
                     if (master_link->append_reply) {
                         master_link->send_append_res(std::vector<std::string>({"check 0"}));
                     }

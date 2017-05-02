@@ -68,7 +68,10 @@ int ReplicationWorker::proc(ReplicationJob *job) {
 
     log_debug("[ReplicationWorker] prepare for event loop");
     unique_ptr<Fdevents> fdes = unique_ptr<Fdevents>(new Fdevents());
+
     fdes->set(master_link->fd(), FDEVENT_IN, 1, master_link); //open evin
+    master_link->noblock(true);
+
     const Fdevents::events_t *events;
     ready_list_t ready_list;
     ready_list_t ready_list_2;
@@ -89,7 +92,7 @@ int ReplicationWorker::proc(ReplicationJob *job) {
 
         if (events == nullptr) {
             log_fatal("events.wait error: %s", strerror(errno));
-            break;
+            return -1;
         }
 
         for (int i = 0; i < (int) events->size(); i++) {
@@ -128,45 +131,41 @@ int ReplicationWorker::proc(ReplicationJob *job) {
         for (it = ready_list.begin(); it != ready_list.end(); it++) {
             Link *link = *it;
             if (link->error()) {
+                log_warn("fd: %d, link broken, address:%lld", link->fd(), link);
 
                 if (link == master_link) {
                     log_info("link to redis broken");
                     //TODO
-                    fdes->del(ssdb_slave_link->fd());
-                    fdes->del(master_link->fd());
-                    delete ssdb_slave_link;
-                    delete master_link;
-
                 } else if (link == ssdb_slave_link) {
                     log_info("link to slave ssdb broken");
                     //TODO
-
                     master_link->noblock(false);
                     send_error_to_redis(master_link);
-
-                    fdes->del(ssdb_slave_link->fd());
-                    fdes->del(master_link->fd());
-                    delete ssdb_slave_link;
-                    delete master_link;
+                } else {
+                    log_info("?????????????????????????????????????????????????????????????????????????????????");
 
                 }
 
+                fdes->del(ssdb_slave_link->fd());
+                fdes->del(master_link->fd());
+                delete ssdb_slave_link;
+                delete master_link;
+                job->upstreamRedis = nullptr;
+
                 {
+                    //update replic stats
                     Locking<Mutex> l(&serv->replicMutex);
-                    serv->replicNumFinished++;
+                    serv->replicNumFailed++;
                     if (serv->replicNumFinished == (serv->replicNumStarted + serv->replicNumFailed)) {
                         serv->replicState = REPLIC_END;
                     }
                 }
 
                 return -1;
-//                fdes->del(link->fd());
-//                delete link;
-//                continue;
             }
         }
 
-        if (ssdb_slave_link->output->size() > (1024 * 1024)) {
+        if (ssdb_slave_link->output->size() > (2 * 1024 * 1024)) {
             log_debug("delay for output buffer write slow~");
             continue;
         }
@@ -176,7 +175,7 @@ int ReplicationWorker::proc(ReplicationJob *job) {
             saveStrToBuffer(buffer.get(), fit->key());
             saveStrToBuffer(buffer.get(), fit->val());
 
-            if (buffer->size() > (10 * 1024)) {
+            if (buffer->size() > (1024 * 1024)) {
                 saveStrToBuffer(ssdb_slave_link->output, "mset");
                 moveBuffer(ssdb_slave_link->output, buffer.get());
                 ssdb_slave_link->write();
@@ -207,14 +206,23 @@ int ReplicationWorker::proc(ReplicationJob *job) {
         }
     }
 
-
-    ssdb_slave_link->noblock(false);
-    saveStrToBuffer(ssdb_slave_link->output, "complete");
-    ssdb_slave_link->write();
-    ssdb_slave_link->read();
-    delete ssdb_slave_link;
+    {
+        //del from event loop
+        fdes->del(ssdb_slave_link->fd());
+        fdes->del(master_link->fd());
+    }
 
     {
+        //write "complete" to slave_ssdb
+        ssdb_slave_link->noblock(false);
+        saveStrToBuffer(ssdb_slave_link->output, "complete");
+        ssdb_slave_link->write();
+        ssdb_slave_link->read();
+        delete ssdb_slave_link;
+    }
+
+    {
+        //update replic stats
         Locking<Mutex> l(&serv->replicMutex);
         serv->replicNumFinished++;
         if (serv->replicNumFinished == (serv->replicNumStarted + serv->replicNumFailed)) {

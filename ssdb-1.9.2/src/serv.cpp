@@ -248,7 +248,7 @@ void SSDBServer::reg_procs(NetworkServer *net) {
     REG_PROC(select, "rt");
     REG_PROC(client, "r");
     REG_PROC(quit, "r");
-    REG_PROC(replic, "wt");
+    REG_PROC(replic, "b");
     REG_PROC(sync150, "r");
 
 
@@ -687,7 +687,7 @@ int proc_replic(NetworkServer *net, Link *link, const Request &req, Response *re
 
 
     resp->push_back("ok");
-    return 0;
+    return PROC_BACKEND;
 }
 
 static int ssdb_load_len(const char *data, int *offset, uint64_t *lenptr) {
