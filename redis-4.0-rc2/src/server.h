@@ -1283,6 +1283,14 @@ struct redisServer {
     /* Calculate the num of unresponsed clients. */
     int check_write_unresponse_num;
 
+    /* use this time to process 'ssdb make snapshot' timeout in replication if we
+     * don't receive response from SSDB. */
+    time_t make_snapshot_begin_time;
+
+    /* if this is true, we need try to send delete SSDB snapshot request til we
+     * receive "delete snapshot ok" response. */
+    int retry_del_snapshot;
+
     char **ssdbargv;
     size_t *ssdbargvlen;
     list *loadAndEvictCmdList;
@@ -2131,6 +2139,7 @@ int prologOfLoadingFromSSDB(robj *keyobj);
 void removeVisitingSSDBKey(client *c);
 void handleCustomizedBlockedClients();
 void removeClientFromListForBlockedKey(client* c, robj* key);
+void sendDelSSDBsnapshot();
 
 #if defined(__GNUC__)
 void *calloc(size_t count, size_t size) __attribute__ ((deprecated));

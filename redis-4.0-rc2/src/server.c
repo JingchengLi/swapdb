@@ -2332,6 +2332,7 @@ void initServer(void) {
         server.loadAndEvictCmdList = listCreate();
         listSetFreeMethod(server.loadAndEvictCmdList, (void (*)(void*))freeMultiCmd);
 
+        server.retry_del_snapshot = 0;
         server.is_doing_flushall = 0;
         server.current_flushall_client = NULL;
         server.prohibit_ssdb_read_write = NO_PROHIBIT_SSDB_READ_WRITE;

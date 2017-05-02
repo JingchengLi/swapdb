@@ -1100,18 +1100,20 @@ int handleResponseOfCheckWrite(client *c, redisReply* reply) {
 
             sds finalcmd = sdsnew("*1\r\n$16\r\nrr_make_snapshot\r\n");
             if (sendCommandToSSDB(server.ssdb_replication_client, finalcmd) != C_OK) {
+                resetCustomizedReplication();
                 /* TODO: set server.ssdb_replication_client to null and reconnect */
                 serverLog(LL_WARNING, "Replication log: Sending rr_make_snapshot to SSDB failed.");
             } else {
+                /* will handle timeout case in replicationCron. */
+                server.make_snapshot_begin_time = server.unixtime;
                 serverLog(LL_DEBUG, "Replication log: Sending rr_make_snapshot to SSDB sucess.");
             }
         }
 
         process_status = C_OK;
     } else if (IsReplyEqual(reply, shared.checkwritenok)) {
-        /* set to 0 so ssdb write check will be timeout. exception case
-         * of ssdb write check will be processed in replicationCron.*/
-        server.check_write_begin_time = 0;
+        /* Reset customized replication status immediately. */
+        resetCustomizedReplication();
         serverLog(LL_WARNING, "SSDB returns 'rr_check_write nok'.");
         process_status = C_OK;
     } else
@@ -1127,6 +1129,7 @@ int handleResponseOfPsync(client *c, redisReply* reply) {
     /* Reset is_allow_ssdb_write to ALLOW_SSDB_WRITE
        as soon as rr_make_snapshot is responsed. */
     if (IsReplyEqual(reply, shared.makesnapshotok)) {
+        server.make_snapshot_begin_time = -1;
         server.ssdb_status = MASTER_SSDB_SNAPSHOT_OK;
         serverAssert(c == server.ssdb_replication_client);
         process_status = C_OK;
@@ -1141,23 +1144,28 @@ int handleResponseOfPsync(client *c, redisReply* reply) {
     return process_status;
 }
 
+void sendDelSSDBsnapshot() {
+    sds cmdsds = sdsnew("*1\r\n$15\r\nrr_del_snapshot\r\n");
+
+    if (sendCommandToSSDB(server.ssdb_replication_client, cmdsds) != C_OK) {
+        server.retry_del_snapshot = 1;
+        serverLog(LL_DEBUG, "Sending rr_del_snapshot to SSDB failed. will retry!");
+    } else {
+        serverLog(LL_DEBUG, "Replication log: send rr_del_snapshot to SSDB");
+    }
+}
+
 int handleResponseOfDelSnapshot(client *c, redisReply* reply) {
     int process_status;
     UNUSED(c);
 
     if (IsReplyEqual(reply, shared.delsnapshotok)) {
-        server.ssdb_status = SSDB_NONE;
+        server.retry_del_snapshot = 0;
         process_status = C_OK;
     } else if (IsReplyEqual(reply, shared.delsnapshotnok)) {
-        /* Notify ssdb to release snapshot once more. */
-        /* TODO: limit retry times. */
-        sds cmdsds = sdsnew("*1\r\n$15\r\nrr_del_snapshot\r\n");
-
-        /* TODO: maybe we can retry if rr_del_snapshot fails. but it's also
-         * the duty of SSDB party to delete snapshot by rule.*/
-        if (sendCommandToSSDB(server.ssdb_replication_client, cmdsds) != C_OK) {
-            // todo: set server.ssdb_replication_client to null and reconnect
-            serverLog(LL_WARNING, "Sending rr_del_snapshot to SSDB failed.");
+        if (server.ssdb_status == SSDB_NONE) {
+            /* Notify ssdb to release snapshot once more. */
+            sendDelSSDBsnapshot();
         }
         process_status = C_OK;
     } else

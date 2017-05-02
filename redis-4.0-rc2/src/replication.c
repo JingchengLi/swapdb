@@ -2604,6 +2604,7 @@ void resetCustomizedReplication() {
     listNode *ln;
 
     server.check_write_begin_time = -1;
+    server.make_snapshot_begin_time = -1;
     server.is_allow_ssdb_write = ALLOW_SSDB_WRITE;
     server.ssdb_status = SSDB_NONE;
 
@@ -2695,6 +2696,9 @@ void replicationCron(void) {
         if (server.check_write_begin_time != -1
              && (server.unixtime - server.check_write_begin_time > 5))
             resetCustomizedReplication();
+        if (server.make_snapshot_begin_time != -1 &&
+                (server.unixtime - server.make_snapshot_begin_time > 5))
+            resetCustomizedReplication();
     }
 
     /* Second, send a newline to all the slaves in pre-synchronization
@@ -2776,6 +2780,7 @@ void replicationCron(void) {
         && server.ssdb_status == MASTER_SSDB_SNAPSHOT_OK) {
         int has_slave_in_transfer = 0;
         int max_replstate = REPL_STATE_NONE;
+        int max_slave_ssdb_status = SSDB_NONE;
         listRewind(server.slaves,&li);
         while((ln = listNext(&li))) {
             client *slave = ln->value;
@@ -2784,23 +2789,28 @@ void replicationCron(void) {
                 has_slave_in_transfer = 1;
             }
 
+            max_slave_ssdb_status = slave->ssdb_status > max_slave_ssdb_status ? slave->ssdb_status : max_slave_ssdb_status;
             max_replstate = slave->replstate > max_replstate ? slave->replstate: max_replstate;
             serverLog(LL_DEBUG, "Replication log: slave->replstate: %d, max_replstate: %d, slave->ssdb_status: %d",
                       slave->replstate, max_replstate, slave->ssdb_status);
         }
-        if (max_replstate >= SLAVE_STATE_SEND_BULK_FINISHED
+        if (max_replstate == SLAVE_STATE_ONLINE
             && !has_slave_in_transfer) {
-            /* Notify ssdb to release snapshot. */
-            sds cmdsds = sdsnew("*1\r\n$15\r\nrr_del_snapshot\r\n");
+            server.ssdb_status = SSDB_NONE;
 
-            /* TODO: maybe we can retry if rr_del_snapshot fails. but it's also
-             * the duty of SSDB party to delete snapshot by rule.*/
-            if (sendCommandToSSDB(server.ssdb_replication_client, cmdsds) != C_OK) {
-                // todo: set server.ssdb_replication_client to null and reconnect
-                serverLog(LL_WARNING, "Sending rr_del_snapshot to SSDB failed.");
-            } else
-                serverLog(LL_DEBUG, "Replication log: send rr_del_snapshot to SSDB");
+            /* tell redis to delete SSDB snapshot. */
+            sendDelSSDBsnapshot();
         }
+        /* if redis fails to transfer RDB to its slaves, the slave client will be disconnected and freed, we check
+         * these cases here to avoid potential replication deadlock issues. */
+        if (0 == listLength(server.slaves) || max_slave_ssdb_status == SSDB_NONE) {
+            resetCustomizedReplication();
+        }
+    }
+
+    if (server.jdjr_mode && server.use_customized_replication &&
+                            server.ssdb_status == SSDB_NONE && server.retry_del_snapshot) {
+        sendDelSSDBsnapshot();
     }
 
     /* Disconnect timedout slaves. */
