@@ -50,6 +50,8 @@ private:
 
 	NetworkServer();
 
+	void cleanup_cursor();
+
 protected:
 	void usage(int argc, char **argv);
 

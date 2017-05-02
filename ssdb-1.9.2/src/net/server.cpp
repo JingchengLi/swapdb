@@ -297,40 +297,9 @@ void NetworkServer::serve(){
 
 		if((uint32_t)(g_ticks - cursor_ticks) >= CURSOR_CLEANUP_TICKS){
 			cursor_ticks = g_ticks;
-			Command *cmd = proc_map.get_proc("cursor_cleanup");
-			if(!cmd){
-				log_fatal("");
-			} else {
-				Request request;
-				Response response;
-				request.push_back("cursor_cleanup");
-				request.push_back("1000");
-				cmd->proc(this, nullptr, request, &response);
-			}
+			cleanup_cursor();
 		}
 
-		SSDBServer *serv = (SSDBServer *)(this->data);
-		/*static int nLoopNum = 0;
-		pthread_mutex_lock(&serv->mutex);
-		if (serv->ReplicState == REPLIC_END){
-			pthread_mutex_unlock(&serv->mutex);
-			nLoopNum++;
-			if (nLoopNum == 10){
-				Command *cmd = proc_map.get_proc("rr_del_snapshot");
-				if(!cmd){
-					log_fatal("not found rr_del_snapshot command");
-				} else {
-					Request request;
-					Response response;
-//					cmd->proc(this, nullptr, request, &response);
-				}
-				nLoopNum = 0;
-			}
-		} else{
-			pthread_mutex_unlock(&serv->mutex);
-			nLoopNum = 0;
-		}
-*/
 		ready_list.swap(ready_list_2);
 		ready_list_2.clear();
 		
@@ -340,7 +309,7 @@ void NetworkServer::serve(){
 		}else{
 			events = fdes->wait(50);
 		}
-		if(events == NULL){
+		if(events == nullptr){
 			log_fatal("events.wait error: %s", strerror(errno));
 			break;
 		}
@@ -368,7 +337,42 @@ void NetworkServer::serve(){
 				}else{
 					log_debug("accept return NULL");
 				}
-			}else if(fde->data.ptr == this->replication){
+			}else if(fde->data.ptr == this->reader || fde->data.ptr == this->writer){
+				ProcWorkerPool *worker = (ProcWorkerPool *)fde->data.ptr;
+				ProcJob *job = NULL;
+				if(worker->pop(&job) == 0){
+					log_fatal("reading result from workers error!");
+					exit(0);
+				}
+				if(proc_result(job, &ready_list) == PROC_ERROR){
+					//
+				}
+			}else if(fde->data.ptr == this->redis){
+				TransferWorkerPool *worker = (TransferWorkerPool *)fde->data.ptr;
+				TransferJob *job = nullptr;
+				if(worker->pop(&job) == 0){
+					log_fatal("reading result from workers error!");
+					exit(0);
+				}
+//
+//					int qsize = worker->queued();
+//					if (qsize > 500) {
+//						log_error("BackgroundJob queue size is now : %d", qsize);
+//					} else if (qsize > 218) {
+//						log_warn("BackgroundJob queue size is now : %d", qsize);
+//					} else if (qsize > 50) {
+//						log_info("BackgroundJob queue size is now : %d", qsize);
+//					} else if (qsize > 6) {
+//						log_debug("BackgroundJob queue size is now : %d", qsize);
+//					}
+//
+//					log_debug("job process done %s", job->dump().c_str());
+
+				if (job != nullptr) {
+					delete job;
+				}
+
+			} else if(fde->data.ptr == this->replication){
                 ReplicationWorkerPool *worker = (ReplicationWorkerPool *)fde->data.ptr;
                 ReplicationJob *job = nullptr;
                 if(worker->pop(&job) == 0){
@@ -402,42 +406,7 @@ void NetworkServer::serve(){
                     delete job;
                 }
 
-            }else if(fde->data.ptr == this->redis){
-					TransferWorkerPool *worker = (TransferWorkerPool *)fde->data.ptr;
-					TransferJob *job = nullptr;
-					if(worker->pop(&job) == 0){
-						log_fatal("reading result from workers error!");
-						exit(0);
-					}
-//
-//					int qsize = worker->queued();
-//					if (qsize > 500) {
-//						log_error("BackgroundJob queue size is now : %d", qsize);
-//					} else if (qsize > 218) {
-//						log_warn("BackgroundJob queue size is now : %d", qsize);
-//					} else if (qsize > 50) {
-//						log_info("BackgroundJob queue size is now : %d", qsize);
-//					} else if (qsize > 6) {
-//						log_debug("BackgroundJob queue size is now : %d", qsize);
-//					}
-//
-//					log_debug("job process done %s", job->dump().c_str());
-
-					if (job != nullptr) {
-						delete job;
-					}
-
-			}else if(fde->data.ptr == this->reader || fde->data.ptr == this->writer){
-				ProcWorkerPool *worker = (ProcWorkerPool *)fde->data.ptr;
-				ProcJob *job = NULL;
-				if(worker->pop(&job) == 0){
-					log_fatal("reading result from workers error!");
-					exit(0);
-				}
-				if(proc_result(job, &ready_list) == PROC_ERROR){
-					//
-				}
-			} else if (fde->data.num == 150){
+            }else if (fde->data.num == 150){
 				Link* link = (Link*)fde->data.ptr;
 				Command *cmd = proc_map.get_proc("sync150");
 				if(!cmd){
@@ -522,6 +491,17 @@ void NetworkServer::serve(){
 		if(loop_time > 0.5){
 			log_warn("long loop time: %.3f", loop_time);
 		}
+	}
+}
+
+void NetworkServer::cleanup_cursor() {
+	Command *cmd = proc_map.get_proc("cursor_cleanup");
+	if(!cmd){
+		log_fatal("cannot find  cursor_cleanup in proc_map");
+	} else {
+		Request request = {"cursor_cleanup","1000"};
+		Response response;
+		cmd->proc(this, nullptr, request, &response);
 	}
 }
 
