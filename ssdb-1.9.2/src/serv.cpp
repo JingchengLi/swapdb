@@ -676,7 +676,7 @@ int proc_replic(NetworkServer *net, Link *link, const Request &req, Response *re
     net->replication->push(job);
 
 
-    resp->push_back("ok");
+    resp->resp.clear();
     return PROC_BACKEND;
 }
 
@@ -792,7 +792,11 @@ int proc_sync150(NetworkServer *net, Link *link, const Request &req, Response *r
         }
     }
 
-    ret = serv->ssdb->parse_replic(kvs);
+    if (kvs.size() > 0) {
+        log_debug("parse_replic count %d", kvs.size());
+        ret = serv->ssdb->parse_replic(kvs);
+    }
+
     if (resp->size() > 0) {
         if (serv->ssdb->expiration != nullptr) {
             serv->ssdb->expiration->start();
