@@ -4865,7 +4865,7 @@ void storetossdbCommand(client *c) {
         return;
     }
 
-    if (lookupKeyReadWithFlags(c->db, c->argv[1], LOOKUP_NOTOUCH) == NULL) {
+    if (lookupKeyReadWithFlags(c->db, keyobj, LOOKUP_NOTOUCH) == NULL) {
         addReply(c, shared.nullbulk);
         /* The key is not existed any more. */
         serverLog(LL_DEBUG, "Not existed in redis.");
@@ -4906,6 +4906,7 @@ void locatekeyCommand(client *c) {
 }
 
 void dumpfromssdbCommand(client *c) {
+    robj *keyobj = c->argv[1];
     dictEntry *de;
 
     if (!server.jdjr_mode) {
@@ -4913,8 +4914,6 @@ void dumpfromssdbCommand(client *c) {
                             (char*)c->argv[0]->ptr);
         return;
     }
-
-    robj *keyobj = c->argv[1], *o;
 
     if ((de = dictFind(EVICTED_DATA_DB->transferring_keys, keyobj->ptr))) {
         addReplyError(c, "In transferring_keys.");
@@ -4934,8 +4933,10 @@ void dumpfromssdbCommand(client *c) {
         return;
     }
 
-    if ((o = lookupKeyReadWithFlags(c->db, c->argv[1], LOOKUP_NOTOUCH)) != NULL) {
-        addReplyError(c, "Already in redis.");
+    if ((lookupKeyReadWithFlags(EVICTED_DATA_DB, keyobj, LOOKUP_NOTOUCH)) == NULL) {
+        /* The key is not existed any more. */
+        addReply(c, shared.nullbulk);
+        serverLog(LL_DEBUG, "Not existed in ssdb.");
         return;
     }
 
