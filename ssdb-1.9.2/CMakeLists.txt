@@ -251,7 +251,6 @@ src/proc_hash.cpp
 src/proc_set.cpp
 src/proc_zset.cpp
 src/proc_queue.cpp
-src/backend_dump.cpp
 src/serv.cpp
 src/replication.cpp
 )

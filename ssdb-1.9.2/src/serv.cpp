@@ -105,7 +105,7 @@ DEF_PROC(qslice);
 DEF_PROC(qtrim);
 DEF_PROC(qget);
 DEF_PROC(qset);
-DEF_PROC(dump2);
+
 DEF_PROC(info);
 DEF_PROC(version);
 DEF_PROC(dbsize);
@@ -257,7 +257,6 @@ void SSDBServer::reg_procs(NetworkServer *net) {
 
     REG_PROC(slowlog, "r"); // attention!
 
-    REG_PROC(dump2, "b");
     REG_PROC(info, "r");
     REG_PROC(version, "r");
     REG_PROC(dbsize, "rt");
@@ -288,8 +287,6 @@ SSDBServer::SSDBServer(SSDB *ssdb, SSDB *meta, const Config &conf, NetworkServer
     net->data = this;
     this->reg_procs(net);
 
-    backend_dump = new BackendDump(this->ssdb);
-
     {
         const Config *upstream_conf = conf.get("upstream");
         if (upstream_conf != NULL) {
@@ -304,7 +301,6 @@ SSDBServer::SSDBServer(SSDB *ssdb, SSDB *meta, const Config &conf, NetworkServer
 }
 
 SSDBServer::~SSDBServer() {
-    delete backend_dump;
 
     {
         Locking<Mutex> l(&replicMutex);
@@ -455,12 +451,6 @@ int proc_debug(NetworkServer *net, Link *link, const Request &req, Response *res
 int proc_quit(NetworkServer *net, Link *link, const Request &req, Response *resp) {
     resp->reply_ok();
     return 0;
-}
-
-int proc_dump2(NetworkServer *net, Link *link, const Request &req, Response *resp) {
-    SSDBServer *serv = (SSDBServer *) net->data;
-    serv->backend_dump->proc(link);
-    return PROC_BACKEND;
 }
 
 

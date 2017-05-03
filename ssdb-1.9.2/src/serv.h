@@ -13,7 +13,6 @@ found in the LICENSE file.
 #include <util/dump_data.h>
 #include "ssdb/ssdb_impl.h"
 #include "ssdb/ttl.h"
-#include "backend_dump.h"
 #include "net/server.h"
 #include "SSDB_client.h"
 #include "net/link.h"
@@ -35,7 +34,6 @@ private:
 
 public:
 	SSDBImpl *ssdb;
-	BackendDump *backend_dump;
 
     HostAndPort redisConf;
 
