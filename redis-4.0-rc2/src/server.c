@@ -1700,7 +1700,7 @@ void initServerConfig(void) {
     server.jdjr_mode = CONFIG_DEFAULT_JDJR_MODE;
     server.load_from_ssdb = CONFIG_DEFAULT_LOAD_FROM_SSDB;
     server.use_customized_replication = CONFIG_DEFAULT_USE_CUSTOMIZED_REPLICATION;
-    server.dbnum = server.jdjr_mode ? CONFIG_DEFAULT_DBNUM + 1 : CONFIG_DEFAULT_DBNUM;
+    server.dbnum = CONFIG_DEFAULT_DBNUM;
     server.verbosity = CONFIG_DEFAULT_VERBOSITY;
     server.maxidletime = CONFIG_DEFAULT_CLIENT_TIMEOUT;
     server.tcpkeepalive = CONFIG_DEFAULT_TCP_KEEPALIVE;

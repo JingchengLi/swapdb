@@ -3678,6 +3678,8 @@ int verifyClusterConfigWithData(void) {
 
     /* Make sure we only have keys in DB0. */
     for (j = 1; j < server.dbnum; j++) {
+        if (server.jdjr_mode && j == EVICTED_DATA_DBID) continue;
+
         if (dictSize(server.db[j].dict)) return C_ERR;
     }
 
