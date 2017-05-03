@@ -1840,9 +1840,6 @@ void handleDeleteConfirmKeys(void) {
 void beforeSleep(struct aeEventLoop *eventLoop) {
     UNUSED(eventLoop);
 
-    /* Give some run time to modules threads using thread safe contexts. */
-    moduleCooperativeMultiTaskingCycle();
-
     /* Call the Redis Cluster before sleep function. Note that this function
      * may change the state of Redis Cluster (from ok to fail or vice versa),
      * so it's a good idea to call it before serving the unblocked clients
@@ -1909,6 +1906,19 @@ void beforeSleep(struct aeEventLoop *eventLoop) {
     /* Call handleCustomizedBlockedClients in beforeSleep to
        avoid timeout when there's only 1 real client. */
     if (server.jdjr_mode) handleCustomizedBlockedClients();
+
+    /* Before we are going to sleep, let the threads access the dataset by
+     * releasing the GIL. Redis main thread will not touch anything at this
+     * time. */
+    if (moduleCount()) moduleReleaseGIL();
+}
+
+/* This function is called immadiately after the event loop multiplexing
+ * API returned, and the control is going to soon return to Redis by invoking
+ * the different events callbacks. */
+void afterSleep(struct aeEventLoop *eventLoop) {
+    UNUSED(eventLoop);
+    if (moduleCount()) moduleAcquireGIL();
 }
 
 /* =========================== Server initialization ======================== */
@@ -6070,6 +6080,7 @@ int main(int argc, char **argv) {
     }
 
     aeSetBeforeSleepProc(server.el,beforeSleep);
+    aeSetAfterSleepProc(server.el,afterSleep);
     aeMain(server.el);
     aeDeleteEventLoop(server.el);
     return 0;
