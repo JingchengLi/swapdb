@@ -1406,9 +1406,8 @@ void handleSSDBReply(client *c, int revert_len) {
 
         /* Handle the response of rr_transfer_snapshot. */
         if ((c->flags & CLIENT_SLAVE)
-            && !c->cmd
-            && c->lastcmd
-            && (c->lastcmd->proc == syncCommand)
+            && (c->ssdb_status == SLAVE_SSDB_SNAPSHOT_TRANSFER_PRE
+                || c->ssdb_status == SLAVE_SSDB_SNAPSHOT_TRANSFER_START)
             && handleResponseOfTransferSnapshot(c, reply) == C_OK) {
             revertClientBufReply(c, revert_len);
             goto cleanup;
