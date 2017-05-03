@@ -44,11 +44,12 @@ test "Send CLUSTER FAILOVER to #5, during load" {
         # This way we are able to stress Lua -> Redis command invocation
         # as well, that has tests to prevent Lua to write into wrong
         # hash slots.
-        if {$listid % 2} {
+        # Not support eval
+        # if {$listid % 2} {
             $cluster rpush $key $ele
-        } else {
-           $cluster eval {redis.call("rpush",KEYS[1],ARGV[1])} 1 $key $ele
-        }
+        # } else {
+           # $cluster eval {redis.call("rpush",KEYS[1],ARGV[1])} 1 $key $ele
+        # }
         lappend content($key) $ele
 
         if {($j % 1000) == 0} {
