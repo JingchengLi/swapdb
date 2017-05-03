@@ -93,6 +93,7 @@ class Link{
 		int send(const Bytes &s1, const Bytes &s2, const Bytes &s3, const Bytes &s4);
 		int send(const Bytes &s1, const Bytes &s2, const Bytes &s3, const Bytes &s4, const Bytes &s5);
 		int send_append_res(const std::vector<std::string> &packet);
+		int quick_send(const std::vector<std::string> &packet);
 
 		const std::vector<Bytes>* last_recv(){
 			return &recv_data;

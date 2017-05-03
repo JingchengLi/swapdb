@@ -888,7 +888,6 @@ int proc_rr_make_snapshot(NetworkServer *net, Link *link, const Request &req, Re
 int proc_rr_transfer_snapshot(NetworkServer *net, Link *link, const Request &req, Response *resp) {
     SSDBServer *serv = (SSDBServer *) net->data;
     CHECK_NUM_PARAMS(3);
-    log_debug("2:link address:%lld", link);
 
     std::string ip = req[1].String();
     int port = req[2].Int();
@@ -899,20 +898,14 @@ int proc_rr_transfer_snapshot(NetworkServer *net, Link *link, const Request &req
         serv->replicNumStarted++;
     }
 
-    log_debug("transfer_snapshot start %s:%d", ip.c_str(), port);
-    {
-        link->noblock(false);
-        link->send(std::vector<std::string>({"ok","rr_transfer_snapshot ok"}));
-        if (link->append_reply) {
-            link->send_append_res(std::vector<std::string>({"check 0"}));
-        }
-        link->write();
-    }
+    log_info("transfer_snapshot start %s:%d , link address:%lld", ip.c_str(), port, link);
+
+    link->quick_send({"ok","rr_transfer_snapshot ok"});
 
     ReplicationJob *job = new ReplicationJob(serv, HostAndPort{ip, port}, link);
-
     net->replication->push(job);
-    resp->resp.clear();
+
+    resp->resp.clear(); //prevent send resp
     return PROC_BACKEND;
 }
 

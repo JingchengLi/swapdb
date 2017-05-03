@@ -385,21 +385,18 @@ void NetworkServer::serve(){
                 if (master_link != nullptr){
 					log_debug("before send finish rr_link address:%lld", master_link);
 
-					master_link->send(std::vector<std::string>({"ok" , "rr_transfer_snapshot finished"}));
-                    if (master_link->append_reply) {
-                        master_link->send_append_res(std::vector<std::string>({"check 0"}));
-                    }
-                    if (master_link->write() <= 0){
+                    if (master_link->quick_send({"ok" , "rr_transfer_snapshot finished"}) <= 0){
                         log_error("The link write error, delete link! fd:%d", master_link->fd());
-                        this->link_count --;
                         fdes->del(master_link->fd());
                         delete master_link;
                     } else{
-                        master_link->noblock(true);
+						this->link_count++;
+
+						master_link->noblock(true);
                         fdes->set(master_link->fd(), FDEVENT_IN, 1, master_link);
                     }
                 } else{
-                    log_error("The link from redis is off!");
+					log_error("The link from redis is off!");
                 }
                 
                 if (job != nullptr) {

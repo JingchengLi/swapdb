@@ -40,26 +40,27 @@ int ReplicationWorker::proc(ReplicationJob *job) {
         Locking<Mutex> l(&serv->replicMutex);
         if (serv->replicSnapshot == nullptr) {
             log_error("snapshot is null, maybe rr_make_snapshot not receive or error!");
-            send_error_to_redis(master_link);
-            return 0;
+
+            reportError(job);
+
+            return -1;
         }
         snapshot = serv->replicSnapshot;
     }
+
     std::unique_ptr<Iterator> fit = std::unique_ptr<Iterator>(serv->ssdb->iterator("", "", -1, snapshot));
 
     Link *ssdb_slave_link = Link::connect((hnp.ip).c_str(), hnp.port);
     if (ssdb_slave_link == nullptr) {
         log_error("fail to connect to slave ssdb! ip[%s] port[%d]", hnp.ip.c_str(), hnp.port);
         log_debug("replic send snapshot failed!");
-        send_error_to_redis(master_link);
-        {
-            Locking<Mutex> l(&serv->replicMutex);
-            serv->replicNumFailed++;
-            if (serv->replicNumFinished == (serv->replicNumStarted + serv->replicNumFailed))
-                serv->replicState = REPLIC_END;
-        }
-        return 0;
+
+        reportError(job);
+
+        return -1;
     }
+
+    ssdb_slave_link->noblock(false);
     ssdb_slave_link->send(std::vector<std::string>({"sync150"}));
     ssdb_slave_link->write();
     ssdb_slave_link->response();
@@ -92,6 +93,10 @@ int ReplicationWorker::proc(ReplicationJob *job) {
 
         if (events == nullptr) {
             log_fatal("events.wait error: %s", strerror(errno));
+
+            reportError(job);
+            delete ssdb_slave_link;
+
             return -1;
         }
 
@@ -112,12 +117,18 @@ int ReplicationWorker::proc(ReplicationJob *job) {
                 }
             }
             if (fde->events & FDEVENT_OUT) {
+                if (link->output->empty()) {
+                    fdes->clr(link->fd(), FDEVENT_OUT);
+                    continue;
+                }
+
                 ready_list.push_back(link); //push into ready_list
                 if (link->error()) {
                     continue;
                 }
                 int len = link->write();
                 if (len <= 0) {
+//                if (len < 0) {
                     log_debug("fd: %d, write: %d, delete link, e:%d, f:%d", link->fd(), len, fde->events, fde->s_flags);
                     link->mark_error();
                     continue;
@@ -135,19 +146,16 @@ int ReplicationWorker::proc(ReplicationJob *job) {
 
                 if (link == master_link) {
                     log_info("link to redis broken");
-                    //TODO
                 } else if (link == ssdb_slave_link) {
                     log_info("link to slave ssdb broken");
-                    //TODO
-                    master_link->noblock(false);
                     send_error_to_redis(master_link);
                 } else {
-                    log_info("?????????????????????????????????????????????????????????????????????????????????");
-
+                    log_info("?????????????????????????????????WTF????????????????????????????????????????????????");
                 }
 
                 fdes->del(ssdb_slave_link->fd());
                 fdes->del(master_link->fd());
+
                 delete ssdb_slave_link;
                 delete master_link;
                 job->upstreamRedis = nullptr;
@@ -166,6 +174,7 @@ int ReplicationWorker::proc(ReplicationJob *job) {
         }
 
         if (ssdb_slave_link->output->size() > (2 * 1024 * 1024)) {
+//            ssdb_slave_link->write();
             log_debug("delay for output buffer write slow~");
             continue;
         }
@@ -188,7 +197,7 @@ int ReplicationWorker::proc(ReplicationJob *job) {
         }
 
         if (finish) {
-            if (buffer->size() > 0) {
+            if (!buffer->empty()) {
                 saveStrToBuffer(ssdb_slave_link->output, "mset");
                 moveBuffer(ssdb_slave_link->output, buffer.get());
                 ssdb_slave_link->write();
@@ -217,7 +226,7 @@ int ReplicationWorker::proc(ReplicationJob *job) {
         ssdb_slave_link->noblock(false);
         saveStrToBuffer(ssdb_slave_link->output, "complete");
         ssdb_slave_link->write();
-        ssdb_slave_link->read();
+        ssdb_slave_link->read(); //todo error process
         delete ssdb_slave_link;
     }
 
@@ -237,14 +246,24 @@ int ReplicationWorker::proc(ReplicationJob *job) {
     return 0;
 }
 
+void ReplicationWorker::reportError(ReplicationJob *job) {
+    send_error_to_redis(job->upstreamRedis);
+    SSDBServer *serv = job->serv;
+
+    {
+        Locking<Mutex> l(&serv->replicMutex);
+        serv->replicNumFailed++;
+        if (serv->replicNumFinished == (serv->replicNumStarted + serv->replicNumFailed))
+            serv->replicState = REPLIC_END;
+    }
+    delete job->upstreamRedis;
+    job->upstreamRedis = nullptr; //reset
+}
+
 
 void send_error_to_redis(Link *link) {
-    if (link != NULL) {
-        link->send(std::vector<std::string>({"error", "rr_transfer_snapshot error"}));
-        if (link->append_reply) {
-            link->send_append_res(std::vector<std::string>({"check 0"}));
-        }
-        link->write();
+    if (link != nullptr) {
+        link->quick_send({"error", "rr_transfer_snapshot unfinished"});
         log_error("send rr_transfer_snapshot error!!");
     }
 }

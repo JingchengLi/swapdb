@@ -604,6 +604,18 @@ Link::request(const Bytes &s1, const Bytes &s2, const Bytes &s3, const Bytes &s4
     return this->response();
 }
 
+int Link::quick_send(const std::vector<std::string> &packet) {
+    bool bak = noblock_;
+    noblock(false);
+    send(packet);
+    if (append_reply) {
+        send_append_res(std::vector<std::string>({"check 0"}));
+    }
+    int ret = write();
+    noblock(bak);
+    return ret;
+}
+
 
 #if 0
 int main(){

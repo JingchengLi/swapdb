@@ -46,6 +46,7 @@ public:
 
 private:
 
+    void reportError(ReplicationJob *job);
 };
 
 typedef WorkerPool<ReplicationWorker, ReplicationJob *> ReplicationWorkerPool;
