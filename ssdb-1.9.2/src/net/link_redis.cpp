@@ -32,7 +32,6 @@ enum STRATEGY{
 	STRATEGY_ZREVRANGE,
 	STRATEGY_ZRANGEBYSCORE,
 	STRATEGY_ZREVRANGEBYSCORE,
-	STRATEGY_ZADD,
 	STRATEGY_ZINCRBY,
 	STRATEGY_REMRANGEBYRANK,
 	STRATEGY_REMRANGEBYSCORE,
@@ -155,7 +154,7 @@ static RedisCommand_raw cmds_raw[] = {
 	{STRATEGY_REMRANGEBYSCORE, "zremrangebyscore",	"zremrangebyscore",		REPLY_INT},
 	{STRATEGY_ZRANGE,	"zrange",		"zrange",		REPLY_MULTI_BULK},
 	{STRATEGY_ZREVRANGE,"zrevrange",	"zrrange",		REPLY_MULTI_BULK},
-	{STRATEGY_ZADD,		"zadd",			"multi_zset", 	REPLY_INT},
+	{STRATEGY_AUTO,		"zadd",			"multi_zset", 	REPLY_INT},
 	{STRATEGY_ZINCRBY,	"zincrby",		"zincr", 		REPLY_BULK},
 //	{STRATEGY_ZRANGEBYSCORE,	"zrangebyscore",	"zscan",	REPLY_MULTI_BULK},
 //	{STRATEGY_ZREVRANGEBYSCORE,	"zrevrangebyscore",	"zrscan",	REPLY_MULTI_BULK},
@@ -237,36 +236,6 @@ int RedisLink::convert_req(){
 			recv_string.push_back(recv_bytes[1].String());
 			recv_string.push_back(recv_bytes[3].String());
 			recv_string.push_back(recv_bytes[2].String());
-		}
-		return 0;
-	}
-	if(this->req_desc->strategy == STRATEGY_ZADD){
-		recv_string.push_back(req_desc->ssdb_cmd);
-		if(recv_bytes.size() >= 2){
-
-            int scoreidx = 2;
-			for(int i=2; i<=recv_bytes.size()-2; i+=1){
-				std::string key =recv_bytes[i].String();
-				strtolower(&key);
-                if (key=="nx" || key=="xx" || key=="ch" || key=="incr") {
-					scoreidx++;
-				} else break;
-            }
-
-			recv_string.push_back(recv_bytes[1].String());
-			for(int i=2; i<scoreidx; i+=1){
-				recv_string.push_back(recv_bytes[i].String());
-			}
-
-			if((recv_bytes.size() + 2 - scoreidx) % 2 != 0){
-				//wrong args
-				return -1;
-			}
-
-			for(int i=scoreidx; i<=recv_bytes.size()-2; i+=2){
-				recv_string.push_back(recv_bytes[i+1].String());
-				recv_string.push_back(recv_bytes[i].String());
-			}
 		}
 		return 0;
 	}

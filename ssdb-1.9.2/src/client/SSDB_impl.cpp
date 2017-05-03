@@ -711,8 +711,8 @@ Status ClientImpl::zset(const std::string &name, const std::map<std::string, dou
 	for(std::map<std::string, double>::const_iterator it = items.begin();
 		it != items.end(); ++it)
 	{
-		list.push_back(it->first);
 		list.push_back(str(it->second));
+		list.push_back(it->first);
 	}
 	resp = this->request("multi_zset", name, list);
 	Status s(resp);
@@ -729,7 +729,7 @@ Status ClientImpl::zset(const std::string &name, const std::map<std::string, dou
 Status ClientImpl::zset(const std::string &name, const std::string &key, double score){
 	std::string s_score = str(score);
 	const std::vector<std::string> *resp;
-	resp = this->request("multi_zset", name, key, s_score);
+	resp = this->request("multi_zset", name, s_score, key);
 	Status s(resp);
 	return s;
 }

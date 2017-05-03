@@ -8,7 +8,9 @@ found in the LICENSE file.
 
 
 int proc_multi_zset(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
+    CHECK_NUM_PARAMS(4);
+
+    SSDBServer *serv = (SSDBServer *)net->data;
 	int flags = ZADD_NONE;
 
     int elements;
@@ -57,7 +59,7 @@ int proc_multi_zset(NetworkServer *net, Link *link, const Request &req, Response
         }
 
         char* eptr;
-        double score = strtod(req[scoreidx+1].data(), &eptr); //check double
+        double score = strtod(req[scoreidx].data(), &eptr); //check double
         if (eptr[0] != '\n' ) {  // skip for ssdb protocol
             if (eptr[0] != '\0' || errno!= 0 || std::isnan(score) || std::isinf(score)) {
                 reply_errinfo_return("ERR value is not a valid float or a NaN data");
@@ -67,7 +69,7 @@ int proc_multi_zset(NetworkServer *net, Link *link, const Request &req, Response
         }
 
         double new_val = 0;
-        int ret = serv->ssdb->zincr(name, req[scoreidx], score, flags, &new_val);
+        int ret = serv->ssdb->zincr(name, req[scoreidx+1], score, flags, &new_val);
         check_key(ret);
         if (ret < 0){
             reply_err_return(ret);
@@ -93,8 +95,8 @@ int proc_multi_zset(NetworkServer *net, Link *link, const Request &req, Response
 
 	it = req.begin() + scoreidx;
 	for(; it != req.end(); it += 2){
-		const Bytes &key = *it;
-		const Bytes &val = *(it + 1);
+		const Bytes &key = *(it + 1);
+		const Bytes &val = *it;
 
  		char* eptr;
 		double score = strtod(val.data(), &eptr); //check double
