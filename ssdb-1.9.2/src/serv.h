@@ -25,6 +25,7 @@ enum ReplicState{
 	REPLIC_END
 };
 
+
 class SSDBServer
 {
 private:

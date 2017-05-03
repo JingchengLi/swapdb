@@ -164,7 +164,7 @@ int ReplicationWorker::proc(ReplicationJob *job) {
                     //update replic stats
                     Locking<Mutex> l(&serv->replicMutex);
                     serv->replicNumFailed++;
-                    if (serv->replicNumFinished == (serv->replicNumStarted + serv->replicNumFailed)) {
+                    if (serv->replicNumStarted == (serv->replicNumFinished + serv->replicNumFailed)) {
                         serv->replicState = REPLIC_END;
                     }
                 }
@@ -234,7 +234,7 @@ int ReplicationWorker::proc(ReplicationJob *job) {
         //update replic stats
         Locking<Mutex> l(&serv->replicMutex);
         serv->replicNumFinished++;
-        if (serv->replicNumFinished == (serv->replicNumStarted + serv->replicNumFailed)) {
+        if (serv->replicNumStarted == (serv->replicNumFinished + serv->replicNumFailed)) {
             serv->replicState = REPLIC_END;
         }
     }
@@ -253,8 +253,9 @@ void ReplicationWorker::reportError(ReplicationJob *job) {
     {
         Locking<Mutex> l(&serv->replicMutex);
         serv->replicNumFailed++;
-        if (serv->replicNumFinished == (serv->replicNumStarted + serv->replicNumFailed))
+        if (serv->replicNumStarted == (serv->replicNumFinished + serv->replicNumFailed)) {
             serv->replicState = REPLIC_END;
+        }
     }
     delete job->upstreamRedis;
     job->upstreamRedis = nullptr; //reset

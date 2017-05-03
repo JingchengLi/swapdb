@@ -120,6 +120,7 @@ DEF_PROC(select);
 DEF_PROC(client);
 DEF_PROC(quit);
 DEF_PROC(replic);
+DEF_PROC(replic_info);
 DEF_PROC(sync150);
 DEF_PROC(slowlog);
 DEF_PROC(ssdb_scan);
@@ -249,6 +250,7 @@ void SSDBServer::reg_procs(NetworkServer *net) {
     REG_PROC(client, "r");
     REG_PROC(quit, "r");
     REG_PROC(replic, "b");
+    REG_PROC(replic_info, "r");
     REG_PROC(sync150, "r");
 
 
@@ -660,6 +662,36 @@ int proc_info(NetworkServer *net, Link *link, const Request &req, Response *resp
 }
 
 
+int proc_replic_info(NetworkServer *net, Link *link, const Request &req, Response *resp) {
+    SSDBServer *serv = (SSDBServer *) net->data;
+
+
+    const char* ReplicStateString[] = {
+            "REPLIC_START",
+            "REPLIC_TRANS",
+            "REPLIC_END"
+    };
+
+
+    resp->reply_list_ready();
+    {
+        //update replic stats
+        Locking<Mutex> l(&serv->replicMutex);
+
+        resp->push_back("replicNumStarted");
+        resp->add(serv->replicNumStarted);
+        resp->push_back("replicNumFailed");
+        resp->add(serv->replicNumFailed);
+        resp->push_back("replicNumFinished");
+        resp->add(serv->replicNumFinished);
+        resp->push_back("replicState");
+        resp->push_back(ReplicStateString[serv->replicState]);
+    }
+
+    return 0;
+}
+
+
 int proc_replic(NetworkServer *net, Link *link, const Request &req, Response *resp) {
     SSDBServer *serv = (SSDBServer *) net->data;
     CHECK_NUM_PARAMS(3);
@@ -669,6 +701,9 @@ int proc_replic(NetworkServer *net, Link *link, const Request &req, Response *re
     {
         Locking<Mutex> l(&serv->replicMutex);
         serv->replicSnapshot = serv->ssdb->GetSnapshot();
+
+        serv->replicState = REPLIC_TRANS;
+        serv->replicNumStarted++;
     }
 
     ReplicationJob *job = new ReplicationJob(serv, HostAndPort{ip, port}, link);
