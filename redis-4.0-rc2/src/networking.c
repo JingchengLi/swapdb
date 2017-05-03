@@ -1180,11 +1180,10 @@ int handleResponseTimeoutOfTransferSnapshot(struct aeEventLoop *eventLoop, long 
 
     if (c->ssdb_status == SLAVE_SSDB_SNAPSHOT_TRANSFER_PRE)
         freeClientAsync(c);
-    else {
-        /* we only use this timer once, remove it. */
-        aeDeleteTimeEvent(eventLoop,id);
-        c->repl_timer_id = -1;
-    }
+
+    c->repl_timer_id = -1;
+    /* we only use this timer once, remove it. */
+    return AE_NOMORE;
 }
 
 int handleResponseOfTransferSnapshot(client *c, redisReply* reply) {
