@@ -32,9 +32,6 @@ test "Killing one master node" {
     kill_instance redis 0
 }
 
-after 100000000
-puts "waiting ...."
-
 test "Wait for failover" {
     wait_for_condition 1000 50 {
         [CI 1 cluster_current_epoch] > $current_epoch
