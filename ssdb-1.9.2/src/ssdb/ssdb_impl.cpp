@@ -340,6 +340,11 @@ void SSDBImpl::compact(){
 }
 
 
+leveldb::Status SSDBImpl::CommitBatch(leveldb::WriteBatch *updates) {
+	return ldb->Write(leveldb::WriteOptions(), updates);
+}
+
+
 void SSDBImpl::start() {
     this->bgtask_flag_ = true;
 	int err = pthread_create(&bg_tid_, NULL, &thread_func, this);

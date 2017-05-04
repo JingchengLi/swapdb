@@ -95,7 +95,6 @@ int SSDBImpl::multi_set(const std::vector<Bytes> &kvs, int offset){
 
     RecordLocks<Mutex> l(&mutex_record_);
 
-    leveldb::Status s;
     int rval = 0;
 
 	std::vector<Bytes>::const_iterator it;
@@ -115,7 +114,7 @@ int SSDBImpl::multi_set(const std::vector<Bytes> &kvs, int offset){
             return ret;
 		}
 	}
-	s = ldb->Write(leveldb::WriteOptions(), &(batch));
+    leveldb::Status s = CommitBatch(&(batch));
 	if(!s.ok()){
 		log_error("multi_set error: %s", s.ToString().c_str());
         return STORAGE_ERR;
@@ -150,7 +149,7 @@ int SSDBImpl::multi_del(const std::set<Bytes> &distinct_keys, int64_t *num){ //æ
 		}
 	}
 	if ((*num) > 0){
-		leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
+		leveldb::Status s = CommitBatch(&(batch));
 		if(!s.ok()){
 			log_error("multi_del error: %s", s.ToString().c_str());
 			return STORAGE_ERR;
@@ -170,7 +169,7 @@ int SSDBImpl::setNoLock(const Bytes &key, const Bytes &val, int flags, int *adde
     }
 
     if (*added > 0) {
-        leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
+        leveldb::Status s = CommitBatch(&(batch));
         if (!s.ok()){
             log_error("error: %s", s.ToString().c_str());
             return STORAGE_ERR;
@@ -206,7 +205,7 @@ int SSDBImpl::getset(const Bytes &key, std::pair<std::string, bool> &val, const 
 	}
 	batch.Put(meta_key, meta_val);
 
-	leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
+	leveldb::Status s = CommitBatch(&(batch));
 	if(!s.ok()){
 		log_error("set error: %s", s.ToString().c_str());
 		return STORAGE_ERR;
@@ -262,7 +261,7 @@ int SSDBImpl::del(const Bytes &key){
         return ret;
     }
 
-	leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
+	leveldb::Status s = CommitBatch(&(batch));
     if(!s.ok()){
         log_error("[del] update error: %s", s.ToString().c_str());
         return STORAGE_ERR;
@@ -310,7 +309,7 @@ int SSDBImpl::incrbyfloat(const Bytes &key, long double by, long double *new_val
     std::string meta_val = encode_kv_val(Bytes(str(*new_val)), kv.version);
     batch.Put(buf, meta_val);
 
-    leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
+    leveldb::Status s = CommitBatch(&(batch));
     if(!s.ok()){
         log_error("del error: %s", s.ToString().c_str());
         return STORAGE_ERR;
@@ -349,7 +348,7 @@ int SSDBImpl::incr(const Bytes &key, int64_t by, int64_t *new_val){
     std::string meta_val = encode_kv_val(Bytes(str(*new_val)), kv.version);
 	batch.Put(buf, meta_val);
 
-	leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
+	leveldb::Status s = CommitBatch(&(batch));
 	if(!s.ok()){
 		log_error("incr error: %s", s.ToString().c_str());
 		return STORAGE_ERR;
@@ -397,7 +396,7 @@ int SSDBImpl::append(const Bytes &key, const Bytes &value, uint64_t *llen) {
     std::string meta_val = encode_kv_val(Bytes(val), kv.version);
     batch.Put(meta_key, meta_val);
 
-    leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
+    leveldb::Status s = CommitBatch(&(batch));
     if(!s.ok()){
         log_error("set error: %s", s.ToString().c_str());
         log_error("error: %s", s.ToString().c_str());
@@ -440,7 +439,7 @@ int SSDBImpl::setbit(const Bytes &key, int64_t bitoffset, int on, int *res){
     std::string meta_val = encode_kv_val(Bytes(val), kv.version);
 	batch.Put(meta_key, meta_val);
 
-	leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
+	leveldb::Status s = CommitBatch(&(batch));
 	if(!s.ok()){
 		log_error("set error: %s", s.ToString().c_str());
 		return STORAGE_ERR;
@@ -532,7 +531,7 @@ int SSDBImpl::setrange(const Bytes &key, int64_t start, const Bytes &value, uint
     std::string meta_val = encode_kv_val(Bytes(val), kv.version);
     batch.Put(meta_key, meta_val);
 
-    leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
+    leveldb::Status s = CommitBatch(&(batch));
     if(!s.ok()){
         log_error("set error: %s", s.ToString().c_str());
         return STORAGE_ERR;
@@ -876,8 +875,8 @@ int SSDBImpl::restore(const Bytes &key, int64_t expire, const Bytes &data, bool 
 
             leveldb::WriteBatch batch;
             mark_key_deleted(batch, key, meta_key, meta_val);
+            
             s = ldb->Write(leveldb::WriteOptions(), &(batch));
-
             if(!s.ok()){
                 return STORAGE_ERR;
             }
@@ -1199,7 +1198,7 @@ int SSDBImpl::parse_replic(const std::vector<std::string> &kvs) {
         batch.Put(key, val);
     }
 
-    leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
+    leveldb::Status s = CommitBatch(&(batch));
     if(!s.ok()){
         log_error("write leveldb error: %s", s.ToString().c_str());
         return -1;

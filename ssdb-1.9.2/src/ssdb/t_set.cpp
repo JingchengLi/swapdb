@@ -136,7 +136,7 @@ int SSDBImpl::srem(const Bytes &key, const std::vector<Bytes> &members, int64_t 
         ret = 1;
     }
 
-    leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
+    leveldb::Status s = CommitBatch(&(batch));
     if (!s.ok()) {
         log_error("srem error: %s", s.ToString().c_str());
         return STORAGE_ERR;
@@ -346,7 +346,7 @@ int SSDBImpl::spop(const Bytes &key, std::vector<std::string> &members, int64_t 
         ret = 1;
     }
 
-    leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
+    leveldb::Status s = CommitBatch(&(batch));
     if (!s.ok()) {
         log_error("spop error: %s", s.ToString().c_str());
         return STORAGE_ERR;

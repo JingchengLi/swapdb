@@ -51,7 +51,7 @@ int SSDBImpl::zdelNoLock(const Bytes &name, const std::set<Bytes> &keys, int64_t
         ret = 1;
     }
 
-    leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
+    leveldb::Status s = CommitBatch(&(batch));
     if (!s.ok()) {
         log_error("zdel error: %s", s.ToString().c_str());
         return STORAGE_ERR;
@@ -93,7 +93,7 @@ int SSDBImpl::zincr(const Bytes &name, const Bytes &key, double by, int &flags, 
         }
     }
 
-    leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
+    leveldb::Status s = CommitBatch(&(batch));
     if (!s.ok()) {
         log_error("zset error: %s", s.ToString().c_str());
         return STORAGE_ERR;
@@ -620,7 +620,7 @@ int SSDBImpl::zremrangebyscore(const Bytes &name, const Bytes &score_start, cons
             ret = 0;
         }
 
-        leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
+        leveldb::Status s = CommitBatch(&(batch));
         if (!s.ok()) {
             log_error("zdel error: %s", s.ToString().c_str());
             return STORAGE_ERR;
@@ -970,7 +970,7 @@ int SSDBImpl::zremrangebylex(const Bytes &name, const Bytes &key_start, const By
     }
 
 
-    leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
+    leveldb::Status s = CommitBatch(&(batch));
     if (!s.ok()) {
         log_error("zdel error: %s", s.ToString().c_str());
         return STORAGE_ERR;

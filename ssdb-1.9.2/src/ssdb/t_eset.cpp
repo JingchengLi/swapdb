@@ -21,7 +21,7 @@ int SSDBImpl::eset(const Bytes &key, int64_t ts) {
 
     ret = eset_one(this, batch, key, ts);
     if (ret >= 0) {
-        leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
+        leveldb::Status s = CommitBatch(&(batch));
         if (!s.ok()) {
             log_error("eset error: %s", s.ToString().c_str());
             return -1;
@@ -38,7 +38,7 @@ int SSDBImpl::edel(const Bytes &key) {
 
     int ret = edel_one(batch, key);
     if (ret >= 0) {
-        leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
+        leveldb::Status s = CommitBatch(&(batch));
         if (!s.ok()) {
             log_error("edel error: %s", s.ToString().c_str());
             return -1;

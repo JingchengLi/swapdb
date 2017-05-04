@@ -52,7 +52,7 @@ int SSDBImpl::saddNoLock(const Bytes &key, const std::set<T> &mem_set, int64_t *
         ret = 1;
     }
 
-    leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
+    leveldb::Status s = CommitBatch(&(batch));
     if (!s.ok()) {
         log_error("saddNoLock error: %s", s.ToString().c_str());
         return STORAGE_ERR;

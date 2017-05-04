@@ -48,7 +48,7 @@ int SSDBImpl::hmsetNoLock(const Bytes &name, const std::map<T ,T> &kvs, bool che
         ret = 1;
     }
 
-    leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
+    leveldb::Status s = CommitBatch(&(batch));
     if(!s.ok()){
         log_error("[hmsetNoLock] error: %s", s.ToString().c_str());
         return STORAGE_ERR;

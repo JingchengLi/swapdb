@@ -42,7 +42,7 @@ int SSDBImpl::hset(const Bytes &name, const Bytes &key, const Bytes &val, int *a
         ret = 1;
     }
 
-	leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
+	leveldb::Status s = CommitBatch(&(batch));
 	if(!s.ok()){
 		log_error("error: %s", s.ToString().c_str());
 		return STORAGE_ERR;
@@ -89,7 +89,7 @@ int SSDBImpl::hsetnx(const Bytes &name, const Bytes &key, const Bytes &val, int 
         ret = 1;
     }
 
-	leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
+	leveldb::Status s = CommitBatch(&(batch));
 	if(!s.ok()){
 		log_error("error: %s", s.ToString().c_str());
 		return STORAGE_ERR;
@@ -133,7 +133,7 @@ int SSDBImpl::hdel(const Bytes &name, const std::set<Bytes> &fields, int *delete
         ret = 1;
     }
 
-	leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
+	leveldb::Status s = CommitBatch(&(batch));
 	if(!s.ok()){
 		log_error("error: %s", s.ToString().c_str());
 		return STORAGE_ERR;
@@ -204,7 +204,7 @@ int SSDBImpl::hincrbyfloat(const Bytes &name, const Bytes &key, long double by, 
         ret = 1;
     }
 
-	leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
+	leveldb::Status s = CommitBatch(&(batch));
 	if(!s.ok()){
 		log_error("error: %s", s.ToString().c_str());
 		return STORAGE_ERR;
@@ -268,7 +268,7 @@ int SSDBImpl::hincr(const Bytes &name, const Bytes &key, int64_t by, int64_t *ne
     }
 
 
-    leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(batch));
+    leveldb::Status s = CommitBatch(&(batch));
 	if(!s.ok()){
 		log_error("error: %s", s.ToString().c_str());
 		return STORAGE_ERR;
