@@ -419,6 +419,18 @@ int proc_debug(NetworkServer *net, Link *link, const Request &req, Response *res
 
     if (action == "segfault") {
         *((char *) -1) = 'x';
+    } else if (action == "digest") {
+
+        std::string res;
+        int ret = serv->ssdb->digest(&res);
+        if (ret < 0) {
+            reply_err_return(ret);
+        }
+
+        resp->reply_ok();
+        resp->add(res);
+
+        return 0;
     } else if (action == "populate") {
         CHECK_NUM_PARAMS(3);
 
@@ -807,7 +819,7 @@ int proc_sync150(NetworkServer *net, Link *link, const Request &req, Response *r
                     return -1;
                 }
                 decoder.skip(val_offset);
-                std::string value(decoder.data() + val_offset, val_len);
+                std::string value(decoder.data(), val_len);
                 decoder.skip((int) val_len);
                 remian_length -= (val_offset + (int) val_len);
 

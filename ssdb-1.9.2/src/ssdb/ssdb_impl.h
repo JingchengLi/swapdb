@@ -88,6 +88,7 @@ public:
 	virtual uint64_t size();
 	virtual std::vector<std::string> info();
 	virtual void compact();
+	virtual int digest(std::string *val);
 	virtual leveldb::Status CommitBatch(leveldb::WriteBatch* updates);
 	virtual leveldb::Status CommitBatch(const leveldb::WriteOptions& options, leveldb::WriteBatch* updates);
 

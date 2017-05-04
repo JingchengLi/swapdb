@@ -16,6 +16,7 @@ found in the LICENSE file.
 extern "C" {
 #include "redis/ziplist.h"
 #include "redis/intset.h"
+#include "redis/sha1.h"
 };
 
 static bool getNextString(unsigned char *zl, unsigned char **p, std::string &ret_res);
@@ -1233,4 +1234,29 @@ int SSDBImpl::scan(const Bytes& cursor, const std::string &pattern, uint64_t lim
 
     return 1;
 
+}
+
+int SSDBImpl::digest(std::string *val) {
+
+    auto snapshot = GetSnapshot();
+    SnapshotPtr spl(ldb, snapshot); //auto release
+
+    unsigned char digest[20];
+    memset(digest,0,20); /* Start with a clean result */
+
+    auto mit = std::unique_ptr<Iterator>((iterator("", "", -1)));
+    while(mit->next()){
+        mixDigest(digest, (void *) (mit->key().data()), (size_t) mit->key().size());
+        mixDigest(digest, (void *) (mit->val().data()), (size_t) mit->val().size());
+    }
+
+    std::string tmp;
+    for (int i = 0; i < 20; ++i) {
+        char vbuf[2] = {0};
+        snprintf(vbuf, sizeof(vbuf), "%02x", digest[i]);
+        tmp.append(vbuf);
+    }
+
+    *val = tmp;
+    return 0;
 }

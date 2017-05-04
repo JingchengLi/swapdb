@@ -37,10 +37,12 @@ public:
 	virtual uint64_t size() = 0;
 	virtual std::vector<std::string> info() = 0;
 	virtual void compact() = 0;
+	virtual int digest(std::string *val) = 0;
 
 	/* raw operates */
 
 	// repl: whether to sync this operation to slaves
+
 	virtual int raw_set(const Bytes &key, const Bytes &val) = 0;
 	virtual int raw_del(const Bytes &key) = 0;
 	virtual int raw_get(const Bytes &key, std::string *val) = 0;
