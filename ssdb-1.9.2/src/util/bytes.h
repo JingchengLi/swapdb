@@ -194,97 +194,103 @@ class Buffer{
 
 class Decoder{
 private:
-	const char *p;
-	int size;
+	const char *data_;
+	int size_;
 	Decoder(){}
 public:
-	Decoder(const char *p, int size){
-		this->p = p;
-		this->size = size;
+	Decoder(const char *p, int s){
+		this->data_ = p;
+		this->size_ = s;
 	}
 	int skip(int n){
-		if(size < n){
+		if(size_ < n){
 			return -1;
 		}
-		p += n;
-		size -= n;
+		data_ += n;
+		size_ -= n;
 		return n;
 	}
+	const char *data() const {
+		return data_;
+	}
+	int size() const {
+		return size_;
+	}
 	int read_uint16(uint16_t *ret){
-		if(size_t(size) < sizeof(uint16_t)){
+		if(size_t(size_) < sizeof(uint16_t)){
 			return -1;
 		}
 		if(ret){
-			*ret = *(uint16_t *)p;
+			*ret = *(uint16_t *)data_;
 		}
-		p += sizeof(uint16_t);
-		size -= sizeof(uint16_t);
+		data_ += sizeof(uint16_t);
+		size_ -= sizeof(uint16_t);
 		return sizeof(uint16_t);
 	}
 	int read_int64(int64_t *ret){
-		if(size_t(size) < sizeof(int64_t)){
+		if(size_t(size_) < sizeof(int64_t)){
 			return -1;
 		}
 		if(ret){
-			*ret = *(int64_t *)p;
+			*ret = *(int64_t *)data_;
 		}
-		p += sizeof(int64_t);
-		size -= sizeof(int64_t);
+		data_ += sizeof(int64_t);
+		size_ -= sizeof(int64_t);
 		return sizeof(int64_t);
 	}
 	int read_uint64(uint64_t *ret){
-		if(size_t(size) < sizeof(uint64_t)){
+		if(size_t(size_) < sizeof(uint64_t)){
 			return -1;
 		}
 		if(ret){
-			*ret = *(uint64_t *)p;
+			*ret = *(uint64_t *)data_;
 		}
-		p += sizeof(uint64_t);
-		size -= sizeof(uint64_t);
+		data_ += sizeof(uint64_t);
+		size_ -= sizeof(uint64_t);
 		return sizeof(uint64_t);
 	}
 	int read_data(std::string *ret){
-		int n = size;
+		int n = size_;
 		if(ret){
-			ret->assign(p, size);
+			ret->assign(data_, size_);
 		}
-		p += size;
-		size = 0;
+		data_ += size_;
+		size_ = 0;
 		return n;
 	}
 	int read_8_data(std::string *ret=NULL){
-		if(size < 1){
+		if(size_ < 1){
 			return -1;
 		}
-		int len = (uint8_t)p[0];
-		p += 1;
-		size -= 1;
-		if(size < len){
+		int len = (uint8_t)data_[0];
+		data_ += 1;
+		size_ -= 1;
+		if(size_ < len){
 			return -1;
 		}
 		if(ret){
-			ret->assign(p, len);
+			ret->assign(data_, len);
 		}
-		p += len;
-		size -= len;
+		data_ += len;
+		size_ -= len;
 		return 1 + len;
 	}
 	int read_16_data(std::string *ret=NULL){
-		if(size < 2){
+		if(size_ < 2){
 			return -1;
 		}
-		uint16_t len = *(uint16_t *)p;
+		uint16_t len = *(uint16_t *)data_;
 		len = be16toh(len);
-		p += 2;
-		size -= 2;
-		if(size < len){
+		data_ += 2;
+		size_ -= 2;
+		if(size_ < len){
 			return -1;
 		}
 		if(ret){
-			ret->assign(p, len);
+			ret->assign(data_, len);
 		}
-		p += len;
-		size -= len;
+		data_ += len;
+		size_ -= len;
 		return 2 + len;
 	}
 };

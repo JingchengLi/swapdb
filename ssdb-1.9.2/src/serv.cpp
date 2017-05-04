@@ -758,64 +758,67 @@ int proc_sync150(NetworkServer *net, Link *link, const Request &req, Response *r
     int ret = 0;
 
     while (link->input->size() > 1) {
-        char *data = link->input->data();
-        int size = link->input->size();
+        Decoder decoder(link->input->data(), link->input->size());
+//        char *data = link->input->data();
+//        int size = link->input->size();
         int oper_offset = 0, size_offset = 0;
         uint64_t oper_len = 0, size_len = 0;
 
-        if (ssdb_load_len(data, &oper_offset, &oper_len) == -1) {
+        if (ssdb_load_len(decoder.data(), &oper_offset, &oper_len) == -1) {
             return -1;
         }
-        if (size < ((int) oper_len + oper_offset)) {
+        decoder.skip(oper_offset);
+
+        if (decoder.size() < ((int) oper_len)) {
             link->input->grow();
             break;
         }
-        std::string oper(data + oper_offset, oper_len);
-        data += (oper_offset + (int) oper_len);
-        size -= (oper_offset + (int) oper_len);
+
+        std::string oper(decoder.data(), oper_len);
+        decoder.skip((int)oper_len);
 
         if (oper == "mset") {
 
-            if (size < 1) {link->input->grow(); break; }
-            if (ssdb_load_len(data, &size_offset, &size_len) == -1) {
+            if (decoder.size() < 1) {link->input->grow(); break; }
+            if (ssdb_load_len(decoder.data(), &size_offset, &size_len) == -1) {
                 return -1;
             }
-            if (size < (size_offset + size_len)) {
+            decoder.skip(size_offset);
+
+            if (decoder.size() < (size_len)) {
                 link->input->grow();
                 break;
             }
-            data += (size_offset);
-            size -= (size_offset);
 
-            uint64_t n_local_size = size_len;
-            while (n_local_size > 0) {
+            uint64_t remian_length = size_len;
+            while (remian_length > 0) {
                 int key_offset = 0, val_offset = 0;
                 uint64_t key_len = 0, val_len = 0;
 
-                if (ssdb_load_len(data, &key_offset, &key_len) == -1) {
+                if (ssdb_load_len(decoder.data(), &key_offset, &key_len) == -1) {
                     return -1;
                 }
-                std::string key(data + key_offset, key_len);
-                data += (key_offset + (int) key_len);
-                size -= (key_offset + (int) key_len);
-                n_local_size -= (key_offset + (int) key_len);
+                decoder.skip(key_offset);
+                std::string key(decoder.data(), key_len);
+                decoder.skip((int)key_len);
+                remian_length -= (key_offset + (int) key_len);
 
-                if (ssdb_load_len(data, &val_offset, &val_len) == -1) {
+                if (ssdb_load_len(decoder.data(),&val_offset, &val_len) == -1) {
                     return -1;
                 }
-                std::string value(data + val_offset, val_len);
-                data += (val_offset + (int) val_len);
-                size -= (val_offset + (int) val_len);
-                n_local_size -= (val_offset + (int) val_len);
+                decoder.skip(val_offset);
+                std::string value(decoder.data() + val_offset, val_len);
+                decoder.skip((int) val_len);
+                remian_length -= (val_offset + (int) val_len);
 
                 kvs.push_back(key);
                 kvs.push_back(value);
             }
 
-            link->input->decr(link->input->size() - size);
+            link->input->decr(link->input->size() - decoder.size());
 
         } else if (oper == "complete") {
-            link->input->decr(link->input->size() - size);
+            link->input->decr(link->input->size() - decoder.size());
             resp->push_back("ok");
         }
     }

@@ -89,6 +89,7 @@ public:
 	virtual std::vector<std::string> info();
 	virtual void compact();
 	virtual leveldb::Status CommitBatch(leveldb::WriteBatch* updates);
+	virtual leveldb::Status CommitBatch(const leveldb::WriteOptions& options, leveldb::WriteBatch* updates);
 
 	/* raw operates */
 

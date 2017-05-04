@@ -340,6 +340,11 @@ void SSDBImpl::compact(){
 }
 
 
+leveldb::Status SSDBImpl::CommitBatch(const leveldb::WriteOptions& options, leveldb::WriteBatch *updates) {
+	return ldb->Write(options, updates);
+}
+
+
 leveldb::Status SSDBImpl::CommitBatch(leveldb::WriteBatch *updates) {
 	return ldb->Write(leveldb::WriteOptions(), updates);
 }
