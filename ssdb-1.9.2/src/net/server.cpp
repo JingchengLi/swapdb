@@ -409,10 +409,13 @@ void NetworkServer::serve(){
 				if(!cmd){
 					link->output->append("client_error");
 					link->flush();
+					this->link_count--;
+					fdes->del(link->fd());
+					delete link;
 					continue;
 				}
 
-                int len = link->read();
+                int len = link->read(128 * 1024);
                 if (link->input->size() > 0) {
                     proc_t p = cmd->proc;
                     const Request req;
@@ -678,6 +681,7 @@ int NetworkServer::proc(ProcJob *job){
 			if(!cmd){
 				job->link->output->append("flushdb error");
 				job->link->flush();
+				job->result = PROC_ERROR;
 				continue;
 			}
 			proc_t p = cmd->proc;

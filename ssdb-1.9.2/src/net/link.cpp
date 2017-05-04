@@ -260,14 +260,18 @@ Link *Link::accept() {
 }
 
 int Link::read() {
+    return read(BEST_BUFFER_SIZE);
+}
+
+int Link::read(int shrink) {
     int ret = 0;
     int want;
 
     input->nice();
     // 由于 recv() 返回的数据是指向 input 所占的内存, 所以, 不能在 recv()
     // 之后立即就释放内存, 只能在下一次read()的时候再释放.
-    if (input->size() == 0 && input->total() > BEST_BUFFER_SIZE) {
-        input->shrink(BEST_BUFFER_SIZE);
+    if (input->size() == 0 && input->total() > shrink) {
+        input->shrink(shrink);
     }
 
     while ((want = input->space()) > 0) {

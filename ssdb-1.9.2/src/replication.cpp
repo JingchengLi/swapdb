@@ -10,7 +10,7 @@
 
 void send_error_to_redis(Link *link);
 
-int ssdb_save_len(uint64_t len, std::string &res);
+std::string ssdb_save_len(uint64_t len);
 
 void moveBuffer(Buffer *dst, Buffer *src);
 
@@ -269,57 +269,48 @@ void send_error_to_redis(Link *link) {
     }
 }
 
-int ssdb_save_len(uint64_t len, std::string &res) {
+std::string ssdb_save_len(uint64_t len) {
+    std::string res;
+
     unsigned char buf[2];
-    size_t nwritten;
 
     if (len < (1 << 6)) {
         /* Save a 6 bit len */
         buf[0] = (len & 0xFF) | (RDB_6BITLEN << 6);
         res.append(1, buf[0]);
-        nwritten = 1;
     } else if (len < (1 << 14)) {
         /* Save a 14 bit len */
         buf[0] = ((len >> 8) & 0xFF) | (RDB_14BITLEN << 6);
         buf[1] = len & 0xFF;
         res.append(1, buf[0]);
         res.append(1, buf[1]);
-        nwritten = 2;
     } else if (len <= UINT32_MAX) {
         /* Save a 32 bit len */
         buf[0] = RDB_32BITLEN;
         res.append(1, buf[0]);
         uint32_t len32 = htobe32(len);
         res.append((char *) &len32, sizeof(uint32_t));
-        nwritten = 1 + 4;
     } else {
         /* Save a 64 bit len */
         buf[0] = RDB_64BITLEN;
         res.append(1, buf[0]);
         len = htobe64(len);
         res.append((char *) &len, sizeof(uint64_t));
-        nwritten = 1 + 8;
     }
-    return (int) nwritten;
+    return res;
 }
 
 
 void saveStrToBuffer(Buffer *buffer, const Bytes &fit) {
-    string val_len;
-    ssdb_save_len((uint64_t) (fit.size()), val_len);
+    string val_len = ssdb_save_len((uint64_t) (fit.size()));
     buffer->append(val_len);
     buffer->append(fit);
 }
 
 void moveBuffer(Buffer *dst, Buffer *src) {
-    char buf[32] = {0};
-    ll2string(buf, sizeof(buf) - 1, (long long) src->size());
-    string buffer_size(buf);
-    string buffer_len;
-    ssdb_save_len((uint64_t) buffer_size.size(), buffer_len);
-    dst->append(buffer_len);
-    dst->append(buffer_size);
 
+    string buffer_len = ssdb_save_len((uint64_t) src->size());
+    dst->append(buffer_len);
     dst->append(src->data(), src->size());
 
     src->decr(src->size());

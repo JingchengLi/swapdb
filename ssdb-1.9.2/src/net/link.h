@@ -69,6 +69,7 @@ class Link{
 
 		// read network data info buffer
 		int read();
+		int read(int shrink);
 		int write();
 		// flush buffered data to network
 		// REQUIRES: nonblock

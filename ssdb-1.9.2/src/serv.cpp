@@ -762,38 +762,32 @@ int proc_sync150(NetworkServer *net, Link *link, const Request &req, Response *r
         int size = link->input->size();
         int oper_offset = 0, size_offset = 0;
         uint64_t oper_len = 0, size_len = 0;
+
         if (ssdb_load_len(data, &oper_offset, &oper_len) == -1) {
             return -1;
-        } else if (size < ((int) oper_len + oper_offset)) {
+        }
+        if (size < ((int) oper_len + oper_offset)) {
             link->input->grow();
             break;
         }
-        std::string oper;
-        oper.append(data + oper_offset, oper_len);
+        std::string oper(data + oper_offset, oper_len);
         data += (oper_offset + (int) oper_len);
         size -= (oper_offset + (int) oper_len);
 
         if (oper == "mset") {
+
+            if (size < 1) {link->input->grow(); break; }
             if (ssdb_load_len(data, &size_offset, &size_len) == -1) {
                 return -1;
-            } else if (size < ((int) size_offset + size_len)) {
+            }
+            if (size < (size_offset + size_len)) {
                 link->input->grow();
                 break;
             }
+            data += (size_offset);
+            size -= (size_offset);
 
-            std::string str_local_size;
-            str_local_size.append(data + size_offset, size_len);
-            data += (size_offset + (int) size_len);
-            size -= (size_offset + (int) size_len);
-
-            long long n_local_size = 0;
-            string2ll(str_local_size.c_str(), str_local_size.size(), &n_local_size);
-
-            if (size < (int) n_local_size) {
-                link->input->grow();
-                break;
-            }
-
+            uint64_t n_local_size = size_len;
             while (n_local_size > 0) {
                 int key_offset = 0, val_offset = 0;
                 uint64_t key_len = 0, val_len = 0;
@@ -801,8 +795,7 @@ int proc_sync150(NetworkServer *net, Link *link, const Request &req, Response *r
                 if (ssdb_load_len(data, &key_offset, &key_len) == -1) {
                     return -1;
                 }
-                std::string key;
-                key.append(data + key_offset, key_len);
+                std::string key(data + key_offset, key_len);
                 data += (key_offset + (int) key_len);
                 size -= (key_offset + (int) key_len);
                 n_local_size -= (key_offset + (int) key_len);
@@ -810,8 +803,7 @@ int proc_sync150(NetworkServer *net, Link *link, const Request &req, Response *r
                 if (ssdb_load_len(data, &val_offset, &val_len) == -1) {
                     return -1;
                 }
-                std::string value;
-                value.append(data + val_offset, val_len);
+                std::string value(data + val_offset, val_len);
                 data += (val_offset + (int) val_len);
                 size -= (val_offset + (int) val_len);
                 n_local_size -= (val_offset + (int) val_len);
@@ -819,6 +811,7 @@ int proc_sync150(NetworkServer *net, Link *link, const Request &req, Response *r
                 kvs.push_back(key);
                 kvs.push_back(value);
             }
+
             link->input->decr(link->input->size() - size);
 
         } else if (oper == "complete") {
@@ -827,7 +820,7 @@ int proc_sync150(NetworkServer *net, Link *link, const Request &req, Response *r
         }
     }
 
-    if (kvs.size() > 0) {
+    if (!kvs.empty()) {
         log_debug("parse_replic count %d", kvs.size());
         ret = serv->ssdb->parse_replic(kvs);
     }
