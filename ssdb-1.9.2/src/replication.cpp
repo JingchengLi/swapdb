@@ -80,6 +80,8 @@ int ReplicationWorker::proc(ReplicationJob *job) {
 
     std::unique_ptr<Buffer> buffer = std::unique_ptr<Buffer>(new Buffer(8 * 1024));
 
+    uint64_t sendBytes = 0;
+
     while (!job->quit) {
         ready_list.swap(ready_list_2);
         ready_list_2.clear();
@@ -132,6 +134,8 @@ int ReplicationWorker::proc(ReplicationJob *job) {
                     log_debug("fd: %d, write: %d, delete link, e:%d, f:%d", link->fd(), len, fde->events, fde->s_flags);
                     link->mark_error();
                     continue;
+                } else if (link == ssdb_slave_link) {
+                    sendBytes = sendBytes + len;
                 }
                 if (link->output->empty()) {
                     fdes->clr(link->fd(), FDEVENT_OUT);
@@ -187,8 +191,10 @@ int ReplicationWorker::proc(ReplicationJob *job) {
             if (buffer->size() > (1024 * 1024)) {
                 saveStrToBuffer(ssdb_slave_link->output, "mset");
                 moveBuffer(ssdb_slave_link->output, buffer.get());
-                ssdb_slave_link->write();
-                if(!ssdb_slave_link->output->empty()){
+                int len = ssdb_slave_link->write();
+                if (len > 0) { sendBytes = sendBytes + len; }
+
+                if (!ssdb_slave_link->output->empty()) {
                     fdes->set(ssdb_slave_link->fd(), FDEVENT_OUT, 1, ssdb_slave_link);
                 }
                 finish = false;
@@ -200,8 +206,10 @@ int ReplicationWorker::proc(ReplicationJob *job) {
             if (!buffer->empty()) {
                 saveStrToBuffer(ssdb_slave_link->output, "mset");
                 moveBuffer(ssdb_slave_link->output, buffer.get());
-                ssdb_slave_link->write();
-                if(!ssdb_slave_link->output->empty()){
+                int len = ssdb_slave_link->write();
+                if (len > 0) { sendBytes = sendBytes + len; }
+
+                if (!ssdb_slave_link->output->empty()) {
                     fdes->set(ssdb_slave_link->fd(), FDEVENT_OUT, 1, ssdb_slave_link);
                 }
             }
@@ -225,7 +233,9 @@ int ReplicationWorker::proc(ReplicationJob *job) {
         //write "complete" to slave_ssdb
         ssdb_slave_link->noblock(false);
         saveStrToBuffer(ssdb_slave_link->output, "complete");
-        ssdb_slave_link->write();
+        int len = ssdb_slave_link->write();
+        if (len > 0) { sendBytes = sendBytes + len; }
+
         ssdb_slave_link->read(); //todo error process
         delete ssdb_slave_link;
     }
@@ -241,7 +251,7 @@ int ReplicationWorker::proc(ReplicationJob *job) {
 
     log_info("[ReplicationWorker] send snapshot to %s:%d finished!", hnp.ip.c_str(), hnp.port);
     log_debug("send rr_transfer_snapshot finished!!");
-    log_error("replic procedure finish!");
+    log_error("replic procedure finish! sendByes %d", sendBytes);
 
     return 0;
 }

@@ -834,6 +834,10 @@ int proc_sync150(NetworkServer *net, Link *link, const Request &req, Response *r
                 kvs.push_back(value);
             }
 
+            if (remian_length != 0) {
+                //wtf???????????????????
+            }
+
             link->input->decr(link->input->size() - decoder.size());
 
         } else if (oper == "complete") {
