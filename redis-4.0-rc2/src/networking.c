@@ -690,7 +690,10 @@ int sendCommandToSSDB(client *c, sds finalcmd) {
     int nwritten;
     struct redisCommand *cmd = NULL;
 
-    if (!c) return C_ERR;
+    if (!c) {
+        sdsfree(finalcmd);
+        return C_ERR;
+    }
 
     if (!finalcmd) {
         cmd = lookupCommand(c->argv[0]->ptr);
@@ -723,12 +726,12 @@ int sendCommandToSSDB(client *c, sds finalcmd) {
             } else {
                 serverLog(LL_WARNING,
                           "Error writing to SSDB server: %s", strerror(errno));
-                if (finalcmd) sdsfree(finalcmd);
+                sdsfree(finalcmd);
                 freeClient(c);
                 return C_FD_ERR;
             }
         } else if (nwritten > 0) {
-            if (nwritten == (signed)sdslen(finalcmd)) {
+            if (nwritten == (signed) sdslen(finalcmd)) {
                 sdsfree(finalcmd);
                 finalcmd = NULL;
             } else {
