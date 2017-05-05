@@ -4,8 +4,13 @@
 #include "replication.h"
 #include <util/thread.h>
 #include <net/link.h>
-#include <redis/rdb.h>
 #include "serv.h"
+
+extern "C" {
+#include <redis/rdb.h>
+#include <redis/zmalloc.h>
+#include <redis/lzf.h>
+};
 
 
 void send_error_to_redis(Link *link);
@@ -180,6 +185,7 @@ int ReplicationWorker::proc(ReplicationJob *job) {
         if (ssdb_slave_link->output->size() > (2 * 1024 * 1024)) {
 //            ssdb_slave_link->write();
             log_debug("delay for output buffer write slow~");
+            usleep(500);
             continue;
         }
 
@@ -188,7 +194,7 @@ int ReplicationWorker::proc(ReplicationJob *job) {
             saveStrToBuffer(buffer.get(), fit->key());
             saveStrToBuffer(buffer.get(), fit->val());
 
-            if (buffer->size() > (1024 * 1024)) {
+            if (buffer->size() > (512 * 1024)) {
                 saveStrToBuffer(ssdb_slave_link->output, "mset");
                 moveBuffer(ssdb_slave_link->output, buffer.get());
                 int len = ssdb_slave_link->write();
@@ -319,9 +325,16 @@ void saveStrToBuffer(Buffer *buffer, const Bytes &fit) {
 
 void moveBuffer(Buffer *dst, Buffer *src) {
 
-    string buffer_len = ssdb_save_len((uint64_t) src->size());
-    dst->append(buffer_len);
-    dst->append(src->data(), src->size());
+    size_t comprlen, outlen = (size_t) src->size();
+    void *out = zmalloc(outlen + 1);
+
+    comprlen = lzf_compress(src->data(), (unsigned int) src->size(), out, outlen);
+
+    dst->append(ssdb_save_len((uint64_t) src->size()));
+    dst->append(ssdb_save_len(comprlen));
+    dst->append(out, (int) comprlen);
+
+    zfree(out);
 
     src->decr(src->size());
     src->nice();

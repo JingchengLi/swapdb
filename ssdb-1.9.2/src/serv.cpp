@@ -12,6 +12,11 @@ found in the LICENSE file.
 #include "net/proc.h"
 #include "net/server.h"
 
+extern "C" {
+#include <redis/zmalloc.h>
+#include <redis/lzf.h>
+}
+
 DEF_PROC(type);
 DEF_PROC(get);
 DEF_PROC(set);
@@ -780,8 +785,8 @@ int proc_sync150(NetworkServer *net, Link *link, const Request &req, Response *r
         Decoder decoder(link->input->data(), link->input->size());
 //        char *data = link->input->data();
 //        int size = link->input->size();
-        int oper_offset = 0, size_offset = 0;
-        uint64_t oper_len = 0, size_len = 0;
+        int oper_offset = 0, raw_size_offset = 0, compressed_offset = 0;
+        uint64_t oper_len = 0, raw_len = 0, compressed_len = 0;
 
         if (ssdb_load_len(decoder.data(), &oper_offset, &oper_len) == -1) {
             return -1;
@@ -799,46 +804,66 @@ int proc_sync150(NetworkServer *net, Link *link, const Request &req, Response *r
         if (oper == "mset") {
 
             if (decoder.size() < 1) {link->input->grow(); break; }
-            if (ssdb_load_len(decoder.data(), &size_offset, &size_len) == -1) {
+            if (ssdb_load_len(decoder.data(), &raw_size_offset, &raw_len) == -1) {
                 return -1;
             }
-            decoder.skip(size_offset);
+            decoder.skip(raw_size_offset);
 
-            if (decoder.size() < (size_len)) {
+            if (decoder.size() < 1) {link->input->grow(); break; }
+            if (ssdb_load_len(decoder.data(), &compressed_offset, &compressed_len) == -1) {
+                return -1;
+            }
+            decoder.skip(compressed_offset);
+
+            if (decoder.size() < (compressed_len)) {
                 link->input->grow();
                 break;
             }
 
-            uint64_t remian_length = size_len;
+            char * t_val = (char *) zmalloc(raw_len);
+            if (lzf_decompress(decoder.data(), compressed_len, t_val, raw_len) == 0) {
+                free(t_val);
+                return -1;
+            }
+
+            Decoder decoder_item(t_val, raw_len);
+
+            uint64_t remian_length = raw_len;
             while (remian_length > 0) {
                 int key_offset = 0, val_offset = 0;
                 uint64_t key_len = 0, val_len = 0;
 
-                if (ssdb_load_len(decoder.data(), &key_offset, &key_len) == -1) {
+                if (ssdb_load_len(decoder_item.data(), &key_offset, &key_len) == -1) {
+                    zfree(t_val);
                     return -1;
                 }
-                decoder.skip(key_offset);
-                std::string key(decoder.data(), key_len);
-                decoder.skip((int)key_len);
+                decoder_item.skip(key_offset);
+                std::string key(decoder_item.data(), key_len);
+                decoder_item.skip((int)key_len);
                 remian_length -= (key_offset + (int) key_len);
 
-                if (ssdb_load_len(decoder.data(),&val_offset, &val_len) == -1) {
+                if (ssdb_load_len(decoder_item.data(),&val_offset, &val_len) == -1) {
+                    zfree(t_val);
                     return -1;
                 }
-                decoder.skip(val_offset);
-                std::string value(decoder.data(), val_len);
-                decoder.skip((int) val_len);
+                decoder_item.skip(val_offset);
+                std::string value(decoder_item.data(), val_len);
+                decoder_item.skip((int) val_len);
                 remian_length -= (val_offset + (int) val_len);
 
                 kvs.push_back(key);
                 kvs.push_back(value);
             }
+            zfree(t_val);
 
-            if (remian_length != 0) {
-                //wtf???????????????????
-            }
-
+            decoder.skip(compressed_len);
             link->input->decr(link->input->size() - decoder.size());
+
+            if (!kvs.empty()) {
+                log_debug("parse_replic count %d", kvs.size());
+                ret = serv->ssdb->parse_replic(kvs);
+                kvs.clear();
+            }
 
         } else if (oper == "complete") {
             link->input->decr(link->input->size() - decoder.size());
