@@ -2774,14 +2774,22 @@ void freeSSDBwriteOp(struct ssdb_write_op* op) {
         write_op_mem_size -= SDS_MEM_SIZE((char*)(op->argv[j]->ptr)) + sizeof(op->argv[j]);
         decrRefCount(op->argv[j]);
     }
+    zfree(op->argv);
     sdsfree(op->request_buf);
     zfree(op);
 }
 
 void emptySlaveSSDBwriteOperations() {
-    listRelease(server.ssdb_write_oplist);
-    server.ssdb_write_oplist = listCreate();
-    listSetFreeMethod(server.ssdb_write_oplist, (void (*)(void*)) freeSSDBwriteOp);
+    struct ssdb_write_op* op;
+    listIter li;
+    listNode *ln;
+
+    listRewind(server.ssdb_write_oplist, &li);
+    while((ln = listNext(&li))) {
+        op = ln->value;
+        removeVisitingSSDBKey(op->cmd, op->argc, op->argv);
+        listDelNode(server.ssdb_write_oplist, ln);
+    }
 }
 
 void saveSlaveSSDBwriteOp(client *c) {
@@ -2813,6 +2821,7 @@ void saveSlaveSSDBwriteOp(client *c) {
     for (j = 0; j < op->argc; j++) {
         write_op_mem_size += SDS_MEM_SIZE((char*)(op->argv[j]->ptr)) + sizeof(op->argv[j]);
     }
+
     listAddNodeTail(server.ssdb_write_oplist, op);
 }
 
