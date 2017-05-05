@@ -2294,6 +2294,7 @@ void replicationDiscardCachedMaster(void) {
     server.cached_master->flags &= ~CLIENT_MASTER;
     freeClient(server.cached_master);
     server.cached_master = NULL;
+    if (server.jdjr_mode) emptySlaveSSDBwriteOperations();
 }
 
 /* Turn the cached master into the current master, using the file descriptor
@@ -2329,12 +2330,13 @@ void replicationResurrectCachedMaster(int newfd) {
         }
     }
 
-    if (server.jdjr_mode) {
-        if (C_OK != nonBlockConnectToSsdbServer(server.master)) {
-            serverLog(LL_WARNING,"Error resurrecting the cached master, can't connect SSDB");
-            freeClientAsync(server.master); /* Close ASAP. */
-        }
-    }
+    // todo: review and remove
+    //if (server.jdjr_mode) {
+    //    if (C_OK != nonBlockConnectToSsdbServer(server.master)) {
+    //        serverLog(LL_WARNING,"Error resurrecting the cached master, can't connect SSDB");
+    //        freeClientAsync(server.master); /* Close ASAP. */
+    //    }
+    //}
 }
 
 /* ------------------------- MIN-SLAVES-TO-WRITE  --------------------------- */

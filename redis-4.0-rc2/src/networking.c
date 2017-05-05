@@ -1747,6 +1747,21 @@ void unlinkClient(client *c) {
                 removeClientFromListForBlockedKey(c, keyobj);
             }
 #endif
+            /* remove replication timeout timer. */
+            if (c->repl_timer_id != -1)
+                aeDeleteTimeEvent(server.el, c->repl_timer_id);
+
+            if (server.master && (c->flags & CLIENT_MASTER) && server.cached_master == NULL) {
+                /* for the master connection of slave redis, we may do a partial sync with our master
+                 * later, just reuse the SSDB connection to avoid to process server.ssdb_write_oplist,
+                 * see 'replicationCacheMaster' for details. */
+            } else if (c->context && c->context->fd != -1) {
+                /* Unlink resources used in connecting to SSDB. */
+                aeDeleteFileEvent(server.el, c->context->fd, AE_READABLE);
+                aeDeleteFileEvent(server.el, c->context->fd, AE_WRITABLE);
+                close(c->context->fd);
+                c->context->fd = -1;
+            }
         }
 
         /* Remove from the list of active clients. */
@@ -1754,9 +1769,6 @@ void unlinkClient(client *c) {
         serverAssert(ln != NULL);
         listDelNode(server.clients,ln);
 
-        /* remove replication timeout timer. */
-        if (server.jdjr_mode && c->repl_timer_id != -1)
-            aeDeleteTimeEvent(server.el, c->repl_timer_id);
 
         /* Unregister async I/O handlers and close the socket. */
         aeDeleteFileEvent(server.el,c->fd,AE_READABLE);
@@ -1765,15 +1777,6 @@ void unlinkClient(client *c) {
         c->fd = -1;
     }
 
-
-    /* Unlink resources used in connecting to SSDB. */
-    if (server.jdjr_mode
-        && c->context && c->context->fd != -1) {
-        aeDeleteFileEvent(server.el, c->context->fd, AE_READABLE);
-        aeDeleteFileEvent(server.el, c->context->fd, AE_WRITABLE);
-        close(c->context->fd);
-        c->context->fd = -1;
-    }
 
     /* Remove from the list of pending writes if needed. */
     if (c->flags & CLIENT_PENDING_WRITE) {
@@ -1912,11 +1915,22 @@ void freeClient(client *c) {
         } else if (c->ssdb_conn_flags & CONN_WAIT_WRITE_CHECK_REPLY && server.check_write_begin_time != -1) {
             server.check_write_unresponse_num -= 1;
         }
-    }
-    /* Free redisContext. */
-    if (server.jdjr_mode && c->context) redisFree(c->context);
 
-    if (server.jdjr_mode) resetSpecialCient(c);
+        /* the SSDB connection for slave redis may be reused for server.cached_master if the connection with our master
+         * lost, we only close this SSDB connection in 'freeClient' called by 'replicationDiscardCachedMaster'. */
+        if (c->context && c->context->fd != -1) {
+            /* Unlink resources used in connecting to SSDB. */
+            aeDeleteFileEvent(server.el, c->context->fd, AE_READABLE);
+            aeDeleteFileEvent(server.el, c->context->fd, AE_WRITABLE);
+            close(c->context->fd);
+            c->context->fd = -1;
+        }
+
+        /* Free redisContext. */
+        if (c->context) redisFree(c->context);
+
+        resetSpecialCient(c);
+    }
 
     /* Release other dynamically allocated client structure fields,
      * and finally release the client structure itself. */

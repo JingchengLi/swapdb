@@ -2778,6 +2778,12 @@ void freeSSDBwriteOp(struct ssdb_write_op* op) {
     zfree(op);
 }
 
+void emptySlaveSSDBwriteOperations() {
+    listRelease(server.ssdb_write_oplist);
+    server.ssdb_write_oplist = listCreate();
+    listSetFreeMethod(server.ssdb_write_oplist, (void (*)(void*)) freeSSDBwriteOp);
+}
+
 void saveSlaveSSDBwriteOp(client *c) {
     int j;
     struct ssdb_write_op * op = zmalloc(sizeof(struct ssdb_write_op));

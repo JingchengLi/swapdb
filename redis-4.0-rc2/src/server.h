@@ -1731,6 +1731,7 @@ int zslLexValueLteMax(sds value, zlexrangespec *spec);
 
 /* Core functions */
 int freeMemoryIfNeeded(void);
+void emptySlaveSSDBwriteOperations();
 void freeSSDBwriteOp(struct ssdb_write_op* op);
 void cleanSpecialClientsAndIntermediateKeys();
 void prepareSSDBflush(client* c);

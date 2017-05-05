@@ -3103,7 +3103,8 @@ void clusterHandleManualFailover(void) {
 
     if (server.cluster->mf_master_offset == 0) return; /* Wait for offset... */
 
-    if (server.cluster->mf_master_offset == replicationGetSlaveOffset()) {
+    if (server.cluster->mf_master_offset == replicationGetSlaveOffset() &&
+            (!server.jdjr_mode || (server.jdjr_mode && 0 == listLength(server.ssdb_write_oplist)))) {
         /* Our replication offset matches the master replication offset
          * announced after clients were paused. We can start the failover. */
         server.cluster->mf_can_start = 1;
@@ -4319,7 +4320,8 @@ void clusterCommand(client *c) {
          * slots nor keys to accept to replicate some other node.
          * Slaves can switch to another master without issues. */
         if (nodeIsMaster(myself) &&
-            (myself->numslots != 0 || dictSize(server.db[0].dict) != 0)) {
+            (myself->numslots != 0 || dictSize(server.db[0].dict) != 0) ||
+                (server.jdjr_mode && (dictSize(server.db[0].dict)+dictSize(EVICTED_DATA_DB->dict)) != 0)) {
             addReplyError(c,
                 "To set a master the node must be empty and "
                 "without assigned slots.");
