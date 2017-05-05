@@ -5,6 +5,20 @@ if {$::accurate} {
     set allflush {flushall}
 }
 
+start_server {tags {"ssdb"}} {
+    test "#issue flush and set cause memory leak" {
+        for {set n 0} {$n < 10} {incr n} {
+            foreach flush $allflush {
+                r set foo bar
+
+                assert_equal {bar} [r get foo]
+                r $flush
+            }
+        }
+        assert {[status r used_memory] < 2000000}
+    }
+}
+
 start_server {tags {"ssdb"}
 overrides {maxmemory 0}} {
     foreach flush $allflush {
