@@ -29,6 +29,14 @@ public:
                  flush_job_info.triggered_writes_slowdown,
                  flush_job_info.triggered_writes_stop,
                  flush_job_info.table_properties.data_size);
+
+        if (flush_job_info.triggered_writes_slowdown) {
+            log_warn("Flush cause writes slowdown!!!! %s"flush_job_info.file_path.c_str());
+        }
+        if (flush_job_info.triggered_writes_stop) {
+            log_error("Flush cause writes stop!!!! %s"flush_job_info.file_path.c_str());
+        }
+
     }
 
     // A call-back function for RocksDB which will be called whenever
