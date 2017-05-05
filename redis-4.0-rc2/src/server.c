@@ -2880,7 +2880,7 @@ int processCommandMaybeInSSDB(client *c) {
 
                 if (keys) getKeysFreeResult(keys);
 
-                /* don't block slave redis client. */
+                /* block redis to wait reply for master redis. */
                 if (server.masterhost == NULL) {
                     /* TODO: use a suitable timeout. */
                     c->bpop.timeout = 5000 + mstime();
