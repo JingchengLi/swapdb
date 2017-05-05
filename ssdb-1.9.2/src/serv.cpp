@@ -768,6 +768,7 @@ int proc_sync150(NetworkServer *net, Link *link, const Request &req, Response *r
     SSDBServer *serv = (SSDBServer *) net->data;
     std::vector<std::string> kvs;
     int ret = 0;
+    bool complete = false;
 
     while (link->input->size() > 1) {
         Decoder decoder(link->input->data(), link->input->size());
@@ -831,7 +832,7 @@ int proc_sync150(NetworkServer *net, Link *link, const Request &req, Response *r
 
         } else if (oper == "complete") {
             link->input->decr(link->input->size() - decoder.size());
-            resp->push_back("ok");
+            complete = true;
         }
     }
 
@@ -840,7 +841,8 @@ int proc_sync150(NetworkServer *net, Link *link, const Request &req, Response *r
         ret = serv->ssdb->parse_replic(kvs);
     }
 
-    if (resp->size() > 0) {
+    if (complete) {
+        resp->push_back("ok");
         if (serv->ssdb->expiration != nullptr) {
             serv->ssdb->expiration->start();
         }
