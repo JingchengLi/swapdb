@@ -133,6 +133,10 @@ DEF_PROC(rr_check_write);
 DEF_PROC(rr_make_snapshot);
 DEF_PROC(rr_transfer_snapshot);
 DEF_PROC(rr_del_snapshot);
+
+DEF_PROC(repopid);
+
+
 DEF_BPROC(COMMAND_DATA_SAVE);
 DEF_BPROC(COMMAND_DATA_DUMP);
 
@@ -276,6 +280,8 @@ void SSDBServer::reg_procs(NetworkServer *net) {
     REG_PROC(rr_make_snapshot, "r");
     REG_PROC(rr_transfer_snapshot, "b");
     REG_PROC(rr_del_snapshot, "r");
+
+    REG_PROC(repopid, "wt");
 }
 
 #define COMMAND_DATA_SAVE 1
@@ -973,5 +979,26 @@ int proc_rr_del_snapshot(NetworkServer *net, Link *link, const Request &req, Res
 
     resp->push_back("ok");
     resp->push_back("rr_del_snapshot ok");
+    return 0;
+}
+
+
+
+int proc_repopid(NetworkServer *net, Link *link, const Request &req, Response *resp) {
+    SSDBServer *serv = (SSDBServer *)net->data;
+    CHECK_NUM_PARAMS(2);
+
+    std::string action = req[1].String();
+    strtolower(&action);
+
+    if (action == "get") {
+
+
+    } else if (action == "set") {
+
+
+    }
+
+
     return 0;
 }

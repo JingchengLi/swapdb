@@ -415,7 +415,7 @@ void NetworkServer::serve(){
 					continue;
 				}
 
-                int len = link->read(128 * 1024);
+                int len = link->read(256 * 1024);
                 if (link->input->size() > 0) {
                     proc_t p = cmd->proc;
                     const Request req;

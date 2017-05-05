@@ -341,12 +341,64 @@ void SSDBImpl::compact(){
 
 
 leveldb::Status SSDBImpl::CommitBatch(const leveldb::WriteOptions& options, leveldb::WriteBatch *updates) {
-	return ldb->Write(options, updates);
+
+	leveldb::Status s = ldb->Write(options, updates);
+
+	return s;
 }
 
-
 leveldb::Status SSDBImpl::CommitBatch(leveldb::WriteBatch *updates) {
-	return ldb->Write(leveldb::WriteOptions(), updates);
+
+	if (recievedIndex > 0) {
+		//role is slave
+		if (commitedIndex > 0) {
+			//role is slave
+		} else {
+			//role change master -> slave
+		}
+
+		//TODO update index
+		//updates->Put(...)
+
+	} else if (recievedIndex == -1) {
+		// ???
+		log_error("wtf??????????????? reset recievedIndex");
+		recievedIndex = 0;
+
+	} else {
+		if (commitedIndex > 0) {
+			//role change slave -> master
+
+			//TODO update index -> 0
+			//updates->Put(...)
+
+		} else {
+			//role is master
+		}
+
+	}
+
+	leveldb::Status s = ldb->Write(leveldb::WriteOptions(), updates);
+
+	if (s.ok()) {
+		//update
+		commitedIndex = recievedIndex;
+
+
+		if (recievedIndex > 0) {
+			//reset
+			recievedIndex = 0;
+
+		}
+
+
+	} else {
+		recievedIndex = -1;
+	}
+
+
+
+	return s;
 }
 
 

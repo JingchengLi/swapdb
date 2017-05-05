@@ -68,6 +68,12 @@ private:
 
 	RedisCursorService redisCursorService;
 
+	int commitedIndex;
+	int commitedTimestamp;
+
+	int recievedIndex;
+	int recievedTimestamp;
+
 	SSDBImpl();
 public:
 	ExpirationHandler *expiration;
