@@ -1297,6 +1297,26 @@ struct redisServer {
     list *loadAndEvictCmdList;
     int cmdNotDone;
     client *delete_confirm_client;
+
+    /* for slave redis, we save ssdb write operations before receive responses from ssdb. */
+    list* ssdb_write_oplist;
+};
+
+/* for slave redis, record and save ssdb write commands. */
+char* slave_ssdb_cmd_buffer;
+int write_op_last_index;
+time_t write_op_last_time;
+long long write_op_mem_size;
+
+/* for slave redis, we save the write operations from our master, so we can re-send
+ * it to SSDB when SSDB restart. */
+struct ssdb_write_op {
+    time_t time;
+    int index;
+    struct redisCommand *cmd;
+    int argc;
+    robj** argv;
+    char* request_buf; /* buffer to save the redis-protocol write requests */
 };
 
 typedef struct pubsubPattern {
@@ -1711,7 +1731,7 @@ int zslLexValueLteMax(sds value, zlexrangespec *spec);
 
 /* Core functions */
 int freeMemoryIfNeeded(void);
-
+void freeSSDBwriteOp(struct ssdb_write_op* op);
 void cleanSpecialClientsAndIntermediateKeys();
 void prepareSSDBflush(client* c);
 void cleanKeysToLoadAndEvict();
@@ -2138,7 +2158,7 @@ void slaveDelCommand(client *c);
 void dumpfromssdbCommand(client *c);
 int prologOfEvictingToSSDB(robj *keyobj, redisDb *db);
 int prologOfLoadingFromSSDB(robj *keyobj);
-void removeVisitingSSDBKey(client *c);
+void removeVisitingSSDBKey(struct redisCommand *cmd, int argc, robj** argv);
 void handleCustomizedBlockedClients();
 void removeClientFromListForBlockedKey(client* c, robj* key);
 void sendDelSSDBsnapshot();

@@ -39,32 +39,6 @@
 #include "sds.h"
 #include "sdsalloc.h"
 
-static inline int sdsHdrSize(char type) {
-    switch(type&SDS_TYPE_MASK) {
-        case SDS_TYPE_5:
-            return sizeof(struct sdshdr5);
-        case SDS_TYPE_5_LFU:
-            return sizeof(struct sdshdr5lfu);
-        case SDS_TYPE_8:
-            return sizeof(struct sdshdr8);
-        case SDS_TYPE_8_LFU:
-            return sizeof(struct sdshdr8lfu);
-        case SDS_TYPE_16:
-            return sizeof(struct sdshdr16);
-        case SDS_TYPE_16_LFU:
-            return sizeof(struct sdshdr16lfu);
-        case SDS_TYPE_32:
-            return sizeof(struct sdshdr32);
-        case SDS_TYPE_32_LFU:
-            return sizeof(struct sdshdr32lfu);
-        case SDS_TYPE_64:
-            return sizeof(struct sdshdr64);
-        case SDS_TYPE_64_LFU:
-            return sizeof(struct sdshdr64lfu);
-    }
-    return 0;
-}
-
 static inline char sdsReqType(size_t string_size, int is_lfu_type) {
     if (string_size < 1<<4)
         return is_lfu_type ? SDS_TYPE_5_LFU : SDS_TYPE_5;

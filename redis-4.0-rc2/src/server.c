@@ -2138,7 +2138,14 @@ void initServer(void) {
     server.slaveseldb = -1; /* Force to emit the first SELECT command. */
     server.unblocked_clients = listCreate();
     server.ready_keys = listCreate();
-    if (server.jdjr_mode) server.ssdb_ready_keys = listCreate();
+    if (server.jdjr_mode) {
+        server.ssdb_ready_keys = listCreate();
+
+        server.ssdb_write_oplist = listCreate();
+        listSetFreeMethod(server.ssdb_write_oplist, (void (*)(void*)) freeSSDBwriteOp);
+        write_op_last_time = -1;
+        write_op_last_index = -1;
+    }
     server.clients_waiting_acks = listCreate();
     server.get_ack_from_slaves = 0;
     server.clients_paused = 0;
@@ -2759,6 +2766,50 @@ void addVisitingSSDBKey(client *c, sds *keysds) {
               clients_visiting_num ? clients_visiting_num : 1);
 }
 
+void freeSSDBwriteOp(struct ssdb_write_op* op) {
+    int j;
+    write_op_mem_size -= sizeof(struct ssdb_write_op) + sizeof(listNode*) + SDS_MEM_SIZE(op->request_buf);
+    // free argv
+    for (j = 0; j < op->argc; j++) {
+        write_op_mem_size -= SDS_MEM_SIZE((char*)(op->argv[j]->ptr)) + sizeof(op->argv[j]);
+        decrRefCount(op->argv[j]);
+    }
+    sdsfree(op->request_buf);
+    zfree(op);
+}
+
+void saveSlaveSSDBwriteOp(client *c) {
+    int j;
+    struct ssdb_write_op * op = zmalloc(sizeof(struct ssdb_write_op));
+    if (write_op_last_index == -1 && write_op_last_time == -1) {
+        op->time = server.unixtime;
+        op->index = 1;
+    } else {
+        serverAssert(write_op_last_index != -1 && write_op_last_time != -1);
+        if (server.unixtime == write_op_last_time) {
+            op->time = server.unixtime;
+            write_op_last_index++;
+            op->index = write_op_last_index;
+        } else {
+            op->time = server.unixtime;
+            op->index = 1;
+        }
+    }
+    op->cmd = c->cmd;
+    op->argc = c->argc;
+    op->argv = c->argv;
+    c->argv = NULL;
+    op->request_buf = slave_ssdb_cmd_buffer;
+    slave_ssdb_cmd_buffer = NULL;
+
+    /* recored consumed memory size. */
+    write_op_mem_size += sizeof(struct ssdb_write_op) + sizeof(listNode*) + SDS_MEM_SIZE(op->request_buf);
+    for (j = 0; j < op->argc; j++) {
+        write_op_mem_size += SDS_MEM_SIZE((char*)(op->argv[j]->ptr)) + sizeof(op->argv[j]);
+    }
+    listAddNodeTail(server.ssdb_write_oplist, op);
+}
+
 /* Process keys may be in SSDB, only handle the command jdjr_mode supported.
  The rest cases will be handled by processCommand. */
 int processCommandMaybeInSSDB(client *c) {
@@ -2791,7 +2842,7 @@ int processCommandMaybeInSSDB(client *c) {
 
     serverAssert(c->cmd);
 
-    if ((server.is_allow_ssdb_write == DISALLOW_SSDB_WRITE)
+    if (server.masterhost == NULL && (server.is_allow_ssdb_write == DISALLOW_SSDB_WRITE)
         && (c->cmd->flags & CMD_WRITE) && (c->cmd->flags & CMD_JDJR_MODE)) {
         listAddNodeTail(server.no_writing_ssdb_blocked_clients, c);
         serverLog(LL_DEBUG, "client: %ld is added to server.no_writing_ssdb_blocked_clients", (long)c);
@@ -2802,7 +2853,7 @@ int processCommandMaybeInSSDB(client *c) {
         return C_OK;
     }
 
-    if ((server.prohibit_ssdb_read_write == PROHIBIT_SSDB_READ_WRITE)
+    if (server.masterhost == NULL && (server.prohibit_ssdb_read_write == PROHIBIT_SSDB_READ_WRITE)
         && (c->cmd->flags & (CMD_WRITE | CMD_READONLY)) && (c->cmd->flags & CMD_JDJR_MODE)) {
         listAddNodeTail(server.ssdb_flushall_blocked_clients, c);
          /* TODO: use a suitable timeout. */
@@ -2829,9 +2880,18 @@ int processCommandMaybeInSSDB(client *c) {
 
                 if (keys) getKeysFreeResult(keys);
 
-                /* TODO: use a suitable timeout. */
-                c->bpop.timeout = 5000 + mstime();
-                blockClient(c, BLOCKED_VISITING_SSDB);
+                /* don't block slave redis client. */
+                if (server.masterhost == NULL) {
+                    /* TODO: use a suitable timeout. */
+                    c->bpop.timeout = 5000 + mstime();
+                    blockClient(c, BLOCKED_VISITING_SSDB);
+                } else if (server.master == c) {
+                    /* for the master connection of slave redis, after we send write commands
+                     * to SSDB and record them in server.ssdb_write_oplist, we just return and
+                     * process next write command. */
+                    saveSlaveSSDBwriteOp(c);
+                    return C_OK;
+                }
             }
 
             /* Slaves do not load data from ssdb automatically. */
@@ -3004,6 +3064,13 @@ int runCommand(client *c, int* need_return) {
         if (need_return) *need_return = 1;
         int ret = processCommandMaybeInSSDB(c);
         if (ret == C_OK) {
+            if (server.master == c) {
+                /* for the master connection of slave redis, after we send write commands
+                 * to SSDB and record them in server.ssdb_write_oplist, we just return and
+                 * process next write command. */
+                if (need_return) *need_return = 1;
+                return C_OK;
+            }
             /* The client will be reseted in sendCommandToSSDB if C_FD_ERR
               is returned in sendCommandToSSDB.
               Otherwise, return C_ERR to avoid calling resetClient,
@@ -3011,11 +3078,18 @@ int runCommand(client *c, int* need_return) {
             serverLog(LL_DEBUG, "processing %s, fd: %d in ssdb: %s",
                       c->cmd->name, c->fd, (char *)c->argv[1]->ptr);
             return C_ERR;
-        } else if (ret == C_NOTSUPPORT_ERR) {
-            addReplyErrorFormat(c, "don't support this command in jdjr mode:%s.", c->cmd->name);
-            return C_OK;
-        } else if (ret == C_FD_ERR)
-            return C_FD_ERR;
+        } else {
+            /* for the master connection of slave redis, the key arguments in this write command
+             * is in redis. so we don't need to save the raw request.*/
+            sdsfree(slave_ssdb_cmd_buffer);
+            slave_ssdb_cmd_buffer = NULL;
+
+            if (ret == C_NOTSUPPORT_ERR) {
+                addReplyErrorFormat(c, "don't support this command in jdjr mode:%s.", c->cmd->name);
+                return C_OK;
+            } else if (ret == C_FD_ERR)
+                return C_FD_ERR;
+        }
     }
 
     if (c->flags & CLIENT_MULTI &&

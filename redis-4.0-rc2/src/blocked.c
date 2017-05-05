@@ -155,7 +155,7 @@ void unblockClient(client *c) {
                    || c->btype == BLOCKED_BY_DELETE_CONFIRM)) {
         /* Doing nothing. */
     } else if (server.jdjr_mode && c->btype == BLOCKED_VISITING_SSDB) {
-            removeVisitingSSDBKey(c);
+            removeVisitingSSDBKey(c->cmd, c->argc, c->argv);
     } else {
         serverPanic("Unknown btype in unblockClient().");
     }

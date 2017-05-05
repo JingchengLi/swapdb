@@ -31,7 +31,7 @@
 #include <sys/uio.h>
 #include <math.h>
 #include <ctype.h>
-#define TEST_CLIENT_BUF
+//#define TEST_CLIENT_BUF
 
 static void setProtocolError(const char *errstr, client *c, int pos);
 
@@ -1267,7 +1267,13 @@ int handleResponseOfDeleteCheckConfirm(client *c) {
     return C_OK;
 }
 
-/*Handle the common extra reply from SSDB: length 17: '*1\r\n$7\r\ncheck 0\r\n' */
+/* Handle the common extra reply from SSDB:
+ response format:
+ 1) *1\r\n$7\r\ncheck 0\r\n
+ 2) *1\r\n$7\r\ncheck 1\r\n
+ 3) for the master connection of slave redis:
+    *2\r\n$7\r\ncheck 0\r\n$100 \r\nrepopid ${time} ${index}\r\n
+ */
 int handleExtraSSDBReply(client *c) {
     redisReply *element, *reply;
     int *keys = NULL;
@@ -1276,7 +1282,7 @@ int handleExtraSSDBReply(client *c) {
 
     reply = c->ssdb_replies[1];
 
-    serverAssert(reply->type == REDIS_REPLY_ARRAY && reply->elements == 1);
+    serverAssert(reply->type == REDIS_REPLY_ARRAY);
     element = reply->element[0];
     serverAssert(element->type == REDIS_REPLY_STRING);
 
@@ -1301,27 +1307,47 @@ int handleExtraSSDBReply(client *c) {
         if (keys) getKeysFreeResult(keys);
     }
 
+    if (server.master == c) {
+        serverAssert(reply->elements == 2);
+        time_t repopid_time;
+        int repopid_index;
+        struct ssdb_write_op* op;
+        listIter li;
+        listNode *ln;
+
+        element = reply->element[1];
+        sscanf(element->str,"repopid %ld %d", &repopid_time, &repopid_index);
+
+        listRewind(server.ssdb_write_oplist, &li);
+        while((ln = listNext(&li))) {
+            op = ln->value;
+            if (repopid_index == op->index && repopid_time == op->time) {
+                removeVisitingSSDBKey(op->cmd, op->argc, op->argv);
+                listDelNode(server.ssdb_write_oplist, ln);
+            }
+        }
+    }
+
     return C_OK;
 }
 
-void removeVisitingSSDBKey(client *c) {
+void removeVisitingSSDBKey(struct redisCommand *cmd, int argc, robj** argv) {
     int *keys = NULL, numkeys = 0, j;
-    if ( (c->cmd->flags & (CMD_READONLY | CMD_WRITE)) &&
-         (c->cmd->flags & CMD_JDJR_MODE) ) {
-        serverAssert(c->cmd && c->argc && c->btype == BLOCKED_VISITING_SSDB);
 
-        keys = getKeysFromCommand(c->cmd, c->argv, c->argc, &numkeys);
+    if ( (cmd->flags & (CMD_READONLY | CMD_WRITE)) &&
+         (cmd->flags & CMD_JDJR_MODE) ) {
+        keys = getKeysFromCommand(cmd, argv, argc, &numkeys);
+
         for (j = 0; j < numkeys; j ++) {
-            dictEntry *entry;
-            entry = dictFind(EVICTED_DATA_DB->visiting_ssdb_keys, c->argv[keys[j]]->ptr);
+            robj* key = argv[keys[j]];
+            dictEntry *entry = dictFind(EVICTED_DATA_DB->visiting_ssdb_keys, key->ptr);
             uint64_t clients_visiting_num = dictGetUnsignedIntegerVal(entry);
             serverAssert(entry && (clients_visiting_num >= 1));
             if (1 == clients_visiting_num) {
                 /* only this client is visiting the specified key, remove the key
                  * from visiting keys. */
-                dictDelete(EVICTED_DATA_DB->visiting_ssdb_keys, c->argv[keys[j]]->ptr);
-                serverLog(LL_DEBUG, "key: %s is deleted from visiting_ssdb_keys, fd: %d.",
-                          (char *)c->argv[keys[j]]->ptr, c->fd);
+                dictDelete(EVICTED_DATA_DB->visiting_ssdb_keys, key->ptr);
+                serverLog(LL_DEBUG, "key: %s is deleted from visiting_ssdb_keys.", (char *) key->ptr);
             } else {
                 /* there are other clients visiting the specified key, just reduce the visiting
                  * clients num by 1. */
@@ -1333,7 +1359,6 @@ void removeVisitingSSDBKey(client *c) {
         if (keys) getKeysFreeResult(keys);
     }
 }
-
 
 int isSpecialConnection(client *c) {
     if (c == server.ssdb_client
@@ -1433,7 +1458,6 @@ cleanup:
         || c->btype == BLOCKED_BY_DELETE_CONFIRM) {
         unblockClient(c);
 
-        // todo: review
         if ((c->cmd
              && (c->cmd->flags & CMD_WRITE)
              && server.masterhost == NULL)) {
@@ -1556,7 +1580,7 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
     if (c->ssdb_replies[1]) {
         redisReply* reply = c->ssdb_replies[1];
 
-        if (reply->type != REDIS_REPLY_ARRAY || reply->elements != 1) {
+        if (reply->type != REDIS_REPLY_ARRAY) {
             redisReaderSetSSDBCheckError(c->context->reader);
             freeClient(c);
             return;
@@ -2102,6 +2126,11 @@ int processInlineBuffer(client *c) {
         setProtocolError("unbalanced quotes in inline request",c,0);
         return C_ERR;
     }
+    if (server.jdjr_mode && server.master == c && argc != 0) {
+        if (slave_ssdb_cmd_buffer) sdsfree(slave_ssdb_cmd_buffer);
+        slave_ssdb_cmd_buffer = sdsempty();
+        slave_ssdb_cmd_buffer = sdscatlen(slave_ssdb_cmd_buffer, c->querybuf, querylen+2);
+    }
 
     /* Newline from slaves can be used to refresh the last ACK time.
      * This is useful for a slave to ping back while loading a big
@@ -2200,6 +2229,11 @@ int processMultibulkBuffer(client *c) {
             sdsrange(c->querybuf,pos,-1);
             return C_OK;
         }
+        if (server.jdjr_mode && server.master == c) {
+            if (slave_ssdb_cmd_buffer) sdsfree(slave_ssdb_cmd_buffer);
+            slave_ssdb_cmd_buffer = sdsempty();
+            slave_ssdb_cmd_buffer = sdscatlen(slave_ssdb_cmd_buffer, c->querybuf, pos);
+        }
 
         c->multibulklen = ll;
 
@@ -2218,6 +2252,10 @@ int processMultibulkBuffer(client *c) {
                     addReplyError(c,
                         "Protocol error: too big bulk count string");
                     setProtocolError("too big bulk count string",c,0);
+                    if (server.jdjr_mode && server.master == c) {
+                        sdsfree(slave_ssdb_cmd_buffer);
+                        slave_ssdb_cmd_buffer = NULL;
+                    }
                     return C_ERR;
                 }
                 break;
@@ -2232,6 +2270,10 @@ int processMultibulkBuffer(client *c) {
                     "Protocol error: expected '$', got '%c'",
                     c->querybuf[pos]);
                 setProtocolError("expected $ but got something else",c,pos);
+                if (server.jdjr_mode && server.master == c) {
+                    sdsfree(slave_ssdb_cmd_buffer);
+                    slave_ssdb_cmd_buffer = NULL;
+                }
                 return C_ERR;
             }
 
@@ -2239,9 +2281,16 @@ int processMultibulkBuffer(client *c) {
             if (!ok || ll < 0 || ll > 512*1024*1024) {
                 addReplyError(c,"Protocol error: invalid bulk length");
                 setProtocolError("invalid bulk length",c,pos);
+                if (server.jdjr_mode && server.master == c) {
+                    sdsfree(slave_ssdb_cmd_buffer);
+                    slave_ssdb_cmd_buffer = NULL;
+                }
                 return C_ERR;
             }
 
+            if (server.jdjr_mode && server.master == c) {
+                slave_ssdb_cmd_buffer = sdscatlen(slave_ssdb_cmd_buffer, c->querybuf+pos, newline-(c->querybuf+pos)+2);
+            }
             pos += newline-(c->querybuf+pos)+2;
             if (ll >= PROTO_MBULK_BIG_ARG) {
                 size_t qblen;
@@ -2255,8 +2304,12 @@ int processMultibulkBuffer(client *c) {
                 qblen = sdslen(c->querybuf);
                 /* Hint the sds library about the amount of bytes this string is
                  * going to contain. */
-                if (qblen < (size_t)ll+2)
+                if (qblen < (size_t)ll+2) {
                     c->querybuf = sdsMakeRoomFor(c->querybuf,ll+2-qblen);
+                    if (server.jdjr_mode && server.master == c) {
+                        slave_ssdb_cmd_buffer = sdsMakeRoomFor(slave_ssdb_cmd_buffer,ll+2-qblen);
+                    }
+                }
             }
             c->bulklen = ll;
         }
@@ -2266,6 +2319,9 @@ int processMultibulkBuffer(client *c) {
             /* Not enough data (+2 == trailing \r\n) */
             break;
         } else {
+            if (server.jdjr_mode && server.master == c) {
+                slave_ssdb_cmd_buffer = sdscatlen(slave_ssdb_cmd_buffer, c->querybuf+pos, c->bulklen+2);
+            }
             /* Optimization: if the buffer contains JUST our bulk element
              * instead of creating a new object by *copying* the sds we
              * just use the current sds string. */
