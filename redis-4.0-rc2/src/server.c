@@ -2790,6 +2790,8 @@ void emptySlaveSSDBwriteOperations() {
         removeVisitingSSDBKey(op->cmd, op->argc, op->argv);
         listDelNode(server.ssdb_write_oplist, ln);
     }
+    write_op_last_index = -1;
+    write_op_last_time = -1;
 }
 
 void saveSlaveSSDBwriteOp(client *c) {
@@ -2883,6 +2885,9 @@ int processCommandMaybeInSSDB(client *c) {
         /* Calling lookupKey to update lru or lfu counter. */
         robj* val = lookupKey(EVICTED_DATA_DB, c->argv[1], LOOKUP_NONE);
         if (val) {
+            // todo: send "repopid set ${time} ${index}" before send the command
+            /* todo: if server.master is freed because of SSDB disconnect, send "repopid get" to get opid of
+             * the last successful SSDB write and re-send unprocessd write ops. */
             int ret = sendCommandToSSDB(c, NULL);
             if (ret != C_OK) return ret;
 

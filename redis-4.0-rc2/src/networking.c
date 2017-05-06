@@ -2464,6 +2464,7 @@ void readQueryFromClient(aeEventLoop *el, int fd, void *privdata, int mask) {
 
     sdsIncrLen(c->querybuf,nread);
     c->lastinteraction = server.unixtime;
+    // todo: rollback reploff if sendCommandToSSDB fail.
     if (c->flags & CLIENT_MASTER) {
         c->reploff += nread;
         replicationFeedSlavesFromMasterStream(server.slaves,
