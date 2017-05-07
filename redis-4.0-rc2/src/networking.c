@@ -619,19 +619,18 @@ int nonBlockConnectToSsdbServer(client *c) {
             serverLog(LL_VERBOSE, "Could not connect to SSDB server:%s", context->errstr);
             redisFree(context);
             return C_ERR;
-        } else
-            c->context = context;
+        }
 
-        anetKeepAlive(NULL, c->context->fd, server.tcpkeepalive);
-
-        if (aeCreateFileEvent(server.el, c->context->fd,
+        if (aeCreateFileEvent(server.el, context->fd,
                               AE_READABLE, ssdbClientUnixHandler, c) == AE_ERR) {
             serverLog(LL_VERBOSE, "Unrecoverable error creating ssdbFd file event.");
+            redisFree(context);
             return C_ERR;
         } else
             serverLog(LL_DEBUG, "rfd:%d connecting to SSDB Unix socket succeeded: sfd:%d",
-                      c->fd, c->context->fd);
+                      c->fd, context->fd);
 
+        c->context = context;
         return C_OK;
     }
 

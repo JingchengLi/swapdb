@@ -2344,13 +2344,13 @@ void replicationResurrectCachedMaster(int newfd) {
         }
     }
 
-    // todo: review and remove
-    //if (server.jdjr_mode) {
-    //    if (C_OK != nonBlockConnectToSsdbServer(server.master)) {
-    //        serverLog(LL_WARNING,"Error resurrecting the cached master, can't connect SSDB");
-    //        freeClientAsync(server.master); /* Close ASAP. */
-    //    }
-    //}
+    if (server.jdjr_mode && (!server.master->context || (server.master->context->fd == -1)) {
+        if (server.master->context) redisFree(server.master->context);
+        if (C_OK != nonBlockConnectToSsdbServer(server.master)) {
+            serverLog(LL_WARNING,"Error resurrecting the cached master, can't connect SSDB");
+            freeClientAsync(server.master); /* Close ASAP. */
+        }
+    }
 }
 
 /* ------------------------- MIN-SLAVES-TO-WRITE  --------------------------- */
