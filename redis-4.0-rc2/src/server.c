@@ -3107,8 +3107,10 @@ int runCommand(client *c, int* need_return) {
             if (ret == C_NOTSUPPORT_ERR) {
                 addReplyErrorFormat(c, "don't support this command in jdjr mode:%s.", c->cmd->name);
                 return C_OK;
-            } else if (ret == C_FD_ERR)
-                return C_FD_ERR;
+            } else if (ret == C_FD_ERR) {
+                addReplyErrorFormat(c, "SSDB disconnect");
+                return C_OK;
+            }
         }
     }
 

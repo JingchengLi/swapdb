@@ -685,6 +685,17 @@ sds composeCmdFromArgs(client *c) {
     return finalcmd;
 }
 
+void closeAndReconnectSSDBconnection(client* c) {
+    if (c->context && c->context->fd != -1) {
+        /* Unlink resources used in connecting to SSDB. */
+        aeDeleteFileEvent(server.el, c->context->fd, AE_READABLE);
+        aeDeleteFileEvent(server.el, c->context->fd, AE_WRITABLE);
+        close(c->context->fd);
+        c->context->fd = -1;
+    }
+    // todo: reconnect SSDB
+}
+
 /* Querying SSDB server if querying redis fails, Compose the finalcmd if finalcmd is NULL. */
 int sendCommandToSSDB(client *c, sds finalcmd) {
     int nwritten;
@@ -704,7 +715,8 @@ int sendCommandToSSDB(client *c, sds finalcmd) {
 
         if (!c->context || c->context->fd <= 0) {
             serverLog(LL_VERBOSE, "redisContext error.");
-            freeClient(c);
+            //freeClient(c);
+            closeAndReconnectSSDBconnection(c);
             return C_FD_ERR;
         }
 
@@ -727,7 +739,8 @@ int sendCommandToSSDB(client *c, sds finalcmd) {
                 serverLog(LL_WARNING,
                           "Error writing to SSDB server: %s", strerror(errno));
                 sdsfree(finalcmd);
-                freeClient(c);
+                closeAndReconnectSSDBconnection(c);
+                //freeClient(c);
                 return C_FD_ERR;
             }
         } else if (nwritten > 0) {
@@ -1468,6 +1481,7 @@ cleanup:
     }
 }
 
+
 /* TODO: Implement ssdbClientUnixHandler. Only handle AE_READABLE. */
 void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
     UNUSED(el);
@@ -1511,7 +1525,8 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
         /* Return early when the context has seen an error. */
         if (c->context->err) {
             serverLog(LL_WARNING, "Error: Could not connect to SSDB, %s ", c->context->errstr);
-            freeClient(c);
+            closeAndReconnectSSDBconnection(c);
+            //freeClient(c);
             return;
         }
 
@@ -1751,11 +1766,7 @@ void unlinkClient(client *c) {
             if (c->repl_timer_id != -1)
                 aeDeleteTimeEvent(server.el, c->repl_timer_id);
 
-            if (server.master && (c->flags & CLIENT_MASTER) && server.cached_master == NULL) {
-                /* for the master connection of slave redis, we may do a partial sync with our master
-                 * later, just reuse the SSDB connection to avoid to process server.ssdb_write_oplist,
-                 * see 'replicationCacheMaster' for details. */
-            } else if (c->context && c->context->fd != -1) {
+            if (c->context && c->context->fd != -1) {
                 /* Unlink resources used in connecting to SSDB. */
                 aeDeleteFileEvent(server.el, c->context->fd, AE_READABLE);
                 aeDeleteFileEvent(server.el, c->context->fd, AE_WRITABLE);
