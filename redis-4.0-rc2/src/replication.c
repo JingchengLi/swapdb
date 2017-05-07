@@ -1364,7 +1364,7 @@ void readSyncBulkPayload(aeEventLoop *el, int fd, void *privdata, int mask) {
          * RDB, otherwise we'll create a copy-on-write disaster. */
         if (aof_is_enabled) stopAppendOnly();
         signalFlushedDb(-1);
-        if (server.jdjr_mode) cleanSpecialClientsAndIntermediateKeys();
+        if (server.jdjr_mode) cleanSpecialClientsAndIntermediateKeys(1);
         emptyDb(
             -1,
             server.repl_slave_lazy_flush ? EMPTYDB_ASYNC : EMPTYDB_NO_FLAGS,
@@ -2041,7 +2041,8 @@ int cancelReplicationHandshake(void) {
 void replicationSetMaster(char *ip, int port) {
     int was_master = server.masterhost == NULL;
 
-    if (server.jdjr_mode)  cleanKeysToLoadAndEvict();
+    if (server.jdjr_mode)
+        cleanSpecialClientsAndIntermediateKeys(0);
 
     sdsfree(server.masterhost);
     server.masterhost = sdsnew(ip);
@@ -2066,7 +2067,9 @@ void replicationSetMaster(char *ip, int port) {
 void replicationUnsetMaster(void) {
     if (server.masterhost == NULL) return; /* Nothing to do. */
 
-    if (server.jdjr_mode)  cleanKeysToLoadAndEvict();
+    if (server.jdjr_mode)
+        cleanSpecialClientsAndIntermediateKeys(0);
+
     sdsfree(server.masterhost);
     server.masterhost = NULL;
     /* When a slave is turned into a master, the current replication ID

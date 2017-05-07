@@ -647,15 +647,14 @@ typedef struct redisDb {
     dict *ready_keys;           /* Blocked keys that received a PUSH */
     dict *watched_keys;         /* WATCHED keys for MULTI/EXEC CAS */
 
-    dict *ssdb_blocking_keys;   /* For jdjr_mode: Keys in loading/tranferring state
+    dict *ssdb_blocking_keys;   /* For jdjr_mode: Keys in loading/tranferring/delete_confirm state
                                    from/to SSDB. */
     dict *ssdb_ready_keys;      /* For jdjr_mode: Blocked keys that ssdb load/transfer ok. */
     dict *transferring_keys;    /* Keys are in the process of transferring keys to SSDB. */
     dict *loading_hot_keys;     /* keys become hot and in loading state from SSDB. */
     dict *visiting_ssdb_keys;   /* Keys are visiting SSDB, including reading and writing. */
     dict *delete_confirm_keys;  /* need to confirm whether keys are deleted in SSDB when receive
-                                 * key-not-exist responses for get like APIs or key-delete responses
-                                 * for hdel like APIs. */
+                                 * 'check 1' responses for get like APIs or hdel like APIs. */
     int id;                     /* Database ID */
     long long avg_ttl;          /* Average TTL, just for stats */
 } redisDb;
@@ -1733,7 +1732,7 @@ int zslLexValueLteMax(sds value, zlexrangespec *spec);
 int freeMemoryIfNeeded(void);
 void emptySlaveSSDBwriteOperations();
 void freeSSDBwriteOp(struct ssdb_write_op* op);
-void cleanSpecialClientsAndIntermediateKeys();
+void cleanSpecialClientsAndIntermediateKeys(int is_flushall);
 void prepareSSDBflush(client* c);
 void cleanKeysToLoadAndEvict();
 void cleanAndSignalDeleteConfirmKeys();

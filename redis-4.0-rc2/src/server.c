@@ -2790,8 +2790,6 @@ void emptySlaveSSDBwriteOperations() {
         removeVisitingSSDBKey(op->cmd, op->argc, op->argv);
         listDelNode(server.ssdb_write_oplist, ln);
     }
-    write_op_last_index = -1;
-    write_op_last_time = -1;
 }
 
 void saveSlaveSSDBwriteOp(client *c) {
@@ -2999,17 +2997,17 @@ void cleanAndSignalLoadingOrTransferringKeys() {
     dictEmpty(server.db[EVICTED_DATA_DBID].loading_hot_keys, NULL);
 }
 
-void cleanSpecialClientsAndIntermediateKeys() {
-    /* just free specail clients to discard unprocessed transferring/loading keys.*/
-    if (server.ssdb_client) freeClient(server.ssdb_client);
-    if (server.masterhost && server.slave_ssdb_load_evict_client) freeClient(server.slave_ssdb_load_evict_client);
-    if (server.delete_confirm_client) freeClient(server.delete_confirm_client);
-
+void cleanSpecialClientsAndIntermediateKeys(int is_flushall) {
     // todo: review and remove
+    /* just free specail clients to discard unprocessed transferring/loading keys.*/
+    //if (server.ssdb_client) freeClient(server.ssdb_client);
+    //if (server.masterhost && server.slave_ssdb_load_evict_client) freeClient(server.slave_ssdb_load_evict_client);
+    //if (is_flushall && server.delete_confirm_client) freeClient(server.delete_confirm_client);
+
     /* clean delete_confirm_keys dict. */
-    //cleanAndSignalDeleteConfirmKeys();
+    if (is_flushall) cleanAndSignalDeleteConfirmKeys();
     /* clean transferring_keys/loading_hot_keys dicts. */
-    //cleanAndSignalLoadingOrTransferringKeys();
+    cleanAndSignalLoadingOrTransferringKeys();
 
     emptyEvictionPool();
 
@@ -3022,9 +3020,7 @@ void prepareSSDBflush(client* c) {
     client *lc;
 
     /* STEP 1: clean all intermediate state keys, avoid to cause unexpected issues. */
-    cleanSpecialClientsAndIntermediateKeys();
-
-    server.is_doing_flushall = 1;
+    cleanSpecialClientsAndIntermediateKeys(1);
 
     /* if this is a slave, we don't need to do flush check, just tell SSDB to do flushall*/
     if (server.masterhost) {
@@ -3043,6 +3039,7 @@ void prepareSSDBflush(client* c) {
             blockClient(c, BLOCKED_BY_FLUSHALL);
         }
     } else {
+        server.is_doing_flushall = 1;
         /* save the client doing flushall. */
         server.current_flushall_client = c;
 
@@ -3075,6 +3072,9 @@ void prepareSSDBflush(client* c) {
                 serverLog(LL_DEBUG, "[flushall]server.flush_check_unresponse_num decrease by 1");
             }
         }
+        /* don't need a timeout, will process timeout case in serverCron. */
+        c->bpop.timeout = 0;
+        blockClient(c, BLOCKED_BY_FLUSHALL);
     }
 }
 
@@ -3356,9 +3356,6 @@ int processCommand(client *c) {
     if (server.jdjr_mode) {
         ret = processCommandMaybeFlushdb(c);
         if (C_OK == ret) {
-            /* don't need a timeout, will process timeout case in serverCron. */
-            c->bpop.timeout = 0;
-            blockClient(c, BLOCKED_BY_FLUSHALL);
             return C_ERR;
         } else if (C_ANOTHER_FLUSHALL_ERR == ret) {
             addReplyError(c, "there is already another flushall task processing!");
