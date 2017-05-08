@@ -6,6 +6,7 @@
 #include <sstream>
 #include <math.h>
 #include "SSDB_client.h"
+#include "util/log.h"
 
 #include "gtest/gtest.h"
 
@@ -59,6 +60,7 @@ public:
 	}
 
     virtual void SetUp(){
+        set_log_level(Logger::LEVEL_INFO);
         port = 8888;
         ip = "127.0.0.1";
         client = ssdb::Client::connect(ip.data(), port);
