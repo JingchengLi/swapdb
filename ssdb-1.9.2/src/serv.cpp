@@ -996,11 +996,32 @@ int proc_repopid(NetworkServer *net, Link *link, const Request &req, Response *r
     strtolower(&action);
 
     if (action == "get") {
+        std::string repo_val;
+        serv->ssdb->raw_get(encode_repo_key(), &repo_val);
 
+        RepoKey repoKey;
+        if (repoKey.DecodeRepoKey(repo_val) == -1) {
+            reply_errinfo_return("DecodeRepoKey error");
+        }
+
+        resp->push_back("ok");
+        resp->push_back("repoid " + str(repoKey.timestamp) + " " + str(repoKey.id));
 
     } else if (action == "set") {
+        CHECK_NUM_PARAMS(4);
+        uint64_t timestamp = req[2].Uint64();
+        if (errno == EINVAL){
+            reply_err_return(INVALID_INT);
+        }
 
+        uint64_t id = req[3].Uint64();
+        if (errno == EINVAL){
+            reply_err_return(INVALID_INT);
+        }
 
+        serv->ssdb->updateRecievedInfo(timestamp, id);
+
+        resp->reply_ok();
     }
 
 

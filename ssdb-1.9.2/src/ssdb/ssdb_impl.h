@@ -68,14 +68,15 @@ private:
 
 	RedisCursorService redisCursorService;
 
-	int commitedIndex;
-	int commitedTimestamp;
+	uint64_t commitedIndex;
+	uint64_t commitedTimestamp;
 
-	int recievedIndex;
-	int recievedTimestamp;
+	uint64_t recievedIndex;
+	uint64_t recievedTimestamp;
 
 	SSDBImpl();
 public:
+
 	ExpirationHandler *expiration;
 
 	virtual ~SSDBImpl();
@@ -224,6 +225,21 @@ public:
 
 	virtual int redisCursorCleanup();
 
+
+	void updateRecievedInfo(uint64_t timestamp, uint64_t index) {
+		SSDBImpl::recievedTimestamp = timestamp;
+		SSDBImpl::recievedIndex = index;
+	}
+
+	void updateCommitedInfo(uint64_t timestamp, uint64_t index) {
+		SSDBImpl::commitedTimestamp = timestamp;
+		SSDBImpl::commitedIndex = index;
+	}
+
+	void resetRecievedInfo() {
+		SSDBImpl::recievedTimestamp = 0;
+		SSDBImpl::recievedIndex = 0;
+	}
 
 private:
 

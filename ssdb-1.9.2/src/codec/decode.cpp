@@ -261,3 +261,28 @@ int DeleteKey::DecodeDeleteKey(const Bytes &str) {
 
     return 0;
 }
+
+int RepoKey::DecodeRepoKey(const Bytes &str) {
+    Decoder decoder(str.data(), str.size());
+    if(decoder.skip(1) == -1){
+        return -1;
+    } else{
+        if ((type = str[POS_TYPE]) != DataType::REPOKEY){
+            return -1;
+        }
+    }
+
+    if (decoder.read_uint64(&timestamp) == -1){
+        return -1;
+    } else{
+        timestamp = be64toh(timestamp);
+    }
+
+    if (decoder.read_uint64(&id) == -1){
+        return -1;
+    } else{
+        id = be64toh(id);
+    }
+
+    return 0;
+}

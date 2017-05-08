@@ -354,23 +354,27 @@ leveldb::Status SSDBImpl::CommitBatch(leveldb::WriteBatch *updates) {
 		if (commitedIndex > 0) {
 			//role is slave
 		} else {
-			//role change master -> slave
+			log_info("role change master -> slave");
 		}
 
-		//TODO update index
-		//updates->Put(...)
+		updates->Put(encode_repo_key(), encode_repo_item(recievedTimestamp, recievedIndex));
 
 	} else if (recievedIndex == -1) {
-		// ???
+
 		log_error("wtf??????????????? reset recievedIndex");
-		recievedIndex = 0;
+		resetRecievedInfo();
+
+		updates->Put(encode_repo_key(), encode_repo_item(recievedTimestamp, recievedIndex));
 
 	} else {
-		if (commitedIndex > 0) {
-			//role change slave -> master
+		//recievedIndex == 0
 
-			//TODO update index -> 0
-			//updates->Put(...)
+		if (commitedIndex > 0) {
+			log_info("ole change slave -> master");
+
+			resetRecievedInfo();
+
+			updates->Put(encode_repo_key(), encode_repo_item(recievedTimestamp, recievedIndex));
 
 		} else {
 			//role is master
@@ -382,21 +386,12 @@ leveldb::Status SSDBImpl::CommitBatch(leveldb::WriteBatch *updates) {
 
 	if (s.ok()) {
 		//update
-		commitedIndex = recievedIndex;
-
-
-		if (recievedIndex > 0) {
-			//reset
-			recievedIndex = 0;
-
-		}
-
+		updateCommitedInfo(recievedTimestamp, recievedIndex);
+		resetRecievedInfo();
 
 	} else {
-		recievedIndex = -1;
+		updateRecievedInfo(-1, -1);
 	}
-
-
 
 	return s;
 }

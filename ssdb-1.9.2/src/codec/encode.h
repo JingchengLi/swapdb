@@ -47,6 +47,14 @@ string encode_list_meta_val(uint64_t length, uint64_t left, uint64_t right, uint
 string encode_delete_key(const Bytes& key, uint16_t version);
 
 
+/*
+ * repo key
+ */
+string encode_repo_key();
+
+string encode_repo_item(uint64_t index, uint64_t timestamp);
+
+
 uint64_t encodeScore(const double score);
 
 #endif //SSDB_ENCODE_H

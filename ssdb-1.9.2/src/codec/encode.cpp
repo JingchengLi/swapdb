@@ -200,3 +200,24 @@ string encode_delete_key(const Bytes& key, uint16_t version){
 
     return buf;
 }
+
+
+string encode_repo_key() {
+    string buf;
+    buf.append(1, DataType::REPOKEY);
+
+    return buf;
+}
+
+string encode_repo_item(uint64_t index, uint64_t timestamp) {
+    string buf;
+    buf.append(1, DataType::REPOITEM);
+
+    timestamp = htobe64(timestamp);
+    buf.append((char *)&timestamp, sizeof(uint64_t));
+
+    index = htobe64(index);
+    buf.append((char *)&index, sizeof(uint64_t));
+
+    return buf;
+}

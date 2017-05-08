@@ -56,15 +56,19 @@ public:
     static const char SSIZE		= 'S'; // meta value set
     static const char LSIZE		= 'L'; // meta value list
 
+
     static const char ITEM		= 'S'; // meta value item
 
     static const char ZSCORE	= 'z';
 
-//    static const char BQUEUE	= 'B'; // background queue
     static const char ESCORE	= 'T'; // expire key
     static const char EKEY   	= 'E'; // expire timestamp key
 
     static const char DELETE	= KEY_DELETE_MASK;
+
+
+    static const char REPOKEY		= 'L';
+    static const char REPOITEM		= 'l';
 
 };
 

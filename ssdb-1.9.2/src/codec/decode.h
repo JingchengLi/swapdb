@@ -108,4 +108,18 @@ public:
 double decodeScore(const int64_t score);
 
 
+
+/*
+ * decode delete key class
+ */
+class RepoKey{
+public:
+        int DecodeRepoKey(const Bytes& str);
+
+public:
+    char        type;
+    uint64_t    id;
+    uint64_t    timestamp;
+};
+
 #endif //SSDB_DECODE_H
