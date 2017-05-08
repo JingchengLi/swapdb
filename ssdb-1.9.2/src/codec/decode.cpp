@@ -267,7 +267,7 @@ int RepoKey::DecodeRepoKey(const Bytes &str) {
     if(decoder.skip(1) == -1){
         return -1;
     } else{
-        if ((type = str[POS_TYPE]) != DataType::REPOKEY){
+        if ((type = str[POS_TYPE]) != DataType::REPOITEM){
             return -1;
         }
     }

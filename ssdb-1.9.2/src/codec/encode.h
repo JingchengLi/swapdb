@@ -52,7 +52,7 @@ string encode_delete_key(const Bytes& key, uint16_t version);
  */
 string encode_repo_key();
 
-string encode_repo_item(uint64_t index, uint64_t timestamp);
+string encode_repo_item(uint64_t timestamp, uint64_t index);
 
 
 uint64_t encodeScore(const double score);

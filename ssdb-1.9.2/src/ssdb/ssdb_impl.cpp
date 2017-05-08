@@ -363,7 +363,7 @@ leveldb::Status SSDBImpl::CommitBatch(const leveldb::WriteOptions& options, leve
 		//recievedIndex == 0
 
 		if (commitedIndex > 0) {
-			log_info("ole change slave -> master");
+			log_info("role change slave -> master");
 
 			resetRecievedInfo();
 

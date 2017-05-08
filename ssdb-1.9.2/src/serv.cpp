@@ -1005,7 +1005,7 @@ int proc_repopid(NetworkServer *net, Link *link, const Request &req, Response *r
         }
 
         resp->push_back("ok");
-        resp->push_back("repoid " + str(repoKey.timestamp) + " " + str(repoKey.id));
+        resp->push_back("repopid " + str(repoKey.timestamp) + " " + str(repoKey.id));
 
     } else if (action == "set") {
         CHECK_NUM_PARAMS(4);
@@ -1030,6 +1030,10 @@ int proc_repopid(NetworkServer *net, Link *link, const Request &req, Response *r
 
 int proc_after_proc(NetworkServer *net, Link *link, const Request &req, Response *resp) {
     SSDBServer *serv = (SSDBServer *)net->data;
+
+    if (req[0] == "repopid") {
+        return 0;
+    }
 
     log_debug("proc_after_proc");
 

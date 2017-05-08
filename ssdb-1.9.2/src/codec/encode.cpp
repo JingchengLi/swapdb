@@ -209,7 +209,7 @@ string encode_repo_key() {
     return buf;
 }
 
-string encode_repo_item(uint64_t index, uint64_t timestamp) {
+string encode_repo_item(uint64_t timestamp, uint64_t index) {
     string buf;
     buf.append(1, DataType::REPOITEM);
 
