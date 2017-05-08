@@ -349,10 +349,10 @@ public:
 
 };
 
+template <typename T>
 struct cfree_delete
 {
-	void operator()(void* x) { free(x); }
-	void operator()(char* x) { free(x); }
+	void operator()(T* x) { free(x); }
 };
 
 

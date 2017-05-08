@@ -329,7 +329,7 @@ void moveBuffer(Buffer *dst, Buffer *src) {
     size_t comprlen, outlen = (size_t) src->size();
 
 
-    std::unique_ptr<void, cfree_delete> out(malloc(outlen + 1));
+    std::unique_ptr<void, cfree_delete<void>> out(malloc(outlen + 1));
 
 
     comprlen = lzf_compress(src->data(), (unsigned int) src->size(), out.get(), outlen);

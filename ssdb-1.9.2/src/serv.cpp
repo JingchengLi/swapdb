@@ -820,7 +820,7 @@ int proc_sync150(NetworkServer *net, Link *link, const Request &req, Response *r
                 break;
             }
 
-            std::unique_ptr<char, cfree_delete> t_val((char *)malloc(raw_len));
+            std::unique_ptr<char, cfree_delete<char>> t_val((char *)malloc(raw_len));
 
             if (lzf_decompress(decoder.data(), compressed_len, t_val.get(), raw_len) == 0) {
                 return -1;
