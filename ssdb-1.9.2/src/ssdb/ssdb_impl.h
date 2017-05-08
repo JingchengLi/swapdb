@@ -349,12 +349,5 @@ public:
 
 };
 
-template <typename T>
-struct cfree_delete
-{
-	void operator()(T* x) { free(x); }
-};
-
-
 
 #endif

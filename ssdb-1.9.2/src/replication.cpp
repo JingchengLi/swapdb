@@ -4,6 +4,7 @@
 #include "replication.h"
 #include <util/thread.h>
 #include <net/link.h>
+#include <util/cfree.h>
 #include "serv.h"
 
 extern "C" {
