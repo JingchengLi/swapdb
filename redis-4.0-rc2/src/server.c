@@ -2814,6 +2814,7 @@ void saveSlaveSSDBwriteOp(client *c, time_t time, int index) {
     op->argc = c->argc;
     op->argv = c->argv;
     c->argv = NULL;
+    /* todo: don't need slave_ssdb_cmd_buffer and remove it. */
     op->request_buf = slave_ssdb_cmd_buffer;
     slave_ssdb_cmd_buffer = NULL;
 
@@ -2891,6 +2892,10 @@ int processCommandMaybeInSSDB(client *c) {
 
                 updateSlaveSSDBwriteIndex();
 
+                /* for the master connection of slave redis, we record write commands
+                 * in server.ssdb_write_oplist, we just return and process next write command. */
+                saveSlaveSSDBwriteOp(c, write_op_last_time, write_op_last_index);
+
                 tmpargv[0] = "repopid";
                 tmpargv[1] = "set";
                 ll2string(time, sizeof(time), write_op_last_time);
@@ -2927,10 +2932,6 @@ int processCommandMaybeInSSDB(client *c) {
                     c->bpop.timeout = 5000 + mstime();
                     blockClient(c, BLOCKED_VISITING_SSDB);
                 } else if (server.master == c) {
-                    /* for the master connection of slave redis, after we send write commands
-                     * to SSDB and record them in server.ssdb_write_oplist, we just return and
-                     * process next write command. */
-                    saveSlaveSSDBwriteOp(c, write_op_last_time, write_op_last_index);
                     if (c->cmd->proc == flushallCommand) {
                         /* for slave redis, we just wait flushall done. */
                         c->bpop.timeout = 0;
