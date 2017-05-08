@@ -1302,9 +1302,13 @@ struct redisServer {
     /* for slave redis, we save ssdb write operations before receive responses from ssdb. */
     list* ssdb_write_oplist;
     int ssdb_is_up;
+    int slave_check_rep_opid;
     /* when ssdb is down, record the time */
     time_t ssdb_down_time;
+    int slave_ssdb_critical_err_cnt;
 };
+
+#define SLAVE_SSDB_MAX_CRITICAL_ERR_LIMIT 5
 
 /* for slave redis, record and save ssdb write commands. */
 char* slave_ssdb_cmd_buffer;
@@ -1509,6 +1513,7 @@ int handleClientsWithPendingWrites(void);
 int clientHasPendingReplies(client *c);
 int sendCommandToSSDB(client *c, sds finalcmd);
 sds composeRedisCmd(int argc, const char **argv, const size_t *argvlen);
+sds composeCmdFromArgs(int argc, robj** obj_argv);
 int nonBlockConnectToSsdbServer(client *c);
 void sendCheckWriteCommandToSSDB(aeEventLoop *el, int fd, void *privdata, int mask);
 void sendFlushCheckCommandToSSDB(aeEventLoop *el, int fd, void *privdata, int mask);
@@ -1733,6 +1738,7 @@ int zslLexValueLteMax(sds value, zlexrangespec *spec);
 
 /* Core functions */
 int freeMemoryIfNeeded(void);
+int confirmAndRetrySlaveSSDBwriteOp(time_t time, int index);
 void emptySlaveSSDBwriteOperations();
 void freeSSDBwriteOp(struct ssdb_write_op* op);
 void cleanSpecialClientsAndIntermediateKeys(int is_flushall);

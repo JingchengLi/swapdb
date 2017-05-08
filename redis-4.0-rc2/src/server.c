@@ -2146,6 +2146,8 @@ void initServer(void) {
     server.unblocked_clients = listCreate();
     server.ready_keys = listCreate();
     if (server.jdjr_mode) {
+        server.slave_check_rep_opid = 0;
+        server.slave_ssdb_critical_err_cnt = 0;
         server.ssdb_is_up = 0;
         server.ssdb_down_time = -1;
         server.ssdb_ready_keys = listCreate();
@@ -2762,6 +2764,32 @@ void emptySlaveSSDBwriteOperations() {
     }
 }
 
+int confirmAndRetrySlaveSSDBwriteOp(time_t time, int index) {
+    struct ssdb_write_op* op;
+    listIter li;
+    listNode *ln;
+    int impossible = 1;
+    int ret;
+
+    listRewind(server.ssdb_write_oplist, &li);
+    while((ln = listNext(&li))) {
+        op = ln->value;
+        /* remove the successful write operations from buffer. */
+        if (time > op->time || (time == op->time && index >= op->index)) {
+            serverAssert(impossible);
+            removeVisitingSSDBKey(op->cmd, op->argc, op->argv);
+            listDelNode(server.ssdb_write_oplist, ln);
+        } else {
+            impossible = 0;
+            /* re-send failed write operations to SSDB. */
+            sds cmd = composeCmdFromArgs(op->argc, op->argv);
+            if ((ret = sendCommandToSSDB(server.master, cmd)) != C_OK)
+                break;
+        }
+    }
+    return ret;
+}
+
 void updateSlaveSSDBwriteIndex() {
      if (write_op_last_index == -1 && write_op_last_time == -1) {
          write_op_last_time = server.unixtime;
@@ -2857,10 +2885,27 @@ int processCommandMaybeInSSDB(client *c) {
         robj* val = lookupKey(EVICTED_DATA_DB, c->argv[1], LOOKUP_NONE);
         if (val) {
             if (server.master == c) {
+                const char* tmpargv[4];
+                char time[64];
+                char index[32];
+
                 updateSlaveSSDBwriteIndex();
-                sds s = sdscatfmt(sdsempty(), "repopid set %ld %d", write_op_last_time, write_op_last_index);
-                int ret = sendCommandToSSDB(c, s);
+
+                tmpargv[0] = "repopid";
+                tmpargv[1] = "set";
+                ll2string(time, sizeof(time), write_op_last_time);
+                tmpargv[2] = time;
+                ll2string(index, sizeof(index), write_op_last_index);
+                tmpargv[3] = index;
+
+                sds cmd = composeRedisCmd(4, tmpargv, NULL);
+                int ret = sendCommandToSSDB(c, cmd);
                 if (ret != C_OK) return ret;
+
+                /* flushall STEP 1: clean all intermediate state keys, avoid to cause unexpected issues. */
+                if (c->cmd->proc == flushallCommand)
+                    cleanSpecialClientsAndIntermediateKeys(1);
+
             }
             /* todo: if server.master is freed because of SSDB disconnect, send "repopid get" to get opid of
              * the last successful SSDB write and re-send unprocessd write ops. */
@@ -2886,6 +2931,12 @@ int processCommandMaybeInSSDB(client *c) {
                      * to SSDB and record them in server.ssdb_write_oplist, we just return and
                      * process next write command. */
                     saveSlaveSSDBwriteOp(c, write_op_last_time, write_op_last_index);
+                    if (c->cmd->proc == flushallCommand) {
+                        /* for slave redis, we just wait flushall done. */
+                        c->bpop.timeout = 0;
+                        blockClient(c, BLOCKED_BY_FLUSHALL);
+                        // todo: process timeout and exit redis.
+                    }
                     return C_OK;
                 }
             }
@@ -2997,63 +3048,48 @@ void prepareSSDBflush(client* c) {
     listNode *ln;
     client *lc;
 
+    /* for slave redis, flushall will be processed in other way. */
+    if (server.masterhost) return;
+
     /* STEP 1: clean all intermediate state keys, avoid to cause unexpected issues. */
     cleanSpecialClientsAndIntermediateKeys(1);
 
-    /* if this is a slave, we don't need to do flush check, just tell SSDB to do flushall*/
-    if (server.masterhost) {
-        sds finalcmd = sdsnew("*1\r\n$14\r\nrr_do_flushall\r\n");
-        if (sendCommandToSSDB(c, finalcmd) != C_OK) {
-            // todo: 保存当前命令及参数，重连SSDB后重试当前命令
+    server.is_doing_flushall = 1;
+    /* save the client doing flushall. */
+    server.current_flushall_client = c;
 
-            /* todo: for slave, we must make sure every command to be processed success,
-             * and don't process next command before successd process of current command. */
-        } else {
-            serverLog(LL_DEBUG, "Sending rr_do_flushall to SSDB success.");
-
-            /* todo: we can do nothing but retry 'flushall', we can't call resetClient even if
-              block timeout. because this cause inconsistent data with my master. */
-            c->bpop.timeout = 0;
-            blockClient(c, BLOCKED_BY_FLUSHALL);
-        }
-    } else {
-        server.is_doing_flushall = 1;
-        /* save the client doing flushall. */
-        server.current_flushall_client = c;
-
-        /* STEP 2: send flushall/flushdb check commands for all connections. */
+    /* STEP 2: send flushall/flushdb check commands for all connections. */
 #ifdef TEST_FLUSHALL_TIMEOUT_CASE
-        // TEST timeout case ONLY !!!
+    // TEST timeout case ONLY !!!
     server.flush_check_unresponse_num = listLength(server.clients) - listLength(server.slaves) + 9999;
 #else
-        server.flush_check_unresponse_num = listLength(server.clients) - listLength(server.slaves);
+    server.flush_check_unresponse_num = listLength(server.clients) - listLength(server.slaves);
 #endif
-        serverLog(LL_DEBUG, "[flushall]initial server.flush_check_unresponse_num:%d", server.flush_check_unresponse_num);
+    serverLog(LL_DEBUG, "[flushall]initial server.flush_check_unresponse_num:%d", server.flush_check_unresponse_num);
 
-        /* process timeout case in serverCron. */
-        server.flush_check_begin_time = server.unixtime;
-        server.prohibit_ssdb_read_write = PROHIBIT_SSDB_READ_WRITE;
+    /* process timeout case in serverCron. */
+    server.flush_check_begin_time = server.unixtime;
+    server.prohibit_ssdb_read_write = PROHIBIT_SSDB_READ_WRITE;
 
-        listRewind(server.clients, &li);
-        while ((ln = listNext(&li)) != NULL) {
-            lc = listNodeValue(ln);
+    listRewind(server.clients, &li);
+    while ((ln = listNext(&li)) != NULL) {
+        lc = listNodeValue(ln);
 
-            if (isSpecialConnection(lc)) continue;
+        if (isSpecialConnection(lc)) continue;
 
-            if (lc->flags & CLIENT_SLAVE) continue;
+        if (lc->flags & CLIENT_SLAVE) continue;
 
-            if (aeCreateFileEvent(server.el, lc->fd, AE_WRITABLE,
-                                  sendFlushCheckCommandToSSDB, lc) == AE_ERR) {
-                /* just free disconnected client and ignore it. */
-                freeClientAsync(lc);
-                server.check_write_unresponse_num -= 1;
-                serverLog(LL_DEBUG, "[flushall]server.flush_check_unresponse_num decrease by 1");
-            }
+        if (aeCreateFileEvent(server.el, lc->fd, AE_WRITABLE,
+                              sendFlushCheckCommandToSSDB, lc) == AE_ERR) {
+            /* just free disconnected client and ignore it. */
+            freeClientAsync(lc);
+            server.check_write_unresponse_num -= 1;
+            serverLog(LL_DEBUG, "[flushall]server.flush_check_unresponse_num decrease by 1");
         }
-        /* don't need a timeout, will process timeout case in serverCron. */
-        c->bpop.timeout = 0;
-        blockClient(c, BLOCKED_BY_FLUSHALL);
     }
+    /* don't need a timeout, will process timeout case in serverCron. */
+    c->bpop.timeout = 0;
+    blockClient(c, BLOCKED_BY_FLUSHALL);
 }
 
 int runCommand(client *c, int* need_return) {
@@ -3333,7 +3369,7 @@ int processCommand(client *c) {
         return C_OK;
     }
 
-    if (server.jdjr_mode) {
+    if (server.jdjr_mode && server.masterhost == NULL) {
         ret = processCommandMaybeFlushdb(c);
         if (C_OK == ret) {
             return C_ERR;

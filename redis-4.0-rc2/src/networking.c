@@ -636,6 +636,17 @@ void ssdbConnectCallback(aeEventLoop *el, int fd, void *privdata, int mask) {
                   c->fd, c->context->fd);
     server.ssdb_is_up = 1;
     server.ssdb_down_time = -1;
+    if (server.master == c && listLength(server.ssdb_write_oplist) > 0) {
+        serverLog(LOG_DEBUG, "reconnect master success, check repopid...");
+        const char* tmpargv[2];
+        tmpargv[0] = "repopid";
+        tmpargv[1] = "get";
+
+        sds cmd = composeRedisCmd(2, tmpargv, NULL);
+
+        if (sendCommandToSSDB(server.master, cmd) == C_OK)
+            server.slave_check_rep_opid = 1;
+    }
     return;
 error:
     c->ssdb_conn_flags |= CONN_CONNECT_FAILED;
@@ -699,27 +710,27 @@ sds composeRedisCmd(int argc, const char **argv, const size_t *argvlen) {
 }
 
 /* Caller should free finalcmd. */
-sds composeCmdFromArgs(client *c) {
+sds composeCmdFromArgs(int argc, robj** obj_argv) {
     int i;
     sds finalcmd;
     char ** argv;
     size_t * argvlen;
-    if (c->argc > SSDB_CMD_DEFAULT_MAX_ARGC) {
-        argv = zmalloc(sizeof(char *) * c->argc);
-        argvlen = zmalloc(sizeof(size_t) * c->argc);
+    if (argc > SSDB_CMD_DEFAULT_MAX_ARGC) {
+        argv = zmalloc(sizeof(char *) * argc);
+        argvlen = zmalloc(sizeof(size_t) * argc);
     } else {
         argv = server.ssdbargv;
         argvlen = server.ssdbargvlen;
     }
 
-    for (i = 0; i < c->argc; i ++) {
-        argv[i] = c->argv[i]->ptr;
-        argvlen[i] = sdslen((sds)(c->argv[i]->ptr));
+    for (i = 0; i < argc; i ++) {
+        argv[i] = obj_argv[i]->ptr;
+        argvlen[i] = sdslen((sds)(obj_argv[i]->ptr));
     }
 
-    finalcmd = composeRedisCmd(c->argc, (const char **)argv, (const size_t *)argvlen);
+    finalcmd = composeRedisCmd(argc, (const char **)argv, (const size_t *)argvlen);
 
-    if (c->argc > SSDB_CMD_DEFAULT_MAX_ARGC) {
+    if (argc > SSDB_CMD_DEFAULT_MAX_ARGC) {
         zfree(argv);
         zfree(argvlen);
     }
@@ -732,6 +743,8 @@ int closeAndReconnectSSDBconnection(client* c) {
         server.ssdb_is_up = 0;
         if (server.ssdb_down_time == -1)
             server.ssdb_down_time = server.unixtime;
+        if (server.master == c && server.slave_check_rep_opid)
+            server.slave_check_rep_opid = 0;
         /* Unlink resources used in connecting to SSDB. */
         if (c->context->fd > 0)
             aeDeleteFileEvent(server.el, c->context->fd, AE_READABLE|AE_WRITABLE);
@@ -767,7 +780,7 @@ int sendCommandToSSDB(client *c, sds finalcmd) {
             return C_FD_ERR;
         }
 
-        finalcmd = composeCmdFromArgs(c);
+        finalcmd = composeCmdFromArgs(c->argc, c->argv);
     }
 
     if (!finalcmd) {
@@ -1074,8 +1087,6 @@ int handleResponseOfSSDBflushDone(client *c, redisReply* reply, int revert_len) 
         /* if this server is a slave, it use server.master->context->fd to do
          * ssdb flushall. */
         if (server.masterhost) {
-            /* todo: for slave, we must make sure every command to be processed success,
-             * and don't process next command before successd process of current command. */
             cur_flush_client = c;
         } else {
             cur_flush_client = server.current_flushall_client;
@@ -1366,23 +1377,50 @@ int handleExtraSSDBReply(client *c) {
     }
 
     if (server.master == c) {
+        /* process "repopid" response for slave redis. */
         serverAssert(reply->elements == 2);
         time_t repopid_time;
         int repopid_index;
         struct ssdb_write_op* op;
         listIter li;
         listNode *ln;
+        int ret;
 
+        if (server.slave_check_rep_opid) {
+            /* reset the flag. */
+            server.slave_check_rep_opid = 0;
+            return C_OK;
+        }
         element = reply->element[1];
-        sscanf(element->str,"repopid %ld %d", &repopid_time, &repopid_index);
+        ret = sscanf(element->str,"repopid %ld %d", &repopid_time, &repopid_index);
 
-        listRewind(server.ssdb_write_oplist, &li);
-        while((ln = listNext(&li))) {
-            op = ln->value;
-            if (repopid_index == op->index && repopid_time == op->time) {
-                removeVisitingSSDBKey(op->cmd, op->argc, op->argv);
-                listDelNode(server.ssdb_write_oplist, ln);
+        ln = listFirst(server.ssdb_write_oplist);
+        op = ln->value;
+
+        serverAssert(2 == ret);
+        serverAssert(repopid_index == op->index && repopid_time == op->time);
+        if (2 != ret) {
+            serverLog(LL_WARNING, "slave ssdb response a wrong response about repopid:%s", reply->str);
+            if (server.slave_ssdb_critical_err_cnt >= SLAVE_SSDB_MAX_CRITICAL_ERR_LIMIT) {
+                serverLog(LL_WARNING, "too many critical errors for slave ssdb, redis will exit");
+                exit(1);
             }
+            closeAndReconnectSSDBconnection(c);
+            return C_ERR;
+        }
+
+        if (repopid_index == op->index && repopid_time == op->time) {
+            removeVisitingSSDBKey(op->cmd, op->argc, op->argv);
+            listDelNode(server.ssdb_write_oplist, ln);
+        } else {
+            serverLog(LL_WARNING, "repopid time/index don't match the first in server.ssdb_write_oplist");
+            server.slave_ssdb_critical_err_cnt++;
+            if (server.slave_ssdb_critical_err_cnt >= SLAVE_SSDB_MAX_CRITICAL_ERR_LIMIT) {
+                serverLog(LL_WARNING, "too many critical errors for slave ssdb, redis will exit");
+                exit(1);
+            }
+            closeAndReconnectSSDBconnection(c);
+            return C_ERR;
         }
     }
 
@@ -1441,6 +1479,49 @@ void handleSSDBReply(client *c, int revert_len) {
 
     /* Handle special connections. */
     if (c == server.ssdb_client) return;
+
+    if (c == server.master) {
+        if (server.slave_check_rep_opid) {
+            /* we received response of "repopid get" */
+            time_t last_successful_write_time = -1;
+            int last_successful_write_index = -1;
+
+            int ret = sscanf(reply->str, "repopid %ld %d", &last_successful_write_time, &last_successful_write_index);
+            serverAssert(2 == ret);
+            if (2 != ret) {
+                server.slave_ssdb_critical_err_cnt++;
+                serverLog(LL_WARNING, "slave ssdb response a wrong response:%s", reply->str);
+                if (server.slave_ssdb_critical_err_cnt >= SLAVE_SSDB_MAX_CRITICAL_ERR_LIMIT) {
+                    serverLog(LL_WARNING, "too many critical errors for slave ssdb, redis will exit");
+                    exit(1);
+                }
+                closeAndReconnectSSDBconnection(c);
+                return;
+            } else {
+                if (C_OK != confirmAndRetrySlaveSSDBwriteOp(last_successful_write_time, last_successful_write_index))
+                    return;
+            }
+        } else {
+            if (reply->type == REDIS_REPLY_ERROR) {
+                server.slave_ssdb_critical_err_cnt++;
+                serverLog(LL_WARNING, "slave ssdb write error:%s", reply->str);
+                if (server.slave_ssdb_critical_err_cnt >= SLAVE_SSDB_MAX_CRITICAL_ERR_LIMIT) {
+                    serverLog(LL_WARNING, "too many critical errors for slave ssdb, redis will exit");
+                    exit(1);
+                }
+            }
+            if (c->cmd->proc == flushallCommand) {
+                if (reply->type == REDIS_REPLY_ERROR) {
+                    serverLog(LL_WARNING, "flushall failed on slave ssdb, redis will exit");
+                    exit(1);
+                }
+                /* we receive flushall response of SSDB, now we can empty redis.*/
+                unblockClient(c);
+                flushallCommand(c);
+                resetClient(c);
+            }
+        }
+    }
 
     if (c == server.delete_confirm_client
         && handleResponseOfDeleteCheckConfirm(c) == C_OK) {

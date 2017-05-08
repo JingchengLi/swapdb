@@ -2767,9 +2767,9 @@ void replicationCron(void) {
 
             len = ll2string(buf, 64, slave->slave_listening_port + SSDB_SLAVE_PORT_INCR);
 
-            argv[0] = sdsnew("rr_transfer_snapshot");
-            argv[1] = sdsnew(slave->client_ip);
-            argv[2] = sdsnewlen(buf, len);
+            argv[0] = "rr_transfer_snapshot";
+            argv[1] = slave->client_ip;
+            argv[2] = buf;
 
             /* cmsds will be consumed by sendCommandToSSDB. */
             sds cmdsds = composeRedisCmd(3, (const char **)argv, NULL);
