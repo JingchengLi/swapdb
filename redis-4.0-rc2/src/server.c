@@ -878,36 +878,43 @@ int clientsCronResizeQueryBuffer(client *c) {
     return 0;
 }
 
-void reconnectSpecialSSDBclients() {
-    int ret;
+void reconnectSSDB() {
     if (!server.is_doing_flushall) {
-        if (!server.ssdb_client) {
-            ret = createClientForEvicting();
-            if (ret != C_OK)
-                serverLog(LOG_WARNING, "create server.ssdb_client(cold key"
-                        " transfer/hot keys load client) failed!");
-        }
+        if (!server.ssdb_client)
+            server.ssdb_client = createSpecialSSDBclient();
+        else if (server.ssdb_client->ssdb_conn_flags & CONN_CONNECT_FAILED)
+            nonBlockConnectToSsdbServer(server.ssdb_client);
 
-        if (!server.delete_confirm_client) {
-            ret = createDeleteConfirmClient();
-            if (ret != C_OK)
-                serverLog(LOG_WARNING, "create server.delete_confirm_client"
-                        "(delete key confirm client) failed!");
-        }
+        if (!server.delete_confirm_client)
+            server.delete_confirm_client = createSpecialSSDBclient();
+        else if (server.delete_confirm_client->ssdb_conn_flags & CONN_CONNECT_FAILED)
+            nonBlockConnectToSsdbServer(server.delete_confirm_client);
 
-        if (!server.slave_ssdb_load_evict_client) {
-            ret = createFakeClientForLoadAndEvict();
-            if (ret != C_OK)
-                serverLog(LOG_WARNING, "create server.slave_ssdb_load_evict_client"
-                        "(slave ssdb load/evict client)failed!");
-        }
+        if (!server.slave_ssdb_load_evict_client)
+            server.slave_ssdb_load_evict_client = createSpecialSSDBclient();
+        else if (server.slave_ssdb_load_evict_client->ssdb_conn_flags & CONN_CONNECT_FAILED)
+            nonBlockConnectToSsdbServer(server.slave_ssdb_load_evict_client);
     }
 
-    if (!server.ssdb_replication_client) {
-        ret = createClientForReplicate();
-        if (ret != C_OK)
-            serverLog(LOG_WARNING, "create server.ssdb_replication_client("
-                    "ssdb replication client) failed!");
+    if (!server.ssdb_replication_client)
+        server.ssdb_replication_client = createSpecialSSDBclient();
+    else if (server.ssdb_replication_client->ssdb_conn_flags & CONN_CONNECT_FAILED)
+        nonBlockConnectToSsdbServer(server.ssdb_replication_client);
+
+    if (server.ssdb_is_up) {
+        listNode* ln;
+        listIter li;
+        listRewind(server.clients, &li);
+        while (server.ssdb_is_up && (ln = listNext(&li))) {
+            client *c = listNodeValue(ln);
+            if (c->ssdb_conn_flags & CONN_CONNECT_FAILED) {
+                nonBlockConnectToSsdbServer(c);
+            }
+        }
+    } else {
+        /* if ssdb is down and this last for 10 seconds, exit redis and wait failover.*/
+        if (server.ssdb_down_time != -1 && server.ssdb_down_time - server.unixtime > 10)
+            exit(1);
     }
 }
 
@@ -945,7 +952,7 @@ void clientsCron(void) {
         if (clientsCronResizeQueryBuffer(c)) continue;
     }
 
-    if (server.jdjr_mode) reconnectSpecialSSDBclients();
+    if (server.jdjr_mode) reconnectSSDB();
 }
 
 /* This function handles 'background' operations we are required to do
@@ -2139,6 +2146,8 @@ void initServer(void) {
     server.unblocked_clients = listCreate();
     server.ready_keys = listCreate();
     if (server.jdjr_mode) {
+        server.ssdb_is_up = 0;
+        server.ssdb_down_time = -1;
         server.ssdb_ready_keys = listCreate();
 
         server.ssdb_write_oplist = listCreate();
@@ -2173,46 +2182,7 @@ void initServer(void) {
         anetNonBlock(NULL,server.sofd);
     }
 
-    /* Connecting to SSDB unix socket, create a client for evciting data to SSDB,
-       and check if SSDB server is ready. */
-    if (server.jdjr_mode && createClientForEvicting() != C_OK) {
-        serverLog(LL_WARNING, "Connecting to SSDB Unix socket failed.");
-        exit(1);
-    }
-
-    if (server.jdjr_mode && server.use_customized_replication
-        && createClientForReplicate() != C_OK) {
-        serverLog(LL_WARNING, "create SSDB replication socket failed.");
-        exit(1);
-    }
-
-    if (server.jdjr_mode
-        && createFakeClientForLoadAndEvict() != C_OK) {
-        serverLog(LL_WARNING, "create SSDB propagation socket failed.");
-        exit(1);
-    }
-
-    if (server.jdjr_mode
-        && createDeleteConfirmClient() != C_OK) {
-        serverLog(LL_WARNING, "create SSDB delete_confirm socket failed.");
-        exit(1);
-    }
-
-    /*
-    if (server.jdjr_mode && server.special_clients_num) {
-        server.maxclients += server.special_clients_num;
-        adjustOpenFilesLimit();
-
-        if ((unsigned int) aeGetSetSize(server.el) <
-            server.maxclients + CONFIG_FDSET_INCR) {
-            if (aeResizeSetSize(server.el,
-                                server.maxclients + CONFIG_FDSET_INCR) == AE_ERR) {
-                serverLog(LL_WARNING, "The event loop API used by Redis is not able to handle the specified number of clients");
-                server.maxclients = server.maxclients - server.special_clients_num;
-            }
-        }
-    }
-     */
+    if (server.jdjr_mode) connectSepecialSSDBclients();
 
     /* Abort if there are no listening sockets at all. */
     if (server.ipfd_count == 0 && server.sofd < 0) {
@@ -2792,23 +2762,26 @@ void emptySlaveSSDBwriteOperations() {
     }
 }
 
-void saveSlaveSSDBwriteOp(client *c) {
-    int j;
-    struct ssdb_write_op * op = zmalloc(sizeof(struct ssdb_write_op));
-    if (write_op_last_index == -1 && write_op_last_time == -1) {
-        op->time = server.unixtime;
-        op->index = 1;
+void updateSlaveSSDBwriteIndex() {
+     if (write_op_last_index == -1 && write_op_last_time == -1) {
+         write_op_last_time = server.unixtime;
+         write_op_last_index = 1;
     } else {
         serverAssert(write_op_last_index != -1 && write_op_last_time != -1);
         if (server.unixtime == write_op_last_time) {
-            op->time = server.unixtime;
             write_op_last_index++;
-            op->index = write_op_last_index;
         } else {
-            op->time = server.unixtime;
-            op->index = 1;
+            write_op_last_time = server.unixtime;
+            write_op_last_index = 1;
         }
     }
+}
+
+void saveSlaveSSDBwriteOp(client *c, time_t time, int index) {
+    int j;
+    struct ssdb_write_op * op = zmalloc(sizeof(struct ssdb_write_op));
+    op->time = time;
+    op->index = index;
     op->cmd = c->cmd;
     op->argc = c->argc;
     op->argv = c->argv;
@@ -2883,7 +2856,12 @@ int processCommandMaybeInSSDB(client *c) {
         /* Calling lookupKey to update lru or lfu counter. */
         robj* val = lookupKey(EVICTED_DATA_DB, c->argv[1], LOOKUP_NONE);
         if (val) {
-            // todo: send "repopid set ${time} ${index}" before send the command
+            if (server.master == c) {
+                updateSlaveSSDBwriteIndex();
+                sds s = sdscatfmt(sdsempty(), "repopid set %ld %d", write_op_last_time, write_op_last_index);
+                int ret = sendCommandToSSDB(c, s);
+                if (ret != C_OK) return ret;
+            }
             /* todo: if server.master is freed because of SSDB disconnect, send "repopid get" to get opid of
              * the last successful SSDB write and re-send unprocessd write ops. */
             int ret = sendCommandToSSDB(c, NULL);
@@ -2898,7 +2876,7 @@ int processCommandMaybeInSSDB(client *c) {
 
                 if (keys) getKeysFreeResult(keys);
 
-                /* block redis to wait reply for master redis. */
+                /* block to wait reply for master redis. */
                 if (server.masterhost == NULL) {
                     /* TODO: use a suitable timeout. */
                     c->bpop.timeout = 5000 + mstime();
@@ -2907,7 +2885,7 @@ int processCommandMaybeInSSDB(client *c) {
                     /* for the master connection of slave redis, after we send write commands
                      * to SSDB and record them in server.ssdb_write_oplist, we just return and
                      * process next write command. */
-                    saveSlaveSSDBwriteOp(c);
+                    saveSlaveSSDBwriteOp(c, write_op_last_time, write_op_last_index);
                     return C_OK;
                 }
             }

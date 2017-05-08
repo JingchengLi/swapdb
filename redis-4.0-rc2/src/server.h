@@ -83,6 +83,8 @@ typedef long long mstime_t; /* millisecond time type. */
 /* connection flags in jdjr_mode */
 #define CONN_WAIT_WRITE_CHECK_REPLY (1<<0)
 #define CONN_WAIT_FLUSH_CHECK_REPLY (1<<1)
+#define CONN_CONNECTING             (1<<2)
+#define CONN_CONNECT_FAILED         (1<<3)
 
 /* Default max argc of cmds sended to SSDB. */
 #define SSDB_CMD_DEFAULT_MAX_ARGC 10
@@ -1299,6 +1301,9 @@ struct redisServer {
 
     /* for slave redis, we save ssdb write operations before receive responses from ssdb. */
     list* ssdb_write_oplist;
+    int ssdb_is_up;
+    /* when ssdb is down, record the time */
+    time_t ssdb_down_time;
 };
 
 /* for slave redis, record and save ssdb write commands. */
@@ -1458,10 +1463,8 @@ void acceptTcpHandler(aeEventLoop *el, int fd, void *privdata, int mask);
 void acceptUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask);
 void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *private, int mask);
 int isSpecialConnection(client *c);
-int createClientForEvicting();
-int createClientForReplicate();
-int createFakeClientForLoadAndEvict();
-int createDeleteConfirmClient();
+client* createSpecialSSDBclient();
+void connectSepecialSSDBclients();
 void readQueryFromClient(aeEventLoop *el, int fd, void *privdata, int mask);
 void addReplyString(client *c, const char *s, size_t len);
 void addReplyBulk(client *c, robj *obj);

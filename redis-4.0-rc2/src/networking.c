@@ -122,6 +122,7 @@ client *createClient(int fd) {
     c->bpop.timeout = 0;
     c->bpop.keys = dictCreate(&objectKeyPointerValueDictType,NULL);
     if (server.jdjr_mode) {
+        c->context = NULL;
         c->repl_timer_id = -1;
         c->ssdb_status = SSDB_NONE;
         c->bpop.loading_or_transfer_keys = dictCreate(&objectKeyPointerValueDictType,NULL);
@@ -141,7 +142,6 @@ client *createClient(int fd) {
     listSetMatchMethod(c->pubsub_patterns,listMatchObjects);
     if (fd != -1) listAddNodeTail(server.clients,c);
     initClientMultiState(c);
-    c->context = NULL;
     return c;
 }
 
@@ -609,26 +609,66 @@ int clientHasPendingReplies(client *c) {
     return c->bufpos || listLength(c->reply);
 }
 
+void ssdbConnectCallback(aeEventLoop *el, int fd, void *privdata, int mask) {
+    int sockerr = 0;
+    socklen_t errlen = sizeof(sockerr);
+    UNUSED(el);
+    UNUSED(mask);
+    client* c = privdata;
+
+    c->ssdb_conn_flags &= ~CONN_CONNECTING;
+    /* Check for errors in the socket: after a non blocking connect() we
+     * may find that the socket is in error state. */
+    if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &sockerr, &errlen) == -1)
+        sockerr = errno;
+    if (sockerr) {
+        serverLog(LL_WARNING,"Error condition on socket for SYNC: %s",
+            strerror(sockerr));
+        goto error;
+    }
+
+    if (aeCreateFileEvent(server.el, c->context->fd,
+                          AE_READABLE, ssdbClientUnixHandler, c) == AE_ERR) {
+        serverLog(LL_VERBOSE, "Unrecoverable error creating ssdbFd file event.");
+        goto error;
+    } else
+        serverLog(LL_DEBUG, "rfd:%d connecting to SSDB Unix socket succeeded: sfd:%d",
+                  c->fd, c->context->fd);
+    server.ssdb_is_up = 1;
+    server.ssdb_down_time = -1;
+    return;
+error:
+    c->ssdb_conn_flags |= CONN_CONNECT_FAILED;
+    aeDeleteFileEvent(server.el,fd,AE_READABLE|AE_WRITABLE);
+    redisFree(c->context);
+    c->context = NULL;
+}
+
 /* Connecting to SSDB unix socket. */
 int nonBlockConnectToSsdbServer(client *c) {
     redisContext *context = NULL;
     if (server.ssdb_server_unixsocket != NULL) {
-        context = redisConnectUnixNonBlock(server.ssdb_server_unixsocket);
+        /* reset connect failed flag before re-connect. */
+        c->ssdb_conn_flags &= ~CONN_CONNECT_FAILED;
 
+        context = redisConnectUnixNonBlock(server.ssdb_server_unixsocket);
         if (context->err) {
+            server.ssdb_is_up = 0;
+            c->ssdb_conn_flags |= CONN_CONNECT_FAILED;
             serverLog(LL_VERBOSE, "Could not connect to SSDB server:%s", context->errstr);
             redisFree(context);
             return C_ERR;
         }
 
-        if (aeCreateFileEvent(server.el, context->fd,
-                              AE_READABLE, ssdbClientUnixHandler, c) == AE_ERR) {
-            serverLog(LL_VERBOSE, "Unrecoverable error creating ssdbFd file event.");
+        if (aeCreateFileEvent(server.el,context->fd,AE_READABLE|AE_WRITABLE,ssdbConnectCallback,c) ==
+            AE_ERR)
+        {
+            c->ssdb_conn_flags |= CONN_CONNECT_FAILED;
             redisFree(context);
+            serverLog(LL_WARNING,"Can't create readable event for SYNC");
             return C_ERR;
-        } else
-            serverLog(LL_DEBUG, "rfd:%d connecting to SSDB Unix socket succeeded: sfd:%d",
-                      c->fd, context->fd);
+        }
+        c->ssdb_conn_flags |= CONN_CONNECTING;
 
         c->context = context;
         return C_OK;
@@ -684,15 +724,23 @@ sds composeCmdFromArgs(client *c) {
     return finalcmd;
 }
 
-void closeAndReconnectSSDBconnection(client* c) {
-    if (c->context && c->context->fd != -1) {
+
+int closeAndReconnectSSDBconnection(client* c) {
+    if (c->context) {
+        server.ssdb_is_up = 0;
+        if (server.ssdb_down_time == -1)
+            server.ssdb_down_time = server.unixtime;
         /* Unlink resources used in connecting to SSDB. */
-        aeDeleteFileEvent(server.el, c->context->fd, AE_READABLE);
-        aeDeleteFileEvent(server.el, c->context->fd, AE_WRITABLE);
-        close(c->context->fd);
-        c->context->fd = -1;
+        if (c->context->fd > 0)
+            aeDeleteFileEvent(server.el, c->context->fd, AE_READABLE|AE_WRITABLE);
+        redisFree(c->context);
+        c->context = NULL;
     }
-    // todo: reconnect SSDB
+
+    if (nonBlockConnectToSsdbServer(c) == C_ERR) {
+        return C_ERR;
+    }
+    return C_OK;
 }
 
 /* Querying SSDB server if querying redis fails, Compose the finalcmd if finalcmd is NULL. */
@@ -714,8 +762,6 @@ int sendCommandToSSDB(client *c, sds finalcmd) {
 
         if (!c->context || c->context->fd <= 0) {
             serverLog(LL_VERBOSE, "redisContext error.");
-            //freeClient(c);
-            closeAndReconnectSSDBconnection(c);
             return C_FD_ERR;
         }
 
@@ -739,7 +785,6 @@ int sendCommandToSSDB(client *c, sds finalcmd) {
                           "Error writing to SSDB server: %s", strerror(errno));
                 sdsfree(finalcmd);
                 closeAndReconnectSSDBconnection(c);
-                //freeClient(c);
                 return C_FD_ERR;
             }
         } else if (nwritten > 0) {
@@ -866,9 +911,8 @@ static void acceptCommonHandler(int fd, int flags, char *ip) {
 
     if (server.jdjr_mode) {
         strncpy(c->client_ip, ip, NET_IP_STR_LEN);
-        // todo: don't free client but reconnect SSDB
         if (C_OK != nonBlockConnectToSsdbServer(c))
-            freeClient(c);
+            serverLog(LOG_DEBUG, "connect ssdb failed, will retry to reconnect.");
     }
 }
 
@@ -1480,7 +1524,6 @@ cleanup:
     }
 }
 
-
 /* TODO: Implement ssdbClientUnixHandler. Only handle AE_READABLE. */
 void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
     UNUSED(el);
@@ -1525,7 +1568,11 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
         if (c->context->err) {
             serverLog(LL_WARNING, "Error: Could not connect to SSDB, %s ", c->context->errstr);
             closeAndReconnectSSDBconnection(c);
-            //freeClient(c);
+            if (c->ssdb_replies[0])
+                revertClientBufReply(c, first_reply_len);
+            else
+                revertClientBufReply(c, total_reply_len);
+            addReplyError(c, "SSDB disconnect when read");
             return;
         }
 
@@ -1622,7 +1669,7 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
     }
 }
 
-static client* createSpecialSSDBclient() {
+client* createSpecialSSDBclient() {
     client* c;
 
     c = createClient(-1);
@@ -1631,63 +1678,16 @@ static client* createSpecialSSDBclient() {
         return NULL;
     }
 
-    if (C_OK != nonBlockConnectToSsdbServer(c)) {
-        freeClient(c);
-        return NULL;
-    }
-    serverLog(LL_VERBOSE, "client address:%p, fd:%d", (void*)c, c->context->fd);
+    nonBlockConnectToSsdbServer(c);
+
     return c;
 }
 
-/* Create a client for keepalive with SSDB. */
-int createClientForReplicate() {
-    if (server.ssdb_replication_client)
-        freeClient(server.ssdb_replication_client);
-
-    server.ssdb_replication_client = createSpecialSSDBclient();
-    if (!server.ssdb_replication_client)
-        return C_ERR;
-
-    serverLog(LL_NOTICE, "Create SSDB replication socket success.");
-    return C_OK;
-}
-
-int createFakeClientForLoadAndEvict() {
-    if (server.slave_ssdb_load_evict_client)
-        freeClient(server.slave_ssdb_load_evict_client);
-
-    server.slave_ssdb_load_evict_client = createSpecialSSDBclient();
-    if (!server.slave_ssdb_load_evict_client)
-        return C_ERR;
-
-    serverLog(LL_NOTICE, "Create SSDB loadAndEvict socket success.");
-    return C_OK;
-}
-
-
-int createDeleteConfirmClient() {
-    if (server.delete_confirm_client)
-        freeClient(server.delete_confirm_client);
-
-    server.delete_confirm_client = createSpecialSSDBclient();
-    if (!server.delete_confirm_client)
-        return C_ERR;
-
-    serverLog(LL_NOTICE, "Create SSDB delete_confirm socket success.");
-    return C_OK;
-}
-
-/* Create a client for evciting data to SSDB, loading data from SSDB. */
-int createClientForEvicting() {
-    if (server.ssdb_client)
-        freeClient(server.ssdb_client);
-
+void connectSepecialSSDBclients() {
     server.ssdb_client = createSpecialSSDBclient();
-    if (!server.ssdb_client)
-        return C_ERR;
-
-    serverLog(LL_NOTICE, "Connecting to SSDB Unix socket success.");
-    return C_OK;
+    server.ssdb_replication_client = createSpecialSSDBclient();
+    server.slave_ssdb_load_evict_client = createSpecialSSDBclient();
+    server.delete_confirm_client = createSpecialSSDBclient();
 }
 
 static void freeClientArgv(client *c) {

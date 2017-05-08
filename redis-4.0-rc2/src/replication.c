@@ -2344,7 +2344,7 @@ void replicationResurrectCachedMaster(int newfd) {
         }
     }
 
-    if (server.jdjr_mode && (!server.master->context || (server.master->context->fd == -1)) {
+    if (server.jdjr_mode && (!server.master->context || (server.master->context->fd == -1))) {
         if (server.master->context) redisFree(server.master->context);
         if (C_OK != nonBlockConnectToSsdbServer(server.master)) {
             serverLog(LL_WARNING,"Error resurrecting the cached master, can't connect SSDB");
