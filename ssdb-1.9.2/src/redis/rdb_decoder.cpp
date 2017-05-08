@@ -4,7 +4,9 @@
 
 #include "rdb_decoder.h"
 #include "util/bytes.h"
+#include "util/cfree.h"
 #include <netinet/in.h>
+#include <memory>
 
 extern "C" {
 #include "lzf.h"
@@ -134,15 +136,15 @@ std::string RdbDecoder::rdbLoadLzfStringObject(int *ret) {
         return "";
     }
 
-    t_val = (char *) zmalloc(len);
+    std::unique_ptr<char, cfree_delete<char>> out((char *)malloc(len));
+
+    t_val = out.get();
     if (lzf_decompress(tmp_c, clen, t_val, len) == 0) {
-        free(t_val);
         *ret = -1;
         return "";
     }
 
     std::string tmp(t_val, len);
-    zfree(t_val);
     *ret = 0;
     return tmp;
 }

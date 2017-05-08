@@ -5,9 +5,11 @@
 #include <cstring>
 #include <netinet/in.h>
 #include <sstream>
+#include <memory>
 
 #include "rdb_encoder.h"
 #include "util/strings.h"
+#include "util/cfree.h"
 
 extern "C" {
 #include "lzf.h"
@@ -200,15 +202,18 @@ int64_t RdbEncoder::rdbSaveLzfStringObject(const std::string &string) {
     /* We require at least four bytes compression for this to be worth it */
     if (len <= 4) return 0;
     outlen = len - 4;
-    if ((out = zmalloc(outlen + 1)) == NULL) return 0;
+
+//    if ((out = zmalloc(outlen + 1)) == NULL) return 0;
+
+    std::unique_ptr<void, cfree_delete<void>> out_m(malloc(outlen + 1));
+    out = out_m.get();
+
     comprlen = lzf_compress(string.data(), len, out, outlen);
     if (comprlen == 0) {
-        free(out);
         return 0;
     }
 
     int64_t nwritten = rdbSaveLzfBlob(out, comprlen, len);
-    zfree(out);
     return nwritten;
 }
 
