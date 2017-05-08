@@ -342,13 +342,6 @@ void SSDBImpl::compact(){
 
 leveldb::Status SSDBImpl::CommitBatch(const leveldb::WriteOptions& options, leveldb::WriteBatch *updates) {
 
-	leveldb::Status s = ldb->Write(options, updates);
-
-	return s;
-}
-
-leveldb::Status SSDBImpl::CommitBatch(leveldb::WriteBatch *updates) {
-
 	if (recievedIndex > 0) {
 		//role is slave
 		if (commitedIndex > 0) {
@@ -382,18 +375,23 @@ leveldb::Status SSDBImpl::CommitBatch(leveldb::WriteBatch *updates) {
 
 	}
 
-	leveldb::Status s = ldb->Write(leveldb::WriteOptions(), updates);
+	leveldb::Status s = ldb->Write(options, updates);
 
 	if (s.ok()) {
 		//update
 		updateCommitedInfo(recievedTimestamp, recievedIndex);
-		resetRecievedInfo();
 
 	} else {
 		updateRecievedInfo(-1, -1);
 	}
 
 	return s;
+}
+
+leveldb::Status SSDBImpl::CommitBatch(leveldb::WriteBatch *updates) {
+
+	return CommitBatch(leveldb::WriteOptions(), updates);
+
 }
 
 

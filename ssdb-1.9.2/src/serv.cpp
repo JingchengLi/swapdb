@@ -1038,5 +1038,7 @@ int proc_after_proc(NetworkServer *net, Link *link, const Request &req, Response
     resp->r.timestamp = commitedInfo.first;
     resp->r.id = commitedInfo.second;
 
+    serv->ssdb->resetRecievedInfo();
+
     return 0;
 }
