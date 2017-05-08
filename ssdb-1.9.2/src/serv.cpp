@@ -1027,3 +1027,16 @@ int proc_repopid(NetworkServer *net, Link *link, const Request &req, Response *r
 
     return 0;
 }
+
+int proc_after_proc(NetworkServer *net, Link *link, const Request &req, Response *resp) {
+    SSDBServer *serv = (SSDBServer *)net->data;
+
+    log_debug("proc_after_proc");
+
+    std::pair<uint64_t, uint64_t> commitedInfo = serv->ssdb->getCommitedInfo();
+
+    resp->r.timestamp = commitedInfo.first;
+    resp->r.id = commitedInfo.second;
+
+    return 0;
+}

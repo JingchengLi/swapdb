@@ -24,6 +24,7 @@ int ProcWorker::proc(ProcJob *job){
 	proc_t p = job->cmd->proc;
 	job->time_wait = 1000 * (millitime() - job->stime);
 	job->result = (*p)(job->serv, job->link, *req, &job->resp);
+	job->cmd->proc_after(job->serv, job->link, *req, &job->resp);
 	job->time_proc = 1000 * (millitime() - job->stime) - job->time_wait;
 
 //	if (breplication && job->cmd->flags & Command::FLAG_WRITE){

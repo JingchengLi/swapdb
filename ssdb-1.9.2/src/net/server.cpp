@@ -19,6 +19,8 @@ static DEF_PROC(ping);
 static DEF_PROC(info);
 static DEF_PROC(auth);
 
+DEF_PROC(after_proc);
+
 
 #define TICK_INTERVAL          100 // ms
 #define STATUS_REPORT_TICKS    (300 * 1000/TICK_INTERVAL) // second
@@ -700,7 +702,8 @@ int NetworkServer::proc(ProcJob *job){
 			break;
 		}
 		job->cmd = cmd;
-		
+		job->cmd->proc_after = proc_after_proc;
+
 		if(cmd->flags & Command::FLAG_THREAD){
 			if(cmd->flags & Command::FLAG_WRITE){
 				writer->push(job);
@@ -713,6 +716,7 @@ int NetworkServer::proc(ProcJob *job){
 		proc_t p = cmd->proc;
 		job->time_wait = 1000 * (millitime() - job->stime);
 		job->result = (*p)(this, job->link, *req, &job->resp);
+		job->cmd->proc_after(job->serv, job->link, *req, &job->resp);
 		job->time_proc = 1000 * (millitime() - job->stime) - job->time_wait;
 	}while(0);
 

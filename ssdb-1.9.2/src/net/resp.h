@@ -21,6 +21,12 @@ found in the LICENSE file.
 #define check_key(ret) if (ret == 0) resp->mark_check()
 
 
+class repo{
+public:
+	uint64_t    id = 0;
+	uint64_t    timestamp = 0;
+};
+
 class Response
 {
 public:
@@ -29,6 +35,8 @@ public:
 	RedisResponse *redisResponse = nullptr;
 
 	bool checkKey = false;
+
+	repo r;
 
 	void mark_check();
 

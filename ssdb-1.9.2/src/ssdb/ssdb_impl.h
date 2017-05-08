@@ -241,6 +241,13 @@ public:
 		SSDBImpl::recievedIndex = 0;
 	}
 
+	std::pair<uint64_t, uint64_t> getCommitedInfo() {
+		std::pair<uint64_t, uint64_t> res;
+		res.first = SSDBImpl::commitedTimestamp;
+		res.second = SSDBImpl::commitedIndex;
+		return res;
+	}
+
 private:
 
 	int SetGeneric(leveldb::WriteBatch &batch, const Bytes &key, const Bytes &val, int flags, const int64_t expire, int *added);

@@ -36,13 +36,15 @@ struct Command{
 	std::string name;
 	int flags;
 	proc_t proc;
+	proc_t proc_after;
 	uint64_t calls;
 	double time_wait;
 	double time_proc;
 	
 	Command(){
 		flags = 0;
-		proc = NULL;
+		proc = nullptr;
+		proc_after = nullptr;
 		calls = 0;
 		time_wait = 0;
 		time_proc = 0;
