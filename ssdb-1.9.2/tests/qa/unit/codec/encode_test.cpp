@@ -459,7 +459,7 @@ TEST_F(EncodeTest, Test_encode_delete_key) {
 }
 
 void compare_encode_zset_score_prefix(const string & key, uint16_t version, char* expectStr){
-    string key_zscore_prefix = encode_zset_score_prefix(key, version);
+    string key_zscore_prefix = encode_zscore_prefix(key, version);
     expectStr[0] = 'z';
     uint16_t keylen = key.size();
     uint8_t* pkeylen = (uint8_t*)&keylen;
