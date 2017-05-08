@@ -349,5 +349,12 @@ public:
 
 };
 
+struct cfree_delete
+{
+	void operator()(void* x) { free(x); }
+	void operator()(char* x) { free(x); }
+};
+
+
 
 #endif

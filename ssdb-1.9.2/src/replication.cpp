@@ -323,18 +323,20 @@ void saveStrToBuffer(Buffer *buffer, const Bytes &fit) {
     buffer->append(fit);
 }
 
+
 void moveBuffer(Buffer *dst, Buffer *src) {
 
     size_t comprlen, outlen = (size_t) src->size();
-    void *out = zmalloc(outlen + 1);
 
-    comprlen = lzf_compress(src->data(), (unsigned int) src->size(), out, outlen);
+
+    std::unique_ptr<void, cfree_delete> out(malloc(outlen + 1));
+
+
+    comprlen = lzf_compress(src->data(), (unsigned int) src->size(), out.get(), outlen);
 
     dst->append(ssdb_save_len((uint64_t) src->size()));
     dst->append(ssdb_save_len(comprlen));
-    dst->append(out, (int) comprlen);
-
-    zfree(out);
+    dst->append(out.get(), (int) comprlen);
 
     src->decr(src->size());
     src->nice();

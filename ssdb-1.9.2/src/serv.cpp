@@ -820,13 +820,13 @@ int proc_sync150(NetworkServer *net, Link *link, const Request &req, Response *r
                 break;
             }
 
-            char * t_val = (char *) zmalloc(raw_len);
-            if (lzf_decompress(decoder.data(), compressed_len, t_val, raw_len) == 0) {
-                free(t_val);
+            std::unique_ptr<char, cfree_delete> t_val((char *)malloc(raw_len));
+
+            if (lzf_decompress(decoder.data(), compressed_len, t_val.get(), raw_len) == 0) {
                 return -1;
             }
 
-            Decoder decoder_item(t_val, raw_len);
+            Decoder decoder_item(t_val.get(), raw_len);
 
             uint64_t remian_length = raw_len;
             while (remian_length > 0) {
@@ -834,7 +834,6 @@ int proc_sync150(NetworkServer *net, Link *link, const Request &req, Response *r
                 uint64_t key_len = 0, val_len = 0;
 
                 if (ssdb_load_len(decoder_item.data(), &key_offset, &key_len) == -1) {
-                    zfree(t_val);
                     return -1;
                 }
                 decoder_item.skip(key_offset);
@@ -843,7 +842,6 @@ int proc_sync150(NetworkServer *net, Link *link, const Request &req, Response *r
                 remian_length -= (key_offset + (int) key_len);
 
                 if (ssdb_load_len(decoder_item.data(),&val_offset, &val_len) == -1) {
-                    zfree(t_val);
                     return -1;
                 }
                 decoder_item.skip(val_offset);
@@ -854,7 +852,6 @@ int proc_sync150(NetworkServer *net, Link *link, const Request &req, Response *r
                 kvs.push_back(key);
                 kvs.push_back(value);
             }
-            zfree(t_val);
 
             decoder.skip(compressed_len);
             link->input->decr(link->input->size() - decoder.size());
