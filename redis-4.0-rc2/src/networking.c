@@ -654,6 +654,8 @@ int nonBlockConnectToSsdbServer(client *c) {
         context = redisConnectUnixNonBlock(server.ssdb_server_unixsocket);
         if (context->err) {
             server.ssdb_is_up = 0;
+            if (server.ssdb_down_time == -1)
+                server.ssdb_down_time = server.unixtime;
             c->ssdb_conn_flags |= CONN_CONNECT_FAILED;
             serverLog(LL_VERBOSE, "Could not connect to SSDB server:%s", context->errstr);
             redisFree(context);
