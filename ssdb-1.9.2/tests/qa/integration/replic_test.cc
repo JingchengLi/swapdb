@@ -73,7 +73,7 @@ void* ReplicTest::replic_thread_func(void *arg) {
     SlaveClient* replicClient = new SlaveClient("127.0.0.1", 8888);
     replicClient->client()->replic("127.0.0.1", *((int*)arg));
 
-    std::string result = replicClient->client()->response();
+    // std::string result = replicClient->client()->response();
     replicClient->client()->del_snapshot();
     delete replicClient;
 }
@@ -211,10 +211,10 @@ void ReplicTest::checkSlaveDataNotFound() {
 void ReplicTest::replic(const string &slave_ip, int slave_port) {
     SlaveClient* replicClient = new SlaveClient(ip, port);
     s = replicClient->client()->replic(slave_ip, slave_port);
+    ASSERT_EQ("ok", s.code())<<"replic finished!"<<endl;
 
-    std::string result = replicClient->client()->response();
+    // std::string result = replicClient->client()->response();
     replicClient->client()->del_snapshot();
-    ASSERT_EQ("ok", result);
     delete replicClient;
 }
 
@@ -270,7 +270,7 @@ TEST_F(ReplicTest, Test_replic_expire_keys) {
     fillMasterData();
     sclient = new SlaveClient(slave_ip, slave_port);
 
-    int16_t etime = 6;
+    int16_t etime = 10;
     for (auto key : keys) {
         client->expire(key, etime);
     }
