@@ -1383,15 +1383,9 @@ int handleExtraSSDBReply(client *c) {
         time_t repopid_time;
         int repopid_index;
         struct ssdb_write_op* op;
-        listIter li;
         listNode *ln;
         int ret;
 
-        if (server.slave_check_rep_opid) {
-            /* reset the flag. */
-            server.slave_check_rep_opid = 0;
-            return C_OK;
-        }
         element = reply->element[1];
         ret = sscanf(element->str,"repopid %ld %d", &repopid_time, &repopid_index);
 
@@ -1497,11 +1491,11 @@ void handleSSDBReply(client *c, int revert_len) {
                     exit(1);
                 }
                 closeAndReconnectSSDBconnection(c);
-                return;
             } else {
-                if (C_OK != confirmAndRetrySlaveSSDBwriteOp(last_successful_write_time, last_successful_write_index))
-                    return;
+                confirmAndRetrySlaveSSDBwriteOp(last_successful_write_time, last_successful_write_index);
             }
+            server.slave_check_rep_opid = 0;
+            return;
         } else {
             if (reply->type == REDIS_REPLY_ERROR) {
                 server.slave_ssdb_critical_err_cnt++;
