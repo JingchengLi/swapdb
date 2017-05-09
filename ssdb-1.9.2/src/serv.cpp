@@ -997,7 +997,14 @@ int proc_repopid(NetworkServer *net, Link *link, const Request &req, Response *r
 
     if (action == "get") {
         std::string repo_val;
-        serv->ssdb->raw_get(encode_repo_key(), &repo_val);
+        int rret = serv->ssdb->raw_get(encode_repo_key(), &repo_val);
+        if (rret < 0) {
+            reply_err_return(rret);
+        } else if (rret == 0) {
+            resp->push_back("ok");
+            resp->push_back("repopid 0 0");
+            return 0;
+        }
 
         RepoKey repoKey;
         if (repoKey.DecodeRepoKey(repo_val) == -1) {
