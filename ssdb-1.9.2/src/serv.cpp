@@ -1029,6 +1029,8 @@ int proc_repopid(NetworkServer *net, Link *link, const Request &req, Response *r
         serv->ssdb->updateRecievedInfo(timestamp, id);
 
         resp->reply_ok();
+    } else {
+        reply_err_return(INVALID_ARGS);
     }
 
 
