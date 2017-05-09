@@ -678,7 +678,7 @@ int nonBlockConnectToSsdbServer(client *c) {
         {
             c->ssdb_conn_flags |= CONN_CONNECT_FAILED;
             redisFree(context);
-            serverLog(LL_WARNING,"Can't create readable event for SYNC");
+            serverLog(LL_WARNING,"Can't create readable event");
             return C_ERR;
         }
         c->ssdb_conn_flags |= CONN_CONNECTING;
@@ -739,12 +739,13 @@ sds composeCmdFromArgs(int argc, robj** obj_argv) {
 
 
 int closeAndReconnectSSDBconnection(client* c) {
+    if (server.master == c && server.slave_check_rep_opid)
+        server.slave_check_rep_opid = 0;
+
     if (c->context) {
         server.ssdb_is_up = 0;
         if (server.ssdb_down_time == -1)
             server.ssdb_down_time = server.unixtime;
-        if (server.master == c && server.slave_check_rep_opid)
-            server.slave_check_rep_opid = 0;
         /* Unlink resources used in connecting to SSDB. */
         if (c->context->fd > 0)
             aeDeleteFileEvent(server.el, c->context->fd, AE_READABLE|AE_WRITABLE);

@@ -1424,7 +1424,6 @@ void cleanKeysToLoadAndEvict() {
     }
 }
 
-
 void startToHandleCmdListInSlave(void) {
     listIter iter;
     listNode *node;
@@ -1435,16 +1434,6 @@ void startToHandleCmdListInSlave(void) {
     listRewind(server.loadAndEvictCmdList, &iter);
     while((node = listNext(&iter)) != NULL) {
         loadAndEvictCmd *cmdinfo = node->value;
-        //robj *keyobj = cmdinfo->argv[1];
-
-        /* todo: remove unnecessary codes, 'storetossdb' and 'dumpfromssdb' will
-         * determine this. */
-        /*
-        if (dictFind(EVICTED_DATA_DB->transferring_keys, keyobj->ptr)
-            || dictFind(EVICTED_DATA_DB->loading_hot_keys, keyobj->ptr)
-            || dictFind(EVICTED_DATA_DB->delete_confirm_keys, keyobj->ptr))
-            break;
-            */
 
         server.cmdNotDone = 0;
         restoreLoadEvictCommandVector(server.slave_ssdb_load_evict_client,
@@ -2912,8 +2901,7 @@ int processCommandMaybeInSSDB(client *c) {
                     cleanSpecialClientsAndIntermediateKeys(1);
 
             }
-            /* todo: if server.master is freed because of SSDB disconnect, send "repopid get" to get opid of
-             * the last successful SSDB write and re-send unprocessd write ops. */
+
             int ret = sendCommandToSSDB(c, NULL);
             if (ret != C_OK) return ret;
 
