@@ -1224,7 +1224,7 @@ int SSDBImpl::scan(const Bytes& cursor, const std::string &pattern, uint64_t lim
 
     auto mit = std::unique_ptr<MIterator>(new MIterator(iter));
 
-    bool end = doScanGeneric<std::unique_ptr<MIterator>>(mit, pattern, limit, resp);
+    bool end = doScanGeneric<MIterator>(mit.get(), pattern, limit, resp);
 
     if (!end) {
         //get new;

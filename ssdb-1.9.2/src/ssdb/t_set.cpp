@@ -84,7 +84,7 @@ int SSDBImpl::sscan(const Bytes &name, const Bytes &cursor, const std::string &p
     auto mit = std::unique_ptr<SIterator>(new SIterator(iter, name, sv.version));
 
 //    bool end = true;
-    bool end = doScanGeneric<std::unique_ptr<SIterator>>(mit, pattern, limit, resp);
+    bool end = doScanGeneric<SIterator>(mit.get(), pattern, limit, resp);
 
     if (!end) {
         //get new;

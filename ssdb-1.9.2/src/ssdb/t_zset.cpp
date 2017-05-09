@@ -1069,7 +1069,7 @@ int SSDBImpl::zscan(const Bytes &name, const Bytes &cursor, const std::string &p
     Iterator *iter = this->iterator(start, "", -1);
     auto mit = std::unique_ptr<ZIterator>(new ZIterator(iter, name, hv.version));
 
-    bool end = doScanGeneric<std::unique_ptr<ZIterator>>(mit, pattern, limit, resp);
+    bool end = doScanGeneric<ZIterator>(mit.get(), pattern, limit, resp);
 
     if (!end) {
         //get new;

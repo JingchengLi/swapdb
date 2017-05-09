@@ -549,7 +549,7 @@ int SSDBImpl::hscan(const Bytes &name, const Bytes &cursor, const std::string &p
 
 	auto mit = std::unique_ptr<HIterator>(new HIterator(iter, name, hv.version));
 
-	bool end = doScanGeneric<std::unique_ptr<HIterator>>(mit, pattern, limit, resp);
+	bool end = doScanGeneric<HIterator>(mit.get(), pattern, limit, resp);
 
 	if (!end) {
 		//get new;
