@@ -175,7 +175,7 @@ void unblockClient(client *c) {
 /* This function gets called when a blocked client timed out in order to
  * send it a reply of some kind. After this function is called,
  * unblockClient() will be called with the same client as argument. */
-void replyToBlockedClientTimedOut(client *c) {
+int replyToBlockedClientTimedOut(client *c) {
     if (c->btype == BLOCKED_LIST) {
         addReply(c,shared.nullmultibulk);
     } else if (c->btype == BLOCKED_WAIT) {
@@ -201,10 +201,14 @@ void replyToBlockedClientTimedOut(client *c) {
                    || c->btype == BLOCKED_BY_FLUSHALL
                    || c->btype == BLOCKED_BY_DELETE_CONFIRM)) {
         addReplyError(c, "timeout");
-        serverLog(LOG_DEBUG, "[!!!!]reset by replyToBlockedClientTimedOut:%p", (void*)c);
+        serverLog(LOG_DEBUG, "[!!!!]block timeout(client:%p,btype:%d), will free client", (void*)c, c->btype);
+        /* free client to avoid unexpected issues.*/
+        freeClient(c);
+        return C_ERR;
     } else {
         serverPanic("Unknown btype in replyToBlockedClientTimedOut().");
     }
+    return C_OK;
 }
 
 /* Mass-unblock clients because something changed in the instance that makes

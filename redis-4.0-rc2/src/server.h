@@ -279,13 +279,21 @@ typedef long long mstime_t; /* millisecond time type. */
 #define BLOCKED_LIST 1    /* BLPOP & co. */
 #define BLOCKED_WAIT 2    /* WAIT for synchronous replication. */
 #define BLOCKED_MODULE 3  /* Blocked by a loadable module. */
+
+/* ================================================= */
+/* the following types are blocked by other clients. */
 #define BLOCKED_SSDB_LOADING_OR_TRANSFER 10 /* Blocked when loading a key becomes hot in SSDB
                                     * or transferring a key becomes cold to SSDB. */
-#define BLOCKED_VISITING_SSDB 11   /* Client is visiting SSDB. */
-#define BLOCKED_BY_FLUSHALL 12
-#define BLOCKED_NO_WRITE_TO_SSDB 13 /* Client is blocked as during the process of psync. */
-#define BLOCKED_NO_READ_WRITE_TO_SSDB 14 /* Client is blocked by ssdb flushall. */
+#define BLOCKED_NO_WRITE_TO_SSDB 11 /* Client is blocked as during the process of psync. */
+#define BLOCKED_NO_READ_WRITE_TO_SSDB 12 /* Client is blocked by ssdb flushall. */
+/* ================================================= */
+/* the following types are blocked by the client itself. if block timeout, we must
+ * disconnect this client to avoid receiving an unexpected response later, which may
+ * cause strange issues such as crash(eg, SWAP-44), etc. */
+#define BLOCKED_VISITING_SSDB 13   /* Client is visiting SSDB. */
+#define BLOCKED_BY_FLUSHALL 14
 #define BLOCKED_BY_DELETE_CONFIRM  15 /* Client is blocked by delete key confirm. */
+/* ================================================= */
 
 
 /* Client request types */
@@ -1951,7 +1959,7 @@ int ldbPendingChildren(void);
 void processUnblockedClients(void);
 void blockClient(client *c, int btype);
 void unblockClient(client *c);
-void replyToBlockedClientTimedOut(client *c);
+int replyToBlockedClientTimedOut(client *c);
 int getTimeoutFromObjectOrReply(client *c, robj *object, mstime_t *timeout, int unit);
 void disconnectAllBlockedClients(void);
 
