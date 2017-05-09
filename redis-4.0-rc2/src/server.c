@@ -2164,6 +2164,7 @@ void initServerConfig(void) {
     server.slave_blocked_by_flushall_timeout = CONFIG_DEFAULT_SLAVE_BLOCKED_BY_FLUSHALL_TIMEOUT;
 
     unsigned int lruclock = getLRUClock();
+    pthread_mutex_init(&server.lruclock_mutex,NULL);
     atomicSet(server.lruclock,lruclock);
     resetServerSaveParams();
 
