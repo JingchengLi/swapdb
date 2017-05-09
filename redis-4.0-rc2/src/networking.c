@@ -631,9 +631,8 @@ void ssdbConnectCallback(aeEventLoop *el, int fd, void *privdata, int mask) {
                           AE_READABLE, ssdbClientUnixHandler, c) == AE_ERR) {
         serverLog(LL_VERBOSE, "Unrecoverable error creating ssdbFd file event.");
         goto error;
-    } else
-        serverLog(LL_DEBUG, "rfd:%d connecting to SSDB Unix socket succeeded: sfd:%d",
-                  c->fd, c->context->fd);
+    }
+
     server.ssdb_is_up = 1;
     server.ssdb_down_time = -1;
     if (server.master == c && listLength(server.ssdb_write_oplist) > 0) {
