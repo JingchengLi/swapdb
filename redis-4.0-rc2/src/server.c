@@ -2918,8 +2918,9 @@ int processCommandMaybeInSSDB(client *c) {
                         /* for slave redis, we just wait flushall done. */
                         c->bpop.timeout = 8000+mstime();
                         blockClient(c, BLOCKED_BY_FLUSHALL);
+                        return C_OK;
                     }
-                    return C_OK;
+                    return C_ERR;
                 }
             }
 
@@ -3080,13 +3081,6 @@ int runCommand(client *c, int* need_return) {
         if (need_return) *need_return = 1;
         int ret = processCommandMaybeInSSDB(c);
         if (ret == C_OK) {
-            if (server.master == c) {
-                /* for the master connection of slave redis, after we send write commands
-                 * to SSDB and record them in server.ssdb_write_oplist, we just return and
-                 * process next write command. */
-                if (need_return) *need_return = 1;
-                return C_OK;
-            }
             /* The client will be reseted in sendCommandToSSDB if C_FD_ERR
               is returned in sendCommandToSSDB.
               Otherwise, return C_ERR to avoid calling resetClient,
@@ -3095,6 +3089,15 @@ int runCommand(client *c, int* need_return) {
                       c->cmd->name, c->fd, c->argc > 1 ? (char *)c->argv[1]->ptr : "");
             return C_ERR;
         } else {
+            if (need_return) *need_return = 1;
+
+            if (server.master == c) {
+                /* for the master connection of slave redis, after we send write commands
+                 * to SSDB and record them in server.ssdb_write_oplist, we just return and
+                 * process next write command. */
+                return C_OK;
+            }
+
             if (ret == C_NOTSUPPORT_ERR) {
                 addReplyErrorFormat(c, "don't support this command in jdjr mode:%s.", c->cmd->name);
                 return C_OK;
