@@ -3104,8 +3104,10 @@ int runCommand(client *c, int* need_return) {
         } else {
             /* for the master connection of slave redis, the key arguments in this write command
              * is in redis. so we don't need to save the raw request.*/
-            sdsfree(slave_ssdb_cmd_buffer);
-            slave_ssdb_cmd_buffer = NULL;
+            if (server.master == c) {
+                sdsfree(slave_ssdb_cmd_buffer);
+                slave_ssdb_cmd_buffer = NULL;
+            }
 
             if (ret == C_NOTSUPPORT_ERR) {
                 addReplyErrorFormat(c, "don't support this command in jdjr mode:%s.", c->cmd->name);
