@@ -2727,14 +2727,13 @@ void addVisitingSSDBKey(client *c, sds *keysds) {
 
 void freeSSDBwriteOp(struct ssdb_write_op* op) {
     int j;
-    write_op_mem_size -= sizeof(struct ssdb_write_op) + sizeof(listNode*) + SDS_MEM_SIZE(op->request_buf);
+    write_op_mem_size -= sizeof(struct ssdb_write_op) + sizeof(listNode*);
     // free argv
     for (j = 0; j < op->argc; j++) {
         write_op_mem_size -= SDS_MEM_SIZE((char*)(op->argv[j]->ptr)) + sizeof(op->argv[j]);
         decrRefCount(op->argv[j]);
     }
     zfree(op->argv);
-    sdsfree(op->request_buf);
     zfree(op);
 }
 
@@ -2801,12 +2800,9 @@ void saveSlaveSSDBwriteOp(client *c, time_t time, int index) {
     op->argc = c->argc;
     op->argv = c->argv;
     c->argv = NULL;
-    /* todo: don't need slave_ssdb_cmd_buffer and remove it. */
-    op->request_buf = slave_ssdb_cmd_buffer;
-    slave_ssdb_cmd_buffer = NULL;
 
     /* recored consumed memory size. */
-    write_op_mem_size += sizeof(struct ssdb_write_op) + sizeof(listNode*) + SDS_MEM_SIZE(op->request_buf);
+    write_op_mem_size += sizeof(struct ssdb_write_op) + sizeof(listNode*);
     for (j = 0; j < op->argc; j++) {
         write_op_mem_size += SDS_MEM_SIZE((char*)(op->argv[j]->ptr)) + sizeof(op->argv[j]);
     }
@@ -3096,16 +3092,9 @@ int runCommand(client *c, int* need_return) {
               Otherwise, return C_ERR to avoid calling resetClient,
               the resetClient is delayed to ssdbClientUnixHandler. */
             serverLog(LL_DEBUG, "processing %s, fd: %d in ssdb: %s",
-                      c->cmd->name, c->fd, (char *)c->argv[1]->ptr);
+                      c->cmd->name, c->fd, c->argc > 1 ? (char *)c->argv[1]->ptr : "");
             return C_ERR;
         } else {
-            /* for the master connection of slave redis, the key arguments in this write command
-             * is in redis. so we don't need to save the raw request.*/
-            if (server.master == c) {
-                sdsfree(slave_ssdb_cmd_buffer);
-                slave_ssdb_cmd_buffer = NULL;
-            }
-
             if (ret == C_NOTSUPPORT_ERR) {
                 addReplyErrorFormat(c, "don't support this command in jdjr mode:%s.", c->cmd->name);
                 return C_OK;

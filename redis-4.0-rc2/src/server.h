@@ -1319,7 +1319,6 @@ struct redisServer {
 #define SLAVE_SSDB_MAX_CRITICAL_ERR_LIMIT 5
 
 /* for slave redis, record and save ssdb write commands. */
-char* slave_ssdb_cmd_buffer;
 int write_op_last_index;
 time_t write_op_last_time;
 long long write_op_mem_size;
@@ -1332,7 +1331,6 @@ struct ssdb_write_op {
     struct redisCommand *cmd;
     int argc;
     robj** argv;
-    char* request_buf; /* buffer to save the redis-protocol write requests */
 };
 
 typedef struct pubsubPattern {

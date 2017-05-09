@@ -2230,11 +2230,6 @@ int processInlineBuffer(client *c) {
         setProtocolError("unbalanced quotes in inline request",c,0);
         return C_ERR;
     }
-    if (server.jdjr_mode && server.master == c && argc != 0) {
-        if (slave_ssdb_cmd_buffer) sdsfree(slave_ssdb_cmd_buffer);
-        slave_ssdb_cmd_buffer = sdsempty();
-        slave_ssdb_cmd_buffer = sdscatlen(slave_ssdb_cmd_buffer, c->querybuf, querylen+2);
-    }
 
     /* Newline from slaves can be used to refresh the last ACK time.
      * This is useful for a slave to ping back while loading a big
@@ -2333,11 +2328,6 @@ int processMultibulkBuffer(client *c) {
             sdsrange(c->querybuf,pos,-1);
             return C_OK;
         }
-        if (server.jdjr_mode && server.master == c) {
-            if (slave_ssdb_cmd_buffer) sdsfree(slave_ssdb_cmd_buffer);
-            slave_ssdb_cmd_buffer = sdsempty();
-            slave_ssdb_cmd_buffer = sdscatlen(slave_ssdb_cmd_buffer, c->querybuf, pos);
-        }
 
         c->multibulklen = ll;
 
@@ -2356,10 +2346,6 @@ int processMultibulkBuffer(client *c) {
                     addReplyError(c,
                         "Protocol error: too big bulk count string");
                     setProtocolError("too big bulk count string",c,0);
-                    if (server.jdjr_mode && server.master == c) {
-                        sdsfree(slave_ssdb_cmd_buffer);
-                        slave_ssdb_cmd_buffer = NULL;
-                    }
                     return C_ERR;
                 }
                 break;
@@ -2374,10 +2360,6 @@ int processMultibulkBuffer(client *c) {
                     "Protocol error: expected '$', got '%c'",
                     c->querybuf[pos]);
                 setProtocolError("expected $ but got something else",c,pos);
-                if (server.jdjr_mode && server.master == c) {
-                    sdsfree(slave_ssdb_cmd_buffer);
-                    slave_ssdb_cmd_buffer = NULL;
-                }
                 return C_ERR;
             }
 
@@ -2385,16 +2367,9 @@ int processMultibulkBuffer(client *c) {
             if (!ok || ll < 0 || ll > 512*1024*1024) {
                 addReplyError(c,"Protocol error: invalid bulk length");
                 setProtocolError("invalid bulk length",c,pos);
-                if (server.jdjr_mode && server.master == c) {
-                    sdsfree(slave_ssdb_cmd_buffer);
-                    slave_ssdb_cmd_buffer = NULL;
-                }
                 return C_ERR;
             }
 
-            if (server.jdjr_mode && server.master == c) {
-                slave_ssdb_cmd_buffer = sdscatlen(slave_ssdb_cmd_buffer, c->querybuf+pos, newline-(c->querybuf+pos)+2);
-            }
             pos += newline-(c->querybuf+pos)+2;
             if (ll >= PROTO_MBULK_BIG_ARG) {
                 size_t qblen;
@@ -2408,12 +2383,8 @@ int processMultibulkBuffer(client *c) {
                 qblen = sdslen(c->querybuf);
                 /* Hint the sds library about the amount of bytes this string is
                  * going to contain. */
-                if (qblen < (size_t)ll+2) {
+                if (qblen < (size_t)ll+2)
                     c->querybuf = sdsMakeRoomFor(c->querybuf,ll+2-qblen);
-                    if (server.jdjr_mode && server.master == c) {
-                        slave_ssdb_cmd_buffer = sdsMakeRoomFor(slave_ssdb_cmd_buffer,ll+2-qblen);
-                    }
-                }
             }
             c->bulklen = ll;
         }
@@ -2423,9 +2394,6 @@ int processMultibulkBuffer(client *c) {
             /* Not enough data (+2 == trailing \r\n) */
             break;
         } else {
-            if (server.jdjr_mode && server.master == c) {
-                slave_ssdb_cmd_buffer = sdscatlen(slave_ssdb_cmd_buffer, c->querybuf+pos, c->bulklen+2);
-            }
             /* Optimization: if the buffer contains JUST our bulk element
              * instead of creating a new object by *copying* the sds we
              * just use the current sds string. */
