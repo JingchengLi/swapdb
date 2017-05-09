@@ -2922,7 +2922,6 @@ int processCommandMaybeInSSDB(client *c) {
                         /* for slave redis, we just wait flushall done. */
                         c->bpop.timeout = 8000+mstime();
                         blockClient(c, BLOCKED_BY_FLUSHALL);
-                        // todo: process timeout and exit redis.
                     }
                     return C_OK;
                 }

@@ -1513,13 +1513,15 @@ void handleSSDBReply(client *c, int revert_len) {
             }
             if (c->cmd->proc == flushallCommand) {
                 if (reply->type == REDIS_REPLY_ERROR) {
-                    serverLog(LL_WARNING, "flushall failed on slave ssdb, redis will exit");
-                    exit(1);
+                    /* close SSDB connection and we will retry flushall after connected. */
+                    closeAndReconnectSSDBconnection(c);
+                    return;
+                } else {
+                    /* we receive flushall response of SSDB, now we can empty redis.*/
+                    unblockClient(c);
+                    flushallCommand(c);
+                    resetClient(c);
                 }
-                /* we receive flushall response of SSDB, now we can empty redis.*/
-                unblockClient(c);
-                flushallCommand(c);
-                resetClient(c);
             }
         }
     }
