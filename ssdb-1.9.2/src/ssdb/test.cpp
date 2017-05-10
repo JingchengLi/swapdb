@@ -4,6 +4,7 @@ Use of this source code is governed by a BSD-style license that can be
 found in the LICENSE file.
 */
 #include <string>
+#include <common/context.hpp>
 #include "ssdb.h"
 #include "../util/log.h"
 #include "../util/config.h"
@@ -23,9 +24,11 @@ int main(int argc, char **argv){
 	}
 	std::string key, val;
 	key = "a";
+
+	Context ctx;
 	
 	val.append(1024 * 1024, 'a');
-	ssdb->raw_set("tmp", val);
+	ssdb->raw_set(ctx, "tmp", val);
 	ssdb->compact();
 
 	uint64_t size;
@@ -33,12 +36,12 @@ int main(int argc, char **argv){
 	log_debug("dbsize: %d", size);
 
 
-	ssdb->get(key, &val);
+	ssdb->get(ctx, key, &val);
 	int num = str_to_int(val) + 1;
 
 	int added = 0;
-	ssdb->set(key, str(num), 0, &added);
-	ssdb->get(key, &val);
+	ssdb->set(ctx, key, str(num), 0, &added);
+	ssdb->get(ctx, key, &val);
 	
 	log_debug("%s", val.c_str());
 	delete ssdb;

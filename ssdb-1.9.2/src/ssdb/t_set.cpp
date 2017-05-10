@@ -6,8 +6,8 @@
 #include "t_set.h"
 
 
-int SSDBImpl::incr_ssize(leveldb::WriteBatch &batch, const SetMetaVal &sv, const std::string &meta_key, const Bytes &key,
-                     int64_t incr) {
+int SSDBImpl::incr_ssize(const Context &ctx, const Bytes &key, leveldb::WriteBatch &batch, const SetMetaVal &sv, 
+                         const std::string &meta_key, int64_t incr) {
     int ret = 1;
 
     if (sv.length == 0) {
@@ -40,7 +40,7 @@ int SSDBImpl::incr_ssize(leveldb::WriteBatch &batch, const SetMetaVal &sv, const
             batch.Put(del_key, "");
             batch.Put(meta_key, meta_val);
 
-            edel_one(batch, key); //del expire ET key
+            edel_one(ctx, key, batch); //del expire ET key
 
             ret = 0;
         } else {
@@ -53,7 +53,7 @@ int SSDBImpl::incr_ssize(leveldb::WriteBatch &batch, const SetMetaVal &sv, const
 }
 
 
-SIterator *SSDBImpl::sscan_internal(const Bytes &name, const Bytes &start, uint16_t version,
+SIterator *SSDBImpl::sscan_internal(const Context &ctx, const Bytes &name, const Bytes &start, uint16_t version,
                                     uint64_t limit, const leveldb::Snapshot *snapshot) {
 
     std::string key_start, key_end;
@@ -63,7 +63,7 @@ SIterator *SSDBImpl::sscan_internal(const Bytes &name, const Bytes &start, uint1
 }
 
 
-int SSDBImpl::sscan(const Bytes &name, const Bytes &cursor, const std::string &pattern, uint64_t limit,
+int SSDBImpl::sscan(const Context &ctx, const Bytes &name, const Bytes &cursor, const std::string &pattern, uint64_t limit,
                     std::vector<std::string> &resp) {
     SetMetaVal sv;
 
@@ -97,12 +97,12 @@ int SSDBImpl::sscan(const Bytes &name, const Bytes &cursor, const std::string &p
 
 }
 
-int SSDBImpl::sadd(const Bytes &key, const std::set<Bytes> &mem_set, int64_t *num) {
+int SSDBImpl::sadd(const Context &ctx, const Bytes &key, const std::set<Bytes> &mem_set, int64_t *num) {
     RecordLock<Mutex> l(&mutex_record_, key.String());
-    return saddNoLock<Bytes>(key, mem_set, num);
+    return saddNoLock<Bytes>(ctx, key, mem_set, num);
 }
 
-int SSDBImpl::srem(const Bytes &key, const std::vector<Bytes> &members, int64_t *num) {
+int SSDBImpl::srem(const Context &ctx, const Bytes &key, const std::vector<Bytes> &members, int64_t *num) {
     RecordLock<Mutex> l(&mutex_record_, key.String());
     leveldb::WriteBatch batch;
 
@@ -127,7 +127,7 @@ int SSDBImpl::srem(const Bytes &key, const std::vector<Bytes> &members, int64_t 
         }
     }
 
-    int iret = incr_ssize(batch, sv, meta_key, key, (-1) * (*num));
+    int iret = incr_ssize(ctx, key, batch, sv, meta_key, (-1) * (*num));
     if (iret < 0) {
         return iret;
     } else if (iret == 0) {
@@ -146,7 +146,7 @@ int SSDBImpl::srem(const Bytes &key, const std::vector<Bytes> &members, int64_t 
 }
 
 
-int SSDBImpl::scard(const Bytes &key, uint64_t *llen) {
+int SSDBImpl::scard(const Context &ctx, const Bytes &key, uint64_t *llen) {
     *llen = 0;
     SetMetaVal sv;
     std::string meta_key = encode_meta_key(key);
@@ -160,7 +160,7 @@ int SSDBImpl::scard(const Bytes &key, uint64_t *llen) {
     return ret;
 }
 
-int SSDBImpl::sismember(const Bytes &key, const Bytes &member, bool *ismember) {
+int SSDBImpl::sismember(const Context &ctx, const Bytes &key, const Bytes &member, bool *ismember) {
     SetMetaVal sv;
     std::string meta_key = encode_meta_key(key);
     int ret = GetSetMetaVal(meta_key, sv);
@@ -183,7 +183,7 @@ int SSDBImpl::sismember(const Bytes &key, const Bytes &member, bool *ismember) {
     return 1;
 }
 
-int SSDBImpl::srandmember(const Bytes &key, std::vector<std::string> &members, int64_t cnt) {
+int SSDBImpl::srandmember(const Context &ctx, const Bytes &key, std::vector<std::string> &members, int64_t cnt) {
     leveldb::WriteBatch batch;
 
     const leveldb::Snapshot *snapshot = nullptr;
@@ -203,7 +203,7 @@ int SSDBImpl::srandmember(const Bytes &key, std::vector<std::string> &members, i
 
     SnapshotPtr spl(ldb, snapshot); //auto release
 
-    auto it = std::unique_ptr<SIterator>(sscan_internal(key, "", sv.version, -1, snapshot));
+    auto it = std::unique_ptr<SIterator>(sscan_internal(ctx, key, "", sv.version, -1, snapshot));
 
     std::set<uint64_t> random_set;
     std::vector<uint64_t> random_list;
@@ -280,7 +280,7 @@ int SSDBImpl::srandmember(const Bytes &key, std::vector<std::string> &members, i
     return 1;
 }
 
-int SSDBImpl::spop(const Bytes &key, std::vector<std::string> &members, int64_t popcnt) {
+int SSDBImpl::spop(const Context &ctx, const Bytes &key, std::vector<std::string> &members, int64_t popcnt) {
     leveldb::WriteBatch batch;
 
     SetMetaVal sv;
@@ -294,7 +294,7 @@ int SSDBImpl::spop(const Bytes &key, std::vector<std::string> &members, int64_t 
         return ret;
     }
 
-    auto it = std::unique_ptr<SIterator>(sscan_internal(key, "", sv.version, -1));
+    auto it = std::unique_ptr<SIterator>(sscan_internal(ctx, key, "", sv.version, -1));
 
     std::set<uint64_t> random_set;
     /* we random key by random index :)
@@ -337,7 +337,7 @@ int SSDBImpl::spop(const Bytes &key, std::vector<std::string> &members, int64_t 
         delete_cnt += 1;
     }
 
-    int iret = incr_ssize(batch, sv, meta_key, key, (-1) * (delete_cnt));
+    int iret = incr_ssize(ctx, key, batch, sv, meta_key, (-1) * (delete_cnt));
     if (iret < 0) {
         return iret;
     }  else if (iret == 0) {
@@ -355,7 +355,7 @@ int SSDBImpl::spop(const Bytes &key, std::vector<std::string> &members, int64_t 
     return ret;
 }
 
-int SSDBImpl::smembers(const Bytes &key, std::vector<std::string> &members) {
+int SSDBImpl::smembers(const Context &ctx, const Bytes &key, std::vector<std::string> &members) {
     const leveldb::Snapshot *snapshot = nullptr;
     SetMetaVal sv;
     int ret;
@@ -374,7 +374,7 @@ int SSDBImpl::smembers(const Bytes &key, std::vector<std::string> &members) {
 
     SnapshotPtr spl(ldb, snapshot); //auto release
 
-    auto it = std::unique_ptr<SIterator>(sscan_internal(key, "", sv.version, -1, snapshot));
+    auto it = std::unique_ptr<SIterator>(sscan_internal(ctx, key, "", sv.version, -1, snapshot));
     while (it->next()) {
         members.push_back(std::move(it->key));
     }

@@ -461,7 +461,7 @@ int proc_debug(const Context &ctx, Link *link, const Request &req, Response *res
             snprintf(vbuf, sizeof(vbuf), "%s:%lu", "value", i);
 
             int added = 0;
-            int ret = serv->ssdb->set(Bytes(kbuf), Bytes(vbuf), OBJ_SET_NO_FLAGS, &added);
+            int ret = serv->ssdb->set(ctx, Bytes(kbuf), Bytes(vbuf), OBJ_SET_NO_FLAGS, &added);
             if (ret < 0) {
                 reply_err_return(ret);
             }
@@ -505,14 +505,14 @@ int proc_restore(const Context &ctx, Link *link, const Request &req, Response *r
     std::string val;
 
     PTST(restore, 0.01)
-    int ret = serv->ssdb->restore(req[1], ttl, req[3], replace, &val);
+    int ret = serv->ssdb->restore(ctx, req[1], ttl, req[3], replace, &val);
     PTE(restore, req[1].String())
 
     if (ret > 0 && ttl > 0) {
         Locking<Mutex> l(&serv->ssdb->expiration->mutex);
-        ret = serv->ssdb->expiration->expire(req[1], ttl, TimeUnit::Millisecond);
+        ret = serv->ssdb->expiration->expire(ctx, req[1], ttl, TimeUnit::Millisecond);
         if (ret < 0) {
-            serv->ssdb->del(req[1]);
+            serv->ssdb->del(ctx, req[1]);
         }
     }
 
@@ -534,7 +534,7 @@ int proc_dump(const Context &ctx, Link *link, const Request &req, Response *resp
     std::string val;
 
     PTST(dump, 0.01)
-    int ret = serv->ssdb->dump(req[1], &val);
+    int ret = serv->ssdb->dump(ctx, req[1], &val);
     PTE(dump, req[1].String())
 
     check_key(ret);
@@ -877,7 +877,7 @@ int proc_repopid(const Context &ctx, Link *link, const Request &req, Response *r
 
     if (action == "get") {
         std::string repo_val;
-        int rret = serv->ssdb->raw_get(encode_repo_key(), &repo_val);
+        int rret = serv->ssdb->raw_get(ctx, encode_repo_key(), &repo_val);
         if (rret < 0) {
             reply_err_return(rret);
         } else if (rret == 0) {

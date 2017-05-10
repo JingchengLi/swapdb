@@ -14,7 +14,7 @@ int proc_type(const Context &ctx, Link *link, const Request &req, Response *resp
 	CHECK_NUM_PARAMS(2);
 
 	std::string val;
-	int ret = serv->ssdb->type(req[1], &val);
+	int ret = serv->ssdb->type(ctx, req[1], &val);
 	check_key(ret);
 	if(ret < 0){
 		reply_err_return(ret);
@@ -30,7 +30,7 @@ int proc_get(const Context &ctx, Link *link, const Request &req, Response *resp)
 	CHECK_NUM_PARAMS(2);
 
 	std::string val;
-	int ret = serv->ssdb->get(req[1], &val);
+	int ret = serv->ssdb->get(ctx, req[1], &val);
 	check_key(ret);
 	if(ret < 0){
 		reply_err_return(ret);
@@ -46,7 +46,7 @@ int proc_getset(const Context &ctx, Link *link, const Request &req, Response *re
 	CHECK_NUM_PARAMS(3);
 
 	std::pair<std::string, bool> val;
-	int ret = serv->ssdb->getset(req[1], val, req[2]);
+	int ret = serv->ssdb->getset(ctx, req[1], val, req[2]);
 	check_key(ret);
 	if(ret < 0){
 		reply_err_return(ret);
@@ -66,7 +66,7 @@ int proc_append(const Context &ctx, Link *link, const Request &req, Response *re
 	CHECK_NUM_PARAMS(3);
 
 	uint64_t newlen = 0;
-	int ret = serv->ssdb->append(req[1], req[2], &newlen);
+	int ret = serv->ssdb->append(ctx, req[1], req[2], &newlen);
 	if(ret < 0){
 		reply_err_return(ret);
 	}else{
@@ -88,21 +88,21 @@ int proc_set(const Context &ctx, Link *link, const Request &req, Response *resp)
 			std::string key = req[i].String();
 			strtolower(&key);
 
-			if (key=="nx") {
+			if (ctx, key=="nx") {
 				flags |= OBJ_SET_NX;
-			} else if (key=="xx") {
+			} else if (ctx, key=="xx") {
 				flags |= OBJ_SET_XX;
-			} else if (key=="ex") {
+			} else if (ctx, key=="ex") {
 				flags |= OBJ_SET_EX;
 				tu = TimeUnit::Second;
-			} else if (key=="px") {
+			} else if (ctx, key=="px") {
 				flags |= OBJ_SET_PX;
 				tu = TimeUnit::Millisecond;
 			}
 
-			if (key=="nx" || key=="xx") {
+			if (ctx, key=="nx" || key=="xx") {
 				//nothing
-			} else if (key=="ex" || key=="px") {
+			} else if (ctx, key=="ex" || key=="px") {
 				i++;
 				if (i >= req.size()) {
 					reply_err_return(SYNTAX_ERR);
@@ -130,7 +130,7 @@ int proc_set(const Context &ctx, Link *link, const Request &req, Response *resp)
 		Locking<Mutex> l(&serv->ssdb->expiration->mutex);
 
 		int added = 0;
-		int ret = serv->ssdb->set(req[1], req[2], flags, &added);
+		int ret = serv->ssdb->set(ctx, req[1], req[2], flags, &added);
 		check_key(ret);
 		if(ret < 0){
 			reply_err_return(ret);
@@ -140,9 +140,9 @@ int proc_set(const Context &ctx, Link *link, const Request &req, Response *resp)
 		}
 
 
-		ret = serv->ssdb->expiration->expire(req[1], (int64_t)when, tu);
+		ret = serv->ssdb->expiration->expire(ctx, req[1], (int64_t)when, tu);
 		if(ret < 0){
-			serv->ssdb->del(req[1]);
+			serv->ssdb->del(ctx, req[1]);
 			reply_err_return(ret);
 		} else {
 			resp->reply_bool(1);
@@ -152,7 +152,7 @@ int proc_set(const Context &ctx, Link *link, const Request &req, Response *resp)
 
 	} else {
 		int added = 0;
-		int ret = serv->ssdb->set(req[1], req[2], flags, &added);
+		int ret = serv->ssdb->set(ctx, req[1], req[2], flags, &added);
 		check_key(ret);
 		if(ret < 0){
 			reply_err_return(ret);
@@ -170,7 +170,7 @@ int proc_setnx(const Context &ctx, Link *link, const Request &req, Response *res
 	CHECK_NUM_PARAMS(3);
 
 	int added = 0;
-	int ret = serv->ssdb->set(req[1], req[2], OBJ_SET_NX, &added);
+	int ret = serv->ssdb->set(ctx, req[1], req[2], OBJ_SET_NX, &added);
 	check_key(ret);
 	if(ret < 0){
 		reply_err_return(ret);
@@ -196,14 +196,14 @@ int proc_setx(const Context &ctx, Link *link, const Request &req, Response *resp
 	Locking<Mutex> l(&serv->ssdb->expiration->mutex);
 
 	int added = 0;
-	int ret = serv->ssdb->set(req[1], req[2], OBJ_SET_NO_FLAGS, &added);
+	int ret = serv->ssdb->set(ctx, req[1], req[2], OBJ_SET_NO_FLAGS, &added);
 	check_key(ret);
 	if(ret < 0){
 		reply_err_return(ret);
 	}
-	ret = serv->ssdb->expiration->expire(req[1], (int64_t)when, TimeUnit::Second);
+	ret = serv->ssdb->expiration->expire(ctx, req[1], (int64_t)when, TimeUnit::Second);
 	if(ret < 0){
-        serv->ssdb->del(req[1]);
+        serv->ssdb->del(ctx, req[1]);
 		reply_err_return(ret);
 	}else{
 		resp->reply_bool(1);
@@ -225,15 +225,15 @@ int proc_psetx(const Context &ctx, Link *link, const Request &req, Response *res
 
 	Locking<Mutex> l(&serv->ssdb->expiration->mutex);
 	int added = 0;
-	int ret = serv->ssdb->set(req[1], req[2], OBJ_SET_NO_FLAGS, &added);
+	int ret = serv->ssdb->set(ctx, req[1], req[2], OBJ_SET_NO_FLAGS, &added);
 	check_key(ret);
 	if(ret < 0){
 		reply_err_return(ret);
 	}
 
-	ret = serv->ssdb->expiration->expire(req[1], (int64_t)when, TimeUnit::Millisecond);
+	ret = serv->ssdb->expiration->expire(ctx, req[1], (int64_t)when, TimeUnit::Millisecond);
 	if(ret < 0){
-        serv->ssdb->del(req[1]);
+        serv->ssdb->del(ctx, req[1]);
 		reply_err_return(ret);
 	}else{
 		resp->reply_bool(1);
@@ -245,7 +245,7 @@ int proc_pttl(const Context &ctx, Link *link, const Request &req, Response *resp
 	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(2);
 
-	int64_t ttl = serv->ssdb->expiration->pttl(req[1], TimeUnit::Millisecond);
+	int64_t ttl = serv->ssdb->expiration->pttl(ctx, req[1], TimeUnit::Millisecond);
 	if (ttl == -2) {
 		check_key(0);
 	}
@@ -258,7 +258,7 @@ int proc_ttl(const Context &ctx, Link *link, const Request &req, Response *resp)
 	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(2);
 
-	int64_t ttl = serv->ssdb->expiration->pttl(req[1], TimeUnit::Second);
+	int64_t ttl = serv->ssdb->expiration->pttl(ctx, req[1], TimeUnit::Second);
 	if (ttl == -2) {
 		check_key(0);
 	}
@@ -278,7 +278,7 @@ int proc_pexpire(const Context &ctx, Link *link, const Request &req, Response *r
 
     Locking<Mutex> l(&serv->ssdb->expiration->mutex);
     std::string val;
-    int ret = serv->ssdb->expiration->expire(req[1], (int64_t)when, TimeUnit::Millisecond);
+    int ret = serv->ssdb->expiration->expire(ctx, req[1], (int64_t)when, TimeUnit::Millisecond);
     if (ret < 0) {
 		reply_err_return(ret);
 	} else if (ret < 2) {
@@ -300,7 +300,7 @@ int proc_expire(const Context &ctx, Link *link, const Request &req, Response *re
 
 	Locking<Mutex> l(&serv->ssdb->expiration->mutex);
 	std::string val;
-	int ret = serv->ssdb->expiration->expire(req[1], (int64_t)when, TimeUnit::Second);
+	int ret = serv->ssdb->expiration->expire(ctx, req[1], (int64_t)when, TimeUnit::Second);
     if (ret < 0) {
 		reply_err_return(ret);
 	} else if (ret < 2) {
@@ -323,7 +323,7 @@ int proc_expireat(const Context &ctx, Link *link, const Request &req, Response *
 
 	Locking<Mutex> l(&serv->ssdb->expiration->mutex);
 	std::string val;
-	int ret = serv->ssdb->expiration->expireAt(req[1], (int64_t)ts_ms * 1000);
+	int ret = serv->ssdb->expiration->expireAt(ctx, req[1], (int64_t)ts_ms * 1000);
     if (ret < 0) {
 		reply_err_return(ret);
 	} else if (ret < 2) {
@@ -341,7 +341,7 @@ int proc_persist(const Context &ctx, Link *link, const Request &req, Response *r
 
 	Locking<Mutex> l(&serv->ssdb->expiration->mutex);
 	std::string val;
-	int ret = serv->ssdb->expiration->persist(req[1]);
+	int ret = serv->ssdb->expiration->persist(ctx, req[1]);
 	check_key(ret);
 	if(ret < 0){
 		reply_err_return(ret);
@@ -362,7 +362,7 @@ int proc_pexpireat(const Context &ctx, Link *link, const Request &req, Response 
 
 	Locking<Mutex> l(&serv->ssdb->expiration->mutex);
 	std::string val;
-	int ret = serv->ssdb->expiration->expireAt(req[1], (int64_t)ts_ms);
+	int ret = serv->ssdb->expiration->expireAt(ctx, req[1], (int64_t)ts_ms);
 	if(ret < 0){
 		reply_err_return(ret);
 	} else if (ret < 2) {
@@ -381,7 +381,7 @@ int proc_exists(const Context &ctx, Link *link, const Request &req, Response *re
     int count = 0;
 	for(Request::const_iterator it=req.begin()+1; it!=req.end(); it++){
 		const Bytes key = *it;
-		int ret = serv->ssdb->exists(key);
+		int ret = serv->ssdb->exists(ctx, key);
 		if(ret == 1){
 			count++;
 		}
@@ -395,7 +395,7 @@ int proc_multi_set(const Context &ctx, Link *link, const Request &req, Response 
 	if(req.size() < 3 || req.size() % 2 != 1){
 		reply_errinfo_return("ERR wrong number of arguments for MSET");
 	}else{
-		int ret = serv->ssdb->multi_set(req, 1);
+		int ret = serv->ssdb->multi_set(ctx, req, 1);
 		if(ret < 0){
 			reply_err_return(ret);
 		} else {
@@ -419,7 +419,7 @@ int proc_multi_del(const Context &ctx, Link *link, const Request &req, Response 
 	}
 
 	int64_t num = 0;
-	int ret = serv->ssdb->multi_del(distinct_keys, &num);
+	int ret = serv->ssdb->multi_del(ctx, distinct_keys, &num);
 	if(ret < 0){
 		reply_err_return(ret);
 	} else{
@@ -437,7 +437,7 @@ int proc_multi_get(const Context &ctx, Link *link, const Request &req, Response 
 	resp->reply_list_ready();
 	for(int i=1; i<req.size(); i++){
 		std::string val;
-		int ret = serv->ssdb->get(req[i], &val);
+		int ret = serv->ssdb->get(ctx, req[i], &val);
 //		if(ret < 0){
 //			resp->resp.clear();
 //			reply_err_return(ret);
@@ -455,7 +455,7 @@ int proc_del(const Context &ctx, Link *link, const Request &req, Response *resp)
 	CHECK_NUM_PARAMS(2);
 
 	Locking<Mutex> l(&serv->ssdb->expiration->mutex);
-	int ret = serv->ssdb->del(req[1]);
+	int ret = serv->ssdb->del(ctx, req[1]);
 	check_key(ret);
 	if(ret < 0){
 		reply_err_return(ret);
@@ -489,9 +489,9 @@ int proc_scan(const Context &ctx, Link *link, const Request &req, Response *resp
 		std::string key = (*it).String();
 		strtolower(&key);
 
-		if (key=="match") {
+		if (ctx, key=="match") {
 			pattern = (*(it+1)).String();
-		} else if (key=="count") {
+		} else if (ctx, key=="count") {
 			limit =  (*(it+1)).Uint64();
 			if (errno == EINVAL){
 				reply_err_return(INVALID_INT);
@@ -543,14 +543,14 @@ int proc_ssdb_scan(const Context &ctx, Link *link, const Request &req, Response 
 		std::string key = (*it).String();
 		strtolower(&key);
 
-		if (key=="match") {
+		if (ctx, key=="match") {
 			pattern = (*(it+1)).String();
-		} else if (key=="count") {
+		} else if (ctx, key=="count") {
 			limit =  (*(it+1)).Uint64();
 			if (errno == EINVAL){
 				reply_err_return(INVALID_INT);
 			}
-		} else if (key=="value") {
+		} else if (ctx, key=="value") {
 			std::string has_value_s = (*(it+1)).String();
 			strtolower(&has_value_s);
 
@@ -614,7 +614,7 @@ int proc_keys(const Context &ctx, Link *link, const Request &req, Response *resp
 }
 
 // dir := +1|-1
-static int _incr(SSDB *ssdb, const Request &req, Response *resp, int dir){
+static int _incr(const Context &ctx, SSDB *ssdb, const Request &req, Response *resp, int dir){
 	CHECK_NUM_PARAMS(2);
 	int64_t by = 1;
 	if(req.size() > 2){
@@ -624,7 +624,7 @@ static int _incr(SSDB *ssdb, const Request &req, Response *resp, int dir){
 		}
 	}
 	int64_t new_val;
-	int ret = ssdb->incr(req[1], dir * by, &new_val);
+	int ret = ssdb->incr(ctx, req[1], dir * by, &new_val);
 	if(ret < 0){
 		reply_err_return(ret);
 	}else{
@@ -644,7 +644,7 @@ int proc_incrbyfloat(const Context &ctx, Link *link, const Request &req, Respons
 
 	long double new_val = 0.0L;
 
-	int ret = serv->ssdb->incrbyfloat(req[1], by, &new_val);
+	int ret = serv->ssdb->incrbyfloat(ctx, req[1], by, &new_val);
 	if(ret < 0){
 		reply_err_return(ret);
 	}else{
@@ -656,12 +656,12 @@ int proc_incrbyfloat(const Context &ctx, Link *link, const Request &req, Respons
 
 int proc_incr(const Context &ctx, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *) ctx.net->data;
-	return _incr(serv->ssdb, req, resp, 1);
+	return _incr(ctx, serv->ssdb, req, resp, 1);
 }
 
 int proc_decr(const Context &ctx, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *) ctx.net->data;
-	return _incr(serv->ssdb, req, resp, -1);
+	return _incr(ctx, serv->ssdb, req, resp, -1);
 }
 
 int proc_getbit(const Context &ctx, Link *link, const Request &req, Response *resp){
@@ -675,7 +675,7 @@ int proc_getbit(const Context &ctx, Link *link, const Request &req, Response *re
     }
 
 	int res = 0;
-	int ret = serv->ssdb->getbit(req[1], (int64_t)offset, &res);
+	int ret = serv->ssdb->getbit(ctx, req[1], (int64_t)offset, &res);
 	check_key(ret);
 	if(ret < 0) {
 		reply_err_return(ret);
@@ -690,7 +690,7 @@ int proc_setbit(const Context &ctx, Link *link, const Request &req, Response *re
 	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(4);
 
-	const Bytes &key = req[1];
+	const Bytes &name = req[1];
 	long long offset;
 	string2ll(req[2].data(), (size_t)req[2].size(), &offset);
 
@@ -704,7 +704,7 @@ int proc_setbit(const Context &ctx, Link *link, const Request &req, Response *re
 	}
 
 	int res = 0;
-	int ret = serv->ssdb->setbit(key, (int64_t)offset, on, &res);
+	int ret = serv->ssdb->setbit(ctx, name, (int64_t)offset, on, &res);
 	check_key(ret);
 	if(ret < 0) {
 		reply_err_return(ret);
@@ -725,7 +725,7 @@ int proc_countbit(const Context &ctx, Link *link, const Request &req, Response *
 		start = req[2].Int();
 	}
 	std::string val;
-	int ret = serv->ssdb->get(key, &val);
+	int ret = serv->ssdb->get(ctx, key, &val);
 	check_key(ret);
 	if(ret < 0){
 		reply_err_return(ret);
@@ -752,7 +752,7 @@ int proc_bitcount(const Context &ctx, Link *link, const Request &req, Response *
 	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(2);
 
-	const Bytes &key = req[1];
+	const Bytes &name = req[1];
 	int start = 0;
 	if(req.size() > 2){
 		start = req[2].Int();
@@ -768,7 +768,7 @@ int proc_bitcount(const Context &ctx, Link *link, const Request &req, Response *
 		}
 	}
 	std::string val;
-	int ret = serv->ssdb->get(key, &val);
+	int ret = serv->ssdb->get(ctx, name, &val);
 	check_key(ret);
 	if(ret < 0){
 		reply_err_return(ret);
@@ -785,7 +785,7 @@ int proc_getrange(const Context &ctx, Link *link, const Request &req, Response *
 	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(4);
 
-	const Bytes &key = req[1];
+	const Bytes &name = req[1];
 	int64_t start = req[2].Int64();
 	if (errno == EINVAL){
 		reply_err_return(INVALID_INT);
@@ -798,7 +798,7 @@ int proc_getrange(const Context &ctx, Link *link, const Request &req, Response *
 	}
 
 	std::pair<std::string, bool> val;
-	int ret = serv->ssdb->getrange(key, start, end, val);
+	int ret = serv->ssdb->getrange(ctx, name, start, end, val);
 	check_key(ret);
 	if(ret < 0){
 		reply_err_return(ret);
@@ -829,7 +829,7 @@ int proc_setrange(const Context &ctx, Link *link, const Request &req, Response *
 
 	uint64_t new_len = 0;
 
-	int ret = serv->ssdb->setrange(req[1], start, req[3], &new_len);
+	int ret = serv->ssdb->setrange(ctx, req[1], start, req[3], &new_len);
 	if(ret < 0){
 		reply_err_return(ret);
 	} else{
@@ -842,9 +842,9 @@ int proc_strlen(const Context &ctx, Link *link, const Request &req, Response *re
 	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(2);
 
-	const Bytes &key = req[1];
+	const Bytes &name = req[1];
 	std::string val;
-	int ret = serv->ssdb->get(key, &val);
+	int ret = serv->ssdb->get(ctx, name, &val);
 	check_key(ret);
 	if(ret < 0) {
 		reply_err_return(ret);

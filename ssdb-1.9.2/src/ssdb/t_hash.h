@@ -9,7 +9,7 @@
 
 
 template <typename T>
-int SSDBImpl::hmsetNoLock(const Bytes &name, const std::map<T ,T> &kvs, bool check_exists) {
+int SSDBImpl::hmsetNoLock(const Context &ctx, const Bytes &name, const std::map<T ,T> &kvs, bool check_exists) {
 
     leveldb::WriteBatch batch;
 
@@ -39,7 +39,7 @@ int SSDBImpl::hmsetNoLock(const Bytes &name, const std::map<T ,T> &kvs, bool che
 
     }
 
-    int iret = incr_hsize(batch, meta_key , hv, name, sum);
+    int iret = incr_hsize(ctx, name, batch, meta_key, hv, sum);
     if (iret < 0) {
         return iret;
     } else if (iret == 0) {

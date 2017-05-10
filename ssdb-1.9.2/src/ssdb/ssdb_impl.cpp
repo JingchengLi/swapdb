@@ -233,7 +233,7 @@ void SSDBImpl::ReleaseSnapshot(const leveldb::Snapshot* snapshot) {
 
 /* raw operates */
 
-int SSDBImpl::raw_set(const Bytes &key, const Bytes &val){
+int SSDBImpl::raw_set(const Context &ctx, const Bytes &key, const Bytes &val){
 	leveldb::WriteOptions write_opts;
 	leveldb::Status s = ldb->Put(write_opts, slice(key), slice(val));
 	if(!s.ok()){
@@ -243,7 +243,7 @@ int SSDBImpl::raw_set(const Bytes &key, const Bytes &val){
 	return 1;
 }
 
-int SSDBImpl::raw_del(const Bytes &key){
+int SSDBImpl::raw_del(const Context &ctx, const Bytes &key){
 	leveldb::WriteOptions write_opts;
 	leveldb::Status s = ldb->Delete(write_opts, slice(key));
 	if(!s.ok()){
@@ -253,7 +253,7 @@ int SSDBImpl::raw_del(const Bytes &key){
 	return 1;
 }
 
-int SSDBImpl::raw_get(const Bytes &key, std::string *val){
+int SSDBImpl::raw_get(const Context &ctx, const Bytes &key, std::string *val){
 	leveldb::ReadOptions opts;
 	opts.fill_cache = false;
 	leveldb::Status s = ldb->Get(opts, slice(key), val);
@@ -310,7 +310,7 @@ std::vector<std::string> SSDBImpl::info(){
     for(int i=0; i<7; i++){
         char buf[128];
         snprintf(buf, sizeof(buf), "rocksdb.num-files-at-level%d", i);
-        keys.push_back(buf);
+        keys.push_back(std::string(buf));
     }
 
     keys.push_back("rocksdb.stats");

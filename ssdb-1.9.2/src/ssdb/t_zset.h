@@ -9,7 +9,7 @@
 #include "ssdb_impl.h"
 
 template <typename T>
-int SSDBImpl::zsetNoLock(const Bytes &name, const std::map<T, T> &sortedSet, int flags, int64_t *num) {
+int SSDBImpl::zsetNoLock(const Context &ctx, const Bytes &name, const std::map<T, T> &sortedSet, int flags, int64_t *num) {
     int incr = (flags & ZADD_INCR) != 0;
     int nx = (flags & ZADD_NX) != 0;
     int xx = (flags & ZADD_XX) != 0;
@@ -75,7 +75,7 @@ int SSDBImpl::zsetNoLock(const Bytes &name, const std::map<T, T> &sortedSet, int
         if (!(retflags & ZADD_NOP)) processed++;
     }
 
-    int iret = incr_zsize(batch, zv, name, added);
+    int iret = incr_zsize(ctx, name, batch, zv, added);
     if (iret < 0) {
         log_error("incr_zsize error");
         return iret;

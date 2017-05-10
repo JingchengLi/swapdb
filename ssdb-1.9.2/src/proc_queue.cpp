@@ -13,7 +13,7 @@ int proc_qsize(const Context &ctx, Link *link, const Request &req, Response *res
 	CHECK_NUM_PARAMS(2);
 
 	uint64_t len = 0;
-	int ret = serv->ssdb->LLen(req[1], &len);
+	int ret = serv->ssdb->LLen(ctx, req[1], &len);
 	check_key(ret);
     if (ret < 0) {
 		reply_err_return(ret);
@@ -31,7 +31,7 @@ int proc_qpush_frontx(const Context &ctx, Link *link, const Request &req, Respon
 
 	const Bytes &name = req[1];
 	uint64_t len = 0;
-	int ret = serv->ssdb->LPushX(name, req, 2, &len);
+	int ret = serv->ssdb->LPushX(ctx, name, req, 2, &len);
 	check_key(ret);
     if (ret < 0) {
 		reply_err_return(ret);
@@ -49,7 +49,7 @@ int proc_qpush_front(const Context &ctx, Link *link, const Request &req, Respons
 
 	const Bytes &name = req[1];
  	uint64_t len = 0;
-	int ret = serv->ssdb->LPush(name, req, 2, &len);
+	int ret = serv->ssdb->LPush(ctx, name, req, 2, &len);
     if (ret < 0) {
 		reply_err_return(ret);
 	} else {
@@ -64,7 +64,7 @@ int proc_qpush_backx(const Context &ctx, Link *link, const Request &req, Respons
 	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
 	uint64_t len = 0;
-	int ret = serv->ssdb->RPushX(req[1], req, 2, &len);
+	int ret = serv->ssdb->RPushX(ctx, req[1], req, 2, &len);
 	check_key(ret);
     if (ret < 0) {
 		reply_err_return(ret);
@@ -81,7 +81,7 @@ int proc_qpush_back(const Context &ctx, Link *link, const Request &req, Response
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
     uint64_t len = 0;
-    int ret = serv->ssdb->RPush(req[1], req, 2, &len);
+    int ret = serv->ssdb->RPush(ctx, req[1], req, 2, &len);
     if (ret < 0) {
 		reply_err_return(ret);
 	} else {
@@ -99,7 +99,7 @@ int proc_qpop_front(const Context &ctx, Link *link, const Request &req, Response
 	const Bytes &name = req[1];
 
 	std::pair<std::string, bool> val;
-	int ret = serv->ssdb->LPop(name, val);
+	int ret = serv->ssdb->LPop(ctx, name, val);
 	check_key(ret);
     if (ret < 0) {
 		reply_err_return(ret);
@@ -120,7 +120,7 @@ int proc_qpop_back(const Context &ctx, Link *link, const Request &req, Response 
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
 	std::pair<std::string, bool> val;
-    int ret = serv->ssdb->RPop(req[1], val);
+    int ret = serv->ssdb->RPop(ctx, req[1], val);
 	check_key(ret);
     if (ret < 0) {
 		reply_err_return(ret);
@@ -152,7 +152,7 @@ int proc_qtrim(const Context &ctx, Link *link, const Request &req, Response *res
 	}
 
 
-	int ret = serv->ssdb->ltrim(req[1], begin, end);
+	int ret = serv->ssdb->ltrim(ctx, req[1], begin, end);
 	check_key(ret);
 	if (ret < 0){
 		resp->resp.clear();
@@ -181,7 +181,7 @@ int proc_qslice(const Context &ctx, Link *link, const Request &req, Response *re
 	}
 
 	resp->reply_list_ready();
-	int ret = serv->ssdb->lrange(req[1], begin, end, resp->resp);
+	int ret = serv->ssdb->lrange(ctx, req[1], begin, end, resp->resp);
 	check_key(ret);
 	if (ret < 0){
 		resp->resp.clear();
@@ -201,7 +201,7 @@ int proc_qget(const Context &ctx, Link *link, const Request &req, Response *resp
 	}
 
 	std::pair<std::string, bool> val;
-	int ret = serv->ssdb->LIndex(req[1], index, val);
+	int ret = serv->ssdb->LIndex(ctx, req[1], index, val);
 	check_key(ret);
     if (ret < 0) {
 		reply_err_return(ret);
@@ -227,7 +227,7 @@ int proc_qset(const Context &ctx, Link *link, const Request &req, Response *resp
 	}
 
 	const Bytes &item = req[3];
-	int ret = serv->ssdb->LSet(name, index, item);
+	int ret = serv->ssdb->LSet(ctx, name, index, item);
 	check_key(ret);
 	if(ret < 0){
 		reply_err_return(ret);

@@ -52,7 +52,7 @@ void ExpirationHandler::stop() {
     first_timeout = 0;
 }
 
-int ExpirationHandler::expire(const Bytes &key, int64_t ttl, TimeUnit tu) {
+int ExpirationHandler::expire(const Context &ctx, const Bytes &key, int64_t ttl, TimeUnit tu) {
 
     if (tu == TimeUnit::Second) {
         if (INT64_MAX / 1000 <= ttl) { return INVALID_EX_TIME; }
@@ -67,17 +67,17 @@ int ExpirationHandler::expire(const Bytes &key, int64_t ttl, TimeUnit tu) {
 
     int64_t pexpireat = time_ms() + ttl;
     if (pexpireat <= time_ms()) {
-        int r = ssdb->del(key); // <0 for err , 0 for nothing , 1 for deleted
+        int r = ssdb->del(ctx, key); // <0 for err , 0 for nothing , 1 for deleted
         return r;
     }
 
-    return expireAt(key, pexpireat);
+    return expireAt(ctx, key, pexpireat);
 }
 
 
-int ExpirationHandler::expireAt(const Bytes &key, int64_t ts_ms) {
+int ExpirationHandler::expireAt(const Context &ctx, const Bytes &key, int64_t ts_ms) {
 
-    int ret = ssdb->eset(key, ts_ms);
+    int ret = ssdb->eset(ctx, key, ts_ms);
     if (ret <= 0) {
         return ret;
     }
@@ -100,25 +100,25 @@ int ExpirationHandler::expireAt(const Bytes &key, int64_t ts_ms) {
 }
 
 
-int ExpirationHandler::persist(const Bytes &key) {
+int ExpirationHandler::persist(const Context &ctx, const Bytes &key) {
     // 这样用是有 bug 的, 虽然 fast_keys 为空, 不代表整个 ttl 队列为空
     // if(!this->fast_keys.empty()){
     int ret = 0;
     if (first_timeout != INT64_MAX) {
         fast_keys.del(key.String());
-        ret = ssdb->edel(key);
+        ret = ssdb->edel(ctx, key);
     }
     return ret;
 }
 
-int64_t ExpirationHandler::pttl(const Bytes &key, TimeUnit tu) {
+int64_t ExpirationHandler::pttl(const Context &ctx, const Bytes &key, TimeUnit tu) {
     int64_t ex = 0;
     int64_t ttl = 0;
-    int ret = ssdb->check_meta_key(key);
+    int ret = ssdb->check_meta_key(ctx, key);
     if (ret <= 0) {
         return -2;
     }
-    ret = ssdb->eget(key, &ex);
+    ret = ssdb->eget(ctx, key, &ex);
     if (ret == 1) {
         ttl = ex - time_ms();
         if (ttl < 0) return -2;
@@ -159,6 +159,7 @@ void ExpirationHandler::expire_loop() {
     if (!this->ssdb) {
         return;
     }
+    Context ctx;
 
     if (this->fast_keys.empty()) {
         this->load_expiration_keys_from_db(BATCH_SIZE);
@@ -175,7 +176,8 @@ void ExpirationHandler::expire_loop() {
 
         if (score <= time_ms()) {
             log_debug("expired %s", hexstr(key).c_str());
-            ssdb->del(key);
+
+            ssdb->del(ctx, key);
 //            ssdb->edel(key); //moved to ssdb->del(key)
             this->fast_keys.pop_front();
         }

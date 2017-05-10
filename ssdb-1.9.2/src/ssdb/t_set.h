@@ -8,7 +8,7 @@
 #include "ssdb_impl.h"
 
 template <typename T>
-int SSDBImpl::saddNoLock(const Bytes &key, const std::set<T> &mem_set, int64_t *num) {
+int SSDBImpl::saddNoLock(const Context &ctx, const Bytes &key, const std::set<T> &mem_set, int64_t *num) {
     leveldb::WriteBatch batch;
 
     int ret = 0;
@@ -43,7 +43,7 @@ int SSDBImpl::saddNoLock(const Bytes &key, const std::set<T> &mem_set, int64_t *
         *num += change;
     }
 
-    int iret = incr_ssize(batch, sv, meta_key, key, *num);
+    int iret = incr_ssize(ctx, key, batch, sv, meta_key, *num);
     if (iret < 0) {
         return iret;
     } else if (iret == 0) {

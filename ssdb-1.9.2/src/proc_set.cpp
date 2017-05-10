@@ -17,7 +17,7 @@ int proc_sadd(const Context &ctx, Link *link, const Request &req, Response *resp
 
     int64_t num = 0;
 
-    int ret = serv->ssdb->sadd(name, mem_set, &num);
+    int ret = serv->ssdb->sadd(ctx, name, mem_set, &num);
     if (ret < 0) {
         reply_err_return(ret);
     } else {
@@ -36,7 +36,7 @@ int proc_srem(const Context &ctx, Link *link, const Request &req, Response *resp
 
     int64_t num = 0;
 
-    int ret = serv->ssdb->srem(name, req, &num);
+    int ret = serv->ssdb->srem(ctx, name, req, &num);
     check_key(ret);
     if (ret < 0) {
         reply_err_return(ret);
@@ -53,7 +53,7 @@ int proc_scard(const Context &ctx, Link *link, const Request &req, Response *res
 
     uint64_t len = 0;
 
-    int ret = serv->ssdb->scard(req[1], &len);
+    int ret = serv->ssdb->scard(ctx, req[1], &len);
     check_key(ret);
     if (ret < 0) {
         reply_err_return(ret);
@@ -70,7 +70,7 @@ int proc_sismember(const Context &ctx, Link *link, const Request &req, Response 
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
     bool ismember = false;
-    int ret = serv->ssdb->sismember(req[1], req[2], &ismember);
+    int ret = serv->ssdb->sismember(ctx, req[1], req[2], &ismember);
     check_key(ret);
     if (ret < 0) {
         reply_err_return(ret);
@@ -89,7 +89,7 @@ int proc_smembers(const Context &ctx, Link *link, const Request &req, Response *
 
     resp->reply_list_ready();
 
-    int ret = serv->ssdb->smembers(req[1],  resp->resp);
+    int ret = serv->ssdb->smembers(ctx, req[1],  resp->resp);
     check_key(ret);
     if (ret < 0){
         resp->resp.clear();
@@ -114,7 +114,7 @@ int proc_spop(const Context &ctx, Link *link, const Request &req, Response *resp
 
     resp->reply_list_ready();
 
-    int ret = serv->ssdb->spop(req[1], resp->resp, pop_count);
+    int ret = serv->ssdb->spop(ctx, req[1], resp->resp, pop_count);
     check_key(ret);
     if (ret < 0){
         resp->resp.clear();
@@ -140,7 +140,7 @@ int proc_srandmember(const Context &ctx, Link *link, const Request &req, Respons
 
     resp->reply_list_ready();
 
-    int ret = serv->ssdb->srandmember(req[1], resp->resp, count);
+    int ret = serv->ssdb->srandmember(ctx, req[1], resp->resp, count);
     check_key(ret);
     if (ret < 0){
         resp->resp.clear();
@@ -186,7 +186,7 @@ int proc_sscan(const Context &ctx, Link *link, const Request &req, Response *res
     }
     resp->reply_scan_ready();
 
-    int ret =  serv->ssdb->sscan(req[1], cursor, pattern, limit, resp->resp);
+    int ret =  serv->ssdb->sscan(ctx, req[1], cursor, pattern, limit, resp->resp);
     check_key(ret);
     if (ret < 0) {
         resp->resp.clear();

@@ -15,7 +15,7 @@ int proc_hexists(const Context &ctx, Link *link, const Request &req, Response *r
     const Bytes &name = req[1];
     const Bytes &key = req[2];
     std::pair<std::string, bool> val;
-    int ret = serv->ssdb->hget(name, key, val);
+    int ret = serv->ssdb->hget(ctx, name, key, val);
     check_key(ret);
     if (ret < 0) {
         reply_err_return(ret);
@@ -44,7 +44,7 @@ int proc_hmset(const Context &ctx, Link *link, const Request &req, Response *res
         kvs[key] = val;
     }
 
-    int ret = serv->ssdb->hmset(name, kvs);
+    int ret = serv->ssdb->hmset(ctx, name, kvs);
     check_key(ret);
     if (ret < 0) {
         reply_err_return(ret);
@@ -59,7 +59,7 @@ int proc_hdel(const Context &ctx, Link *link, const Request &req, Response *resp
     CHECK_NUM_PARAMS(3);
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
-    const Bytes &key = req[1];
+    const Bytes &name = req[1];
 
     std::set<Bytes> fields;
     for (int j = 2; j < req.size(); ++j) {
@@ -67,7 +67,7 @@ int proc_hdel(const Context &ctx, Link *link, const Request &req, Response *resp
     }
 
     int deleted = 0;
-    int ret = serv->ssdb->hdel(key, fields, &deleted);
+    int ret = serv->ssdb->hdel(ctx, name, fields, &deleted);
     check_key(ret);
     if (ret < 0) {
         reply_err_return(ret);
@@ -93,7 +93,7 @@ int proc_hmget(const Context &ctx, Link *link, const Request &req, Response *res
         reqKeys.push_back(key.String());
     }
 
-    int ret = serv->ssdb->hmget(name, reqKeys, resMap);
+    int ret = serv->ssdb->hmget(ctx, name, reqKeys, resMap);
     check_key(ret);
     if (ret == 1) {
         resp->reply_list_ready();
@@ -126,7 +126,7 @@ int proc_hsize(const Context &ctx, Link *link, const Request &req, Response *res
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
     uint64_t size = 0;
-    int ret = serv->ssdb->hsize(req[1], &size);
+    int ret = serv->ssdb->hsize(ctx, req[1], &size);
     check_key(ret);
     if (ret < 0) {
         reply_err_return(ret);
@@ -142,7 +142,7 @@ int proc_hset(const Context &ctx, Link *link, const Request &req, Response *resp
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
     int added = 0;
-    int ret = serv->ssdb->hset(req[1], req[2], req[3], &added);
+    int ret = serv->ssdb->hset(ctx, req[1], req[2], req[3], &added);
 //    check_key(ret);
     if (ret < 0) {
         reply_err_return(ret);
@@ -160,7 +160,7 @@ int proc_hsetnx(const Context &ctx, Link *link, const Request &req, Response *re
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
     int added = 0;
-    int ret = serv->ssdb->hsetnx(req[1], req[2], req[3], &added);
+    int ret = serv->ssdb->hsetnx(ctx, req[1], req[2], req[3], &added);
     check_key(ret);
     if (ret < 0) {
         reply_err_return(ret);
@@ -179,7 +179,7 @@ int proc_hget(const Context &ctx, Link *link, const Request &req, Response *resp
 
 
     std::pair<std::string, bool> val;
-    int ret = serv->ssdb->hget(req[1], req[2], val);
+    int ret = serv->ssdb->hget(ctx, req[1], req[2], val);
     check_key(ret);
     if (ret < 0) {
         reply_err_return(ret);
@@ -201,7 +201,7 @@ int proc_hgetall(const Context &ctx, Link *link, const Request &req, Response *r
 
 
     std::map<std::string, std::string> resMap;
-    int ret = serv->ssdb->hgetall(req[1], resMap);
+    int ret = serv->ssdb->hgetall(ctx, req[1], resMap);
     check_key(ret);
     if (ret < 0) {
         reply_err_return(ret);
@@ -257,7 +257,7 @@ int proc_hscan(const Context &ctx, Link *link, const Request &req, Response *res
     }
     resp->reply_scan_ready();
 
-    int ret = serv->ssdb->hscan(req[1], cursor, pattern, limit, resp->resp);
+    int ret = serv->ssdb->hscan(ctx, req[1], cursor, pattern, limit, resp->resp);
     check_key(ret);
     if (ret < 0) {
         resp->resp.clear();
@@ -276,7 +276,7 @@ int proc_hkeys(const Context &ctx, Link *link, const Request &req, Response *res
 //	uint64_t limit = req[4].Uint64();
 
     std::map<std::string, std::string> resMap;
-    int ret = serv->ssdb->hgetall(req[1], resMap);
+    int ret = serv->ssdb->hgetall(ctx, req[1], resMap);
     check_key(ret);
     if (ret < 0) {
         reply_err_return(ret);
@@ -305,7 +305,7 @@ int proc_hvals(const Context &ctx, Link *link, const Request &req, Response *res
 //	uint64_t limit = req[4].Uint64();
 
     std::map<std::string, std::string> resMap;
-    int ret = serv->ssdb->hgetall(req[1], resMap);
+    int ret = serv->ssdb->hgetall(ctx, req[1], resMap);
     check_key(ret);
     if (ret < 0) {
         reply_err_return(ret);
@@ -336,7 +336,7 @@ int proc_hincrbyfloat(const Context &ctx, Link *link, const Request &req, Respon
     }
 
     long double new_val;
-    int ret = serv->ssdb->hincrbyfloat(req[1], req[2], by, &new_val);
+    int ret = serv->ssdb->hincrbyfloat(ctx, req[1], req[2], by, &new_val);
     if (ret < 0) {
         reply_err_return(ret);
     } else {
@@ -357,7 +357,7 @@ int proc_hincr(const Context &ctx, Link *link, const Request &req, Response *res
     }
 
     int64_t new_val = 0;
-    int ret = serv->ssdb->hincr(req[1], req[2], by, &new_val);
+    int ret = serv->ssdb->hincr(ctx, req[1], req[2], by, &new_val);
     if (ret < 0) {
         reply_err_return(ret);
     } else {

@@ -8,6 +8,7 @@
 int notifyFailedToRedis(RedisUpstream *redisUpstream, std::string responseCommand, std::string dataKey);
 int notifyNotFoundToRedis(RedisUpstream *redisUpstream, std::string responseCommand, std::string dataKey);
 
+static Context ctx;
 
 int bproc_COMMAND_DATA_SAVE(SSDBServer *serv, TransferWorker *worker, const std::string &data_key, void *value) {
     const std::string cmd = "ssdb-resp-dump";
@@ -21,7 +22,7 @@ int bproc_COMMAND_DATA_SAVE(SSDBServer *serv, TransferWorker *worker, const std:
     std::string val;
 
     PTST(restore, 0.03)
-    int ret = serv->ssdb->restore(dumpData->key, dumpData->expire, dumpData->data, dumpData->replace, &val);
+    int ret = serv->ssdb->restore(ctx, dumpData->key, dumpData->expire, dumpData->data, dumpData->replace, &val);
     PTE(restore, hexstr(data_key))
 
 
@@ -32,12 +33,12 @@ int bproc_COMMAND_DATA_SAVE(SSDBServer *serv, TransferWorker *worker, const std:
 
     if (ret > 0 && pttl > 0) {
         Locking<Mutex> l(&serv->ssdb->expiration->mutex);
-        ret = serv->ssdb->expiration->expire(dumpData->key, pttl, TimeUnit::Millisecond);
+        ret = serv->ssdb->expiration->expire(ctx, dumpData->key, pttl, TimeUnit::Millisecond);
     }
 
     if (ret < 0) {
         //notify failed
-        serv->ssdb->del(dumpData->key);
+        serv->ssdb->del(ctx, dumpData->key);
         return notifyFailedToRedis(worker->redisUpstream, cmd, data_key);
     }
 
@@ -67,7 +68,7 @@ int bproc_COMMAND_DATA_DUMP(SSDBServer *serv, TransferWorker *worker, const std:
     std::string val;
 
     PTST(dump, 0.03)
-    int ret = serv->ssdb->dump(data_key, &val);
+    int ret = serv->ssdb->dump(ctx, data_key, &val);
     PTE(dump, hexstr(data_key))
 
 
@@ -82,7 +83,7 @@ int bproc_COMMAND_DATA_DUMP(SSDBServer *serv, TransferWorker *worker, const std:
 
     } else {
 
-        int64_t pttl = serv->ssdb->expiration->pttl(data_key, TimeUnit::Millisecond);
+        int64_t pttl = serv->ssdb->expiration->pttl(ctx, data_key, TimeUnit::Millisecond);
         if (pttl < 0) {
             pttl = 0; //not sure
         }
@@ -102,7 +103,7 @@ int bproc_COMMAND_DATA_DUMP(SSDBServer *serv, TransferWorker *worker, const std:
 
 
         if (t_res->isOk()) {
-            serv->ssdb->del(data_key);
+            serv->ssdb->del(ctx, data_key);
         }
 
         delete t_res;
