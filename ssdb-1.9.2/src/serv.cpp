@@ -12,6 +12,7 @@ found in the LICENSE file.
 #include "util/bytes.h"
 #include "net/proc.h"
 #include "net/server.h"
+#include "replication.h"
 
 extern "C" {
 #include <redis/zmalloc.h>
@@ -127,10 +128,11 @@ DEF_PROC(client);
 DEF_PROC(quit);
 DEF_PROC(replic);
 DEF_PROC(replic_info);
-DEF_PROC(sync150);
 DEF_PROC(slowlog);
 DEF_PROC(ssdb_scan);
 DEF_PROC(ssdb_dbsize);
+DEF_PROC(ssdb_sync);
+
 DEF_PROC(redis_req_dump);
 DEF_PROC(redis_req_restore);
 DEF_PROC(rr_do_flushall);
@@ -261,7 +263,6 @@ void SSDBServer::reg_procs(NetworkServer *net) {
     REG_PROC(quit, "r");
     REG_PROC(replic, "b");
     REG_PROC(replic_info, "r");
-    REG_PROC(sync150, "r");
 
 
     REG_PROC(dreply, "r");
@@ -279,6 +280,7 @@ void SSDBServer::reg_procs(NetworkServer *net) {
 
     REG_PROC(ssdb_scan, "wt");
     REG_PROC(ssdb_dbsize, "wt");
+    REG_PROC(ssdb_sync, "b");
 
     REG_PROC(rr_do_flushall, "wt");
     REG_PROC(rr_flushall_check, "wt");
@@ -739,151 +741,6 @@ int proc_replic(NetworkServer *net, Link *link, const Request &req, Response *re
     return PROC_BACKEND;
 }
 
-static int ssdb_load_len(const char *data, int *offset, uint64_t *lenptr) {
-    unsigned char buf[2];
-    buf[0] = (unsigned char) data[0];
-    buf[1] = (unsigned char) data[1];
-    int type;
-    type = (buf[0] & 0xC0) >> 6;
-    if (type == RDB_ENCVAL) {
-        /* Read a 6 bit encoding type. */
-        *lenptr = buf[0] & 0x3F;
-        *offset = 1;
-    } else if (type == RDB_6BITLEN) {
-        /* Read a 6 bit len. */
-        *lenptr = buf[0] & 0x3F;
-        *offset = 1;
-    } else if (type == RDB_14BITLEN) {
-        /* Read a 14 bit len. */
-        *lenptr = ((buf[0] & 0x3F) << 8) | buf[1];
-        *offset = 2;
-    } else if (buf[0] == RDB_32BITLEN) {
-        /* Read a 32 bit len. */
-        uint32_t len;
-        len = *(uint32_t *) (data + 1);
-        *lenptr = be32toh(len);
-        *offset = 1 + sizeof(uint32_t);
-    } else if (buf[0] == RDB_64BITLEN) {
-        /* Read a 64 bit len. */
-        uint64_t len;
-        len = *(uint64_t *) (data + 1);
-        *lenptr = be64toh(len);
-        *offset = 1 + sizeof(uint64_t);
-    } else {
-        printf("Unknown length encoding %d in rdbLoadLen()", type);
-        return -1; /* Never reached. */
-    }
-    return 0;
-}
-
-int proc_sync150(NetworkServer *net, Link *link, const Request &req, Response *resp) {
-    SSDBServer *serv = (SSDBServer *) net->data;
-    std::vector<std::string> kvs;
-    int ret = 0;
-    bool complete = false;
-
-    while (link->input->size() > 1) {
-        Decoder decoder(link->input->data(), link->input->size());
-//        char *data = link->input->data();
-//        int size = link->input->size();
-        int oper_offset = 0, raw_size_offset = 0, compressed_offset = 0;
-        uint64_t oper_len = 0, raw_len = 0, compressed_len = 0;
-
-        if (ssdb_load_len(decoder.data(), &oper_offset, &oper_len) == -1) {
-            return -1;
-        }
-        decoder.skip(oper_offset);
-
-        if (decoder.size() < ((int) oper_len)) {
-            link->input->grow();
-            break;
-        }
-
-        std::string oper(decoder.data(), oper_len);
-        decoder.skip((int)oper_len);
-
-        if (oper == "mset") {
-
-            if (decoder.size() < 1) {link->input->grow(); break; }
-            if (ssdb_load_len(decoder.data(), &raw_size_offset, &raw_len) == -1) {
-                return -1;
-            }
-            decoder.skip(raw_size_offset);
-
-            if (decoder.size() < 1) {link->input->grow(); break; }
-            if (ssdb_load_len(decoder.data(), &compressed_offset, &compressed_len) == -1) {
-                return -1;
-            }
-            decoder.skip(compressed_offset);
-
-            if (decoder.size() < (compressed_len)) {
-                link->input->grow();
-                break;
-            }
-
-            std::unique_ptr<char, cfree_delete<char>> t_val((char *)malloc(raw_len));
-
-            if (lzf_decompress(decoder.data(), compressed_len, t_val.get(), raw_len) == 0) {
-                return -1;
-            }
-
-            Decoder decoder_item(t_val.get(), raw_len);
-
-            uint64_t remian_length = raw_len;
-            while (remian_length > 0) {
-                int key_offset = 0, val_offset = 0;
-                uint64_t key_len = 0, val_len = 0;
-
-                if (ssdb_load_len(decoder_item.data(), &key_offset, &key_len) == -1) {
-                    return -1;
-                }
-                decoder_item.skip(key_offset);
-                std::string key(decoder_item.data(), key_len);
-                decoder_item.skip((int)key_len);
-                remian_length -= (key_offset + (int) key_len);
-
-                if (ssdb_load_len(decoder_item.data(),&val_offset, &val_len) == -1) {
-                    return -1;
-                }
-                decoder_item.skip(val_offset);
-                std::string value(decoder_item.data(), val_len);
-                decoder_item.skip((int) val_len);
-                remian_length -= (val_offset + (int) val_len);
-
-                kvs.push_back(key);
-                kvs.push_back(value);
-            }
-
-            decoder.skip(compressed_len);
-            link->input->decr(link->input->size() - decoder.size());
-
-            if (!kvs.empty()) {
-                log_debug("parse_replic count %d", kvs.size());
-                ret = serv->ssdb->parse_replic(kvs);
-                kvs.clear();
-            }
-
-        } else if (oper == "complete") {
-            link->input->decr(link->input->size() - decoder.size());
-            complete = true;
-        }
-    }
-
-    if (!kvs.empty()) {
-        log_debug("parse_replic count %d", kvs.size());
-        ret = serv->ssdb->parse_replic(kvs);
-    }
-
-    if (complete) {
-        resp->push_back("ok");
-        if (serv->ssdb->expiration != nullptr) {
-            serv->ssdb->expiration->start();
-        }
-        serv->ssdb->start();
-    }
-
-    return ret;
-}
 
 int proc_rr_check_write(NetworkServer *net, Link *link, const Request &req, Response *resp) {
     resp->push_back("ok");
@@ -1078,3 +935,25 @@ int proc_after_proc(NetworkServer *net, Link *link, const Request &req, Response
 
     return 0;
 }
+
+
+
+int proc_ssdb_sync(NetworkServer *net, Link *link, const Request &req, Response *resp){
+    SSDBServer *serv = (SSDBServer *) net->data;
+
+    log_info("ssdb_sync , link address:%lld", link);
+
+    ReplicationJob *job = new ReplicationJob(serv, HostAndPort{link->remote_ip, link->remote_port}, link);
+//	net->replication->push(job);
+
+    pthread_t tid;
+    int err = pthread_create(&tid, NULL, &ssdb_sync, job);
+    if (err != 0) {
+        log_fatal("can't create thread: %s", strerror(err));
+        exit(0);
+    }
+
+    resp->resp.clear(); //prevent send resp
+    return PROC_BACKEND;
+}
+

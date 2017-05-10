@@ -254,6 +254,7 @@ src/proc_zset.cpp
 src/proc_queue.cpp
 src/serv.cpp
 src/replication.cpp
+src/replication_slave.cpp
 )
 
 ADD_EXECUTABLE(ssdb-server ${SRC_OBJS})

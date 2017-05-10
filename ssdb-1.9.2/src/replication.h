@@ -13,20 +13,26 @@
 #include <util/thread.h>
 #include <net/redis/redis_client.h>
 
-class SSDBServer;
 
+void *ssdb_sync(void *arg);
+
+int replic_decode_len(const char *data, int *offset, uint64_t *lenptr);
+std::string replic_save_len(uint64_t len);
+
+
+class SSDBServer;
 
 class ReplicationJob {
 public:
     SSDBServer *serv;
     HostAndPort hnp;
-    Link *upstreamRedis;
+    Link *upstream;
 
     int64_t ts  ;
 
     volatile bool quit = false;
 
-    ReplicationJob(SSDBServer *serv, const HostAndPort &hnp, Link *link) : serv(serv), hnp(hnp), upstreamRedis(link) {
+    ReplicationJob(SSDBServer *serv, const HostAndPort &hnp, Link *link) : serv(serv), hnp(hnp), upstream(link) {
         ts = time_ms();
     }
 

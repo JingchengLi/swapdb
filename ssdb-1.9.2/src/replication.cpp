@@ -16,8 +16,6 @@ extern "C" {
 
 void send_error_to_redis(Link *link);
 
-std::string ssdb_save_len(uint64_t len);
-
 void moveBuffer(Buffer *dst, Buffer *src);
 
 void saveStrToBuffer(Buffer *buffer, const Bytes &fit);
@@ -38,7 +36,7 @@ int ReplicationWorker::proc(ReplicationJob *job) {
 
     SSDBServer *serv = job->serv;
     HostAndPort hnp = job->hnp;
-    Link *master_link = job->upstreamRedis;
+    Link *master_link = job->upstream;
     const leveldb::Snapshot *snapshot = nullptr;
 
     log_info("[ReplicationWorker] send snapshot to %s:%d start!", hnp.ip.c_str(), hnp.port);
@@ -67,7 +65,7 @@ int ReplicationWorker::proc(ReplicationJob *job) {
     }
 
     ssdb_slave_link->noblock(false);
-    ssdb_slave_link->send(std::vector<std::string>({"sync150"}));
+    ssdb_slave_link->send(std::vector<std::string>({"ssdb_sync"}));
     ssdb_slave_link->write();
     ssdb_slave_link->response();
     ssdb_slave_link->noblock(true);
@@ -168,7 +166,7 @@ int ReplicationWorker::proc(ReplicationJob *job) {
 
                 delete ssdb_slave_link;
                 delete master_link;
-                job->upstreamRedis = nullptr;
+                job->upstream = nullptr;
 
                 {
                     //update replic stats
@@ -264,7 +262,7 @@ int ReplicationWorker::proc(ReplicationJob *job) {
 }
 
 void ReplicationWorker::reportError(ReplicationJob *job) {
-    send_error_to_redis(job->upstreamRedis);
+    send_error_to_redis(job->upstream);
     SSDBServer *serv = job->serv;
 
     {
@@ -274,8 +272,8 @@ void ReplicationWorker::reportError(ReplicationJob *job) {
             serv->replicState = REPLIC_END;
         }
     }
-    delete job->upstreamRedis;
-    job->upstreamRedis = nullptr; //reset
+    delete job->upstream;
+    job->upstream = nullptr; //reset
 }
 
 
@@ -286,7 +284,7 @@ void send_error_to_redis(Link *link) {
     }
 }
 
-std::string ssdb_save_len(uint64_t len) {
+std::string replic_save_len(uint64_t len) {
     std::string res;
 
     unsigned char buf[2];
@@ -319,7 +317,7 @@ std::string ssdb_save_len(uint64_t len) {
 
 
 void saveStrToBuffer(Buffer *buffer, const Bytes &fit) {
-    string val_len = ssdb_save_len((uint64_t) (fit.size()));
+    string val_len = replic_save_len((uint64_t) (fit.size()));
     buffer->append(val_len);
     buffer->append(fit);
 }
@@ -335,8 +333,8 @@ void moveBuffer(Buffer *dst, Buffer *src) {
 
     comprlen = lzf_compress(src->data(), (unsigned int) src->size(), out.get(), outlen);
 
-    dst->append(ssdb_save_len((uint64_t) src->size()));
-    dst->append(ssdb_save_len(comprlen));
+    dst->append(replic_save_len((uint64_t) src->size()));
+    dst->append(replic_save_len(comprlen));
     dst->append(out.get(), (int) comprlen);
 
     src->decr(src->size());

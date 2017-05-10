@@ -383,7 +383,7 @@ void NetworkServer::serve(){
                 }
 
 				HostAndPort hnp = job->hnp;
-				Link *master_link = job->upstreamRedis;
+				Link *master_link = job->upstream;
                 if (master_link != nullptr){
 					log_debug("before send finish rr_link address:%lld", master_link);
 
@@ -405,39 +405,6 @@ void NetworkServer::serve(){
                     delete job;
                 }
 
-            }else if (fde->data.num == 150){
-				Link* link = (Link*)fde->data.ptr;
-				Command *cmd = proc_map.get_proc("sync150");
-				if(!cmd){
-					link->output->append("client_error");
-					link->flush();
-					this->link_count--;
-					fdes->del(link->fd());
-					delete link;
-					continue;
-				}
-
-                int len = link->read(256 * 1024);
-                if (link->input->size() > 0) {
-                    proc_t p = cmd->proc;
-                    const Request req;
-					Response resp;
-                    int result = (*p)(this, link, req, &resp);
-					if (resp.size() > 0) {
-						link->output->append(resp.resp[0]);
-						link->write();
-						log_debug("reply replic finish ok!");
-					}
-                }
-
-                if(len <= 0){
-                    double serv_time = millitime() - link->create_time;
-                    log_debug("fd: %d, read: %d, delete link, s:%.3f", link->fd(), len, serv_time);
-                    this->link_count--;
-                    fdes->del(link->fd());
-                    delete link;
-                    continue;
-                }
             } else{
                 proc_client_event(fde, &ready_list);
             }
@@ -665,33 +632,6 @@ int NetworkServer::proc(ProcJob *job){
 		if(this->need_auth && job->link->auth == false && req->at(0) != "auth"){
 			job->resp.push_back("noauth");
 			job->resp.push_back("authentication required");
-			break;
-		}
-
-		if (req->at(0) == "sync150") {
-			int sock = job->link->fd();
-			fdes->del(sock);
-			fdes->set(sock, FDEVENT_IN, 150, job->link);
-
-			SSDBServer *serv = (SSDBServer *)(this->data);
-			if (serv->ssdb->expiration){
-				serv->ssdb->expiration->stop();
-			}
-			serv->ssdb->stop();
-
-			Command *cmd = proc_map.get_proc("flushdb");
-			if(!cmd){
-				job->link->output->append("flushdb error");
-				job->link->flush();
-				job->result = PROC_ERROR;
-				continue;
-			}
-			proc_t p = cmd->proc;
-			const Request req;
-			Response resp;
-			int result = (*p)(this, job->link, req, &resp);
-
-			job->resp.push_back("ok");
 			break;
 		}
 
