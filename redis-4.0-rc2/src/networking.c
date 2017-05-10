@@ -1652,7 +1652,7 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
 #endif
         }
 
-        /* Return early when the context has seen an error. */
+        /* encountered a read error. */
         if (c->context->err) {
             serverLog(LL_WARNING, "Error: Could not connect to SSDB, %s ", c->context->errstr);
             if (isSpecialConnection(c)) {
@@ -1734,6 +1734,14 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
         }
     } while (aux == NULL);
 
+    /* this is a protocol error, free the client. */
+    if (c->context->err) {
+        serverLog(LL_WARNING, "redis reader protocol error!");
+        freeClient(c);
+        return;
+    }
+    serverAssert(c->ssdb_replies[0] && c->ssdb_replies[1]);
+
     /* check if the second reply is 'check 0' or 'check 1' */
     if (c->ssdb_replies[1]) {
         redisReply* reply = c->ssdb_replies[1];
@@ -1743,21 +1751,10 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
              (element->type != REDIS_REPLY_STRING || (strcmp(element->str, "check 1") && strcmp(element->str, "check 0"))) ) {
             redisReaderSetSSDBCheckError(c->context->reader);
 
-            if (c->ssdb_replies[0]) {
-                freeReplyObject(c->ssdb_replies[0]);
-                c->ssdb_replies[0] = NULL;
-            }
-            if (c->ssdb_replies[1]) {
-                freeReplyObject(c->ssdb_replies[1]);
-                c->ssdb_replies[1] = NULL;
-            }
-
             freeClient(c);
             return;
         }
     }
-    if (!c->ssdb_replies[0] || !c->ssdb_replies[1])
-        goto clean;
 
     handleSSDBReply(c, first_reply_len);
 
@@ -2038,6 +2035,9 @@ void freeClient(client *c) {
             close(c->context->fd);
             c->context->fd = -1;
         }
+
+        if (c->ssdb_replies[0]) freeReplyObject(c->ssdb_replies[0]);
+        if (c->ssdb_replies[1]) freeReplyObject(c->ssdb_replies[1]);
 
         /* Free redisContext. */
         if (c->context) redisFree(c->context);
