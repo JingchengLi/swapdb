@@ -470,7 +470,9 @@ void NetworkServer::cleanup_cursor() {
 	} else {
 		Request request = {"cursor_cleanup","1000"};
 		Response response;
-		cmd->proc(this, nullptr, request, &response);
+		Context context;
+		context.net = this;
+		cmd->proc(context, nullptr, request, &response);
 	}
 }
 
@@ -655,8 +657,9 @@ int NetworkServer::proc(ProcJob *job){
 
 		proc_t p = cmd->proc;
 		job->time_wait = 1000 * (millitime() - job->stime);
-		job->result = (*p)(this, job->link, *req, &job->resp);
-		job->cmd->proc_after(job->serv, job->link, *req, &job->resp);
+		job->context.net = this;
+		job->result = (*p)(job->context, job->link, *req, &job->resp);
+		job->cmd->proc_after(job->context, job->link, *req, &job->resp);
 		job->time_proc = 1000 * (millitime() - job->stime) - job->time_wait;
 	}while(0);
 
@@ -708,22 +711,22 @@ int NetworkServer::proc(ProcJob *job){
 
 /* built-in procs */
 
-static int proc_ping(NetworkServer *net, Link *link, const Request &req, Response *resp){
+static int proc_ping(const Context &ctx, Link *link, const Request &req, Response *resp){
 	resp->push_back("ok");
 	return 0;
 }
 
-static int proc_info(NetworkServer *net, Link *link, const Request &req, Response *resp){
+static int proc_info(const Context &ctx, Link *link, const Request &req, Response *resp){
 	resp->push_back("ok");
 	resp->push_back("ideawu's network server framework");
 	resp->push_back("version");
 	resp->push_back("1.0");
 	resp->push_back("links");
-	resp->add(net->link_count);
+	resp->add(ctx.net->link_count);
 	{
 		int64_t calls = 0;
 		proc_map_t::iterator it;
-		for(it=net->proc_map.begin(); it!=net->proc_map.end(); it++){
+		for(it=ctx.net->proc_map.begin(); it!=ctx.net->proc_map.end(); it++){
 			Command *cmd = it->second;
 			calls += cmd->calls;
 		}
@@ -733,11 +736,11 @@ static int proc_info(NetworkServer *net, Link *link, const Request &req, Respons
 	return 0;
 }
 
-static int proc_auth(NetworkServer *net, Link *link, const Request &req, Response *resp){
+static int proc_auth(const Context &ctx, Link *link, const Request &req, Response *resp){
 	if(req.size() != 2){
 		resp->push_back("client_error");
 	}else{
-		if(!net->need_auth || req[1] == net->password){
+		if(!ctx.net->need_auth || req[1] == ctx.net->password){
 			link->auth = true;
 			resp->push_back("ok");
 			resp->push_back("1");

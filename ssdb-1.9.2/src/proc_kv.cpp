@@ -9,8 +9,8 @@ found in the LICENSE file.
 #include "net/server.h"
 
 
-int proc_type(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
+int proc_type(const Context &ctx, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(2);
 
 	std::string val;
@@ -25,8 +25,8 @@ int proc_type(NetworkServer *net, Link *link, const Request &req, Response *resp
 	return 0;
 }
 
-int proc_get(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
+int proc_get(const Context &ctx, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(2);
 
 	std::string val;
@@ -41,8 +41,8 @@ int proc_get(NetworkServer *net, Link *link, const Request &req, Response *resp)
 	return 0;
 }
 
-int proc_getset(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
+int proc_getset(const Context &ctx, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(3);
 
 	std::pair<std::string, bool> val;
@@ -61,8 +61,8 @@ int proc_getset(NetworkServer *net, Link *link, const Request &req, Response *re
 	return 0;
 }
 
-int proc_append(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
+int proc_append(const Context &ctx, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(3);
 
 	uint64_t newlen = 0;
@@ -75,8 +75,8 @@ int proc_append(NetworkServer *net, Link *link, const Request &req, Response *re
 	return 0;
 }
 
-int proc_set(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
+int proc_set(const Context &ctx, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(3);
 
 	long long when = 0;
@@ -165,8 +165,8 @@ int proc_set(NetworkServer *net, Link *link, const Request &req, Response *resp)
 	return 0;
 }
 
-int proc_setnx(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
+int proc_setnx(const Context &ctx, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(3);
 
 	int added = 0;
@@ -181,8 +181,8 @@ int proc_setnx(NetworkServer *net, Link *link, const Request &req, Response *res
 	return 0;
 }
 
-int proc_setx(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
+int proc_setx(const Context &ctx, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(4);
 
     long long when;
@@ -211,8 +211,8 @@ int proc_setx(NetworkServer *net, Link *link, const Request &req, Response *resp
 	return 0;
 }
 
-int proc_psetx(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
+int proc_psetx(const Context &ctx, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(4);
 
     long long when;
@@ -241,8 +241,8 @@ int proc_psetx(NetworkServer *net, Link *link, const Request &req, Response *res
 	return 0;
 }
 
-int proc_pttl(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
+int proc_pttl(const Context &ctx, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(2);
 
 	int64_t ttl = serv->ssdb->expiration->pttl(req[1], TimeUnit::Millisecond);
@@ -254,8 +254,8 @@ int proc_pttl(NetworkServer *net, Link *link, const Request &req, Response *resp
 	return 0;
 }
 
-int proc_ttl(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
+int proc_ttl(const Context &ctx, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(2);
 
 	int64_t ttl = serv->ssdb->expiration->pttl(req[1], TimeUnit::Second);
@@ -267,8 +267,8 @@ int proc_ttl(NetworkServer *net, Link *link, const Request &req, Response *resp)
 	return 0;
 }
 
-int proc_pexpire(NetworkServer *net, Link *link, const Request &req, Response *resp){
-    SSDBServer *serv = (SSDBServer *)net->data;
+int proc_pexpire(const Context &ctx, Link *link, const Request &req, Response *resp){
+    SSDBServer *serv = (SSDBServer *) ctx.net->data;
     CHECK_NUM_PARAMS(3);
 
     long long when;
@@ -289,8 +289,8 @@ int proc_pexpire(NetworkServer *net, Link *link, const Request &req, Response *r
     return 0;
 }
 
-int proc_expire(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
+int proc_expire(const Context &ctx, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(3);
 
     long long when;
@@ -312,8 +312,8 @@ int proc_expire(NetworkServer *net, Link *link, const Request &req, Response *re
 	return 0;
 }
 
-int proc_expireat(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
+int proc_expireat(const Context &ctx, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(3);
 
     long long ts_ms;
@@ -335,8 +335,8 @@ int proc_expireat(NetworkServer *net, Link *link, const Request &req, Response *
 	return 0;
 }
 
-int proc_persist(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
+int proc_persist(const Context &ctx, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(2);
 
 	Locking<Mutex> l(&serv->ssdb->expiration->mutex);
@@ -351,8 +351,8 @@ int proc_persist(NetworkServer *net, Link *link, const Request &req, Response *r
 	return 0;
 }
 
-int proc_pexpireat(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
+int proc_pexpireat(const Context &ctx, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(3);
 
     long long ts_ms;
@@ -374,8 +374,8 @@ int proc_pexpireat(NetworkServer *net, Link *link, const Request &req, Response 
 	return 0;
 }
 
-int proc_exists(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
+int proc_exists(const Context &ctx, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(2);
 
     int count = 0;
@@ -390,8 +390,8 @@ int proc_exists(NetworkServer *net, Link *link, const Request &req, Response *re
 	return 0;
 }
 
-int proc_multi_set(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
+int proc_multi_set(const Context &ctx, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	if(req.size() < 3 || req.size() % 2 != 1){
 		reply_errinfo_return("ERR wrong number of arguments for MSET");
 	}else{
@@ -405,8 +405,8 @@ int proc_multi_set(NetworkServer *net, Link *link, const Request &req, Response 
 	return 0;
 }
 
-int proc_multi_del(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
+int proc_multi_del(const Context &ctx, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(2);
 
 	Locking<Mutex> l(&serv->ssdb->expiration->mutex);
@@ -430,8 +430,8 @@ int proc_multi_del(NetworkServer *net, Link *link, const Request &req, Response 
 	return 0;
 }
 
-int proc_multi_get(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
+int proc_multi_get(const Context &ctx, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(2);
 
 	resp->reply_list_ready();
@@ -450,8 +450,8 @@ int proc_multi_get(NetworkServer *net, Link *link, const Request &req, Response 
 	return 0;
 }
 
-int proc_del(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
+int proc_del(const Context &ctx, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(2);
 
 	Locking<Mutex> l(&serv->ssdb->expiration->mutex);
@@ -468,8 +468,8 @@ int proc_del(NetworkServer *net, Link *link, const Request &req, Response *resp)
 }
 
 
-int proc_scan(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
+int proc_scan(const Context &ctx, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(2);
 
     int cursorIndex = 1;
@@ -508,8 +508,8 @@ int proc_scan(NetworkServer *net, Link *link, const Request &req, Response *resp
 	return 0;
 }
 
-int proc_ssdb_dbsize(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
+int proc_ssdb_dbsize(const Context &ctx, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
 	uint64_t count = 0;
 
@@ -530,8 +530,8 @@ int proc_ssdb_dbsize(NetworkServer *net, Link *link, const Request &req, Respons
 	return 0;
 }
 
-int proc_ssdb_scan(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
+int proc_ssdb_scan(const Context &ctx, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(2);
 
 	uint64_t limit = 1000;
@@ -585,8 +585,8 @@ int proc_ssdb_scan(NetworkServer *net, Link *link, const Request &req, Response 
 	return 0;
 }
 
-int proc_keys(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
+int proc_keys(const Context &ctx, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
 
 	std::string pattern = "*";
@@ -633,8 +633,8 @@ static int _incr(SSDB *ssdb, const Request &req, Response *resp, int dir){
 	return 0;
 }
 
-int proc_incrbyfloat(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
+int proc_incrbyfloat(const Context &ctx, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
 	CHECK_NUM_PARAMS(3);
     long double by = req[2].LDouble();
@@ -654,18 +654,18 @@ int proc_incrbyfloat(NetworkServer *net, Link *link, const Request &req, Respons
 	return 0;
 }
 
-int proc_incr(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
+int proc_incr(const Context &ctx, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	return _incr(serv->ssdb, req, resp, 1);
 }
 
-int proc_decr(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
+int proc_decr(const Context &ctx, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	return _incr(serv->ssdb, req, resp, -1);
 }
 
-int proc_getbit(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
+int proc_getbit(const Context &ctx, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(3);
 	long long offset;
 	string2ll(req[2].data(), (size_t)req[2].size(), &offset);
@@ -686,8 +686,8 @@ int proc_getbit(NetworkServer *net, Link *link, const Request &req, Response *re
 	return 0;
 }
 
-int proc_setbit(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
+int proc_setbit(const Context &ctx, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(4);
 
 	const Bytes &key = req[1];
@@ -715,8 +715,8 @@ int proc_setbit(NetworkServer *net, Link *link, const Request &req, Response *re
 	return 0;
 }
 
-int proc_countbit(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
+int proc_countbit(const Context &ctx, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(2);
 
 	const Bytes &key = req[1];
@@ -748,8 +748,8 @@ int proc_countbit(NetworkServer *net, Link *link, const Request &req, Response *
 	return 0;
 }
 
-int proc_bitcount(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
+int proc_bitcount(const Context &ctx, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(2);
 
 	const Bytes &key = req[1];
@@ -781,8 +781,8 @@ int proc_bitcount(NetworkServer *net, Link *link, const Request &req, Response *
 }
 
 
-int proc_getrange(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
+int proc_getrange(const Context &ctx, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(4);
 
 	const Bytes &key = req[1];
@@ -809,13 +809,13 @@ int proc_getrange(NetworkServer *net, Link *link, const Request &req, Response *
 }
 
 
-int proc_substr(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	return proc_getrange(net, link, req, resp);
+int proc_substr(const Context &ctx, Link *link, const Request &req, Response *resp){
+	return proc_getrange(ctx, link, req, resp);
 }
 
 
-int proc_setrange(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
+int proc_setrange(const Context &ctx, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(4);
 
  	int64_t start = req[2].Int64();
@@ -838,8 +838,8 @@ int proc_setrange(NetworkServer *net, Link *link, const Request &req, Response *
 	return 0;
 }
 
-int proc_strlen(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
+int proc_strlen(const Context &ctx, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(2);
 
 	const Bytes &key = req[1];

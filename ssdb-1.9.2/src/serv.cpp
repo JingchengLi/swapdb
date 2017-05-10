@@ -331,7 +331,7 @@ SSDBServer::~SSDBServer() {
 /*********************/
 
 
-int proc_dreply(NetworkServer *net, Link *link, const Request &req, Response *resp) {
+int proc_dreply(const Context &ctx, Link *link, const Request &req, Response *resp) {
     //for QA only
     link->append_reply = true;
     resp->reply_ok();
@@ -339,8 +339,8 @@ int proc_dreply(NetworkServer *net, Link *link, const Request &req, Response *re
     return 0;
 }
 
-int proc_flushdb(NetworkServer *net, Link *link, const Request &req, Response *resp) {
-    SSDBServer *serv = (SSDBServer *) net->data;
+int proc_flushdb(const Context &ctx, Link *link, const Request &req, Response *resp) {
+    SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
 	log_warn("[!!!] do flushdb");
 	serv->ssdb->flushdb();
@@ -349,26 +349,26 @@ int proc_flushdb(NetworkServer *net, Link *link, const Request &req, Response *r
     return 0;
 }
 
-int proc_select(NetworkServer *net, Link *link, const Request &req, Response *resp) {
+int proc_select(const Context &ctx, Link *link, const Request &req, Response *resp) {
     resp->reply_ok();
     return 0;
 }
 
 
-int proc_client(NetworkServer *net, Link *link, const Request &req, Response *resp) {
+int proc_client(const Context &ctx, Link *link, const Request &req, Response *resp) {
     resp->reply_ok();
     return 0;
 }
 
 
-int proc_slowlog(NetworkServer *net, Link *link, const Request &req, Response *resp) {
-    SSDBServer *serv = (SSDBServer *) net->data;
+int proc_slowlog(const Context &ctx, Link *link, const Request &req, Response *resp) {
+    SSDBServer *serv = (SSDBServer *) ctx.net->data;
     CHECK_NUM_PARAMS(2);
     std::string action = req[1].String();
     strtolower(&action);
 
     if (action == "reset") {
-        net->slowlog.reset();
+        ctx.net->slowlog.reset();
         resp->reply_ok();
 
         {
@@ -379,18 +379,18 @@ int proc_slowlog(NetworkServer *net, Link *link, const Request &req, Response *r
             resp->redisResponse->type = REDIS_REPLY_STATUS;
         }
     } else if (action == "len") {
-        uint64_t len = net->slowlog.len();
+        uint64_t len = ctx.net->slowlog.len();
         resp->reply_int(1, len);
 
         {
             /*
              * raw redis reply
              */
-            resp->redisResponse = new RedisResponse((long long int) net->slowlog.len());
+            resp->redisResponse = new RedisResponse((long long int) ctx.net->slowlog.len());
         }
     } else if (action == "get") {
         resp->reply_list_ready();
-        const auto &history = net->slowlog.history;
+        const auto &history = ctx.net->slowlog.history;
 
         for (int i = 0; i < history.size(); ++i) {
             const SlowlogEntry &h = history[i];
@@ -424,8 +424,8 @@ int proc_slowlog(NetworkServer *net, Link *link, const Request &req, Response *r
 }
 
 
-int proc_debug(NetworkServer *net, Link *link, const Request &req, Response *resp) {
-    SSDBServer *serv = (SSDBServer *) net->data;
+int proc_debug(const Context &ctx, Link *link, const Request &req, Response *resp) {
+    SSDBServer *serv = (SSDBServer *) ctx.net->data;
     CHECK_NUM_PARAMS(2);
 
     std::string action = req[1].String();
@@ -476,14 +476,14 @@ int proc_debug(NetworkServer *net, Link *link, const Request &req, Response *res
 }
 
 
-int proc_quit(NetworkServer *net, Link *link, const Request &req, Response *resp) {
+int proc_quit(const Context &ctx, Link *link, const Request &req, Response *resp) {
     resp->reply_ok();
     return 0;
 }
 
 
-int proc_restore(NetworkServer *net, Link *link, const Request &req, Response *resp) {
-    SSDBServer *serv = (SSDBServer *) net->data;
+int proc_restore(const Context &ctx, Link *link, const Request &req, Response *resp) {
+    SSDBServer *serv = (SSDBServer *) ctx.net->data;
     CHECK_NUM_PARAMS(4);
 
     int64_t ttl = req[2].Int64();
@@ -527,8 +527,8 @@ int proc_restore(NetworkServer *net, Link *link, const Request &req, Response *r
     return 0;
 }
 
-int proc_dump(NetworkServer *net, Link *link, const Request &req, Response *resp) {
-    SSDBServer *serv = (SSDBServer *) net->data;
+int proc_dump(const Context &ctx, Link *link, const Request &req, Response *resp) {
+    SSDBServer *serv = (SSDBServer *) ctx.net->data;
     CHECK_NUM_PARAMS(2);
 
     std::string val;
@@ -543,8 +543,8 @@ int proc_dump(NetworkServer *net, Link *link, const Request &req, Response *resp
 }
 
 
-int proc_cursor_cleanup(NetworkServer *net, Link *link, const Request &req, Response *resp) {
-    SSDBServer *serv = (SSDBServer *) net->data;
+int proc_cursor_cleanup(const Context &ctx, Link *link, const Request &req, Response *resp) {
+    SSDBServer *serv = (SSDBServer *) ctx.net->data;
     CHECK_NUM_PARAMS(2);
 
     serv->ssdb->redisCursorCleanup();
@@ -553,8 +553,8 @@ int proc_cursor_cleanup(NetworkServer *net, Link *link, const Request &req, Resp
 }
 
 
-int proc_redis_req_restore(NetworkServer *net, Link *link, const Request &req, Response *resp) {
-    SSDBServer *serv = (SSDBServer *) net->data;
+int proc_redis_req_restore(const Context &ctx, Link *link, const Request &req, Response *resp) {
+    SSDBServer *serv = (SSDBServer *) ctx.net->data;
     CHECK_NUM_PARAMS(4);
 
     int64_t ttl = req[2].Int64();
@@ -586,7 +586,7 @@ int proc_redis_req_restore(NetworkServer *net, Link *link, const Request &req, R
                                        new DumpData(req[1].String(), req[3].String(), ttl, replace));
     job->proc = BPROC(COMMAND_DATA_SAVE);
 
-    net->redis->push(job);
+    ctx.net->redis->push(job);
 
     std::string val = "OK";
     resp->reply_get(1, &val);
@@ -594,44 +594,44 @@ int proc_redis_req_restore(NetworkServer *net, Link *link, const Request &req, R
 }
 
 
-int proc_redis_req_dump(NetworkServer *net, Link *link, const Request &req, Response *resp) {
-    SSDBServer *serv = (SSDBServer *) net->data;
+int proc_redis_req_dump(const Context &ctx, Link *link, const Request &req, Response *resp) {
+    SSDBServer *serv = (SSDBServer *) ctx.net->data;
     CHECK_NUM_PARAMS(2);
 
     TransferJob *job = new TransferJob(serv, COMMAND_DATA_DUMP, req[1].String());
     job->proc = BPROC(COMMAND_DATA_DUMP);
 
     //TODO push1st
-    net->redis->push(job);
+    ctx.net->redis->push(job);
 
     std::string val = "OK";
     resp->reply_get(1, &val);
     return 0;
 }
 
-int proc_compact(NetworkServer *net, Link *link, const Request &req, Response *resp) {
-    SSDBServer *serv = (SSDBServer *) net->data;
+int proc_compact(const Context &ctx, Link *link, const Request &req, Response *resp) {
+    SSDBServer *serv = (SSDBServer *) ctx.net->data;
     serv->ssdb->compact();
     resp->reply_ok();
     return 0;
 }
 
-int proc_dbsize(NetworkServer *net, Link *link, const Request &req, Response *resp) {
-    SSDBServer *serv = (SSDBServer *) net->data;
+int proc_dbsize(const Context &ctx, Link *link, const Request &req, Response *resp) {
+    SSDBServer *serv = (SSDBServer *) ctx.net->data;
     uint64_t size = serv->ssdb->size();
     resp->reply_int(1, size);
 
     return 0;
 }
 
-int proc_version(NetworkServer *net, Link *link, const Request &req, Response *resp) {
+int proc_version(const Context &ctx, Link *link, const Request &req, Response *resp) {
     resp->push_back("ok");
     resp->push_back(SSDB_VERSION);
     return 0;
 }
 
-int proc_info(NetworkServer *net, Link *link, const Request &req, Response *resp) {
-    SSDBServer *serv = (SSDBServer *) net->data;
+int proc_info(const Context &ctx, Link *link, const Request &req, Response *resp) {
+    SSDBServer *serv = (SSDBServer *) ctx.net->data;
     resp->push_back("ok");
     resp->push_back("ssdb-server");
     resp->push_back("version");
@@ -640,12 +640,12 @@ int proc_info(NetworkServer *net, Link *link, const Request &req, Response *resp
     resp->push_back(SSDB_ENGINE);
     {
         resp->push_back("links");
-        resp->add(net->link_count);
+        resp->add(ctx.net->link_count);
     }
     {
         int64_t calls = 0;
         proc_map_t::iterator it;
-        for (it = net->proc_map.begin(); it != net->proc_map.end(); it++) {
+        for (it = ctx.net->proc_map.begin(); it != ctx.net->proc_map.end(); it++) {
             Command *cmd = it->second;
             calls += cmd->calls;
         }
@@ -674,7 +674,7 @@ int proc_info(NetworkServer *net, Link *link, const Request &req, Response *resp
 
     if (req.size() > 1 && req[1] == "cmd") {
         proc_map_t::iterator it;
-        for (it = net->proc_map.begin(); it != net->proc_map.end(); it++) {
+        for (it = ctx.net->proc_map.begin(); it != ctx.net->proc_map.end(); it++) {
             Command *cmd = it->second;
             resp->push_back("cmd." + cmd->name);
             char buf[128];
@@ -688,8 +688,8 @@ int proc_info(NetworkServer *net, Link *link, const Request &req, Response *resp
 }
 
 
-int proc_replic_info(NetworkServer *net, Link *link, const Request &req, Response *resp) {
-    SSDBServer *serv = (SSDBServer *) net->data;
+int proc_replic_info(const Context &ctx, Link *link, const Request &req, Response *resp) {
+    SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
 
     const char* ReplicStateString[] = {
@@ -718,8 +718,8 @@ int proc_replic_info(NetworkServer *net, Link *link, const Request &req, Respons
 }
 
 
-int proc_replic(NetworkServer *net, Link *link, const Request &req, Response *resp) {
-    SSDBServer *serv = (SSDBServer *) net->data;
+int proc_replic(const Context &ctx, Link *link, const Request &req, Response *resp) {
+    SSDBServer *serv = (SSDBServer *) ctx.net->data;
     CHECK_NUM_PARAMS(3);
     std::string ip = req[1].String();
     int port = req[2].Int();
@@ -734,7 +734,7 @@ int proc_replic(NetworkServer *net, Link *link, const Request &req, Response *re
 
     ReplicationJob *job = new ReplicationJob(serv, HostAndPort{ip, port}, link);
 
-    net->replication->push(job);
+    ctx.net->replication->push(job);
 
 
     resp->resp.clear();
@@ -742,24 +742,24 @@ int proc_replic(NetworkServer *net, Link *link, const Request &req, Response *re
 }
 
 
-int proc_rr_check_write(NetworkServer *net, Link *link, const Request &req, Response *resp) {
+int proc_rr_check_write(const Context &ctx, Link *link, const Request &req, Response *resp) {
     resp->push_back("ok");
     resp->push_back("rr_check_write ok");
     return 0;
 }
 
-int proc_rr_flushall_check(NetworkServer *net, Link *link, const Request &req, Response *resp) {
+int proc_rr_flushall_check(const Context &ctx, Link *link, const Request &req, Response *resp) {
     resp->push_back("ok");
     resp->push_back("rr_flushall_check ok");
     return 0;
 }
 
 
-int proc_rr_do_flushall(NetworkServer *net, Link *link, const Request &req, Response *resp) {
-    SSDBServer *serv = (SSDBServer *) net->data;
+int proc_rr_do_flushall(const Context &ctx, Link *link, const Request &req, Response *resp) {
+    SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
 	log_warn("[!!!] do flushall");
-	std::queue<TransferJob *> discarded_jobs = net->redis->discard();
+	std::queue<TransferJob *> discarded_jobs = ctx.net->redis->discard();
 
 	log_warn("[!!!] discard %d TransferJob waiting for remain jobs", discarded_jobs.size());
 	while (!discarded_jobs.empty())
@@ -789,8 +789,8 @@ int proc_rr_do_flushall(NetworkServer *net, Link *link, const Request &req, Resp
     return 0;
 }
 
-int proc_rr_make_snapshot(NetworkServer *net, Link *link, const Request &req, Response *resp){
-    SSDBServer *serv = (SSDBServer *)net->data;
+int proc_rr_make_snapshot(const Context &ctx, Link *link, const Request &req, Response *resp){
+    SSDBServer *serv = (SSDBServer *) ctx.net->data;
     log_debug("1:link address:%lld", link);
 
 
@@ -814,8 +814,8 @@ int proc_rr_make_snapshot(NetworkServer *net, Link *link, const Request &req, Re
     return 0;
 }
 
-int proc_rr_transfer_snapshot(NetworkServer *net, Link *link, const Request &req, Response *resp) {
-    SSDBServer *serv = (SSDBServer *) net->data;
+int proc_rr_transfer_snapshot(const Context &ctx, Link *link, const Request &req, Response *resp) {
+    SSDBServer *serv = (SSDBServer *) ctx.net->data;
     CHECK_NUM_PARAMS(3);
 
     std::string ip = req[1].String();
@@ -832,14 +832,14 @@ int proc_rr_transfer_snapshot(NetworkServer *net, Link *link, const Request &req
     link->quick_send({"ok","rr_transfer_snapshot ok"});
 
     ReplicationJob *job = new ReplicationJob(serv, HostAndPort{ip, port}, link);
-    net->replication->push(job);
+    ctx.net->replication->push(job);
 
     resp->resp.clear(); //prevent send resp
     return PROC_BACKEND;
 }
 
-int proc_rr_del_snapshot(NetworkServer *net, Link *link, const Request &req, Response *resp){
-    SSDBServer *serv = (SSDBServer *)net->data;
+int proc_rr_del_snapshot(const Context &ctx, Link *link, const Request &req, Response *resp){
+    SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
     {
         Locking<Mutex> l(&serv->replicMutex);
@@ -868,8 +868,8 @@ int proc_rr_del_snapshot(NetworkServer *net, Link *link, const Request &req, Res
 
 
 
-int proc_repopid(NetworkServer *net, Link *link, const Request &req, Response *resp) {
-    SSDBServer *serv = (SSDBServer *)net->data;
+int proc_repopid(const Context &ctx, Link *link, const Request &req, Response *resp) {
+    SSDBServer *serv = (SSDBServer *) ctx.net->data;
     CHECK_NUM_PARAMS(2);
 
     std::string action = req[1].String();
@@ -917,8 +917,8 @@ int proc_repopid(NetworkServer *net, Link *link, const Request &req, Response *r
     return 0;
 }
 
-int proc_after_proc(NetworkServer *net, Link *link, const Request &req, Response *resp) {
-    SSDBServer *serv = (SSDBServer *)net->data;
+int proc_after_proc(const Context &ctx, Link *link, const Request &req, Response *resp) {
+    SSDBServer *serv = (SSDBServer *)ctx.net->data;
 
     if (req[0] == "repopid") {
         return 0;
@@ -938,8 +938,8 @@ int proc_after_proc(NetworkServer *net, Link *link, const Request &req, Response
 
 
 
-int proc_ssdb_sync(NetworkServer *net, Link *link, const Request &req, Response *resp){
-    SSDBServer *serv = (SSDBServer *) net->data;
+int proc_ssdb_sync(const Context &ctx, Link *link, const Request &req, Response *resp){
+    SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
     log_info("ssdb_sync , link address:%lld", link);
 

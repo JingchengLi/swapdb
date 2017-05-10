@@ -8,6 +8,7 @@ found in the LICENSE file.
 
 #include <string>
 #include <vector>
+#include <common/context.hpp>
 #include "resp.h"
 #include "../util/bytes.h"
 
@@ -21,11 +22,11 @@ class TransferWorker;
 #define PROC_THREAD     1
 #define PROC_BACKEND	100
 
-#define DEF_PROC(f) int proc_##f(NetworkServer *net, Link *link, const Request &req, Response *resp)
+#define DEF_PROC(f) int proc_##f(const Context &ctx, Link *link, const Request &req, Response *resp)
 #define DEF_BPROC(c) int bproc_##c(SSDBServer *serv, TransferWorker *worker, const std::string &data_key, void* value)
 
 typedef std::vector<Bytes> Request;
-typedef int (*proc_t)(NetworkServer *net, Link *link, const Request &req, Response *resp);
+typedef int (*proc_t)(const Context &ctx, Link *link, const Request &req, Response *resp);
 
 struct Command{
 	static const int FLAG_READ		= (1 << 0);
@@ -59,6 +60,7 @@ struct ProcJob{
 	double stime;
 	double time_wait;
 	double time_proc;
+	Context context;
 	
 	const Request *req;
 	Response resp;

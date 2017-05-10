@@ -8,8 +8,8 @@ found in the LICENSE file.
 #include "net/proc.h"
 #include "net/server.h"
 
-int proc_qsize(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
+int proc_qsize(const Context &ctx, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(2);
 
 	uint64_t len = 0;
@@ -25,9 +25,9 @@ int proc_qsize(NetworkServer *net, Link *link, const Request &req, Response *res
 }
 
 
-int proc_qpush_frontx(NetworkServer *net, Link *link, const Request &req, Response *resp){
+int proc_qpush_frontx(const Context &ctx, Link *link, const Request &req, Response *resp){
 	CHECK_NUM_PARAMS(3);
-	SSDBServer *serv = (SSDBServer *)net->data;
+	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
 	const Bytes &name = req[1];
 	uint64_t len = 0;
@@ -43,9 +43,9 @@ int proc_qpush_frontx(NetworkServer *net, Link *link, const Request &req, Respon
 }
 
 
-int proc_qpush_front(NetworkServer *net, Link *link, const Request &req, Response *resp){
+int proc_qpush_front(const Context &ctx, Link *link, const Request &req, Response *resp){
 	CHECK_NUM_PARAMS(3);
-	SSDBServer *serv = (SSDBServer *)net->data;
+	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
 	const Bytes &name = req[1];
  	uint64_t len = 0;
@@ -59,9 +59,9 @@ int proc_qpush_front(NetworkServer *net, Link *link, const Request &req, Respons
 	return 0;
 }
 
-int proc_qpush_backx(NetworkServer *net, Link *link, const Request &req, Response *resp){
+int proc_qpush_backx(const Context &ctx, Link *link, const Request &req, Response *resp){
 	CHECK_NUM_PARAMS(3);
-	SSDBServer *serv = (SSDBServer *)net->data;
+	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
 	uint64_t len = 0;
 	int ret = serv->ssdb->RPushX(req[1], req, 2, &len);
@@ -76,9 +76,9 @@ int proc_qpush_backx(NetworkServer *net, Link *link, const Request &req, Respons
 }
 
 
-int proc_qpush_back(NetworkServer *net, Link *link, const Request &req, Response *resp){
+int proc_qpush_back(const Context &ctx, Link *link, const Request &req, Response *resp){
     CHECK_NUM_PARAMS(3);
-    SSDBServer *serv = (SSDBServer *)net->data;
+    SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
     uint64_t len = 0;
     int ret = serv->ssdb->RPush(req[1], req, 2, &len);
@@ -92,9 +92,9 @@ int proc_qpush_back(NetworkServer *net, Link *link, const Request &req, Response
 }
 
 
-int proc_qpop_front(NetworkServer *net, Link *link, const Request &req, Response *resp){
+int proc_qpop_front(const Context &ctx, Link *link, const Request &req, Response *resp){
 	CHECK_NUM_PARAMS(2);
-	SSDBServer *serv = (SSDBServer *)net->data;
+	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
 	const Bytes &name = req[1];
 
@@ -115,9 +115,9 @@ int proc_qpop_front(NetworkServer *net, Link *link, const Request &req, Response
 	return 0;
 }
 
-int proc_qpop_back(NetworkServer *net, Link *link, const Request &req, Response *resp){
+int proc_qpop_back(const Context &ctx, Link *link, const Request &req, Response *resp){
     CHECK_NUM_PARAMS(2);
-    SSDBServer *serv = (SSDBServer *)net->data;
+    SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
 	std::pair<std::string, bool> val;
     int ret = serv->ssdb->RPop(req[1], val);
@@ -137,8 +137,8 @@ int proc_qpop_back(NetworkServer *net, Link *link, const Request &req, Response 
 }
 
 
-int proc_qtrim(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
+int proc_qtrim(const Context &ctx, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(4);
 
 	int64_t begin = req[2].Int64();
@@ -166,8 +166,8 @@ int proc_qtrim(NetworkServer *net, Link *link, const Request &req, Response *res
 
 
 
-int proc_qslice(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
+int proc_qslice(const Context &ctx, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(4);
 
 	int64_t begin = req[2].Int64();
@@ -191,8 +191,8 @@ int proc_qslice(NetworkServer *net, Link *link, const Request &req, Response *re
 	return 0;
 }
 
-int proc_qget(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
+int proc_qget(const Context &ctx, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(3);
 
 	int64_t index = req[2].Int64();
@@ -216,8 +216,8 @@ int proc_qget(NetworkServer *net, Link *link, const Request &req, Response *resp
 	return 0;
 }
 
-int proc_qset(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
+int proc_qset(const Context &ctx, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(4);
 
 	const Bytes &name = req[1];

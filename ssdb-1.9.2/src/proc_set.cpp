@@ -3,9 +3,9 @@
 //
 #include "serv.h"
 
-int proc_sadd(NetworkServer *net, Link *link, const Request &req, Response *resp){
+int proc_sadd(const Context &ctx, Link *link, const Request &req, Response *resp){
     CHECK_NUM_PARAMS(3);
-    SSDBServer *serv = (SSDBServer *)net->data;
+    SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
     const Bytes &name = req[1];
     std::string val;
@@ -27,9 +27,9 @@ int proc_sadd(NetworkServer *net, Link *link, const Request &req, Response *resp
     return 0;
 }
 
-int proc_srem(NetworkServer *net, Link *link, const Request &req, Response *resp){
+int proc_srem(const Context &ctx, Link *link, const Request &req, Response *resp){
     CHECK_NUM_PARAMS(3);
-    SSDBServer *serv = (SSDBServer *)net->data;
+    SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
     const Bytes &name = req[1];
 
@@ -47,8 +47,8 @@ int proc_srem(NetworkServer *net, Link *link, const Request &req, Response *resp
     return 0;
 }
 
-int proc_scard(NetworkServer *net, Link *link, const Request &req, Response *resp){
-    SSDBServer *serv = (SSDBServer *)net->data;
+int proc_scard(const Context &ctx, Link *link, const Request &req, Response *resp){
+    SSDBServer *serv = (SSDBServer *) ctx.net->data;
     CHECK_NUM_PARAMS(2);
 
     uint64_t len = 0;
@@ -65,9 +65,9 @@ int proc_scard(NetworkServer *net, Link *link, const Request &req, Response *res
 }
 
 
-int proc_sismember(NetworkServer *net, Link *link, const Request &req, Response *resp){
+int proc_sismember(const Context &ctx, Link *link, const Request &req, Response *resp){
     CHECK_NUM_PARAMS(3);
-    SSDBServer *serv = (SSDBServer *)net->data;
+    SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
     bool ismember = false;
     int ret = serv->ssdb->sismember(req[1], req[2], &ismember);
@@ -83,9 +83,9 @@ int proc_sismember(NetworkServer *net, Link *link, const Request &req, Response 
     return 0;
 }
 
-int proc_smembers(NetworkServer *net, Link *link, const Request &req, Response *resp){
+int proc_smembers(const Context &ctx, Link *link, const Request &req, Response *resp){
     CHECK_NUM_PARAMS(2);
-    SSDBServer *serv = (SSDBServer *)net->data;
+    SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
     resp->reply_list_ready();
 
@@ -100,9 +100,9 @@ int proc_smembers(NetworkServer *net, Link *link, const Request &req, Response *
 }
 
 
-int proc_spop(NetworkServer *net, Link *link, const Request &req, Response *resp){
+int proc_spop(const Context &ctx, Link *link, const Request &req, Response *resp){
     CHECK_NUM_PARAMS(2);
-    SSDBServer *serv = (SSDBServer *)net->data;
+    SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
     int64_t pop_count = 1;
     if (req.size() >2) {
@@ -126,9 +126,9 @@ int proc_spop(NetworkServer *net, Link *link, const Request &req, Response *resp
     return 0;
 }
 
-int proc_srandmember(NetworkServer *net, Link *link, const Request &req, Response *resp){
+int proc_srandmember(const Context &ctx, Link *link, const Request &req, Response *resp){
     CHECK_NUM_PARAMS(2);
-    SSDBServer *serv = (SSDBServer *)net->data;
+    SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
     int64_t count = 1;
     if (req.size() >2) {
@@ -151,9 +151,9 @@ int proc_srandmember(NetworkServer *net, Link *link, const Request &req, Respons
 }
 
 
-int proc_sscan(NetworkServer *net, Link *link, const Request &req, Response *resp){
+int proc_sscan(const Context &ctx, Link *link, const Request &req, Response *resp){
     CHECK_NUM_PARAMS(3);
-    SSDBServer *serv = (SSDBServer *)net->data;
+    SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
 
     int cursorIndex = 2;

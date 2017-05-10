@@ -8,9 +8,9 @@ found in the LICENSE file.
 #include "net/proc.h"
 #include "net/server.h"
 
-int proc_hexists(NetworkServer *net, Link *link, const Request &req, Response *resp) {
+int proc_hexists(const Context &ctx, Link *link, const Request &req, Response *resp) {
     CHECK_NUM_PARAMS(3);
-    SSDBServer *serv = (SSDBServer *) net->data;
+    SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
     const Bytes &name = req[1];
     const Bytes &key = req[2];
@@ -29,8 +29,8 @@ int proc_hexists(NetworkServer *net, Link *link, const Request &req, Response *r
 }
 
 
-int proc_hmset(NetworkServer *net, Link *link, const Request &req, Response *resp) {
-    SSDBServer *serv = (SSDBServer *) net->data;
+int proc_hmset(const Context &ctx, Link *link, const Request &req, Response *resp) {
+    SSDBServer *serv = (SSDBServer *) ctx.net->data;
     if (req.size() < 4 || req.size() % 2 != 0) {
         reply_errinfo_return("wrong number of arguments for 'hmset' command");
     }
@@ -55,9 +55,9 @@ int proc_hmset(NetworkServer *net, Link *link, const Request &req, Response *res
     return 0;
 }
 
-int proc_hdel(NetworkServer *net, Link *link, const Request &req, Response *resp) {
+int proc_hdel(const Context &ctx, Link *link, const Request &req, Response *resp) {
     CHECK_NUM_PARAMS(3);
-    SSDBServer *serv = (SSDBServer *) net->data;
+    SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
     const Bytes &key = req[1];
 
@@ -77,9 +77,9 @@ int proc_hdel(NetworkServer *net, Link *link, const Request &req, Response *resp
     return 0;
 }
 
-int proc_hmget(NetworkServer *net, Link *link, const Request &req, Response *resp) {
+int proc_hmget(const Context &ctx, Link *link, const Request &req, Response *resp) {
     CHECK_NUM_PARAMS(3);
-    SSDBServer *serv = (SSDBServer *) net->data;
+    SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
     Request::const_iterator it = req.begin() + 1;
     const Bytes name = *it;
@@ -121,9 +121,9 @@ int proc_hmget(NetworkServer *net, Link *link, const Request &req, Response *res
     return 0;
 }
 
-int proc_hsize(NetworkServer *net, Link *link, const Request &req, Response *resp) {
+int proc_hsize(const Context &ctx, Link *link, const Request &req, Response *resp) {
     CHECK_NUM_PARAMS(2);
-    SSDBServer *serv = (SSDBServer *) net->data;
+    SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
     uint64_t size = 0;
     int ret = serv->ssdb->hsize(req[1], &size);
@@ -137,9 +137,9 @@ int proc_hsize(NetworkServer *net, Link *link, const Request &req, Response *res
     return 0;
 }
 
-int proc_hset(NetworkServer *net, Link *link, const Request &req, Response *resp) {
+int proc_hset(const Context &ctx, Link *link, const Request &req, Response *resp) {
     CHECK_NUM_PARAMS(4);
-    SSDBServer *serv = (SSDBServer *) net->data;
+    SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
     int added = 0;
     int ret = serv->ssdb->hset(req[1], req[2], req[3], &added);
@@ -155,9 +155,9 @@ int proc_hset(NetworkServer *net, Link *link, const Request &req, Response *resp
     return 0;
 }
 
-int proc_hsetnx(NetworkServer *net, Link *link, const Request &req, Response *resp) {
+int proc_hsetnx(const Context &ctx, Link *link, const Request &req, Response *resp) {
     CHECK_NUM_PARAMS(4);
-    SSDBServer *serv = (SSDBServer *) net->data;
+    SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
     int added = 0;
     int ret = serv->ssdb->hsetnx(req[1], req[2], req[3], &added);
@@ -173,9 +173,9 @@ int proc_hsetnx(NetworkServer *net, Link *link, const Request &req, Response *re
     return 0;
 }
 
-int proc_hget(NetworkServer *net, Link *link, const Request &req, Response *resp) {
+int proc_hget(const Context &ctx, Link *link, const Request &req, Response *resp) {
     CHECK_NUM_PARAMS(3);
-    SSDBServer *serv = (SSDBServer *) net->data;
+    SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
 
     std::pair<std::string, bool> val;
@@ -195,9 +195,9 @@ int proc_hget(NetworkServer *net, Link *link, const Request &req, Response *resp
 }
 
 
-int proc_hgetall(NetworkServer *net, Link *link, const Request &req, Response *resp) {
+int proc_hgetall(const Context &ctx, Link *link, const Request &req, Response *resp) {
     CHECK_NUM_PARAMS(2);
-    SSDBServer *serv = (SSDBServer *) net->data;
+    SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
 
     std::map<std::string, std::string> resMap;
@@ -222,9 +222,9 @@ int proc_hgetall(NetworkServer *net, Link *link, const Request &req, Response *r
     return 0;
 }
 
-int proc_hscan(NetworkServer *net, Link *link, const Request &req, Response *resp) {
+int proc_hscan(const Context &ctx, Link *link, const Request &req, Response *resp) {
     CHECK_NUM_PARAMS(3);
-    SSDBServer *serv = (SSDBServer *) net->data;
+    SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
 
     int cursorIndex = 2;
@@ -269,9 +269,9 @@ int proc_hscan(NetworkServer *net, Link *link, const Request &req, Response *res
 }
 
 
-int proc_hkeys(NetworkServer *net, Link *link, const Request &req, Response *resp) {
+int proc_hkeys(const Context &ctx, Link *link, const Request &req, Response *resp) {
     CHECK_NUM_PARAMS(5);
-    SSDBServer *serv = (SSDBServer *) net->data;
+    SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
 //	uint64_t limit = req[4].Uint64();
 
@@ -298,9 +298,9 @@ int proc_hkeys(NetworkServer *net, Link *link, const Request &req, Response *res
     return 0;
 }
 
-int proc_hvals(NetworkServer *net, Link *link, const Request &req, Response *resp) {
+int proc_hvals(const Context &ctx, Link *link, const Request &req, Response *resp) {
     CHECK_NUM_PARAMS(5);
-    SSDBServer *serv = (SSDBServer *) net->data;
+    SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
 //	uint64_t limit = req[4].Uint64();
 
@@ -326,8 +326,8 @@ int proc_hvals(NetworkServer *net, Link *link, const Request &req, Response *res
     return 0;
 }
 
-int proc_hincrbyfloat(NetworkServer *net, Link *link, const Request &req, Response *resp) {
-    SSDBServer *serv = (SSDBServer *) net->data;
+int proc_hincrbyfloat(const Context &ctx, Link *link, const Request &req, Response *resp) {
+    SSDBServer *serv = (SSDBServer *) ctx.net->data;
     CHECK_NUM_PARAMS(4);
 
     long double by = req[3].LDouble();
@@ -346,8 +346,8 @@ int proc_hincrbyfloat(NetworkServer *net, Link *link, const Request &req, Respon
 
 }
 
-int proc_hincr(NetworkServer *net, Link *link, const Request &req, Response *resp) {
-    SSDBServer *serv = (SSDBServer *) net->data;
+int proc_hincr(const Context &ctx, Link *link, const Request &req, Response *resp) {
+    SSDBServer *serv = (SSDBServer *) ctx.net->data;
     CHECK_NUM_PARAMS(4);
 
     int64_t by = req[3].Int64();

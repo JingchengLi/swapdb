@@ -7,10 +7,10 @@ found in the LICENSE file.
 #include "serv.h"
 
 
-int proc_multi_zset(NetworkServer *net, Link *link, const Request &req, Response *resp){
+int proc_multi_zset(const Context &ctx, Link *link, const Request &req, Response *resp){
     CHECK_NUM_PARAMS(4);
 
-    SSDBServer *serv = (SSDBServer *)net->data;
+    SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	int flags = ZADD_NONE;
 
     int elements;
@@ -127,8 +127,8 @@ int proc_multi_zset(NetworkServer *net, Link *link, const Request &req, Response
 	return 0;
 }
 
-int proc_multi_zdel(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
+int proc_multi_zdel(const Context &ctx, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(3);
 
 	const Bytes &name = req[1];
@@ -151,8 +151,8 @@ int proc_multi_zdel(NetworkServer *net, Link *link, const Request &req, Response
 }
 
 
-int proc_zsize(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
+int proc_zsize(const Context &ctx, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(2);
 
     uint64_t size = 0;
@@ -165,8 +165,8 @@ int proc_zsize(NetworkServer *net, Link *link, const Request &req, Response *res
 	return 0;
 }
 
-int proc_zget(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
+int proc_zget(const Context &ctx, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(3);
 
 	double score = 0;
@@ -183,8 +183,8 @@ int proc_zget(NetworkServer *net, Link *link, const Request &req, Response *resp
 	return 0;
 }
 
-int proc_zrank(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
+int proc_zrank(const Context &ctx, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(3);
 
     int64_t rank = 0;
@@ -200,8 +200,8 @@ int proc_zrank(NetworkServer *net, Link *link, const Request &req, Response *res
 	return 0;
 }
 
-int proc_zrrank(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
+int proc_zrrank(const Context &ctx, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(3);
 
     int64_t rank = 0;
@@ -217,8 +217,8 @@ int proc_zrrank(NetworkServer *net, Link *link, const Request &req, Response *re
 	return 0;
 }
 
-int proc_zrange(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
+int proc_zrange(const Context &ctx, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(4);
 
     resp->reply_list_ready();
@@ -232,8 +232,8 @@ int proc_zrange(NetworkServer *net, Link *link, const Request &req, Response *re
 	return 0;
 }
 
-int proc_zrrange(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
+int proc_zrrange(const Context &ctx, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(4);
 
     resp->reply_list_ready();
@@ -300,19 +300,19 @@ static int _zrangebyscore(SSDB *ssdb, const Request &req, Response *resp, int re
     return 0;
 }
 
-int proc_zrangebyscore(NetworkServer *net, Link *link, const Request &req, Response *resp){
-    SSDBServer *serv = (SSDBServer *)net->data;
+int proc_zrangebyscore(const Context &ctx, Link *link, const Request &req, Response *resp){
+    SSDBServer *serv = (SSDBServer *) ctx.net->data;
     return _zrangebyscore(serv->ssdb, req, resp, 0);
 }
 
-int proc_zrevrangebyscore(NetworkServer *net, Link *link, const Request &req, Response *resp){
-    SSDBServer *serv = (SSDBServer *)net->data;
+int proc_zrevrangebyscore(const Context &ctx, Link *link, const Request &req, Response *resp){
+    SSDBServer *serv = (SSDBServer *) ctx.net->data;
     return _zrangebyscore(serv->ssdb, req, resp, 1);
 }
 
-int proc_zscan(NetworkServer *net, Link *link, const Request &req, Response *resp){
+int proc_zscan(const Context &ctx, Link *link, const Request &req, Response *resp){
     CHECK_NUM_PARAMS(3);
-    SSDBServer *serv = (SSDBServer *)net->data;
+    SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
 
     int cursorIndex = 2;
@@ -394,18 +394,18 @@ static int _zincr(SSDB *ssdb, Link *link, const Request &req, Response *resp, in
 	return 0;
 }
 
-int proc_zincr(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
+int proc_zincr(const Context &ctx, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	return _zincr(serv->ssdb, link, req, resp, 1);
 }
 
-int proc_zdecr(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
+int proc_zdecr(const Context &ctx, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	return _zincr(serv->ssdb, link, req, resp, -1);
 }
 
-int proc_zcount(NetworkServer *net, Link *link, const Request &req, Response *resp){
-    SSDBServer *serv = (SSDBServer *)net->data;
+int proc_zcount(const Context &ctx, Link *link, const Request &req, Response *resp){
+    SSDBServer *serv = (SSDBServer *) ctx.net->data;
     CHECK_NUM_PARAMS(4);
 
     int64_t count = 0;
@@ -419,8 +419,8 @@ int proc_zcount(NetworkServer *net, Link *link, const Request &req, Response *re
     return 0;
 }
 
-int proc_zremrangebyscore(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
+int proc_zremrangebyscore(const Context &ctx, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(4);
 
  	int64_t count = 0;
@@ -434,8 +434,8 @@ int proc_zremrangebyscore(NetworkServer *net, Link *link, const Request &req, Re
 	return 0;
 }
 
-int proc_zremrangebyrank(NetworkServer *net, Link *link, const Request &req, Response *resp){
-	SSDBServer *serv = (SSDBServer *)net->data;
+int proc_zremrangebyrank(const Context &ctx, Link *link, const Request &req, Response *resp){
+	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(4);
 
     std::vector<std::string> key_score;
@@ -503,13 +503,13 @@ static int _zrangebylex(SSDB *ssdb, const Request &req, Response *resp, enum DIR
     return 0;
 }
 
-int proc_zrangebylex(NetworkServer *net, Link *link, const Request &req, Response *resp){
-    SSDBServer *serv = (SSDBServer *)net->data;
+int proc_zrangebylex(const Context &ctx, Link *link, const Request &req, Response *resp){
+    SSDBServer *serv = (SSDBServer *) ctx.net->data;
     return _zrangebylex(serv->ssdb, req, resp, DIRECTION::FORWARD);
 }
 
-int proc_zremrangebylex(NetworkServer *net, Link *link, const Request &req, Response *resp){
-    SSDBServer *serv = (SSDBServer *)net->data;
+int proc_zremrangebylex(const Context &ctx, Link *link, const Request &req, Response *resp){
+    SSDBServer *serv = (SSDBServer *) ctx.net->data;
     CHECK_NUM_PARAMS(4);
 
     int64_t count = 0;
@@ -525,14 +525,14 @@ int proc_zremrangebylex(NetworkServer *net, Link *link, const Request &req, Resp
     return 0;
 }
 
-int proc_zrevrangebylex(NetworkServer *net, Link *link, const Request &req, Response *resp){
-    SSDBServer *serv = (SSDBServer *)net->data;
+int proc_zrevrangebylex(const Context &ctx, Link *link, const Request &req, Response *resp){
+    SSDBServer *serv = (SSDBServer *) ctx.net->data;
     return _zrangebylex(serv->ssdb, req, resp, DIRECTION::BACKWARD);
 }
 
-int proc_zlexcount(NetworkServer *net, Link *link, const Request &req, Response *resp){
+int proc_zlexcount(const Context &ctx, Link *link, const Request &req, Response *resp){
     CHECK_NUM_PARAMS(4);
-    SSDBServer *serv = (SSDBServer *)net->data;
+    SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
     int64_t count = 0;
 
