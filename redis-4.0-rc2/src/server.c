@@ -1692,6 +1692,7 @@ void initServerConfig(void) {
     server.ssdb_replication_client = NULL;
     server.protected_mode = CONFIG_DEFAULT_PROTECTED_MODE;
     server.jdjr_mode = CONFIG_DEFAULT_JDJR_MODE;
+    server.behave_as_ssdb = CONFIG_DEFAULT_BEHAVE_AS_SSDB;
     server.load_from_ssdb = CONFIG_DEFAULT_LOAD_FROM_SSDB;
     server.use_customized_replication = CONFIG_DEFAULT_USE_CUSTOMIZED_REPLICATION;
     server.dbnum = CONFIG_DEFAULT_DBNUM;

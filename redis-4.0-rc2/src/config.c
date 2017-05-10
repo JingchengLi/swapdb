@@ -220,6 +220,10 @@ void loadServerConfigFromString(char *config) {
             if ((server.jdjr_mode = yesnotoi(argv[1])) == -1) {
                 err = "argument must be 'yes' or 'no'"; goto loaderr;
             }
+        } else if (!strcasecmp(argv[0], "behave-as-ssdb") && argc == 2) {
+            if ((server.behave_as_ssdb = yesnotoi(argv[1])) == -1) {
+                err = "argument must be 'yes' or 'no'"; goto loaderr;
+            }
         } else if (!strcasecmp(argv[0],"load-from-ssdb") && argc == 2) {
             if ((server.load_from_ssdb = yesnotoi(argv[1])) == -1) {
                 err = "argument must be 'yes' or 'no'"; goto loaderr;
@@ -1018,6 +1022,8 @@ void configSetCommand(client *c) {
     } config_set_bool_field(
       "jdjr-mode",server.jdjr_mode) {
     } config_set_bool_field(
+      "behave-as-ssdb",server.behave_as_ssdb) {
+    } config_set_bool_field(
       "load-from-ssdb",server.load_from_ssdb) {
     } config_set_bool_field(
         "use-customized-replication",server.use_customized_replication) {
@@ -1292,6 +1298,7 @@ void configGetCommand(client *c) {
     config_get_bool_field("activerehashing", server.activerehashing);
     config_get_bool_field("protected-mode", server.protected_mode);
     config_get_bool_field("jdjr-mode", server.jdjr_mode);
+    config_get_bool_field("behave-as-ssdb", server.behave_as_ssdb);
     config_get_bool_field("load-from-ssdb", server.load_from_ssdb);
     config_get_bool_field("use-customized-replication", server.use_customized_replication);
     config_get_bool_field("repl-disable-tcp-nodelay",
@@ -2022,6 +2029,7 @@ int rewriteConfig(char *path) {
     rewriteConfigYesNoOption(state,"activerehashing",server.activerehashing,CONFIG_DEFAULT_ACTIVE_REHASHING);
     rewriteConfigYesNoOption(state,"protected-mode",server.protected_mode,CONFIG_DEFAULT_PROTECTED_MODE);
     rewriteConfigYesNoOption(state,"jdjr-mode",server.jdjr_mode,CONFIG_DEFAULT_JDJR_MODE);
+    rewriteConfigYesNoOption(state,"behave-as-ssdb",server.behave_as_ssdb,CONFIG_DEFAULT_BEHAVE_AS_SSDB);
     rewriteConfigYesNoOption(state,"load-from-ssdb",server.load_from_ssdb,CONFIG_DEFAULT_LOAD_FROM_SSDB);
     rewriteConfigYesNoOption(state,"use-customized-replication",server.use_customized_replication,CONFIG_DEFAULT_USE_CUSTOMIZED_REPLICATION);
     rewriteConfigClientoutputbufferlimitOption(state);

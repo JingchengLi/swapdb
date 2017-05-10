@@ -141,6 +141,7 @@ typedef long long mstime_t; /* millisecond time type. */
 #define CONFIG_DEFAULT_TCP_KEEPALIVE 300
 #define CONFIG_DEFAULT_PROTECTED_MODE 1
 #define CONFIG_DEFAULT_JDJR_MODE 0
+#define CONFIG_DEFAULT_BEHAVE_AS_SSDB 1
 #define CONFIG_DEFAULT_LOAD_FROM_SSDB 1
 #define CONFIG_DEFAULT_USE_CUSTOMIZED_REPLICATION 1
 #define CONFIG_DEFAULT_LOGFILE ""
@@ -1002,6 +1003,7 @@ struct redisServer {
     uint64_t next_client_id;    /* Next client unique ID. Incremental. */
     int protected_mode;         /* Don't accept external connections. */
     int jdjr_mode;              /* Tag for using jdjr customized mode. */
+    int behave_as_ssdb;         /* Tag for the modification to behave the same as ssdb. */
     int load_from_ssdb;         /* Option for supporting whether loading from SSDB. */
     int use_customized_replication; /* Option for use customized replication. */
     /* RDB / AOF loading information */

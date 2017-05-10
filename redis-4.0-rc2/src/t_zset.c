@@ -1289,7 +1289,9 @@ int zsetAdd(robj *zobj, double score, sds ele, int *flags, double *newscore) {
             if (incr) {
                 score += curscore;
 
-                if (server.jdjr_mode && checkScoreRangeForZset(&score, 1) == C_ERR)
+                if (server.jdjr_mode
+                    && server.behave_as_ssdb
+                    && checkScoreRangeForZset(&score, 1) == C_ERR)
                     /* -1 means out of range in jdjr-mode. */
                     return -1;
 
@@ -1340,7 +1342,9 @@ int zsetAdd(robj *zobj, double score, sds ele, int *flags, double *newscore) {
             if (incr) {
                 score += curscore;
 
-                if (server.jdjr_mode && checkScoreRangeForZset(&score, 1) == C_ERR)
+                if (server.jdjr_mode
+                    && server.behave_as_ssdb
+                    && checkScoreRangeForZset(&score, 1) == C_ERR)
                     /* -1 means out of range in jdjr-mode. */
                     return -1;
 
@@ -1575,7 +1579,7 @@ void zaddGenericCommand(client *c, int flags) {
     /* Lookup the key and create the sorted set if does not exist. */
     zobj = lookupKeyWrite(c->db,key);
 
-    if (server.jdjr_mode) {
+    if (server.jdjr_mode && server.behave_as_ssdb) {
         /* Check the score range: (-1e13, 1e13) in jdjr-mode. */
         if ((!incr || (incr && !zobj))
             && checkScoreRangeForZset(scores, elements) == C_ERR) {
@@ -1612,7 +1616,9 @@ void zaddGenericCommand(client *c, int flags) {
             addReplyError(c,nanerr);
             goto cleanup;
         }
-        if (server.jdjr_mode && retval == -1) {
+        if (server.jdjr_mode
+            && server.behave_as_ssdb
+            && retval == -1) {
             addReplyError(c, "value is out of range");
             goto cleanup;
         }
