@@ -2797,9 +2797,15 @@ void saveSlaveSSDBwriteOp(client *c, time_t time, int index) {
     op->time = time;
     op->index = index;
     op->cmd = c->cmd;
-    op->argc = c->argc;
-    op->argv = c->argv;
-    c->argv = NULL;
+    if (c->cmd->proc == flushallCommand) {
+        op->argc = 1;
+        op->argv = zmalloc(sizeof(robj*));
+        op->argv[0] = createObject(OBJ_STRING,sdsnew("flushall"));
+    } else {
+        op->argc = c->argc;
+        /* NOTE:we use c->argv directly, avoid to reset it later. */
+        op->argv = c->argv;
+    }
 
     /* recored consumed memory size. */
     write_op_mem_size += sizeof(struct ssdb_write_op) + sizeof(listNode*);
@@ -2839,8 +2845,6 @@ int processCommandMaybeInSSDB(client *c) {
         /* Exec the cmd in redis. */
         return C_ERR;
     }
-
-    serverAssert(c->cmd);
 
     if (server.masterhost == NULL && (server.is_allow_ssdb_write == DISALLOW_SSDB_WRITE)
         && (c->cmd->flags & CMD_WRITE) && (c->cmd->flags & CMD_JDJR_MODE)) {
@@ -2896,7 +2900,14 @@ int processCommandMaybeInSSDB(client *c) {
 
             }
 
+            serverAssert(c->argv);
             int ret = sendCommandToSSDB(c, NULL);
+
+            /* avoid to reset c->argv for the master connection of slave redis. we use it to save
+             * commands in server.ssdb_write_oplist */
+            if (server.master == c && c->cmd->proc != flushallCommand)
+                c->argv = NULL;
+
             if (ret != C_OK) return ret;
 
             /* Record the keys visting SSDB. */
