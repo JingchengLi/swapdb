@@ -15,7 +15,8 @@ extern "C" {
 
 void *ssdb_sync(void *arg) {
     ReplicationJob *job = (ReplicationJob *) arg;
-    SSDBServer *serv = job->serv;
+    Context ctx = job->ctx;
+    SSDBServer *serv = (SSDBServer *)ctx.net->data;
     HostAndPort hnp = job->hnp;
     Link *master_link = job->upstream;
 
@@ -208,7 +209,7 @@ void *ssdb_sync(void *arg) {
 
                     if (!kvs.empty()) {
                         log_debug("parse_replic count %d", kvs.size());
-                        errorCode = serv->ssdb->parse_replic(kvs);
+                        errorCode = serv->ssdb->parse_replic(ctx, kvs);
                         kvs.clear();
                     }
 
@@ -237,7 +238,7 @@ void *ssdb_sync(void *arg) {
 
     if (!kvs.empty()) {
         log_debug("parse_replic count %d", kvs.size());
-        errorCode = serv->ssdb->parse_replic(kvs);
+        errorCode = serv->ssdb->parse_replic(ctx, kvs);
         kvs.clear();
     }
 

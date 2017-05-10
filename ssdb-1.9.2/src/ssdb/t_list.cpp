@@ -169,7 +169,7 @@ int SSDBImpl::doListPop(const Context &ctx, const Bytes &key, leveldb::WriteBatc
             batch.Delete(last_item_key);
         }
 
-        leveldb::Status s = CommitBatch(&(batch));
+        leveldb::Status s = CommitBatch(ctx, &(batch));
         if(!s.ok()){
             log_error("error: %s", s.ToString().c_str());
             return STORAGE_ERR;
@@ -277,7 +277,7 @@ int SSDBImpl::doListPush(const Context &ctx, const Bytes &key, leveldb::WriteBat
     batch.Put(meta_key, new_meta_val);
 
 
-    leveldb::Status s = CommitBatch(&(batch));
+    leveldb::Status s = CommitBatch(ctx, &(batch));
     if(!s.ok()){
         log_error("error: %s", s.ToString().c_str());
         return STORAGE_ERR;
@@ -416,7 +416,7 @@ int SSDBImpl::LSet(const Context &ctx, const Bytes &key, const int64_t index, co
     std::string item_key = encode_list_key(key, seq, lv.version);
     batch.Put(item_key, leveldb::Slice(val.data(),val.size()));
 
-    leveldb::Status s = CommitBatch(&(batch));
+    leveldb::Status s = CommitBatch(ctx, &(batch));
     if(!s.ok()){
         log_error("error: %s", s.ToString().c_str());
         return STORAGE_ERR;
@@ -507,7 +507,7 @@ int SSDBImpl::ltrim(const Context &ctx, const Bytes &key, int64_t start, int64_t
         batch.Put(meta_key, new_meta_val);
     }
 
-    leveldb::Status s = CommitBatch(&(batch));
+    leveldb::Status s = CommitBatch(ctx, &(batch));
     if(!s.ok()){
         log_error("error: %s", s.ToString().c_str());
         return STORAGE_ERR;

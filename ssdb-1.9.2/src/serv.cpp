@@ -729,7 +729,7 @@ int proc_replic(const Context &ctx, Link *link, const Request &req, Response *re
         serv->replicNumStarted++;
     }
 
-    ReplicationJob *job = new ReplicationJob(serv, HostAndPort{ip, port}, link);
+    ReplicationJob *job = new ReplicationJob(ctx, HostAndPort{ip, port}, link);
 
     ctx.net->replication->push(job);
 
@@ -828,7 +828,7 @@ int proc_rr_transfer_snapshot(const Context &ctx, Link *link, const Request &req
 
     link->quick_send({"ok","rr_transfer_snapshot ok"});
 
-    ReplicationJob *job = new ReplicationJob(serv, HostAndPort{ip, port}, link);
+    ReplicationJob *job = new ReplicationJob(ctx, HostAndPort{ip, port}, link);
     ctx.net->replication->push(job);
 
     resp->resp.clear(); //prevent send resp
@@ -936,11 +936,10 @@ int proc_after_proc(const Context &ctx, Link *link, const Request &req, Response
 
 
 int proc_ssdb_sync(const Context &ctx, Link *link, const Request &req, Response *resp){
-    SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
     log_info("ssdb_sync , link address:%lld", link);
 
-    ReplicationJob *job = new ReplicationJob(serv, HostAndPort{link->remote_ip, link->remote_port}, link);
+    ReplicationJob *job = new ReplicationJob(ctx, HostAndPort{link->remote_ip, link->remote_port}, link);
 //	net->replication->push(job);
 
     pthread_t tid;

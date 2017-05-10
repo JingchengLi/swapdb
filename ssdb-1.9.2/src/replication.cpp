@@ -34,7 +34,7 @@ void ReplicationWorker::init() {
 
 int ReplicationWorker::proc(ReplicationJob *job) {
 
-    SSDBServer *serv = job->serv;
+    SSDBServer *serv = (SSDBServer *)job->ctx.net->data;
     HostAndPort hnp = job->hnp;
     Link *master_link = job->upstream;
     const leveldb::Snapshot *snapshot = nullptr;
@@ -263,7 +263,7 @@ int ReplicationWorker::proc(ReplicationJob *job) {
 
 void ReplicationWorker::reportError(ReplicationJob *job) {
     send_error_to_redis(job->upstream);
-    SSDBServer *serv = job->serv;
+    SSDBServer *serv = (SSDBServer *)job->ctx.net->data;
 
     {
         Locking<Mutex> l(&serv->replicMutex);

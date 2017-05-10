@@ -83,7 +83,7 @@ int SSDBImpl::zsetNoLock(const Context &ctx, const Bytes &name, const std::map<T
 
     }
 
-    leveldb::Status s = CommitBatch(&(batch));
+    leveldb::Status s = CommitBatch(ctx, &(batch));
     if (!s.ok()) {
         log_error("zset error: %s", s.ToString().c_str());
         return STORAGE_ERR;

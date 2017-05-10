@@ -52,7 +52,7 @@ int SSDBImpl::saddNoLock(const Context &ctx, const Bytes &key, const std::set<T>
         ret = 1;
     }
 
-    leveldb::Status s = CommitBatch(&(batch));
+    leveldb::Status s = CommitBatch(ctx, &(batch));
     if (!s.ok()) {
         log_error("saddNoLock error: %s", s.ToString().c_str());
         return STORAGE_ERR;

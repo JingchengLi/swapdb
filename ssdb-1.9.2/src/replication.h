@@ -12,6 +12,7 @@
 #include <util/strings.h>
 #include <util/thread.h>
 #include <net/redis/redis_client.h>
+#include <common/context.hpp>
 
 
 void *ssdb_sync(void *arg);
@@ -24,7 +25,7 @@ class SSDBServer;
 
 class ReplicationJob {
 public:
-    SSDBServer *serv;
+    Context ctx;
     HostAndPort hnp;
     Link *upstream;
 
@@ -32,7 +33,7 @@ public:
 
     volatile bool quit = false;
 
-    ReplicationJob(SSDBServer *serv, const HostAndPort &hnp, Link *link) : serv(serv), hnp(hnp), upstream(link) {
+    ReplicationJob(const Context& ctx, const HostAndPort& hnp, Link *link) : ctx(ctx), hnp(hnp), upstream(link) {
         ts = time_ms();
     }
 

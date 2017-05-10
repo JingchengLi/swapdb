@@ -97,8 +97,8 @@ public:
 	virtual std::vector<std::string> info();
 	virtual void compact();
 	virtual int digest(std::string *val);
-	virtual leveldb::Status CommitBatch(leveldb::WriteBatch* updates);
-	virtual leveldb::Status CommitBatch(const leveldb::WriteOptions& options, leveldb::WriteBatch* updates);
+	virtual leveldb::Status CommitBatch(const Context &ctx, leveldb::WriteBatch* updates);
+	virtual leveldb::Status CommitBatch(const Context &ctx, const leveldb::WriteOptions& options, leveldb::WriteBatch* updates);
 
 	/* raw operates */
 
@@ -112,7 +112,7 @@ public:
 	virtual int dump(const Context &ctx, const Bytes &key,std::string *res);
     virtual int restore(const Context &ctx, const Bytes &key,int64_t expire, const Bytes &data, bool replace, std::string *res);
 	virtual int exists(const Context &ctx, const Bytes &key);
-	virtual int parse_replic(const std::vector<std::string> &kvs);
+	virtual int parse_replic(const Context &ctx, const std::vector<std::string> &kvs);
 
 	/* key value */
 

@@ -52,7 +52,7 @@ public:
 	virtual int dump(const Context &ctx, const Bytes &key,std::string *res) = 0;
     virtual int restore(const Context &ctx, const Bytes &key,int64_t expire, const Bytes &data, bool replace, std::string *res) = 0;
 	virtual int exists(const Context &ctx, const Bytes &key) = 0;
-    virtual int parse_replic(const std::vector<std::string> &kvs) = 0;
+    virtual int parse_replic(const Context &ctx, const std::vector<std::string> &kvs) = 0;
 
 	/* key value */
 
