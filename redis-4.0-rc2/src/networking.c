@@ -776,6 +776,8 @@ int sendCommandToSSDB(client *c, sds finalcmd) {
             return C_ERR;
 
         if (!c->context || c->context->fd <= 0) {
+            if (isSpecialConnection(c))
+                freeClient(c);
             serverLog(LL_VERBOSE, "redisContext error.");
             return C_FD_ERR;
         }
@@ -797,11 +799,16 @@ int sendCommandToSSDB(client *c, sds finalcmd) {
             if (errno == EAGAIN || errno == EINTR) {
                 /* Try again later. */
             } else {
-                serverLog(LL_WARNING,
-                          "Error writing to SSDB server: %s", strerror(errno));
-                sdsfree(finalcmd);
-                closeAndReconnectSSDBconnection(c);
-                return C_FD_ERR;
+                if (isSpecialConnection(c))
+                    freeClient(c);
+                else {
+                    serverLog(LL_WARNING,
+                              "Error writing to SSDB server: %s", strerror(errno));
+                    sdsfree(finalcmd);
+
+                    closeAndReconnectSSDBconnection(c);
+                    return C_FD_ERR;
+                }
             }
         } else if (nwritten > 0) {
             if (nwritten == (signed) sdslen(finalcmd)) {
@@ -1495,7 +1502,6 @@ void handleSSDBReply(client *c, int revert_len) {
                 confirmAndRetrySlaveSSDBwriteOp(last_successful_write_time, last_successful_write_index);
             }
             server.slave_check_rep_opid = 0;
-            return;
         } else {
             if (reply->type == REDIS_REPLY_ERROR) {
                 server.slave_ssdb_critical_err_cnt++;
@@ -1505,19 +1511,21 @@ void handleSSDBReply(client *c, int revert_len) {
                     exit(1);
                 }
             }
-            if (c->cmd->proc == flushallCommand) {
+            if (c->cmd && c->btype == BLOCKED_BY_FLUSHALL && c->cmd->proc == flushallCommand) {
+                unblockClient(c);
                 if (reply->type == REDIS_REPLY_ERROR) {
+                    resetClient(c);
                     /* close SSDB connection and we will retry flushall after connected. */
                     closeAndReconnectSSDBconnection(c);
                     return;
                 } else {
                     /* we receive flushall response of SSDB, now we can empty redis.*/
-                    unblockClient(c);
                     flushallCommand(c);
-                    resetClient(c);
                 }
+                resetClient(c);
             }
         }
+        return;
     }
 
     if (c == server.delete_confirm_client
@@ -1647,13 +1655,22 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
         /* Return early when the context has seen an error. */
         if (c->context->err) {
             serverLog(LL_WARNING, "Error: Could not connect to SSDB, %s ", c->context->errstr);
-            closeAndReconnectSSDBconnection(c);
-            if (c->ssdb_replies[0])
-                revertClientBufReply(c, first_reply_len);
-            else
-                revertClientBufReply(c, total_reply_len);
-            addReplyError(c, "SSDB disconnect when read");
-            return;
+            if (isSpecialConnection(c)) {
+                freeClient(c);
+                return;
+            } else {
+                if (c->btype == BLOCKED_VISITING_SSDB) {
+                    unblockClient(c);
+                    resetClient(c);
+                }
+                closeAndReconnectSSDBconnection(c);
+                if (c->ssdb_replies[0])
+                    revertClientBufReply(c, first_reply_len);
+                else
+                    revertClientBufReply(c, total_reply_len);
+                addReplyError(c, "SSDB disconnect when read");
+                goto clean;
+            }
         }
 
         /* the returned 'aux' may be NULL when redisGetReplyFromReader return REDIS_OK */
@@ -1720,25 +1737,31 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
     /* check if the second reply is 'check 0' or 'check 1' */
     if (c->ssdb_replies[1]) {
         redisReply* reply = c->ssdb_replies[1];
-
-        if (reply->type != REDIS_REPLY_ARRAY) {
-            redisReaderSetSSDBCheckError(c->context->reader);
-            freeClient(c);
-            return;
-        }
         redisReply* element = reply->element[0];
-        if (element->type != REDIS_REPLY_STRING || (strcmp(element->str, "check 1") && strcmp(element->str, "check 0"))) {
+
+        if ( reply->type != REDIS_REPLY_ARRAY ||
+             (element->type != REDIS_REPLY_STRING || (strcmp(element->str, "check 1") && strcmp(element->str, "check 0"))) ) {
             redisReaderSetSSDBCheckError(c->context->reader);
+
+            if (c->ssdb_replies[0]) {
+                freeReplyObject(c->ssdb_replies[0]);
+                c->ssdb_replies[0] = NULL;
+            }
+            if (c->ssdb_replies[1]) {
+                freeReplyObject(c->ssdb_replies[1]);
+                c->ssdb_replies[1] = NULL;
+            }
+
             freeClient(c);
             return;
         }
     }
-    /* Continue to read the next callback from SSDB. */
     if (!c->ssdb_replies[0] || !c->ssdb_replies[1])
-        return;
+        goto clean;
 
     handleSSDBReply(c, first_reply_len);
 
+clean:
     if (c->ssdb_replies[0]) {
         freeReplyObject(c->ssdb_replies[0]);
         c->ssdb_replies[0] = NULL;
