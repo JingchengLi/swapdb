@@ -622,7 +622,7 @@ void ssdbConnectCallback(aeEventLoop *el, int fd, void *privdata, int mask) {
     if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &sockerr, &errlen) == -1)
         sockerr = errno;
     if (sockerr) {
-        serverLog(LL_WARNING,"Error condition on socket for SYNC: %s",
+        serverLog(LL_WARNING,"Error condition on socket for connect ssdb: %s",
             strerror(sockerr));
         goto error;
     }
@@ -768,19 +768,19 @@ int sendCommandToSSDB(client *c, sds finalcmd) {
         return C_ERR;
     }
 
+    if (!c->context || c->context->fd <= 0) {
+        if (isSpecialConnection(c))
+            freeClient(c);
+        serverLog(LL_VERBOSE, "redisContext error.");
+        return C_FD_ERR;
+    }
+
     if (!finalcmd) {
         cmd = lookupCommand(c->argv[0]->ptr);
         if (!cmd || !(cmd->flags & CMD_JDJR_MODE)
             /* TODO: support multi. */
             || (c->flags & CLIENT_MULTI))
             return C_ERR;
-
-        if (!c->context || c->context->fd <= 0) {
-            if (isSpecialConnection(c))
-                freeClient(c);
-            serverLog(LL_VERBOSE, "redisContext error.");
-            return C_FD_ERR;
-        }
 
         finalcmd = composeCmdFromArgs(c->argc, c->argv);
     }
@@ -1604,7 +1604,7 @@ cleanup:
 
         if ((c->cmd
              && (c->cmd->flags & CMD_WRITE)
-             && server.masterhost == NULL)) {
+             && server.masterhost == NULL && reply->type != REDIS_REPLY_ERROR)) {
             propagate(c->cmd, 0, c->argv, c->argc, PROPAGATE_REPL);
         }
 
