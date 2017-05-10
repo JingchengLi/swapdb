@@ -1046,7 +1046,6 @@ struct redisServer {
     dict *orig_commands;        /* Command table before command renaming. */
     aeEventLoop *el;
     unsigned int lruclock;      /* Clock for LRU eviction */
-    pthread_mutex_t lruclock_mutex;
     int shutdown_asap;          /* SHUTDOWN needed ASAP */
     int activerehashing;        /* Incremental rehash in serverCron() */
     int active_defrag_running;  /* Active defragmentation running (holds current scan aggressiveness) */
@@ -1092,7 +1091,6 @@ struct redisServer {
     char neterr[ANET_ERR_LEN];   /* Error buffer for anet.c */
     dict *migrate_cached_sockets;/* MIGRATE cached sockets */
     uint64_t next_client_id;    /* Next client unique ID. Incremental. */
-    pthread_mutex_t next_client_id_mutex;
     int protected_mode;         /* Don't accept external connections. */
     int jdjr_mode;              /* Tag for using jdjr customized mode. */
     int behave_as_ssdb;         /* Tag for the modification to behave the same as ssdb. */
@@ -1383,6 +1381,7 @@ struct redisServer {
     /* System hardware info */
     size_t system_memory_size;  /* Total memory in system as reported by OS */
 
+    /*=======================[BEGIN]for jdjr mode========================*/
     int is_doing_flushall;
     client* current_flushall_client;
     int prohibit_ssdb_read_write;
@@ -1460,6 +1459,13 @@ struct redisServer {
 
     int coldkey_filter_times_everytime;
     int lowest_idle_val_of_cold_key;
+    /*=======================[END]for jdjr mode========================*/
+
+    /* Mutexes used to protect atomic variables when atomic builtins are
+     * not available. */
+    pthread_mutex_t lruclock_mutex;
+    pthread_mutex_t next_client_id_mutex;
+    pthread_mutex_t unixtime_mutex;
 };
 
 typedef struct pubsubPattern {

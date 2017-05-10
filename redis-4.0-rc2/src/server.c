@@ -1130,7 +1130,8 @@ void databasesCron(void) {
  * every object access, and accuracy is not needed. To access a global var is
  * a lot faster than calling time(NULL) */
 void updateCachedTime(void) {
-    server.unixtime = time(NULL);
+    time_t unixtime = time(NULL);
+    atomicSet(server.unixtime,unixtime);
     server.mstime = mstime();
 }
 
@@ -2046,6 +2047,10 @@ void createSharedObjects(void) {
 void initServerConfig(void) {
     int j;
 
+    pthread_mutex_init(&server.next_client_id_mutex,NULL);
+    pthread_mutex_init(&server.lruclock_mutex,NULL);
+    pthread_mutex_init(&server.unixtime_mutex,NULL);
+
     getRandomHexChars(server.runid,CONFIG_RUN_ID_SIZE);
     server.runid[CONFIG_RUN_ID_SIZE] = '\0';
     changeReplicationId();
@@ -2147,7 +2152,6 @@ void initServerConfig(void) {
     server.cluster_announce_bus_port = CONFIG_DEFAULT_CLUSTER_ANNOUNCE_BUS_PORT;
     server.migrate_cached_sockets = dictCreate(&migrateCacheDictType,NULL);
     server.next_client_id = 1; /* Client IDs, start from 1 .*/
-    pthread_mutex_init(&server.next_client_id_mutex,NULL);
     server.loading_process_events_interval_bytes = (1024*1024*2);
     server.lazyfree_lazy_eviction = CONFIG_DEFAULT_LAZYFREE_LAZY_EVICTION;
     server.lazyfree_lazy_expire = CONFIG_DEFAULT_LAZYFREE_LAZY_EXPIRE;
@@ -2164,7 +2168,6 @@ void initServerConfig(void) {
     server.slave_blocked_by_flushall_timeout = CONFIG_DEFAULT_SLAVE_BLOCKED_BY_FLUSHALL_TIMEOUT;
 
     unsigned int lruclock = getLRUClock();
-    pthread_mutex_init(&server.lruclock_mutex,NULL);
     atomicSet(server.lruclock,lruclock);
     resetServerSaveParams();
 
