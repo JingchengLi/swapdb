@@ -102,11 +102,13 @@ int proc_multi_zset(const Context &ctx, Link *link, const Request &req, Response
 		double score = strtod(val.data(), &eptr); //check double
 		if (eptr[0] != '\n' ) {  // skip for ssdb protocol
 			if (eptr[0] != '\0' || errno!= 0 || std::isnan(score)) {
-                log_error("%s", strerror(errno));
+                log_error("%d : %s", errno, strerror(errno));
                 reply_errinfo_return("ERR value is not a valid float");
 			}
-		}else if (score <= ZSET_SCORE_MIN || score >= ZSET_SCORE_MAX){
-            reply_errinfo_return("ERR value is less than ZSET_SCORE_MIN or greater than ZSET_SCORE_MAX");
+		}
+
+        if (score <= ZSET_SCORE_MIN || score >= ZSET_SCORE_MAX){
+            reply_errinfo_return("ERR value is not a valid float");
         }
 
         if (nx) {
