@@ -8,9 +8,10 @@
 int notifyFailedToRedis(RedisUpstream *redisUpstream, std::string responseCommand, std::string dataKey);
 int notifyNotFoundToRedis(RedisUpstream *redisUpstream, std::string responseCommand, std::string dataKey);
 
-static Context ctx;
 
-int bproc_COMMAND_DATA_SAVE(SSDBServer *serv, TransferWorker *worker, const std::string &data_key, void *value) {
+int bproc_COMMAND_DATA_SAVE(const Context &ctx, TransferWorker *worker, const std::string &data_key, void *value) {
+    SSDBServer *serv = (SSDBServer *) ctx.net->data;
+
     const std::string cmd = "ssdb-resp-dump";
     const std::string del_cmd = "ssdb-resp-del";
 
@@ -60,7 +61,9 @@ int bproc_COMMAND_DATA_SAVE(SSDBServer *serv, TransferWorker *worker, const std:
     return 0;
 }
 
-int bproc_COMMAND_DATA_DUMP(SSDBServer *serv, TransferWorker *worker, const std::string &data_key, void *value) {
+int bproc_COMMAND_DATA_DUMP(const Context &ctx, TransferWorker *worker, const std::string &data_key, void *value) {
+    SSDBServer *serv = (SSDBServer *) ctx.net->data;
+
     const std::string cmd = "ssdb-resp-restore";
 
     RecordLock<Mutex> l(&serv->transfer_mutex_record_, data_key);

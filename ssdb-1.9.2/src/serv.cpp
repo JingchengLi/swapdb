@@ -582,7 +582,7 @@ int proc_redis_req_restore(const Context &ctx, Link *link, const Request &req, R
 
     }
 
-    TransferJob *job = new TransferJob(serv, COMMAND_DATA_SAVE, req[1].String(),
+    TransferJob *job = new TransferJob(ctx, COMMAND_DATA_SAVE, req[1].String(),
                                        new DumpData(req[1].String(), req[3].String(), ttl, replace));
     job->proc = BPROC(COMMAND_DATA_SAVE);
 
@@ -598,7 +598,7 @@ int proc_redis_req_dump(const Context &ctx, Link *link, const Request &req, Resp
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
     CHECK_NUM_PARAMS(2);
 
-    TransferJob *job = new TransferJob(serv, COMMAND_DATA_DUMP, req[1].String());
+    TransferJob *job = new TransferJob(ctx, COMMAND_DATA_DUMP, req[1].String());
     job->proc = BPROC(COMMAND_DATA_DUMP);
 
     //TODO push1st

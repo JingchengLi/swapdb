@@ -17,15 +17,13 @@
 #include "redis_stream.h"
 
 
-typedef int (*bproc_t)(SSDBServer *serv, TransferWorker *, const std::string &data_key, void *value);
+typedef int (*bproc_t)(const Context &ctx, TransferWorker *, const std::string &data_key, void *value);
 
 class SSDBServer;
 
 
 class TransferJob {
 public:
-    SSDBServer *serv;
-
     uint16_t type;
     int64_t ts;
     int retry;
@@ -36,8 +34,10 @@ public:
 
     bproc_t proc;
 
-    TransferJob(SSDBServer *serv, uint16_t type, const std::string &key, void *value = nullptr) :
-            serv(serv), type(type), data_key(key), value(value) {
+    Context ctx;
+
+    TransferJob(const Context &ctx, uint16_t type, const std::string &key, void *value = nullptr) :
+            ctx(ctx), type(type), data_key(key), value(value) {
         ts = time_ms();
         retry = 0;
     }

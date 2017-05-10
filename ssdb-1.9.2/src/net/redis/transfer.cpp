@@ -28,7 +28,7 @@ void TransferWorker::init() {
 int TransferWorker::proc(TransferJob *job) {
 
     if (redisUpstream == nullptr) {
-        HostAndPort conf = job->serv->redisConf;
+        HostAndPort conf = ((SSDBServer* )(job->ctx.net->data))->redisConf;
         if (conf.port == 0) {
             log_error("redis upstream conf is null");
             return -1;
@@ -37,7 +37,7 @@ int TransferWorker::proc(TransferJob *job) {
     }
 
     int64_t current = time_ms();
-    int res = (*job->proc)(job->serv, this, job->data_key, job->value);
+    int res = (*job->proc)(job->ctx, this, job->data_key, job->value);
     if (res != 0) {
         log_error("bg_job failed %s ", job->dump().c_str());
     }
