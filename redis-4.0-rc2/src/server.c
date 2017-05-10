@@ -2946,7 +2946,7 @@ int processCommandMaybeInSSDB(client *c) {
                     if (server.master == c && c->cmd->proc != flushallCommand)
                         c->argv = NULL;
 
-                    return C_ERR;
+                    return C_OK;
                 }
             }
 
@@ -3107,6 +3107,13 @@ int runCommand(client *c, int* need_return) {
         if (need_return) *need_return = 1;
         int ret = processCommandMaybeInSSDB(c);
         if (ret == C_OK) {
+            if (server.master == c && c->cmd->proc != flushallCommand) {
+                /* for the master connection of slave redis, after we send write commands
+                 * to SSDB and record them in server.ssdb_write_oplist, we just return and
+                 * process next write command. */
+                return C_OK;
+            }
+
             /* The client will be reseted in sendCommandToSSDB if C_FD_ERR
               is returned in sendCommandToSSDB.
               Otherwise, return C_ERR to avoid calling resetClient,
@@ -3116,13 +3123,6 @@ int runCommand(client *c, int* need_return) {
             return C_ERR;
         } else {
             if (need_return) *need_return = 1;
-
-            if (server.master == c) {
-                /* for the master connection of slave redis, after we send write commands
-                 * to SSDB and record them in server.ssdb_write_oplist, we just return and
-                 * process next write command. */
-                return C_OK;
-            }
 
             if (ret == C_NOTSUPPORT_ERR) {
                 addReplyErrorFormat(c, "don't support this command in jdjr mode:%s.", c->cmd->name);
