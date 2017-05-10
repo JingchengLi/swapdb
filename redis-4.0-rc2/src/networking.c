@@ -627,6 +627,9 @@ void ssdbConnectCallback(aeEventLoop *el, int fd, void *privdata, int mask) {
         goto error;
     }
 
+    /* Remove the events added before. */
+    aeDeleteFileEvent(server.el, c->context->fd, AE_READABLE|AE_WRITABLE);
+
     if (aeCreateFileEvent(server.el, c->context->fd,
                           AE_READABLE, ssdbClientUnixHandler, c) == AE_ERR) {
         serverLog(LL_VERBOSE, "Unrecoverable error creating ssdbFd file event.");
