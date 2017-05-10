@@ -69,7 +69,7 @@ int proc_multi_zset(const Context &ctx, Link *link, const Request &req, Response
         }
 
         double new_val = 0;
-        int ret = serv->ssdb->zincr(ctx, req[1], req[scoreidx+1], score, flags, &new_val);
+        int ret = serv->ssdb->zincr(ctx, name, req[scoreidx+1], score, flags, &new_val);
         check_key(ret);
         if (ret < 0){
             reply_err_return(ret);
@@ -143,7 +143,7 @@ int proc_multi_zdel(const Context &ctx, Link *link, const Request &req, Response
 	}
 
     int64_t count = 0;
-    int ret = serv->ssdb->multi_zdel(ctx, req[1], keys, &count);
+    int ret = serv->ssdb->multi_zdel(ctx, name, keys, &count);
     check_key(ret);
     if (ret < 0){
         reply_err_return(ret);

@@ -24,17 +24,17 @@ class SSDBServer;
 
 class TransferJob {
 public:
-    uint16_t type;
-    int64_t ts;
-    int retry;
-
-    std::string data_key;
-    void *value;
-
-
-    bproc_t proc;
 
     Context ctx;
+    uint16_t type;
+    int64_t ts;
+
+    int retry;
+    std::string data_key;
+
+
+    void *value;
+    bproc_t proc;
 
     TransferJob(const Context &ctx, uint16_t type, const std::string &key, void *value = nullptr) :
             ctx(ctx), type(type), data_key(key), value(value) {

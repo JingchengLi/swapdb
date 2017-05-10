@@ -88,21 +88,21 @@ int proc_set(const Context &ctx, Link *link, const Request &req, Response *resp)
 			std::string key = req[i].String();
 			strtolower(&key);
 
-			if (ctx, key=="nx") {
+			if (key=="nx") {
 				flags |= OBJ_SET_NX;
-			} else if (ctx, key=="xx") {
+			} else if (key=="xx") {
 				flags |= OBJ_SET_XX;
-			} else if (ctx, key=="ex") {
+			} else if (key=="ex") {
 				flags |= OBJ_SET_EX;
 				tu = TimeUnit::Second;
-			} else if (ctx, key=="px") {
+			} else if (key=="px") {
 				flags |= OBJ_SET_PX;
 				tu = TimeUnit::Millisecond;
 			}
 
-			if (ctx, key=="nx" || key=="xx") {
+			if (key=="nx" || key=="xx") {
 				//nothing
-			} else if (ctx, key=="ex" || key=="px") {
+			} else if (key=="ex" || key=="px") {
 				i++;
 				if (i >= req.size()) {
 					reply_err_return(SYNTAX_ERR);
@@ -489,9 +489,9 @@ int proc_scan(const Context &ctx, Link *link, const Request &req, Response *resp
 		std::string key = (*it).String();
 		strtolower(&key);
 
-		if (ctx, key=="match") {
+		if (key=="match") {
 			pattern = (*(it+1)).String();
-		} else if (ctx, key=="count") {
+		} else if (key=="count") {
 			limit =  (*(it+1)).Uint64();
 			if (errno == EINVAL){
 				reply_err_return(INVALID_INT);
@@ -543,14 +543,14 @@ int proc_ssdb_scan(const Context &ctx, Link *link, const Request &req, Response 
 		std::string key = (*it).String();
 		strtolower(&key);
 
-		if (ctx, key=="match") {
+		if (key=="match") {
 			pattern = (*(it+1)).String();
-		} else if (ctx, key=="count") {
+		} else if (key=="count") {
 			limit =  (*(it+1)).Uint64();
 			if (errno == EINVAL){
 				reply_err_return(INVALID_INT);
 			}
-		} else if (ctx, key=="value") {
+		} else if (key=="value") {
 			std::string has_value_s = (*(it+1)).String();
 			strtolower(&has_value_s);
 

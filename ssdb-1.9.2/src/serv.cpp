@@ -362,7 +362,6 @@ int proc_client(const Context &ctx, Link *link, const Request &req, Response *re
 
 
 int proc_slowlog(const Context &ctx, Link *link, const Request &req, Response *resp) {
-    SSDBServer *serv = (SSDBServer *) ctx.net->data;
     CHECK_NUM_PARAMS(2);
     std::string action = req[1].String();
     strtolower(&action);
@@ -554,7 +553,6 @@ int proc_cursor_cleanup(const Context &ctx, Link *link, const Request &req, Resp
 
 
 int proc_redis_req_restore(const Context &ctx, Link *link, const Request &req, Response *resp) {
-    SSDBServer *serv = (SSDBServer *) ctx.net->data;
     CHECK_NUM_PARAMS(4);
 
     int64_t ttl = req[2].Int64();
@@ -595,7 +593,6 @@ int proc_redis_req_restore(const Context &ctx, Link *link, const Request &req, R
 
 
 int proc_redis_req_dump(const Context &ctx, Link *link, const Request &req, Response *resp) {
-    SSDBServer *serv = (SSDBServer *) ctx.net->data;
     CHECK_NUM_PARAMS(2);
 
     TransferJob *job = new TransferJob(ctx, COMMAND_DATA_DUMP, req[1].String());
