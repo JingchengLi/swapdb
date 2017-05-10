@@ -58,7 +58,7 @@ int proc_multi_zset(const Context &ctx, Link *link, const Request &req, Response
             reply_errinfo_return("ERR INCR option supports a single increment-element pair");
         }
 
-        char* eptr;
+        char* eptr;errno = 0;
         double score = strtod(req[scoreidx].data(), &eptr); //check double
         if (eptr[0] != '\n' ) {  // skip for ssdb protocol
             if (eptr[0] != '\0' || errno!= 0 || std::isnan(score) || std::isinf(score)) {
@@ -98,10 +98,11 @@ int proc_multi_zset(const Context &ctx, Link *link, const Request &req, Response
 		const Bytes &key = *(it + 1);
 		const Bytes &val = *it;
 
- 		char* eptr;
+ 		char* eptr;errno = 0;
 		double score = strtod(val.data(), &eptr); //check double
 		if (eptr[0] != '\n' ) {  // skip for ssdb protocol
 			if (eptr[0] != '\0' || errno!= 0 || std::isnan(score)) {
+                log_error("%s", strerror(errno));
                 reply_errinfo_return("ERR value is not a valid float");
 			}
 		}else if (score <= ZSET_SCORE_MIN || score >= ZSET_SCORE_MAX){
@@ -363,7 +364,7 @@ static int _zincr(const Context &ctx, SSDB *ssdb, Link *link, const Request &req
     int flags = ZADD_NONE;
     flags |= ZADD_INCR;
 
-    char* eptr;
+    char* eptr;errno = 0;
     double score = strtod(req[3].data(), &eptr); //check double
     if (eptr[0] != '\n' ) {  // skip for ssdb protocol
         if (eptr[0] != '\0' || errno!= 0 || std::isnan(score) || std::isinf(score)) {

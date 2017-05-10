@@ -395,7 +395,7 @@ typedef struct {
 
 /* Populate the rangespec according to the objects min and max. */
 static int zslParseRange(const Bytes &min, const Bytes &max, zrangespec *spec) {
-    char *eptr;
+    char *eptr;errno = 0;
     spec->minex = spec->maxex = 0;
 
     /* Parse the min-max interval. If one of the values is prefixed
