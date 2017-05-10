@@ -2,10 +2,12 @@ start_server {tags {"type"}
 overrides {maxmemory 0}} {
     test "Exceed MAX/MIN score in ssdb return err" {
         ssdbr del zscoretest
-        ssdbr zadd zscoretest 1e13 x
-        assert_equal [expr 10**13] [ssdbr zscore zscoretest x]
-        ssdbr zadd zscoretest -1e13 y
-        assert_equal [expr -1*10**13] [ssdbr zscore zscoretest y]
+        # redis behave as ssdb return err if > 12 9 or < -12 9
+        assert_error "*not*float*" [ssdbr zadd zscoretest 1e13 x]
+        # assert_equal [expr 10**13] [ssdbr zscore zscoretest x]
+        assert_error "*not*float*" [ssdbr zadd zscoretest -1e13 y]
+        # ssdbr zadd zscoretest -1e13 y
+        # assert_equal [expr -1*10**13] [ssdbr zscore zscoretest y]
     }
 
     test "zadd +/-inf key in ssdb" {
@@ -45,7 +47,8 @@ overrides {maxmemory 0}} {
         ssdbr del zscoretest
         set aux {}
         for {set i 0} {$i < $elements} {incr i} {
-            set score [randomSignedInt 2800000000000]
+            set score [randomSignedInt 3800000000000]
+            # set score [randomSignedInt 2800000000000]
             lappend aux $score
             ssdbr zadd zscoretest $score $i
         }
@@ -56,7 +59,7 @@ overrides {maxmemory 0}} {
                 set flag 1
                 puts "[lindex $aux $i]:[ssdbr zscore zscoretest $i]"
                 incr j
-                if {$j > 15} {
+                if {$j > 5} {
                     break
                 }
             }
@@ -64,7 +67,7 @@ overrides {maxmemory 0}} {
         assert_equal 0 $flag "some big int score lose accuracy."
     }
 
-    set eps 0.00001
+    set eps 0.000001
     test "Decimal score accuracy 5 bits" {
         ssdbr del zscoretest
         set aux {}
@@ -74,17 +77,13 @@ overrides {maxmemory 0}} {
             ssdbr zadd zscoretest $score $i
         }
 
-        for {set i 0} {$i < $elements} {incr i} {
-            assert { abs([expr [lindex $aux $i]-[ssdbr zscore zscoretest $i]]) < $eps  }
-        }
-
         set flag 0
         for {set i 0; set j 0} {$i < $elements} {incr i} {
             if {abs([expr [lindex $aux $i]-[ssdbr zscore zscoretest $i]]) > $eps} {
                 set flag 1
                 puts "[lindex $aux $i]:[ssdbr zscore zscoretest $i]"
                 incr j
-                if {$j > 15} {
+                if {$j > 5} {
                     break
                 }
             }
