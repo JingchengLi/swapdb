@@ -2799,7 +2799,7 @@ void saveSlaveSSDBwriteOp(client *c, time_t time, int index) {
     op->cmd = c->cmd;
     if (c->cmd->proc == flushallCommand) {
         op->argc = 1;
-        op->argv = zmalloc(sizeof(robj*));
+        op->argv = zmalloc(sizeof(robj*)*1);
         op->argv[0] = createObject(OBJ_STRING,sdsnew("flushall"));
     } else {
         op->argc = c->argc;
@@ -2892,24 +2892,32 @@ int processCommandMaybeInSSDB(client *c) {
 
                 sds cmd = composeRedisCmd(4, tmpargv, NULL);
                 int ret = sendCommandToSSDB(c, cmd);
-                if (ret != C_OK) return ret;
+                if (ret != C_OK) {
+                    /* avoid to reset c->argv for the master connection of slave redis. we use it to save
+                     * commands in server.ssdb_write_oplist */
+                    if (server.master == c && c->cmd->proc != flushallCommand)
+                        c->argv = NULL;
+
+                    return ret;
+                }
 
                 /* flushall STEP 1: clean all intermediate state keys, avoid to cause unexpected issues. */
                 if (c->cmd->proc == flushallCommand)
                     cleanSpecialClientsAndIntermediateKeys(1);
 
             }
-
             serverAssert(c->argv);
             int ret = sendCommandToSSDB(c, NULL);
+            if (ret != C_OK) {
+                /* avoid to reset c->argv for the master connection of slave redis. we use it to save
+                 * commands in server.ssdb_write_oplist */
+                if (server.master == c && c->cmd->proc != flushallCommand)
+                    c->argv = NULL;
 
-            /* avoid to reset c->argv for the master connection of slave redis. we use it to save
-             * commands in server.ssdb_write_oplist */
-            if (server.master == c && c->cmd->proc != flushallCommand)
-                c->argv = NULL;
+                return ret;
+            }
 
-            if (ret != C_OK) return ret;
-
+            serverAssert(c->argv);
             /* Record the keys visting SSDB. */
             {
                 int *keys = NULL, numkeys = 0, j;
@@ -2931,6 +2939,12 @@ int processCommandMaybeInSSDB(client *c) {
                         blockClient(c, BLOCKED_BY_FLUSHALL);
                         return C_OK;
                     }
+
+                    /* avoid to reset c->argv for the master connection of slave redis. we use it to save
+                    * commands in server.ssdb_write_oplist */
+                    if (server.master == c && c->cmd->proc != flushallCommand)
+                        c->argv = NULL;
+
                     return C_ERR;
                 }
             }
