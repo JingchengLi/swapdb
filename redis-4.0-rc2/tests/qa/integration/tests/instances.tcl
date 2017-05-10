@@ -324,6 +324,12 @@ proc test {descr code} {
             puts "(Jumping to next unit after error)"
             return -code continue
         } else {
+            set msg $error
+            write_cluster_test_result_report [format {<testcase name="%02d-%s" classname="%s.%02d" time="%d">} \
+            $::steps $descr $::curscript $::class [expr [clock seconds]-$beforetime]]
+            write_cluster_test_result_report [format {<failure type="CASE_FAILED" message="%s FAILED">%s</failure>} \
+            $descr $msg]
+            write_cluster_test_result_report "</testcase>"
             # Re-raise, let handler up the stack take care of this.
             error $error $::errorInfo
         }
@@ -379,7 +385,8 @@ proc run_tests {} {
         write_cluster_test_result_report "[format {<testsuite name="%s">} [lindex [file split $test] end]]"
         puts [colorstr yellow "Testing unit: [lindex [file split $test] end]"]
         set ::class 0
-        source $test
+        catch { source $test } err
+        if {$err ne {}} { puts $err }
         write_cluster_test_result_report "[format {</testsuite>}]"
         check_leaks {redis sentinel}
     }
@@ -527,10 +534,10 @@ proc kill_instance {type id} {
     }
 
     catch { exec kill -9 $pid } err
-    puts "redis:$pid $err"
+    if {$err ne {}} {puts "redis:$pid $err"}
     # TODO when restart ssdb err and make kill return child process exit abornormally.
     catch { exec kill -9 $ssdbpid } err
-    puts "ssdb:$ssdbpid $err"
+    if {$err ne {}} {puts "ssdb:$ssdbpid $err"}
     set_instance_attrib $type $id pid -1
     set_instance_attrib $type $id ssdbpid -1
     set_instance_attrib $type $id link you_tried_to_talk_with_killed_instance
