@@ -1327,6 +1327,7 @@ int handleResponseOfDeleteCheckConfirm(client *c) {
         && reply->integer == 0) {
         robj *argv[2] = {createStringObject("del", 3), c->argv[1]};
 
+        /* the keys is not exist in ssdb, delete its key index in redis. */
         if (server.lazyfree_lazy_eviction)
             dbAsyncDelete(EVICTED_DATA_DB, c->argv[1]);
         else
@@ -1533,8 +1534,7 @@ void handleSSDBReply(client *c, int revert_len) {
 
     if (c == server.delete_confirm_client
         && handleResponseOfDeleteCheckConfirm(c) == C_OK) {
-        //revertClientBufReply(c, revert_len);
-        goto cleanup;
+        return;
     }
 
     /* Maintain the EVICTED_DATA_DB. */
@@ -1554,12 +1554,12 @@ void handleSSDBReply(client *c, int revert_len) {
     if (reply && reply->type == REDIS_REPLY_STRING) {
         if (server.is_doing_flushall && handleResponseOfFlushCheck(c, reply) == C_OK) {
             revertClientBufReply(c, revert_len);
-            goto cleanup;
+            return;
         }
 
         if (server.is_doing_flushall && handleResponseOfSSDBflushDone(c, reply, revert_len) == C_OK ) {
             /* we need reply the flushall result to user client, so don't call revertClientBufReply. */
-            goto cleanup;
+            return;
         }
 
         /* Handle the response of rr_check_write. */
@@ -1568,15 +1568,14 @@ void handleSSDBReply(client *c, int revert_len) {
             && (c->ssdb_conn_flags & CONN_WAIT_WRITE_CHECK_REPLY)
             && handleResponseOfCheckWrite(c, reply) == C_OK) {
             revertClientBufReply(c, revert_len);
-            goto cleanup;
+            return;
         }
 
         /* Handle the response of rr_make_snapshot. */
         if (c == server.ssdb_replication_client
             && server.ssdb_status == MASTER_SSDB_SNAPSHOT_PRE
             && handleResponseOfPsync(c, reply) == C_OK) {
-            //revertClientBufReply(c, revert_len);
-            goto cleanup;
+            return;
         }
 
         /* Handle the response of rr_transfer_snapshot. */
@@ -1585,24 +1584,21 @@ void handleSSDBReply(client *c, int revert_len) {
                 || c->ssdb_status == SLAVE_SSDB_SNAPSHOT_TRANSFER_START)
             && handleResponseOfTransferSnapshot(c, reply) == C_OK) {
             revertClientBufReply(c, revert_len);
-            goto cleanup;
+            return;
         }
 
         /* Handle the respons of rr_del_snapshot. */
         if (c == server.ssdb_replication_client
             && server.ssdb_status == MASTER_SSDB_SNAPSHOT_OK
             && handleResponseOfDelSnapshot(c, reply) == C_OK) {
-            //revertClientBufReply(c, revert_len);
-            goto cleanup;
+            return;
         }
     }
 
     handleExtraSSDBReply(c);
 
-cleanup:
-    /* Unblock the current client. */
-    if (c->btype == BLOCKED_VISITING_SSDB
-        || c->btype == BLOCKED_BY_DELETE_CONFIRM) {
+    /* Unblock the client is reading/writing SSDB. */
+    if (c->btype == BLOCKED_VISITING_SSDB) {
         unblockClient(c);
 
         if ((c->cmd
