@@ -58,14 +58,13 @@ int proc_multi_zset(Context &ctx, Link *link, const Request &req, Response *resp
             reply_errinfo_return("ERR INCR option supports a single increment-element pair");
         }
 
-        char* eptr;errno = 0;
-        double score = strtod(req[scoreidx].data(), &eptr); //check double
-        if (eptr[0] != '\n' ) {  // skip for ssdb protocol
-            if (eptr[0] != '\0' || errno!= 0 || std::isnan(score) || std::isinf(score)) {
-                reply_errinfo_return("ERR value is not a valid float or a NaN data");
-            }
-        }else if (score <= ZSET_SCORE_MIN || score >= ZSET_SCORE_MAX){
-            reply_errinfo_return("ERR value is less than ZSET_SCORE_MIN or greater than ZSET_SCORE_MAX");
+        double score = req[scoreidx].Double();
+        if (errno == EINVAL){
+            reply_err_return(INVALID_DBL);
+        }
+
+        if (score <= ZSET_SCORE_MIN || score >= ZSET_SCORE_MAX){
+            reply_err_return(VALUE_OUT_OF_RANGE);
         }
 
         double new_val = 0;
@@ -98,17 +97,13 @@ int proc_multi_zset(Context &ctx, Link *link, const Request &req, Response *resp
 		const Bytes &key = *(it + 1);
 		const Bytes &val = *it;
 
- 		char* eptr;errno = 0;
-		double score = strtod(val.data(), &eptr); //check double
-		if (eptr[0] != '\n' ) {  // skip for ssdb protocol
-			if (eptr[0] != '\0' || errno!= 0 || std::isnan(score)) {
-                log_error("%d : %s", errno, strerror(errno));
-                reply_errinfo_return("ERR value is not a valid float");
-			}
-		}
+        double score = val.Double();
+        if (errno == EINVAL){
+            reply_err_return(INVALID_DBL);
+        }
 
         if (score <= ZSET_SCORE_MIN || score >= ZSET_SCORE_MAX){
-            reply_errinfo_return("ERR value is not a valid float");
+            reply_err_return(VALUE_OUT_OF_RANGE);
         }
 
         if (nx) {
@@ -366,14 +361,13 @@ static int _zincr(Context &ctx, SSDB *ssdb, Link *link, const Request &req, Resp
     int flags = ZADD_NONE;
     flags |= ZADD_INCR;
 
-    char* eptr;errno = 0;
-    double score = strtod(req[3].data(), &eptr); //check double
-    if (eptr[0] != '\n' ) {  // skip for ssdb protocol
-        if (eptr[0] != '\0' || errno!= 0 || std::isnan(score) || std::isinf(score)) {
-            reply_errinfo_return("ERR value is not a valid float or a NaN data");
-        }
-    } else if (score <= ZSET_SCORE_MIN || score >= ZSET_SCORE_MAX){
-        reply_errinfo_return("ERR value is less than ZSET_SCORE_MIN or greater than ZSET_SCORE_MAX");
+    double score = req[3].Double();
+    if (errno == EINVAL){
+        reply_err_return(INVALID_DBL);
+    }
+
+    if (score <= ZSET_SCORE_MIN || score >= ZSET_SCORE_MAX){
+        reply_err_return(VALUE_OUT_OF_RANGE);
     }
 
     double new_val = 0;

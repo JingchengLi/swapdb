@@ -709,7 +709,7 @@ int SSDBImpl::zset_one(leveldb::WriteBatch &batch, bool needCheck, const Bytes &
         *flags = ZADD_NAN;
         return NAN_SCORE;
     } else if (score <= ZSET_SCORE_MIN || score >= ZSET_SCORE_MAX) {
-        return ZSET_OVERFLOW;
+        return VALUE_OUT_OF_RANGE;
     }
 
     std::string zkey = encode_zset_key(name, key, cur_version);
@@ -750,7 +750,7 @@ int SSDBImpl::zset_one(leveldb::WriteBatch &batch, bool needCheck, const Bytes &
                     *flags |= ZADD_NAN;
                     return NAN_SCORE;
                 } else if (score <= ZSET_SCORE_MIN || score >= ZSET_SCORE_MAX) {
-                    return ZSET_OVERFLOW;
+                    return VALUE_OUT_OF_RANGE;
                 }
                 if (newscore) *newscore = score;
             }
