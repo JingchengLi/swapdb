@@ -53,16 +53,6 @@ int SSDBImpl::incr_ssize(Context &ctx, const Bytes &key, leveldb::WriteBatch &ba
 }
 
 
-SIterator *SSDBImpl::sscan_internal(Context &ctx, const Bytes &name, const Bytes &start, uint16_t version,
-                                    uint64_t limit, const leveldb::Snapshot *snapshot) {
-
-    std::string key_start, key_end;
-    key_start = encode_set_key(name, start, version);
-
-    return new SIterator(this->iterator(key_start, key_end, limit, snapshot), name, version);
-}
-
-
 int SSDBImpl::sscan(Context &ctx, const Bytes &name, const Bytes &cursor, const std::string &pattern, uint64_t limit,
                     std::vector<std::string> &resp) {
     SetMetaVal sv;
@@ -95,6 +85,15 @@ int SSDBImpl::sscan(Context &ctx, const Bytes &name, const Bytes &cursor, const 
     return 1;
 
 
+}
+
+
+SIterator *SSDBImpl::sscan_internal(Context &ctx, const Bytes &name, uint16_t version, const leveldb::Snapshot *snapshot) {
+
+    std::string key_start;
+    key_start = encode_set_key(name, "", version);
+
+    return new SIterator(this->iterator(key_start, "", -1, snapshot), name, version);
 }
 
 int SSDBImpl::sadd(Context &ctx, const Bytes &key, const std::set<Bytes> &mem_set, int64_t *num) {
@@ -203,7 +202,7 @@ int SSDBImpl::srandmember(Context &ctx, const Bytes &key, std::vector<std::strin
 
     SnapshotPtr spl(ldb, snapshot); //auto release
 
-    auto it = std::unique_ptr<SIterator>(sscan_internal(ctx, key, "", sv.version, -1, snapshot));
+    auto it = std::unique_ptr<SIterator>(sscan_internal(ctx, key, sv.version, snapshot));
 
     std::set<uint64_t> random_set;
     std::vector<uint64_t> random_list;
@@ -294,7 +293,7 @@ int SSDBImpl::spop(Context &ctx, const Bytes &key, std::vector<std::string> &mem
         return ret;
     }
 
-    auto it = std::unique_ptr<SIterator>(sscan_internal(ctx, key, "", sv.version, -1));
+    auto it = std::unique_ptr<SIterator>(sscan_internal(ctx, key, sv.version));
 
     std::set<uint64_t> random_set;
     /* we random key by random index :)
@@ -374,7 +373,7 @@ int SSDBImpl::smembers(Context &ctx, const Bytes &key, std::vector<std::string> 
 
     SnapshotPtr spl(ldb, snapshot); //auto release
 
-    auto it = std::unique_ptr<SIterator>(sscan_internal(ctx, key, "", sv.version, -1, snapshot));
+    auto it = std::unique_ptr<SIterator>(sscan_internal(ctx, key, sv.version, snapshot));
     while (it->next()) {
         members.push_back(std::move(it->key));
     }

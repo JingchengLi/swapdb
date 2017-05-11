@@ -233,12 +233,12 @@ private:
 
 	int GetHashMetaVal(const std::string &meta_key, HashMetaVal &hv);
     int GetHashItemValInternal(const std::string &item_key, std::string *val);
-    HIterator* hscan_internal(Context &ctx, const Bytes &name,const Bytes &start, uint16_t version, uint64_t limit, const leveldb::Snapshot *snapshot=nullptr);
+    HIterator* hscan_internal(Context &ctx, const Bytes &name, uint16_t version, const leveldb::Snapshot *snapshot=nullptr);
     int incr_hsize(Context &ctx, const Bytes &name, leveldb::WriteBatch &batch, const std::string &size_key, HashMetaVal &hv, int64_t incr);
     int hset_one(leveldb::WriteBatch &batch, const HashMetaVal &hv, bool check_exists, const Bytes &name, const Bytes &key, const Bytes &val);
     int GetSetMetaVal(const std::string &meta_key, SetMetaVal &sv);
     int GetSetItemValInternal(const std::string &item_key);
-    SIterator* sscan_internal(Context &ctx, const Bytes &name,const Bytes &start, uint16_t version, uint64_t limit, const leveldb::Snapshot *snapshot=nullptr);
+    SIterator* sscan_internal(Context &ctx, const Bytes &name, uint16_t version, const leveldb::Snapshot *snapshot=nullptr);
     int incr_ssize(Context &ctx, const Bytes &key, leveldb::WriteBatch &batch, const SetMetaVal &sv, const std::string &meta_key,int64_t incr);
 
     int GetListItemValInternal(const std::string &item_key, std::string *val, const leveldb::ReadOptions &options = leveldb::ReadOptions());
