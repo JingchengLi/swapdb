@@ -29,7 +29,7 @@ foreach flag {New Mid Old} {
             }
         }
 
-        if {"New" == $flag} {
+        if {"New" == $flag || "Mid" == $flag || "Old" == $flag} {
             test "After restart ssdb access cold key ($flag client)" {
                 $client get foo
             } {bar}
