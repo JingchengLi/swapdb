@@ -12,6 +12,7 @@ found in the LICENSE file.
 #include <util/log.h>
 #include "link.h"
 #include "link_redis.cpp"
+#include "common/context.hpp"
 
 #define INIT_BUFFER_SIZE  1024
 #define BEST_BUFFER_SIZE  (8 * 1024)
@@ -34,6 +35,8 @@ Link::Link(bool is_server) {
     auth = false;
     ignore_key_range = false;
 
+    context = new Context();
+
     if (is_server) {
         input = output = NULL;
     } else {
@@ -46,15 +49,19 @@ Link::~Link() {
     log_debug("fd: %d, ~rr_link address:%lld", sock, this);
     if (redis) {
         delete redis;
-        redis = NULL;
+        redis = nullptr;
     }
     if (input) {
         delete input;
-        input = NULL;
+        input = nullptr;
     }
     if (output) {
         delete output;
-        output = NULL;
+        output = nullptr;
+    }
+    if (context) {
+        delete context;
+        context = nullptr;
     }
     this->close();
 }

@@ -9,7 +9,7 @@ int notifyFailedToRedis(RedisUpstream *redisUpstream, std::string responseComman
 int notifyNotFoundToRedis(RedisUpstream *redisUpstream, std::string responseCommand, std::string dataKey);
 
 
-int bproc_COMMAND_DATA_SAVE(const Context &ctx, TransferWorker *worker, const std::string &data_key, void *value) {
+int bproc_COMMAND_DATA_SAVE(Context &ctx, TransferWorker *worker, const std::string &data_key, void *value) {
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
     const std::string cmd = "ssdb-resp-dump";
@@ -61,7 +61,7 @@ int bproc_COMMAND_DATA_SAVE(const Context &ctx, TransferWorker *worker, const st
     return 0;
 }
 
-int bproc_COMMAND_DATA_DUMP(const Context &ctx, TransferWorker *worker, const std::string &data_key, void *value) {
+int bproc_COMMAND_DATA_DUMP(Context &ctx, TransferWorker *worker, const std::string &data_key, void *value) {
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
     const std::string cmd = "ssdb-resp-restore";

@@ -9,7 +9,7 @@
 
 
 template <typename T>
-int SSDBImpl::hmsetNoLock(const Context &ctx, const Bytes &name, const std::map<T ,T> &kvs, bool check_exists) {
+int SSDBImpl::hmsetNoLock(Context &ctx, const Bytes &name, const std::map<T ,T> &kvs, bool check_exists) {
 
     leveldb::WriteBatch batch;
 

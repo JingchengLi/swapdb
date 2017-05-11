@@ -21,16 +21,12 @@ void ProcWorker::init(){
 int ProcWorker::proc(ProcJob *job){
 	const Request *req = job->req;
 
-	job->context.net = job->serv;
 	proc_t p = job->cmd->proc;
 	job->time_wait = 1000 * (millitime() - job->stime);
-	job->result = (*p)(job->context, job->link, *req, &job->resp);
-	job->cmd->proc_after(job->context, job->link, *req, &job->resp);
+	job->result = (*p)(*job->link->context, job->link, *req, &job->resp);
+//	job->cmd->proc_after(*job->link->context, job->link, *req, &job->resp);
 	job->time_proc = 1000 * (millitime() - job->stime) - job->time_wait;
 
-//	if (breplication && job->cmd->flags & Command::FLAG_WRITE){
-		//todo 将req中的命令和参数保存值buffer中，待全量复制结束时发送值从ssdb
-//	}
 
 	if (job->resp.redisResponse != nullptr && job->link->redis != nullptr) {
 		// raw redis protocol

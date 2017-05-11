@@ -3,7 +3,7 @@
 //
 #include "serv.h"
 
-int proc_sadd(const Context &ctx, Link *link, const Request &req, Response *resp){
+int proc_sadd(Context &ctx, Link *link, const Request &req, Response *resp){
     CHECK_NUM_PARAMS(3);
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
@@ -27,7 +27,7 @@ int proc_sadd(const Context &ctx, Link *link, const Request &req, Response *resp
     return 0;
 }
 
-int proc_srem(const Context &ctx, Link *link, const Request &req, Response *resp){
+int proc_srem(Context &ctx, Link *link, const Request &req, Response *resp){
     CHECK_NUM_PARAMS(3);
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
@@ -47,7 +47,7 @@ int proc_srem(const Context &ctx, Link *link, const Request &req, Response *resp
     return 0;
 }
 
-int proc_scard(const Context &ctx, Link *link, const Request &req, Response *resp){
+int proc_scard(Context &ctx, Link *link, const Request &req, Response *resp){
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
     CHECK_NUM_PARAMS(2);
 
@@ -65,7 +65,7 @@ int proc_scard(const Context &ctx, Link *link, const Request &req, Response *res
 }
 
 
-int proc_sismember(const Context &ctx, Link *link, const Request &req, Response *resp){
+int proc_sismember(Context &ctx, Link *link, const Request &req, Response *resp){
     CHECK_NUM_PARAMS(3);
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
@@ -83,7 +83,7 @@ int proc_sismember(const Context &ctx, Link *link, const Request &req, Response 
     return 0;
 }
 
-int proc_smembers(const Context &ctx, Link *link, const Request &req, Response *resp){
+int proc_smembers(Context &ctx, Link *link, const Request &req, Response *resp){
     CHECK_NUM_PARAMS(2);
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
@@ -100,7 +100,7 @@ int proc_smembers(const Context &ctx, Link *link, const Request &req, Response *
 }
 
 
-int proc_spop(const Context &ctx, Link *link, const Request &req, Response *resp){
+int proc_spop(Context &ctx, Link *link, const Request &req, Response *resp){
     CHECK_NUM_PARAMS(2);
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
@@ -126,7 +126,7 @@ int proc_spop(const Context &ctx, Link *link, const Request &req, Response *resp
     return 0;
 }
 
-int proc_srandmember(const Context &ctx, Link *link, const Request &req, Response *resp){
+int proc_srandmember(Context &ctx, Link *link, const Request &req, Response *resp){
     CHECK_NUM_PARAMS(2);
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
@@ -151,7 +151,7 @@ int proc_srandmember(const Context &ctx, Link *link, const Request &req, Respons
 }
 
 
-int proc_sscan(const Context &ctx, Link *link, const Request &req, Response *resp){
+int proc_sscan(Context &ctx, Link *link, const Request &req, Response *resp){
     CHECK_NUM_PARAMS(3);
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
 

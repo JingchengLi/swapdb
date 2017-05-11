@@ -26,13 +26,13 @@ public:
 	~ExpirationHandler();
 
 
-	int64_t pttl(const Context &ctx, const Bytes &key, TimeUnit tu);
+	int64_t pttl(Context &ctx, const Bytes &key, TimeUnit tu);
 
 	// The caller must hold mutex before calling set/del functions
-	int persist(const Context &ctx, const Bytes &key);
-	void delfastkey(const Context &ctx, const Bytes &key) { fast_keys.del(key.String()); }
-	int expire(const Context &ctx, const Bytes &key, int64_t ttl, TimeUnit tu);
-	int expireAt(const Context &ctx, const Bytes &key, int64_t ts_ms);
+	int persist(Context &ctx, const Bytes &key);
+	void delfastkey(Context &ctx, const Bytes &key) { fast_keys.del(key.String()); }
+	int expire(Context &ctx, const Bytes &key, int64_t ttl, TimeUnit tu);
+	int expireAt(Context &ctx, const Bytes &key, int64_t ts_ms);
 
 	void start();
 	void stop();

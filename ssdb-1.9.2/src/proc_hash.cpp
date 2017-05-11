@@ -8,7 +8,7 @@ found in the LICENSE file.
 #include "net/proc.h"
 #include "net/server.h"
 
-int proc_hexists(const Context &ctx, Link *link, const Request &req, Response *resp) {
+int proc_hexists(Context &ctx, Link *link, const Request &req, Response *resp) {
     CHECK_NUM_PARAMS(3);
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
@@ -29,7 +29,7 @@ int proc_hexists(const Context &ctx, Link *link, const Request &req, Response *r
 }
 
 
-int proc_hmset(const Context &ctx, Link *link, const Request &req, Response *resp) {
+int proc_hmset(Context &ctx, Link *link, const Request &req, Response *resp) {
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
     if (req.size() < 4 || req.size() % 2 != 0) {
         reply_errinfo_return("wrong number of arguments for 'hmset' command");
@@ -55,7 +55,7 @@ int proc_hmset(const Context &ctx, Link *link, const Request &req, Response *res
     return 0;
 }
 
-int proc_hdel(const Context &ctx, Link *link, const Request &req, Response *resp) {
+int proc_hdel(Context &ctx, Link *link, const Request &req, Response *resp) {
     CHECK_NUM_PARAMS(3);
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
@@ -77,7 +77,7 @@ int proc_hdel(const Context &ctx, Link *link, const Request &req, Response *resp
     return 0;
 }
 
-int proc_hmget(const Context &ctx, Link *link, const Request &req, Response *resp) {
+int proc_hmget(Context &ctx, Link *link, const Request &req, Response *resp) {
     CHECK_NUM_PARAMS(3);
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
@@ -121,7 +121,7 @@ int proc_hmget(const Context &ctx, Link *link, const Request &req, Response *res
     return 0;
 }
 
-int proc_hsize(const Context &ctx, Link *link, const Request &req, Response *resp) {
+int proc_hsize(Context &ctx, Link *link, const Request &req, Response *resp) {
     CHECK_NUM_PARAMS(2);
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
@@ -137,7 +137,7 @@ int proc_hsize(const Context &ctx, Link *link, const Request &req, Response *res
     return 0;
 }
 
-int proc_hset(const Context &ctx, Link *link, const Request &req, Response *resp) {
+int proc_hset(Context &ctx, Link *link, const Request &req, Response *resp) {
     CHECK_NUM_PARAMS(4);
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
@@ -155,7 +155,7 @@ int proc_hset(const Context &ctx, Link *link, const Request &req, Response *resp
     return 0;
 }
 
-int proc_hsetnx(const Context &ctx, Link *link, const Request &req, Response *resp) {
+int proc_hsetnx(Context &ctx, Link *link, const Request &req, Response *resp) {
     CHECK_NUM_PARAMS(4);
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
@@ -173,7 +173,7 @@ int proc_hsetnx(const Context &ctx, Link *link, const Request &req, Response *re
     return 0;
 }
 
-int proc_hget(const Context &ctx, Link *link, const Request &req, Response *resp) {
+int proc_hget(Context &ctx, Link *link, const Request &req, Response *resp) {
     CHECK_NUM_PARAMS(3);
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
@@ -195,7 +195,7 @@ int proc_hget(const Context &ctx, Link *link, const Request &req, Response *resp
 }
 
 
-int proc_hgetall(const Context &ctx, Link *link, const Request &req, Response *resp) {
+int proc_hgetall(Context &ctx, Link *link, const Request &req, Response *resp) {
     CHECK_NUM_PARAMS(2);
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
@@ -222,7 +222,7 @@ int proc_hgetall(const Context &ctx, Link *link, const Request &req, Response *r
     return 0;
 }
 
-int proc_hscan(const Context &ctx, Link *link, const Request &req, Response *resp) {
+int proc_hscan(Context &ctx, Link *link, const Request &req, Response *resp) {
     CHECK_NUM_PARAMS(3);
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
@@ -269,7 +269,7 @@ int proc_hscan(const Context &ctx, Link *link, const Request &req, Response *res
 }
 
 
-int proc_hkeys(const Context &ctx, Link *link, const Request &req, Response *resp) {
+int proc_hkeys(Context &ctx, Link *link, const Request &req, Response *resp) {
     CHECK_NUM_PARAMS(5);
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
@@ -298,7 +298,7 @@ int proc_hkeys(const Context &ctx, Link *link, const Request &req, Response *res
     return 0;
 }
 
-int proc_hvals(const Context &ctx, Link *link, const Request &req, Response *resp) {
+int proc_hvals(Context &ctx, Link *link, const Request &req, Response *resp) {
     CHECK_NUM_PARAMS(5);
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
@@ -326,7 +326,7 @@ int proc_hvals(const Context &ctx, Link *link, const Request &req, Response *res
     return 0;
 }
 
-int proc_hincrbyfloat(const Context &ctx, Link *link, const Request &req, Response *resp) {
+int proc_hincrbyfloat(Context &ctx, Link *link, const Request &req, Response *resp) {
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
     CHECK_NUM_PARAMS(4);
 
@@ -346,7 +346,7 @@ int proc_hincrbyfloat(const Context &ctx, Link *link, const Request &req, Respon
 
 }
 
-int proc_hincr(const Context &ctx, Link *link, const Request &req, Response *resp) {
+int proc_hincr(Context &ctx, Link *link, const Request &req, Response *resp) {
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
     CHECK_NUM_PARAMS(4);
 

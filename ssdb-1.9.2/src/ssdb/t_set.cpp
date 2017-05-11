@@ -6,7 +6,7 @@
 #include "t_set.h"
 
 
-int SSDBImpl::incr_ssize(const Context &ctx, const Bytes &key, leveldb::WriteBatch &batch, const SetMetaVal &sv, 
+int SSDBImpl::incr_ssize(Context &ctx, const Bytes &key, leveldb::WriteBatch &batch, const SetMetaVal &sv,
                          const std::string &meta_key, int64_t incr) {
     int ret = 1;
 
@@ -53,7 +53,7 @@ int SSDBImpl::incr_ssize(const Context &ctx, const Bytes &key, leveldb::WriteBat
 }
 
 
-SIterator *SSDBImpl::sscan_internal(const Context &ctx, const Bytes &name, const Bytes &start, uint16_t version,
+SIterator *SSDBImpl::sscan_internal(Context &ctx, const Bytes &name, const Bytes &start, uint16_t version,
                                     uint64_t limit, const leveldb::Snapshot *snapshot) {
 
     std::string key_start, key_end;
@@ -63,7 +63,7 @@ SIterator *SSDBImpl::sscan_internal(const Context &ctx, const Bytes &name, const
 }
 
 
-int SSDBImpl::sscan(const Context &ctx, const Bytes &name, const Bytes &cursor, const std::string &pattern, uint64_t limit,
+int SSDBImpl::sscan(Context &ctx, const Bytes &name, const Bytes &cursor, const std::string &pattern, uint64_t limit,
                     std::vector<std::string> &resp) {
     SetMetaVal sv;
 
@@ -97,12 +97,12 @@ int SSDBImpl::sscan(const Context &ctx, const Bytes &name, const Bytes &cursor, 
 
 }
 
-int SSDBImpl::sadd(const Context &ctx, const Bytes &key, const std::set<Bytes> &mem_set, int64_t *num) {
+int SSDBImpl::sadd(Context &ctx, const Bytes &key, const std::set<Bytes> &mem_set, int64_t *num) {
     RecordLock<Mutex> l(&mutex_record_, key.String());
     return saddNoLock<Bytes>(ctx, key, mem_set, num);
 }
 
-int SSDBImpl::srem(const Context &ctx, const Bytes &key, const std::vector<Bytes> &members, int64_t *num) {
+int SSDBImpl::srem(Context &ctx, const Bytes &key, const std::vector<Bytes> &members, int64_t *num) {
     RecordLock<Mutex> l(&mutex_record_, key.String());
     leveldb::WriteBatch batch;
 
@@ -146,7 +146,7 @@ int SSDBImpl::srem(const Context &ctx, const Bytes &key, const std::vector<Bytes
 }
 
 
-int SSDBImpl::scard(const Context &ctx, const Bytes &key, uint64_t *llen) {
+int SSDBImpl::scard(Context &ctx, const Bytes &key, uint64_t *llen) {
     *llen = 0;
     SetMetaVal sv;
     std::string meta_key = encode_meta_key(key);
@@ -160,7 +160,7 @@ int SSDBImpl::scard(const Context &ctx, const Bytes &key, uint64_t *llen) {
     return ret;
 }
 
-int SSDBImpl::sismember(const Context &ctx, const Bytes &key, const Bytes &member, bool *ismember) {
+int SSDBImpl::sismember(Context &ctx, const Bytes &key, const Bytes &member, bool *ismember) {
     SetMetaVal sv;
     std::string meta_key = encode_meta_key(key);
     int ret = GetSetMetaVal(meta_key, sv);
@@ -183,7 +183,7 @@ int SSDBImpl::sismember(const Context &ctx, const Bytes &key, const Bytes &membe
     return 1;
 }
 
-int SSDBImpl::srandmember(const Context &ctx, const Bytes &key, std::vector<std::string> &members, int64_t cnt) {
+int SSDBImpl::srandmember(Context &ctx, const Bytes &key, std::vector<std::string> &members, int64_t cnt) {
     leveldb::WriteBatch batch;
 
     const leveldb::Snapshot *snapshot = nullptr;
@@ -280,7 +280,7 @@ int SSDBImpl::srandmember(const Context &ctx, const Bytes &key, std::vector<std:
     return 1;
 }
 
-int SSDBImpl::spop(const Context &ctx, const Bytes &key, std::vector<std::string> &members, int64_t popcnt) {
+int SSDBImpl::spop(Context &ctx, const Bytes &key, std::vector<std::string> &members, int64_t popcnt) {
     leveldb::WriteBatch batch;
 
     SetMetaVal sv;
@@ -355,7 +355,7 @@ int SSDBImpl::spop(const Context &ctx, const Bytes &key, std::vector<std::string
     return ret;
 }
 
-int SSDBImpl::smembers(const Context &ctx, const Bytes &key, std::vector<std::string> &members) {
+int SSDBImpl::smembers(Context &ctx, const Bytes &key, std::vector<std::string> &members) {
     const leveldb::Snapshot *snapshot = nullptr;
     SetMetaVal sv;
     int ret;

@@ -7,7 +7,7 @@ found in the LICENSE file.
 #include "serv.h"
 
 
-int proc_multi_zset(const Context &ctx, Link *link, const Request &req, Response *resp){
+int proc_multi_zset(Context &ctx, Link *link, const Request &req, Response *resp){
     CHECK_NUM_PARAMS(4);
 
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
@@ -130,7 +130,7 @@ int proc_multi_zset(const Context &ctx, Link *link, const Request &req, Response
 	return 0;
 }
 
-int proc_multi_zdel(const Context &ctx, Link *link, const Request &req, Response *resp){
+int proc_multi_zdel(Context &ctx, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(3);
 
@@ -154,7 +154,7 @@ int proc_multi_zdel(const Context &ctx, Link *link, const Request &req, Response
 }
 
 
-int proc_zsize(const Context &ctx, Link *link, const Request &req, Response *resp){
+int proc_zsize(Context &ctx, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(2);
 
@@ -168,7 +168,7 @@ int proc_zsize(const Context &ctx, Link *link, const Request &req, Response *res
 	return 0;
 }
 
-int proc_zget(const Context &ctx, Link *link, const Request &req, Response *resp){
+int proc_zget(Context &ctx, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(3);
 
@@ -186,7 +186,7 @@ int proc_zget(const Context &ctx, Link *link, const Request &req, Response *resp
 	return 0;
 }
 
-int proc_zrank(const Context &ctx, Link *link, const Request &req, Response *resp){
+int proc_zrank(Context &ctx, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(3);
 
@@ -203,7 +203,7 @@ int proc_zrank(const Context &ctx, Link *link, const Request &req, Response *res
 	return 0;
 }
 
-int proc_zrrank(const Context &ctx, Link *link, const Request &req, Response *resp){
+int proc_zrrank(Context &ctx, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(3);
 
@@ -220,7 +220,7 @@ int proc_zrrank(const Context &ctx, Link *link, const Request &req, Response *re
 	return 0;
 }
 
-int proc_zrange(const Context &ctx, Link *link, const Request &req, Response *resp){
+int proc_zrange(Context &ctx, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(4);
 
@@ -235,7 +235,7 @@ int proc_zrange(const Context &ctx, Link *link, const Request &req, Response *re
 	return 0;
 }
 
-int proc_zrrange(const Context &ctx, Link *link, const Request &req, Response *resp){
+int proc_zrrange(Context &ctx, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(4);
 
@@ -262,7 +262,7 @@ int string2ld(const char *s, size_t slen, long *value) {
     return 1;
 }
 
-static int _zrangebyscore(const Context &ctx, SSDB *ssdb, const Request &req, Response *resp, int reverse){
+static int _zrangebyscore(Context &ctx, SSDB *ssdb, const Request &req, Response *resp, int reverse){
     CHECK_NUM_PARAMS(4);
     long offset = 0, limit = -1;
     int withscores = 0;
@@ -303,17 +303,17 @@ static int _zrangebyscore(const Context &ctx, SSDB *ssdb, const Request &req, Re
     return 0;
 }
 
-int proc_zrangebyscore(const Context &ctx, Link *link, const Request &req, Response *resp){
+int proc_zrangebyscore(Context &ctx, Link *link, const Request &req, Response *resp){
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
     return _zrangebyscore(ctx, serv->ssdb, req, resp, 0);
 }
 
-int proc_zrevrangebyscore(const Context &ctx, Link *link, const Request &req, Response *resp){
+int proc_zrevrangebyscore(Context &ctx, Link *link, const Request &req, Response *resp){
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
     return _zrangebyscore(ctx, serv->ssdb, req, resp, 1);
 }
 
-int proc_zscan(const Context &ctx, Link *link, const Request &req, Response *resp){
+int proc_zscan(Context &ctx, Link *link, const Request &req, Response *resp){
     CHECK_NUM_PARAMS(3);
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
@@ -361,7 +361,7 @@ int proc_zscan(const Context &ctx, Link *link, const Request &req, Response *res
 
 
 // dir := +1|-1
-static int _zincr(const Context &ctx, SSDB *ssdb, Link *link, const Request &req, Response *resp, int dir){
+static int _zincr(Context &ctx, SSDB *ssdb, Link *link, const Request &req, Response *resp, int dir){
 	CHECK_NUM_PARAMS(4);
     int flags = ZADD_NONE;
     flags |= ZADD_INCR;
@@ -397,17 +397,17 @@ static int _zincr(const Context &ctx, SSDB *ssdb, Link *link, const Request &req
 	return 0;
 }
 
-int proc_zincr(const Context &ctx, Link *link, const Request &req, Response *resp){
+int proc_zincr(Context &ctx, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	return _zincr(ctx, serv->ssdb, link, req, resp, 1);
 }
 
-int proc_zdecr(const Context &ctx, Link *link, const Request &req, Response *resp){
+int proc_zdecr(Context &ctx, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	return _zincr(ctx, serv->ssdb, link, req, resp, -1);
 }
 
-int proc_zcount(const Context &ctx, Link *link, const Request &req, Response *resp){
+int proc_zcount(Context &ctx, Link *link, const Request &req, Response *resp){
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
     CHECK_NUM_PARAMS(4);
 
@@ -422,7 +422,7 @@ int proc_zcount(const Context &ctx, Link *link, const Request &req, Response *re
     return 0;
 }
 
-int proc_zremrangebyscore(const Context &ctx, Link *link, const Request &req, Response *resp){
+int proc_zremrangebyscore(Context &ctx, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(4);
 
@@ -437,7 +437,7 @@ int proc_zremrangebyscore(const Context &ctx, Link *link, const Request &req, Re
 	return 0;
 }
 
-int proc_zremrangebyrank(const Context &ctx, Link *link, const Request &req, Response *resp){
+int proc_zremrangebyrank(Context &ctx, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(4);
 
@@ -469,7 +469,7 @@ int proc_zremrangebyrank(const Context &ctx, Link *link, const Request &req, Res
 }
 
 
-static int _zrangebylex(const Context &ctx, SSDB *ssdb, const Request &req, Response *resp, enum DIRECTION direction){
+static int _zrangebylex(Context &ctx, SSDB *ssdb, const Request &req, Response *resp, enum DIRECTION direction){
     CHECK_NUM_PARAMS(4);
     long offset = 0, limit = -1;
     int ret = 0;
@@ -506,12 +506,12 @@ static int _zrangebylex(const Context &ctx, SSDB *ssdb, const Request &req, Resp
     return 0;
 }
 
-int proc_zrangebylex(const Context &ctx, Link *link, const Request &req, Response *resp){
+int proc_zrangebylex(Context &ctx, Link *link, const Request &req, Response *resp){
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
     return _zrangebylex(ctx, serv->ssdb, req, resp, DIRECTION::FORWARD);
 }
 
-int proc_zremrangebylex(const Context &ctx, Link *link, const Request &req, Response *resp){
+int proc_zremrangebylex(Context &ctx, Link *link, const Request &req, Response *resp){
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
     CHECK_NUM_PARAMS(4);
 
@@ -528,12 +528,12 @@ int proc_zremrangebylex(const Context &ctx, Link *link, const Request &req, Resp
     return 0;
 }
 
-int proc_zrevrangebylex(const Context &ctx, Link *link, const Request &req, Response *resp){
+int proc_zrevrangebylex(Context &ctx, Link *link, const Request &req, Response *resp){
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
     return _zrangebylex(ctx, serv->ssdb, req, resp, DIRECTION::BACKWARD);
 }
 
-int proc_zlexcount(const Context &ctx, Link *link, const Request &req, Response *resp){
+int proc_zlexcount(Context &ctx, Link *link, const Request &req, Response *resp){
     CHECK_NUM_PARAMS(4);
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
 

@@ -161,11 +161,11 @@ std::vector<std::string> Response::get_append_array() {
 		vec.push_back("check 0");
 	}
 
-	if (r.id != 0) {
-		vec.push_back("repopid " + str(r.timestamp) + " " + str(r.id));
-	} else {
-		vec.push_back("repopid 0 0");
-	}
+//	if (r.id != 0) {
+//		vec.push_back("repopid " + str(r.timestamp) + " " + str(r.id));
+//	} else {
+//		vec.push_back("repopid 0 0");
+//	}
 
 	return vec;
 }

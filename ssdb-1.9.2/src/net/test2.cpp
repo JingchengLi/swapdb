@@ -29,7 +29,7 @@ int main(int argc, char **argv){
 	return 0;
 }
 
-int proc_hello(const Context &ctx, Link *link, const Request &req, Response *resp){
+int proc_hello(Context &ctx, Link *link, const Request &req, Response *resp){
 	resp->push_back("ok");
 	resp->push_back("world!");
 	if(req.size() > 1){

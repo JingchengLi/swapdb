@@ -331,7 +331,7 @@ SSDBServer::~SSDBServer() {
 /*********************/
 
 
-int proc_dreply(const Context &ctx, Link *link, const Request &req, Response *resp) {
+int proc_dreply(Context &ctx, Link *link, const Request &req, Response *resp) {
     //for QA only
     link->append_reply = true;
     resp->reply_ok();
@@ -339,7 +339,7 @@ int proc_dreply(const Context &ctx, Link *link, const Request &req, Response *re
     return 0;
 }
 
-int proc_flushdb(const Context &ctx, Link *link, const Request &req, Response *resp) {
+int proc_flushdb(Context &ctx, Link *link, const Request &req, Response *resp) {
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
 	log_warn("[!!!] do flushdb");
@@ -349,19 +349,19 @@ int proc_flushdb(const Context &ctx, Link *link, const Request &req, Response *r
     return 0;
 }
 
-int proc_select(const Context &ctx, Link *link, const Request &req, Response *resp) {
+int proc_select(Context &ctx, Link *link, const Request &req, Response *resp) {
     resp->reply_ok();
     return 0;
 }
 
 
-int proc_client(const Context &ctx, Link *link, const Request &req, Response *resp) {
+int proc_client(Context &ctx, Link *link, const Request &req, Response *resp) {
     resp->reply_ok();
     return 0;
 }
 
 
-int proc_slowlog(const Context &ctx, Link *link, const Request &req, Response *resp) {
+int proc_slowlog(Context &ctx, Link *link, const Request &req, Response *resp) {
     CHECK_NUM_PARAMS(2);
     std::string action = req[1].String();
     strtolower(&action);
@@ -423,7 +423,7 @@ int proc_slowlog(const Context &ctx, Link *link, const Request &req, Response *r
 }
 
 
-int proc_debug(const Context &ctx, Link *link, const Request &req, Response *resp) {
+int proc_debug(Context &ctx, Link *link, const Request &req, Response *resp) {
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
     CHECK_NUM_PARAMS(2);
 
@@ -475,13 +475,13 @@ int proc_debug(const Context &ctx, Link *link, const Request &req, Response *res
 }
 
 
-int proc_quit(const Context &ctx, Link *link, const Request &req, Response *resp) {
+int proc_quit(Context &ctx, Link *link, const Request &req, Response *resp) {
     resp->reply_ok();
     return 0;
 }
 
 
-int proc_restore(const Context &ctx, Link *link, const Request &req, Response *resp) {
+int proc_restore(Context &ctx, Link *link, const Request &req, Response *resp) {
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
     CHECK_NUM_PARAMS(4);
 
@@ -526,7 +526,7 @@ int proc_restore(const Context &ctx, Link *link, const Request &req, Response *r
     return 0;
 }
 
-int proc_dump(const Context &ctx, Link *link, const Request &req, Response *resp) {
+int proc_dump(Context &ctx, Link *link, const Request &req, Response *resp) {
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
     CHECK_NUM_PARAMS(2);
 
@@ -542,7 +542,7 @@ int proc_dump(const Context &ctx, Link *link, const Request &req, Response *resp
 }
 
 
-int proc_cursor_cleanup(const Context &ctx, Link *link, const Request &req, Response *resp) {
+int proc_cursor_cleanup(Context &ctx, Link *link, const Request &req, Response *resp) {
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
     CHECK_NUM_PARAMS(2);
 
@@ -552,7 +552,7 @@ int proc_cursor_cleanup(const Context &ctx, Link *link, const Request &req, Resp
 }
 
 
-int proc_redis_req_restore(const Context &ctx, Link *link, const Request &req, Response *resp) {
+int proc_redis_req_restore(Context &ctx, Link *link, const Request &req, Response *resp) {
     CHECK_NUM_PARAMS(4);
 
     int64_t ttl = req[2].Int64();
@@ -592,7 +592,7 @@ int proc_redis_req_restore(const Context &ctx, Link *link, const Request &req, R
 }
 
 
-int proc_redis_req_dump(const Context &ctx, Link *link, const Request &req, Response *resp) {
+int proc_redis_req_dump(Context &ctx, Link *link, const Request &req, Response *resp) {
     CHECK_NUM_PARAMS(2);
 
     TransferJob *job = new TransferJob(ctx, COMMAND_DATA_DUMP, req[1].String());
@@ -606,14 +606,14 @@ int proc_redis_req_dump(const Context &ctx, Link *link, const Request &req, Resp
     return 0;
 }
 
-int proc_compact(const Context &ctx, Link *link, const Request &req, Response *resp) {
+int proc_compact(Context &ctx, Link *link, const Request &req, Response *resp) {
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
     serv->ssdb->compact();
     resp->reply_ok();
     return 0;
 }
 
-int proc_dbsize(const Context &ctx, Link *link, const Request &req, Response *resp) {
+int proc_dbsize(Context &ctx, Link *link, const Request &req, Response *resp) {
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
     uint64_t size = serv->ssdb->size();
     resp->reply_int(1, size);
@@ -621,13 +621,13 @@ int proc_dbsize(const Context &ctx, Link *link, const Request &req, Response *re
     return 0;
 }
 
-int proc_version(const Context &ctx, Link *link, const Request &req, Response *resp) {
+int proc_version(Context &ctx, Link *link, const Request &req, Response *resp) {
     resp->push_back("ok");
     resp->push_back(SSDB_VERSION);
     return 0;
 }
 
-int proc_info(const Context &ctx, Link *link, const Request &req, Response *resp) {
+int proc_info(Context &ctx, Link *link, const Request &req, Response *resp) {
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
     resp->push_back("ok");
     resp->push_back("ssdb-server");
@@ -685,7 +685,7 @@ int proc_info(const Context &ctx, Link *link, const Request &req, Response *resp
 }
 
 
-int proc_replic_info(const Context &ctx, Link *link, const Request &req, Response *resp) {
+int proc_replic_info(Context &ctx, Link *link, const Request &req, Response *resp) {
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
 
@@ -715,7 +715,7 @@ int proc_replic_info(const Context &ctx, Link *link, const Request &req, Respons
 }
 
 
-int proc_replic(const Context &ctx, Link *link, const Request &req, Response *resp) {
+int proc_replic(Context &ctx, Link *link, const Request &req, Response *resp) {
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
     CHECK_NUM_PARAMS(3);
     std::string ip = req[1].String();
@@ -739,20 +739,20 @@ int proc_replic(const Context &ctx, Link *link, const Request &req, Response *re
 }
 
 
-int proc_rr_check_write(const Context &ctx, Link *link, const Request &req, Response *resp) {
+int proc_rr_check_write(Context &ctx, Link *link, const Request &req, Response *resp) {
     resp->push_back("ok");
     resp->push_back("rr_check_write ok");
     return 0;
 }
 
-int proc_rr_flushall_check(const Context &ctx, Link *link, const Request &req, Response *resp) {
+int proc_rr_flushall_check(Context &ctx, Link *link, const Request &req, Response *resp) {
     resp->push_back("ok");
     resp->push_back("rr_flushall_check ok");
     return 0;
 }
 
 
-int proc_rr_do_flushall(const Context &ctx, Link *link, const Request &req, Response *resp) {
+int proc_rr_do_flushall(Context &ctx, Link *link, const Request &req, Response *resp) {
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
 	log_warn("[!!!] do flushall");
@@ -786,7 +786,7 @@ int proc_rr_do_flushall(const Context &ctx, Link *link, const Request &req, Resp
     return 0;
 }
 
-int proc_rr_make_snapshot(const Context &ctx, Link *link, const Request &req, Response *resp){
+int proc_rr_make_snapshot(Context &ctx, Link *link, const Request &req, Response *resp){
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
     log_debug("1:link address:%lld", link);
 
@@ -811,7 +811,7 @@ int proc_rr_make_snapshot(const Context &ctx, Link *link, const Request &req, Re
     return 0;
 }
 
-int proc_rr_transfer_snapshot(const Context &ctx, Link *link, const Request &req, Response *resp) {
+int proc_rr_transfer_snapshot(Context &ctx, Link *link, const Request &req, Response *resp) {
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
     CHECK_NUM_PARAMS(3);
 
@@ -835,7 +835,7 @@ int proc_rr_transfer_snapshot(const Context &ctx, Link *link, const Request &req
     return PROC_BACKEND;
 }
 
-int proc_rr_del_snapshot(const Context &ctx, Link *link, const Request &req, Response *resp){
+int proc_rr_del_snapshot(Context &ctx, Link *link, const Request &req, Response *resp){
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
     {
@@ -865,7 +865,7 @@ int proc_rr_del_snapshot(const Context &ctx, Link *link, const Request &req, Res
 
 
 
-int proc_repopid(const Context &ctx, Link *link, const Request &req, Response *resp) {
+int proc_repopid(Context &ctx, Link *link, const Request &req, Response *resp) {
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
     CHECK_NUM_PARAMS(2);
 
@@ -903,7 +903,8 @@ int proc_repopid(const Context &ctx, Link *link, const Request &req, Response *r
             reply_err_return(INVALID_INT);
         }
 
-        serv->ssdb->updateRecievedInfo(timestamp, id);
+        ctx.recievedRepopContext.timestamp = timestamp;
+        ctx.recievedRepopContext.id = id;
 
         resp->reply_ok();
     } else {
@@ -914,7 +915,7 @@ int proc_repopid(const Context &ctx, Link *link, const Request &req, Response *r
     return 0;
 }
 
-int proc_after_proc(const Context &ctx, Link *link, const Request &req, Response *resp) {
+int proc_after_proc(Context &ctx, Link *link, const Request &req, Response *resp) {
     SSDBServer *serv = (SSDBServer *)ctx.net->data;
 
     if (req[0] == "repopid") {
@@ -923,19 +924,18 @@ int proc_after_proc(const Context &ctx, Link *link, const Request &req, Response
 
     log_debug("proc_after_proc");
 
-    std::pair<uint64_t, uint64_t> commitedInfo = serv->ssdb->getCommitedInfo();
+//    std::pair<uint64_t, uint64_t> commitedInfo = serv->ssdb->getCommitedInfo();
 
-    resp->r.timestamp = commitedInfo.first;
-    resp->r.id = commitedInfo.second;
+//    resp->r.timestamp = commitedInfo.first;
+//    resp->r.id = commitedInfo.second;
 
-    serv->ssdb->resetRecievedInfo();
 
     return 0;
 }
 
 
 
-int proc_ssdb_sync(const Context &ctx, Link *link, const Request &req, Response *resp){
+int proc_ssdb_sync(Context &ctx, Link *link, const Request &req, Response *resp){
 
     log_info("ssdb_sync , link address:%lld", link);
 

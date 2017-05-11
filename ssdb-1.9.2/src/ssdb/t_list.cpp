@@ -51,7 +51,7 @@ uint64_t getSeqByIndex(int64_t index, const ListMetaVal &meta_val) {
     return seq;
 }
 
-int SSDBImpl::LIndex(const Context &ctx, const Bytes &key, const int64_t index, std::pair<std::string, bool> &val) {
+int SSDBImpl::LIndex(Context &ctx, const Bytes &key, const int64_t index, std::pair<std::string, bool> &val) {
     uint64_t sequence = 0;
     ListMetaVal lv;
     std::string meta_key = encode_meta_key(key);
@@ -68,7 +68,7 @@ int SSDBImpl::LIndex(const Context &ctx, const Bytes &key, const int64_t index, 
     return s;
 }
 
-int SSDBImpl::LLen(const Context &ctx, const Bytes &key, uint64_t *llen) {
+int SSDBImpl::LLen(Context &ctx, const Bytes &key, uint64_t *llen) {
     *llen = 0;
     ListMetaVal lv;
     std::string meta_key = encode_meta_key(key);
@@ -79,7 +79,7 @@ int SSDBImpl::LLen(const Context &ctx, const Bytes &key, uint64_t *llen) {
     return s;
 }
 
-int SSDBImpl::LPop(const Context &ctx, const Bytes &key, std::pair<std::string, bool> &val) {
+int SSDBImpl::LPop(Context &ctx, const Bytes &key, std::pair<std::string, bool> &val) {
     RecordLock<Mutex> l(&mutex_record_, key.String());
     leveldb::WriteBatch batch;
 
@@ -99,7 +99,7 @@ int SSDBImpl::LPop(const Context &ctx, const Bytes &key, std::pair<std::string, 
     return ret;
 }
 
-int SSDBImpl::RPop(const Context &ctx, const Bytes &key, std::pair<std::string, bool> &val) {
+int SSDBImpl::RPop(Context &ctx, const Bytes &key, std::pair<std::string, bool> &val) {
     RecordLock<Mutex> l(&mutex_record_, key.String());
     leveldb::WriteBatch batch;
 
@@ -119,7 +119,7 @@ int SSDBImpl::RPop(const Context &ctx, const Bytes &key, std::pair<std::string, 
     return ret;
 }
 
-int SSDBImpl::doListPop(const Context &ctx, const Bytes &key, leveldb::WriteBatch &batch, ListMetaVal &lv,
+int SSDBImpl::doListPop(Context &ctx, const Bytes &key, leveldb::WriteBatch &batch, ListMetaVal &lv,
                         std::string &meta_key, LIST_POSITION lp, std::pair<std::string, bool> &val) {
 
     uint64_t item_seq;
@@ -179,7 +179,7 @@ int SSDBImpl::doListPop(const Context &ctx, const Bytes &key, leveldb::WriteBatc
 }
 
 
-int SSDBImpl::LPushX(const Context &ctx, const Bytes &key, const std::vector<Bytes> &val, int offset, uint64_t *llen) {
+int SSDBImpl::LPushX(Context &ctx, const Bytes &key, const std::vector<Bytes> &val, int offset, uint64_t *llen) {
     RecordLock<Mutex> l(&mutex_record_, key.String());
     leveldb::WriteBatch batch;
 
@@ -201,7 +201,7 @@ int SSDBImpl::LPushX(const Context &ctx, const Bytes &key, const std::vector<Byt
     return ret;
 }
 
-int SSDBImpl::LPush(const Context &ctx, const Bytes &key, const std::vector<Bytes> &val, int offset, uint64_t *llen) {
+int SSDBImpl::LPush(Context &ctx, const Bytes &key, const std::vector<Bytes> &val, int offset, uint64_t *llen) {
 
     RecordLock<Mutex> l(&mutex_record_, key.String());
     leveldb::WriteBatch batch;
@@ -222,7 +222,7 @@ int SSDBImpl::LPush(const Context &ctx, const Bytes &key, const std::vector<Byte
 }
 
 template <typename T>
-int SSDBImpl::doListPush(const Context &ctx, const Bytes &key, leveldb::WriteBatch &batch, const std::vector<T> &val, int offset, std::string &meta_key,
+int SSDBImpl::doListPush(Context &ctx, const Bytes &key, leveldb::WriteBatch &batch, const std::vector<T> &val, int offset, std::string &meta_key,
                       ListMetaVal &meta_val, LIST_POSITION lp) {
 
     int size = (int)val.size();
@@ -287,7 +287,7 @@ int SSDBImpl::doListPush(const Context &ctx, const Bytes &key, leveldb::WriteBat
 }
 
 
-int SSDBImpl::RPushX(const Context &ctx, const Bytes &key, const std::vector<Bytes> &val, int offset, uint64_t *llen) {
+int SSDBImpl::RPushX(Context &ctx, const Bytes &key, const std::vector<Bytes> &val, int offset, uint64_t *llen) {
     RecordLock<Mutex> l(&mutex_record_, key.String());
     leveldb::WriteBatch batch;
 
@@ -309,7 +309,7 @@ int SSDBImpl::RPushX(const Context &ctx, const Bytes &key, const std::vector<Byt
     return ret;
 }
 
-int SSDBImpl::RPush(const Context &ctx, const Bytes &key, const std::vector<Bytes> &val, int offset, uint64_t *llen) {
+int SSDBImpl::RPush(Context &ctx, const Bytes &key, const std::vector<Bytes> &val, int offset, uint64_t *llen) {
     RecordLock<Mutex> l(&mutex_record_, key.String());
     leveldb::WriteBatch batch;
 
@@ -369,7 +369,7 @@ int SSDBImpl::GetListMetaVal(const std::string &meta_key, ListMetaVal &lv) {
     return 1;
 }
 
-int SSDBImpl::rpushNoLock(const Context &ctx, const Bytes &key, const std::vector<std::string> &val, int offset, uint64_t *llen) {
+int SSDBImpl::rpushNoLock(Context &ctx, const Bytes &key, const std::vector<std::string> &val, int offset, uint64_t *llen) {
     leveldb::WriteBatch batch;
 
     *llen = 0;
@@ -387,7 +387,7 @@ int SSDBImpl::rpushNoLock(const Context &ctx, const Bytes &key, const std::vecto
     return ret;
 }
 
-int SSDBImpl::LSet(const Context &ctx, const Bytes &key, const int64_t index, const Bytes &val) {
+int SSDBImpl::LSet(Context &ctx, const Bytes &key, const int64_t index, const Bytes &val) {
     RecordLock<Mutex> l(&mutex_record_, key.String());
     leveldb::WriteBatch batch;
 
@@ -424,7 +424,7 @@ int SSDBImpl::LSet(const Context &ctx, const Bytes &key, const int64_t index, co
     return 1;
 }
 
-int SSDBImpl::ltrim(const Context &ctx, const Bytes &key, int64_t start, int64_t end) {
+int SSDBImpl::ltrim(Context &ctx, const Bytes &key, int64_t start, int64_t end) {
     RecordLock<Mutex> l(&mutex_record_, key.String());
     leveldb::WriteBatch batch;
 
@@ -517,7 +517,7 @@ int SSDBImpl::ltrim(const Context &ctx, const Bytes &key, int64_t start, int64_t
 }
 
 
-int SSDBImpl::lrange(const Context &ctx, const Bytes &key, int64_t start, int64_t end, std::vector<std::string> &list){
+int SSDBImpl::lrange(Context &ctx, const Bytes &key, int64_t start, int64_t end, std::vector<std::string> &list){
 
     int ret;
 

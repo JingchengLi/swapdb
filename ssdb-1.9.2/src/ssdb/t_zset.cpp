@@ -13,17 +13,17 @@ found in the LICENSE file.
  * @return -1: error, 0: item updated, 1: new item inserted
  */
 
-int SSDBImpl::multi_zset(const Context &ctx, const Bytes &name, const std::map<Bytes, Bytes> &sortedSet, int flags, int64_t *num) {
+int SSDBImpl::multi_zset(Context &ctx, const Bytes &name, const std::map<Bytes, Bytes> &sortedSet, int flags, int64_t *num) {
     RecordLock<Mutex> l(&mutex_record_, name.String());
     return zsetNoLock<Bytes>(ctx, name, sortedSet, flags, num);
 }
 
-int SSDBImpl::multi_zdel(const Context &ctx, const Bytes &name, const std::set<Bytes> &keys, int64_t *count) {
+int SSDBImpl::multi_zdel(Context &ctx, const Bytes &name, const std::set<Bytes> &keys, int64_t *count) {
     RecordLock<Mutex> l(&mutex_record_, name.String());
     return zdelNoLock(ctx, name, keys, count);
 }
 
-int SSDBImpl::zdelNoLock(const Context &ctx, const Bytes &name, const std::set<Bytes> &keys, int64_t *count) {
+int SSDBImpl::zdelNoLock(Context &ctx, const Bytes &name, const std::set<Bytes> &keys, int64_t *count) {
     ZSetMetaVal zv;
     leveldb::WriteBatch batch;
 
@@ -60,7 +60,7 @@ int SSDBImpl::zdelNoLock(const Context &ctx, const Bytes &name, const std::set<B
     return ret;
 }
 
-int SSDBImpl::zincr(const Context &ctx, const Bytes &name, const Bytes &key, double by, int &flags, double *new_val) {
+int SSDBImpl::zincr(Context &ctx, const Bytes &name, const Bytes &key, double by, int &flags, double *new_val) {
     RecordLock<Mutex> l(&mutex_record_, name.String());
     leveldb::WriteBatch batch;
     ZSetMetaVal zv;
@@ -102,7 +102,7 @@ int SSDBImpl::zincr(const Context &ctx, const Bytes &name, const Bytes &key, dou
     return ret;
 }
 
-int SSDBImpl::zsize(const Context &ctx, const Bytes &name, uint64_t *size) {
+int SSDBImpl::zsize(Context &ctx, const Bytes &name, uint64_t *size) {
     ZSetMetaVal zv;
     std::string size_key = encode_meta_key(name);
     int ret = GetZSetMetaVal(size_key, zv);
@@ -165,7 +165,7 @@ int SSDBImpl::GetZSetItemVal(const std::string &item_key, double *score) {
 }
 
 //zscore
-int SSDBImpl::zget(const Context &ctx, const Bytes &name, const Bytes &key, double *score) {
+int SSDBImpl::zget(Context &ctx, const Bytes &name, const Bytes &key, double *score) {
     *score = 0;
 
     ZSetMetaVal zv;
@@ -190,7 +190,7 @@ int SSDBImpl::zget(const Context &ctx, const Bytes &name, const Bytes &key, doub
     return 1;
 }
 
-ZIterator *SSDBImpl::zscan_internal(const Context &ctx, const Bytes &name, const Bytes &score_start, const Bytes &score_end,
+ZIterator *SSDBImpl::zscan_internal(Context &ctx, const Bytes &name, const Bytes &score_start, const Bytes &score_end,
                                     uint64_t limit, Iterator::Direction direction, uint16_t version,
                                     const leveldb::Snapshot *snapshot) {
     if (direction == Iterator::FORWARD) {
@@ -222,7 +222,7 @@ ZIterator *SSDBImpl::zscan_internal(const Context &ctx, const Bytes &name, const
     }
 }
 
-ZIteratorByLex *SSDBImpl::zscanbylex_internal(const Context &ctx, const Bytes &name, const Bytes &key_start, const Bytes &key_end,
+ZIteratorByLex *SSDBImpl::zscanbylex_internal(Context &ctx, const Bytes &name, const Bytes &key_start, const Bytes &key_end,
                                               uint64_t limit, Iterator::Direction direction, uint16_t version,
                                               const leveldb::Snapshot *snapshot) {
     std::string start, end;
@@ -240,7 +240,7 @@ ZIteratorByLex *SSDBImpl::zscanbylex_internal(const Context &ctx, const Bytes &n
     }
 }
 
-int SSDBImpl::zrank(const Context &ctx, const Bytes &name, const Bytes &key, int64_t *rank) {
+int SSDBImpl::zrank(Context &ctx, const Bytes &name, const Bytes &key, int64_t *rank) {
     ZSetMetaVal zv;
     const leveldb::Snapshot *snapshot = nullptr;
 
@@ -277,7 +277,7 @@ int SSDBImpl::zrank(const Context &ctx, const Bytes &name, const Bytes &key, int
     return 1;
 }
 
-int SSDBImpl::zrrank(const Context &ctx, const Bytes &name, const Bytes &key, int64_t *rank) {
+int SSDBImpl::zrrank(Context &ctx, const Bytes &name, const Bytes &key, int64_t *rank) {
     ZSetMetaVal zv;
     const leveldb::Snapshot *snapshot = nullptr;
 
@@ -314,7 +314,7 @@ int SSDBImpl::zrrank(const Context &ctx, const Bytes &name, const Bytes &key, in
     return 1;
 }
 
-int SSDBImpl::zrangeGeneric(const Context &ctx, const Bytes &name, const Bytes &begin, const Bytes &limit, std::vector<string> &key_score,
+int SSDBImpl::zrangeGeneric(Context &ctx, const Bytes &name, const Bytes &begin, const Bytes &limit, std::vector<string> &key_score,
                             int reverse) {
     long long start, end;
     if (string2ll(begin.data(), (size_t) begin.size(), &start) == 0) {
@@ -379,11 +379,11 @@ int SSDBImpl::zrangeGeneric(const Context &ctx, const Bytes &name, const Bytes &
     return 1;
 }
 
-int SSDBImpl::zrange(const Context &ctx, const Bytes &name, const Bytes &begin, const Bytes &limit, std::vector<std::string> &key_score) {
+int SSDBImpl::zrange(Context &ctx, const Bytes &name, const Bytes &begin, const Bytes &limit, std::vector<std::string> &key_score) {
     return zrangeGeneric(ctx, name, begin, limit, key_score, 0);
 }
 
-int SSDBImpl::zrrange(const Context &ctx, const Bytes &name, const Bytes &begin, const Bytes &limit, std::vector<std::string> &key_score) {
+int SSDBImpl::zrrange(Context &ctx, const Bytes &name, const Bytes &begin, const Bytes &limit, std::vector<std::string> &key_score) {
     return zrangeGeneric(ctx, name, begin, limit, key_score, 1);
 }
 
@@ -432,7 +432,7 @@ int zslValueLteMax(double value, zrangespec *spec) {
     return spec->maxex ? (value < spec->max) : (value <= spec->max);
 }
 
-int SSDBImpl::genericZrangebyscore(const Context &ctx, const Bytes &name, const Bytes &start_score, const Bytes &end_score,
+int SSDBImpl::genericZrangebyscore(Context &ctx, const Bytes &name, const Bytes &start_score, const Bytes &end_score,
                                    std::vector<std::string> &key_score, int withscores, long offset, long limit,
                                    int reverse) {
     zrangespec range;
@@ -543,17 +543,17 @@ int SSDBImpl::genericZrangebyscore(const Context &ctx, const Bytes &name, const 
     return 1;
 }
 
-int SSDBImpl::zrangebyscore(const Context &ctx, const Bytes &name, const Bytes &start_score, const Bytes &end_score,
+int SSDBImpl::zrangebyscore(Context &ctx, const Bytes &name, const Bytes &start_score, const Bytes &end_score,
                             std::vector<std::string> &key_score, int withscores, long offset, long limit) {
     return genericZrangebyscore(ctx, name, start_score, end_score, key_score, withscores, offset, limit, 0);
 }
 
-int SSDBImpl::zrevrangebyscore(const Context &ctx, const Bytes &name, const Bytes &start_score, const Bytes &end_score,
+int SSDBImpl::zrevrangebyscore(Context &ctx, const Bytes &name, const Bytes &start_score, const Bytes &end_score,
                                std::vector<std::string> &key_score, int withscores, long offset, long limit) {
     return genericZrangebyscore(ctx, name, start_score, end_score, key_score, withscores, offset, limit, 1);
 }
 
-int SSDBImpl::zremrangebyscore(const Context &ctx, const Bytes &name, const Bytes &score_start, const Bytes &score_end, bool remove, int64_t *count) {
+int SSDBImpl::zremrangebyscore(Context &ctx, const Bytes &name, const Bytes &score_start, const Bytes &score_end, bool remove, int64_t *count) {
     zrangespec range;
 
     std::string start_score;
@@ -649,7 +649,7 @@ int SSDBImpl::zdel_one(leveldb::WriteBatch &batch, const Bytes &name, const Byte
     return 1;
 }
 
-int SSDBImpl::incr_zsize(const Context &ctx, const Bytes &name, leveldb::WriteBatch &batch, const ZSetMetaVal &zv, int64_t incr) {
+int SSDBImpl::incr_zsize(Context &ctx, const Bytes &name, leveldb::WriteBatch &batch, const ZSetMetaVal &zv, int64_t incr) {
     std::string size_key = encode_meta_key(name);
 
     int ret = 1;
@@ -855,7 +855,7 @@ int zslLexValueLteMax(std::string value, zlexrangespec *spec) {
            (value <= spec->max);
 }
 
-int SSDBImpl::genericZrangebylex(const Context &ctx, const Bytes &name, const Bytes &key_start, const Bytes &key_end,
+int SSDBImpl::genericZrangebylex(Context &ctx, const Bytes &name, const Bytes &key_start, const Bytes &key_end,
                                  std::vector<string> &keys, long offset, long limit, int save, int64_t *count) {
     zlexrangespec range;
 
@@ -909,18 +909,18 @@ int SSDBImpl::genericZrangebylex(const Context &ctx, const Bytes &name, const By
     return 1;
 }
 
-int SSDBImpl::zlexcount(const Context &ctx, const Bytes &name, const Bytes &key_start, const Bytes &key_end, int64_t *count) {
+int SSDBImpl::zlexcount(Context &ctx, const Bytes &name, const Bytes &key_start, const Bytes &key_end, int64_t *count) {
     std::vector<string> keys;
     return genericZrangebylex(ctx, name, key_start, key_end, keys, 0, -1, 0, count);
 }
 
-int SSDBImpl::zrangebylex(const Context &ctx, const Bytes &name, const Bytes &key_start, const Bytes &key_end,
+int SSDBImpl::zrangebylex(Context &ctx, const Bytes &name, const Bytes &key_start, const Bytes &key_end,
                           std::vector<std::string> &keys, long offset, long limit) {
     int64_t count = 0;
     return genericZrangebylex(ctx, name, key_start, key_end, keys, offset, limit, 1, &count);
 }
 
-int SSDBImpl::zremrangebylex(const Context &ctx, const Bytes &name, const Bytes &key_start, const Bytes &key_end, int64_t *count) {
+int SSDBImpl::zremrangebylex(Context &ctx, const Bytes &name, const Bytes &key_start, const Bytes &key_end, int64_t *count) {
     zlexrangespec range;
 
     /* Parse the range arguments */
@@ -979,7 +979,7 @@ int SSDBImpl::zremrangebylex(const Context &ctx, const Bytes &name, const Bytes 
     return ret;
 }
 
-int SSDBImpl::zrevrangebylex(const Context &ctx, const Bytes &name, const Bytes &key_start, const Bytes &key_end,
+int SSDBImpl::zrevrangebylex(Context &ctx, const Bytes &name, const Bytes &key_start, const Bytes &key_end,
                              std::vector<std::string> &keys, long offset, long limit) {
     zlexrangespec range;
     int count = 0;
@@ -1049,7 +1049,7 @@ int SSDBImpl::zrevrangebylex(const Context &ctx, const Bytes &name, const Bytes 
 }
 
 
-int SSDBImpl::zscan(const Context &ctx, const Bytes &name, const Bytes &cursor, const std::string &pattern, uint64_t limit,
+int SSDBImpl::zscan(Context &ctx, const Bytes &name, const Bytes &cursor, const std::string &pattern, uint64_t limit,
                     std::vector<std::string> &resp) {
 
     ZSetMetaVal hv;

@@ -233,7 +233,7 @@ void SSDBImpl::ReleaseSnapshot(const leveldb::Snapshot* snapshot) {
 
 /* raw operates */
 
-int SSDBImpl::raw_set(const Context &ctx, const Bytes &key, const Bytes &val){
+int SSDBImpl::raw_set(Context &ctx, const Bytes &key, const Bytes &val){
 	leveldb::WriteOptions write_opts;
 	leveldb::Status s = ldb->Put(write_opts, slice(key), slice(val));
 	if(!s.ok()){
@@ -243,7 +243,7 @@ int SSDBImpl::raw_set(const Context &ctx, const Bytes &key, const Bytes &val){
 	return 1;
 }
 
-int SSDBImpl::raw_del(const Context &ctx, const Bytes &key){
+int SSDBImpl::raw_del(Context &ctx, const Bytes &key){
 	leveldb::WriteOptions write_opts;
 	leveldb::Status s = ldb->Delete(write_opts, slice(key));
 	if(!s.ok()){
@@ -253,7 +253,7 @@ int SSDBImpl::raw_del(const Context &ctx, const Bytes &key){
 	return 1;
 }
 
-int SSDBImpl::raw_get(const Context &ctx, const Bytes &key, std::string *val){
+int SSDBImpl::raw_get(Context &ctx, const Bytes &key, std::string *val){
 	leveldb::ReadOptions opts;
 	opts.fill_cache = false;
 	leveldb::Status s = ldb->Get(opts, slice(key), val);
@@ -340,35 +340,37 @@ void SSDBImpl::compact(){
 }
 
 
-leveldb::Status SSDBImpl::CommitBatch(const Context &ctx, const leveldb::WriteOptions& options, leveldb::WriteBatch *updates) {
+leveldb::Status SSDBImpl::CommitBatch(Context &ctx, const leveldb::WriteOptions& options, leveldb::WriteBatch *updates) {
 
-	if (recievedIndex > 0) {
-		//role is slave
-		if (commitedIndex > 0) {
-			//role is slave
+	if (ctx.recievedRepopContext.id > 0) {
+		if (ctx.commitedRepopContext.id > 0) {
+
+			if (ctx.recievedRepopContext.id > ctx.commitedRepopContext.id) {
+				updates->Put(encode_repo_key(), encode_repo_item(ctx.recievedRepopContext.timestamp, ctx.recievedRepopContext.id));
+
+			} else if (ctx.recievedRepopContext.id == ctx.commitedRepopContext.id) {
+				log_info("role may changed slave -> master");
+				updates->Put(encode_repo_key(), encode_repo_item(0 ,0));
+				ctx.recievedRepopContext.reset();
+				ctx.commitedRepopContext.reset();
+			}
+
 		} else {
-			log_info("role change master -> slave");
+			log_info("role may changed master -> slave");
+			updates->Put(encode_repo_key(), encode_repo_item(ctx.recievedRepopContext.timestamp, ctx.recievedRepopContext.id));
+
 		}
 
-		updates->Put(encode_repo_key(), encode_repo_item(recievedTimestamp, recievedIndex));
-
-	} else if (recievedIndex == -1) {
-
-		log_error("wtf??????????????? reset recievedIndex");
-		resetRecievedInfo();
-
-		updates->Put(encode_repo_key(), encode_repo_item(recievedTimestamp, recievedIndex));
 
 	} else {
-		//recievedIndex == 0
+		//ctx.recievedRepopContext.id == 0
 
-		if (commitedIndex > 0) {
-			log_info("role change slave -> master");
+		if (ctx.commitedRepopContext.id > 0) {
+			log_info("role may changed slave -> master");
 
-			resetRecievedInfo();
-
-			updates->Put(encode_repo_key(), encode_repo_item(recievedTimestamp, recievedIndex));
-
+			updates->Put(encode_repo_key(), encode_repo_item(0 , 0));
+			ctx.recievedRepopContext.reset();
+			ctx.commitedRepopContext.reset();
 		} else {
 			//role is master
 		}
@@ -379,16 +381,15 @@ leveldb::Status SSDBImpl::CommitBatch(const Context &ctx, const leveldb::WriteOp
 
 	if (s.ok()) {
 		//update
-		updateCommitedInfo(recievedTimestamp, recievedIndex);
+		ctx.commitedRepopContext = ctx.recievedRepopContext;
 
 	} else {
-		updateRecievedInfo(-1, -1);
 	}
 
 	return s;
 }
 
-leveldb::Status SSDBImpl::CommitBatch(const Context &ctx, leveldb::WriteBatch *updates) {
+leveldb::Status SSDBImpl::CommitBatch(Context &ctx, leveldb::WriteBatch *updates) {
 
 	return CommitBatch(ctx, leveldb::WriteOptions(), updates);
 

@@ -15,6 +15,7 @@ found in the LICENSE file.
 #include "../util/bytes.h"
 
 #include "link_redis.h"
+class Context;
 
 class Link{
 	private:
@@ -37,7 +38,7 @@ class Link{
 		Buffer *output;
 
 		RedisLink *redis;
-
+		Context *context = nullptr;
 		double create_time;
 		double active_time;
 

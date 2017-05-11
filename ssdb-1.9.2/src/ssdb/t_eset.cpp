@@ -6,10 +6,10 @@
 
 static void eset_internal(const Bytes &key, leveldb::WriteBatch &batch, int64_t ts);
 
-static int eset_one(const Context &ctx, const Bytes &key, SSDBImpl *ssdb, leveldb::WriteBatch &batch, int64_t ts);
+static int eset_one(Context &ctx, const Bytes &key, SSDBImpl *ssdb, leveldb::WriteBatch &batch, int64_t ts);
 
 
-int SSDBImpl::eset(const Context &ctx, const Bytes &key, int64_t ts) {
+int SSDBImpl::eset(Context &ctx, const Bytes &key, int64_t ts) {
     RecordLock<Mutex> l(&mutex_record_, key.String());
 
     leveldb::WriteBatch batch;
@@ -32,7 +32,7 @@ int SSDBImpl::eset(const Context &ctx, const Bytes &key, int64_t ts) {
 }
 
 
-int SSDBImpl::edel(const Context &ctx, const Bytes &key) {
+int SSDBImpl::edel(Context &ctx, const Bytes &key) {
     RecordLock<Mutex> l(&mutex_record_, key.String());
     leveldb::WriteBatch batch;
 
@@ -48,7 +48,7 @@ int SSDBImpl::edel(const Context &ctx, const Bytes &key) {
     return ret;
 }
 
-int SSDBImpl::edel_one(const Context &ctx, const Bytes &key,leveldb::WriteBatch &batch) {
+int SSDBImpl::edel_one(Context &ctx, const Bytes &key,leveldb::WriteBatch &batch) {
 
     int64_t old_ts = 0;
 
@@ -69,7 +69,7 @@ int SSDBImpl::edel_one(const Context &ctx, const Bytes &key,leveldb::WriteBatch 
     return 1;
 }
 
-int SSDBImpl::eget(const Context &ctx, const Bytes &key, int64_t *ts) {
+int SSDBImpl::eget(Context &ctx, const Bytes &key, int64_t *ts) {
     *ts = 0;
 
     std::string str_score;
@@ -101,7 +101,7 @@ void eset_internal(const Bytes &key, leveldb::WriteBatch &batch, int64_t ts) {
 }
 
 
-int eset_one(const Context &ctx, const Bytes &key, SSDBImpl *ssdb, leveldb::WriteBatch &batch, int64_t ts) {
+int eset_one(Context &ctx, const Bytes &key, SSDBImpl *ssdb, leveldb::WriteBatch &batch, int64_t ts) {
 
     int ret = 1;
 
@@ -132,7 +132,7 @@ int eset_one(const Context &ctx, const Bytes &key, SSDBImpl *ssdb, leveldb::Writ
 
 }
 
-int SSDBImpl::check_meta_key(const Context &ctx, const Bytes &key) {
+int SSDBImpl::check_meta_key(Context &ctx, const Bytes &key) {
     std::string meta_key = encode_meta_key(key);
     std::string meta_val;
     leveldb::Status s = ldb->Get(leveldb::ReadOptions(), meta_key, &meta_val);

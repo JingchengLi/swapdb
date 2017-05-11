@@ -8,7 +8,7 @@
 #include "ssdb_impl.h"
 
 template <typename T>
-int SSDBImpl::saddNoLock(const Context &ctx, const Bytes &key, const std::set<T> &mem_set, int64_t *num) {
+int SSDBImpl::saddNoLock(Context &ctx, const Bytes &key, const std::set<T> &mem_set, int64_t *num) {
     leveldb::WriteBatch batch;
 
     int ret = 0;

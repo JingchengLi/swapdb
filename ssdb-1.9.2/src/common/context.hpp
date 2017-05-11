@@ -7,6 +7,19 @@
 
 //#include <net/server.h>
 
+
+class RepopContext{
+public:
+    uint64_t    id = 0;
+    uint64_t    timestamp = 0;
+
+    void reset () {
+        id = 0;
+        timestamp = 0;
+    }
+};
+
+
 class NetworkServer;
 //class SSDBServer;
 
@@ -15,7 +28,8 @@ class Context
 public:
     NetworkServer *net = nullptr;
 
-
+    RepopContext recievedRepopContext;
+    RepopContext commitedRepopContext;
 
 };
 

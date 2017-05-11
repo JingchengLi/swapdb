@@ -52,7 +52,7 @@ void ExpirationHandler::stop() {
     first_timeout = 0;
 }
 
-int ExpirationHandler::expire(const Context &ctx, const Bytes &key, int64_t ttl, TimeUnit tu) {
+int ExpirationHandler::expire(Context &ctx, const Bytes &key, int64_t ttl, TimeUnit tu) {
 
     if (tu == TimeUnit::Second) {
         if (INT64_MAX / 1000 <= ttl) { return INVALID_EX_TIME; }
@@ -75,7 +75,7 @@ int ExpirationHandler::expire(const Context &ctx, const Bytes &key, int64_t ttl,
 }
 
 
-int ExpirationHandler::expireAt(const Context &ctx, const Bytes &key, int64_t ts_ms) {
+int ExpirationHandler::expireAt(Context &ctx, const Bytes &key, int64_t ts_ms) {
 
     int ret = ssdb->eset(ctx, key, ts_ms);
     if (ret <= 0) {
@@ -100,7 +100,7 @@ int ExpirationHandler::expireAt(const Context &ctx, const Bytes &key, int64_t ts
 }
 
 
-int ExpirationHandler::persist(const Context &ctx, const Bytes &key) {
+int ExpirationHandler::persist(Context &ctx, const Bytes &key) {
     // 这样用是有 bug 的, 虽然 fast_keys 为空, 不代表整个 ttl 队列为空
     // if(!this->fast_keys.empty()){
     int ret = 0;
@@ -111,7 +111,7 @@ int ExpirationHandler::persist(const Context &ctx, const Bytes &key) {
     return ret;
 }
 
-int64_t ExpirationHandler::pttl(const Context &ctx, const Bytes &key, TimeUnit tu) {
+int64_t ExpirationHandler::pttl(Context &ctx, const Bytes &key, TimeUnit tu) {
     int64_t ex = 0;
     int64_t ttl = 0;
     int ret = ssdb->check_meta_key(ctx, key);

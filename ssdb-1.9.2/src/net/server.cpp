@@ -441,6 +441,7 @@ void NetworkServer::serve(){
 
 			ProcJob *job = new ProcJob();
 			job->link = link;
+			job->link->context->net = this;
 			job->req = link->last_recv();
 			int result = this->proc(job);
 			if(result == PROC_THREAD){
@@ -644,7 +645,7 @@ int NetworkServer::proc(ProcJob *job){
 			break;
 		}
 		job->cmd = cmd;
-		job->cmd->proc_after = proc_after_proc;
+//		job->cmd->proc_after = proc_after_proc;
 
 		if(cmd->flags & Command::FLAG_THREAD){
 			if(cmd->flags & Command::FLAG_WRITE){
@@ -657,9 +658,8 @@ int NetworkServer::proc(ProcJob *job){
 
 		proc_t p = cmd->proc;
 		job->time_wait = 1000 * (millitime() - job->stime);
-		job->context.net = this;
-		job->result = (*p)(job->context, job->link, *req, &job->resp);
-		job->cmd->proc_after(job->context, job->link, *req, &job->resp);
+		job->result = (*p)(*job->link->context, job->link, *req, &job->resp);
+//		job->cmd->proc_after(*job->link->context, job->link, *req, &job->resp);
 		job->time_proc = 1000 * (millitime() - job->stime) - job->time_wait;
 	}while(0);
 
@@ -711,12 +711,12 @@ int NetworkServer::proc(ProcJob *job){
 
 /* built-in procs */
 
-static int proc_ping(const Context &ctx, Link *link, const Request &req, Response *resp){
+static int proc_ping(Context &ctx, Link *link, const Request &req, Response *resp){
 	resp->push_back("ok");
 	return 0;
 }
 
-static int proc_info(const Context &ctx, Link *link, const Request &req, Response *resp){
+static int proc_info(Context &ctx, Link *link, const Request &req, Response *resp){
 	resp->push_back("ok");
 	resp->push_back("ideawu's network server framework");
 	resp->push_back("version");
@@ -736,7 +736,7 @@ static int proc_info(const Context &ctx, Link *link, const Request &req, Respons
 	return 0;
 }
 
-static int proc_auth(const Context &ctx, Link *link, const Request &req, Response *resp){
+static int proc_auth(Context &ctx, Link *link, const Request &req, Response *resp){
 	if(req.size() != 2){
 		resp->push_back("client_error");
 	}else{
