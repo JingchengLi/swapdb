@@ -1558,7 +1558,7 @@ void handleSSDBReply(client *c, int revert_len) {
         }
 
         if (server.is_doing_flushall && handleResponseOfSSDBflushDone(c, reply, revert_len) == C_OK ) {
-            /* we need reply the flushall result to user client. */
+            /* we need reply the flushall result to user client, so don't call revertClientBufReply. */
             goto cleanup;
         }
 
@@ -1662,16 +1662,19 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
                 freeClient(c);
                 return;
             } else {
-                if (c->btype == BLOCKED_VISITING_SSDB) {
-                    unblockClient(c);
-                    resetClient(c);
-                }
-                closeAndReconnectSSDBconnection(c);
                 if (c->ssdb_replies[0])
                     revertClientBufReply(c, first_reply_len);
                 else
                     revertClientBufReply(c, total_reply_len);
-                addReplyError(c, "SSDB disconnect when read");
+
+                /* we don't need to reply to server.master and server.delete_confirm_client. */
+                if (c->btype == BLOCKED_VISITING_SSDB || c->btype == BLOCKED_BY_FLUSHALL) {
+                    unblockClient(c);
+                    resetClient(c);
+                    /* only reply to redis user client when there is a write/read SSDB request. */
+                    addReplyError(c, "SSDB disconnect when read");
+                }
+                closeAndReconnectSSDBconnection(c);
                 goto clean;
             }
         }
