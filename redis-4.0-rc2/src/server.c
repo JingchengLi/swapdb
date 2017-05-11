@@ -2880,7 +2880,7 @@ int processCommandMaybeInSSDB(client *c) {
 
                 updateSlaveSSDBwriteIndex();
 
-                /* for the master connection of slave redis, we record write commands
+                /* for the replication connection of slave redis, we record write commands
                  * in server.ssdb_write_oplist, we just return and process next write command. */
                 saveSlaveSSDBwriteOp(c, write_op_last_time, write_op_last_index);
 
@@ -2894,7 +2894,7 @@ int processCommandMaybeInSSDB(client *c) {
                 sds cmd = composeRedisCmd(4, tmpargv, NULL);
                 int ret = sendCommandToSSDB(c, cmd);
                 if (ret != C_OK) {
-                    /* avoid to reset c->argv for the master connection of slave redis. we use it to save
+                    /* avoid to reset c->argv for the replication connection of slave redis. we use it to save
                      * commands in server.ssdb_write_oplist */
                     if (server.master == c && c->cmd->proc != flushallCommand)
                         c->argv = NULL;
@@ -2910,7 +2910,7 @@ int processCommandMaybeInSSDB(client *c) {
             serverAssert(c->argv);
             int ret = sendCommandToSSDB(c, NULL);
             if (ret != C_OK) {
-                /* avoid to reset c->argv for the master connection of slave redis. we use it to save
+                /* avoid to reset c->argv for the replication connection of slave redis. we use it to save
                  * commands in server.ssdb_write_oplist */
                 if (server.master == c && c->cmd->proc != flushallCommand)
                     c->argv = NULL;
@@ -2928,25 +2928,25 @@ int processCommandMaybeInSSDB(client *c) {
 
                 if (keys) getKeysFreeResult(keys);
 
-                /* block to wait reply for master redis. */
-                if (server.masterhost == NULL) {
-                    /* TODO: use a suitable timeout. */
-                    c->bpop.timeout = 5000 + mstime();
-                    blockClient(c, BLOCKED_VISITING_SSDB);
-                } else if (server.master == c) {
+                /* for the replication connection */
+                if (server.master == c) {
                     if (c->cmd->proc == flushallCommand) {
-                        /* for slave redis, we just wait flushall done. */
+                        /* we just wait flushall done. */
                         c->bpop.timeout = 8000+mstime();
                         blockClient(c, BLOCKED_BY_FLUSHALL);
                         return C_OK;
                     }
 
-                    /* avoid to reset c->argv for the master connection of slave redis. we use it to save
+                    /* avoid to reset c->argv for the replication connection of slave redis. we use it to save
                     * commands in server.ssdb_write_oplist */
                     if (server.master == c && c->cmd->proc != flushallCommand)
                         c->argv = NULL;
 
                     return C_OK;
+                } else {
+                    /* TODO: use a suitable timeout. */
+                    c->bpop.timeout = 5000 + mstime();
+                    blockClient(c, BLOCKED_VISITING_SSDB);
                 }
             }
 
@@ -3108,7 +3108,7 @@ int runCommand(client *c, int* need_return) {
         int ret = processCommandMaybeInSSDB(c);
         if (ret == C_OK) {
             if (server.master == c && c->cmd->proc != flushallCommand) {
-                /* for the master connection of slave redis, after we send write commands
+                /* for the replication connection of slave redis, after we send write commands
                  * to SSDB and record them in server.ssdb_write_oplist, we just return and
                  * process next write command. */
                 return C_OK;

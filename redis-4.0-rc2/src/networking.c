@@ -1351,7 +1351,7 @@ int handleResponseOfDeleteCheckConfirm(client *c) {
  response format:
  1) *1\r\n$7\r\ncheck 0\r\n
  2) *1\r\n$7\r\ncheck 1\r\n
- 3) for the master connection of slave redis:
+ 3) for the replication connection of slave redis:
     *2\r\n$7\r\ncheck 0\r\n$100 \r\nrepopid ${time} ${index}\r\n
  */
 int handleExtraSSDBReply(client *c) {
