@@ -348,9 +348,11 @@ proc start_server {options {code undefined}} {
 
             # srv may be updated by code.
             set srv [lindex $::servers end]
+            # remove srv in ::servers when kill it
+            set ::servers [lrange $::servers 0 end-1]
             # Kill the server without checking for leaks
             dict set srv "skipleaks" 1
-            puts "kill_server"
+            puts "catch err and kill_server"
             kill_server $srv
 
             # Print warnings from log

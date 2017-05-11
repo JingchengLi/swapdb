@@ -3,35 +3,34 @@ overrides {maxmemory 0}} {
     test "Exceed MAX/MIN score in ssdb return err" {
         ssdbr del zscoretest
         # redis behave as ssdb return err if > 12 9 or < -12 9
-        assert_error "*not*float*" [ssdbr zadd zscoretest 1e13 x]
-        # assert_equal [expr 10**13] [ssdbr zscore zscoretest x]
-        assert_error "*not*float*" [ssdbr zadd zscoretest -1e13 y]
-        # ssdbr zadd zscoretest -1e13 y
-        # assert_equal [expr -1*10**13] [ssdbr zscore zscoretest y]
+        assert_error "*out of range*" {ssdbr zadd zscoretest 1e13 x}
+        assert_equal 0 [ssdbr exists zscoretest]
+        assert_error "*out of range*" {ssdbr zadd zscoretest -1e13 y}
+        assert_equal 0 [ssdbr exists zscoretest]
     }
 
-    test "zadd +/-inf key in ssdb" {
+    test "zadd +/-inf key in ssdb return err" {
         ssdbr del ztmp
-        ssdbr zadd ztmp inf x
-        assert_equal inf [ssdbr zscore ztmp x]
-        ssdbr zadd ztmp -inf y
-        assert_equal -inf [ssdbr zscore ztmp y]
+        assert_error "*out of range*" {ssdbr zadd ztmp inf x}
+        assert_equal 0 [ssdbr exists ztmp]
+        assert_error "*out of range*" {ssdbr zadd ztmp -inf y}
+        assert_equal 0 [ssdbr exists ztmp]
     }
 
     test "zadd incr +/-inf key in ssdb" {
         ssdbr del ztmp
-        ssdbr zadd ztmp incr inf x
-        assert_equal inf [ssdbr zscore ztmp x]
-        ssdbr zadd ztmp incr -inf y
-        assert_equal -inf [ssdbr zscore ztmp y]
+        assert_error "*out of range*" {ssdbr zadd ztmp incr inf x}
+        assert_equal 0 [ssdbr exists ztmp]
+        assert_error "*out of range*" {ssdbr zadd ztmp incr -inf y}
+        assert_equal 0 [ssdbr exists ztmp]
     }
 
     test "zincrby +/-inf key in ssdb" {
         ssdbr del ztmp
-        ssdbr zincrby ztmp inf x
-        assert_equal inf [ssdbr zscore ztmp x]
-        ssdbr zincrby ztmp -inf y
-        assert_equal -inf [ssdbr zscore ztmp y]
+        assert_error "*out of range*" {ssdbr zincrby ztmp inf x}
+        assert_equal 0 [ssdbr exists ztmp]
+        assert_error "*out of range*" {ssdbr zincrby ztmp -inf y}
+        assert_equal 0 [ssdbr exists ztmp]
     }
 
     if {$::accurate} {
