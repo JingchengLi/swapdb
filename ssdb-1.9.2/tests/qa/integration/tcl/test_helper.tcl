@@ -23,6 +23,7 @@ set ::all_tests {
     ssdb/other
     ssdb/scan
     ssdb/zset
+    ssdb/zset-2
 }
 # need run with redis
 # ssdb/dump
