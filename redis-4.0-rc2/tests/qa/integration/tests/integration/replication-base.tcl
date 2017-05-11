@@ -111,7 +111,8 @@ start_server {tags {"repl"}} {
 
         test {FLUSHALL should replicate} {
             r -1 flushall
-            wait_flushall
+            after 500
+            # wait_flushall
             if {$::valgrind} {after 2000}
             list [r -1 dbsize] [r 0 dbsize]
         } {0 0}

@@ -55,7 +55,7 @@ proc test_psync {descr duration backlog_size backlog_ttl delay cond reconnect} {
 
 
                 wait_for_online $master 1
-                wait_for_condition 200 100 {
+                wait_for_condition 50 100 {
                     [$master debug digest] == [$slave debug digest]
                 } else {
                     fail "Different digest between master([$master debug digest]) and slave([$slave debug digest]) after too long time."

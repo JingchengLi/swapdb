@@ -482,9 +482,15 @@ proc ssdbr {args} {
 proc wait_memory_stable {{level 0}} {
     set current_mem 0
 
+    set retry 500
     while {[s $level used_memory] != $current_mem} {
         set current_mem [s $level used_memory]
+        incr retry -1
         after 100
+        if {$retry == 0} {
+            puts "assertion:wait memory stable 50s"
+            break
+        }
     }
 }
 
@@ -496,11 +502,11 @@ proc wait_for_transfer_limit {flag {level 0}} {
     assert {$maxmemory ne 0}
     set current_mem 0
     if {1 == $flag} {
-        while {[s $level used_memory] < $maxmemory*$ssdb_transfer_limit/100.0} {
+        while {[s $level used_memory] < [expr $maxmemory*$ssdb_transfer_limit/100.0]} {
             after 100
         }
     } elseif {0 == $flag} {
-        while {[s $level used_memory] > $maxmemory*$ssdb_transfer_limit/100.0\
+        while {[s $level used_memory] > [expr $maxmemory*$ssdb_transfer_limit/100.0]\
         || [s $level used_memory] != $current_mem} {
             set current_mem [s $level used_memory]
             after 100
