@@ -85,6 +85,7 @@ typedef long long mstime_t; /* millisecond time type. */
 #define CONN_WAIT_FLUSH_CHECK_REPLY (1<<1)
 #define CONN_CONNECTING             (1<<2)
 #define CONN_CONNECT_FAILED         (1<<3)
+#define CONN_CHECK_REPOPID          (1<<4)
 
 /* Default max argc of cmds sended to SSDB. */
 #define SSDB_CMD_DEFAULT_MAX_ARGC 10
@@ -1312,7 +1313,6 @@ struct redisServer {
     /* for slave redis, we save ssdb write operations before receive responses from ssdb. */
     list* ssdb_write_oplist;
     int ssdb_is_up;
-    int slave_check_rep_opid;
     /* when ssdb is down, record the time */
     time_t ssdb_down_time;
     int slave_ssdb_critical_err_cnt;

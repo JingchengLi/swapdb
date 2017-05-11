@@ -647,7 +647,7 @@ void ssdbConnectCallback(aeEventLoop *el, int fd, void *privdata, int mask) {
         sds cmd = composeRedisCmd(2, tmpargv, NULL);
 
         if (sendCommandToSSDB(server.master, cmd) == C_OK)
-            server.slave_check_rep_opid = 1;
+            server.master->ssdb_conn_flags |= CONN_CHECK_REPOPID;
     }
     return;
 error:
@@ -741,8 +741,8 @@ sds composeCmdFromArgs(int argc, robj** obj_argv) {
 
 
 int closeAndReconnectSSDBconnection(client* c) {
-    if (server.master == c && server.slave_check_rep_opid)
-        server.slave_check_rep_opid = 0;
+    if (server.master == c && (c->ssdb_conn_flags & CONN_CHECK_REPOPID))
+        c->ssdb_conn_flags &= ~CONN_CHECK_REPOPID;
 
     if (c->context) {
         server.ssdb_is_up = 0;
@@ -1487,7 +1487,7 @@ void handleSSDBReply(client *c, int revert_len) {
     if (c == server.ssdb_client) return;
 
     if (c == server.master) {
-        if (server.slave_check_rep_opid) {
+        if (c->ssdb_conn_flags & CONN_CHECK_REPOPID) {
             /* we received response of "repopid get" */
             time_t last_successful_write_time = -1;
             int last_successful_write_index = -1;
@@ -1505,7 +1505,7 @@ void handleSSDBReply(client *c, int revert_len) {
             } else {
                 confirmAndRetrySlaveSSDBwriteOp(last_successful_write_time, last_successful_write_index);
             }
-            server.slave_check_rep_opid = 0;
+            c->ssdb_conn_flags &= ~CONN_CHECK_REPOPID;
         } else {
             if (reply->type == REDIS_REPLY_ERROR) {
                 server.slave_ssdb_critical_err_cnt++;
@@ -1611,7 +1611,7 @@ void handleSSDBReply(client *c, int revert_len) {
     }
 }
 
-/* TODO: Implement ssdbClientUnixHandler. Only handle AE_READABLE. */
+/* Only handle AE_READABLE. */
 void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
     UNUSED(el);
     UNUSED(mask);

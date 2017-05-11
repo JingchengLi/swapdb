@@ -2134,7 +2134,6 @@ void initServer(void) {
     server.unblocked_clients = listCreate();
     server.ready_keys = listCreate();
     if (server.jdjr_mode) {
-        server.slave_check_rep_opid = 0;
         server.slave_ssdb_critical_err_cnt = 0;
         server.ssdb_is_up = 0;
         server.ssdb_down_time = -1;
