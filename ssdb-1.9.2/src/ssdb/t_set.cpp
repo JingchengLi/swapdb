@@ -204,77 +204,50 @@ int SSDBImpl::srandmember(Context &ctx, const Bytes &key, std::vector<std::strin
 
     auto it = std::unique_ptr<SIterator>(sscan_internal(ctx, key, sv.version, snapshot));
 
-    std::set<uint64_t> random_set;
-    std::vector<uint64_t> random_list;
 
-    bool allow_repear = cnt < 0;
-    if (allow_repear) {
+    bool allow_repeat = cnt < 0;
+    if (allow_repeat) {
         cnt = -cnt;
     }
 
-    bool full_iter = ((cnt >= sv.length) && (!allow_repear));
+
+    int full_repeat = int(cnt / sv.length);
+    for (int j = 0; j < full_repeat; ++j) {
+        auto tmp = std::unique_ptr<SIterator>(sscan_internal(ctx, key, sv.version, snapshot));
+        while (tmp->next()) {
+            members.emplace_back(tmp->key);
+        }
+    }
+
+    cnt = cnt - full_repeat * sv.length;
+
+
+    uint64_t start_index = 0;
 
     if (sv.length == 0) {
         return 0;
-    } else if (full_iter) {
-//        for (uint64_t i = 0; i < sv.length; ++i) {
-//            if (allow_repear) {
-//                random_list.push_back(i);
-//            } else {
-//                random_set.insert(i);
-//            }
-//        }
+    } else if (cnt >= sv.length) {
+        cnt = sv.length;
+
     } else if (cnt > INT_MAX) {
         return INVALID_INT;
     } else {
-        if (allow_repear) {
-            for (uint64_t i = 0; random_list.size() < cnt; ++i) {
-                random_list.push_back((uint64_t) (rand() % sv.length));
-            }
-        } else {
-            for (uint64_t i = 0; random_set.size() < cnt; ++i) {
-                //to do rand only produce int !
-                random_set.insert((uint64_t) (rand() % sv.length));
-            }
-        }
-
+        uint64_t start_index_max = sv.length - (uint64_t) cnt;
+        if(start_index_max > 100) start_index_max = 100;
+        start_index = (uint64_t) (rand() % start_index_max);
     }
+
 
     int64_t found_cnt = 0;
-
-    if (full_iter) {
-        for (uint64_t i = 0; (it->next()); ++i) {
-            members.push_back(std::move(it->key));
+    for (uint64_t i = 0; (found_cnt < cnt) && (it->next()); ++i) {
+        if (i < start_index) {
+            continue;
         }
 
-    } else if (allow_repear) {
-        sort(random_list.begin(), random_list.end());
-        for (uint64_t i = 0; (found_cnt < cnt) && (it->next()); ++i) {
-
-            for (uint64_t a : random_list) {
-                if (a == i) {
-                    members.push_back(it->key);
-                    found_cnt += 1;
-                }
-            }
-
-        }
-    } else {
-
-        for (uint64_t i = 0; (found_cnt < cnt) && (it->next()); ++i) {
-            std::set<uint64_t>::iterator rit = random_set.find(i);
-            if (rit == random_set.end()) {
-                //not in range
-                continue;
-            } else {
-                random_set.erase(rit);
-            }
-
-            members.push_back(std::move(it->key));
-            found_cnt += 1;
-        }
-
+        members.emplace_back(it->key);
+        found_cnt += 1;
     }
+
 
     return 1;
 }
@@ -295,44 +268,35 @@ int SSDBImpl::spop(Context &ctx, const Bytes &key, std::vector<std::string> &mem
 
     auto it = std::unique_ptr<SIterator>(sscan_internal(ctx, key, sv.version));
 
-    std::set<uint64_t> random_set;
-    /* we random key by random index :)
-     * in ssdb we only commit once , so make sure not to make same random num */
-
     if (popcnt < 0) {
         return INDEX_OUT_OF_RANGE;
     }
 
+    uint64_t start_index = 0;
+
     if (sv.length == 0) {
         return 0;
     } else if (popcnt >= sv.length) {
-        for (uint64_t i = 0; i < sv.length; ++i) {
-            random_set.insert(i);
-        }
+        popcnt = sv.length;
+
     } else if (popcnt > INT_MAX) {
         return INVALID_INT;
     } else {
-        for (uint64_t i = 0; random_set.size() < popcnt; ++i) {
-            //to do rand only produce int !
-            random_set.insert((uint64_t) (rand() % sv.length));
-        }
+        uint64_t start_index_max = sv.length - (uint64_t)popcnt;
+        if (start_index_max > 100) start_index_max = 100;
+        start_index = (uint64_t) (rand() % start_index_max);
     }
 
 
     int64_t delete_cnt = 0;
     for (uint64_t i = 0; (delete_cnt < popcnt) && (it->next()); ++i) {
-
-        std::set<uint64_t>::iterator rit = random_set.find(i);
-        if (rit == random_set.end()) {
-            //not in range
+        if (i < start_index) {
             continue;
-        } else {
-            random_set.erase(rit);
         }
 
         std::string hkey = encode_set_key(key, it->key, sv.version);
         batch.Delete(hkey);
-        members.push_back(std::move(it->key));
+        members.emplace_back(it->key);
         delete_cnt += 1;
     }
 
