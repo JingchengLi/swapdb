@@ -1383,8 +1383,6 @@ int handleExtraSSDBReply(client *c) {
     element0 = reply->element[0];
     serverAssert(element0->type == REDIS_REPLY_STRING);
 
-    serverLog(LL_DEBUG, "element1->str: %s", element0->str);
-
     if (server.master == c) {
         /* process "repopid" response for slave redis. */
         serverAssert(reply->elements == 2);
@@ -1541,7 +1539,11 @@ void handleSSDBReply(client *c, int revert_len) {
 
     if (c == server.delete_confirm_client
         && handleResponseOfDeleteCheckConfirm(c) == C_OK) {
-        goto UNBLOCK;
+        if (c->btype == BLOCKED_BY_DELETE_CONFIRM) {
+            unblockClient(c);
+            resetClient(c);
+        }
+        return;
     }
 
     /* Maintain the EVICTED_DATA_DB. */
@@ -1604,9 +1606,8 @@ void handleSSDBReply(client *c, int revert_len) {
 
     handleExtraSSDBReply(c);
 
-UNBLOCK:
-    /* Unblock server.delete_confirm_client or the client is reading/writing SSDB. */
-    if (c->btype == BLOCKED_VISITING_SSDB || c->btype == BLOCKED_BY_DELETE_CONFIRM) {
+    /* Unblock the client is reading/writing SSDB. */
+    if (c->btype == BLOCKED_VISITING_SSDB) {
         unblockClient(c);
 
         if ((c->cmd
