@@ -880,6 +880,11 @@ int proc_repopid(Context &ctx, Link *link, const Request &req, Response *resp) {
         } else if (rret == 0) {
             resp->push_back("ok");
             resp->push_back("repopid 0 0");
+
+            {
+                resp->redisResponse = new RedisResponse("repopid 0 0");
+            }
+
             return 0;
         }
 
@@ -890,6 +895,10 @@ int proc_repopid(Context &ctx, Link *link, const Request &req, Response *resp) {
 
         resp->push_back("ok");
         resp->push_back("repopid " + str(repoKey.timestamp) + " " + str(repoKey.id));
+
+        {
+            resp->redisResponse = new RedisResponse("repopid " + str(repoKey.timestamp) + " " + str(repoKey.id));
+        }
 
     } else if (action == "set") {
         CHECK_NUM_PARAMS(4);
@@ -907,6 +916,12 @@ int proc_repopid(Context &ctx, Link *link, const Request &req, Response *resp) {
         ctx.recievedRepopContext.id = id;
 
         resp->reply_ok();
+
+        {
+            resp->redisResponse = new RedisResponse("OK");
+            resp->redisResponse->type = REDIS_REPLY_STATUS;
+        }
+
     } else {
         reply_err_return(INVALID_ARGS);
     }
