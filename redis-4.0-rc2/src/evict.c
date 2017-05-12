@@ -1225,9 +1225,9 @@ void transferringOrLoadingBlockedClientTimeOut(client *c) {
         robj * keyobj = dictGetKey(de);
 
         removeClientFromListForBlockedKey(c, keyobj);
-        serverAssert(dictDelete(c->bpop.loading_or_transfer_keys, keyobj) == DICT_OK);
         serverLog(LL_DEBUG, "key: %s is deleted from loading_or_transfer_keys.", (char *)keyobj->ptr);
         serverLog(LL_DEBUG, "client: %d key: %s is timeout.", c->fd, (char *)keyobj->ptr);
+        serverAssert(dictDelete(c->bpop.loading_or_transfer_keys, keyobj) == DICT_OK);
     }
 
     addReplyError(c, "timeout");

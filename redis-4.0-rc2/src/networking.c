@@ -1370,6 +1370,9 @@ int handleExtraSSDBReply(client *c) {
     serverLog(LL_DEBUG, "element->str: %s", element->str);
     if (!isSpecialConnection(c)
         && !strcmp(element->str, "check 1")) {
+        if (c->cmd->proc == delCommand)
+            return C_OK;
+
         keys = getKeysFromCommand(c->cmd, c->argv, c->argc, &numkeys);
 
         /* TODO: optimized zmalloc. */
@@ -1540,7 +1543,7 @@ void handleSSDBReply(client *c, int revert_len) {
 
     if (c == server.delete_confirm_client
         && handleResponseOfDeleteCheckConfirm(c) == C_OK) {
-        return;
+        goto UNBLOCK;
     }
 
     /* Maintain the EVICTED_DATA_DB. */
@@ -1603,8 +1606,9 @@ void handleSSDBReply(client *c, int revert_len) {
 
     handleExtraSSDBReply(c);
 
-    /* Unblock the client is reading/writing SSDB. */
-    if (c->btype == BLOCKED_VISITING_SSDB) {
+UNBLOCK:
+    /* Unblock server.delete_confirm_client or the client is reading/writing SSDB. */
+    if (c->btype == BLOCKED_VISITING_SSDB || c->btype == BLOCKED_BY_DELETE_CONFIRM) {
         unblockClient(c);
 
         if ((c->cmd
