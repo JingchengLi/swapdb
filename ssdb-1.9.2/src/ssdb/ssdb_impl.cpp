@@ -70,11 +70,11 @@ SSDB* SSDB::open(const Options &opt, const std::string &dir){
 
 	//for spin disk
 //	op.cache_index_and_filter_blocks = true;
-//  	ssdb->options.optimize_filters_for_hits = true;
+  	ssdb->options.optimize_filters_for_hits = true;
+	ssdb->options.compaction_readahead_size = 4 * 1024 * 1024;
 //	ssdb->options.skip_stats_update_on_db_open = true;
 //	ssdb->options.level_compaction_dynamic_level_bytes = true;
 //	ssdb->options.new_table_reader_for_compaction_inputs = true;
-//	ssdb->options.compaction_readahead_size = 16 * 1024 * 1024;
 //
 //	ssdb->options.level0_file_num_compaction_trigger = 3; //start compaction
 //	ssdb->options.level0_slowdown_writes_trigger = 20; //slow write
