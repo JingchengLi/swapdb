@@ -1348,6 +1348,26 @@ int handleResponseOfDeleteCheckConfirm(client *c) {
     return C_OK;
 }
 
+void checkSSDBkeyIsDeleted(char* check_reply, struct redisCommand* cmd, int argc, robj** argv) {
+    int *indexs = NULL;
+    int numkeys = 0, j;
+    robj **keyobjs = NULL;
+    sds key;
+    if (!check_reply && !strcmp(check_reply, "check 1")) {
+        if (cmd->proc == delCommand)
+            return;
+
+        indexs = getKeysFromCommand(cmd, argv, argc, &numkeys);
+
+        key = argv[indexs[0]]->ptr;
+
+        dictAddOrFind(EVICTED_DATA_DB->delete_confirm_keys, key);
+        serverLog(LL_DEBUG, "cmd: %s, key: %s is added to delete_confirm_keys.", cmd->name, key);
+
+        if (indexs) getKeysFreeResult(indexs);
+    }
+}
+
 /* Handle the common extra reply from SSDB:
  response format:
  1) *1\r\n$7\r\ncheck 0\r\n
@@ -1368,28 +1388,6 @@ int handleExtraSSDBReply(client *c) {
     serverAssert(element->type == REDIS_REPLY_STRING);
 
     serverLog(LL_DEBUG, "element->str: %s", element->str);
-    if (!isSpecialConnection(c)
-        && !strcmp(element->str, "check 1")) {
-        if (c->cmd->proc == delCommand)
-            return C_OK;
-
-        keys = getKeysFromCommand(c->cmd, c->argv, c->argc, &numkeys);
-
-        /* TODO: optimized zmalloc. */
-        if (numkeys)
-            keyobjs = zmalloc(sizeof(robj *) * numkeys);
-
-        for (j = 0; j < numkeys; j ++)
-            keyobjs[j] = c->argv[keys[j]];
-
-        /* TODO: support multi keys. */
-        dictAddOrFind(EVICTED_DATA_DB->delete_confirm_keys, keyobjs[0]->ptr);
-        serverLog(LL_DEBUG, "replyString str: %s", element->str);
-        serverLog(LL_DEBUG, "cmd: %s, key: %s is added to delete_confirm_keys.", c->cmd->name, (char *)keyobjs[0]->ptr);
-
-        if (numkeys && keyobjs) zfree(keyobjs);
-        if (keys) getKeysFreeResult(keys);
-    }
 
     if (server.master == c) {
         /* process "repopid" response for slave redis. */
@@ -1419,6 +1417,7 @@ int handleExtraSSDBReply(client *c) {
         }
 
         if (repopid_index == op->index && repopid_time == op->time) {
+            checkSSDBkeyIsDeleted(element->str, op->cmd, op->argc, op->argv);
             removeVisitingSSDBKey(op->cmd, op->argc, op->argv);
             listDelNode(server.ssdb_write_oplist, ln);
         } else {
@@ -1431,6 +1430,9 @@ int handleExtraSSDBReply(client *c) {
             closeAndReconnectSSDBconnection(c);
             return C_ERR;
         }
+    } else {
+        if (!isSpecialConnection(c))
+            checkSSDBkeyIsDeleted(element->str, c->cmd, c->argc, c->argv);
     }
 
     return C_OK;
