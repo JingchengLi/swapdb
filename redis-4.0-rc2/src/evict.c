@@ -1080,7 +1080,7 @@ void handleClientsBlockedOnSSDB(void) {
                     client *c = clientnode->value;
                     int retval;
 
-                    if (c->fd < 0 || !c->context || c->context->fd < 0)) {
+                    if (c->fd < 0 || !c->context || c->context->fd < 0) {
                         serverLog(LL_DEBUG, "The client is already closed");
                         continue;
                     }

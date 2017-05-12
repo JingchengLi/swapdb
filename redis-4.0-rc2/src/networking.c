@@ -1351,7 +1351,6 @@ int handleResponseOfDeleteCheckConfirm(client *c) {
 void checkSSDBkeyIsDeleted(char* check_reply, struct redisCommand* cmd, int argc, robj** argv) {
     int *indexs = NULL;
     int numkeys = 0, j;
-    robj **keyobjs = NULL;
     sds key;
     if (!check_reply && !strcmp(check_reply, "check 1")) {
         if (cmd->proc == delCommand)
@@ -1377,9 +1376,6 @@ void checkSSDBkeyIsDeleted(char* check_reply, struct redisCommand* cmd, int argc
  */
 int handleExtraSSDBReply(client *c) {
     redisReply *element, *reply;
-    int *keys = NULL;
-    int numkeys = 0, j;
-    robj **keyobjs = NULL;
 
     reply = c->ssdb_replies[1];
 
