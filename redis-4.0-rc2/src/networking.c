@@ -744,6 +744,18 @@ int closeAndReconnectSSDBconnection(client* c) {
     if (server.master == c && (c->ssdb_conn_flags & CONN_CHECK_REPOPID))
         c->ssdb_conn_flags &= ~CONN_CHECK_REPOPID;
 
+    if ((c->ssdb_conn_flags & CONN_WAIT_FLUSH_CHECK_REPLY) && server.flush_check_begin_time != -1) {
+        server.flush_check_unresponse_num -= 1;
+        c->ssdb_conn_flags &= ~CONN_WAIT_FLUSH_CHECK_REPLY;
+        serverLog(LL_DEBUG, "[flushall]connection with ssdb disconnected, unresponse num:%d",
+                  server.flush_check_unresponse_num);
+    } else if (c->ssdb_conn_flags & CONN_WAIT_WRITE_CHECK_REPLY && server.check_write_begin_time != -1) {
+        server.check_write_unresponse_num -= 1;
+        c->ssdb_conn_flags &= ~CONN_WAIT_WRITE_CHECK_REPLY;
+        serverLog(LL_DEBUG, "[replication check write]connection with ssdb disconnected, unresponse num:%d",
+                  server.check_write_unresponse_num);
+    }
+
     if (c->context) {
         server.ssdb_is_up = 0;
         if (server.ssdb_down_time == -1)
@@ -837,6 +849,8 @@ void sendFlushCheckCommandToSSDB(aeEventLoop *el, int fd, void *privdata, int ma
         serverLog(LL_DEBUG, "[flushall]server.flush_check_unresponse_num decrease by 1");
         server.flush_check_unresponse_num -= 1;
     } else {
+        serverLog(LL_DEBUG, "[flushall] send flush check success to c->context->fd:%d",
+                  c->context ? c->context->fd : -1);
         c->ssdb_conn_flags |= CONN_WAIT_FLUSH_CHECK_REPLY;
         aeDeleteFileEvent(server.el, c->fd, AE_WRITABLE);
     }
@@ -1132,7 +1146,8 @@ int handleResponseOfFlushCheck(client *c, redisReply* reply) {
          * we can ignore this client in freeClient and don't decrease server.flush_check_unresponse_num. */
         c->ssdb_conn_flags &= ~CONN_WAIT_FLUSH_CHECK_REPLY;
 
-        serverLog(LL_DEBUG, "[flushall]receive flush check ok, unresponse num:%d", server.flush_check_unresponse_num);
+        serverLog(LL_DEBUG, "[flushall]receive flush check ok(c->context->fd:%d), unresponse num:%d",
+                  c->context ? c->context->fd : -1, server.flush_check_unresponse_num);
         if (server.flush_check_unresponse_num == 0) {
             server.flush_check_begin_time = -1;
             server.flush_check_unresponse_num = -1;
@@ -2033,6 +2048,8 @@ void freeClient(client *c) {
     if (server.jdjr_mode) {
         if ((c->ssdb_conn_flags & CONN_WAIT_FLUSH_CHECK_REPLY) && server.flush_check_begin_time != -1) {
             server.flush_check_unresponse_num -= 1;
+            serverLog(LL_DEBUG, "[flushall]connection with ssdb freed, unresponse num:%d",
+                      server.flush_check_unresponse_num);
         } else if (c->ssdb_conn_flags & CONN_WAIT_WRITE_CHECK_REPLY && server.check_write_begin_time != -1) {
             server.check_write_unresponse_num -= 1;
         }
