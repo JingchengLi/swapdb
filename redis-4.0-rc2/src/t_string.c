@@ -83,6 +83,15 @@ void setGenericCommand(client *c, int flags, robj *key, robj *val, robj *expire,
         addReply(c, abort_reply ? abort_reply : shared.nullbulk);
         return;
     }
+
+    if (server.jdjr_mode && server.behave_as_ssdb) {
+        robj *o = lookupKey(c->db, key, LOOKUP_NOTOUCH);
+        if (o && o->type != OBJ_STRING) {
+            addReply(c,shared.wrongtypeerr);
+            return;
+        }
+    }
+
     setKey(c->db,key,val);
     server.dirty++;
     if (expire) setExpire(c,c->db,key,mstime()+milliseconds);
