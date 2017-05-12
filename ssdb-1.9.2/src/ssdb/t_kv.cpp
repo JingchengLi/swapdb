@@ -133,21 +133,12 @@ int SSDBImpl::multi_del(Context &ctx, const std::set<Bytes> &distinct_keys, int6
 	for(; itor != distinct_keys.end(); itor++){
 		const Bytes &key = *itor;
         l.Lock(key.String());
-		std::string meta_key = encode_meta_key(key);
-		std::string meta_val;
-		leveldb::Status s = ldb->Get(leveldb::ReadOptions(), meta_key, &meta_val);
-		if (s.IsNotFound()){
-			continue;
-		} else if (!s.ok()){
-            return STORAGE_ERR;
-        } else{
-            int iret = mark_key_deleted(ctx, key, batch, meta_key, meta_val);
-            if (iret < 0) {
-                return iret;
-            }
+        int iret = del_key_internal(ctx, key, batch);
+        if (iret < 0) {
+            return iret;
+        }
 
-            *num = (*num) + iret;
-		}
+        *num = (*num) + iret;
 	}
 	if ((*num) > 0){
 		leveldb::Status s = CommitBatch(ctx, &(batch));
@@ -580,9 +571,9 @@ int SSDBImpl::redisCursorCleanup() {
 int SSDBImpl::type(Context &ctx, const Bytes &key, std::string *type) {
     *type = "none";
 
-    std::string val;
+    std::string meta_val;
     std::string meta_key = encode_meta_key(key);
-    leveldb::Status s = ldb->Get(leveldb::ReadOptions(), meta_key, &val);
+    leveldb::Status s = ldb->Get(leveldb::ReadOptions(), meta_key, &meta_val);
 
     if (s.IsNotFound()) {
         return 0;
@@ -593,18 +584,18 @@ int SSDBImpl::type(Context &ctx, const Bytes &key, std::string *type) {
     }
 
     //decodeMetaVal
-    if(val.size()<4) {
+    if(meta_val.size()<4) {
         //invalid
         log_error("invalid MetaVal: %s", s.ToString().c_str());
         return INVALID_METAVAL;
     }
 
-    char del = val[POS_DEL];
+    char del = meta_val[POS_DEL];
     if (del != KEY_ENABLED_MASK){
         //deleted
         return 0;
     }
-    char mtype = val[POS_TYPE];
+    char mtype = meta_val[POS_TYPE];
 
     if (mtype == DataType::KV) {
         *type = "string";
@@ -854,10 +845,8 @@ int SSDBImpl::restore(Context &ctx, const Bytes &key, int64_t expire, const Byte
 
     int ret = 0;
     std::string meta_val;
-    leveldb::Status s;
-
     std::string meta_key = encode_meta_key(key);
-    s = ldb->Get(leveldb::ReadOptions(), meta_key, &meta_val);
+    leveldb::Status s = ldb->Get(leveldb::ReadOptions(), meta_key, &meta_val);
     if (!s.ok() && !s.IsNotFound()) {
         return STORAGE_ERR;
     }
