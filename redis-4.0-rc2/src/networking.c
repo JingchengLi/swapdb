@@ -1488,22 +1488,28 @@ void handleSSDBReply(client *c, int revert_len) {
 
     if (c == server.master) {
         if (c->ssdb_conn_flags & CONN_CHECK_REPOPID) {
-            /* we received response of "repopid get" */
-            time_t last_successful_write_time = -1;
-            int last_successful_write_index = -1;
+            if (reply && reply->type == REDIS_REPLY_STRING && reply->str) {
+                /* we received response of "repopid get" */
+                time_t last_successful_write_time = -1;
+                int last_successful_write_index = -1;
 
-            int ret = sscanf(reply->str, "repopid %ld %d", &last_successful_write_time, &last_successful_write_index);
-            serverAssert(2 == ret);
-            if (2 != ret) {
-                server.slave_ssdb_critical_err_cnt++;
-                serverLog(LL_WARNING, "slave ssdb response a wrong response:%s", reply->str);
-                if (server.slave_ssdb_critical_err_cnt >= SLAVE_SSDB_MAX_CRITICAL_ERR_LIMIT) {
-                    serverLog(LL_WARNING, "too many critical errors for slave ssdb, redis will exit");
-                    exit(1);
+                int ret = sscanf(reply->str, "repopid %ld %d", &last_successful_write_time, &last_successful_write_index);
+                serverAssert(2 == ret);
+                if (2 != ret) {
+                    server.slave_ssdb_critical_err_cnt++;
+                    serverLog(LL_WARNING, "slave ssdb response a wrong repopid:%s", reply->str);
+                    if (server.slave_ssdb_critical_err_cnt >= SLAVE_SSDB_MAX_CRITICAL_ERR_LIMIT) {
+                        serverLog(LL_WARNING, "too many critical errors for slave ssdb, redis will exit");
+                        exit(1);
+                    }
+                    closeAndReconnectSSDBconnection(c);
+                } else {
+                    confirmAndRetrySlaveSSDBwriteOp(last_successful_write_time, last_successful_write_index);
                 }
-                closeAndReconnectSSDBconnection(c);
             } else {
-                confirmAndRetrySlaveSSDBwriteOp(last_successful_write_time, last_successful_write_index);
+                serverLog(LL_WARNING, "failed to get repopid of slave ssdb, reply type:%d", reply->type);
+                server.slave_ssdb_critical_err_cnt++;
+                closeAndReconnectSSDBconnection(c);
             }
             c->ssdb_conn_flags &= ~CONN_CHECK_REPOPID;
         } else {
