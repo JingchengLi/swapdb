@@ -23,8 +23,8 @@ int ProcWorker::proc(ProcJob *job){
 
 	proc_t p = job->cmd->proc;
 	job->time_wait = 1000 * (millitime() - job->stime);
+	job->link->context->reset();
 	job->result = (*p)(*job->link->context, job->link, *req, &job->resp);
-//	job->cmd->proc_after(*job->link->context, job->link, *req, &job->resp);
 	job->time_proc = 1000 * (millitime() - job->stime) - job->time_wait;
 
 
@@ -61,7 +61,7 @@ int ProcWorker::proc(ProcJob *job){
 	//todo append custom reply
 	if (job->link->append_reply) {
 		if (!job->resp.resp.empty()) {
-				if(job->link->send_append_res(job->resp.get_append_array()) == -1){
+				if(job->link->send_append_res(job->link->context->get_append_array()) == -1){
 
 				log_debug("job->link->send_append_res error");
 				job->result = PROC_ERROR;

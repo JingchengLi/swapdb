@@ -138,10 +138,6 @@ void Response::reply_get(int status, const std::string *val, const char *errmsg)
 	}
 }
 
-void Response::mark_check() {
-	checkKey = true;
-}
-
 void Response::reply_scan_ready() {
 	resp.clear();
 	resp.push_back("ok");
@@ -150,24 +146,6 @@ void Response::reply_scan_ready() {
 
 void Response::reply_list_ready() {
 	resp.push_back("ok");
-}
-
-std::vector<std::string> Response::get_append_array() {
-	std::vector<std::string> vec;
-
-	if (checkKey) {
-		vec.push_back("check 1");
-	} else {
-		vec.push_back("check 0");
-	}
-
-//	if (r.id != 0) {
-//		vec.push_back("repopid " + str(r.timestamp) + " " + str(r.id));
-//	} else {
-//		vec.push_back("repopid 0 0");
-//	}
-
-	return vec;
 }
 
 void Response::reply_not_found() {

@@ -501,7 +501,7 @@ int NetworkServer::proc_result(ProcJob *job, ready_list_t *ready_list){
 	int result = job->result;
 			
 	if(log_level() >= Logger::LEVEL_DEBUG){
-        auto dreply = job->resp.get_append_array();
+        auto dreply = job->link->context->get_append_array();
 		log_debug("[result] w:%.3f,p:%.3f, req: %s, resp: %s, dreply: %s",
 			job->time_wait, job->time_proc,
 			serialize_req(*job->req).c_str(),
@@ -658,8 +658,8 @@ int NetworkServer::proc(ProcJob *job){
 
 		proc_t p = cmd->proc;
 		job->time_wait = 1000 * (millitime() - job->stime);
+		job->link->context->reset();
 		job->result = (*p)(*job->link->context, job->link, *req, &job->resp);
-//		job->cmd->proc_after(*job->link->context, job->link, *req, &job->resp);
 		job->time_proc = 1000 * (millitime() - job->stime) - job->time_wait;
 	}while(0);
 
@@ -696,7 +696,7 @@ int NetworkServer::proc(ProcJob *job){
 
 	if (job->link->append_reply) {
         if (!job->resp.resp.empty()) {
-            if(job->link->send_append_res(job->resp.get_append_array()) == -1){
+            if(job->link->send_append_res(job->link->context->get_append_array()) == -1){
                 log_debug("job->link->send_append_res error");
                 job->result = PROC_ERROR;
                 return job->result;

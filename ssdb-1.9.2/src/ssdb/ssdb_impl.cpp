@@ -349,10 +349,13 @@ leveldb::Status SSDBImpl::CommitBatch(Context &ctx, const leveldb::WriteOptions&
 				updates->Put(encode_repo_key(), encode_repo_item(ctx.recievedRepopContext.timestamp, ctx.recievedRepopContext.id));
 
 			} else if (ctx.recievedRepopContext.id == ctx.commitedRepopContext.id) {
-				log_info("role may changed slave -> master");
-				updates->Put(encode_repo_key(), encode_repo_item(0 ,0));
-				ctx.recievedRepopContext.reset();
-				ctx.commitedRepopContext.reset();
+				if (ctx.isFirstbatch()) {
+					log_info("role may changed slave -> master");
+					updates->Put(encode_repo_key(), encode_repo_item(0 ,0));
+					ctx.recievedRepopContext.reset();
+					ctx.commitedRepopContext.reset();
+
+				}
 			}
 
 		} else {
@@ -385,6 +388,8 @@ leveldb::Status SSDBImpl::CommitBatch(Context &ctx, const leveldb::WriteOptions&
 
 	} else {
 	}
+
+	ctx.setFirstbatch(false);
 
 	return s;
 }

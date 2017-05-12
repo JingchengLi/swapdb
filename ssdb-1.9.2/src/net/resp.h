@@ -18,7 +18,7 @@ found in the LICENSE file.
 
 #define reply_errinfo_return(c) resp->reply_errror(c); return 0
 
-#define check_key(ret) if (ret == 0) resp->mark_check()
+#define check_key(ret) if (ret == 0) ctx.mark_check()
 
 
 class Response
@@ -27,12 +27,6 @@ public:
 	std::vector<std::string> resp;
 
 	RedisResponse *redisResponse = nullptr;
-
-	bool checkKey = false;
-
-	void mark_check();
-
-	std::vector<std::string> get_append_array();
 
 	int size() const;
 	void push_back(const std::string &s);
