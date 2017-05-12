@@ -1375,15 +1375,15 @@ void checkSSDBkeyIsDeleted(char* check_reply, struct redisCommand* cmd, int argc
     *2\r\n$7\r\ncheck 0\r\n$100 \r\nrepopid ${time} ${index}\r\n
  */
 int handleExtraSSDBReply(client *c) {
-    redisReply *element, *reply;
+    redisReply *element0, *element1, *reply;
 
     reply = c->ssdb_replies[1];
 
     serverAssert(reply->type == REDIS_REPLY_ARRAY);
-    element = reply->element[0];
-    serverAssert(element->type == REDIS_REPLY_STRING);
+    element0 = reply->element[0];
+    serverAssert(element0->type == REDIS_REPLY_STRING);
 
-    serverLog(LL_DEBUG, "element->str: %s", element->str);
+    serverLog(LL_DEBUG, "element1->str: %s", element0->str);
 
     if (server.master == c) {
         /* process "repopid" response for slave redis. */
@@ -1394,8 +1394,8 @@ int handleExtraSSDBReply(client *c) {
         listNode *ln;
         int ret;
 
-        element = reply->element[1];
-        ret = sscanf(element->str,"repopid %ld %d", &repopid_time, &repopid_index);
+        element1 = reply->element[1];
+        ret = sscanf(element1->str,"repopid %ld %d", &repopid_time, &repopid_index);
 
         ln = listFirst(server.ssdb_write_oplist);
         op = ln->value;
@@ -1413,7 +1413,7 @@ int handleExtraSSDBReply(client *c) {
         }
 
         if (repopid_index == op->index && repopid_time == op->time) {
-            checkSSDBkeyIsDeleted(element->str, op->cmd, op->argc, op->argv);
+            checkSSDBkeyIsDeleted(element0->str, op->cmd, op->argc, op->argv);
             removeVisitingSSDBKey(op->cmd, op->argc, op->argv);
             listDelNode(server.ssdb_write_oplist, ln);
         } else {
@@ -1428,7 +1428,7 @@ int handleExtraSSDBReply(client *c) {
         }
     } else {
         if (!isSpecialConnection(c))
-            checkSSDBkeyIsDeleted(element->str, c->cmd, c->argc, c->argv);
+            checkSSDBkeyIsDeleted(element0->str, c->cmd, c->argc, c->argv);
     }
 
     return C_OK;
