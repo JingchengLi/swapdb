@@ -649,7 +649,6 @@ int prologOfLoadingFromSSDB(robj *keyobj) {
 
     /* sendCommandToSSDB will free cmd.io.buffer.ptr. */
     if (sendCommandToSSDB(server.ssdb_client, cmd.io.buffer.ptr) != C_OK) {
-        // todo: set server.ssdb_client to null and reconnect
         serverLog(LL_WARNING, "sendCommandToSSDB: server.ssdb_client failed.");
         return C_ERR;
     }
@@ -708,7 +707,6 @@ int prologOfEvictingToSSDB(robj *keyobj, redisDb *db) {
     /* sendCommandToSSDB will free cmd.io.buffer.ptr. */
     /* Using the same connection with propagate method. */
     if (sendCommandToSSDB(server.ssdb_client, cmd.io.buffer.ptr) != C_OK) {
-        // todo: set server.ssdb_client to null and reconnect
         serverLog(LL_WARNING, "sendCommandToSSDB: server.ssdb_client failed.");
         return C_ERR;
     }

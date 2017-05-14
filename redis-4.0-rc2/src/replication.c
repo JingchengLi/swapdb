@@ -645,7 +645,7 @@ void prepareSSDBreplication(client* slave) {
     slave->ssdb_status = SLAVE_SSDB_SNAPSHOT_IN_PROCESS;
 
     /* Update the server's status. */
-    server.check_write_unresponse_num = listLength(server.clients);
+    server.check_write_unresponse_num = listLength(server.clients)-listLength(server.slaves);
     server.ssdb_status = MASTER_SSDB_SNAPSHOT_CHECK_WRITE;
 
     server.check_write_begin_time = server.unixtime;
@@ -658,13 +658,16 @@ void prepareSSDBreplication(client* slave) {
     while ((ln = listNext(&li)) != NULL) {
         c = listNodeValue(ln);
 
-        if (isSpecialConnection(c)) continue;
+        if (c->flags & CLIENT_SLAVE) continue;
+
+        c->ssdb_conn_flags |= CONN_WAIT_WRITE_CHECK_REPLY;
 
         if (aeCreateFileEvent(server.el, c->fd, AE_WRITABLE,
                               sendCheckWriteCommandToSSDB, c) == AE_ERR) {
             /* just free disconnected client and ignore it. */
-            freeClientAsync(c);
-            server.check_write_unresponse_num -= 1;
+            freeClient(c);
+            //freeClientAsync(c);
+            //server.check_write_unresponse_num -= 1;
         }
     }
 }

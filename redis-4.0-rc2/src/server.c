@@ -3055,6 +3055,7 @@ void prepareSSDBflush(client* c) {
     listIter li;
     listNode *ln;
     client *lc;
+    int is_myself = 0;
 
     /* for slave redis, flushall will be processed in other way. */
     if (server.masterhost) return;
@@ -3083,16 +3084,26 @@ void prepareSSDBflush(client* c) {
     while ((ln = listNext(&li)) != NULL) {
         lc = listNodeValue(ln);
 
-        if (isSpecialConnection(lc)) continue;
-
         if (lc->flags & CLIENT_SLAVE) continue;
+
+        lc->ssdb_conn_flags |= CONN_WAIT_FLUSH_CHECK_REPLY;
 
         if (aeCreateFileEvent(server.el, lc->fd, AE_WRITABLE,
                               sendFlushCheckCommandToSSDB, lc) == AE_ERR) {
+            if (server.current_flushall_client == lc)
+                is_myself = 1;
             /* just free disconnected client and ignore it. */
-            freeClientAsync(lc);
-            server.check_write_unresponse_num -= 1;
-            serverLog(LL_DEBUG, "[flushall]server.flush_check_unresponse_num decrease by 1");
+            freeClient(lc);
+            if (is_myself) {
+                server.flush_check_begin_time = -1;
+                server.flush_check_unresponse_num = -1;
+                server.prohibit_ssdb_read_write = NO_PROHIBIT_SSDB_READ_WRITE;
+                server.is_doing_flushall = 0;
+                return;
+            }
+            //freeClientAsync(lc);
+            //server.check_write_unresponse_num -= 1;
+            //serverLog(LL_DEBUG, "[flushall]server.flush_check_unresponse_num decrease by 1");
         }
     }
     /* don't need a timeout, will process timeout case in serverCron. */

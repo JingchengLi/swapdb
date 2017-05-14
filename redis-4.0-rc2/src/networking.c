@@ -847,11 +847,15 @@ void sendFlushCheckCommandToSSDB(aeEventLoop *el, int fd, void *privdata, int ma
     sds finalcmd = sdsnew("*1\r\n$17\r\nrr_flushall_check\r\n");
     if (sendCommandToSSDB(c, finalcmd) != C_OK) {
         serverLog(LL_DEBUG, "[flushall]server.flush_check_unresponse_num decrease by 1");
-        server.flush_check_unresponse_num -= 1;
+        if ((c->ssdb_conn_flags & CONN_WAIT_FLUSH_CHECK_REPLY) && server.flush_check_begin_time != -1) {
+            server.flush_check_unresponse_num -= 1;
+            c->ssdb_conn_flags &= ~CONN_WAIT_FLUSH_CHECK_REPLY;
+            serverLog(LL_DEBUG, "[flushall]connection with ssdb disconnected, unresponse num:%d",
+                      server.flush_check_unresponse_num);
+        }
     } else {
         serverLog(LL_DEBUG, "[flushall] send flush check success to c->context->fd:%d",
                   c->context ? c->context->fd : -1);
-        c->ssdb_conn_flags |= CONN_WAIT_FLUSH_CHECK_REPLY;
         aeDeleteFileEvent(server.el, c->fd, AE_WRITABLE);
     }
 }
@@ -862,18 +866,20 @@ void sendCheckWriteCommandToSSDB(aeEventLoop *el, int fd, void *privdata, int ma
     UNUSED(el);
     UNUSED(fd);
 
-    // todo: rr-check-write id, id自增
-    /* Expect the response of rr_check_write as
-       'rr_check_write ok/nok'. */
+    /* Expect the response of rr_check_write as 'rr_check_write ok/nok'. */
     sds finalcmd = sdsnew("*1\r\n$14\r\nrr_check_write\r\n");
 
     if (sendCommandToSSDB(c, finalcmd) != C_OK) {
         serverLog(LL_WARNING, "Sending rr_check_write to SSDB failed.");
-        server.check_write_unresponse_num -= 1;
+        if (c->ssdb_conn_flags & CONN_WAIT_WRITE_CHECK_REPLY && server.check_write_begin_time != -1) {
+            server.check_write_unresponse_num -= 1;
+            c->ssdb_conn_flags &= ~CONN_WAIT_WRITE_CHECK_REPLY;
+            serverLog(LL_DEBUG, "[replication check write]connection with ssdb disconnected, unresponse num:%d",
+                      server.check_write_unresponse_num);
+        }
     } else {
         serverLog(LL_DEBUG, "Replication log: Sending rr_check_write to SSDB, fd: %d, rr_check_write counter: %d",
                   fd, server.check_write_unresponse_num);
-        c->ssdb_conn_flags |= CONN_WAIT_WRITE_CHECK_REPLY;
         aeDeleteFileEvent(server.el, c->fd, AE_WRITABLE);
     }
 }
