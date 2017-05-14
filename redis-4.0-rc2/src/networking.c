@@ -747,11 +747,13 @@ int closeAndReconnectSSDBconnection(client* c) {
     if ((c->ssdb_conn_flags & CONN_WAIT_FLUSH_CHECK_REPLY) && server.flush_check_begin_time != -1) {
         server.flush_check_unresponse_num -= 1;
         c->ssdb_conn_flags &= ~CONN_WAIT_FLUSH_CHECK_REPLY;
+        // todo: if server.flush_check_unresponse_num is 0, do rr_do_flushall
         serverLog(LL_DEBUG, "[flushall]connection with ssdb disconnected, unresponse num:%d",
                   server.flush_check_unresponse_num);
     } else if (c->ssdb_conn_flags & CONN_WAIT_WRITE_CHECK_REPLY && server.check_write_begin_time != -1) {
         server.check_write_unresponse_num -= 1;
         c->ssdb_conn_flags &= ~CONN_WAIT_WRITE_CHECK_REPLY;
+        // todo: if server.check_write_unresponse_num is 0, do next replication step.
         serverLog(LL_DEBUG, "[replication check write]connection with ssdb disconnected, unresponse num:%d",
                   server.check_write_unresponse_num);
     }
@@ -822,8 +824,8 @@ int sendCommandToSSDB(client *c, sds finalcmd) {
                     sdsfree(finalcmd);
 
                     closeAndReconnectSSDBconnection(c);
-                    return C_FD_ERR;
                 }
+                return C_FD_ERR;
             }
         } else if (nwritten > 0) {
             if (nwritten == (signed) sdslen(finalcmd)) {
@@ -2054,10 +2056,12 @@ void freeClient(client *c) {
     if (server.jdjr_mode) {
         if ((c->ssdb_conn_flags & CONN_WAIT_FLUSH_CHECK_REPLY) && server.flush_check_begin_time != -1) {
             server.flush_check_unresponse_num -= 1;
+            // todo: if server.flush_check_unresponse_num is 0, do rr_do_flushall
             serverLog(LL_DEBUG, "[flushall]connection with ssdb freed, unresponse num:%d",
                       server.flush_check_unresponse_num);
         } else if (c->ssdb_conn_flags & CONN_WAIT_WRITE_CHECK_REPLY && server.check_write_begin_time != -1) {
             server.check_write_unresponse_num -= 1;
+            // todo: if server.check_write_unresponse_num is 0, do next replication step.
         }
 
         /* the SSDB connection for slave redis may be reused for server.cached_master if the connection with our master

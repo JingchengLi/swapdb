@@ -2692,17 +2692,35 @@ int checkKeysInMediateState(client* c) {
 }
 
 int processCommandMaybeFlushdb(client *c) {
+    int ret;
     if ((c->cmd->proc == flushallCommand
          || c->cmd->proc == flushdbCommand)) {
-        /* only allow one flushall task running. */
-        if (server.is_doing_flushall) {
-            return C_ANOTHER_FLUSHALL_ERR;
+        if (server.masterhost == NULL) {
+            /* only allow one flushall task running. */
+            if (server.is_doing_flushall) {
+                return C_ANOTHER_FLUSHALL_ERR;
+            } else {
+                prepareSSDBflush(c);
+                return C_OK;
+            }
         } else {
-            prepareSSDBflush(c);
-            return C_OK;
+            if (server.master == c) {
+                ret = sendRepopidToSSDB(c);
+                if (ret != C_OK) return ret;
+
+                /* flushall STEP 1: clean all intermediate state keys, avoid to cause unexpected issues. */
+                cleanSpecialClientsAndIntermediateKeys(1);
+
+                ret = sendCommandToSSDB(c, NULL);
+                if (ret != C_OK) return ret;
+
+                /* we just wait flushall done. */
+                c->bpop.timeout = 8000+mstime();
+                blockClient(c, BLOCKED_BY_FLUSHALL);
+                return C_OK;
+            }
         }
     }
-
     return C_ERR;
 }
 
@@ -2816,6 +2834,33 @@ void saveSlaveSSDBwriteOp(client *c, time_t time, int index) {
     listAddNodeTail(server.ssdb_write_oplist, op);
 }
 
+int sendRepopidToSSDB(client* c) {
+    const char* tmpargv[4];
+    char time[64];
+    char index[32];
+    int ret;
+
+    serverAssert(server.master == c);
+
+    updateSlaveSSDBwriteIndex();
+
+    /* for the replication connection of slave redis, we record write commands
+     * in server.ssdb_write_oplist, we just return and process next write command. */
+    saveSlaveSSDBwriteOp(c, write_op_last_time, write_op_last_index);
+
+    tmpargv[0] = "repopid";
+    tmpargv[1] = "set";
+    ll2string(time, sizeof(time), write_op_last_time);
+    tmpargv[2] = time;
+    ll2string(index, sizeof(index), write_op_last_index);
+    tmpargv[3] = index;
+
+    sds cmd = composeRedisCmd(4, tmpargv, NULL);
+
+    ret = sendCommandToSSDB(c, cmd);
+    return ret;
+}
+
 /* Process keys may be in SSDB, only handle the command jdjr_mode supported.
  The rest cases will be handled by processCommand. */
 int processCommandMaybeInSSDB(client *c) {
@@ -2873,50 +2918,22 @@ int processCommandMaybeInSSDB(client *c) {
         robj* val = lookupKey(EVICTED_DATA_DB, c->argv[1], LOOKUP_NONE);
         if (val) {
             if (server.master == c) {
-                const char* tmpargv[4];
-                char time[64];
-                char index[32];
-
-                updateSlaveSSDBwriteIndex();
-
-                /* for the replication connection of slave redis, we record write commands
-                 * in server.ssdb_write_oplist, we just return and process next write command. */
-                saveSlaveSSDBwriteOp(c, write_op_last_time, write_op_last_index);
-
-                tmpargv[0] = "repopid";
-                tmpargv[1] = "set";
-                ll2string(time, sizeof(time), write_op_last_time);
-                tmpargv[2] = time;
-                ll2string(index, sizeof(index), write_op_last_index);
-                tmpargv[3] = index;
-
-                sds cmd = composeRedisCmd(4, tmpargv, NULL);
-                int ret = sendCommandToSSDB(c, cmd);
+                int ret = sendRepopidToSSDB(c);
                 if (ret != C_OK) {
-                    /* avoid to reset c->argv for the replication connection of slave redis. we use it to save
+                    /* avoid to free c->argv for the replication connection of slave redis. we use it to save
                      * commands in server.ssdb_write_oplist */
-                    if (server.master == c && c->cmd->proc != flushallCommand)
-                        c->argv = NULL;
-
+                    c->argv = NULL;
                     return ret;
                 }
-
-                /* flushall STEP 1: clean all intermediate state keys, avoid to cause unexpected issues. */
-                if (c->cmd->proc == flushallCommand)
-                    cleanSpecialClientsAndIntermediateKeys(1);
-
             }
             serverAssert(c->argv);
             int ret = sendCommandToSSDB(c, NULL);
             if (ret != C_OK) {
                 /* avoid to reset c->argv for the replication connection of slave redis. we use it to save
                  * commands in server.ssdb_write_oplist */
-                if (server.master == c && c->cmd->proc != flushallCommand)
-                    c->argv = NULL;
-
+                c->argv = NULL;
                 return ret;
             }
-
             serverAssert(c->argv);
             /* Record the keys visting SSDB. */
             {
@@ -2929,18 +2946,9 @@ int processCommandMaybeInSSDB(client *c) {
 
                 /* for the replication connection */
                 if (server.master == c) {
-                    if (c->cmd->proc == flushallCommand) {
-                        /* we just wait flushall done. */
-                        c->bpop.timeout = 8000+mstime();
-                        blockClient(c, BLOCKED_BY_FLUSHALL);
-                        return C_OK;
-                    }
-
                     /* avoid to reset c->argv for the replication connection of slave redis. we use it to save
                     * commands in server.ssdb_write_oplist */
-                    if (server.master == c && c->cmd->proc != flushallCommand)
-                        c->argv = NULL;
-
+                    c->argv = NULL;
                     return C_OK;
                 } else {
                     /* TODO: use a suitable timeout. */
@@ -2997,9 +3005,9 @@ void cleanAndSignalDeleteConfirmKeys() {
         signalBlockingKeyAsReady(&server.db[0], o);
         decrRefCount(o);
     }
-    handleClientsBlockedOnSSDB();
-
     dictEmpty(server.db[EVICTED_DATA_DBID].delete_confirm_keys, NULL);
+
+    handleClientsBlockedOnSSDB();
 }
 
 void cleanAndSignalLoadingOrTransferringKeys() {
@@ -3026,12 +3034,12 @@ void cleanAndSignalLoadingOrTransferringKeys() {
         decrRefCount(o);
     }
 
-    handleClientsBlockedOnSSDB();
-
-    server.evicting_keys_num = 0;
-
     dictEmpty(server.db[EVICTED_DATA_DBID].transferring_keys, NULL);
     dictEmpty(server.db[EVICTED_DATA_DBID].loading_hot_keys, NULL);
+    server.evicting_keys_num = 0;
+
+    /* NOTE:must empty loading_hot_keys and transferring_keys and then handle blocked clients */
+    handleClientsBlockedOnSSDB();
 }
 
 void cleanSpecialClientsAndIntermediateKeys(int is_flushall) {
@@ -3117,7 +3125,7 @@ int runCommand(client *c, int* need_return) {
         if (need_return) *need_return = 1;
         int ret = processCommandMaybeInSSDB(c);
         if (ret == C_OK) {
-            if (server.master == c && c->cmd->proc != flushallCommand) {
+            if (server.master == c) {
                 /* for the replication connection of slave redis, after we send write commands
                  * to SSDB and record them in server.ssdb_write_oplist, we just return and
                  * process next write command. */
@@ -3315,6 +3323,7 @@ int processCommand(client *c) {
         return C_OK;
     }
 
+    // todo: remove jdjr_mode for this condition
     /* Don't accept write commands if this is a read only slave. But
      * accept write commands if this is our master. */
     if (!server.jdjr_mode &&
@@ -3385,9 +3394,10 @@ int processCommand(client *c) {
         return C_OK;
     }
 
-    if (server.jdjr_mode && server.masterhost == NULL) {
+    if (server.jdjr_mode) {
         ret = processCommandMaybeFlushdb(c);
         if (C_OK == ret) {
+            /* Return C_ERR to keep client info and handle it later. */
             return C_ERR;
         } else if (C_ANOTHER_FLUSHALL_ERR == ret) {
             addReplyError(c, "there is already another flushall task processing!");
@@ -3399,7 +3409,7 @@ int processCommand(client *c) {
     if (server.jdjr_mode
         && c->argc > 1
         && checkKeysInMediateState(c) == C_ERR) {
-        /* Return C_ERR to keep client info for delayed handling. */
+        /* Return C_ERR to keep client info and handle it later. */
         return C_ERR;
     }
 

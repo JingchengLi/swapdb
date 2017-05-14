@@ -1520,6 +1520,7 @@ int processEventsWhileBlocked(void);
 int handleClientsWithPendingWrites(void);
 int clientHasPendingReplies(client *c);
 int sendCommandToSSDB(client *c, sds finalcmd);
+int sendRepopidToSSDB(client* c);
 sds composeRedisCmd(int argc, const char **argv, const size_t *argvlen);
 sds composeCmdFromArgs(int argc, robj** obj_argv);
 int nonBlockConnectToSsdbServer(client *c);
