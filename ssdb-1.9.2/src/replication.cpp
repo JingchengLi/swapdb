@@ -263,6 +263,7 @@ int ReplicationWorker::proc(ReplicationJob *job) {
         }
 
         if (transFailed) {
+            send_error_to_redis(master_link);
             delete master_link;
             job->upstream = nullptr;
 
@@ -363,7 +364,7 @@ void moveBuffer(Buffer *dst, Buffer *src) {
 
     /**
      * when src->size() is small , comprlen may longer than outlen , which cause lzf_compress failed
-     * and lzf_compress return 0 , so :
+     * and lzf_compress return 0 , so :so
      * 1. incr outlen too prevent compress failure
      * 2. if comprlen is zero , we copy raw data and will not uncompress on salve
      *
