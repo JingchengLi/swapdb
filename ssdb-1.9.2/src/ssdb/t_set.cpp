@@ -208,18 +208,18 @@ int SSDBImpl::srandmember(Context &ctx, const Bytes &key, std::vector<std::strin
     bool allow_repeat = cnt < 0;
     if (allow_repeat) {
         cnt = -cnt;
-    }
 
-
-    int full_repeat = int(cnt / sv.length);
-    for (int j = 0; j < full_repeat; ++j) {
-        auto tmp = std::unique_ptr<SIterator>(sscan_internal(ctx, key, sv.version, snapshot));
-        while (tmp->next()) {
-            members.emplace_back(tmp->key);
+        int full_repeat = int(cnt / sv.length);
+        for (int j = 0; j < full_repeat; ++j) {
+            auto tmp = std::unique_ptr<SIterator>(sscan_internal(ctx, key, sv.version, snapshot));
+            while (tmp->next()) {
+                members.emplace_back(tmp->key);
+            }
         }
-    }
 
-    cnt = cnt - full_repeat * sv.length;
+        cnt = cnt - full_repeat * sv.length;
+
+    }
 
 
     uint64_t start_index = 0;
@@ -232,7 +232,7 @@ int SSDBImpl::srandmember(Context &ctx, const Bytes &key, std::vector<std::strin
     } else if (cnt > INT_MAX) {
         return INVALID_INT;
     } else {
-        uint64_t start_index_max = sv.length - (uint64_t) cnt;
+        uint64_t start_index_max = sv.length - (uint64_t) cnt + 1;
         if(start_index_max > 100) start_index_max = 100;
         start_index = (uint64_t) (rand() % start_index_max);
     }
@@ -282,7 +282,7 @@ int SSDBImpl::spop(Context &ctx, const Bytes &key, std::vector<std::string> &mem
     } else if (popcnt > INT_MAX) {
         return INVALID_INT;
     } else {
-        uint64_t start_index_max = sv.length - (uint64_t)popcnt;
+        uint64_t start_index_max = sv.length - (uint64_t)popcnt + 1;
         if (start_index_max > 100) start_index_max = 100;
         start_index = (uint64_t) (rand() % start_index_max);
     }
