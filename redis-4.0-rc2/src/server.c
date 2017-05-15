@@ -3076,18 +3076,12 @@ void prepareSSDBflush(client* c) {
     server.current_flushall_client = c;
 
     /* STEP 2: send flushall/flushdb check commands for all connections. */
-#ifdef TEST_FLUSHALL_TIMEOUT_CASE
-    // TEST timeout case ONLY !!!
-    server.flush_check_unresponse_num = listLength(server.clients) - listLength(server.slaves) + 9999;
-#else
-    server.flush_check_unresponse_num = listLength(server.clients) - listLength(server.slaves);
-#endif
-    serverLog(LL_DEBUG, "[flushall]initial server.flush_check_unresponse_num:%d", server.flush_check_unresponse_num);
-
     /* process timeout case in serverCron. */
     server.flush_check_begin_time = server.unixtime;
     server.prohibit_ssdb_read_write = PROHIBIT_SSDB_READ_WRITE;
 
+    /* reset to 0 */
+    server.flush_check_unresponse_num = 0;
     listRewind(server.clients, &li);
     while ((ln = listNext(&li)) != NULL) {
         lc = listNodeValue(ln);
@@ -3109,11 +3103,11 @@ void prepareSSDBflush(client* c) {
                 server.is_doing_flushall = 0;
                 return;
             }
-            //freeClientAsync(lc);
-            //server.check_write_unresponse_num -= 1;
-            //serverLog(LL_DEBUG, "[flushall]server.flush_check_unresponse_num decrease by 1");
+        } else {
+            server.flush_check_unresponse_num++;
         }
     }
+    serverLog(LL_DEBUG, "[flushall]initial server.flush_check_unresponse_num:%d", server.flush_check_unresponse_num);
     /* don't need a timeout, will process timeout case in serverCron. */
     c->bpop.timeout = 0;
     blockClient(c, BLOCKED_BY_FLUSHALL);

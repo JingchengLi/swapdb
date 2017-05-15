@@ -645,14 +645,14 @@ void prepareSSDBreplication(client* slave) {
     slave->ssdb_status = SLAVE_SSDB_SNAPSHOT_IN_PROCESS;
 
     /* Update the server's status. */
-    server.check_write_unresponse_num = listLength(server.clients)-listLength(server.slaves);
     server.ssdb_status = MASTER_SSDB_SNAPSHOT_CHECK_WRITE;
 
     server.check_write_begin_time = server.unixtime;
 
     /* Forbbid sending the writing cmds to SSDB. */
     server.is_allow_ssdb_write = DISALLOW_SSDB_WRITE;
-
+    /* reset to 0 */
+    server.check_write_unresponse_num = 0;
     /* Force all the clients to check the write cmd. */
     listRewind(server.clients, &li);
     while ((ln = listNext(&li)) != NULL) {
@@ -666,9 +666,12 @@ void prepareSSDBreplication(client* slave) {
                               sendCheckWriteCommandToSSDB, c) == AE_ERR) {
             /* just free disconnected client and ignore it. */
             freeClient(c);
-            //freeClientAsync(c);
-            //server.check_write_unresponse_num -= 1;
+        } else {
+            server.check_write_unresponse_num++;
         }
+    }
+    if (0 == server.check_write_unresponse_num) {
+        makeSSDBsnapshotIfCheckOK();
     }
 }
 

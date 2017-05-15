@@ -858,7 +858,6 @@ void sendFlushCheckCommandToSSDB(aeEventLoop *el, int fd, void *privdata, int ma
 
     sds finalcmd = sdsnew("*1\r\n$17\r\nrr_flushall_check\r\n");
     if (sendCommandToSSDB(c, finalcmd) != C_OK) {
-        serverLog(LL_DEBUG, "[flushall]server.flush_check_unresponse_num decrease by 1");
         if ((c->ssdb_conn_flags & CONN_WAIT_FLUSH_CHECK_REPLY) && server.flush_check_begin_time != -1) {
             server.flush_check_unresponse_num -= 1;
             c->ssdb_conn_flags &= ~CONN_WAIT_FLUSH_CHECK_REPLY;
@@ -866,8 +865,6 @@ void sendFlushCheckCommandToSSDB(aeEventLoop *el, int fd, void *privdata, int ma
                       server.flush_check_unresponse_num);
         }
     } else {
-        serverLog(LL_DEBUG, "[flushall] send flush check success to c->context->fd:%d",
-                  c->context ? c->context->fd : -1);
         aeDeleteFileEvent(server.el, c->fd, AE_WRITABLE);
     }
 }
