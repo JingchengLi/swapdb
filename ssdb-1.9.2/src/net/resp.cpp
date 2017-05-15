@@ -65,23 +65,17 @@ void Response::reply_errror(const std::string &errmsg) {
 }
 
 
-void Response::reply_status(int status, const char *errmsg){
+void Response::reply_status(int status){
 	if(status == -1){
 		resp.push_back("error");
-		if(errmsg){
-			resp.push_back(errmsg);
-		}
 	}else{
 		resp.push_back("ok");
 	}
 }
 
-void Response::reply_bool(int status, const char *errmsg){
+void Response::reply_bool(int status){
 	if(status == -1){
 		resp.push_back("error");
-		if(errmsg){
-			resp.push_back(errmsg);
-		}
 	}else if(status == 0){
 		resp.push_back("ok");
 		resp.push_back("0");
@@ -91,12 +85,9 @@ void Response::reply_bool(int status, const char *errmsg){
 	}
 }
 
-void Response::reply_int(int status, int64_t val, const char *errmsg){
+void Response::reply_int(int status, int64_t val){
 	if(status == -1){
 		resp.push_back("error");
-		if(errmsg){
-			resp.push_back(errmsg);
-		}
 	}else{
 		resp.push_back("ok");
 		this->add(val);
@@ -121,7 +112,7 @@ void Response::reply_double(int status, double val){
 	}
 }
 
-void Response::reply_get(int status, const std::string *val, const char *errmsg){
+void Response::reply_get(int status, const std::string *val){
 	if(status < 0){
 		resp.push_back("error");
 	}else if(status == 0){
@@ -132,9 +123,6 @@ void Response::reply_get(int status, const std::string *val, const char *errmsg)
 			resp.push_back(*val);
 		}
 		return;
-	}
-	if(errmsg){
-		resp.push_back(errmsg);
 	}
 }
 

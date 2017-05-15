@@ -38,16 +38,16 @@ public:
 	void add(const std::string &s);
 
 	void reply_errror(const std::string &errmsg);
-	void reply_status(int status, const char *errmsg=NULL);
-	void reply_bool(int status, const char *errmsg=NULL);
-	void reply_int(int status, int64_t val, const char *errmsg=NULL);
+	void reply_status(int status);
+	void reply_bool(int status);
+	void reply_int(int status, int64_t val);
 	void reply_long_double(int status, long double val);
 	void reply_double(int status, double val);
 	void reply_not_found();
 	void reply_scan_ready();
 	void reply_list_ready();
 	// the same as Redis.REPLY_BULK
-	void reply_get(int status, const std::string *val=NULL, const char *errmsg=NULL);
+	void reply_get(int status, const std::string *val=NULL);
 
 	void reply_ok();
 };
