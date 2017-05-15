@@ -4761,11 +4761,10 @@ void ssdbRespNotfoundCommand(client *c) {
             addReplyError(c, "flushall is going");
             return;
         } else {
-
-            if (dictDelete(EVICTED_DATA_DB->dict, keyobj->ptr) == DICT_OK)
-                serverLog(LL_DEBUG, "key: %s is deleted from EVICTED_DATA_DB->db.", (char *)keyobj->ptr);
             if (getExpire(EVICTED_DATA_DB, keyobj) != -1)
                 dictDelete(EVICTED_DATA_DB->expires, keyobj->ptr);
+            if (dictDelete(EVICTED_DATA_DB->dict, keyobj->ptr) == DICT_OK)
+                serverLog(LL_DEBUG, "key: %s is deleted from EVICTED_DATA_DB->db.", (char *)keyobj->ptr);
 
             robj* tmpargv[2];
             robj* delCmdObj = createStringObject("del",3);
