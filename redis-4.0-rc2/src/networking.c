@@ -747,13 +747,19 @@ int closeAndReconnectSSDBconnection(client* c) {
     if ((c->ssdb_conn_flags & CONN_WAIT_FLUSH_CHECK_REPLY) && server.flush_check_begin_time != -1) {
         server.flush_check_unresponse_num -= 1;
         c->ssdb_conn_flags &= ~CONN_WAIT_FLUSH_CHECK_REPLY;
-        // todo: if server.flush_check_unresponse_num is 0, do rr_do_flushall
+        if (c != server.current_flushall_client)
+            doSSDBflushIfCheckDone();
+        else
+            server.flush_check_begin_time = 0;
         serverLog(LL_DEBUG, "[flushall]connection with ssdb disconnected, unresponse num:%d",
                   server.flush_check_unresponse_num);
     } else if (c->ssdb_conn_flags & CONN_WAIT_WRITE_CHECK_REPLY && server.check_write_begin_time != -1) {
         server.check_write_unresponse_num -= 1;
         c->ssdb_conn_flags &= ~CONN_WAIT_WRITE_CHECK_REPLY;
-        // todo: if server.check_write_unresponse_num is 0, do next replication step.
+        if (c != server.ssdb_replication_client)
+            makeSSDBsnapshotIfCheckOK();
+        else
+            resetCustomizedReplication();
         serverLog(LL_DEBUG, "[replication check write]connection with ssdb disconnected, unresponse num:%d",
                   server.check_write_unresponse_num);
     }
@@ -1090,13 +1096,7 @@ int handleResponseOfSSDBflushDone(client *c, redisReply* reply, int revert_len) 
         /* clean the ssdb reply*/
         revertClientBufReply(c, revert_len);
 
-        /* if this server is a slave, it use server.master->context->fd to do
-         * ssdb flushall. */
-        if (server.masterhost) {
-            cur_flush_client = c;
-        } else {
-            cur_flush_client = server.current_flushall_client;
-        }
+        cur_flush_client = server.current_flushall_client;
 
         /* unblock the client doing flushall and do flushall in redis. */
         unblockClient(cur_flush_client);
@@ -1117,13 +1117,7 @@ int handleResponseOfSSDBflushDone(client *c, redisReply* reply, int revert_len) 
         /* clean the ssdb reply*/
         revertClientBufReply(c, revert_len);
 
-        /* if this server is a slave, it use server.master->context->fd to do
-         * ssdb flushall. */
-        if (server.masterhost) {
-            cur_flush_client = c;
-        } else {
-            cur_flush_client = server.current_flushall_client;
-        }
+        cur_flush_client = server.current_flushall_client;
 
         unblockClient(cur_flush_client);
         addReplyError(cur_flush_client, "do ssdb flushall failed!");
@@ -1143,6 +1137,24 @@ int handleResponseOfSSDBflushDone(client *c, redisReply* reply, int revert_len) 
     return process_status;
 }
 
+void doSSDBflushIfCheckDone() {
+    if (server.flush_check_unresponse_num == 0) {
+        server.flush_check_begin_time = -1;
+        server.flush_check_unresponse_num = -1;
+
+        serverLog(LL_DEBUG, "[flushall]all flush check responses received, check ok");
+
+        sds finalcmd = sdsnew("*1\r\n$14\r\nrr_do_flushall\r\n");
+        if (sendCommandToSSDB(server.current_flushall_client, finalcmd) != C_OK) {
+            /* set to 0 so flush check will be timeout. exception case
+             * of flush check will be processed in serverCron.*/
+            server.flush_check_begin_time = 0;
+            serverLog(LL_WARNING, "Sending rr_do_flushall to SSDB failed.");
+        } else
+            serverLog(LL_DEBUG, "Sending rr_do_flushall to SSDB success.");
+    }
+}
+
 int handleResponseOfFlushCheck(client *c, redisReply* reply) {
     int process_status;
     UNUSED(c);
@@ -1156,23 +1168,7 @@ int handleResponseOfFlushCheck(client *c, redisReply* reply) {
 
         serverLog(LL_DEBUG, "[flushall]receive flush check ok(c->context->fd:%d), unresponse num:%d",
                   c->context ? c->context->fd : -1, server.flush_check_unresponse_num);
-        if (server.flush_check_unresponse_num == 0) {
-            server.flush_check_begin_time = -1;
-            server.flush_check_unresponse_num = -1;
-
-            serverLog(LL_DEBUG, "[flushall]all flush check responses received, check ok");
-
-            sds finalcmd = sdsnew("*1\r\n$14\r\nrr_do_flushall\r\n");
-            if (!server.current_flushall_client ||
-                sendCommandToSSDB(server.current_flushall_client, finalcmd) != C_OK) {
-                /* set to 0 so flush check will be timeout. exception case
-                 * of flush check will be processed in serverCron.*/
-                server.flush_check_begin_time = 0;
-                serverLog(LL_WARNING, "Sending rr_do_flushall to SSDB failed.");
-            } else {
-                serverLog(LL_DEBUG, "Sending rr_do_flushall to SSDB success.");
-            }
-        }
+        doSSDBflushIfCheckDone();
         process_status = C_OK;
     } else if (IsReplyEqual(reply, shared.flushchecknok)) {
         serverLog(LL_DEBUG, "[flushall]receive flush check failed response, check failed and abort");
@@ -1184,6 +1180,24 @@ int handleResponseOfFlushCheck(client *c, redisReply* reply) {
         process_status = C_ERR;
 
     return process_status;
+}
+
+void makeSSDBsnapshotIfCheckOK() {
+    if (server.check_write_unresponse_num == 0) {
+        server.check_write_begin_time = -1;
+        server.check_write_unresponse_num = -1;
+        server.ssdb_status = MASTER_SSDB_SNAPSHOT_PRE;
+
+        sds finalcmd = sdsnew("*1\r\n$16\r\nrr_make_snapshot\r\n");
+        if (sendCommandToSSDB(server.ssdb_replication_client, finalcmd) != C_OK) {
+            resetCustomizedReplication();
+            serverLog(LL_WARNING, "Replication log: Sending rr_make_snapshot to SSDB failed.");
+        } else {
+            /* will handle timeout case in replicationCron. */
+            server.make_snapshot_begin_time = server.unixtime;
+            serverLog(LL_DEBUG, "Replication log: Sending rr_make_snapshot to SSDB sucess.");
+        }
+    }
 }
 
 int handleResponseOfCheckWrite(client *c, redisReply* reply) {
@@ -1200,23 +1214,7 @@ int handleResponseOfCheckWrite(client *c, redisReply* reply) {
 
         serverLog(LL_DEBUG, "Replication log: rr_check_write fd: %d, counter: %d", c->fd, server.check_write_unresponse_num);
 
-        if (server.check_write_unresponse_num == 0) {
-            server.check_write_begin_time = -1;
-            server.check_write_unresponse_num = -1;
-            server.ssdb_status = MASTER_SSDB_SNAPSHOT_PRE;
-
-            sds finalcmd = sdsnew("*1\r\n$16\r\nrr_make_snapshot\r\n");
-            if (sendCommandToSSDB(server.ssdb_replication_client, finalcmd) != C_OK) {
-                resetCustomizedReplication();
-                /* TODO: set server.ssdb_replication_client to null and reconnect */
-                serverLog(LL_WARNING, "Replication log: Sending rr_make_snapshot to SSDB failed.");
-            } else {
-                /* will handle timeout case in replicationCron. */
-                server.make_snapshot_begin_time = server.unixtime;
-                serverLog(LL_DEBUG, "Replication log: Sending rr_make_snapshot to SSDB sucess.");
-            }
-        }
-
+        makeSSDBsnapshotIfCheckOK();
         process_status = C_OK;
     } else if (IsReplyEqual(reply, shared.checkwritenok)) {
         /* Reset customized replication status immediately. */
@@ -2056,12 +2054,18 @@ void freeClient(client *c) {
     if (server.jdjr_mode) {
         if ((c->ssdb_conn_flags & CONN_WAIT_FLUSH_CHECK_REPLY) && server.flush_check_begin_time != -1) {
             server.flush_check_unresponse_num -= 1;
-            // todo: if server.flush_check_unresponse_num is 0, do rr_do_flushall
-            serverLog(LL_DEBUG, "[flushall]connection with ssdb freed, unresponse num:%d",
+            if (c != server.current_flushall_client)
+                doSSDBflushIfCheckDone();
+            else
+                server.flush_check_begin_time = 0;
+            serverLog(LL_DEBUG, "[flushall]connection free, unresponse num:%d",
                       server.flush_check_unresponse_num);
         } else if (c->ssdb_conn_flags & CONN_WAIT_WRITE_CHECK_REPLY && server.check_write_begin_time != -1) {
             server.check_write_unresponse_num -= 1;
-            // todo: if server.check_write_unresponse_num is 0, do next replication step.
+            if (c != server.ssdb_replication_client)
+                makeSSDBsnapshotIfCheckOK();
+            else
+                resetCustomizedReplication();
         }
 
         /* the SSDB connection for slave redis may be reused for server.cached_master if the connection with our master
