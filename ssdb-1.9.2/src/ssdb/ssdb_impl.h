@@ -48,6 +48,7 @@ static leveldb::Slice slice(const Bytes &b){
 	return leveldb::Slice(b.data(), b.size());
 }
 
+const std::string REPOPID_CF = "repopid";
 
 enum LIST_POSITION{
 	HEAD,
@@ -71,6 +72,7 @@ private:
 
 	SSDBImpl();
 public:
+	std::vector<leveldb::ColumnFamilyHandle*> handles;
 
 	ExpirationHandler *expiration;
 
@@ -100,6 +102,7 @@ public:
 	virtual int raw_set(Context &ctx, const Bytes &key,const Bytes &val);
 	virtual int raw_del(Context &ctx, const Bytes &key);
 	virtual int raw_get(Context &ctx, const Bytes &key,std::string *val);
+	virtual int raw_get(Context &ctx, const Bytes &key,leveldb::ColumnFamilyHandle* column_family, std::string *val);
 
 	/* 	General	*/
 	virtual int type(Context &ctx, const Bytes &key,std::string *type);

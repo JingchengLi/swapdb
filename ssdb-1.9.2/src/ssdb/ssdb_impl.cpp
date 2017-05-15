@@ -33,12 +33,43 @@ SSDBImpl::SSDBImpl()
 	expiration = NULL;
 }
 
+int createCF(const std::string& dir){
+	leveldb::DB* tdb;
+	leveldb::Options options;
+	options.create_if_missing = true;
+	leveldb::Status status = leveldb::DB::Open(options, dir, &tdb);
+	if(!status.ok()){
+		if (status.IsInvalidArgument()) {
+			//may exist
+			return 0;
+		}
+		log_error("open db failed: %s", status.ToString().c_str());
+		return -1;
+	}
+
+	// create column family
+	leveldb::ColumnFamilyHandle* cf;
+	status = tdb->CreateColumnFamily(leveldb::ColumnFamilyOptions(), REPOPID_CF, &cf);
+	if(!status.ok()) {
+
+	}
+	// close DB
+	delete cf;
+	delete tdb;
+
+	return 0;
+}
+
 SSDBImpl::~SSDBImpl(){
     if(expiration){
         delete expiration;
     }
 
     this->stop();
+
+	for (auto handle : handles) {
+		delete handle;
+	}
 
     if(ldb){
         delete ldb;
@@ -102,20 +133,28 @@ SSDB* SSDB::open(const Options &opt, const std::string &dir){
 
 	leveldb::Status status;
 
-	status = leveldb::DB::Open(ssdb->options, dir, &ssdb->ldb);
+	createCF(dir);
+
+	// open DB with two column families
+	std::vector<leveldb::ColumnFamilyDescriptor> column_families;
+	column_families.push_back(leveldb::ColumnFamilyDescriptor(
+			leveldb::kDefaultColumnFamilyName, leveldb::ColumnFamilyOptions()));
+	column_families.push_back(leveldb::ColumnFamilyDescriptor(
+			REPOPID_CF, leveldb::ColumnFamilyOptions()));
+
+	status = leveldb::DB::Open(ssdb->options, dir, column_families, &ssdb->handles, &ssdb->ldb);
 	if(!status.ok()){
 		log_error("open db failed: %s", status.ToString().c_str());
-		goto err;
+		if(ssdb){
+			delete ssdb;
+		}
+		return nullptr;
 	}
+
     ssdb->expiration = new ExpirationHandler(ssdb); //todo 后续如果支持set命令中设置过期时间，添加此行，同时删除serv.cpp中相应代码
     ssdb->start();
 
 	return ssdb;
-err:
-	if(ssdb){
-		delete ssdb;
-	}
-	return NULL;
 }
 
 int SSDBImpl::flushdb(){
@@ -254,9 +293,13 @@ int SSDBImpl::raw_del(Context &ctx, const Bytes &key){
 }
 
 int SSDBImpl::raw_get(Context &ctx, const Bytes &key, std::string *val){
+	return raw_get(ctx, key, handles[0], val);
+}
+
+int SSDBImpl::raw_get(Context &ctx, const Bytes &key, leveldb::ColumnFamilyHandle* column_family, std::string *val){
 	leveldb::ReadOptions opts;
 	opts.fill_cache = false;
-	leveldb::Status s = ldb->Get(opts, slice(key), val);
+	leveldb::Status s = ldb->Get(opts, column_family, slice(key), val);
 	if(s.IsNotFound()){
 		return 0;
 	}
@@ -346,12 +389,12 @@ leveldb::Status SSDBImpl::CommitBatch(Context &ctx, const leveldb::WriteOptions&
 		if (ctx.commitedRepopContext.id > 0) {
 
 			if (ctx.recievedRepopContext.id > ctx.commitedRepopContext.id) {
-				updates->Put(encode_repo_key(), encode_repo_item(ctx.recievedRepopContext.timestamp, ctx.recievedRepopContext.id));
+				updates->Put(handles[1], encode_repo_key(), encode_repo_item(ctx.recievedRepopContext.timestamp, ctx.recievedRepopContext.id));
 
 			} else if (ctx.recievedRepopContext.id == ctx.commitedRepopContext.id) {
 				if (ctx.isFirstbatch()) {
 					log_info("role may changed slave -> master");
-					updates->Put(encode_repo_key(), encode_repo_item(0 ,0));
+					updates->Put(handles[1], encode_repo_key(), encode_repo_item(0 ,0));
 					ctx.recievedRepopContext.reset();
 					ctx.commitedRepopContext.reset();
 
@@ -360,7 +403,7 @@ leveldb::Status SSDBImpl::CommitBatch(Context &ctx, const leveldb::WriteOptions&
 
 		} else {
 			log_info("role may changed master -> slave");
-			updates->Put(encode_repo_key(), encode_repo_item(ctx.recievedRepopContext.timestamp, ctx.recievedRepopContext.id));
+			updates->Put(handles[1], encode_repo_key(), encode_repo_item(ctx.recievedRepopContext.timestamp, ctx.recievedRepopContext.id));
 
 		}
 
@@ -371,7 +414,7 @@ leveldb::Status SSDBImpl::CommitBatch(Context &ctx, const leveldb::WriteOptions&
 		if (ctx.commitedRepopContext.id > 0) {
 			log_info("role may changed slave -> master");
 
-			updates->Put(encode_repo_key(), encode_repo_item(0 , 0));
+			updates->Put(handles[1], encode_repo_key(), encode_repo_item(0 , 0));
 			ctx.recievedRepopContext.reset();
 			ctx.commitedRepopContext.reset();
 		} else {

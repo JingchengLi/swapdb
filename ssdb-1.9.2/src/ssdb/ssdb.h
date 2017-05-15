@@ -45,7 +45,7 @@ public:
 
 	virtual int raw_set(Context &ctx, const Bytes &key,const Bytes &val) = 0;
 	virtual int raw_del(Context &ctx, const Bytes &key) = 0;
-	virtual int raw_get(Context &ctx, const Bytes &key,std::string *val) = 0;
+	virtual int raw_get(Context &ctx, const Bytes &key, std::string *val) = 0;
 
 	/* 	General	*/
 	virtual int type(Context &ctx, const Bytes &key,std::string *type) = 0;

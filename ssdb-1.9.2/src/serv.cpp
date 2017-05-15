@@ -874,7 +874,7 @@ int proc_repopid(Context &ctx, Link *link, const Request &req, Response *resp) {
 
     if (action == "get") {
         std::string repo_val;
-        int rret = serv->ssdb->raw_get(ctx, encode_repo_key(), &repo_val);
+        int rret = serv->ssdb->raw_get(ctx, encode_repo_key(), serv->ssdb->handles[1], &repo_val);
         if (rret < 0) {
             reply_err_return(rret);
         } else if (rret == 0) {
