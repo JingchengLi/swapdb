@@ -1873,38 +1873,11 @@ void unlinkClient(client *c) {
             ln = listSearchKey(server.no_writing_ssdb_blocked_clients, c);
             if (ln) listDelNode(server.no_writing_ssdb_blocked_clients, ln);
 
-            // todo: review and remove
-#if 0
-            listRewind(server.clients, &li);
-            while((ln = listNext(&li))) {
-                tmpc = listNodeValue(ln);
-                di = dictGetIterator(tmpc->db->ssdb_blocking_keys);
-                while((de = dictNext(di))) {
-                    keyobj = dictGetKey(de);
-
-                    l = dictFetchValue(tmpc->db->ssdb_blocking_keys, keyobj);
-                    ln = listSearchKey(l, c);
-                    if (ln) listDelNode(l, ln);
-                }
-            }
-#else
             di = dictGetIterator(server.db->ssdb_blocking_keys);
             while((de = dictNext(di))) {
                 keyobj = dictGetKey(de);
 
                 removeClientFromListForBlockedKey(c, keyobj);
-            }
-#endif
-            /* remove replication timeout timer. */
-            if (c->repl_timer_id != -1)
-                aeDeleteTimeEvent(server.el, c->repl_timer_id);
-
-            if (c->context && c->context->fd != -1) {
-                /* Unlink resources used in connecting to SSDB. */
-                aeDeleteFileEvent(server.el, c->context->fd, AE_READABLE);
-                aeDeleteFileEvent(server.el, c->context->fd, AE_WRITABLE);
-                close(c->context->fd);
-                c->context->fd = -1;
             }
         }
 
@@ -1913,14 +1886,50 @@ void unlinkClient(client *c) {
         serverAssert(ln != NULL);
         listDelNode(server.clients,ln);
 
-
         /* Unregister async I/O handlers and close the socket. */
-        aeDeleteFileEvent(server.el,c->fd,AE_READABLE);
-        aeDeleteFileEvent(server.el,c->fd,AE_WRITABLE);
+        aeDeleteFileEvent(server.el,c->fd,AE_READABLE|AE_WRITABLE);
         close(c->fd);
         c->fd = -1;
     }
 
+    if (server.jdjr_mode) {
+        /* remove replication timeout timer. */
+        if (c->repl_timer_id != -1) {
+            aeDeleteTimeEvent(server.el, c->repl_timer_id);
+            c->repl_timer_id = -1;
+        }
+
+        if ((c->ssdb_conn_flags & CONN_WAIT_FLUSH_CHECK_REPLY) && server.flush_check_begin_time != -1) {
+            server.flush_check_unresponse_num -= 1;
+            c->ssdb_conn_flags &= ~CONN_WAIT_FLUSH_CHECK_REPLY;
+
+            serverLog(LL_DEBUG, "[flushall]connection(c->context->fd:%d,c->fd:%d) free, unresponse num:%d",
+                      c->context ? c->context->fd : -1, c->fd, server.flush_check_unresponse_num);
+            if (0 == server.flush_check_unresponse_num) {
+                if (c != server.current_flushall_client)
+                    doSSDBflushIfCheckDone();
+                else
+                    server.flush_check_begin_time = 0;
+            }
+        } else if (c->ssdb_conn_flags & CONN_WAIT_WRITE_CHECK_REPLY && server.check_write_begin_time != -1) {
+            server.check_write_unresponse_num -= 1;
+            c->ssdb_conn_flags &= ~CONN_WAIT_WRITE_CHECK_REPLY;
+            if (0 == server.check_write_unresponse_num) {
+                if (c != server.ssdb_replication_client)
+                    makeSSDBsnapshotIfCheckOK();
+                else
+                    resetCustomizedReplication();
+            }
+        }
+
+        if (c->context) {
+            /* Unlink resources used in connecting to SSDB. */
+            if (c->context->fd > 0)
+                aeDeleteFileEvent(server.el, c->context->fd, AE_READABLE|AE_WRITABLE);
+            redisFree(c->context);
+            c->context = NULL;
+        }
+    }
 
     /* Remove from the list of pending writes if needed. */
     if (c->flags & CLIENT_PENDING_WRITE) {
@@ -2054,42 +2063,9 @@ void freeClient(client *c) {
     }
 
     if (server.jdjr_mode) {
-        if ((c->ssdb_conn_flags & CONN_WAIT_FLUSH_CHECK_REPLY) && server.flush_check_begin_time != -1) {
-            server.flush_check_unresponse_num -= 1;
-
-            serverLog(LL_DEBUG, "[flushall]connection(c->context->fd:%d,c->fd:%d) free, unresponse num:%d",
-                      c->context ? c->context->fd : -1, c->fd, server.flush_check_unresponse_num);
-            if (0 == server.flush_check_unresponse_num) {
-                if (c != server.current_flushall_client)
-                    doSSDBflushIfCheckDone();
-                else
-                    server.flush_check_begin_time = 0;
-            }
-        } else if (c->ssdb_conn_flags & CONN_WAIT_WRITE_CHECK_REPLY && server.check_write_begin_time != -1) {
-            server.check_write_unresponse_num -= 1;
-            if (0 == server.check_write_unresponse_num) {
-                if (c != server.ssdb_replication_client)
-                    makeSSDBsnapshotIfCheckOK();
-                else
-                    resetCustomizedReplication();
-            }
-        }
-
-        /* the SSDB connection for slave redis may be reused for server.cached_master if the connection with our master
-         * lost, we only close this SSDB connection in 'freeClient' called by 'replicationDiscardCachedMaster'. */
-        if (c->context && c->context->fd != -1) {
-            /* Unlink resources used in connecting to SSDB. */
-            aeDeleteFileEvent(server.el, c->context->fd, AE_READABLE);
-            aeDeleteFileEvent(server.el, c->context->fd, AE_WRITABLE);
-            close(c->context->fd);
-            c->context->fd = -1;
-        }
 
         if (c->ssdb_replies[0]) freeReplyObject(c->ssdb_replies[0]);
         if (c->ssdb_replies[1]) freeReplyObject(c->ssdb_replies[1]);
-
-        /* Free redisContext. */
-        if (c->context) redisFree(c->context);
 
         resetSpecialCient(c);
     }
