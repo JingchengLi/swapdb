@@ -745,21 +745,25 @@ int closeAndReconnectSSDBconnection(client* c) {
         c->ssdb_conn_flags &= ~CONN_CHECK_REPOPID;
 
     if ((c->ssdb_conn_flags & CONN_WAIT_FLUSH_CHECK_REPLY) && server.flush_check_begin_time != -1) {
-        server.flush_check_unresponse_num -= 1;
         c->ssdb_conn_flags &= ~CONN_WAIT_FLUSH_CHECK_REPLY;
-        if (c != server.current_flushall_client)
-            doSSDBflushIfCheckDone();
-        else
-            server.flush_check_begin_time = 0;
+        server.flush_check_unresponse_num -= 1;
+        if (0 == server.flush_check_unresponse_num) {
+            if (c != server.current_flushall_client)
+                doSSDBflushIfCheckDone();
+            else
+                server.flush_check_begin_time = 0;
+        }
         serverLog(LL_DEBUG, "[flushall]connection with ssdb disconnected, unresponse num:%d",
                   server.flush_check_unresponse_num);
     } else if (c->ssdb_conn_flags & CONN_WAIT_WRITE_CHECK_REPLY && server.check_write_begin_time != -1) {
-        server.check_write_unresponse_num -= 1;
         c->ssdb_conn_flags &= ~CONN_WAIT_WRITE_CHECK_REPLY;
-        if (c != server.ssdb_replication_client)
-            makeSSDBsnapshotIfCheckOK();
-        else
-            resetCustomizedReplication();
+        server.check_write_unresponse_num -= 1;
+        if (0 == server.check_write_unresponse_num) {
+            if (c != server.ssdb_replication_client)
+                makeSSDBsnapshotIfCheckOK();
+            else
+                resetCustomizedReplication();
+        }
         serverLog(LL_DEBUG, "[replication check write]connection with ssdb disconnected, unresponse num:%d",
                   server.check_write_unresponse_num);
     }
@@ -2054,18 +2058,22 @@ void freeClient(client *c) {
     if (server.jdjr_mode) {
         if ((c->ssdb_conn_flags & CONN_WAIT_FLUSH_CHECK_REPLY) && server.flush_check_begin_time != -1) {
             server.flush_check_unresponse_num -= 1;
-            if (c != server.current_flushall_client)
-                doSSDBflushIfCheckDone();
-            else
-                server.flush_check_begin_time = 0;
+            if (0 == server.flush_check_unresponse_num) {
+                if (c != server.current_flushall_client)
+                    doSSDBflushIfCheckDone();
+                else
+                    server.flush_check_begin_time = 0;
+            }
             serverLog(LL_DEBUG, "[flushall]connection free, unresponse num:%d",
                       server.flush_check_unresponse_num);
         } else if (c->ssdb_conn_flags & CONN_WAIT_WRITE_CHECK_REPLY && server.check_write_begin_time != -1) {
             server.check_write_unresponse_num -= 1;
-            if (c != server.ssdb_replication_client)
-                makeSSDBsnapshotIfCheckOK();
-            else
-                resetCustomizedReplication();
+            if (0 == server.check_write_unresponse_num) {
+                if (c != server.ssdb_replication_client)
+                    makeSSDBsnapshotIfCheckOK();
+                else
+                    resetCustomizedReplication();
+            }
         }
 
         /* the SSDB connection for slave redis may be reused for server.cached_master if the connection with our master
