@@ -748,8 +748,8 @@ int closeAndReconnectSSDBconnection(client* c) {
         c->ssdb_conn_flags &= ~CONN_WAIT_FLUSH_CHECK_REPLY;
         server.flush_check_unresponse_num -= 1;
 
-        serverLog(LL_DEBUG, "[flushall]connection(c->context->fd:%d) with ssdb disconnected, unresponse num:%d",
-                  c->context ? c->context->fd : -1, server.flush_check_unresponse_num);
+        serverLog(LL_DEBUG, "[flushall]connection(c->context->fd:%d, c->fd:%d) with ssdb disconnected, unresponse num:%d",
+                  c->context ? c->context->fd : -1, c->fd, server.flush_check_unresponse_num);
         if (0 == server.flush_check_unresponse_num) {
             if (c != server.current_flushall_client)
                 doSSDBflushIfCheckDone();
@@ -862,8 +862,8 @@ void sendFlushCheckCommandToSSDB(aeEventLoop *el, int fd, void *privdata, int ma
         if ((c->ssdb_conn_flags & CONN_WAIT_FLUSH_CHECK_REPLY) && server.flush_check_begin_time != -1) {
             server.flush_check_unresponse_num -= 1;
             c->ssdb_conn_flags &= ~CONN_WAIT_FLUSH_CHECK_REPLY;
-            serverLog(LL_DEBUG, "[flushall]connection(c->context->fd:%d) with ssdb disconnected, unresponse num:%d",
-                      c->context ? c->context->fd : -1, server.flush_check_unresponse_num);
+            serverLog(LL_DEBUG, "[flushall]connection(c->context->fd:%d,c->fd:%d) with ssdb disconnected, unresponse num:%d",
+                      c->context ? c->context->fd : -1, c->fd, server.flush_check_unresponse_num);
         }
     } else {
         aeDeleteFileEvent(server.el, c->fd, AE_WRITABLE);
@@ -2057,8 +2057,8 @@ void freeClient(client *c) {
         if ((c->ssdb_conn_flags & CONN_WAIT_FLUSH_CHECK_REPLY) && server.flush_check_begin_time != -1) {
             server.flush_check_unresponse_num -= 1;
 
-            serverLog(LL_DEBUG, "[flushall]connection(c->context->fd:%d) free, unresponse num:%d",
-                      c->context ? c->context->fd : -1, server.flush_check_unresponse_num);
+            serverLog(LL_DEBUG, "[flushall]connection(c->context->fd:%d,c->fd:%d) free, unresponse num:%d",
+                      c->context ? c->context->fd : -1, c->fd, server.flush_check_unresponse_num);
             if (0 == server.flush_check_unresponse_num) {
                 if (c != server.current_flushall_client)
                     doSSDBflushIfCheckDone();

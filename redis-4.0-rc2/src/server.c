@@ -3068,6 +3068,7 @@ void prepareSSDBflush(client* c) {
     /* for slave redis, flushall will be processed in other way. */
     if (server.masterhost) return;
 
+    serverLog(LL_DEBUG, "[flushall] ===start===");
     /* STEP 1: clean all intermediate state keys, avoid to cause unexpected issues. */
     cleanSpecialClientsAndIntermediateKeys(1);
 
@@ -3104,6 +3105,8 @@ void prepareSSDBflush(client* c) {
                 return;
             }
         } else {
+            serverLog(LL_DEBUG, "[flushall]set c->context->fd:%d, c->fd:%d",
+                lc->context ? lc->context->fd : -1, lc->fd);
             server.flush_check_unresponse_num++;
         }
     }
