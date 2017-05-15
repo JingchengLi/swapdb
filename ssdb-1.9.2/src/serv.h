@@ -48,6 +48,19 @@ public:
 	int 					 replicNumFinished = 0;
 	int 					 replicNumFailed = 0;
 
+	void addReplicResult(bool ok) {
+		Locking <Mutex> l(&replicMutex);
+
+		if (ok) {
+			replicNumFinished++;
+		} else {
+			replicNumFailed++;
+		}
+		if (replicNumStarted == (replicNumFinished + replicNumFailed)) {
+			replicState = REPLIC_END;
+		}
+	}
+
 	SSDBServer(SSDB *ssdb, SSDB *meta, const Config &conf, NetworkServer *net);
 	~SSDBServer();
 

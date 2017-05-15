@@ -41,7 +41,7 @@ int ReplicationWorker::proc(ReplicationJob *job) {
 
     log_info("[ReplicationWorker] send snapshot to %s:%d start!", hnp.ip.c_str(), hnp.port);
     {
-        Locking <Mutex> l(&serv->replicMutex);
+        Locking<Mutex> l(&serv->replicMutex);
         if (serv->replicSnapshot == nullptr) {
             log_error("snapshot is null, maybe rr_make_snapshot not receive or error!");
 
@@ -170,11 +170,7 @@ int ReplicationWorker::proc(ReplicationJob *job) {
 
                 {
                     //update replic stats
-                    Locking <Mutex> l(&serv->replicMutex);
-                    serv->replicNumFailed++;
-                    if (serv->replicNumStarted == (serv->replicNumFinished + serv->replicNumFailed)) {
-                        serv->replicState = REPLIC_END;
-                    }
+                    serv->addReplicResult(false);
                 }
 
                 return -1;
@@ -234,6 +230,8 @@ int ReplicationWorker::proc(ReplicationJob *job) {
         fdes->del(master_link->fd());
     }
 
+    bool transFailed = false;
+
     {
         //write "complete" to slave_ssdb
         ssdb_slave_link->noblock(false);
@@ -241,7 +239,6 @@ int ReplicationWorker::proc(ReplicationJob *job) {
         int len = ssdb_slave_link->write();
         if (len > 0) { sendBytes = sendBytes + len; }
 
-        bool transFailed = false;
         const std::vector<Bytes> *res = ssdb_slave_link->response();
         if (res != nullptr && res->size() > 0) {
             std::string result = (*res)[0].String();
@@ -262,38 +259,27 @@ int ReplicationWorker::proc(ReplicationJob *job) {
             transFailed = true;
         }
 
-        if (transFailed) {
-            send_error_to_redis(master_link);
-            delete master_link;
-            job->upstream = nullptr;
+    }
 
-            {
-                //update replic stats
-                Locking <Mutex> l(&serv->replicMutex);
-                serv->replicNumFailed++;
-                if (serv->replicNumStarted == (serv->replicNumFinished + serv->replicNumFailed)) {
-                    serv->replicState = REPLIC_END;
-                }
-            }
-        }
 
+    if (transFailed) {
+        reportError(job);
+        log_info("[ReplicationWorker] send snapshot to %s:%d failed!!!!", hnp.ip.c_str(), hnp.port);
+        log_debug("send rr_transfer_snapshot failed!!");
         delete ssdb_slave_link;
+        return -1;
     }
 
-    {
-        //update replic stats
-        Locking <Mutex> l(&serv->replicMutex);
-        serv->replicNumFinished++;
-        if (serv->replicNumStarted == (serv->replicNumFinished + serv->replicNumFailed)) {
-            serv->replicState = REPLIC_END;
-        }
-    }
+
+    //update replic stats
+    serv->addReplicResult(true);
 
     log_info("[ReplicationWorker] send snapshot to %s:%d finished!", hnp.ip.c_str(), hnp.port);
     log_debug("send rr_transfer_snapshot finished!!");
     log_error("replic procedure finish! sendByes %d", sendBytes);
-
+    delete ssdb_slave_link;
     return 0;
+
 }
 
 void ReplicationWorker::reportError(ReplicationJob *job) {
@@ -301,11 +287,7 @@ void ReplicationWorker::reportError(ReplicationJob *job) {
     SSDBServer *serv = (SSDBServer *) job->ctx.net->data;
 
     {
-        Locking <Mutex> l(&serv->replicMutex);
-        serv->replicNumFailed++;
-        if (serv->replicNumStarted == (serv->replicNumFinished + serv->replicNumFailed)) {
-            serv->replicState = REPLIC_END;
-        }
+        serv->addReplicResult(false);
     }
     delete job->upstream;
     job->upstream = nullptr; //reset
@@ -352,7 +334,7 @@ std::string replic_save_len(uint64_t len) {
 
 
 void saveStrToBuffer(Buffer *buffer, const Bytes &fit) {
-    string val_len = replic_save_len((uint64_t)(fit.size()));
+    string val_len = replic_save_len((uint64_t) (fit.size()));
     buffer->append(val_len);
     buffer->append(fit);
 }
@@ -373,7 +355,7 @@ void moveBuffer(Buffer *dst, Buffer *src) {
         outlen = 1024;
     }
 
-    std::unique_ptr<void, cfree_delete < void>>out(malloc(outlen + 1));
+    std::unique_ptr<void, cfree_delete<void>> out(malloc(outlen + 1));
 
 
     comprlen = lzf_compress(src->data(), (unsigned int) src->size(), out.get(), outlen);
