@@ -2181,6 +2181,8 @@ void handleCustomizedBlockedClients();
 void removeClientFromListForBlockedKey(client* c, robj* key);
 void sendDelSSDBsnapshot();
 int handleResponseTimeoutOfTransferSnapshot(struct aeEventLoop *eventLoop, long long id, void *clientData);
+void doSSDBflushIfCheckDone();
+void makeSSDBsnapshotIfCheckOK();
 
 #if defined(__GNUC__)
 void *calloc(size_t count, size_t size) __attribute__ ((deprecated));
