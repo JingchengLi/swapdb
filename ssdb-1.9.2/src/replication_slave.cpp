@@ -32,7 +32,7 @@ void *ssdb_sync(void *arg) {
 
 
     log_warn("[ssdb_sync] ready to revieve");
-    master_link->quick_send({"ok", "ok"});
+    master_link->quick_send({"ok", "ready to revieve"});
 
 
     log_debug("[ssdb_sync] prepare for event loop");
@@ -170,9 +170,15 @@ void *ssdb_sync(void *arg) {
 
                     std::unique_ptr<char, cfree_delete<char>> t_val((char *) malloc(raw_len));
 
-                    if (lzf_decompress(decoder.data(), compressed_len, t_val.get(), raw_len) == 0) {
-                        errorCode = -1;
-                        break;;
+
+                    if (compressed_len == 0) {
+                        memcpy(t_val.get(), decoder.data(), raw_len);
+                        compressed_len = raw_len;
+                    } else {
+                        if (lzf_decompress(decoder.data(), compressed_len, t_val.get(), raw_len) == 0) {
+                            errorCode = -1;
+                            break;;
+                        }
                     }
 
                     Decoder decoder_item(t_val.get(), raw_len);
@@ -218,7 +224,7 @@ void *ssdb_sync(void *arg) {
                     complete = true;
                     job->quit = true;
                 } else {
-                    log_error("unknown oper code");
+                    log_error("unknown oper code %s", hexstr(oper).c_str());
                     errorCode = -1;
                     break;
                 }
@@ -244,9 +250,10 @@ void *ssdb_sync(void *arg) {
 
 
     if (errorCode != 0) {
-        log_error("[ssdb_sync] recieve snapshot from %s:%d failed!", hnp.ip.c_str(), hnp.port);
+        master_link->quick_send({"error", "recieve snapshot failed!"});
+        log_error("[ssdb_sync] recieve snapshot from %s:%d failed!, err: %d", hnp.ip.c_str(), hnp.port, errorCode);
     } else {
-        master_link->quick_send({"ok"});
+        master_link->quick_send({"ok", "recieve snapshot finished"});
         log_info("[ssdb_sync] recieve snapshot from %s:%d finished!", hnp.ip.c_str(), hnp.port);
     }
 

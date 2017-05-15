@@ -328,7 +328,7 @@ int Link::write() {
                 return -1;
             }
         } else {
-            log_debug("fd: %d, want: %d, write: %d", sock, want, len, hexmem( output->data(),len).c_str());
+            log_debug("fd: %d, want: %d, write: %d", sock, want, len); //, hexmem( output->data(),len).c_str()
             if (len == 0) {
                 // ?
                 break;

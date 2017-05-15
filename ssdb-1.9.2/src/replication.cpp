@@ -34,14 +34,14 @@ void ReplicationWorker::init() {
 
 int ReplicationWorker::proc(ReplicationJob *job) {
 
-    SSDBServer *serv = (SSDBServer *)job->ctx.net->data;
+    SSDBServer *serv = (SSDBServer *) job->ctx.net->data;
     HostAndPort hnp = job->hnp;
     Link *master_link = job->upstream;
     const leveldb::Snapshot *snapshot = nullptr;
 
     log_info("[ReplicationWorker] send snapshot to %s:%d start!", hnp.ip.c_str(), hnp.port);
     {
-        Locking<Mutex> l(&serv->replicMutex);
+        Locking <Mutex> l(&serv->replicMutex);
         if (serv->replicSnapshot == nullptr) {
             log_error("snapshot is null, maybe rr_make_snapshot not receive or error!");
 
@@ -170,7 +170,7 @@ int ReplicationWorker::proc(ReplicationJob *job) {
 
                 {
                     //update replic stats
-                    Locking<Mutex> l(&serv->replicMutex);
+                    Locking <Mutex> l(&serv->replicMutex);
                     serv->replicNumFailed++;
                     if (serv->replicNumStarted == (serv->replicNumFinished + serv->replicNumFailed)) {
                         serv->replicState = REPLIC_END;
@@ -241,13 +241,47 @@ int ReplicationWorker::proc(ReplicationJob *job) {
         int len = ssdb_slave_link->write();
         if (len > 0) { sendBytes = sendBytes + len; }
 
-        ssdb_slave_link->read(); //todo error process
+        bool transFailed = false;
+        const std::vector<Bytes> *res = ssdb_slave_link->response();
+        if (res != nullptr && res->size() > 0) {
+            std::string result = (*res)[0].String();
+
+            if (result == "failed" || result == "error") {
+                transFailed = true;
+            }
+
+            std::string ret;
+            for (int i = 0; i < res->size(); ++i) {
+                std::string h = hexmem((*res)[i].data(), (*res)[i].size());
+                ret.append(" ");
+                ret.append(h);
+            }
+            log_debug("%s~", ret.c_str());
+
+        } else {
+            transFailed = true;
+        }
+
+        if (transFailed) {
+            delete master_link;
+            job->upstream = nullptr;
+
+            {
+                //update replic stats
+                Locking <Mutex> l(&serv->replicMutex);
+                serv->replicNumFailed++;
+                if (serv->replicNumStarted == (serv->replicNumFinished + serv->replicNumFailed)) {
+                    serv->replicState = REPLIC_END;
+                }
+            }
+        }
+
         delete ssdb_slave_link;
     }
 
     {
         //update replic stats
-        Locking<Mutex> l(&serv->replicMutex);
+        Locking <Mutex> l(&serv->replicMutex);
         serv->replicNumFinished++;
         if (serv->replicNumStarted == (serv->replicNumFinished + serv->replicNumFailed)) {
             serv->replicState = REPLIC_END;
@@ -263,10 +297,10 @@ int ReplicationWorker::proc(ReplicationJob *job) {
 
 void ReplicationWorker::reportError(ReplicationJob *job) {
     send_error_to_redis(job->upstream);
-    SSDBServer *serv = (SSDBServer *)job->ctx.net->data;
+    SSDBServer *serv = (SSDBServer *) job->ctx.net->data;
 
     {
-        Locking<Mutex> l(&serv->replicMutex);
+        Locking <Mutex> l(&serv->replicMutex);
         serv->replicNumFailed++;
         if (serv->replicNumStarted == (serv->replicNumFinished + serv->replicNumFailed)) {
             serv->replicState = REPLIC_END;
@@ -317,7 +351,7 @@ std::string replic_save_len(uint64_t len) {
 
 
 void saveStrToBuffer(Buffer *buffer, const Bytes &fit) {
-    string val_len = replic_save_len((uint64_t) (fit.size()));
+    string val_len = replic_save_len((uint64_t)(fit.size()));
     buffer->append(val_len);
     buffer->append(fit);
 }
@@ -328,14 +362,19 @@ void moveBuffer(Buffer *dst, Buffer *src) {
     size_t comprlen, outlen = (size_t) src->size();
 
 
-    std::unique_ptr<void, cfree_delete<void>> out(malloc(outlen + 1));
+    std::unique_ptr<void, cfree_delete < void>>out(malloc(outlen + 1));
 
 
     comprlen = lzf_compress(src->data(), (unsigned int) src->size(), out.get(), outlen);
 
     dst->append(replic_save_len((uint64_t) src->size()));
     dst->append(replic_save_len(comprlen));
-    dst->append(out.get(), (int) comprlen);
+
+    if (comprlen == 0) {
+        dst->append(src->data(), src->size());
+    } else {
+        dst->append(out.get(), (int) comprlen);
+    }
 
     src->decr(src->size());
     src->nice();
