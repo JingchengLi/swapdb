@@ -361,6 +361,16 @@ void moveBuffer(Buffer *dst, Buffer *src) {
 
     size_t comprlen, outlen = (size_t) src->size();
 
+    /**
+     * when src->size() is small , comprlen may longer than outlen , which cause lzf_compress failed
+     * and lzf_compress return 0 , so :
+     * 1. incr outlen too prevent compress failure
+     * 2. if comprlen is zero , we copy raw data and will not uncompress on salve
+     *
+     */
+    if (outlen < 100) {
+        outlen = 1024;
+    }
 
     std::unique_ptr<void, cfree_delete < void>>out(malloc(outlen + 1));
 
