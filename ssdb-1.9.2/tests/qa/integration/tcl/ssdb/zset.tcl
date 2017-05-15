@@ -107,8 +107,8 @@ start_server {tags {"zset"}} {
         }
 
         test "ZINCRBY calls leading to NaN result in error" {
-            assert_error "*NaN*" {r zincrby myzset +inf abc}
-            assert_error "*NaN*" {r zincrby myzset -inf abc}
+            assert_error "*out of range*" {r zincrby myzset +inf abc}
+            assert_error "*out of range*" {r zincrby myzset -inf abc}
         }
 
         test {ZADD - Variadic version base case} {
