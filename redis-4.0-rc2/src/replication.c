@@ -660,13 +660,12 @@ void prepareSSDBreplication(client* slave) {
 
         if (c->flags & CLIENT_SLAVE) continue;
 
-        c->ssdb_conn_flags |= CONN_WAIT_WRITE_CHECK_REPLY;
-
         if (aeCreateFileEvent(server.el, c->fd, AE_WRITABLE,
                               sendCheckWriteCommandToSSDB, c) == AE_ERR) {
             /* just free disconnected client and ignore it. */
             freeClient(c);
         } else {
+            c->ssdb_conn_flags |= CONN_WAIT_WRITE_CHECK_REPLY;
             server.check_write_unresponse_num++;
         }
     }

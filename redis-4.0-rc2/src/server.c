@@ -3089,8 +3089,6 @@ void prepareSSDBflush(client* c) {
 
         if (lc->flags & CLIENT_SLAVE) continue;
 
-        lc->ssdb_conn_flags |= CONN_WAIT_FLUSH_CHECK_REPLY;
-
         if (aeCreateFileEvent(server.el, lc->fd, AE_WRITABLE,
                               sendFlushCheckCommandToSSDB, lc) == AE_ERR) {
             if (server.current_flushall_client == lc)
@@ -3105,9 +3103,11 @@ void prepareSSDBflush(client* c) {
                 return;
             }
         } else {
-            serverLog(LL_DEBUG, "[flushall]set c->context->fd:%d, c->fd:%d",
-                lc->context ? lc->context->fd : -1, lc->fd);
+            lc->ssdb_conn_flags |= CONN_WAIT_FLUSH_CHECK_REPLY;
             server.flush_check_unresponse_num++;
+
+            serverLog(LL_DEBUG, "[flushall]set c->context->fd:%d, c->fd:%d",
+                      lc->context ? lc->context->fd : -1, lc->fd);
         }
     }
     serverLog(LL_DEBUG, "[flushall]initial server.flush_check_unresponse_num:%d", server.flush_check_unresponse_num);
