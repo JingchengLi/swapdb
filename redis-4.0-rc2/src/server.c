@@ -3317,11 +3317,12 @@ int processCommand(client *c) {
         return C_OK;
     }
 
-    // todo: remove jdjr_mode for this condition
+    /* for jdjr_mode, we don't allow write commands for connections if this
+     * is a slave, except for our master connection. */
+
     /* Don't accept write commands if this is a read only slave. But
      * accept write commands if this is our master. */
-    if (!server.jdjr_mode &&
-        server.masterhost && server.repl_slave_ro &&
+    if (server.masterhost && (server.jdjr_mode || server.repl_slave_ro) &&
         !(c->flags & CLIENT_MASTER) &&
         c->cmd->flags & CMD_WRITE)
     {
