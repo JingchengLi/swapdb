@@ -1313,6 +1313,8 @@ void startToEvictIfNeeded() {
     int mem_tofree, old_mem_tofree = 0;
     float transfer_lower_threshold;
 
+    if (server.ssdb_client == NULL) return;
+
     if (server.maxmemory == 0
         || !(server.maxmemory_policy & MAXMEMORY_FLAG_LFU))
         return;
@@ -1344,6 +1346,8 @@ void startToLoadIfNeeded() {
     listIter li;
     listNode *ln;
     list *tmp;
+
+    if (server.ssdb_client == NULL) return;
 
     int mem_free = server.maxmemory - zmalloc_used_memory();
 

@@ -642,6 +642,11 @@ void prepareSSDBreplication(client* slave) {
                   (server.ssdb_status == MASTER_SSDB_SNAPSHOT_WAIT_FLUSHALL
                    && slave->ssdb_status == SLAVE_SSDB_SNAPSHOT_WAIT_FLUSHALL));
 
+    /* NOTE: discard transferring/loading keys and disconnect server.ssdb_client to make
+     * sure consistency between master and slave.*/
+    if (server.ssdb_client) freeClient(server.ssdb_client);
+    if (server.slave_ssdb_load_evict_client) freeClient(server.slave_ssdb_load_evict_client);
+
     slave->ssdb_status = SLAVE_SSDB_SNAPSHOT_IN_PROCESS;
 
     /* Update the server's status. */
@@ -669,6 +674,7 @@ void prepareSSDBreplication(client* slave) {
             server.check_write_unresponse_num++;
         }
     }
+
     if (0 == server.check_write_unresponse_num) {
         makeSSDBsnapshotIfCheckOK();
     }
@@ -2713,7 +2719,6 @@ void replicationCron(void) {
     /* Process the case of ssdb write check timeout or ssdb make snapshot failed. */
     if (server.jdjr_mode && server.use_customized_replication) {
         /* TODO : use a reasonable timeout to replace 5 seconds. */
-        /* TODO: handle timeout of rr_transfer_snapshot/rr_make_snapshot. */
         if (server.check_write_begin_time != -1
              && (server.unixtime - server.check_write_begin_time > 5))
             resetCustomizedReplication();
@@ -2922,10 +2927,8 @@ void replicationCron(void) {
                                             (mincapa & slave->slave_capa);
 
                 if (server.jdjr_mode && server.use_customized_replication) {
-                    if ((server.ssdb_status == SSDB_NONE &&
-                         slave->ssdb_status == SSDB_NONE) ||
-                        (server.ssdb_status == MASTER_SSDB_SNAPSHOT_OK &&
-                         slave->ssdb_status == SLAVE_SSDB_SNAPSHOT_IN_PROCESS)) {
+                    if (server.ssdb_status == MASTER_SSDB_SNAPSHOT_OK &&
+                        slave->ssdb_status == SLAVE_SSDB_SNAPSHOT_IN_PROCESS) {
                         can_bgsave = 1;
                     }
                 }
