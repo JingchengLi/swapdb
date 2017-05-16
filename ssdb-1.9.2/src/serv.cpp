@@ -893,15 +893,17 @@ int proc_repopid(Context &ctx, Link *link, const Request &req, Response *resp) {
             reply_errinfo_return("DecodeRepoKey error");
         }
 
+        std::string result = "repopid " + str(repoKey.timestamp) + " " + str(repoKey.id);
         resp->push_back("ok");
-        resp->push_back("repopid " + str(repoKey.timestamp) + " " + str(repoKey.id));
+        resp->push_back(result);
 
         {
-            resp->redisResponse = new RedisResponse("repopid " + str(repoKey.timestamp) + " " + str(repoKey.id));
+            resp->redisResponse = new RedisResponse(result);
         }
 
     } else if (action == "set") {
         CHECK_NUM_PARAMS(4);
+
         uint64_t timestamp = req[2].Uint64();
         if (errno == EINVAL){
             reply_err_return(INVALID_INT);
@@ -912,8 +914,10 @@ int proc_repopid(Context &ctx, Link *link, const Request &req, Response *resp) {
             reply_err_return(INVALID_INT);
         }
 
-        ctx.recievedRepopContext.timestamp = timestamp;
-        ctx.recievedRepopContext.id = id;
+        ctx.replLink = true;
+
+        ctx.currentSeqCnx.timestamp = timestamp;
+        ctx.currentSeqCnx.id = id;
 
         resp->reply_ok();
 

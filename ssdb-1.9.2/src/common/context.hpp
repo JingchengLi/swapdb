@@ -20,6 +20,24 @@ public:
         id = 0;
         timestamp = 0;
     }
+
+    bool operator<=(const RepopContext &b) const {
+        if (this->timestamp < b.timestamp) {
+            return true;
+        } else if (this->timestamp == b.timestamp) {
+            return this->id <= b.id;
+        } else {
+            return false;
+        }
+    }
+
+    bool operator!=(uint64_t id) const {
+        return this->id != id;
+    }
+
+    std::string toString() {
+        return "repopid " + str(timestamp) + " " + str(id);
+    }
 };
 
 
@@ -30,12 +48,13 @@ class Context {
 public:
     NetworkServer *net = nullptr;
 
-    RepopContext recievedRepopContext;
-    RepopContext commitedRepopContext;
+    RepopContext currentSeqCnx;
+    RepopContext lastSeqCnx;
 
 
     bool checkKey = false;
     bool firstbatch = true;
+    bool replLink = false;
 
     void mark_check() {
         checkKey = true;
@@ -63,7 +82,7 @@ public:
             vec.emplace_back("check 0");
         }
 
-        vec.push_back("repopid " + str(commitedRepopContext.timestamp) + " " + str(commitedRepopContext.id));
+        vec.emplace_back(lastSeqCnx.toString());
 
         return vec;
     }

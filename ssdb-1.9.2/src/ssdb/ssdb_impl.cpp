@@ -5,12 +5,14 @@ found in the LICENSE file.
 */
 #include "ssdb_impl.h"
 #include "../util/PTimer.h"
+
 #ifdef USE_LEVELDB
 #include "leveldb/env.h"
 #include "leveldb/iterator.h"
 #include "leveldb/cache.h"
 #include "leveldb/filter_policy.h"
 #else
+
 #include "rocksdb/options.h"
 #include "rocksdb/env.h"
 #include "rocksdb/iterator.h"
@@ -20,6 +22,7 @@ found in the LICENSE file.
 #include "rocksdb/convenience.h"
 
 #include "t_listener.h"
+
 #define leveldb rocksdb
 #endif
 
@@ -27,82 +30,82 @@ found in the LICENSE file.
 #include "ssdb_impl.h"
 
 SSDBImpl::SSDBImpl()
-	: bg_cv_(&mutex_bgtask_){
-	ldb = NULL;
-	this->bgtask_flag_ = true;
-	expiration = NULL;
+        : bg_cv_(&mutex_bgtask_) {
+    ldb = NULL;
+    this->bgtask_flag_ = true;
+    expiration = NULL;
 }
 
-int createCF(const std::string& dir){
-	leveldb::DB* tdb;
-	leveldb::Options options;
-	options.create_if_missing = true;
-	leveldb::Status status = leveldb::DB::Open(options, dir, &tdb);
-	if(!status.ok()){
-		if (status.IsInvalidArgument()) {
-			//may exist
-			return 0;
-		}
-		log_error("open db failed: %s", status.ToString().c_str());
-		return -1;
-	}
+int createCF(const std::string &dir) {
+    leveldb::DB *tdb;
+    leveldb::Options options;
+    options.create_if_missing = true;
+    leveldb::Status status = leveldb::DB::Open(options, dir, &tdb);
+    if (!status.ok()) {
+        if (status.IsInvalidArgument()) {
+            //may exist
+            return 0;
+        }
+        log_error("open db failed: %s", status.ToString().c_str());
+        return -1;
+    }
 
-	// create column family
-	leveldb::ColumnFamilyHandle* cf;
-	status = tdb->CreateColumnFamily(leveldb::ColumnFamilyOptions(), REPOPID_CF, &cf);
-	if(!status.ok()) {
+    // create column family
+    leveldb::ColumnFamilyHandle *cf;
+    status = tdb->CreateColumnFamily(leveldb::ColumnFamilyOptions(), REPOPID_CF, &cf);
+    if (!status.ok()) {
 
-	}
-	// close DB
-	delete cf;
-	delete tdb;
+    }
+    // close DB
+    delete cf;
+    delete tdb;
 
-	return 0;
+    return 0;
 }
 
-SSDBImpl::~SSDBImpl(){
-    if(expiration){
+SSDBImpl::~SSDBImpl() {
+    if (expiration) {
         delete expiration;
     }
 
     this->stop();
 
-	for (auto handle : handles) {
-		delete handle;
-	}
+    for (auto handle : handles) {
+        delete handle;
+    }
 
-    if(ldb){
+    if (ldb) {
         delete ldb;
     }
     log_info("SSDBImpl finalized");
 
 #ifdef USE_LEVELDB
     //auto memory man in rocks
-	if(options.block_cache){
-		delete options.block_cache;
-	}
-	if(options.filter_policy){
-		delete options.filter_policy;
-	}
+    if(options.block_cache){
+        delete options.block_cache;
+    }
+    if(options.filter_policy){
+        delete options.filter_policy;
+    }
 #endif
 }
 
-SSDB* SSDB::open(const Options &opt, const std::string &dir){
-	SSDBImpl *ssdb = new SSDBImpl();
-	ssdb->options.create_if_missing = true;
-	ssdb->options.max_open_files = opt.max_open_files;
+SSDB *SSDB::open(const Options &opt, const std::string &dir) {
+    SSDBImpl *ssdb = new SSDBImpl();
+    ssdb->options.create_if_missing = true;
+    ssdb->options.max_open_files = opt.max_open_files;
 #ifdef USE_LEVELDB
-	ssdb->options.filter_policy = leveldb::NewBloomFilterPolicy(10);
-	ssdb->options.block_cache = leveldb::NewLRUCache(opt.cache_size * 1048576);
-	ssdb->options.block_size = opt.block_size * 1024;
-	ssdb->options.compaction_speed = opt.compaction_speed;
+    ssdb->options.filter_policy = leveldb::NewBloomFilterPolicy(10);
+    ssdb->options.block_cache = leveldb::NewLRUCache(opt.cache_size * 1048576);
+    ssdb->options.block_size = opt.block_size * 1024;
+    ssdb->options.compaction_speed = opt.compaction_speed;
 #else
-	rocksdb::BlockBasedTableOptions op;
+    rocksdb::BlockBasedTableOptions op;
 
-	//for spin disk
+    //for spin disk
 //	op.cache_index_and_filter_blocks = true;
-  	ssdb->options.optimize_filters_for_hits = true;
-	ssdb->options.compaction_readahead_size = 4 * 1024 * 1024;
+    ssdb->options.optimize_filters_for_hits = true;
+    ssdb->options.compaction_readahead_size = 4 * 1024 * 1024;
 //	ssdb->options.skip_stats_update_on_db_open = true;
 //	ssdb->options.level_compaction_dynamic_level_bytes = true;
 //	ssdb->options.new_table_reader_for_compaction_inputs = true;
@@ -110,58 +113,58 @@ SSDB* SSDB::open(const Options &opt, const std::string &dir){
 //	ssdb->options.level0_file_num_compaction_trigger = 3; //start compaction
 //	ssdb->options.level0_slowdown_writes_trigger = 20; //slow write
 //	ssdb->options.level0_stop_writes_trigger = 24;  //block write
-	//========
+    //========
 //	ssdb->options.target_file_size_base = 2 * 1024 * 1024; //sst file target size
 
     op.filter_policy = std::shared_ptr<const leveldb::FilterPolicy>(leveldb::NewBloomFilterPolicy(10));
     op.block_cache = leveldb::NewLRUCache(opt.cache_size * 1048576);
-	op.block_size = opt.block_size * 1024;
+    op.block_size = opt.block_size * 1024;
 
-	ssdb->options.table_factory = std::shared_ptr<leveldb::TableFactory>(rocksdb::NewBlockBasedTableFactory(op));
+    ssdb->options.table_factory = std::shared_ptr<leveldb::TableFactory>(rocksdb::NewBlockBasedTableFactory(op));
 #endif
-	ssdb->options.write_buffer_size = static_cast<size_t >(opt.write_buffer_size) * 1024 * 1024;
-	if(opt.compression == "yes"){
-		ssdb->options.compression = leveldb::kSnappyCompression;
-	}else{
-		ssdb->options.compression = leveldb::kNoCompression;
-	}
+    ssdb->options.write_buffer_size = static_cast<size_t >(opt.write_buffer_size) * 1024 * 1024;
+    if (opt.compression == "yes") {
+        ssdb->options.compression = leveldb::kSnappyCompression;
+    } else {
+        ssdb->options.compression = leveldb::kNoCompression;
+    }
 
 #ifdef USE_LEVELDB
 #else
-	ssdb->options.listeners.push_back(std::shared_ptr<t_listener>(new t_listener()));
+    ssdb->options.listeners.push_back(std::shared_ptr<t_listener>(new t_listener()));
 #endif
 
-	leveldb::Status status;
+    leveldb::Status status;
 
-	createCF(dir);
+    createCF(dir);
 
-	// open DB with two column families
-	std::vector<leveldb::ColumnFamilyDescriptor> column_families;
-	column_families.push_back(leveldb::ColumnFamilyDescriptor(
-			leveldb::kDefaultColumnFamilyName, leveldb::ColumnFamilyOptions()));
-	column_families.push_back(leveldb::ColumnFamilyDescriptor(
-			REPOPID_CF, leveldb::ColumnFamilyOptions()));
+    // open DB with two column families
+    std::vector<leveldb::ColumnFamilyDescriptor> column_families;
+    column_families.push_back(leveldb::ColumnFamilyDescriptor(
+            leveldb::kDefaultColumnFamilyName, leveldb::ColumnFamilyOptions()));
+    column_families.push_back(leveldb::ColumnFamilyDescriptor(
+            REPOPID_CF, leveldb::ColumnFamilyOptions()));
 
-	status = leveldb::DB::Open(ssdb->options, dir, column_families, &ssdb->handles, &ssdb->ldb);
-	if(!status.ok()){
-		log_error("open db failed: %s", status.ToString().c_str());
-		if(ssdb){
-			delete ssdb;
-		}
-		return nullptr;
-	}
+    status = leveldb::DB::Open(ssdb->options, dir, column_families, &ssdb->handles, &ssdb->ldb);
+    if (!status.ok()) {
+        log_error("open db failed: %s", status.ToString().c_str());
+        if (ssdb) {
+            delete ssdb;
+        }
+        return nullptr;
+    }
 
     ssdb->expiration = new ExpirationHandler(ssdb); //todo 后续如果支持set命令中设置过期时间，添加此行，同时删除serv.cpp中相应代码
     ssdb->start();
 
-	return ssdb;
+    return ssdb;
 }
 
-int SSDBImpl::flushdb(){
+int SSDBImpl::flushdb() {
 //lock
 
     Locking<RecordMutex<Mutex>> gl(&mutex_record_);
-	redisCursorService.ClearAllCursor();
+    redisCursorService.ClearAllCursor();
 
 #ifdef USE_LEVELDB
 
@@ -173,40 +176,40 @@ int SSDBImpl::flushdb(){
 
 
     uint64_t total = 0;
-	int ret = 1;
-	bool stop = false;
+    int ret = 1;
+    bool stop = false;
 
-	leveldb::ReadOptions iterate_options;
-	iterate_options.fill_cache = false;
-	leveldb::WriteOptions write_opts;
+    leveldb::ReadOptions iterate_options;
+    iterate_options.fill_cache = false;
+    leveldb::WriteOptions write_opts;
 
-	unique_ptr<leveldb::Iterator> it = unique_ptr<leveldb::Iterator>(ldb->NewIterator(iterate_options));
+    unique_ptr<leveldb::Iterator> it = unique_ptr<leveldb::Iterator>(ldb->NewIterator(iterate_options));
 
-	it->SeekToFirst();
+    it->SeekToFirst();
 
-	while(!stop){
+    while (!stop) {
 
-		leveldb::WriteBatch writeBatch;
+        leveldb::WriteBatch writeBatch;
 
-		for(int i=0; i<100000; i++){
-			if(!it->Valid()){
-				stop = true;
-				break;
-			}
+        for (int i = 0; i < 100000; i++) {
+            if (!it->Valid()) {
+                stop = true;
+                break;
+            }
 
-            total ++;
+            total++;
             writeBatch.Delete(it->key());
-			it->Next();
-		}
+            it->Next();
+        }
 
- 		leveldb::Status s = ldb->Write(write_opts, &writeBatch);
-		if(!s.ok()){
-			log_error("del error: %s", s.ToString().c_str());
-			stop = true;
-			ret = -1;
-		}
+        leveldb::Status s = ldb->Write(write_opts, &writeBatch);
+        if (!s.ok()) {
+            log_error("del error: %s", s.ToString().c_str());
+            stop = true;
+            ret = -1;
+        }
 
-	}
+    }
 
 
 //#ifdef USE_LEVELDB
@@ -216,111 +219,111 @@ int SSDBImpl::flushdb(){
 //	ldb->CompactRange(compactRangeOptions, &begin, &end);
 //#endif
 
-	log_info("[flushdb] %d keys deleted by iteration", total);
+    log_info("[flushdb] %d keys deleted by iteration", total);
 
-	return ret;
+    return ret;
 }
 
-Iterator* SSDBImpl::iterator(const std::string &start, const std::string &end, uint64_t limit,
-							 const leveldb::Snapshot *snapshot){
-	leveldb::Iterator *it;
-	leveldb::ReadOptions iterate_options;
-	iterate_options.fill_cache = false;
-	if (snapshot) {
-		iterate_options.snapshot = snapshot;
-	}
-	it = ldb->NewIterator(iterate_options);
-	it->Seek(start);
+Iterator *SSDBImpl::iterator(const std::string &start, const std::string &end, uint64_t limit,
+                             const leveldb::Snapshot *snapshot) {
+    leveldb::Iterator *it;
+    leveldb::ReadOptions iterate_options;
+    iterate_options.fill_cache = false;
+    if (snapshot) {
+        iterate_options.snapshot = snapshot;
+    }
+    it = ldb->NewIterator(iterate_options);
+    it->Seek(start);
 //	if(it->Valid() && it->key() == start){
 //		it->Next();
 //	}
-	return new Iterator(it, end, limit, Iterator::FORWARD, iterate_options.snapshot);
+    return new Iterator(it, end, limit, Iterator::FORWARD, iterate_options.snapshot);
 }
 
-Iterator* SSDBImpl::rev_iterator(const std::string &start, const std::string &end, uint64_t limit,
-								 const leveldb::Snapshot *snapshot){
-	leveldb::Iterator *it;
-	leveldb::ReadOptions iterate_options;
-	iterate_options.fill_cache = false;
-	if (snapshot) {
-		iterate_options.snapshot = snapshot;
-	}
-	it = ldb->NewIterator(iterate_options);
-	it->Seek(start);
-	if(!it->Valid()){
-		it->SeekToLast();
-	}else{
-        if (memcmp(start.data(), it->key().data(), start.size()) != 0){
+Iterator *SSDBImpl::rev_iterator(const std::string &start, const std::string &end, uint64_t limit,
+                                 const leveldb::Snapshot *snapshot) {
+    leveldb::Iterator *it;
+    leveldb::ReadOptions iterate_options;
+    iterate_options.fill_cache = false;
+    if (snapshot) {
+        iterate_options.snapshot = snapshot;
+    }
+    it = ldb->NewIterator(iterate_options);
+    it->Seek(start);
+    if (!it->Valid()) {
+        it->SeekToLast();
+    } else {
+        if (memcmp(start.data(), it->key().data(), start.size()) != 0) {
             it->Prev();
         }
-	}
-	return new Iterator(it, end, limit, Iterator::BACKWARD, iterate_options.snapshot);
+    }
+    return new Iterator(it, end, limit, Iterator::BACKWARD, iterate_options.snapshot);
 }
 
-const leveldb::Snapshot* SSDBImpl::GetSnapshot() {
+const leveldb::Snapshot *SSDBImpl::GetSnapshot() {
     if (ldb) {
         return ldb->GetSnapshot();
     }
     return nullptr;
 }
 
-void SSDBImpl::ReleaseSnapshot(const leveldb::Snapshot* snapshot) {
-	if (snapshot != nullptr) {
-		ldb->ReleaseSnapshot(snapshot);
-	}
+void SSDBImpl::ReleaseSnapshot(const leveldb::Snapshot *snapshot) {
+    if (snapshot != nullptr) {
+        ldb->ReleaseSnapshot(snapshot);
+    }
 }
 
 /* raw operates */
 
-int SSDBImpl::raw_set(Context &ctx, const Bytes &key, const Bytes &val){
-	leveldb::WriteOptions write_opts;
-	leveldb::Status s = ldb->Put(write_opts, slice(key), slice(val));
-	if(!s.ok()){
-		log_error("set error: %s", s.ToString().c_str());
-		return -1;
-	}
-	return 1;
+int SSDBImpl::raw_set(Context &ctx, const Bytes &key, const Bytes &val) {
+    leveldb::WriteOptions write_opts;
+    leveldb::Status s = ldb->Put(write_opts, slice(key), slice(val));
+    if (!s.ok()) {
+        log_error("set error: %s", s.ToString().c_str());
+        return -1;
+    }
+    return 1;
 }
 
-int SSDBImpl::raw_del(Context &ctx, const Bytes &key){
-	leveldb::WriteOptions write_opts;
-	leveldb::Status s = ldb->Delete(write_opts, slice(key));
-	if(!s.ok()){
-		log_error("del error: %s", s.ToString().c_str());
-		return -1;
-	}
-	return 1;
+int SSDBImpl::raw_del(Context &ctx, const Bytes &key) {
+    leveldb::WriteOptions write_opts;
+    leveldb::Status s = ldb->Delete(write_opts, slice(key));
+    if (!s.ok()) {
+        log_error("del error: %s", s.ToString().c_str());
+        return -1;
+    }
+    return 1;
 }
 
-int SSDBImpl::raw_get(Context &ctx, const Bytes &key, std::string *val){
-	return raw_get(ctx, key, handles[0], val);
+int SSDBImpl::raw_get(Context &ctx, const Bytes &key, std::string *val) {
+    return raw_get(ctx, key, handles[0], val);
 }
 
-int SSDBImpl::raw_get(Context &ctx, const Bytes &key, leveldb::ColumnFamilyHandle* column_family, std::string *val){
-	leveldb::ReadOptions opts;
-	opts.fill_cache = false;
-	leveldb::Status s = ldb->Get(opts, column_family, slice(key), val);
-	if(s.IsNotFound()){
-		return 0;
-	}
-	if(!s.ok()){
-		log_error("get error: %s", s.ToString().c_str());
-		return -1;
-	}
-	return 1;
+int SSDBImpl::raw_get(Context &ctx, const Bytes &key, leveldb::ColumnFamilyHandle *column_family, std::string *val) {
+    leveldb::ReadOptions opts;
+    opts.fill_cache = false;
+    leveldb::Status s = ldb->Get(opts, column_family, slice(key), val);
+    if (s.IsNotFound()) {
+        return 0;
+    }
+    if (!s.ok()) {
+        log_error("get error: %s", s.ToString().c_str());
+        return -1;
+    }
+    return 1;
 }
 
-uint64_t SSDBImpl::size(){
-	// todo r2m adaptation
+uint64_t SSDBImpl::size() {
+    // todo r2m adaptation
 #ifdef USE_LEVELDB
-//    std::string s = "A";
-    std::string s(1, DataType::META);
-    std::string e(1, DataType::META + 1);
-	leveldb::Range ranges[1];
-	ranges[0] = leveldb::Range(s, e);
-	uint64_t sizes[1];
-	ldb->GetApproximateSizes(ranges, 1, sizes);
-	return (sizes[0] / 18);
+    //    std::string s = "A";
+        std::string s(1, DataType::META);
+        std::string e(1, DataType::META + 1);
+        leveldb::Range ranges[1];
+        ranges[0] = leveldb::Range(s, e);
+        uint64_t sizes[1];
+        ldb->GetApproximateSizes(ranges, 1, sizes);
+        return (sizes[0] / 18);
 #else
     std::string num = "0";
     ldb->GetProperty("rocksdb.estimate-num-keys", &num);
@@ -330,27 +333,27 @@ uint64_t SSDBImpl::size(){
 
 }
 
-std::vector<std::string> SSDBImpl::info(){
-	//  "leveldb.num-files-at-level<N>" - return the number of files at level <N>,
-	//     where <N> is an ASCII representation of a level number (e.g. "0").
-	//  "leveldb.stats" - returns a multi-line string that describes statistics
-	//     about the internal operation of the DB.
-	//  "leveldb.sstables" - returns a multi-line string that describes all
-	//     of the sstables that make up the db contents.
-	std::vector<std::string> info;
-	std::vector<std::string> keys;
+std::vector<std::string> SSDBImpl::info() {
+    //  "leveldb.num-files-at-level<N>" - return the number of files at level <N>,
+    //     where <N> is an ASCII representation of a level number (e.g. "0").
+    //  "leveldb.stats" - returns a multi-line string that describes statistics
+    //     about the internal operation of the DB.
+    //  "leveldb.sstables" - returns a multi-line string that describes all
+    //     of the sstables that make up the db contents.
+    std::vector<std::string> info;
+    std::vector<std::string> keys;
 #ifdef USE_LEVELDB
-	for(int i=0; i<7; i++){
-		char buf[128];
-		snprintf(buf, sizeof(buf), "leveldb.num-files-at-level%d", i);
-		keys.push_back(buf);
-	}
+    for(int i=0; i<7; i++){
+        char buf[128];
+        snprintf(buf, sizeof(buf), "leveldb.num-files-at-level%d", i);
+        keys.push_back(buf);
+    }
 
-	keys.push_back("leveldb.stats");
-	keys.push_back("leveldb.sstables");
+    keys.push_back("leveldb.stats");
+    keys.push_back("leveldb.sstables");
 
 #else
-    for(int i=0; i<7; i++){
+    for (int i = 0; i < 7; i++) {
         char buf[128];
         snprintf(buf, sizeof(buf), "rocksdb.num-files-at-level%d", i);
         keys.push_back(std::string(buf));
@@ -361,100 +364,85 @@ std::vector<std::string> SSDBImpl::info(){
 
 #endif
 
-	for(size_t i=0; i<keys.size(); i++){
-		std::string key = keys[i];
-		std::string val;
-		if(ldb->GetProperty(key, &val)){
-			info.push_back(key);
-			info.push_back(val);
-		}
-	}
+    for (size_t i = 0; i < keys.size(); i++) {
+        std::string key = keys[i];
+        std::string val;
+        if (ldb->GetProperty(key, &val)) {
+            info.push_back(key);
+            info.push_back(val);
+        }
+    }
 
-	return info;
+    return info;
 }
 
-void SSDBImpl::compact(){
+void SSDBImpl::compact() {
 #ifdef USE_LEVELDB
-	ldb->CompactRange(NULL, NULL);
+    ldb->CompactRange(NULL, NULL);
 #else
-	leveldb::CompactRangeOptions compactRangeOptions = rocksdb::CompactRangeOptions();
-	ldb->CompactRange(compactRangeOptions, NULL, NULL);
+    leveldb::CompactRangeOptions compactRangeOptions = rocksdb::CompactRangeOptions();
+    ldb->CompactRange(compactRangeOptions, NULL, NULL);
 #endif
 }
 
 
-leveldb::Status SSDBImpl::CommitBatch(Context &ctx, const leveldb::WriteOptions& options, leveldb::WriteBatch *updates) {
+leveldb::Status
+SSDBImpl::CommitBatch(Context &ctx, const leveldb::WriteOptions &options, leveldb::WriteBatch *updates) {
 
-	if (ctx.recievedRepopContext.id > 0) {
-		if (ctx.commitedRepopContext.id > 0) {
+    if (ctx.replLink && ctx.isFirstbatch()) {
 
-			if (ctx.recievedRepopContext.id > ctx.commitedRepopContext.id) {
-				updates->Put(handles[1], encode_repo_key(), encode_repo_item(ctx.recievedRepopContext.timestamp, ctx.recievedRepopContext.id));
+        if (ctx.currentSeqCnx <= ctx.lastSeqCnx) {
+            log_error("ctx.currentSeqCnx <= ctx.lastSeqCnx");
+            assert(0);
+            *((char *) -1) = 'x';
 
-			} else if (ctx.recievedRepopContext.id == ctx.commitedRepopContext.id) {
-				if (ctx.isFirstbatch()) {
-					log_info("role may changed slave -> master");
-					updates->Put(handles[1], encode_repo_key(), encode_repo_item(0 ,0));
-					ctx.recievedRepopContext.reset();
-					ctx.commitedRepopContext.reset();
+        }
 
-				}
-			}
+        if ((ctx.currentSeqCnx.timestamp == ctx.lastSeqCnx.timestamp)
+            && ctx.currentSeqCnx != 0 && ctx.lastSeqCnx != 0) {
 
-		} else {
-			log_info("role may changed master -> slave");
-			updates->Put(handles[1], encode_repo_key(), encode_repo_item(ctx.recievedRepopContext.timestamp, ctx.recievedRepopContext.id));
+            int64_t res = ctx.currentSeqCnx.id - ctx.lastSeqCnx.id;
 
-		}
+            if (res != 1) {
+                log_error("ctx.currentSeqCnx.id - ctx.lastSeqCnx.id != 1");
+                assert(0);
+                *((char *) -1) = 'x';
 
+            }
+        }
 
-	} else {
-		//ctx.recievedRepopContext.id == 0
+        updates->Put(handles[1], encode_repo_key(),
+                     encode_repo_item(ctx.currentSeqCnx.timestamp, ctx.currentSeqCnx.id));
 
-		if (ctx.commitedRepopContext.id > 0) {
-			log_info("role may changed slave -> master");
+    }
+    leveldb::Status s = ldb->Write(options, updates);
 
-			updates->Put(handles[1], encode_repo_key(), encode_repo_item(0 , 0));
-			ctx.recievedRepopContext.reset();
-			ctx.commitedRepopContext.reset();
-		} else {
-			//role is master
-		}
+    if (ctx.replLink) {
+        ctx.lastSeqCnx = ctx.currentSeqCnx;
+        ctx.setFirstbatch(false);
+    }
 
-	}
-
-	leveldb::Status s = ldb->Write(options, updates);
-
-	if (s.ok()) {
-		//update
-		ctx.commitedRepopContext = ctx.recievedRepopContext;
-
-	} else {
-	}
-
-	ctx.setFirstbatch(false);
-
-	return s;
+    return s;
 }
 
 leveldb::Status SSDBImpl::CommitBatch(Context &ctx, leveldb::WriteBatch *updates) {
 
-	return CommitBatch(ctx, leveldb::WriteOptions(), updates);
+    return CommitBatch(ctx, leveldb::WriteOptions(), updates);
 
 }
 
 
 void SSDBImpl::start() {
     this->bgtask_flag_ = true;
-	int err = pthread_create(&bg_tid_, NULL, &thread_func, this);
-	if(err != 0){
-		log_fatal("can't create thread: %s", strerror(err));
-		exit(0);
-	}
+    int err = pthread_create(&bg_tid_, NULL, &thread_func, this);
+    if (err != 0) {
+        log_fatal("can't create thread: %s", strerror(err));
+        exit(0);
+    }
 }
 
 void SSDBImpl::stop() {
-	Locking<Mutex> l(&this->mutex_bgtask_);
+    Locking<Mutex> l(&this->mutex_bgtask_);
 
     this->bgtask_flag_ = false;
     std::queue<std::string> tmp_tasks_;
@@ -465,36 +453,36 @@ void SSDBImpl::load_delete_keys_from_db(int num) {
     std::string start;
     start.append(1, DataType::DELETE);
     auto it = std::unique_ptr<Iterator>(this->iterator(start, "", num));
-    while (it->next()){
-        if (it->key().String()[0] != KEY_DELETE_MASK){
+    while (it->next()) {
+        if (it->key().String()[0] != KEY_DELETE_MASK) {
             break;
         }
         tasks_.push(it->key().String());
     }
 }
 
-int SSDBImpl::delete_meta_key(const DeleteKey& dk, leveldb::WriteBatch& batch) {
+int SSDBImpl::delete_meta_key(const DeleteKey &dk, leveldb::WriteBatch &batch) {
     std::string meta_key = encode_meta_key(dk.key);
     std::string meta_val;
     leveldb::Status s = ldb->Get(leveldb::ReadOptions(), meta_key, &meta_val);
-    if (!s.ok() && !s.IsNotFound()){
+    if (!s.ok() && !s.IsNotFound()) {
         return -1;
-    } else if(s.ok()){
+    } else if (s.ok()) {
         Decoder decoder(meta_val.data(), meta_val.size());
-        if(decoder.skip(1) == -1){
+        if (decoder.skip(1) == -1) {
             return -1;
         }
 
         uint16_t version = 0;
-        if (decoder.read_uint16(&version) == -1){
+        if (decoder.read_uint16(&version) == -1) {
             return -1;
-        } else{
+        } else {
             version = be16toh(version);
         }
 
         char del = meta_val[3];
 
-        if (del == KEY_DELETE_MASK && version == dk.version){
+        if (del == KEY_DELETE_MASK && version == dk.version) {
             batch.Delete(meta_key);
         }
     }
@@ -503,101 +491,101 @@ int SSDBImpl::delete_meta_key(const DeleteKey& dk, leveldb::WriteBatch& batch) {
 
 void SSDBImpl::delete_key_loop(const std::string &del_key) {
     DeleteKey dk;
-    if(dk.DecodeDeleteKey(del_key) == -1){
+    if (dk.DecodeDeleteKey(del_key) == -1) {
         log_fatal("delete key error! %s", hexstr(del_key).c_str());
         return;
     }
 
-    log_debug("deleting key %s , version %d " , hexstr(dk.key).c_str() , dk.version);
+    log_debug("deleting key %s , version %d ", hexstr(dk.key).c_str(), dk.version);
 //    char log_type=BinlogType::SYNC;
     std::string start = encode_hash_key(dk.key, "", dk.version);
     std::string z_start = encode_zscore_prefix(dk.key, dk.version);
 
 
     auto it = std::unique_ptr<Iterator>(this->iterator(start, "", -1));
-	leveldb::WriteBatch batch;
-    while (it->next()){
-		if (it->key().empty() || it->key().data()[0] != DataType::ITEM){
-			break;
-		}
+    leveldb::WriteBatch batch;
+    while (it->next()) {
+        if (it->key().empty() || it->key().data()[0] != DataType::ITEM) {
+            break;
+        }
 
-		ItemKey ik;
+        ItemKey ik;
         std::string item_key = it->key().String();
-        if (ik.DecodeItemKey(item_key) == -1){
-            log_fatal("decode delete key error! %s" , hexmem(item_key.data(), item_key.size()).c_str());
+        if (ik.DecodeItemKey(item_key) == -1) {
+            log_fatal("decode delete key error! %s", hexmem(item_key.data(), item_key.size()).c_str());
             break;
         }
-        if (ik.key == dk.key && ik.version == dk.version){
-			batch.Delete(item_key);
-        } else{
-            break;
-        }
-    }
-
-	//clean z*
-	auto zit = std::unique_ptr<Iterator>(this->iterator(z_start, "", -1));
-    while (zit->next()){
-		if (zit->key().empty() || zit->key().data()[0] != DataType::ZSCORE){
-			break;
-		}
-
-		ZScoreItemKey zk;
-		std::string item_key = zit->key().String();
-        if (zk.DecodeItemKey(item_key) == -1){
-            log_fatal("decode delete key error! %s" , hexmem(item_key.data(), item_key.size()).c_str());
-            break;
-        }
-        if (zk.key == dk.key && zk.version == dk.version){
-			batch.Delete(item_key);
-        } else{
+        if (ik.key == dk.key && ik.version == dk.version) {
+            batch.Delete(item_key);
+        } else {
             break;
         }
     }
 
-	batch.Delete(del_key);
+    //clean z*
+    auto zit = std::unique_ptr<Iterator>(this->iterator(z_start, "", -1));
+    while (zit->next()) {
+        if (zit->key().empty() || zit->key().data()[0] != DataType::ZSCORE) {
+            break;
+        }
+
+        ZScoreItemKey zk;
+        std::string item_key = zit->key().String();
+        if (zk.DecodeItemKey(item_key) == -1) {
+            log_fatal("decode delete key error! %s", hexmem(item_key.data(), item_key.size()).c_str());
+            break;
+        }
+        if (zk.key == dk.key && zk.version == dk.version) {
+            batch.Delete(item_key);
+        } else {
+            break;
+        }
+    }
+
+    batch.Delete(del_key);
     RecordLock<Mutex> l(&mutex_record_, dk.key);
-    if (delete_meta_key(dk, batch) == -1){
+    if (delete_meta_key(dk, batch) == -1) {
         log_fatal("delete meta key error! %s", hexstr(del_key).c_str());
         return;
     }
 
-	leveldb::WriteOptions write_opts;
-	leveldb::Status s = ldb->Write(write_opts, &batch);
-    if (!s.ok()){
+    leveldb::WriteOptions write_opts;
+    leveldb::Status s = ldb->Write(write_opts, &batch);
+    if (!s.ok()) {
         log_fatal("SSDBImpl::delKey Backend Task error! %s", hexstr(del_key).c_str());
-        return ;
+        return;
     }
 }
 
 void SSDBImpl::runBGTask() {
-	while (bgtask_flag_){
+    while (bgtask_flag_) {
         mutex_bgtask_.lock();
-        if (tasks_.empty()){
+        if (tasks_.empty()) {
             load_delete_keys_from_db(1000);
-            if (tasks_.empty()){
+            if (tasks_.empty()) {
                 mutex_bgtask_.unlock();
                 usleep(1000 * 1000);
-				continue;
+                continue;
             }
         }
 
         std::string del_key;
-        if (!tasks_.empty()){
+        if (!tasks_.empty()) {
             del_key = tasks_.front();
             tasks_.pop();
         }
         mutex_bgtask_.unlock();
 
-        if (!del_key.empty()){
+        if (!del_key.empty()) {
             delete_key_loop(del_key);
         }
-	}
+    }
 }
 
-void* SSDBImpl::thread_func(void *arg) {
-    SSDBImpl *bg_task = (SSDBImpl *)arg;
+void *SSDBImpl::thread_func(void *arg) {
+    SSDBImpl *bg_task = (SSDBImpl *) arg;
 
-	bg_task->runBGTask();
+    bg_task->runBGTask();
 
-	return (void *)NULL;
+    return (void *) NULL;
 }
