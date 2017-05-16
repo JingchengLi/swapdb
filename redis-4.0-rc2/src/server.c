@@ -3248,7 +3248,7 @@ int processCommand(client *c) {
           server.lua_caller->flags & CLIENT_MASTER) &&
         !(c->cmd->getkeys_proc == NULL && c->cmd->firstkey == 0 &&
           c->cmd->proc != execCommand) &&
-        isSsdbRespCmd(c->cmd) != C_OK)
+        isSSDBrespCmd(c->cmd) != C_OK)
     {
         int hashslot;
         int error_code;
@@ -3321,13 +3321,13 @@ int processCommand(client *c) {
     }
 
     /* for jdjr_mode, we don't allow write commands for connections if this
-     * is a slave, except for our master connection. */
+     * is a slave, except for our master connection and SSDB respond commands. */
 
     /* Don't accept write commands if this is a read only slave. But
      * accept write commands if this is our master. */
     if (server.masterhost && (server.jdjr_mode || server.repl_slave_ro) &&
-        !(c->flags & CLIENT_MASTER) &&
-        c->cmd->flags & CMD_WRITE)
+        !(c->flags & CLIENT_MASTER) && (c->cmd->flags & CMD_WRITE) &&
+        (!server.jdjr_mode || C_ERR == isSSDBrespCmd(c->cmd)))
     {
         addReply(c, shared.roslaveerr);
         return C_OK;

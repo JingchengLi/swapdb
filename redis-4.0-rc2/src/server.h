@@ -1771,7 +1771,7 @@ int runCommand(client *c, int* need_return);
 int checkValidCommand(client* c);
 int checkKeysInMediateState(client* c);
 int processCommandMaybeInSSDB(client *c);
-int isSsdbRespCmd(struct redisCommand *cmd);
+int isSSDBrespCmd(struct redisCommand *cmd);
 void setupSignalHandlers(void);
 struct redisCommand *lookupCommand(sds name);
 struct redisCommand *lookupCommandByCString(char *s);

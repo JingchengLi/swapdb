@@ -5564,7 +5564,7 @@ clusterNode *getNodeByQuery(client *c, struct redisCommand *cmd, robj **argv, in
     return n;
 }
 
-int isSsdbRespCmd(struct redisCommand *cmd) {
+int isSSDBrespCmd(struct redisCommand *cmd) {
     if (server.jdjr_mode && cmd
         && (cmd->proc == ssdbRespDelCommand
             || cmd->proc == ssdbRespRestoreCommand
