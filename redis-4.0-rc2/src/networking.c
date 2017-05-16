@@ -622,6 +622,7 @@ void ssdbConnectCallback(aeEventLoop *el, int fd, void *privdata, int mask) {
     if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &sockerr, &errlen) == -1)
         sockerr = errno;
     if (sockerr) {
+        server.ssdb_is_up = 0;
         serverLog(LL_WARNING,"Error condition on socket for connect ssdb: %s",
             strerror(sockerr));
         goto error;
@@ -967,8 +968,17 @@ static void acceptCommonHandler(int fd, int flags, char *ip) {
 
     if (server.jdjr_mode) {
         strncpy(c->client_ip, ip, NET_IP_STR_LEN);
-        if (C_OK != nonBlockConnectToSsdbServer(c))
-            serverLog(LOG_DEBUG, "connect ssdb failed, will retry to reconnect.");
+
+        if (server.is_doing_flushall) {
+            /* maybe redis is doing flush check before flushall, will connect SSDB later.*/
+            c->ssdb_conn_flags |= CONN_CONNECT_FAILED;
+            serverLog(LOG_DEBUG, "is doing flushall, will connnect SSDB later.");
+        } else if (server.ssdb_status > SSDB_NONE && server.ssdb_status < MASTER_SSDB_SNAPSHOT_PRE) {
+            /* redis is doing write check before replication, will connect SSDB later. */
+            c->ssdb_conn_flags |= CONN_CONNECT_FAILED;
+            serverLog(LOG_DEBUG, "is doing write check for replication, will connnect SSDB later.");
+        } else if (C_OK != nonBlockConnectToSsdbServer(c))
+            serverLog(LOG_DEBUG, "connect ssdb failed, will retry to connect.");
     }
 }
 
@@ -1088,13 +1098,37 @@ static void revertClientBufReply(client *c, size_t revertlen) {
 #define IsReplyEqual(reply, sds_response) (sdslen(sds_response) == (size_t)(reply)->len && \
     0 == memcmp((reply)->str, sds_response, (reply)->len))
 
+int handleResponseOfSlaveSSDBflush(client *c, redisReply* reply) {
+    int process_status;
+
+    if (server.master == c) {
+        if (c->cmd && c->btype == BLOCKED_BY_FLUSHALL && c->cmd->proc == flushallCommand) {
+            process_status = C_OK;
+            unblockClient(c);
+            if (IsReplyEqual(reply, shared.flushdoneok)){
+                /* we receive flushall response of SSDB, now we can empty redis.*/
+                flushallCommand(c);
+            } else {
+                resetClient(c);
+                /* close SSDB connection and we will retry flushall after connected. */
+                closeAndReconnectSSDBconnection(c);
+                return process_status;
+            }
+            resetClient(c);
+        } else
+            process_status = C_ERR;
+    } else {
+        process_status = C_ERR;
+    }
+    return process_status;
+}
+
 int handleResponseOfSSDBflushDone(client *c, redisReply* reply, int revert_len) {
     int process_status;
     client* cur_flush_client;
     UNUSED(c);
 
-    if (IsReplyEqual(reply, shared.flushdoneok)) {
-        serverLog(LL_DEBUG, "[flushall] receive do flush ok");
+    if (IsReplyEqual(reply, shared.flushdoneok) || IsReplyEqual(reply, shared.flushdonenok)) {
         /* clean the ssdb reply*/
         revertClientBufReply(c, revert_len);
 
@@ -1102,28 +1136,15 @@ int handleResponseOfSSDBflushDone(client *c, redisReply* reply, int revert_len) 
 
         /* unblock the client doing flushall and do flushall in redis. */
         unblockClient(cur_flush_client);
-        if (runCommand(cur_flush_client, NULL) == C_OK)
+        if (IsReplyEqual(reply, shared.flushdoneok)) {
+            serverLog(LL_DEBUG, "[flushall] receive do flush ok");
+            if (runCommand(cur_flush_client, NULL) == C_OK)
+                resetClient(cur_flush_client);
+        } else if (IsReplyEqual(reply, shared.flushdonenok)) {
+            serverLog(LL_DEBUG, "[flushall] receive do flush nok, ssdb flushall failed");
+            addReplyError(cur_flush_client, "do ssdb flushall failed!");
             resetClient(cur_flush_client);
-
-        /* allow read/write operations to ssdb. */
-        server.prohibit_ssdb_read_write = NO_PROHIBIT_SSDB_READ_WRITE;
-        server.is_doing_flushall = 0;
-        server.current_flushall_client = NULL;
-
-        handleClientsBlockedOnFlushall();
-
-        process_status = C_OK;
-    } else if (IsReplyEqual(reply, shared.flushdonenok)) {
-        serverLog(LL_DEBUG, "[flushall] receive do flush nok, ssdb flushall failed");
-
-        /* clean the ssdb reply*/
-        revertClientBufReply(c, revert_len);
-
-        cur_flush_client = server.current_flushall_client;
-
-        unblockClient(cur_flush_client);
-        addReplyError(cur_flush_client, "do ssdb flushall failed!");
-        resetClient(cur_flush_client);
+        }
 
         /* allow read/write operations to ssdb. */
         server.prohibit_ssdb_read_write = NO_PROHIBIT_SSDB_READ_WRITE;
@@ -1543,19 +1564,7 @@ void handleSSDBReply(client *c, int revert_len) {
                     exit(1);
                 }
             }
-            if (c->cmd && c->btype == BLOCKED_BY_FLUSHALL && c->cmd->proc == flushallCommand) {
-                unblockClient(c);
-                if (reply->type == REDIS_REPLY_ERROR) {
-                    resetClient(c);
-                    /* close SSDB connection and we will retry flushall after connected. */
-                    closeAndReconnectSSDBconnection(c);
-                    return;
-                } else {
-                    /* we receive flushall response of SSDB, now we can empty redis.*/
-                    flushallCommand(c);
-                }
-                resetClient(c);
-            }
+            handleResponseOfSlaveSSDBflush(c, reply);
         }
         return;
     }

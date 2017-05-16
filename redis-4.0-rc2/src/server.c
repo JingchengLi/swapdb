@@ -877,43 +877,49 @@ int clientsCronResizeQueryBuffer(client *c) {
 }
 
 void reconnectSSDB() {
-    if (!server.is_doing_flushall) {
-        if (!server.ssdb_client)
-            server.ssdb_client = createSpecialSSDBclient();
-        else if (server.ssdb_client->ssdb_conn_flags & CONN_CONNECT_FAILED)
-            nonBlockConnectToSsdbServer(server.ssdb_client);
-
-        if (!server.delete_confirm_client)
-            server.delete_confirm_client = createSpecialSSDBclient();
-        else if (server.delete_confirm_client->ssdb_conn_flags & CONN_CONNECT_FAILED)
-            nonBlockConnectToSsdbServer(server.delete_confirm_client);
-
-        if (!server.slave_ssdb_load_evict_client)
-            server.slave_ssdb_load_evict_client = createSpecialSSDBclient();
-        else if (server.slave_ssdb_load_evict_client->ssdb_conn_flags & CONN_CONNECT_FAILED)
-            nonBlockConnectToSsdbServer(server.slave_ssdb_load_evict_client);
+    listNode* ln;
+    listIter li;
+    if (server.is_doing_flushall) {
+        /* maybe redis is doing flush check before flushall.*/
+        return;
     }
+    if (server.ssdb_status > SSDB_NONE && server.ssdb_status < MASTER_SSDB_SNAPSHOT_PRE) {
+        /* redis is doing write check before replication. */
+        return;
+    }
+    if (!server.ssdb_client)
+        server.ssdb_client = createSpecialSSDBclient();
+    else if (server.ssdb_client->ssdb_conn_flags & CONN_CONNECT_FAILED)
+        nonBlockConnectToSsdbServer(server.ssdb_client);
+
+    if (!server.delete_confirm_client)
+        server.delete_confirm_client = createSpecialSSDBclient();
+    else if (server.delete_confirm_client->ssdb_conn_flags & CONN_CONNECT_FAILED)
+        nonBlockConnectToSsdbServer(server.delete_confirm_client);
+
+    if (!server.slave_ssdb_load_evict_client)
+        server.slave_ssdb_load_evict_client = createSpecialSSDBclient();
+    else if (server.slave_ssdb_load_evict_client->ssdb_conn_flags & CONN_CONNECT_FAILED)
+        nonBlockConnectToSsdbServer(server.slave_ssdb_load_evict_client);
 
     if (!server.ssdb_replication_client)
         server.ssdb_replication_client = createSpecialSSDBclient();
     else if (server.ssdb_replication_client->ssdb_conn_flags & CONN_CONNECT_FAILED)
         nonBlockConnectToSsdbServer(server.ssdb_replication_client);
 
-    if (server.ssdb_is_up) {
-        listNode* ln;
-        listIter li;
-        listRewind(server.clients, &li);
-        while (server.ssdb_is_up && (ln = listNext(&li))) {
-            client *c = listNodeValue(ln);
-            if (c->ssdb_conn_flags & CONN_CONNECT_FAILED) {
-                nonBlockConnectToSsdbServer(c);
-            }
+    listRewind(server.clients, &li);
+    while (ln = listNext(&li)) {
+        client *c = listNodeValue(ln);
+        if (c->ssdb_conn_flags & CONN_CONNECT_FAILED) {
+            nonBlockConnectToSsdbServer(c);
         }
-    } else {
-        /* if ssdb is down and this last for 10 seconds, exit redis and wait failover.*/
-        if (server.ssdb_down_time != -1 && server.ssdb_down_time - server.unixtime > 10)
-            exit(1);
+        if (!server.ssdb_is_up) break;
     }
+
+    // todo: review
+    /* if ssdb is down and this last for 10 seconds, exit redis and wait failover.*/
+    if (server.ssdb_down_time != -1 && server.ssdb_down_time - server.unixtime > 10)
+        exit(1);
 }
 
 #define CLIENTS_CRON_MIN_ITERATIONS 5
@@ -2711,7 +2717,8 @@ int processCommandMaybeFlushdb(client *c) {
                 /* flushall STEP 1: clean all intermediate state keys, avoid to cause unexpected issues. */
                 cleanSpecialClientsAndIntermediateKeys(1);
 
-                ret = sendCommandToSSDB(c, NULL);
+                sds finalcmd = sdsnew("*1\r\n$14\r\nrr_do_flushall\r\n");
+                ret = sendCommandToSSDB(c, finalcmd);
                 if (ret != C_OK) return ret;
 
                 /* we just wait flushall done. */
@@ -3045,7 +3052,7 @@ void cleanAndSignalLoadingOrTransferringKeys() {
 void cleanSpecialClientsAndIntermediateKeys(int is_flushall) {
     /* just free specail clients to discard unprocessed transferring/loading keys.*/
     if (server.ssdb_client) freeClient(server.ssdb_client);
-    if (server.masterhost && server.slave_ssdb_load_evict_client) freeClient(server.slave_ssdb_load_evict_client);
+    if (server.slave_ssdb_load_evict_client) freeClient(server.slave_ssdb_load_evict_client);
     if (is_flushall && server.delete_confirm_client) freeClient(server.delete_confirm_client);
 
     emptyEvictionPool();
@@ -3063,8 +3070,10 @@ void prepareSSDBflush(client* c) {
     if (server.masterhost) return;
 
     serverLog(LL_DEBUG, "[flushall] ===start===");
-    /* STEP 1: clean all intermediate state keys, avoid to cause unexpected issues. */
+    /* STEP 1: clean all intermediate state keys and disconnect special clients,
+     * avoid to cause unexpected issues. */
     cleanSpecialClientsAndIntermediateKeys(1);
+    if (server.ssdb_replication_client) freeClient(server.ssdb_replication_client);
 
     server.is_doing_flushall = 1;
     /* save the client doing flushall. */
