@@ -3043,16 +3043,10 @@ void cleanAndSignalLoadingOrTransferringKeys() {
 }
 
 void cleanSpecialClientsAndIntermediateKeys(int is_flushall) {
-    // todo: review and remove
     /* just free specail clients to discard unprocessed transferring/loading keys.*/
-    //if (server.ssdb_client) freeClient(server.ssdb_client);
-    //if (server.masterhost && server.slave_ssdb_load_evict_client) freeClient(server.slave_ssdb_load_evict_client);
-    //if (is_flushall && server.delete_confirm_client) freeClient(server.delete_confirm_client);
-
-    /* clean delete_confirm_keys dict. */
-    if (is_flushall) cleanAndSignalDeleteConfirmKeys();
-    /* clean transferring_keys/loading_hot_keys dicts. */
-    cleanAndSignalLoadingOrTransferringKeys();
+    if (server.ssdb_client) freeClient(server.ssdb_client);
+    if (server.masterhost && server.slave_ssdb_load_evict_client) freeClient(server.slave_ssdb_load_evict_client);
+    if (is_flushall && server.delete_confirm_client) freeClient(server.delete_confirm_client);
 
     emptyEvictionPool();
 
