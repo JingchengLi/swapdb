@@ -277,3 +277,11 @@ TARGET_LINK_LIBRARIES(test_link libnet-static libutil-static libcodec-static)
 IF(QA)
 add_subdirectory(tests/qa/fake)
 ENDIF()
+
+
+
+ADD_EXECUTABLE(linkedlist src/util/test_linkedlist.cpp)
+TARGET_LINK_LIBRARIES(linkedlist libutil-static)
+set_target_properties(linkedlist PROPERTIES
+        LINKER_LANGUAGE CXX
+       )
