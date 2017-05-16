@@ -172,6 +172,11 @@ void *ssdb_sync(void *arg) {
 
 
                     if (compressed_len == 0) {
+                        if (decoder.size() < (raw_len)) {
+                            link->input->grow();
+                            break;
+                        }
+
                         memcpy(t_val.get(), decoder.data(), raw_len);
                         compressed_len = raw_len;
                     } else {

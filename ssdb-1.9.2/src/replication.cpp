@@ -339,7 +339,7 @@ void saveStrToBuffer(Buffer *buffer, const Bytes &fit) {
     buffer->append(fit);
 }
 
-
+//#define REPLIC_NO_COMPRESS TRUE
 void moveBuffer(Buffer *dst, Buffer *src) {
 
     size_t comprlen, outlen = (size_t) src->size();
@@ -358,7 +358,11 @@ void moveBuffer(Buffer *dst, Buffer *src) {
     std::unique_ptr<void, cfree_delete<void>> out(malloc(outlen + 1));
 
 
+#ifndef REPLIC_NO_COMPRESS
     comprlen = lzf_compress(src->data(), (unsigned int) src->size(), out.get(), outlen);
+#else
+    comprlen = 0;
+#endif
 
     dst->append(replic_save_len((uint64_t) src->size()));
     dst->append(replic_save_len(comprlen));
