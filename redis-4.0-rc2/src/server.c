@@ -4232,6 +4232,32 @@ sds genRedisInfoString(char *section) {
             }
         }
     }
+
+    if (server.jdjr_mode && (allsections || defsections || !strcasecmp(section,"redis-ssdb"))) {
+        if (sections++) info = sdscat(info,"\r\n");
+        info = sdscatprintf(info, "# Redis-SSDB\r\n"
+                                    "keys loading from SSDB:%lu\r\n"
+                                    "keys transferring to SSDB:%lu\r\n"
+                                    "keys visiting SSDB:%lu\r\n"
+                                    "keys delete confirming:%lu\r\n",
+
+                            dictSize(EVICTED_DATA_DB->loading_hot_keys),
+                            dictSize(EVICTED_DATA_DB->transferring_keys),
+                            dictSize(EVICTED_DATA_DB->visiting_ssdb_keys),
+                            dictSize(EVICTED_DATA_DB->delete_confirm_keys)
+        );
+        if (server.masterhost) {
+            info = sdscatprintf(info, "\r\nslave unprocessed transfer/load keys:%lu\r\n"
+                                        "slave write op list num:%lu\r\n"
+                                        "slave write op list memsize:%lld\r\n"
+                                "slave ssdb critical write error count:%d\r\n",
+                                listLength(server.loadAndEvictCmdList),
+                                listLength(server.ssdb_write_oplist),
+                                write_op_mem_size,
+                                server.slave_ssdb_critical_err_cnt
+            );
+        }
+    }
     return info;
 }
 
