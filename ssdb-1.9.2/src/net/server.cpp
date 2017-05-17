@@ -601,7 +601,7 @@ int NetworkServer::proc_client_event(const Fdevent *fde, ready_list_t *ready_lis
 		//log_debug("fd: %d read: %d", link->fd(), len);
 		if(len <= 0){
 			double serv_time = millitime() - link->create_time;
-			log_debug("fd: %d, read: %d, delete link, s:%.3f, e:%d, f:%d", link->fd(), len, serv_time, fde->events, fde->s_flags);
+//			log_debug("fd: %d, read: %d, delete link, s:%.3f, e:%d, f:%d", link->fd(), len, serv_time, fde->events, fde->s_flags);
 			link->mark_error();
 			return 0;
 		}
@@ -612,7 +612,7 @@ int NetworkServer::proc_client_event(const Fdevent *fde, ready_list_t *ready_lis
 		}
 		int len = link->write();
 		if(len <= 0){
-			log_debug("fd: %d, write: %d, delete link, e:%d, f:%d", link->fd(), len, fde->events, fde->s_flags);
+//			log_debug("fd: %d, write: %d, delete link, e:%d, f:%d", link->fd(), len, fde->events, fde->s_flags);
 			link->mark_error();
 			return 0;
 		}

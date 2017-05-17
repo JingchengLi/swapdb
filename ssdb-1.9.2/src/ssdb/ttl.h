@@ -32,8 +32,6 @@ public:
     // The caller must hold mutex before calling set/del functions
     int persist(Context &ctx, const Bytes &key);
 
-    void delfastkey(Context &ctx, const Bytes &key) { fast_keys.del(key.String()); }
-
     int expire(Context &ctx, const Bytes &key, int64_t ttl, TimeUnit tu);
 
     int expireAt(Context &ctx, const Bytes &key, int64_t ts_ms);
@@ -42,9 +40,7 @@ public:
 
     void stop();
 
-    void clear() {
-        fast_keys.clear();
-    }
+    void clear();
 
 
     int cancelExpiration(Context &ctx, const Bytes &key, leveldb::WriteBatch &batch);

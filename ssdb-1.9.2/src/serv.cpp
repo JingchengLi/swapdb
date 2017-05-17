@@ -508,7 +508,6 @@ int proc_restore(Context &ctx, Link *link, const Request &req, Response *resp) {
     PTE(restore, req[1].String())
 
     if (ret > 0 && ttl > 0) {
-        Locking<Mutex> l(&serv->ssdb->expiration->mutex);
         ret = serv->ssdb->expiration->expire(ctx, req[1], ttl, TimeUnit::Millisecond);
         if (ret < 0) {
             serv->ssdb->del(ctx, req[1]);
@@ -770,7 +769,6 @@ int proc_rr_do_flushall(Context &ctx, Link *link, const Request &req, Response *
 	log_warn("[!!!] TransferJob clear done , starting flushdb");
 
     if (serv->ssdb->expiration != nullptr) {
-        Locking<Mutex> l(&serv->ssdb->expiration->mutex);
         serv->ssdb->expiration->clear();
     }
 

@@ -127,8 +127,6 @@ int proc_set(Context &ctx, Link *link, const Request &req, Response *resp){
 
 	if (when > 0) {
 
-		Locking<Mutex> l(&serv->ssdb->expiration->mutex);
-
 		int added = 0;
 		int ret = serv->ssdb->set(ctx, req[1], req[2], flags, &added);
 		check_key(ret);
@@ -193,8 +191,6 @@ int proc_setx(Context &ctx, Link *link, const Request &req, Response *resp){
 		reply_err_return(INVALID_EX_TIME);
 	}
 
-	Locking<Mutex> l(&serv->ssdb->expiration->mutex);
-
 	int added = 0;
 	int ret = serv->ssdb->set(ctx, req[1], req[2], OBJ_SET_NO_FLAGS, &added);
 	check_key(ret);
@@ -223,7 +219,6 @@ int proc_psetx(Context &ctx, Link *link, const Request &req, Response *resp){
 		reply_err_return(INVALID_EX_TIME);
 	}
 
-	Locking<Mutex> l(&serv->ssdb->expiration->mutex);
 	int added = 0;
 	int ret = serv->ssdb->set(ctx, req[1], req[2], OBJ_SET_NO_FLAGS, &added);
 	check_key(ret);
@@ -276,7 +271,6 @@ int proc_pexpire(Context &ctx, Link *link, const Request &req, Response *resp){
 		reply_err_return(INVALID_INT);
     }
 
-    Locking<Mutex> l(&serv->ssdb->expiration->mutex);
     std::string val;
     int ret = serv->ssdb->expiration->expire(ctx, req[1], (int64_t)when, TimeUnit::Millisecond);
     if (ret < 0) {
@@ -298,7 +292,6 @@ int proc_expire(Context &ctx, Link *link, const Request &req, Response *resp){
 		reply_err_return(INVALID_INT);
     }
 
-	Locking<Mutex> l(&serv->ssdb->expiration->mutex);
 	std::string val;
 	int ret = serv->ssdb->expiration->expire(ctx, req[1], (int64_t)when, TimeUnit::Second);
     if (ret < 0) {
@@ -321,7 +314,6 @@ int proc_expireat(Context &ctx, Link *link, const Request &req, Response *resp){
 		reply_err_return(INVALID_INT);
     }
 
-	Locking<Mutex> l(&serv->ssdb->expiration->mutex);
 	std::string val;
 	int ret = serv->ssdb->expiration->expireAt(ctx, req[1], (int64_t)ts_ms * 1000);
     if (ret < 0) {
@@ -339,7 +331,6 @@ int proc_persist(Context &ctx, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(2);
 
-	Locking<Mutex> l(&serv->ssdb->expiration->mutex);
 	std::string val;
 	int ret = serv->ssdb->expiration->persist(ctx, req[1]);
 	check_key(ret);
@@ -360,7 +351,6 @@ int proc_pexpireat(Context &ctx, Link *link, const Request &req, Response *resp)
 		reply_err_return(INVALID_INT);
     }
 
-	Locking<Mutex> l(&serv->ssdb->expiration->mutex);
 	std::string val;
 	int ret = serv->ssdb->expiration->expireAt(ctx, req[1], (int64_t)ts_ms);
 	if(ret < 0){
@@ -409,8 +399,6 @@ int proc_multi_del(Context &ctx, Link *link, const Request &req, Response *resp)
 	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(2);
 
-	Locking<Mutex> l(&serv->ssdb->expiration->mutex);
-
 	std::set<Bytes> distinct_keys;
 	std::vector<Bytes>::const_iterator it;
 	it = req.begin() + 1;
@@ -454,7 +442,6 @@ int proc_del(Context &ctx, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(2);
 
-	Locking<Mutex> l(&serv->ssdb->expiration->mutex);
 	int ret = serv->ssdb->del(ctx, req[1]);
 	check_key(ret);
 	if(ret < 0){
