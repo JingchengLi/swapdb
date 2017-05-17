@@ -160,7 +160,7 @@ SSDB *SSDB::open(const Options &opt, const std::string &dir) {
     return ssdb;
 }
 
-int SSDBImpl::flushdb() {
+int SSDBImpl::flushdb(Context &ctx) {
 //lock
 
     Locking<RecordMutex<Mutex>> gl(&mutex_record_);
@@ -211,13 +211,11 @@ int SSDBImpl::flushdb() {
 
     }
 
-
-//#ifdef USE_LEVELDB
-//
-//#else
-//	leveldb::CompactRangeOptions compactRangeOptions = leveldb::CompactRangeOptions();
-//	ldb->CompactRange(compactRangeOptions, &begin, &end);
-//#endif
+    leveldb::WriteBatch writeBatch;
+    leveldb::Status s = CommitBatch(ctx, write_opts, &writeBatch );
+    if (!s.ok()) {
+        ret = -1;
+    }
 
     log_info("[flushdb] %d keys deleted by iteration", total);
 

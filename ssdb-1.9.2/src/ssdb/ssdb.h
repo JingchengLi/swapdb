@@ -27,7 +27,7 @@ public:
 	virtual ~SSDB(){};
 	static SSDB* open(const Options &opt, const std::string &base_dir);
 	
-	virtual int flushdb() = 0;
+	virtual int flushdb(Context &ctx) = 0;
 
 	// return (start, end], not include start
 	virtual Iterator* iterator(const std::string &start, const std::string &end, uint64_t limit, const leveldb::Snapshot *snapshot=nullptr) = 0;

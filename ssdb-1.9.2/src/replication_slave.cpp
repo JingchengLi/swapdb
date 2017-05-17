@@ -28,7 +28,7 @@ void *ssdb_sync(void *arg) {
     serv->ssdb->stop();
 
     log_warn("[ssdb_sync] do flushdb");
-    serv->ssdb->flushdb();
+    serv->ssdb->flushdb(ctx);
 
 
     log_warn("[ssdb_sync] ready to revieve");

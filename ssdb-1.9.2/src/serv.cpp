@@ -343,7 +343,7 @@ int proc_flushdb(Context &ctx, Link *link, const Request &req, Response *resp) {
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
 	log_warn("[!!!] do flushdb");
-	serv->ssdb->flushdb();
+	serv->ssdb->flushdb(ctx);
 	resp->reply_ok();
 
     return 0;
@@ -772,7 +772,7 @@ int proc_rr_do_flushall(Context &ctx, Link *link, const Request &req, Response *
         serv->ssdb->expiration->clear();
     }
 
-    int ret = serv->ssdb->flushdb();
+    int ret = serv->ssdb->flushdb(ctx);
 	if (ret < 0) {
 		resp->push_back("ok");
 		resp->push_back("rr_do_flushall nok");
