@@ -2720,6 +2720,7 @@ int processCommandMaybeFlushdb(client *c) {
             }
         } else {
             if (server.master == c) {
+                serverLog(LL_DEBUG, "process flushall");
                 ret = sendRepopidToSSDB(c);
                 if (ret != C_OK) return ret;
 
@@ -2729,6 +2730,7 @@ int processCommandMaybeFlushdb(client *c) {
                 sds finalcmd = sdsnew("*1\r\n$14\r\nrr_do_flushall\r\n");
                 ret = sendCommandToSSDB(c, finalcmd);
                 if (ret != C_OK) return ret;
+                serverLog(LL_DEBUG, "send rr_do_flushall ok");
 
                 /* we just wait flushall done. */
                 c->bpop.timeout = 8000+mstime();
@@ -3077,6 +3079,10 @@ void prepareSSDBflush(client* c) {
 
     /* for slave redis, flushall will be processed in other way. */
     if (server.masterhost) return;
+
+    /* abort all slaves in replication status, except online slaves. */
+    if (server.ssdb_status > SSDB_NONE)
+        abortCustomizedReplication();
 
     serverLog(LL_DEBUG, "[flushall] ===start===");
     /* STEP 1: clean all intermediate state keys and disconnect special clients,

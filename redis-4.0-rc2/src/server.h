@@ -1649,6 +1649,7 @@ void clearReplicationId2(void);
 void chopReplicationBacklog(void);
 void replicationCacheMasterUsingMyself(void);
 void feedReplicationBacklog(void *ptr, size_t len);
+void abortCustomizedReplication();
 void resetCustomizedReplication();
 void sendBulkToSlave(aeEventLoop *el, int fd, void *privdata, int mask);
 void freeMultiCmd(multiCmd *md);

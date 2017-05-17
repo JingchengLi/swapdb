@@ -2626,6 +2626,30 @@ long long replicationGetSlaveOffset(void) {
     return offset;
 }
 
+/* abort all slaves in replication status, except online slaves. */
+void abortCustomizedReplication() {
+    listIter li;
+    listNode *ln;
+
+    server.check_write_begin_time = -1;
+    server.make_snapshot_begin_time = -1;
+    server.is_allow_ssdb_write = ALLOW_SSDB_WRITE;
+    server.ssdb_status = SSDB_NONE;
+
+    listRewind(server.slaves, &li);
+
+    while((ln = listNext(&li))) {
+        client *slave = ln->value;
+
+        if (slave->replstate >= SLAVE_STATE_WAIT_BGSAVE_START &&
+            slave->replstate <= SLAVE_STATE_SEND_BULK_FINISHED) {
+            addReplyError(slave, "replication aborted by master");
+            freeClientAsync(slave);
+        }
+    }
+}
+
+/* disconnect slaves in replication handshake status and before BGSAVE stage. */
 void resetCustomizedReplication() {
     listIter li;
     listNode *ln;
@@ -2641,8 +2665,7 @@ void resetCustomizedReplication() {
         client *slave = ln->value;
 
         if (slave->replstate == SLAVE_STATE_WAIT_BGSAVE_START) {
-            addReplyError(slave,
-                          "SSDB exceptions, replication can't continue");
+            addReplyError(slave, "SSDB exceptions, replication can't continue");
             freeClientAsync(slave);
         }
     }
