@@ -1455,7 +1455,7 @@ int handleExtraSSDBReply(client *c) {
         }
         if (server.last_received_writeop_index == repopid_index && server.last_received_writeop_time == repopid_time) {
             /* this is a response of "repopid set" request, its repopid time and id are the same as
-             * the last processed write op(which is remove from write op list), so just ignore it. */
+             * the last processed write op(which was removed from write op list), so just ignore it. */
             return C_OK;
         }
 
