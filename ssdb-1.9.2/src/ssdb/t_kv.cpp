@@ -127,12 +127,14 @@ int SSDBImpl::multi_set(Context &ctx, const std::vector<Bytes> &kvs, int offset)
 int SSDBImpl::multi_del(Context &ctx, const std::set<Bytes> &distinct_keys, int64_t *num){ //注：redis中不支持该接口
 	leveldb::WriteBatch batch;
 
-    RecordLocks<Mutex> l(&mutex_record_);
+//    RecordLocks<Mutex> l(&mutex_record_);
+
 
     std::set<Bytes>::const_iterator itor = distinct_keys.begin();
 	for(; itor != distinct_keys.end(); itor++){
 		const Bytes &key = *itor;
-        l.Lock(key.String());
+//        l.Lock(key.String());
+        RecordLock<Mutex> l(&mutex_record_, key.String());
         int iret = del_key_internal(ctx, key, batch);
         if (iret < 0) {
             return iret;

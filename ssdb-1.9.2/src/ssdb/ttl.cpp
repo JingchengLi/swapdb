@@ -82,12 +82,13 @@ int ExpirationHandler::expire(Context &ctx, const Bytes &key, int64_t ttl, TimeU
 
 
 int ExpirationHandler::expireAt(Context &ctx, const Bytes &key, int64_t ts_ms) {
-    Locking<Mutex> l(&mutex);
 
     int ret = ssdb->eset(ctx, key, ts_ms);
     if (ret <= 0) {
         return ret;
     }
+
+    Locking<Mutex> l(&mutex);
     if (ts_ms < first_timeout) {
         first_timeout = ts_ms;
     }
@@ -170,19 +171,32 @@ void ExpirationHandler::load_expiration_keys_from_db(int num) {
 }
 
 void ExpirationHandler::expire_loop() {
-    Locking<Mutex> l(&this->mutex);
-    if (!this->ssdb) {
-        return;
-    }
-    Context ctx;
-    ctx.skipExMutex = true; //prevent deadlock
 
-    if (this->fast_keys.empty()) {
-        this->load_expiration_keys_from_db(BATCH_SIZE);
-        if (this->fast_keys.empty()) {
-            this->first_timeout = INT64_MAX;
+    bool needLoad = false;
+    {
+        Locking<Mutex> l(&this->mutex);
+        if (!this->ssdb) {
             return;
         }
+
+        if (this->fast_keys.empty()) {
+            needLoad = true;
+
+        }
+    }
+
+    if (needLoad) {
+        this->load_expiration_keys_from_db(BATCH_SIZE);
+
+        {
+            Locking<Mutex> l(&this->mutex);
+            if (this->fast_keys.empty()) {
+                this->first_timeout = INT64_MAX;
+                return;
+            }
+
+        }
+
     }
 
     int64_t score;
@@ -207,26 +221,32 @@ void ExpirationHandler::expire_loop() {
     std::vector<std::string> keys;
     std::set<Bytes> bkeys;
 
-    int count = 0;
-    while (this->fast_keys.front(&key, &score)) {
-        this->first_timeout = score;
-        count ++;
-        int64_t latency = time_ms() - score;
+    {
+        Locking<Mutex> l(&this->mutex);
+        int count = 0;
+        while (this->fast_keys.front(&key, &score)) {
+            this->first_timeout = score;
+            count++;
+            int64_t latency = time_ms() - score;
 
-        if (latency >= 0) {
-            log_debug("expired %s latency %d", hexstr(key).c_str(), latency);
-            keys.push_back(key);
-            this->fast_keys.pop_front();
-        } else {
-            break;
+            if (latency >= 0) {
+                log_debug("expired %s latency %d", hexstr(key).c_str(), latency);
+                keys.push_back(key);
+                this->fast_keys.pop_front();
+            } else {
+                break;
+            }
+
+            if (count > 20) break;
         }
-
-        if (count > 20) break;
     }
 
     for (int i = 0; i < keys.size(); ++i) {
         bkeys.insert(Bytes(keys[i]));
     }
+
+
+    Context ctx;
 
     int64_t num = 0;
     ssdb->multi_del(ctx, bkeys, &num);
@@ -251,12 +271,9 @@ void *ExpirationHandler::thread_func(void *arg) {
 }
 
 int ExpirationHandler::cancelExpiration(Context &ctx, const Bytes &key, leveldb::WriteBatch &batch) {
-    if (ctx.skipExMutex) {
-        this->fast_keys.del(key.String());
-    } else {
-        Locking<Mutex> l(&this->mutex);
-        this->fast_keys.del(key.String());
-    }
+
+    Locking<Mutex> l(&this->mutex);
+    this->fast_keys.del(key.String());
 
     return ssdb->edel_one(ctx, key, batch);
 }

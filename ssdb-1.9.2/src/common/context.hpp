@@ -52,8 +52,6 @@ public:
     RepopContext lastSeqCnx;
 
 
-    bool skipExMutex = false;
-
     bool checkKey = false;
     bool firstbatch = true;
     bool replLink = false;
