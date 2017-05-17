@@ -392,9 +392,11 @@ SSDBImpl::CommitBatch(Context &ctx, const leveldb::WriteOptions &options, leveld
     if (ctx.replLink && ctx.isFirstbatch()) {
 
         if (ctx.currentSeqCnx <= ctx.lastSeqCnx) {
-            log_error("ctx.currentSeqCnx <= ctx.lastSeqCnx");
+            log_error("ctx.currentSeqCnx[%s] <= ctx.lastSeqCnx[%s]",
+                      ctx.currentSeqCnx.toString().c_str(),
+                      ctx.lastSeqCnx.toString().c_str());
             assert(0);
-            *((char *) -1) = 'x';
+//            *((char *) -1) = 'x';
 
         }
 
@@ -404,9 +406,10 @@ SSDBImpl::CommitBatch(Context &ctx, const leveldb::WriteOptions &options, leveld
             int64_t res = ctx.currentSeqCnx.id - ctx.lastSeqCnx.id;
 
             if (res != 1) {
-                log_error("ctx.currentSeqCnx.id - ctx.lastSeqCnx.id != 1");
+                log_error("ctx.currentSeqCnx.id(%d) - ctx.lastSeqCnx.id(%d) != 1", ctx.currentSeqCnx.id,
+                          ctx.lastSeqCnx.id);
                 assert(0);
-                *((char *) -1) = 'x';
+//                *((char *) -1) = 'x';
 
             }
         }
