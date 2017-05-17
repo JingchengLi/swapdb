@@ -921,10 +921,10 @@ void reconnectSSDB() {
         if (!server.ssdb_is_up) break;
     }
 
-    // todo: review
-    /* if ssdb is down and this last for 10 seconds, exit redis and wait failover.*/
-    if (server.ssdb_down_time != -1 && server.ssdb_down_time - server.unixtime > 10)
-        exit(1);
+    run_with_period(2000) {
+        if (server.ssdb_down_time != -1 && server.ssdb_down_time - server.unixtime > 10)
+            serverLog(LL_WARNING, "ssdb is down and last for %ld seconds", server.ssdb_down_time - server.unixtime);
+    }
 }
 
 #define CLIENTS_CRON_MIN_ITERATIONS 5
