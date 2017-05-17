@@ -396,20 +396,24 @@ SSDBImpl::CommitBatch(Context &ctx, const leveldb::WriteOptions &options, leveld
                       ctx.currentSeqCnx.toString().c_str(),
                       ctx.lastSeqCnx.toString().c_str());
             assert(0);
-//            *((char *) -1) = 'x';
-
         }
 
-        if ((ctx.currentSeqCnx.timestamp == ctx.lastSeqCnx.timestamp)
-            && ctx.currentSeqCnx != 0 && ctx.lastSeqCnx != 0) {
+        if (ctx.lastSeqCnx != 0 && ctx.currentSeqCnx != 0) {
 
-            int64_t res = ctx.currentSeqCnx.id - ctx.lastSeqCnx.id;
+            if ((ctx.currentSeqCnx.timestamp == ctx.lastSeqCnx.timestamp)) {
 
-            if (res != 1) {
-                log_error("ctx.currentSeqCnx.id(%d) - ctx.lastSeqCnx.id(%d) != 1", ctx.currentSeqCnx.id,
-                          ctx.lastSeqCnx.id);
-                assert(0);
-//                *((char *) -1) = 'x';
+                int64_t res = ctx.currentSeqCnx.id - ctx.lastSeqCnx.id;
+
+                if (res != 1) {
+                    log_error("ctx.currentSeqCnx.id(%d) - ctx.lastSeqCnx.id(%d) != 1", ctx.currentSeqCnx.id,
+                              ctx.lastSeqCnx.id);
+                    assert(0);
+                }
+            } else {
+                if (ctx.currentSeqCnx.id != 1) {
+                    log_error("ctx.lastSeqCnx.id(%d) != 1", ctx.lastSeqCnx.id);
+                    assert(0);
+                }
 
             }
         }
