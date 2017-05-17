@@ -94,7 +94,7 @@ int SSDBImpl::multi_set(Context &ctx, const std::vector<Bytes> &kvs, int offset)
 	std::set<Bytes> lock_key;
 	std::set<Bytes>::const_iterator iter;
 
-    RecordLocks<Mutex> l(&mutex_record_);
+//    RecordLocks<Mutex> l(&mutex_record_);
 
     int rval = 0;
 
@@ -104,10 +104,11 @@ int SSDBImpl::multi_set(Context &ctx, const std::vector<Bytes> &kvs, int offset)
 		const Bytes &key = *it;
 		const Bytes &val = *(it + 1);
         if (lock_key.find(key) == lock_key.end()){
-            l.Lock(key.String());
+//            l.Lock(key.String());
             lock_key.insert(key);
             rval++;
         }
+        RecordLock<Mutex> l(&mutex_record_, key.String());
 
         int added = 0;
 		int ret = SetGeneric(ctx, key, batch, val, OBJ_SET_NO_FLAGS, 0, &added);
