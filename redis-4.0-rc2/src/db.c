@@ -692,23 +692,63 @@ void scanGenericCommand(client *c, robj *o, unsigned long cursor) {
     }
 
     if (ht) {
-        void *privdata[2];
-        /* We set the max number of iterations to ten times the specified
-         * COUNT, so if the hash table is in a pathological state (very
-         * sparsely populated) we avoid to block too much time at the cost
-         * of returning no or very few elements. */
-        long maxiterations = count*10;
+        if (!server.jdjr_mode) {
+            void *privdata[2];
+            /* We set the max number of iterations to ten times the specified
+             * COUNT, so if the hash table is in a pathological state (very
+             * sparsely populated) we avoid to block too much time at the cost
+             * of returning no or very few elements. */
+            long maxiterations = count*10;
 
-        /* We pass two pointers to the callback: the list to which it will
-         * add new elements, and the object containing the dictionary so that
-         * it is possible to fetch more data in a type-dependent way. */
-        privdata[0] = keys;
-        privdata[1] = o;
-        do {
-            cursor = dictScan(ht, cursor, scanCallback, privdata);
-        } while (cursor &&
-              maxiterations-- &&
-              listLength(keys) < (unsigned long)count);
+            /* We pass two pointers to the callback: the list to which it will
+             * add new elements, and the object containing the dictionary so that
+             * it is possible to fetch more data in a type-dependent way. */
+            privdata[0] = keys;
+            privdata[1] = o;
+            do {
+                cursor = dictScan(ht, cursor, scanCallback, privdata);
+            } while (cursor &&
+                     maxiterations-- &&
+                     listLength(keys) < (unsigned long)count);
+        }
+
+        if (server.jdjr_mode) {
+            void *privdata[2];
+            long maxiterations = count * 10;
+            unsigned long max_sizemask = 0;
+            privdata[0] = keys;
+            privdata[1] = o;
+
+            max_sizemask = ht->ht[0].sizemask;
+            if (dictIsRehashing(ht))
+                max_sizemask = ht->ht[1].sizemask > max_sizemask ? ht->ht[1].sizemask : max_sizemask;
+
+            /* Traverse ht of db[0]. */
+            if (cursor < max_sizemask + 1) {
+                do {
+                    cursor = dictScan(ht, cursor, scanCallback, privdata);
+                } while (cursor &&
+                         maxiterations-- &&
+                         listLength(keys) < (unsigned long)count);
+            }
+
+            /* Traverse ht of EVICTED_DATA_DB.*/
+            /* Will return duplicated keys if ht is expanded. */
+            /* TODO: Will possiblely miss the keys transferred from ssdb to redis. */
+            if (cursor == 0 || cursor >= (max_sizemask + 1)) {
+                /* Restore the cursor. */
+                if (cursor >= max_sizemask + 1) cursor -= max_sizemask;
+
+                do {
+                    cursor = dictScan(EVICTED_DATA_DB->dict, cursor, scanCallback, privdata);
+                } while (cursor &&
+                         maxiterations-- &&
+                         listLength(keys) < (unsigned long)count);
+
+                /* Tag the cursor when visiting EVICTED_DATA_DB. */
+                if (cursor != 0) cursor += max_sizemask;
+            }
+        }
     } else if (o->type == OBJ_SET) {
         int pos = 0;
         int64_t ll;
