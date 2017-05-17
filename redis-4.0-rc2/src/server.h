@@ -1311,7 +1311,13 @@ struct redisServer {
     client *delete_confirm_client;
 
     /* for slave redis, we save ssdb write operations before receive responses from ssdb. */
+    time_t last_received_writeop_time;
+    int last_received_writeop_index;
+    time_t last_send_writeop_time;
+    int last_send_writeop_index;
     list* ssdb_write_oplist;
+    long long writeop_mem_size;
+
     int ssdb_is_up;
     /* when ssdb is down, record the time */
     time_t ssdb_down_time;
@@ -1319,11 +1325,6 @@ struct redisServer {
 };
 
 #define SLAVE_SSDB_MAX_CRITICAL_ERR_LIMIT 5
-
-/* for slave redis, record and save ssdb write commands. */
-int write_op_last_index;
-time_t write_op_last_time;
-long long write_op_mem_size;
 
 /* for slave redis, we save the write operations from our master, so we can re-send
  * it to SSDB when SSDB restart. */
@@ -1520,7 +1521,7 @@ int processEventsWhileBlocked(void);
 int handleClientsWithPendingWrites(void);
 int clientHasPendingReplies(client *c);
 int sendCommandToSSDB(client *c, sds finalcmd);
-int sendRepopidToSSDB(client* c);
+int updateSendRepopidToSSDB(client* c);
 sds composeRedisCmd(int argc, const char **argv, const size_t *argvlen);
 sds composeCmdFromArgs(int argc, robj** obj_argv);
 int nonBlockConnectToSsdbServer(client *c);

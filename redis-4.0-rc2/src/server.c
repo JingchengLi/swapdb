@@ -2148,17 +2148,7 @@ void initServer(void) {
     server.slaveseldb = -1; /* Force to emit the first SELECT command. */
     server.unblocked_clients = listCreate();
     server.ready_keys = listCreate();
-    if (server.jdjr_mode) {
-        server.slave_ssdb_critical_err_cnt = 0;
-        server.ssdb_is_up = 0;
-        server.ssdb_down_time = -1;
-        server.ssdb_ready_keys = listCreate();
 
-        server.ssdb_write_oplist = listCreate();
-        listSetFreeMethod(server.ssdb_write_oplist, (void (*)(void*)) freeSSDBwriteOp);
-        write_op_last_time = -1;
-        write_op_last_index = -1;
-    }
     server.clients_waiting_acks = listCreate();
     server.get_ack_from_slaves = 0;
     server.clients_paused = 0;
@@ -2237,8 +2227,7 @@ void initServer(void) {
     server.rdb_save_time_start = -1;
     server.dirty = 0;
 
-    if (server.jdjr_mode)
-        server.cmdNotDone = 0;
+
     resetServerStats();
     /* A few stats we don't want to reset: server startup time, and peak mem. */
     server.stat_starttime = time(NULL);
@@ -2310,6 +2299,7 @@ void initServer(void) {
         server.no_writing_ssdb_blocked_clients = listCreate();
         server.ssdbargv = zmalloc(sizeof(char *) * SSDB_CMD_DEFAULT_MAX_ARGC);
         server.ssdbargvlen = zmalloc(sizeof(size_t) * SSDB_CMD_DEFAULT_MAX_ARGC);
+
         server.loadAndEvictCmdList = listCreate();
         listSetFreeMethod(server.loadAndEvictCmdList, (void (*)(void*))freeMultiCmd);
 
@@ -2320,6 +2310,22 @@ void initServer(void) {
         server.ssdb_flushall_blocked_clients = listCreate();
         server.flush_check_unresponse_num = -1;
         server.flush_check_begin_time = -1;
+
+        server.cmdNotDone = 0;
+
+        server.slave_ssdb_critical_err_cnt = 0;
+        server.ssdb_is_up = 0;
+        server.ssdb_down_time = -1;
+        server.ssdb_ready_keys = listCreate();
+
+        server.ssdb_write_oplist = listCreate();
+        listSetFreeMethod(server.ssdb_write_oplist, (void (*)(void*)) freeSSDBwriteOp);
+
+        server.last_received_writeop_index = -1;
+        server.last_received_writeop_time = -1;
+        server.last_send_writeop_time = -1;
+        server.last_send_writeop_index = -1;
+        server.writeop_mem_size = 0;
     }
 }
 
@@ -2720,8 +2726,10 @@ int processCommandMaybeFlushdb(client *c) {
             }
         } else {
             if (server.master == c) {
-                serverLog(LL_DEBUG, "process flushall");
-                ret = sendRepopidToSSDB(c);
+                struct ssdb_write_op* op;
+                listNode *ln;
+
+                ret = updateSendRepopidToSSDB(c);
                 if (ret != C_OK) return ret;
 
                 /* flushall STEP 1: clean all intermediate state keys, avoid to cause unexpected issues. */
@@ -2731,6 +2739,11 @@ int processCommandMaybeFlushdb(client *c) {
                 ret = sendCommandToSSDB(c, finalcmd);
                 if (ret != C_OK) return ret;
                 serverLog(LL_DEBUG, "send rr_do_flushall ok");
+
+                ln = listLast(server.ssdb_write_oplist);
+                op = ln->value;
+                serverLog(LL_DEBUG, "[REPOPID]redis send %s(op time:%ld, op id:%d) to ssdb success",
+                          op->cmd->name, op->time, op->index);
 
                 /* we just wait flushall done. */
                 c->bpop.timeout = 8000+mstime();
@@ -2763,10 +2776,10 @@ void addVisitingSSDBKey(client *c, sds *keysds) {
 
 void freeSSDBwriteOp(struct ssdb_write_op* op) {
     int j;
-    write_op_mem_size -= sizeof(struct ssdb_write_op) + sizeof(listNode*);
+    server.writeop_mem_size -= sizeof(struct ssdb_write_op) + sizeof(listNode*);
     // free argv
     for (j = 0; j < op->argc; j++) {
-        write_op_mem_size -= SDS_MEM_SIZE((char*)(op->argv[j]->ptr)) + sizeof(op->argv[j]);
+        server.writeop_mem_size -= SDS_MEM_SIZE((char*)(op->argv[j]->ptr)) + sizeof(op->argv[j]);
         decrRefCount(op->argv[j]);
     }
     zfree(op->argv);
@@ -2803,26 +2816,32 @@ int confirmAndRetrySlaveSSDBwriteOp(time_t time, int index) {
             listDelNode(server.ssdb_write_oplist, ln);
         } else {
             impossible = 0;
+            /* this is a failed write retry, reuse its write op time and id. */
+            ret = sendRepopidToSSDB(server.master, op->time, op->index);
+            if (ret != C_OK) break;
+
             /* re-send failed write operations to SSDB. */
             sds cmd = composeCmdFromArgs(op->argc, op->argv);
-            if ((ret = sendCommandToSSDB(server.master, cmd)) != C_OK)
-                break;
+            serverLog(LL_DEBUG, "[REPOPID CHECK] re-send failed write op(cmd:%s, op time:%ld, op id:%d) to SSDB",
+                      op->cmd->name, op->time, op->index);
+            ret = sendCommandToSSDB(server.master, cmd);
+            if (ret != C_OK) break;
         }
     }
     return ret;
 }
 
 void updateSlaveSSDBwriteIndex() {
-     if (write_op_last_index == -1 && write_op_last_time == -1) {
-         write_op_last_time = server.unixtime;
-         write_op_last_index = 1;
+     if (server.last_send_writeop_index == -1 && server.last_send_writeop_time == -1) {
+         server.last_send_writeop_time = server.unixtime;
+         server.last_send_writeop_index = 1;
     } else {
-        serverAssert(write_op_last_index != -1 && write_op_last_time != -1);
-        if (server.unixtime == write_op_last_time) {
-            write_op_last_index++;
+        serverAssert(server.last_send_writeop_index != -1 && server.last_send_writeop_time != -1);
+        if (server.unixtime == server.last_send_writeop_time) {
+            server.last_send_writeop_index++;
         } else {
-            write_op_last_time = server.unixtime;
-            write_op_last_index = 1;
+            server.last_send_writeop_time = server.unixtime;
+            server.last_send_writeop_index = 1;
         }
     }
 }
@@ -2844,18 +2863,34 @@ void saveSlaveSSDBwriteOp(client *c, time_t time, int index) {
     }
 
     /* recored consumed memory size. */
-    write_op_mem_size += sizeof(struct ssdb_write_op) + sizeof(listNode*);
+    server.writeop_mem_size += sizeof(struct ssdb_write_op) + sizeof(listNode*);
     for (j = 0; j < op->argc; j++) {
-        write_op_mem_size += SDS_MEM_SIZE((char*)(op->argv[j]->ptr)) + sizeof(op->argv[j]);
+        server.writeop_mem_size += SDS_MEM_SIZE((char*)(op->argv[j]->ptr)) + sizeof(op->argv[j]);
     }
 
     listAddNodeTail(server.ssdb_write_oplist, op);
 }
 
-int sendRepopidToSSDB(client* c) {
+int sendRepopidToSSDB(client* c, time_t op_time, int op_id) {
     const char* tmpargv[4];
     char time[64];
     char index[32];
+    int ret;
+
+    tmpargv[0] = "repopid";
+    tmpargv[1] = "set";
+    ll2string(time, sizeof(time), op_time);
+    tmpargv[2] = time;
+    ll2string(index, sizeof(index), op_id);
+    tmpargv[3] = index;
+
+    sds cmd = composeRedisCmd(4, tmpargv, NULL);
+
+    ret = sendCommandToSSDB(c, cmd);
+    return ret;
+}
+
+int updateSendRepopidToSSDB(client* c) {
     int ret;
 
     serverAssert(server.master == c);
@@ -2864,18 +2899,9 @@ int sendRepopidToSSDB(client* c) {
 
     /* for the replication connection of slave redis, we record write commands
      * in server.ssdb_write_oplist, we just return and process next write command. */
-    saveSlaveSSDBwriteOp(c, write_op_last_time, write_op_last_index);
+    saveSlaveSSDBwriteOp(c, server.last_send_writeop_time, server.last_send_writeop_index);
 
-    tmpargv[0] = "repopid";
-    tmpargv[1] = "set";
-    ll2string(time, sizeof(time), write_op_last_time);
-    tmpargv[2] = time;
-    ll2string(index, sizeof(index), write_op_last_index);
-    tmpargv[3] = index;
-
-    sds cmd = composeRedisCmd(4, tmpargv, NULL);
-
-    ret = sendCommandToSSDB(c, cmd);
+    ret = sendRepopidToSSDB(c, server.last_send_writeop_time, server.last_send_writeop_index);
     return ret;
 }
 
@@ -2936,7 +2962,7 @@ int processCommandMaybeInSSDB(client *c) {
         robj* val = lookupKey(EVICTED_DATA_DB, c->argv[1], LOOKUP_NONE);
         if (val) {
             if (server.master == c) {
-                int ret = sendRepopidToSSDB(c);
+                int ret = updateSendRepopidToSSDB(c);
                 if (ret != C_OK) {
                     /* avoid to free c->argv for the replication connection of slave redis. we use it to save
                      * commands in server.ssdb_write_oplist */
@@ -4267,7 +4293,7 @@ sds genRedisInfoString(char *section) {
                                 "slave ssdb critical write error count:%d\r\n",
                                 listLength(server.loadAndEvictCmdList),
                                 listLength(server.ssdb_write_oplist),
-                                write_op_mem_size,
+                                server.writeop_mem_size,
                                 server.slave_ssdb_critical_err_cnt
             );
         }
