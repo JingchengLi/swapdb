@@ -140,13 +140,13 @@ int SSDBImpl::multi_del(Context &ctx, const std::set<Bytes> &distinct_keys, int6
 
         *num = (*num) + iret;
 	}
-	if ((*num) > 0){
+//	if ((*num) > 0){
 		leveldb::Status s = CommitBatch(ctx, &(batch));
 		if(!s.ok()){
 			log_error("multi_del error: %s", s.ToString().c_str());
 			return STORAGE_ERR;
 		}
-	}
+//	}
 
 	return 1;
 }
@@ -160,13 +160,13 @@ int SSDBImpl::setNoLock(Context &ctx, const Bytes &key, const Bytes &val, int fl
         return ret;
     }
 
-    if (*added > 0) {
+//    if (*added > 0) {
         leveldb::Status s = CommitBatch(ctx, &(batch));
         if (!s.ok()){
             log_error("error: %s", s.ToString().c_str());
             return STORAGE_ERR;
         }
-    }
+//    }
 
     return ((*added + ret) > 0) ? 1 : 0;
 }
