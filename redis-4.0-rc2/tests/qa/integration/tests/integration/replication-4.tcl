@@ -26,8 +26,9 @@ start_server {tags {"repl"}} {
             set keyslist [r -1 keys *]
             r -1 select 0
 
+            puts "wait [llength $keyslist] keys identical....."
             foreach key $keyslist {
-                wait_for_condition 100 100 {
+                wait_for_condition 50 100 {
                     [ r exists $key ] eq [ r -1 exists $key ]
                 } else {
                     fail "key:$key in master and slave not identical"

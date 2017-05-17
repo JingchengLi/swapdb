@@ -61,7 +61,7 @@ start_server {tags {"ssdb"}} {
                 $master $flush
                 wait_ssdb_reconnect -1
 
-                wait_for_condition 100 100 {
+                wait_for_condition 20 100 {
                     [$master debug digest] == 0000000000000000000000000000000000000000
                 } else {
                     fail "Digest not null:master([$master debug digest]) after too long time."
@@ -81,7 +81,7 @@ start_server {tags {"ssdb"}} {
                 stop_bg_client_list $clist
 
                 wait_ssdb_reconnect -1
-                wait_for_condition 100 100 {
+                wait_for_condition 20 500 {
                     [$master debug digest] == 0000000000000000000000000000000000000000
                 } else {
                     fail "Digest not null:master([$master debug digest]) after too long time."
@@ -93,21 +93,6 @@ start_server {tags {"ssdb"}} {
                 }
             }
 
-            test "$flush and then replicate" {
-                $master debug populate 100000
-                $slave debug populate 100000
-                after 500
-                $master $flush
-                $slave slaveof $master_host $master_port
-                wait_for_condition 100 100 {
-                    [$master debug digest] == 0000000000000000000000000000000000000000 &&
-                    [$slave debug digest] == 0000000000000000000000000000000000000000
-                } else {
-                    fail "Digest not null:master([$master debug digest]) and slave([$slave debug digest]) after too long time."
-                }
-                list [lindex [sr scan 0] 0] [lindex [sr -1 scan 0] 0]
-            } {0 0}
-
             test "replicate and then $flush" {
                 $master debug populate 100000
                 $slave debug populate 100000
@@ -116,7 +101,7 @@ start_server {tags {"ssdb"}} {
                 set pattern "Sending rr_make_snapshot to SSDB"
                 wait_log_pattern $pattern [srv -1 stdout]
                 $master $flush
-                wait_for_condition 100 100 {
+                wait_for_condition 10 500 {
                     [$master debug digest] == 0000000000000000000000000000000000000000 &&
                     [$slave debug digest] == 0000000000000000000000000000000000000000
                 } else {
@@ -125,20 +110,56 @@ start_server {tags {"ssdb"}} {
                 list [lindex [sr scan 0] 0] [lindex [sr -1 scan 0] 0]
             } {0 0}
 
+            test "$flush and then replicate" {
+                $slave slaveof no one
+                after 500
+                $master debug populate 100000
+                $slave debug populate 100000
+                after 500
+                $master $flush
+                $slave slaveof $master_host $master_port
+                wait_for_condition 10 500 {
+                    [$master debug digest] == 0000000000000000000000000000000000000000 &&
+                    [$slave debug digest] == 0000000000000000000000000000000000000000
+                } else {
+                    fail "Digest not null:master([$master debug digest]) and slave([$slave debug digest]) after too long time."
+                }
+                list [lindex [sr scan 0] 0] [lindex [sr -1 scan 0] 0]
+            } {0 0}
+
+            test "#issue $flush not propogate to slave after $flush and replicate" {
+                $master set foo bar
+                wait_for_condition 10 100 {
+                    {bar} == [$slave get foo]
+                } else {
+                    fail "SET on master did not propagated on slave"
+                }
+
+                $master $flush
+                wait_for_condition 10 100 {
+                    {} == [$slave get foo]
+                } else {
+                    fail "$flush on master did not propagated on slave"
+                }
+                list [lindex [sr scan 0] 0] [lindex [sr -1 scan 0] 0]
+            } {0 0}
+
             test "replicate done and then $flush" {
+                $slave slaveof no one
+                after 500
                 $master debug populate 100000
                 $slave debug populate 100000
                 after 500
                 $slave slaveof $master_host $master_port
                 wait_for_online $master 1
-                wait_for_condition 100 100 {
+                wait_for_condition 15 500 {
                     [$master debug digest] == [$slave debug digest]
                 } else {
                     fail "Different digest between master([$master debug digest]) and slave([$slave debug digest]) after too long time."
                 }
                 assert {[$master dbsize] == 100000}
                 $master $flush
-                wait_for_condition 100 100 {
+                wait_for_condition 10 500 {
                     [$master debug digest] == 0000000000000000000000000000000000000000 &&
                     [$slave debug digest] == 0000000000000000000000000000000000000000
                 } else {
@@ -177,13 +198,13 @@ start_server {tags {"ssdb"}} {
                 }
 
                 test "master and one slave are identical after $flush" {
-                    wait_for_condition 300 100 {
+                    wait_for_condition 100 100 {
                         [$master dbsize] == [[lindex $slaves 0] dbsize]
                     } else {
                         fail "Different number of keys between master and slaves after too long time."
                     }
                     assert {[$master dbsize] > 0}
-                    wait_for_condition 100 100 {
+                    wait_for_condition 10 500 {
                         [$master debug digest] == [[lindex $slaves 0] debug digest]
                     } else {
                         fail "Different digest between master([$master debug digest]) and slave1([[lindex $slaves 0] debug digest]) after too long time."
@@ -209,14 +230,14 @@ start_server {tags {"ssdb"}} {
                 }
 
                 test "master and two slaves are identical after $flush" {
-                    wait_for_condition 300 100 {
+                    wait_for_condition 100 100 {
                         [$master dbsize] == [[lindex $slaves 0] dbsize] &&
                         [$master dbsize] == [[lindex $slaves 1] dbsize]
                     } else {
                         puts "Different number of keys between master and slaves after too long time."
                     }
                     assert {[$master dbsize] > 0}
-                    wait_for_condition 100 100 {
+                    wait_for_condition 10 500 {
                         [$master debug digest] == [[lindex $slaves 0] debug digest] &&
                         [$master debug digest] == [[lindex $slaves 1] debug digest]
                     } else {
@@ -260,13 +281,13 @@ start_server {tags {"ssdb"}} {
                 } {PONG}
 
                 test "master and slave are both null after $flush" {
-                    wait_for_condition 300 100 {
+                    wait_for_condition 100 100 {
                         [$master dbsize] == 0 &&
                         [[lindex $slaves 0] dbsize] == 0
                     } else {
                         fail "Different number of keys between master and slaves after too long time."
                     }
-                    wait_for_condition 100 100 {
+                    wait_for_condition 10 500 {
                         [$master debug digest] == [[lindex $slaves 0] debug digest]
                     } else {
                         fail "Different digest between master([$master debug digest]) and slave([[lindex $slaves 0] debug digest]) after too long time."
@@ -292,14 +313,14 @@ start_server {tags {"ssdb"}} {
                 }
 
                 test "master and slaves are identical" {
-                    wait_for_condition 300 100 {
+                    wait_for_condition 100 100 {
                         [$master dbsize] == [[lindex $slaves 0] dbsize] &&
                         [$master dbsize] == [[lindex $slaves 1] dbsize]
                     } else {
                         fail "Different number of keys between master and slaves after too long time."
                     }
                     assert {[$master dbsize] > 0}
-                    wait_for_condition 100 100 {
+                    wait_for_condition 10 500 {
                         [$master debug digest] == [[lindex $slaves 0] debug digest] &&
                         [$master debug digest] == [[lindex $slaves 1] debug digest]
                     } else {
@@ -309,7 +330,7 @@ start_server {tags {"ssdb"}} {
 
                 test "master and slaves are clear after $flush again" {
                     $master $flush
-                    wait_for_condition 100 100 {
+                    wait_for_condition 10 500 {
                         [$master debug digest] == 0000000000000000000000000000000000000000 &&
                         [[lindex $slaves 0] debug digest] == 0000000000000000000000000000000000000000 &&
                         [[lindex $slaves 1] debug digest] == 0000000000000000000000000000000000000000

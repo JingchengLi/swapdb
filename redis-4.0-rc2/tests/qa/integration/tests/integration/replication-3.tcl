@@ -42,7 +42,7 @@ start_server {tags {"repl"}} {
             set oldmaxmemory [lindex [ r config get maxmemory ] 1]
             r config set maxmemory 0 ;# load all keys to redis
             foreach key $keyslist {
-                wait_for_condition 100 100 {
+                wait_for_condition 50 100 {
                     [ r exists $key ] eq [ r -1 exists $key ]
                 } else {
                     fail "key:$key in master and slave not identical [ r -1 exists $key ] [ r exists $key ]"

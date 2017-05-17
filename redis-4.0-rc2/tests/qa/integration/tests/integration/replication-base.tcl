@@ -20,6 +20,43 @@ start_server {tags {"repl"}} {
 }
 
 start_server {tags {"repl"}} {
+    set A [srv 0 client]
+    set A_host [srv 0 host]
+    set A_port [srv 0 port]
+    $A debug populate 1000
+    $A set foo bar
+    start_server {} {
+        set B [srv 0 client]
+        set B_host [srv 0 host]
+        set B_port [srv 0 port]
+        $B debug populate 1000
+        $B set fooB barB
+        after 500
+
+        test {A with keys slaveof B} {
+            $A slaveof $B_host $B_port
+            wait_for_condition 50 100 {
+                [lindex [$A role] 0] eq {slave} &&
+                [string match {*master_link_status:up*} [$A info replication]]
+            } else {
+                fail "Can't turn the instance into a slave"
+            }
+        }
+
+        test {Slave A is identical with Master B} {
+            wait_for_condition 10 500 {
+                [$A debug digest] == [$B debug digest]
+            } else {
+                fail "Digest not equal:master([$A debug digest]) and slave([$B debug digest]) after too long time."
+            }
+            assert_equal {barB} [$A get fooB]
+            assert_equal {} [$A get foo]
+        }
+    }
+}
+
+
+start_server {tags {"repl"}} {
     r set mykey foo
 
     start_server {} {

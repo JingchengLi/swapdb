@@ -90,7 +90,7 @@ start_server {tags {"repl"}} {
             r config set maxmemory 0
             r -1 config set maxmemory 0
             foreach key $keyslist {
-                wait_for_condition 100 100 {
+                wait_for_condition 30 100 {
                     [ r exists $key ] eq [ r -1 exists $key ]
                 } else {
                     fail "key:$key in master and slave not identical"

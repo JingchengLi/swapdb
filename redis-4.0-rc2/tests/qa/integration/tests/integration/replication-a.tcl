@@ -11,17 +11,20 @@ config {real.conf}} {
             s role
         } {slave}
 
-        test "Slave should correctly synchronized" {
+        # test "Slave should correctly synchronized" {
             # wait_for_online $master 1
-        }
+        # }
 
         test "MASTER and SLAVE dataset should be identical after complex ops" {
             $master config set maxmemory 100M
+            set pre [clock seconds]
+            puts "start create"
             set keyslist [createComplexDataset $master 100000]
+            puts "end create cost :[expr [clock seconds] - $pre ]"
 
             r -1 config set maxmemory 0
             foreach key $keyslist {
-                wait_for_condition 100 100 {
+                wait_for_condition 50 100 {
                     [ r -1 exists $key ] eq [ r exists $key ]
                 } else {
                     fail "key:$key in master and slave not identical"
@@ -65,7 +68,7 @@ config {real.conf}} {
             set oldmaxmemory [lindex [ r config get maxmemory ] 1]
             r config set maxmemory 0 ;# load all keys to redis
             foreach key $keyslist {
-                wait_for_condition 100 100 {
+                wait_for_condition 50 100 {
                     [ r -1 exists $key ] eq [ r exists $key ]
                 } else {
                     fail "key:$key in master and slave not identical [ r -1 exists $key ] [ r exists $key ]"

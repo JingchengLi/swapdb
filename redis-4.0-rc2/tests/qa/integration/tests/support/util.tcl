@@ -482,7 +482,7 @@ proc ssdbr {args} {
 proc wait_memory_stable {{level 0}} {
     set current_mem 0
 
-    set retry 500
+    set retry 200
     while {[s $level used_memory] != $current_mem} {
         set current_mem [s $level used_memory]
         incr retry -1
@@ -613,7 +613,7 @@ proc debug_digest {r {level 0}} {
     }
 
     $r $level select 16
-    wait_for_condition 300 100 {
+    wait_for_condition 200 100 {
         [$r $level dbsize] eq 0
     } else {
         fail "wait $r $level debug digest timeout."
