@@ -138,8 +138,8 @@ struct redisCommand redisCommandTable[] = {
     {"strlen",strlenCommand,2,"rFJ",0,NULL,1,1,1,0,0},
     /* in jdjr mode, we only support one key command */
     //{"del",delCommand,-2,"wJ",0,NULL,1,-1,1,0,0},
-    //{"unlink",unlinkCommand,-2,"wF",0,NULL,1,-1,1,0,0},
     {"del",delCommand,2,"wJ",0,NULL,1,1,1,0,0},
+    //{"unlink",unlinkCommand,-2,"wF",0,NULL,1,-1,1,0,0},
     {"unlink",unlinkCommand,2,"wF",0,NULL,1,1,1,0,0},
     //{"exists",existsCommand,-2,"rFJ",0,NULL,1,-1,1,0,0},
     {"exists",existsCommand,2,"rFJ",0,NULL,1,1,1,0,0},
@@ -4241,11 +4241,14 @@ sds genRedisInfoString(char *section) {
     if (server.jdjr_mode && (allsections || defsections || !strcasecmp(section,"redis-ssdb"))) {
         if (sections++) info = sdscat(info,"\r\n");
         info = sdscatprintf(info, "# Redis-SSDB\r\n"
+                                    "keys in redis count:%lu\r\n"
+                                    "keys in SSDB count:%lu\r\n"
                                     "keys loading from SSDB:%lu\r\n"
                                     "keys transferring to SSDB:%lu\r\n"
                                     "keys visiting SSDB:%lu\r\n"
                                     "keys delete confirming:%lu\r\n",
-
+                            dictSize(server.db[0].dict),
+                            dictSize(EVICTED_DATA_DB->dict),
                             dictSize(EVICTED_DATA_DB->loading_hot_keys),
                             dictSize(EVICTED_DATA_DB->transferring_keys),
                             dictSize(EVICTED_DATA_DB->visiting_ssdb_keys),
