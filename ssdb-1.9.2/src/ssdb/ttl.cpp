@@ -3,6 +3,8 @@ Copyright (c) 2012-2014 The SSDB Authors. All rights reserved.
 Use of this source code is governed by a BSD-style license that can be
 found in the LICENSE file.
 */
+#include <net/server.h>
+#include <serv.h>
 #include "ssdb_impl.h"
 #include "../include.h"
 #include "ttl.h"
@@ -11,7 +13,7 @@ found in the LICENSE file.
 #define BATCH_SIZE    1000
 
 
-ExpirationHandler::ExpirationHandler(SSDB *ssdb) {
+ExpirationHandler::ExpirationHandler(SSDBImpl *ssdb) {
     this->ssdb = ssdb;
     this->thread_quit = false;
 //	this->list_name = EXPIRATION_LIST_KEY;
@@ -101,12 +103,20 @@ int ExpirationHandler::expireAt(Context &ctx, const Bytes &key, int64_t ts_ms) {
 
 
 int ExpirationHandler::persist(Context &ctx, const Bytes &key) {
-    // 这样用是有 bug 的, 虽然 fast_keys 为空, 不代表整个 ttl 队列为空
-    // if(!this->fast_keys.empty()){
     int ret = 0;
     if (first_timeout != INT64_MAX) {
-        fast_keys.del(key.String());
-        ret = ssdb->edel(ctx, key);
+        RecordLock<Mutex> l(&ssdb->mutex_record_, key.String());
+        leveldb::WriteBatch batch;
+
+        ret = cancelExpiration(ctx, key, batch);
+        if (ret >= 0) {
+            leveldb::Status s = ssdb->CommitBatch(ctx, &(batch));
+            if (!s.ok()) {
+                log_error("edel error: %s", s.ToString().c_str());
+                return -1;
+            }
+        }
+        
     }
     return ret;
 }
@@ -199,5 +209,10 @@ void *ExpirationHandler::thread_func(void *arg) {
     log_info("ExpirationHandler thread quit");
     handler->thread_quit = false;
     return (void *) NULL;
+}
+
+int ExpirationHandler::cancelExpiration(Context &ctx, const Bytes &key, leveldb::WriteBatch &batch) {
+    this->fast_keys.del(key.String());
+    return ssdb->edel_one(ctx, key, batch);
 }
 

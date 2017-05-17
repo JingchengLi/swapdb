@@ -159,7 +159,7 @@ int SSDBImpl::doListPop(Context &ctx, const Bytes &key, leveldb::WriteBatch &bat
             std::string size_val = encode_list_meta_val(lv.length, 0, 0, lv.version, KEY_DELETE_MASK);
             batch.Put(meta_key, size_val);
             batch.Put(del_key, "");
-            this->edel_one(ctx, key, batch); //del expire ET key
+            expiration->cancelExpiration(ctx, key, batch); //del expire ET key
             ret = 0;
         } else {
             lv.length = len;
@@ -500,7 +500,7 @@ int SSDBImpl::ltrim(Context &ctx, const Bytes &key, int64_t start, int64_t end) 
         std::string size_val = encode_list_meta_val(lv.length, 0, 0, lv.version, KEY_DELETE_MASK);
         batch.Put(meta_key, size_val);
         batch.Put(del_key, "");
-        this->edel_one(ctx, key, batch); //del expire ET key
+        expiration->cancelExpiration(ctx, key, batch); //del expire ET key
         ret = 0;
     } else {
         std::string new_meta_val = EncodeValueListMeta(lv);

@@ -40,7 +40,7 @@ int SSDBImpl::incr_ssize(Context &ctx, const Bytes &key, leveldb::WriteBatch &ba
             batch.Put(del_key, "");
             batch.Put(meta_key, meta_val);
 
-            edel_one(ctx, key, batch); //del expire ET key
+            expiration->cancelExpiration(ctx, key, batch); //del expire ET key
 
             ret = 0;
         } else {

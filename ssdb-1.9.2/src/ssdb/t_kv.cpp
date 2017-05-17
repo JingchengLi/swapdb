@@ -70,7 +70,7 @@ int SSDBImpl::SetGeneric(Context &ctx, const Bytes &key, leveldb::WriteBatch &ba
         } else {
             meta_val = encode_kv_val(val, kv.version);
             batch.Put(meta_key, meta_val);
-            this->edel_one(ctx, key, batch);
+            expiration->cancelExpiration(ctx, key, batch); //del expire ET key
             ret = 1;
             *added = 1;
         }
@@ -81,7 +81,7 @@ int SSDBImpl::SetGeneric(Context &ctx, const Bytes &key, leveldb::WriteBatch &ba
         } else {
             meta_val = encode_kv_val(val, kv.version);
             batch.Put(meta_key, meta_val);
-            this->edel_one(ctx, key, batch);
+            expiration->cancelExpiration(ctx, key, batch); //del expire ET key
             *added = 1;
         }
     }
@@ -193,7 +193,7 @@ int SSDBImpl::getset(Context &ctx, const Bytes &key, std::pair<std::string, bool
 		meta_val = encode_kv_val(newval, kv.version);
 		val.first = kv.value;
         val.second = true;
-        this->edel_one(ctx, key, batch); //del expire ET key
+        expiration->cancelExpiration(ctx, key, batch); //del expire ET key
 	}
 	batch.Put(meta_key, meta_val);
 
@@ -233,7 +233,7 @@ int SSDBImpl::mark_key_deleted(Context &ctx, const Bytes &key, leveldb::WriteBat
         std::string del_key = encode_delete_key(key, version);
         batch.Put(meta_key, meta_val);
         batch.Put(del_key, "");
-        this->edel_one(ctx, key, batch); //del expire ET key
+        expiration->cancelExpiration(ctx, key, batch); //del expire ET key
 
         return 1;
     } else if (meta_val[POS_DEL] == KEY_DELETE_MASK){
@@ -1188,7 +1188,7 @@ int SSDBImpl::parse_replic(Context &ctx, const std::vector<std::string> &kvs) {
         batch.Put(key, val);
     }
 
-    leveldb::Status s = CommitBatch(ctx, &(batch));
+    leveldb::Status s = ldb->Write(leveldb::WriteOptions() , &(batch));
     if(!s.ok()){
         log_error("write leveldb error: %s", s.ToString().c_str());
         return -1;

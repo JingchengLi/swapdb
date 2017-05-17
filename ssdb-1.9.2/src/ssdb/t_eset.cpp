@@ -4,7 +4,6 @@
 
 #include "ssdb_impl.h"
 
-static void eset_internal(const Bytes &key, leveldb::WriteBatch &batch, int64_t ts);
 
 static int eset_one(Context &ctx, const Bytes &key, SSDBImpl *ssdb, leveldb::WriteBatch &batch, int64_t ts);
 
@@ -32,22 +31,6 @@ int SSDBImpl::eset(Context &ctx, const Bytes &key, int64_t ts) {
 }
 
 
-int SSDBImpl::edel(Context &ctx, const Bytes &key) {
-    RecordLock<Mutex> l(&mutex_record_, key.String());
-    leveldb::WriteBatch batch;
-
-    int ret = edel_one(ctx, key, batch);
-    if (ret >= 0) {
-        leveldb::Status s = CommitBatch(ctx, &(batch));
-        if (!s.ok()) {
-            log_error("edel error: %s", s.ToString().c_str());
-            return -1;
-        }
-    }
-
-    return ret;
-}
-
 int SSDBImpl::edel_one(Context &ctx, const Bytes &key,leveldb::WriteBatch &batch) {
 
     int64_t old_ts = 0;
@@ -64,7 +47,6 @@ int SSDBImpl::edel_one(Context &ctx, const Bytes &key,leveldb::WriteBatch &batch
         batch.Delete(old_score_key);
         batch.Delete(old_eset_key);
     }
-    expiration->delfastkey(ctx, key);
 
     return 1;
 }
@@ -88,18 +70,6 @@ int SSDBImpl::eget(Context &ctx, const Bytes &key, int64_t *ts) {
 }
 
 
-void eset_internal(const Bytes &key, leveldb::WriteBatch &batch, int64_t ts) {
-    string ekey = encode_eset_key(key);
-
-    string buf;
-    buf.append((char *) (&ts), sizeof(int64_t));
-
-    string score_key = encode_escore_key(key, static_cast<uint64_t>(ts));
-
-    batch.Put(ekey, buf);
-    batch.Put(score_key, "");
-}
-
 
 int eset_one(Context &ctx, const Bytes &key, SSDBImpl *ssdb, leveldb::WriteBatch &batch, int64_t ts) {
 
@@ -113,20 +83,26 @@ int eset_one(Context &ctx, const Bytes &key, SSDBImpl *ssdb, leveldb::WriteBatch
     }
 
     if (found == 0) {
-        eset_internal(key, batch,ts);
-
+        //skip
     } else if (found == 1) {
         if (old_ts == ts) {
             //same
         } else {
             string old_score_key = encode_escore_key(key, static_cast<uint64_t>(old_ts));
             batch.Delete(old_score_key);
-            eset_internal(key, batch, ts);
         }
     } else {
         //error
         return -1;
     }
+
+    string ekey = encode_eset_key(key);
+
+    string ekey_value((char *) (&ts), sizeof(int64_t));
+    string score_key = encode_escore_key(key, static_cast<uint64_t>(ts));
+
+    batch.Put(ekey, ekey_value);
+    batch.Put(score_key, "");
 
     return ret;
 

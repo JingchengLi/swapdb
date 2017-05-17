@@ -65,6 +65,9 @@ class SSDBImpl : public SSDB
 {
 private:
 	friend class SSDB;
+	friend class ExpirationHandler;
+
+
 	leveldb::DB* ldb;
 	leveldb::Options options;
 
@@ -217,9 +220,9 @@ public:
 
 	/* eset */
 	virtual int eset(Context &ctx, const Bytes &key,int64_t ts);
-	virtual int edel(Context &ctx, const Bytes &key);
 	virtual int eget(Context &ctx, const Bytes &key,int64_t *ts);
     virtual int check_meta_key(Context &ctx, const Bytes &key);
+	virtual int edel_one(Context &ctx, const Bytes &key,leveldb::WriteBatch &batch);
 
 	virtual int redisCursorCleanup();
 
@@ -231,7 +234,6 @@ private:
     int del_key_internal(Context &ctx, const Bytes &key, leveldb::WriteBatch &batch);
     int mark_key_deleted(Context &ctx, const Bytes &key, leveldb::WriteBatch &batch, const std::string &meta_key, std::string &meta_val);
 
-	int edel_one(Context &ctx, const Bytes &key,leveldb::WriteBatch &batch);
 
 
 	int GetHashMetaVal(const std::string &meta_key, HashMetaVal &hv);

@@ -151,7 +151,6 @@ public:
 
 	/* eset */
 	virtual int eset(Context &ctx, const Bytes &key,int64_t ts) = 0;
-	virtual int edel(Context &ctx, const Bytes &key) = 0;
 	virtual int eget(Context &ctx, const Bytes &key,int64_t *ts) = 0;
     virtual int check_meta_key(Context &ctx, const Bytes &key) = 0;
 
