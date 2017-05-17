@@ -917,6 +917,10 @@ int proc_repopid(Context &ctx, Link *link, const Request &req, Response *resp) {
         ctx.currentSeqCnx.timestamp = timestamp;
         ctx.currentSeqCnx.id = id;
 
+        if (ctx.lastSeqCnx.timestamp == 0) {
+            ctx.lastSeqCnx.timestamp = 1;
+        }
+
         resp->reply_ok();
 
         {
