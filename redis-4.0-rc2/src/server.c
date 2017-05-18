@@ -1662,6 +1662,7 @@ void createSharedObjects(void) {
     shared.maxstring = sdsnew("maxstring");
 
     if (server.jdjr_mode) {
+        shared.repopidsetok = sdsnew("repopid setok");
         shared.checkwriteok = sdsnew("rr_check_write ok");
         shared.checkwritenok = sdsnew("rr_check_write nok");
         shared.flushcheckok = sdsnew("rr_flushall_check ok");

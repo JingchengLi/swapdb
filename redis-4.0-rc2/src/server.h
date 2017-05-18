@@ -831,7 +831,8 @@ struct sharedObjectsStruct {
     sds checkwriteok, checkwritenok, makesnapshotok, makesnapshotnok,
         transfersnapshotok, transfersnapshotnok, transfersnapshotfinished,
         transfersnapshotunfinished, delsnapshotok, delsnapshotnok,
-        flushcheckok, flushchecknok, flushdoneok, flushdonenok;
+        flushcheckok, flushchecknok, flushdoneok, flushdonenok,
+        repopidsetok;
 };
 
 /* ZSETs use a specialized version of Skiplists */

@@ -1574,6 +1574,12 @@ void handleSSDBReply(client *c, int revert_len) {
             c->ssdb_conn_flags &= ~CONN_CHECK_REPOPID;
             return;
         }
+
+        if (IsReplyEqual(reply, shared.repopidsetok)) {
+            /* receive "repopid setok", do nothing */
+            return;
+        }
+
         if (reply->type == REDIS_REPLY_ERROR) {
             server.slave_ssdb_critical_err_cnt++;
             serverLog(LL_WARNING, "slave ssdb write error:%s", reply->str);
