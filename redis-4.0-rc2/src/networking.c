@@ -609,6 +609,27 @@ int clientHasPendingReplies(client *c) {
     return c->bufpos || listLength(c->reply);
 }
 
+void handleConnectSSDBok(client* c) {
+    server.ssdb_is_up = 1;
+    server.ssdb_down_time = -1;
+    if (server.master == c && listLength(server.ssdb_write_oplist) > 0) {
+        serverLog(LL_DEBUG, "connect master success, check repopid..."
+                  "server.master:%p, context:%p, context->fd:%d, ssdb conn flags:%d",
+                  (void*)server.master,
+                  (void*)server.master->context,
+                  server.master->context? server.master->context->fd : -1,
+                  server.master->ssdb_conn_flags);
+        const char* tmpargv[2];
+        tmpargv[0] = "repopid";
+        tmpargv[1] = "get";
+
+        sds cmd = composeRedisCmd(2, tmpargv, NULL);
+
+        if (sendCommandToSSDB(server.master, cmd) == C_OK)
+            server.master->ssdb_conn_flags |= CONN_CHECK_REPOPID;
+    }
+}
+
 void ssdbConnectCallback(aeEventLoop *el, int fd, void *privdata, int mask) {
     int sockerr = 0;
     socklen_t errlen = sizeof(sockerr);
@@ -636,25 +657,7 @@ void ssdbConnectCallback(aeEventLoop *el, int fd, void *privdata, int mask) {
         serverLog(LL_VERBOSE, "Unrecoverable error creating ssdbFd file event.");
         goto error;
     }
-
-    server.ssdb_is_up = 1;
-    server.ssdb_down_time = -1;
-    if (server.master == c && listLength(server.ssdb_write_oplist) > 0) {
-        serverLog(LL_DEBUG, "reconnect master success, check repopid..."
-                  "server.master:%p, context:%p, context->fd:%d, ssdb conn flags:%d",
-                  server.master,
-                  server.master->context,
-                  server.master->context? server.master->context->fd : -1,
-                  server.master->ssdb_conn_flags);
-        const char* tmpargv[2];
-        tmpargv[0] = "repopid";
-        tmpargv[1] = "get";
-
-        sds cmd = composeRedisCmd(2, tmpargv, NULL);
-
-        if (sendCommandToSSDB(server.master, cmd) == C_OK)
-            server.master->ssdb_conn_flags |= CONN_CHECK_REPOPID;
-    }
+    handleConnectSSDBok(c);
     return;
 error:
     c->ssdb_conn_flags |= CONN_CONNECT_FAILED;
@@ -666,6 +669,8 @@ error:
 /* Connecting to SSDB unix socket. */
 int nonBlockConnectToSsdbServer(client *c) {
     redisContext *context = NULL;
+    if (c->context) return C_OK;
+
     if (server.ssdb_server_unixsocket != NULL) {
         /* reset connect failed flag before re-connect. */
         c->ssdb_conn_flags &= ~CONN_CONNECT_FAILED;
@@ -676,31 +681,34 @@ int nonBlockConnectToSsdbServer(client *c) {
             if (server.ssdb_down_time == -1)
                 server.ssdb_down_time = server.unixtime;
             c->ssdb_conn_flags |= CONN_CONNECT_FAILED;
+            redisFree(context);
             serverLog(LL_VERBOSE, "Could not connect to SSDB server:%s", context->errstr);
-            redisFree(context);
             return C_ERR;
         }
 
-        if (server.master == c) {
-            serverLog(LL_DEBUG, "server.master->context:%p", server.master->context);
-            if (server.master->context)
-                serverLog(LL_DEBUG, "server.master->context->fd:%d", server.master->context->fd);
-            debugBT();
+        if (errno == EINPROGRESS) {
+            if (aeCreateFileEvent(server.el,context->fd,AE_READABLE|AE_WRITABLE,
+                                  ssdbConnectCallback,c) == AE_ERR)
+            {
+                c->ssdb_conn_flags |= CONN_CONNECT_FAILED;
+                redisFree(context);
+                return C_ERR;
+            }
+            c->ssdb_conn_flags |= CONN_CONNECTING;
+            c->context = context;
+        } else {
+            /* connect success */
+            if (aeCreateFileEvent(server.el, context->fd,
+                                  AE_READABLE, ssdbClientUnixHandler, c) == AE_ERR) {
+                c->ssdb_conn_flags |= CONN_CONNECT_FAILED;
+                redisFree(context);
+                return C_ERR;
+            }
+            c->context = context;
+            handleConnectSSDBok(c);
         }
-        if (aeCreateFileEvent(server.el,context->fd,AE_READABLE|AE_WRITABLE,ssdbConnectCallback,c) ==
-            AE_ERR)
-        {
-            c->ssdb_conn_flags |= CONN_CONNECT_FAILED;
-            redisFree(context);
-            serverLog(LL_WARNING,"Can't create readable event");
-            return C_ERR;
-        }
-        c->ssdb_conn_flags |= CONN_CONNECTING;
-
-        c->context = context;
         return C_OK;
     }
-
     return C_ERR;
 }
 
@@ -808,10 +816,15 @@ int sendCommandToSSDB(client *c, sds finalcmd) {
         return C_ERR;
     }
 
-    if (!c->context || c->context->fd <= 0) {
+    if ((c->ssdb_conn_flags & CONN_CONNECTING) ||
+        (c->ssdb_conn_flags & CONN_CONNECT_FAILED) ||
+        !c->context || c->context->fd <= 0) {
         if (isSpecialConnection(c))
             freeClient(c);
-        serverLog(LL_VERBOSE, "redisContext error.");
+        if (c->ssdb_conn_flags & CONN_CONNECTING)
+            serverLog(LL_DEBUG, "ssdb connection status is connecting");
+        else
+            serverLog(LL_DEBUG, "ssdb connection status is disconnected");
         return C_FD_ERR;
     }
 
@@ -1112,17 +1125,42 @@ static void revertClientBufReply(client *c, size_t revertlen) {
 int handleResponseOfSlaveSSDBflush(client *c, redisReply* reply) {
     if (server.master == c) {
         if (c->cmd && c->btype == BLOCKED_BY_FLUSHALL && c->cmd->proc == flushallCommand) {
-            unblockClient(c);
-            if (IsReplyEqual(reply, shared.flushdoneok)){
-                /* we receive flushall response of SSDB, now we can empty redis.*/
-                flushallCommand(c);
-                resetClient(c);
-                return C_OK;
+            struct ssdb_write_op* op;
+            listNode *ln;
+            redisReply* reply2, *repoid_response;
+            time_t resp_op_time;
+            int resp_op_index;
+            int ret;
+
+            /* because the replication connection(server.master) has been blocked by 'flushall'
+             * operation, so we are sure the last write op must be 'flushall'. */
+            ln = listLast(server.ssdb_write_oplist);
+            op = ln->value;
+            serverAssert(op->cmd->proc == flushallCommand);
+
+            reply2 = c->ssdb_replies[1];
+            repoid_response = reply2->element[1];
+            ret = sscanf(repoid_response->str, "repopid %ld %d", &resp_op_time, &resp_op_index);
+            serverAssert(2 == ret);
+            if (resp_op_time == op->time && resp_op_index == op->index) {
+                /* this is the response of 'flushall' */
+                serverLog(LL_DEBUG, "this is the response of 'flushall'");
+                unblockClient(c);
+                if (IsReplyEqual(reply, shared.flushdoneok)){
+                    /* we receive flushall response of SSDB, now we can empty redis.*/
+                    flushallCommand(c);
+                    resetClient(c);
+                    return C_OK;
+                } else {
+                    resetClient(c);
+                    /* close SSDB connection and we will retry flushall after connected. */
+                    closeAndReconnectSSDBconnection(c);
+                    return C_ERR;
+                }
             } else {
-                resetClient(c);
-                /* close SSDB connection and we will retry flushall after connected. */
-                closeAndReconnectSSDBconnection(c);
-                return C_ERR;
+                /* this is not a response of this "flushall" command. */
+                serverLog(LL_DEBUG, "this is not a response of this 'flushall' command");
+                return C_OK;
             }
         }
         return C_OK;
@@ -1472,7 +1510,6 @@ int handleExtraSSDBReply(client *c) {
 
         ln = listFirst(server.ssdb_write_oplist);
         op = ln->value;
-        serverAssert(repopid_index == op->index && repopid_time == op->time);
 
         if (repopid_index == op->index && repopid_time == op->time) {
             checkSSDBkeyIsDeleted(element0->str, op->cmd, op->argc, op->argv);

@@ -2741,6 +2741,11 @@ int processCommandMaybeFlushdb(client *c) {
                 struct ssdb_write_op* op;
                 listNode *ln;
 
+                // todo
+                /* after receive 'flushall', we don't need to care about previous
+                 * write operations, just empty write op list.*/
+                //emptySlaveSSDBwriteOperations();
+
                 ret = updateSendRepopidToSSDB(c);
                 if (ret != C_OK) return ret;
 
@@ -2858,8 +2863,8 @@ int confirmAndRetrySlaveSSDBwriteOp(time_t time, int index) {
 
             serverLog(LL_DEBUG, "repopid set %ld %d, server.master:%p, context:%p, context->fd:%d, ssdb conn flags:%d",
                       op->time, op->index,
-                      server.master,
-                      server.master->context,
+                      (void*)server.master,
+                      (void*)server.master->context,
                       server.master->context? server.master->context->fd : -1,
                       server.master->ssdb_conn_flags);
 
@@ -2929,8 +2934,8 @@ int updateSendRepopidToSSDB(client* c) {
     if (ret == C_OK)
         serverLog(LL_DEBUG, "repopid set %ld %d, server.master:%p, context:%p, context->fd:%d, ssdb conn flags:%d",
                   server.last_send_writeop_time, server.last_send_writeop_index,
-                  server.master,
-                  server.master->context,
+                  (void*)server.master,
+                  (void*)server.master->context,
                   server.master->context? server.master->context->fd : -1,
                   server.master->ssdb_conn_flags);
     return ret;

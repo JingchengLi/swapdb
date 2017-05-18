@@ -1196,7 +1196,6 @@ void replicationEmptyDbCallback(void *privdata) {
  * performed, this function materializes the master client we store
  * at server.master, starting from the specified file descriptor. */
 void replicationCreateMasterClient(int fd, int dbid) {
-    //if (server.jdjr_mode) emptySlaveSSDBwriteOperations();
     server.master = createClient(fd);
     server.master->flags |= CLIENT_MASTER;
     server.master->authenticated = 1;
@@ -1396,6 +1395,8 @@ void readSyncBulkPayload(aeEventLoop *el, int fd, void *privdata, int mask) {
             if (aof_is_enabled) restartAOF();
             return;
         }
+
+        if (server.jdjr_mode) emptySlaveSSDBwriteOperations();
 
         /* Final setup of the connected slave <- master link */
         replicationCreateMasterClient(server.repl_transfer_s,rsi.repl_stream_db);
@@ -2356,8 +2357,7 @@ void replicationResurrectCachedMaster(int newfd) {
         }
     }
 
-    if (server.jdjr_mode && (!server.master->context || (server.master->context->fd == -1))) {
-        if (server.master->context) redisFree(server.master->context);
+    if (server.jdjr_mode && !server.master->context) {
         if (C_OK != nonBlockConnectToSsdbServer(server.master)) {
             serverLog(LL_WARNING,"Error resurrecting the cached master, can't connect SSDB");
             freeClientAsync(server.master); /* Close ASAP. */
