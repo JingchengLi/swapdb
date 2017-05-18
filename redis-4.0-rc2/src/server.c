@@ -2675,14 +2675,8 @@ void call(client *c, int flags) {
                 /* Whatever the command wish is, we honor the call() flags. */
                 if (!(flags&CMD_CALL_PROPAGATE_AOF)) target &= ~PROPAGATE_AOF;
                 if (!(flags&CMD_CALL_PROPAGATE_REPL)) target &= ~PROPAGATE_REPL;
-                if (server.jdjr_mode && (rop->cmd->flags & CMD_WRITE)) {
-                    /* for jdjr mode, we only propagate write command here. */
-                    if (target)
-                        propagate(rop->cmd,rop->dbid,rop->argv,rop->argc,target);
-                } else {
-                    if (target)
-                        propagate(rop->cmd,rop->dbid,rop->argv,rop->argc,target);
-                }
+                if (target)
+                    propagate(rop->cmd,rop->dbid,rop->argv,rop->argc,target);
             }
         }
         redisOpArrayFree(&server.also_propagate);
