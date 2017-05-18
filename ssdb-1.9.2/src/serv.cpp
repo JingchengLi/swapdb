@@ -924,8 +924,7 @@ int proc_repopid(Context &ctx, Link *link, const Request &req, Response *resp) {
         resp->reply_ok();
 
         {
-            resp->redisResponse = new RedisResponse("OK");
-            resp->redisResponse->type = REDIS_REPLY_STATUS;
+            resp->redisResponse = new RedisResponse("repopid setok");
         }
 
     } else {
