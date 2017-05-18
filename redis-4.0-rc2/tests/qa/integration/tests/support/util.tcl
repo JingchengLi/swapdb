@@ -738,3 +738,45 @@ proc wait_flushall {{level 0}} {
     set stdout [dict get $config "stdout"]
     wait_log_pattern "rr_do_flushall ok" $stdout
 }
+
+proc wait_keys_processed {r {levels {0}}} {
+    foreach level $levels {
+        wait_for_condition 100 100 {
+            [s $level "keys loading from SSDB"] == 0 &&
+            [s $level "keys transferring to SSDB"] == 0 &&
+            [s $level "keys visiting SSDB"] == 0 &&
+            [s $level "keys delete confirming"] == 0
+        } else {
+            fail "some keys not process done after 10s"
+        }
+        if {[lindex [$r $level role] 0] == "slave"} {
+            wait_for_condition 10 100 {
+                [ s $level "slave unprocessed transfer/load keys" ] == 0
+            } else {
+                fail "some keys not transfer/load done in slave"
+            }
+        }
+    }
+}
+
+proc check_keys_cleared {r {levels {0}}} {
+    foreach level $levels {
+        wait_for_condition 100 100 {
+            [s $level "keys in redis count"] == 0 &&
+            [s $level "keys in ssdb count"] == 0 &&
+            [s $level "keys loading from SSDB"] == 0 &&
+            [s $level "keys transferring to SSDB"] == 0 &&
+            [s $level "keys visiting SSDB"] == 0 &&
+            [s $level "keys delete confirming"] == 0
+        } else {
+            fail "some keys not clear after 10s"
+        }
+        if {[lindex [$r $level role] 0] == "slave"} {
+            wait_for_condition 10 100 {
+                [s $level "slave unprocessed transfer/load keys"] == 0
+            } else {
+                fail "some keys not clear in slave"
+            }
+        }
+    }
+}

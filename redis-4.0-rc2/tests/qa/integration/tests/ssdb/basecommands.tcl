@@ -166,4 +166,9 @@ overrides {maxmemory 0}} {
         assert_equal [ssdbr zrevrangebylex myzset (g \[aaa] "c b" "zrevrangebylex myzset"
         assert_equal [ssdbr del myzset] 1 "del myzset"
     }
+
+    test {basic commands - not support} {
+        assert_error "*wrong number of arguments*" {r del a b}
+        assert_error "*wrong number of arguments*" {r exists a b}
+    }
 }

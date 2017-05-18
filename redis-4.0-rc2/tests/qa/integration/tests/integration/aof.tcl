@@ -104,30 +104,32 @@ tags {"aof"} {
         }
     }
 
-    ## Test the server doesn't start when the AOF contains an unfinished MULTI
-    create_aof {
-        append_to_aof [formatCommand set foo hello]
-        append_to_aof [formatCommand multi]
-        append_to_aof [formatCommand set bar world]
-    }
-
-    start_server_aof [list dir $server_path aof-load-truncated no] {
-        test "Unfinished MULTI: Server should have logged an error" {
-            set pattern "*Unexpected end of file reading the append only file*"
-            set retry 10
-            while {$retry} {
-                set result [exec tail -n1 < [dict get $srv stdout]]
-                if {[string match $pattern $result]} {
-                    break
-                }
-                incr retry -1
-                after 1000
-            }
-            if {$retry == 0} {
-                error "assertion:expected error not found on config file"
-            }
-        }
-    }
+# Not support multi command
+#    ## Test the server doesn't start when the AOF contains an unfinished MULTI
+#    create_aof {
+#        append_to_aof [formatCommand set foo hello]
+#        append_to_aof [formatCommand multi]
+#        append_to_aof [formatCommand set bar world]
+#    }
+#
+#    start_server_aof [list dir $server_path aof-load-truncated no] {
+#        test "Unfinished MULTI: Server should have logged an error" {
+#            set pattern "*Unexpected end of file reading the append only file*"
+#            set retry 10
+#            while {$retry} {
+#                set result [exec tail -n1 < [dict get $srv stdout]]
+#                if {[string match $pattern $result]} {
+#                    break
+#                }
+#                incr retry -1
+#                after 1000
+#            }
+#            if {$retry == 0} {
+#                puts "assertion:expected error not found on config file"
+#                after 1000000
+#            }
+#        }
+#    }
 
     ## Test that the server exits when the AOF contains a short read
     create_aof {
