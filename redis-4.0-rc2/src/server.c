@@ -2641,12 +2641,14 @@ void call(client *c, int flags) {
 
         /* Call propagate() only if at least one of AOF / replication
          * propagation is needed. */
-        if (server.jdjr_mode && (c->cmd->flags & CMD_WRITE)) {
+        if (server.jdjr_mode) {
             /* for jdjr mode, we only propagate write command here. to avoid
              * some special commands like psync/sync propagated, which can cause
              * unexpected issues.*/
-            if (propagate_flags != PROPAGATE_NONE) {
-                propagate(c->cmd,c->db->id,c->argv,c->argc,propagate_flags);
+            if (c->cmd->flags & CMD_WRITE) {
+                if (propagate_flags != PROPAGATE_NONE) {
+                    propagate(c->cmd,c->db->id,c->argv,c->argc,propagate_flags);
+                }
             }
         } else {
             if (propagate_flags != PROPAGATE_NONE) {
