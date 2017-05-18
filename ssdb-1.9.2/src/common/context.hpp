@@ -35,6 +35,10 @@ public:
         return this->id != id;
     }
 
+    bool operator==(uint64_t id) const {
+        return this->id == id;
+    }
+
     std::string toString() {
         return "repopid " + str(timestamp) + " " + str(id);
     }

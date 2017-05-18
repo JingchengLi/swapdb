@@ -398,19 +398,19 @@ SSDBImpl::CommitBatch(Context &ctx, const leveldb::WriteOptions &options, leveld
 
 
         if ((ctx.currentSeqCnx.timestamp == ctx.lastSeqCnx.timestamp)) {
-            if (ctx.lastSeqCnx != 0 && ctx.currentSeqCnx != 0) {
+            if (ctx.currentSeqCnx != 0) {
 
                 int64_t res = ctx.currentSeqCnx.id - ctx.lastSeqCnx.id;
 
                 if (res != 1) {
                     log_error("ctx.currentSeqCnx.id(%d) - ctx.lastSeqCnx.id(%d) != 1", ctx.currentSeqCnx.id,
                               ctx.lastSeqCnx.id);
-                    assert(0);
+                     assert(0);
                 }
             }
 
         } else {
-            if (ctx.currentSeqCnx.id != 1) {
+            if (ctx.currentSeqCnx != 1) {
                 log_error("ctx.currentSeqCnx.id(%d) != 1", ctx.currentSeqCnx.id);
                 assert(0);
             }
