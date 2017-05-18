@@ -640,7 +640,12 @@ void ssdbConnectCallback(aeEventLoop *el, int fd, void *privdata, int mask) {
     server.ssdb_is_up = 1;
     server.ssdb_down_time = -1;
     if (server.master == c && listLength(server.ssdb_write_oplist) > 0) {
-        serverLog(LOG_DEBUG, "reconnect master success, check repopid...");
+        serverLog(LL_DEBUG, "reconnect master success, check repopid..."
+                  "server.master:%p, context:%p, context->fd:%d, ssdb conn flags:%d",
+                  server.master,
+                  server.master->context,
+                  server.master->context? server.master->context->fd : -1,
+                  server.master->ssdb_conn_flags);
         const char* tmpargv[2];
         tmpargv[0] = "repopid";
         tmpargv[1] = "get";
@@ -676,6 +681,12 @@ int nonBlockConnectToSsdbServer(client *c) {
             return C_ERR;
         }
 
+        if (server.master == c) {
+            serverLog(LL_DEBUG, "server.master->context:%p", server.master->context);
+            if (server.master->context)
+                serverLog(LL_DEBUG, "server.master->context->fd:%d", server.master->context->fd);
+            debugBT();
+        }
         if (aeCreateFileEvent(server.el,context->fd,AE_READABLE|AE_WRITABLE,ssdbConnectCallback,c) ==
             AE_ERR)
         {
@@ -1491,6 +1502,59 @@ int handleExtraSSDBReply(client *c) {
     return C_OK;
 }
 
+int handleResponseOfReplicationConn(client* c, redisReply* reply) {
+    if (c != server.master) return C_ERR;
+
+    if (c->ssdb_conn_flags & CONN_CHECK_REPOPID) {
+        if (reply && reply->type == REDIS_REPLY_STRING && reply->str) {
+            /* we received response of "repopid get" */
+            time_t last_successful_write_time = -1;
+            int last_successful_write_index = -1;
+
+            int ret = sscanf(reply->str, "repopid %ld %d", &last_successful_write_time, &last_successful_write_index);
+            serverAssert(2 == ret);
+            if (2 != ret) {
+                server.slave_ssdb_critical_err_cnt++;
+                serverLog(LL_WARNING, "slave ssdb response a wrong repopid:%s", reply->str);
+                if (server.slave_ssdb_critical_err_cnt >= SLAVE_SSDB_MAX_CRITICAL_ERR_LIMIT) {
+                    serverLog(LL_WARNING, "too many critical errors for slave ssdb, redis will exit");
+                    exit(1);
+                }
+                closeAndReconnectSSDBconnection(c);
+            } else {
+                serverLog(LL_DEBUG, "[REPOPID CHECK] get ssdb last success write(op time:%ld, op id:%d)",
+                          last_successful_write_time, last_successful_write_index);
+                confirmAndRetrySlaveSSDBwriteOp(last_successful_write_time, last_successful_write_index);
+            }
+        } else {
+            serverLog(LL_WARNING, "failed to get repopid of slave ssdb, reply type:%d", reply->type);
+            server.slave_ssdb_critical_err_cnt++;
+            closeAndReconnectSSDBconnection(c);
+        }
+        c->ssdb_conn_flags &= ~CONN_CHECK_REPOPID;
+        return C_OK;
+    }
+
+    if (IsReplyEqual(reply, shared.repopidsetok)) {
+        /* receive "repopid setok", do nothing */
+        return C_OK;
+    }
+
+    if (reply->type == REDIS_REPLY_ERROR) {
+        server.slave_ssdb_critical_err_cnt++;
+        serverLog(LL_WARNING, "slave ssdb write error:%s", reply->str);
+        if (server.slave_ssdb_critical_err_cnt >= SLAVE_SSDB_MAX_CRITICAL_ERR_LIMIT) {
+            serverLog(LL_WARNING, "too many critical errors for slave ssdb, redis will exit");
+            exit(1);
+        }
+    }
+    if (handleResponseOfSlaveSSDBflush(c, reply) != C_OK)
+        return C_OK;
+
+    handleExtraSSDBReply(c);
+    return C_OK;
+}
+
 void removeVisitingSSDBKey(struct redisCommand *cmd, int argc, robj** argv) {
     int *keys = NULL, numkeys = 0, j;
 
@@ -1544,55 +1608,7 @@ void handleSSDBReply(client *c, int revert_len) {
     /* Handle special connections. */
     if (c == server.ssdb_client) return;
 
-    if (c == server.master) {
-        if (c->ssdb_conn_flags & CONN_CHECK_REPOPID) {
-            if (reply && reply->type == REDIS_REPLY_STRING && reply->str) {
-                /* we received response of "repopid get" */
-                time_t last_successful_write_time = -1;
-                int last_successful_write_index = -1;
-
-                int ret = sscanf(reply->str, "repopid %ld %d", &last_successful_write_time, &last_successful_write_index);
-                serverAssert(2 == ret);
-                if (2 != ret) {
-                    server.slave_ssdb_critical_err_cnt++;
-                    serverLog(LL_WARNING, "slave ssdb response a wrong repopid:%s", reply->str);
-                    if (server.slave_ssdb_critical_err_cnt >= SLAVE_SSDB_MAX_CRITICAL_ERR_LIMIT) {
-                        serverLog(LL_WARNING, "too many critical errors for slave ssdb, redis will exit");
-                        exit(1);
-                    }
-                    closeAndReconnectSSDBconnection(c);
-                } else {
-                    serverLog(LL_DEBUG, "[REPOPID CHECK] get ssdb last success write(op time:%ld, op id:%d)",
-                              last_successful_write_time, last_successful_write_index);
-                    confirmAndRetrySlaveSSDBwriteOp(last_successful_write_time, last_successful_write_index);
-                }
-            } else {
-                serverLog(LL_WARNING, "failed to get repopid of slave ssdb, reply type:%d", reply->type);
-                server.slave_ssdb_critical_err_cnt++;
-                closeAndReconnectSSDBconnection(c);
-            }
-            c->ssdb_conn_flags &= ~CONN_CHECK_REPOPID;
-            return;
-        }
-
-        if (IsReplyEqual(reply, shared.repopidsetok)) {
-            /* receive "repopid setok", do nothing */
-            return;
-        }
-
-        if (reply->type == REDIS_REPLY_ERROR) {
-            server.slave_ssdb_critical_err_cnt++;
-            serverLog(LL_WARNING, "slave ssdb write error:%s", reply->str);
-            if (server.slave_ssdb_critical_err_cnt >= SLAVE_SSDB_MAX_CRITICAL_ERR_LIMIT) {
-                serverLog(LL_WARNING, "too many critical errors for slave ssdb, redis will exit");
-                exit(1);
-            }
-        }
-        if (handleResponseOfSlaveSSDBflush(c, reply) != C_OK)
-            return;
-        handleExtraSSDBReply(c);
-        return;
-    }
+    if (c == server.master && handleResponseOfReplicationConn(c, reply) == C_OK) return;
 
     if (c == server.delete_confirm_client
         && handleResponseOfDeleteCheckConfirm(c) == C_OK) {
@@ -1957,6 +1973,9 @@ void unlinkClient(client *c) {
         }
 
         if (c->context) {
+            if (c->ssdb_conn_flags & CONN_CHECK_REPOPID)
+                c->ssdb_conn_flags &= ~CONN_CHECK_REPOPID;
+
             /* Unlink resources used in connecting to SSDB. */
             if (c->context->fd > 0)
                 aeDeleteFileEvent(server.el, c->context->fd, AE_READABLE|AE_WRITABLE);

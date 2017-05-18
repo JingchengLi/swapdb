@@ -2811,6 +2811,25 @@ void emptySlaveSSDBwriteOperations() {
     }
 }
 
+int sendRepopidToSSDB(client* c, time_t op_time, int op_id) {
+    const char* tmpargv[4];
+    char time[64];
+    char index[32];
+    int ret;
+
+    tmpargv[0] = "repopid";
+    tmpargv[1] = "set";
+    ll2string(time, sizeof(time), op_time);
+    tmpargv[2] = time;
+    ll2string(index, sizeof(index), op_id);
+    tmpargv[3] = index;
+
+    sds cmd = composeRedisCmd(4, tmpargv, NULL);
+
+    ret = sendCommandToSSDB(c, cmd);
+    return ret;
+}
+
 int confirmAndRetrySlaveSSDBwriteOp(time_t time, int index) {
     struct ssdb_write_op* op;
     listIter li;
@@ -2836,6 +2855,13 @@ int confirmAndRetrySlaveSSDBwriteOp(time_t time, int index) {
             /* this is a failed write retry, reuse its write op time and id. */
             ret = sendRepopidToSSDB(server.master, op->time, op->index);
             if (ret != C_OK) break;
+
+            serverLog(LL_DEBUG, "repopid set %ld %d, server.master:%p, context:%p, context->fd:%d, ssdb conn flags:%d",
+                      op->time, op->index,
+                      server.master,
+                      server.master->context,
+                      server.master->context? server.master->context->fd : -1,
+                      server.master->ssdb_conn_flags);
 
             /* re-send failed write operations to SSDB. */
             sds cmd = composeCmdFromArgs(op->argc, op->argv);
@@ -2888,25 +2914,6 @@ void saveSlaveSSDBwriteOp(client *c, time_t time, int index) {
     listAddNodeTail(server.ssdb_write_oplist, op);
 }
 
-int sendRepopidToSSDB(client* c, time_t op_time, int op_id) {
-    const char* tmpargv[4];
-    char time[64];
-    char index[32];
-    int ret;
-
-    tmpargv[0] = "repopid";
-    tmpargv[1] = "set";
-    ll2string(time, sizeof(time), op_time);
-    tmpargv[2] = time;
-    ll2string(index, sizeof(index), op_id);
-    tmpargv[3] = index;
-
-    sds cmd = composeRedisCmd(4, tmpargv, NULL);
-
-    ret = sendCommandToSSDB(c, cmd);
-    return ret;
-}
-
 int updateSendRepopidToSSDB(client* c) {
     int ret;
 
@@ -2919,6 +2926,13 @@ int updateSendRepopidToSSDB(client* c) {
     saveSlaveSSDBwriteOp(c, server.last_send_writeop_time, server.last_send_writeop_index);
 
     ret = sendRepopidToSSDB(c, server.last_send_writeop_time, server.last_send_writeop_index);
+    if (ret == C_OK)
+        serverLog(LL_DEBUG, "repopid set %ld %d, server.master:%p, context:%p, context->fd:%d, ssdb conn flags:%d",
+                  server.last_send_writeop_time, server.last_send_writeop_index,
+                  server.master,
+                  server.master->context,
+                  server.master->context? server.master->context->fd : -1,
+                  server.master->ssdb_conn_flags);
     return ret;
 }
 

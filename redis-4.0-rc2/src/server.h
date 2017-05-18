@@ -80,7 +80,7 @@ typedef long long mstime_t; /* millisecond time type. */
 #define C_NOTSUPPORT_ERR        -3
 #define C_ANOTHER_FLUSHALL_ERR    -4
 
-/* connection flags in jdjr_mode */
+/* SSDB connection flags in jdjr_mode */
 #define CONN_WAIT_WRITE_CHECK_REPLY (1<<0)
 #define CONN_WAIT_FLUSH_CHECK_REPLY (1<<1)
 #define CONN_CONNECTING             (1<<2)

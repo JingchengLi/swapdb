@@ -1196,6 +1196,7 @@ void replicationEmptyDbCallback(void *privdata) {
  * performed, this function materializes the master client we store
  * at server.master, starting from the specified file descriptor. */
 void replicationCreateMasterClient(int fd, int dbid) {
+    //if (server.jdjr_mode) emptySlaveSSDBwriteOperations();
     server.master = createClient(fd);
     server.master->flags |= CLIENT_MASTER;
     server.master->authenticated = 1;
