@@ -2812,6 +2812,11 @@ int confirmAndRetrySlaveSSDBwriteOp(time_t time, int index) {
         /* remove the successful write operations from buffer. */
         if (time > op->time || (time == op->time && index >= op->index)) {
             serverAssert(impossible);
+            /* last successful SSDB write command is 'flushall', but we don't get its response before
+             * replication connection disconnect, so we need empty redis also. */
+            if (time == op->time && index == op->index && op->cmd->proc == flushallCommand) {
+                flushallIfSSDBflushallsuccess();
+            }
             removeVisitingSSDBKey(op->cmd, op->argc, op->argv);
             listDelNode(server.ssdb_write_oplist, ln);
         } else {

@@ -419,6 +419,27 @@ void flushdbCommand(client *c) {
     addReply(c,shared.ok);
 }
 
+/* flushall slave redis if last timeout write op is flushall, but we confirm it is
+ * successful after "repopid get". so SSDB is empty now, and we need to clean redis also. */
+void flushallIfSSDBflushallsuccess() {
+    if (server.master) {
+        signalFlushedDb(-1);
+        server.dirty += emptyDb(-1, EMPTYDB_NO_FLAGS, NULL);
+        if (server.rdb_child_pid != -1) {
+            kill(server.rdb_child_pid,SIGUSR1);
+            rdbRemoveTempFile(server.rdb_child_pid);
+        }
+        if (server.saveparamslen > 0) {
+            /* Normally rdbSave() will reset dirty, but we don't want this here
+             * as otherwise FLUSHALL will not be replicated nor put into the AOF. */
+            int saved_dirty = server.dirty;
+            rdbSave(server.rdb_filename,NULL);
+            server.dirty = saved_dirty;
+        }
+        server.dirty++;
+    }
+}
+
 /* FLUSHALL [ASYNC]
  *
  * Flushes the whole server data set. */

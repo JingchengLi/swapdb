@@ -2059,6 +2059,7 @@ void sdiffstoreCommand(client *c);
 void sscanCommand(client *c);
 void syncCommand(client *c);
 void flushdbCommand(client *c);
+void flushallIfSSDBflushallsuccess();
 void flushallCommand(client *c);
 void sortCommand(client *c);
 void lremCommand(client *c);
