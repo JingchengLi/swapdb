@@ -2763,6 +2763,7 @@ int processCommandMaybeFlushdb(client *c) {
                 /* re-init */
                 server.ssdb_write_oplist = listCreate();
                 listSetFreeMethod(server.ssdb_write_oplist, (void (*)(void*)) freeSSDBwriteOp);
+                server.writeop_mem_size = 0;
 
                 /* after receive 'flushall', we don't need to care about previous
                  * write operations, just empty write op list.*/
@@ -2891,6 +2892,15 @@ int confirmAndRetrySlaveSSDBwriteOp(time_t time, int index) {
                 server.master->cmd = op->cmd;
                 server.master->argv = op->argv;
                 server.master->argc = op->argc;
+
+                /* Check if current cmd contains blocked keys. */
+                if (server.jdjr_mode
+                    && op->argc > 1
+                    && checkKeysInMediateState(server.master) == C_ERR) {
+                    /* server.master is blocked, return and handle it later. */
+                    // todo: unblock and do the rest failed writes
+                    return C_ERR;
+                }
 
                 ret = runCommand(server.master, op);
             }
@@ -3265,6 +3275,17 @@ int runCommand(client *c, struct ssdb_write_op* slave_retry_write) {
     } else {
         call(c,CMD_CALL_FULL);
         c->woff = server.master_repl_offset;
+    }
+
+    if (slave_retry_write) {
+        serverLog(LL_DEBUG, "[REPOPID]the keys is now in redis, remove write op from"
+                " list(op cmd:%s, time:%ld, index:%d)",
+                  slave_retry_write->cmd->name,
+                  slave_retry_write->time,
+                  slave_retry_write->index);
+        listNode* ln = listFirst(server.ssdb_write_oplist);
+        serverAssert(ln->value == slave_retry_write);
+        listDelNode(server.ssdb_write_oplist, ln);
     }
 
     serverLog(LL_DEBUG, "processing %s, fd: %d in redis: %s, dbid: %d, argc: %d",
