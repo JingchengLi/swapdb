@@ -136,10 +136,11 @@ start_server {tags {"ssdb"}} {
                 }
 
                 $master $flush
-                wait_for_condition 10 100 {
-                    {} == [$slave get foo]
+                wait_for_condition 10 500 {
+                    [$master debug digest] == 0000000000000000000000000000000000000000 &&
+                    [$slave debug digest] == 0000000000000000000000000000000000000000
                 } else {
-                    fail "$flush on master did not propagated on slave"
+                    fail "Digest not null:master([$master debug digest]) and slave([$slave debug digest]) after too long time."
                 }
                 list [lindex [sr scan 0] 0] [lindex [sr -1 scan 0] 0]
             } {0 0}

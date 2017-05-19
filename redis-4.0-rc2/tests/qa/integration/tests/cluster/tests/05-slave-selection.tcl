@@ -44,11 +44,12 @@ test "Slaves are both able to receive and acknowledge writes" {
 test "Write data while slave #10 is paused and can't receive it" {
     # Stop the slave with a multi/exec transaction so that the master will
     # be killed as soon as it can accept writes again.
-    R 10 multi
-    R 10 debug sleep 10
-    R 10 client kill 127.0.0.1:$port0
+    # Not support multi in jdjr-mode
+    # R 10 multi
     R 10 deferred 1
-    R 10 exec
+    R 10 client kill 127.0.0.1:$port0
+    R 10 debug sleep 10
+    # R 10 exec
 
     # Write some data the slave can't receive.
     for {set j 0} {$j < 100} {incr j} {
@@ -61,7 +62,8 @@ test "Write data while slave #10 is paused and can't receive it" {
 
     # Wait for the slave to return available again
     R 10 deferred 0
-    assert {[R 10 read] eq {OK OK}}
+    assert {[R 10 read] eq {OK}}
+    # assert {[R 10 read] eq {OK OK}}
 
     # Kill the master so that a reconnection will not be possible.
     kill_instance redis 0
