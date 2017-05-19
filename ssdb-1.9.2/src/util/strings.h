@@ -370,6 +370,8 @@ static inline
 int str_to_int(const std::string &str){
 	const char *start = str.c_str();
 	char *end;
+
+	errno = 0;
 	int ret = (int)strtol(start, &end, 10);
 	// the WHOLE string must be string represented integer
 	if(*end == '\0' && size_t(end - start) == str.size()){
@@ -392,6 +394,8 @@ static inline
 int64_t str_to_int64(const std::string &str){
 	const char *start = str.c_str();
 	char *end;
+
+	errno = 0;
 	int64_t ret = (int64_t)strtoll(start, &end, 10);
 	// the WHOLE string must be string represented integer
 	if(*end == '\0' && size_t(end - start) == str.size()){
@@ -414,6 +418,8 @@ static inline
 uint64_t str_to_uint64(const std::string &str){
 	const char *start = str.c_str();
 	char *end;
+
+	errno = 0;
 	uint64_t ret = (uint64_t)strtoull(start, &end, 10);
 	// the WHOLE string must be string represented integer
 	if(*end == '\0' && size_t(end - start) == str.size()){

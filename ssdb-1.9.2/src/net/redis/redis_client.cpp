@@ -80,3 +80,19 @@ RedisClient::RedisClient(Link *link) : so_link(link) {
 RedisClient::~RedisClient() {
     delete so_link;
 }
+
+
+
+void appendRedisRequest(std::string &cmd, const std::vector<std::string> &args) {
+    cmd.append("*");
+    cmd.append(str(args.size()));
+    cmd.append("\r\n");
+    for (const std::string &s: args) {
+        cmd.append("$");
+        cmd.append(str(s.size()));
+        cmd.append("\r\n");
+        cmd.append(s);
+        cmd.append("\r\n");
+    }
+    cmd.append("\r\n");
+}

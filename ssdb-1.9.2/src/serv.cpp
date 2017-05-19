@@ -129,6 +129,9 @@ DEF_PROC(quit);
 DEF_PROC(replic);
 DEF_PROC(replic_info);
 DEF_PROC(slowlog);
+
+DEF_PROC(migrate);
+
 DEF_PROC(ssdb_scan);
 DEF_PROC(ssdb_dbsize);
 DEF_PROC(ssdb_sync);
@@ -259,6 +262,7 @@ void SSDBServer::reg_procs(NetworkServer *net) {
     REG_PROC(redis_req_restore, "wt");
 
     REG_PROC(select, "rt");
+    REG_PROC(migrate, "rt");
     REG_PROC(client, "r");
     REG_PROC(quit, "r");
     REG_PROC(replic, "b");
@@ -971,5 +975,221 @@ int proc_ssdb_sync(Context &ctx, Link *link, const Request &req, Response *resp)
 
     resp->resp.clear(); //prevent send resp
     return PROC_BACKEND;
+}
+
+
+
+void process_socket_err() {
+
+}
+
+
+
+int proc_migrate(Context &ctx, Link *link, const Request &req, Response *resp) {
+    SSDBServer *serv = (SSDBServer *) ctx.net->data;
+    CHECK_NUM_PARAMS(6);
+
+    int copy, replace, j;
+    std::string host;
+    int port = 0;
+    std::string key;
+    long dbid = 0;
+    long timeout = 0;
+
+    int write_error = 0;
+
+    std::vector<std::string> kv;
+
+
+    /* Initialization */
+    copy = 0;
+    replace = 0;
+
+    /* To support the KEYS option we need the following additional state. */
+    int first_key = 3; /* Argument index of the first key. */
+    int num_keys = 1;  /* By default only migrate the 'key' argument. */
+
+
+    if (req.size() > 4) {
+        for (j = 6; j < req.size(); j++) {
+            std::string q4 = req[j].String();
+            strtolower(&q4);
+
+            if (q4 == "copy") {
+                copy = 1;
+            } else if (q4 == "replace") {
+                replace = 1;
+            } else if (q4 == "keys") {
+                if (!req[3].empty()) {
+                    reply_errinfo_return("When using MIGRATE KEYS option, the key argument"
+                                    " must be set to the empty string");
+                }
+                first_key = j+1;
+                num_keys = (int) (req.size() - j - 1);
+                break;
+            } else {
+                reply_err_return(SYNTAX_ERR);
+            }
+        }
+    }
+
+
+    host = req[1].String();
+    port = req[2].Int();
+    if (errno == EINVAL || port < 1) {
+        reply_err_return(INVALID_INT);
+    }
+
+    key = req[3].Int();
+
+    dbid = req[4].Int();
+    if (errno == EINVAL || dbid < 0) {
+        reply_err_return(INVALID_INT);
+    }
+
+
+    timeout = req[5].Int();
+    if (errno == EINVAL) {
+        reply_err_return(INVALID_INT);
+    }
+
+    if (timeout <= 0) timeout = 1000;
+
+    for (j = 0; j < num_keys; j++) {
+        int res = serv->ssdb->check_meta_key(ctx, req[first_key+j]);
+        if (res < 0) {
+            reply_err_return(res);
+        } else if (res == 0){
+            //ingnore
+        } else {
+            kv.emplace_back(req[first_key+j].String());
+        }
+    }
+
+
+    if (num_keys == 0) {
+        resp->reply_ok();
+        {
+            resp->redisResponse = new RedisResponse("NOKEY");
+            resp->redisResponse->type = REDIS_REPLY_STATUS;
+        }
+    }
+
+
+    Link *cs = Link::connect(host.c_str(), port);
+    if (cs == NULL) {
+        reply_errinfo_return("IOERR error or timeout connecting to the client");
+    }
+
+    cs->settimeout(0, timeout * 1000);
+
+    //managed link
+    RedisClient r(cs);
+    std::string cmd;
+
+    if (dbid != 0) {
+        appendRedisRequest(cmd, {"SELECT", str((int)dbid)});
+    }
+
+    /* Create RESTORE payload and generate the protocol to call the command. */
+    for (j = 0; j < num_keys; j++) {
+        std::string payload;
+        int ret = serv->ssdb->dump(ctx, kv[j], &payload);
+        if (ret == 0) {
+            continue;
+        } else if (ret < 0) {
+            reply_err_return(ret);
+        }
+
+        int64_t pttl = serv->ssdb->expiration->pttl(ctx, kv[j], TimeUnit::Millisecond);
+        if (pttl == -2) {
+            continue;
+        } else if (pttl == -1) {
+            pttl = 0;
+        }
+
+        std::vector<std::string> cmd_item;
+        cmd_item.emplace_back("RESTORE");
+        cmd_item.emplace_back(kv[j]);
+        cmd_item.emplace_back(str(pttl));
+        cmd_item.emplace_back(payload);
+        if (replace != 0) cmd_item.emplace_back("REPLACE");
+
+        appendRedisRequest(cmd, cmd_item);
+    }
+
+
+    /* Transfer the query to the other node in 64K chunks. */
+    errno = 0;
+    {
+        auto buf = cmd.data();
+        size_t pos = 0, towrite;
+        int nwritten = 0;
+
+        while ((towrite = cmd.size() - pos) > 0) {
+            towrite = (towrite > (64 * 1024) ? (64 * 1024) : towrite);
+            cs->output->append(buf + pos, (int) towrite);
+            nwritten = cs->write();
+            if (nwritten <0 || cs->output->size()!=0) {
+                if (errno != 0) {
+                    log_debug("%s" , strerror(errno));
+                }
+
+                reply_errinfo_return("write failed");
+            }
+            pos += nwritten;
+        }
+    }
+
+
+    RedisResponse *buf1 = nullptr;
+    RedisResponse *buf2 = nullptr;
+
+    if (dbid != 0) {
+        buf1 = r.redisResponse();
+        if (buf1 == nullptr || buf1->type == REDIS_REPLY_ERROR) {
+            if (buf1 != nullptr) delete buf1;
+            reply_errinfo_return(buf1->str);
+        }
+    }
+
+    if (buf1 != nullptr) {
+        delete buf1;
+        buf1 == nullptr;
+    }
+
+    /* Read the RESTORE replies. */
+    std::string error_info_from_target;
+    int socket_error = 0;
+
+    for (j = 0; j < num_keys; j++) {
+        buf2 = r.redisResponse();
+        if (buf2 == nullptr) {
+            socket_error = 1;
+            break;
+        }
+
+        if (buf2->type == REDIS_REPLY_ERROR) {
+            reply_errinfo_return(buf2->str);
+        } else {
+            if (!copy) {
+                /* No COPY option: remove the local key, signal the change. */
+                serv->ssdb->del(ctx, key);
+            }
+        }
+    }
+
+    /* If we are here and a socket error happened, we don't want to retry.
+       * Just signal the problem to the client, but only do it if we don't
+       * already queued a different error reported by the destination server. */
+    if (socket_error) {
+        reply_errinfo_return("write to remote server failed");
+    }
+
+     /* Success! Update the last_dbid in migrateCachedSocket, so that we can
+     * avoid SELECT the next time if the target DB is the same. Reply +OK. */
+    resp->reply_ok();
+
+    return 0;
 }
 

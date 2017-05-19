@@ -70,6 +70,7 @@ static RedisCommand_raw cmds_raw[] = {
 
 
 	{STRATEGY_AUTO, "select",	"select",		REPLY_OK_STATUS},
+	{STRATEGY_AUTO, "migrate",	 "migrate",		REPLY_OK_STATUS},
 	{STRATEGY_AUTO, "client",	"client",		REPLY_OK_STATUS},
 	{STRATEGY_AUTO, "quit",		"quit",			REPLY_OK_STATUS},
 	{STRATEGY_AUTO, "debug",	"debug",		REPLY_CUSTOM_STATUS},

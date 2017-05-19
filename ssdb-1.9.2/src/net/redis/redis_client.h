@@ -45,4 +45,7 @@ public:
 };
 
 
+void appendRedisRequest(std::string &cmd, const std::vector<std::string> &args);
+
+
 #endif //SSDB_LINK_REDIS_CLIENT_H
