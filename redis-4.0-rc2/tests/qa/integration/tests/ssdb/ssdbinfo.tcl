@@ -10,6 +10,21 @@ overrides {maxmemory 0}} {
     }
 }
 
+start_server {tags {"repl"}} {
+    set master [srv client]
+    start_server {} {
+        test "First server should have role slave after SLAVEOF" {
+            r 0 slaveof [srv -1 host] [srv -1 port]
+            wait_for_online $master
+        }
+
+        test "write after online wait ssdbinfo show keys transfer/load/visit done" {
+            createComplexDataset $master 1000
+            wait_keys_processed r {0 -1}
+        }
+    }
+}
+
 start_server {tags {"ssdb"}} {
     set master [srv client]
     set master_host [srv host]
@@ -19,7 +34,7 @@ start_server {tags {"ssdb"}} {
         lappend slaves [srv 0 client]
         start_server {} {
             lappend slaves [srv 0 client]
-            test "ssdbinfo show keys transfer/load/visit" {
+            test "ssdbinfo show keys transfer/load/visit during write" {
                 set num 10000
                 set clients 10
                 set clist [ start_bg_complex_data_list $master_host $master_port $num $clients ]

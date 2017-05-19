@@ -29,6 +29,7 @@ set ::all_tests {
     ssdb/lfu-policy
     ssdb/threads
     ssdb/flush
+    ssdb/ssdbinfo
 
     unit/type/hash
     unit/type/incr
