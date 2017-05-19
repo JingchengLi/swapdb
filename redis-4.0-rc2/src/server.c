@@ -2322,8 +2322,6 @@ void initServer(void) {
         server.ssdb_write_oplist = listCreate();
         listSetFreeMethod(server.ssdb_write_oplist, (void (*)(void*)) freeSSDBwriteOp);
 
-        server.last_received_writeop_index = -1;
-        server.last_received_writeop_time = -1;
         server.last_send_writeop_time = -1;
         server.last_send_writeop_index = -1;
         server.writeop_mem_size = 0;
@@ -2724,6 +2722,23 @@ int checkKeysInMediateState(client* c) {
     return C_OK;
 }
 
+int blockAndFlushSlaveSSDB(client* c) {
+    int ret;
+
+    /* flushall STEP 1: clean all intermediate state keys, avoid to cause unexpected issues. */
+    cleanSpecialClientsAndIntermediateKeys(1);
+
+    sds finalcmd = sdsnew("*1\r\n$14\r\nrr_do_flushall\r\n");
+    ret = sendCommandToSSDB(c, finalcmd);
+    if (ret != C_OK) return ret;
+    serverLog(LL_DEBUG, "send rr_do_flushall ok");
+
+    /* we just wait flushall done. */
+    c->bpop.timeout = 8000+mstime();
+    blockClient(c, BLOCKED_BY_FLUSHALL);
+    return C_OK;
+}
+
 int processCommandMaybeFlushdb(client *c) {
     int ret;
     if ((c->cmd->proc == flushallCommand
@@ -2741,7 +2756,14 @@ int processCommandMaybeFlushdb(client *c) {
                 struct ssdb_write_op* op;
                 listNode *ln;
 
-                // todo
+                /* before flushall, clean all visiting keys and all writes in ssdb write op list. */
+                dictEmpty(EVICTED_DATA_DB->visiting_ssdb_keys, NULL);
+                listRelease(server.ssdb_write_oplist);
+
+                /* re-init */
+                server.ssdb_write_oplist = listCreate();
+                listSetFreeMethod(server.ssdb_write_oplist, (void (*)(void*)) freeSSDBwriteOp);
+
                 /* after receive 'flushall', we don't need to care about previous
                  * write operations, just empty write op list.*/
                 //emptySlaveSSDBwriteOperations();
@@ -2749,22 +2771,14 @@ int processCommandMaybeFlushdb(client *c) {
                 ret = updateSendRepopidToSSDB(c);
                 if (ret != C_OK) return ret;
 
-                /* flushall STEP 1: clean all intermediate state keys, avoid to cause unexpected issues. */
-                cleanSpecialClientsAndIntermediateKeys(1);
-
-                sds finalcmd = sdsnew("*1\r\n$14\r\nrr_do_flushall\r\n");
-                ret = sendCommandToSSDB(c, finalcmd);
+                ret = blockAndFlushSlaveSSDB(c);
                 if (ret != C_OK) return ret;
-                serverLog(LL_DEBUG, "send rr_do_flushall ok");
 
                 ln = listLast(server.ssdb_write_oplist);
                 op = ln->value;
                 serverLog(LL_DEBUG, "[REPOPID]redis send %s(op time:%ld, op id:%d) to ssdb success",
                           op->cmd->name, op->time, op->index);
 
-                /* we just wait flushall done. */
-                c->bpop.timeout = 8000+mstime();
-                blockClient(c, BLOCKED_BY_FLUSHALL);
                 return C_OK;
             }
         }
@@ -2851,29 +2865,39 @@ int confirmAndRetrySlaveSSDBwriteOp(time_t time, int index) {
             /* last successful SSDB write command is 'flushall', but we don't get its response before
              * replication connection disconnect, so we need empty redis also. */
             if (time == op->time && index == op->index && op->cmd->proc == flushallCommand) {
+                serverLog(LL_DEBUG, "last timeout cmd is flushall, ssdb flushall ok, now we need empty redis");
                 flushallIfSSDBflushallsuccess();
             }
-            removeVisitingSSDBKey(op->cmd, op->argc, op->argv);
             listDelNode(server.ssdb_write_oplist, ln);
         } else {
+            // for assert
             impossible = 0;
-            /* this is a failed write retry, reuse its write op time and id. */
-            ret = sendRepopidToSSDB(server.master, op->time, op->index);
+
+            /* this is a failed write, retry it. */
+            if (op->cmd->proc == flushallCommand) {
+                ret = sendRepopidToSSDB(server.master, op->time, op->index);
+                if (ret != C_OK) break;
+
+                server.master->argc = 1;
+                server.master->argv = zmalloc(sizeof(robj*)*1);
+                server.master->argv[0] = createObject(OBJ_STRING,sdsnew("flushall"));
+
+                /* we had clean slave ssdb write op list before process 'flushall', so
+                 * we can assert there is only one op in server.ssdb_write_oplist.
+                 * see processCommandMaybeFlushdb */
+                serverAssert(1 == listLength(server.ssdb_write_oplist));
+                ret = blockAndFlushSlaveSSDB(server.master);
+            } else {
+                server.master->cmd = op->cmd;
+                server.master->argv = op->argv;
+                server.master->argc = op->argc;
+
+                ret = runCommand(server.master, op);
+            }
             if (ret != C_OK) break;
-
-            serverLog(LL_DEBUG, "repopid set %ld %d, server.master:%p, context:%p, context->fd:%d, ssdb conn flags:%d",
-                      op->time, op->index,
-                      (void*)server.master,
-                      (void*)server.master->context,
-                      server.master->context? server.master->context->fd : -1,
-                      server.master->ssdb_conn_flags);
-
-            /* re-send failed write operations to SSDB. */
-            sds cmd = composeCmdFromArgs(op->argc, op->argv);
             serverLog(LL_DEBUG, "[REPOPID CHECK] re-send failed write op(cmd:%s, op time:%ld, op id:%d) to SSDB",
                       op->cmd->name, op->time, op->index);
-            ret = sendCommandToSSDB(server.master, cmd);
-            if (ret != C_OK) break;
+
         }
     }
     return ret;
@@ -2943,7 +2967,7 @@ int updateSendRepopidToSSDB(client* c) {
 
 /* Process keys may be in SSDB, only handle the command jdjr_mode supported.
  The rest cases will be handled by processCommand. */
-int processCommandMaybeInSSDB(client *c) {
+int processCommandMaybeInSSDB(client *c, struct ssdb_write_op* slave_retry_write) {
     if ( !c->cmd || !(c->cmd->flags & (CMD_READONLY | CMD_WRITE)) )
         return C_ERR;
     if (c->cmd->flags & CMD_JDJR_REDIS_ONLY)
@@ -2998,7 +3022,13 @@ int processCommandMaybeInSSDB(client *c) {
         robj* val = lookupKey(EVICTED_DATA_DB, c->argv[1], LOOKUP_NONE);
         if (val) {
             if (server.master == c) {
-                int ret = updateSendRepopidToSSDB(c);
+                int ret;
+                if (slave_retry_write) {
+                    /* this is a failed write retry, reuse its write op time and id. */
+                    ret = sendRepopidToSSDB(server.master, slave_retry_write->time, slave_retry_write->index);
+                } else {
+                    ret = updateSendRepopidToSSDB(c);
+                }
                 if (ret != C_OK) {
                     /* avoid to free c->argv for the replication connection of slave redis. we use it to save
                      * commands in server.ssdb_write_oplist */
@@ -3196,11 +3226,10 @@ void prepareSSDBflush(client* c) {
     blockClient(c, BLOCKED_BY_FLUSHALL);
 }
 
-int runCommand(client *c, int* need_return) {
+int runCommand(client *c, struct ssdb_write_op* slave_retry_write) {
     /* Exec the command */
     if (server.jdjr_mode) {
-        if (need_return) *need_return = 1;
-        int ret = processCommandMaybeInSSDB(c);
+        int ret = processCommandMaybeInSSDB(c, slave_retry_write);
         if (ret == C_OK) {
             if (server.master == c) {
                 /* for the replication connection of slave redis, after we send write commands
@@ -3217,8 +3246,6 @@ int runCommand(client *c, int* need_return) {
                       c->cmd->name, c->fd, c->argc > 1 ? (char *)c->argv[1]->ptr : "");
             return C_ERR;
         } else {
-            if (need_return) *need_return = 1;
-
             if (ret == C_NOTSUPPORT_ERR) {
                 addReplyErrorFormat(c, "don't support this command in jdjr mode:%s.", c->cmd->name);
                 return C_OK;
@@ -3235,11 +3262,9 @@ int runCommand(client *c, int* need_return) {
     {
         queueMultiCommand(c);
         addReply(c,shared.queued);
-        if (need_return) *need_return = 1;
     } else {
         call(c,CMD_CALL_FULL);
         c->woff = server.master_repl_offset;
-        if (need_return) *need_return = 0;
     }
 
     serverLog(LL_DEBUG, "processing %s, fd: %d in redis: %s, dbid: %d, argc: %d",
@@ -3282,7 +3307,6 @@ void handleCustomizedBlockedClients() {
  * if C_ERR is returned the client was destroyed (i.e. after QUIT). */
 int processCommand(client *c) {
     int ret;
-    int need_return = 0;
     /* The QUIT command is handled separately. Normal command procs will
      * go through checking for replication and QUIT will cause trouble
      * when FORCE_REPLICATION is enabled and would be implemented in
@@ -3491,10 +3515,7 @@ int processCommand(client *c) {
         return C_ERR;
     }
 
-    ret = runCommand(c, &need_return);
-    if (need_return) {
-        return ret;
-    }
+    ret = runCommand(c, NULL);
 
     if (listLength(server.ready_keys))
         handleClientsBlockedOnLists();

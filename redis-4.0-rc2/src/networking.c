@@ -798,6 +798,10 @@ int closeAndReconnectSSDBconnection(client* c) {
             aeDeleteFileEvent(server.el, c->context->fd, AE_READABLE|AE_WRITABLE);
         redisFree(c->context);
         c->context = NULL;
+        /* if the replication connection(server.master) disconnect, we must clean visiting_ssdb_keys to
+         * avoid wrong visiting count. */
+        if (server.master == c)
+            dictEmpty(EVICTED_DATA_DB->visiting_ssdb_keys, NULL);
     }
 
     if (nonBlockConnectToSsdbServer(c) == C_ERR) {
@@ -1150,13 +1154,14 @@ int handleResponseOfSlaveSSDBflush(client *c, redisReply* reply) {
                     /* we receive flushall response of SSDB, now we can empty redis.*/
                     flushallCommand(c);
                     resetClient(c);
-                    return C_OK;
+                    /* flushall success, we can remove it from ssdb_write_oplist. */
+                    listDelNode(server.ssdb_write_oplist, ln);
                 } else {
                     resetClient(c);
                     /* close SSDB connection and we will retry flushall after connected. */
                     closeAndReconnectSSDBconnection(c);
-                    return C_ERR;
                 }
+                return C_RETURN;
             } else {
                 /* this is not a response of this "flushall" command. */
                 serverLog(LL_DEBUG, "this is not a response of this 'flushall' command");
@@ -1165,7 +1170,7 @@ int handleResponseOfSlaveSSDBflush(client *c, redisReply* reply) {
         }
         return C_OK;
     } else {
-        return C_ERR;
+        return C_RETURN;
     }
 }
 
@@ -1480,6 +1485,7 @@ int handleExtraSSDBReply(client *c) {
         int repopid_index;
         struct ssdb_write_op* op;
         listNode *ln;
+        listIter *li;
         int ret;
 
         element1 = reply->element[1];
@@ -1502,14 +1508,15 @@ int handleExtraSSDBReply(client *c) {
             /* this is a response of the first "repopid set" request. */
             return C_OK;
         }
-        if (server.last_received_writeop_index == repopid_index && server.last_received_writeop_time == repopid_time) {
-            /* this is a response of "repopid set" request, its repopid time and id are the same as
-             * the last processed write op(which was removed from write op list), so just ignore it. */
-            return C_OK;
-        }
 
         ln = listFirst(server.ssdb_write_oplist);
         op = ln->value;
+        if ((repopid_time < op->time) || (repopid_time == op->time && repopid_index < op->index)) {
+            /* this may caused by a previous 'flushall' which would empty server.ssdb_write_oplist
+             * and visiting_ssdb_keys. see processCommandMaybeFlushdb. */
+            listDelNode(server.ssdb_write_oplist, ln);
+            return C_OK;
+        }
 
         if (repopid_index == op->index && repopid_time == op->time) {
             checkSSDBkeyIsDeleted(element0->str, op->cmd, op->argc, op->argv);
@@ -1517,10 +1524,6 @@ int handleExtraSSDBReply(client *c) {
                     " remove from write op list", op->cmd->name, op->time, op->index);
             removeVisitingSSDBKey(op->cmd, op->argc, op->argv);
             listDelNode(server.ssdb_write_oplist, ln);
-
-            /* save last write op time and op id */
-            server.last_received_writeop_time = repopid_time;
-            server.last_received_writeop_index = repopid_index;
         } else {
             serverLog(LL_WARNING, "repopid time/index don't match the first in server.ssdb_write_oplist");
             server.slave_ssdb_critical_err_cnt++;
@@ -1585,7 +1588,7 @@ int handleResponseOfReplicationConn(client* c, redisReply* reply) {
             exit(1);
         }
     }
-    if (handleResponseOfSlaveSSDBflush(c, reply) != C_OK)
+    if (handleResponseOfSlaveSSDBflush(c, reply) == C_RETURN)
         return C_OK;
 
     handleExtraSSDBReply(c);
@@ -2018,6 +2021,8 @@ void unlinkClient(client *c) {
                 aeDeleteFileEvent(server.el, c->context->fd, AE_READABLE|AE_WRITABLE);
             redisFree(c->context);
             c->context = NULL;
+            if (server.master == c)
+                dictEmpty(EVICTED_DATA_DB->visiting_ssdb_keys, NULL);
         }
     }
 

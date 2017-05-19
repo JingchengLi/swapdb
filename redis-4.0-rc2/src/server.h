@@ -78,7 +78,8 @@ typedef long long mstime_t; /* millisecond time type. */
 #define C_ERR                   -1
 #define C_FD_ERR                -2
 #define C_NOTSUPPORT_ERR        -3
-#define C_ANOTHER_FLUSHALL_ERR    -4
+#define C_ANOTHER_FLUSHALL_ERR  -4
+#define C_RETURN                -5
 
 /* SSDB connection flags in jdjr_mode */
 #define CONN_WAIT_WRITE_CHECK_REPLY (1<<0)
@@ -1312,8 +1313,6 @@ struct redisServer {
     client *delete_confirm_client;
 
     /* for slave redis, we save ssdb write operations before receive responses from ssdb. */
-    time_t last_received_writeop_time;
-    int last_received_writeop_index;
     time_t last_send_writeop_time;
     int last_send_writeop_index;
     list* ssdb_write_oplist;
@@ -1770,10 +1769,10 @@ int tryEvictingKeysToSSDB(int *mem_tofree);
 size_t objectComputeSize(robj *o, size_t sample_size);
 size_t estimateKeyMemoryUsage(dictEntry *de);
 int processCommand(client *c);
-int runCommand(client *c, int* need_return);
+int runCommand(client *c, struct ssdb_write_op* slave_retry_write);
 int checkValidCommand(client* c);
 int checkKeysInMediateState(client* c);
-int processCommandMaybeInSSDB(client *c);
+int processCommandMaybeInSSDB(client *c,  struct ssdb_write_op* slave_retry_write);
 int isSSDBrespCmd(struct redisCommand *cmd);
 void setupSignalHandlers(void);
 struct redisCommand *lookupCommand(sds name);
