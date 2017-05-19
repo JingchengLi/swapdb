@@ -1104,8 +1104,12 @@ void handleClientsBlockedOnSSDB(void) {
 
                         unblockClient(c);
 
-                        if (runCommand(c, NULL) == C_OK)
-                            resetClient(c);
+                        if (server.master == c && server.slave_failed_retry_interrupted) {
+                            confirmAndRetrySlaveSSDBwriteOp(server.blocked_write_op->time, server.blocked_write_op->index);
+                        } else {
+                            if (runCommand(c) == C_OK)
+                                resetClient(c);
+                        }
                     }
                 }
             }
@@ -1131,7 +1135,7 @@ void handleClientsBlockedOnCustomizedPsync(void) {
 
         unblockClient(c);
 
-        if (runCommand(c, NULL) == C_OK)
+        if (runCommand(c) == C_OK)
             resetClient(c);
     }
 }
@@ -1214,20 +1218,40 @@ int blockForLoadingkeys(client *c, robj **keys, int numkeys, mstime_t timeout) {
     return blockednum;
 }
 
-/* TODO: return null according to the key's type??? */
 void transferringOrLoadingBlockedClientTimeOut(client *c) {
     dictIterator *di = dictGetIterator(c->bpop.loading_or_transfer_keys);
     dictEntry *de;
+    int found = 1;
 
     while((de = dictNext(di)) != NULL) {
         robj * keyobj = dictGetKey(de);
+        /* remove the key from transferring/loading keys, and signal */
+        if (dictFind(EVICTED_DATA_DB->transferring_keys, keyobj->ptr))
+            dictDelete(EVICTED_DATA_DB->transferring_keys, keyobj->ptr);
+        else if (dictFind(EVICTED_DATA_DB->loading_hot_keys, keyobj->ptr))
+            dictDelete(EVICTED_DATA_DB->loading_hot_keys, keyobj->ptr);
+        else if (dictFind(EVICTED_DATA_DB->delete_confirm_keys, keyobj->ptr))
+            dictDelete(EVICTED_DATA_DB->delete_confirm_keys, keyobj->ptr);
+        else
+            found = 0;
 
+        if (found) {
+            signalBlockingKeyAsReady(&server.db[0], keyobj);
+            serverLog(LL_DEBUG, "key: %s is deleted from loading_or_transfer_keys.", (char *)keyobj->ptr);
+        }
+        /* remove this client from blocked client list of this key, so we can process timeout case
+         * in our way. */
         removeClientFromListForBlockedKey(c, keyobj);
-        serverLog(LL_DEBUG, "key: %s is deleted from loading_or_transfer_keys.", (char *)keyobj->ptr);
         serverLog(LL_DEBUG, "client: %d key: %s is timeout.", c->fd, (char *)keyobj->ptr);
         serverAssert(dictDelete(c->bpop.loading_or_transfer_keys, keyobj) == DICT_OK);
     }
 
-    addReplyError(c, "timeout");
-    resetClient(c);
+    /* process timeout case in our way. */
+    unblockClient(c);
+    if (c == server.master && server.slave_failed_retry_interrupted) {
+        confirmAndRetrySlaveSSDBwriteOp(server.blocked_write_op->time, server.blocked_write_op->index);
+    } else {
+        addReplyError(c, "timeout");
+        resetClient(c);
+    }
 }

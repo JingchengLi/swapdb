@@ -184,18 +184,25 @@ int replyToBlockedClientTimedOut(client *c) {
         moduleBlockedClientTimedOut(c);
     } else if (server.jdjr_mode && c->btype == BLOCKED_SSDB_LOADING_OR_TRANSFER) {
         transferringOrLoadingBlockedClientTimeOut(c);
+        return C_ERR;
     } else if (server.jdjr_mode && c->btype == BLOCKED_NO_WRITE_TO_SSDB) {
+        unblockClient(c);
         /* remove this client from server.no_writing_ssdb_blocked_clients to avoid
          * it processed by handleClientsBlockedOnCustomizedPsync again.*/
         removeClientWaitingSSDBcheckWrite(c);
         addReplyError(c, "timeout");
+        resetClient(c);
         serverLog(LOG_DEBUG, "[!!!!]reset by replyToBlockedClientTimedOut:%p", (void *) c);
+        return C_ERR;
     } else if (server.jdjr_mode && c->btype == BLOCKED_NO_READ_WRITE_TO_SSDB) {
+        unblockClient(c);
         /* remove this client from server.ssdb_flushall_blocked_clients to avoid
          * it processed by handleClientsBlockedOnFlushall again.*/
         removeClientWaitingSSDBflushall(c);
         addReplyError(c, "timeout");
+        resetClient(c);
         serverLog(LOG_DEBUG, "[!!!!]reset by replyToBlockedClientTimedOut:%p", (void*)c);
+        return C_ERR;
     } else if (server.jdjr_mode
                && (c->btype == BLOCKED_VISITING_SSDB
                    || c->btype == BLOCKED_BY_FLUSHALL

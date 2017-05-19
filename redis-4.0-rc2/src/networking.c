@@ -1061,7 +1061,7 @@ void handleClientsBlockedOnFlushall(void) {
         serverLog(LOG_DEBUG, "[!!!!]unblocked by handleClientsBlockedOnFlushall:%p", (void*)c);
         unblockClient(c);
 
-        if (runCommand(c, NULL) == C_OK)
+        if (runCommand(c) == C_OK)
             resetClient(c);
     }
 }
@@ -1189,7 +1189,7 @@ int handleResponseOfSSDBflushDone(client *c, redisReply* reply, int revert_len) 
         unblockClient(cur_flush_client);
         if (IsReplyEqual(reply, shared.flushdoneok)) {
             serverLog(LL_DEBUG, "[flushall] receive do flush ok");
-            if (runCommand(cur_flush_client, NULL) == C_OK)
+            if (runCommand(cur_flush_client) == C_OK)
                 resetClient(cur_flush_client);
         } else if (IsReplyEqual(reply, shared.flushdonenok)) {
             serverLog(LL_DEBUG, "[flushall] receive do flush nok, ssdb flushall failed");
@@ -1564,6 +1564,10 @@ int handleResponseOfReplicationConn(client* c, redisReply* reply) {
             } else {
                 serverLog(LL_DEBUG, "[REPOPID CHECK] get ssdb last success write(op time:%ld, op id:%d)",
                           last_successful_write_time, last_successful_write_index);
+
+                /* reset this flag*/
+                server.slave_failed_retry_interrupted = 0;
+                server.blocked_write_op = NULL;
                 confirmAndRetrySlaveSSDBwriteOp(last_successful_write_time, last_successful_write_index);
             }
         } else {

@@ -951,6 +951,16 @@ struct clusterState;
 #define CHILD_INFO_TYPE_RDB 0
 #define CHILD_INFO_TYPE_AOF 1
 
+/* for slave redis, we save the write operations from our master, so we can re-send
+ * it to SSDB when SSDB restart. */
+struct ssdb_write_op {
+    time_t time;
+    int index;
+    struct redisCommand *cmd;
+    int argc;
+    robj** argv;
+};
+
 struct redisServer {
     /* General */
     pid_t pid;                  /* Main process pid. */
@@ -1317,6 +1327,8 @@ struct redisServer {
     int last_send_writeop_index;
     list* ssdb_write_oplist;
     long long writeop_mem_size;
+    int slave_failed_retry_interrupted;
+    struct ssdb_write_op* blocked_write_op;
 
     int ssdb_is_up;
     /* when ssdb is down, record the time */
@@ -1325,16 +1337,6 @@ struct redisServer {
 };
 
 #define SLAVE_SSDB_MAX_CRITICAL_ERR_LIMIT 5
-
-/* for slave redis, we save the write operations from our master, so we can re-send
- * it to SSDB when SSDB restart. */
-struct ssdb_write_op {
-    time_t time;
-    int index;
-    struct redisCommand *cmd;
-    int argc;
-    robj** argv;
-};
 
 typedef struct pubsubPattern {
     client *client;
@@ -1769,7 +1771,8 @@ int tryEvictingKeysToSSDB(int *mem_tofree);
 size_t objectComputeSize(robj *o, size_t sample_size);
 size_t estimateKeyMemoryUsage(dictEntry *de);
 int processCommand(client *c);
-int runCommand(client *c, struct ssdb_write_op* slave_retry_write);
+int runCommandSlaveFailedRetry(client *c, struct ssdb_write_op* slave_retry_write);
+int runCommand(client *c);
 int checkValidCommand(client* c);
 int checkKeysInMediateState(client* c);
 int processCommandMaybeInSSDB(client *c,  struct ssdb_write_op* slave_retry_write);
