@@ -2748,17 +2748,7 @@ int processCommandMaybeFlushdb(client *c) {
                 listNode *ln;
 
                 /* before flushall, clean all visiting keys and all writes in ssdb write op list. */
-                dictEmpty(EVICTED_DATA_DB->visiting_ssdb_keys, NULL);
-                listRelease(server.ssdb_write_oplist);
-
-                /* re-init */
-                server.ssdb_write_oplist = listCreate();
-                listSetFreeMethod(server.ssdb_write_oplist, (void (*)(void*)) freeSSDBwriteOp);
-                server.writeop_mem_size = 0;
-
-                /* after receive 'flushall', we don't need to care about previous
-                 * write operations, just empty write op list.*/
-                //emptySlaveSSDBwriteOperations();
+                emptySlaveSSDBwriteOperations();
 
                 ret = updateSendRepopidToSSDB(c);
                 if (ret != C_OK) return ret;
@@ -2814,12 +2804,12 @@ void emptySlaveSSDBwriteOperations() {
     listIter li;
     listNode *ln;
 
+    dictEmpty(EVICTED_DATA_DB->visiting_ssdb_keys, NULL);
     listRewind(server.ssdb_write_oplist, &li);
     while((ln = listNext(&li))) {
-        op = ln->value;
-        removeVisitingSSDBKey(op->cmd, op->argc, op->argv);
         listDelNode(server.ssdb_write_oplist, ln);
     }
+    server.writeop_mem_size = 0;
 }
 
 int sendRepopidToSSDB(client* c, time_t op_time, int op_id) {
