@@ -665,6 +665,10 @@ void prepareSSDBreplication(client* slave) {
 
         if (c->flags & CLIENT_SLAVE) continue;
 
+        /* if this server is a slave, and we receive 'sync' request,
+         * avoid to send write check to the replication connection(server.master) */
+        if (c->flags & CLIENT_MASTER) continue;
+
         if (aeCreateFileEvent(server.el, c->fd, AE_WRITABLE,
                               sendCheckWriteCommandToSSDB, c) == AE_ERR) {
             /* just free disconnected client and ignore it. */

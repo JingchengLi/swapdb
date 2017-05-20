@@ -3006,7 +3006,10 @@ int processCommandMaybeInSSDB(client *c, struct ssdb_write_op* slave_retry_write
         return C_ERR;
     }
 
-    if (server.masterhost == NULL && (server.is_allow_ssdb_write == DISALLOW_SSDB_WRITE)
+    /* prohibit write operations to SSDB when replication,
+     *
+     * Note: we also can have slaves if this server is a slave. */
+    if ((server.is_allow_ssdb_write == DISALLOW_SSDB_WRITE)
         && (c->cmd->flags & CMD_WRITE) && (c->cmd->flags & CMD_JDJR_MODE)) {
         listAddNodeTail(server.no_writing_ssdb_blocked_clients, c);
         serverLog(LL_DEBUG, "client: %ld is added to server.no_writing_ssdb_blocked_clients", (long)c);
@@ -3017,6 +3020,7 @@ int processCommandMaybeInSSDB(client *c, struct ssdb_write_op* slave_retry_write
         return C_OK;
     }
 
+    /* prohibit read/write operations to SSDB when flushall */
     if (server.masterhost == NULL && (server.prohibit_ssdb_read_write == PROHIBIT_SSDB_READ_WRITE)
         && (c->cmd->flags & (CMD_WRITE | CMD_READONLY)) && (c->cmd->flags & CMD_JDJR_MODE)) {
         listAddNodeTail(server.ssdb_flushall_blocked_clients, c);
