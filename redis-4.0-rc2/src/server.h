@@ -82,11 +82,12 @@ typedef long long mstime_t; /* millisecond time type. */
 #define C_RETURN                -5
 
 /* SSDB connection flags in jdjr_mode */
-#define CONN_WAIT_WRITE_CHECK_REPLY (1<<0)
-#define CONN_WAIT_FLUSH_CHECK_REPLY (1<<1)
-#define CONN_CONNECTING             (1<<2)
-#define CONN_CONNECT_FAILED         (1<<3)
-#define CONN_CHECK_REPOPID          (1<<4)
+#define CONN_CONNECT_FAILED         (1<<0)
+#define CONN_CONNECTING             (1<<1)
+#define CONN_CHECK_REPOPID          (1<<2) /* for server.master only */
+#define CONN_SUCCESS                (1<<3) /* now we can send command to SSDB. */
+#define CONN_WAIT_WRITE_CHECK_REPLY (1<<9) /* for check write in replication process */
+#define CONN_WAIT_FLUSH_CHECK_REPLY (1<<10) /* for flush check when process 'flushall' */
 
 /* Default max argc of cmds sended to SSDB. */
 #define SSDB_CMD_DEFAULT_MAX_ARGC 10
@@ -1559,6 +1560,7 @@ void unblockClientWaitingData(client *c);
 void handleClientsBlockedOnLists(void);
 void popGenericCommand(client *c, int where);
 void signalListAsReady(redisDb *db, robj *key);
+void removeBlockedKeysFromTransferOrLoadingKeys(client *c);
 void transferringOrLoadingBlockedClientTimeOut(client *c);
 
 /* MULTI/EXEC/WATCH... */

@@ -613,6 +613,13 @@ void handleConnectSSDBok(client* c) {
     server.ssdb_is_up = 1;
     server.ssdb_down_time = -1;
     if (server.master == c && listLength(server.ssdb_write_oplist) > 0) {
+        /* NOTE: to ensure data consistency between the slave myself and our master,
+         * for server.master connection, if there are unconfirmed write operations in
+         * server.ssdb_write_oplist, which had been send to SSDB successfully but
+         * we don't know whether they are executed actually, we must confirm with
+         * SSDB and re-send all failed writes to SSDB at first, then we change
+         * server.master->ssdb_conn_flags to CONN_SUCCESS, after that, SSDB write
+         * commands can be send and processed normally by 'processCommandMaybeInSSDB'. */
         serverLog(LL_DEBUG, "connect master success, check repopid..."
                   "server.master:%p, context:%p, context->fd:%d, ssdb conn flags:%d",
                   (void*)server.master,
@@ -627,6 +634,8 @@ void handleConnectSSDBok(client* c) {
 
         if (sendCommandToSSDB(server.master, cmd) == C_OK)
             server.master->ssdb_conn_flags |= CONN_CHECK_REPOPID;
+    } else {
+        c->ssdb_conn_flags |= CONN_SUCCESS;
     }
 }
 
@@ -759,14 +768,10 @@ sds composeCmdFromArgs(int argc, robj** obj_argv) {
     return finalcmd;
 }
 
-
-int closeAndReconnectSSDBconnection(client* c) {
-    if (server.master == c && (c->ssdb_conn_flags & CONN_CHECK_REPOPID))
-        c->ssdb_conn_flags &= ~CONN_CHECK_REPOPID;
-
+void handleSSDBconnectionDisconnect(client* c) {
     if ((c->ssdb_conn_flags & CONN_WAIT_FLUSH_CHECK_REPLY) && server.flush_check_begin_time != -1) {
-        c->ssdb_conn_flags &= ~CONN_WAIT_FLUSH_CHECK_REPLY;
         server.flush_check_unresponse_num -= 1;
+        c->ssdb_conn_flags &= ~CONN_WAIT_FLUSH_CHECK_REPLY;
 
         serverLog(LL_DEBUG, "[flushall]connection(c->context->fd:%d, c->fd:%d) with ssdb disconnected, unresponse num:%d",
                   c->context ? c->context->fd : -1, c->fd, server.flush_check_unresponse_num);
@@ -777,23 +782,22 @@ int closeAndReconnectSSDBconnection(client* c) {
                 server.flush_check_begin_time = 0;
         }
     } else if (c->ssdb_conn_flags & CONN_WAIT_WRITE_CHECK_REPLY && server.check_write_begin_time != -1) {
-        c->ssdb_conn_flags &= ~CONN_WAIT_WRITE_CHECK_REPLY;
         server.check_write_unresponse_num -= 1;
+        c->ssdb_conn_flags &= ~CONN_WAIT_WRITE_CHECK_REPLY;
         if (0 == server.check_write_unresponse_num) {
             if (c != server.ssdb_replication_client)
                 makeSSDBsnapshotIfCheckOK();
             else
                 resetCustomizedReplication();
         }
-        serverLog(LL_DEBUG, "[replication check write]connection with ssdb disconnected, unresponse num:%d",
-                  server.check_write_unresponse_num);
     }
 
+    c->ssdb_conn_flags &= ~CONN_SUCCESS;
+    /* for server.master only */
+    c->ssdb_conn_flags &= ~CONN_CHECK_REPOPID;
+
     if (c->context) {
-        server.ssdb_is_up = 0;
-        if (server.ssdb_down_time == -1)
-            server.ssdb_down_time = server.unixtime;
-        /* Unlink resources used in connecting to SSDB. */
+         /* Unlink resources used in connecting to SSDB. */
         if (c->context->fd > 0)
             aeDeleteFileEvent(server.el, c->context->fd, AE_READABLE|AE_WRITABLE);
         redisFree(c->context);
@@ -803,6 +807,15 @@ int closeAndReconnectSSDBconnection(client* c) {
         if (server.master == c)
             dictEmpty(EVICTED_DATA_DB->visiting_ssdb_keys, NULL);
     }
+}
+
+int closeAndReconnectSSDBconnection(client* c) {
+    if (c->context) {
+        server.ssdb_is_up = 0;
+        if (server.ssdb_down_time == -1)
+            server.ssdb_down_time = server.unixtime;
+    }
+    handleSSDBconnectionDisconnect(c);
 
     if (nonBlockConnectToSsdbServer(c) == C_ERR) {
         return C_ERR;
@@ -820,12 +833,15 @@ int sendCommandToSSDB(client *c, sds finalcmd) {
         return C_ERR;
     }
 
-    if ((c->ssdb_conn_flags & CONN_CONNECTING) ||
-        (c->ssdb_conn_flags & CONN_CONNECT_FAILED) ||
+    /* only if ssdb connection status is CONN_SUCCESS, it's safe to send commands to SSDB.
+     * for example, on server.master connection, we may need to re-send some failed writes
+     * to SSDB after re-connect success, before that, we can't send command to SSDB directly.*/
+    if (!(c->ssdb_conn_flags & CONN_SUCCESS) ||
         !c->context || c->context->fd <= 0) {
         if (isSpecialConnection(c))
             freeClient(c);
-        if (c->ssdb_conn_flags & CONN_CONNECTING)
+        if ((c->ssdb_conn_flags & CONN_CONNECTING) ||
+            (c == server.master && (c->ssdb_conn_flags & CONN_CHECK_REPOPID)))
             serverLog(LL_DEBUG, "ssdb connection status is connecting");
         else
             serverLog(LL_DEBUG, "ssdb connection status is disconnected");
@@ -1514,7 +1530,6 @@ int handleExtraSSDBReply(client *c) {
         if ((repopid_time < op->time) || (repopid_time == op->time && repopid_index < op->index)) {
             /* this may caused by a previous 'flushall' which would empty server.ssdb_write_oplist
              * and visiting_ssdb_keys. see processCommandMaybeFlushdb. */
-            listDelNode(server.ssdb_write_oplist, ln);
             return C_OK;
         }
 
@@ -1992,42 +2007,8 @@ void unlinkClient(client *c) {
             aeDeleteTimeEvent(server.el, c->repl_timer_id);
             c->repl_timer_id = -1;
         }
-
-        if ((c->ssdb_conn_flags & CONN_WAIT_FLUSH_CHECK_REPLY) && server.flush_check_begin_time != -1) {
-            server.flush_check_unresponse_num -= 1;
-            c->ssdb_conn_flags &= ~CONN_WAIT_FLUSH_CHECK_REPLY;
-
-            serverLog(LL_DEBUG, "[flushall]connection(c->context->fd:%d,c->fd:%d) free, unresponse num:%d",
-                      c->context ? c->context->fd : -1, c->fd, server.flush_check_unresponse_num);
-            if (0 == server.flush_check_unresponse_num) {
-                if (c != server.current_flushall_client)
-                    doSSDBflushIfCheckDone();
-                else
-                    server.flush_check_begin_time = 0;
-            }
-        } else if (c->ssdb_conn_flags & CONN_WAIT_WRITE_CHECK_REPLY && server.check_write_begin_time != -1) {
-            server.check_write_unresponse_num -= 1;
-            c->ssdb_conn_flags &= ~CONN_WAIT_WRITE_CHECK_REPLY;
-            if (0 == server.check_write_unresponse_num) {
-                if (c != server.ssdb_replication_client)
-                    makeSSDBsnapshotIfCheckOK();
-                else
-                    resetCustomizedReplication();
-            }
-        }
-
-        if (c->context) {
-            if (c->ssdb_conn_flags & CONN_CHECK_REPOPID)
-                c->ssdb_conn_flags &= ~CONN_CHECK_REPOPID;
-
-            /* Unlink resources used in connecting to SSDB. */
-            if (c->context->fd > 0)
-                aeDeleteFileEvent(server.el, c->context->fd, AE_READABLE|AE_WRITABLE);
-            redisFree(c->context);
-            c->context = NULL;
-            if (server.master == c)
-                dictEmpty(EVICTED_DATA_DB->visiting_ssdb_keys, NULL);
-        }
+        /* handle ssdb connection */
+        handleSSDBconnectionDisconnect(c);
     }
 
     /* Remove from the list of pending writes if needed. */

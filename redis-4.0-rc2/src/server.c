@@ -2747,6 +2747,15 @@ int processCommandMaybeFlushdb(client *c) {
                 struct ssdb_write_op* op;
                 listNode *ln;
 
+                /* it's safe to do flushall even if ssdb connection status of server.master is CONN_CHECK_REPOPID
+                 * or CONN_CONNECT_FAILED.
+                 * Reason:
+                 * although sendCommandToSSDB will fail, we can empty server.ssdb_write_list and save 'flushall'
+                 * to the list, so that we don't need to re-send previous failed writes after connection status
+                 * turn into CONN_SUCCESS. */
+                if (!(c->ssdb_conn_flags & CONN_SUCCESS))
+                    serverLog(LL_DEBUG, "sdb connection status of server,master is not CONN_SUCCESS");
+
                 /* before flushall, clean all visiting keys and all writes in ssdb write op list. */
                 emptySlaveSSDBwriteOperations();
 
@@ -2836,7 +2845,7 @@ int confirmAndRetrySlaveSSDBwriteOp(time_t time, int index) {
     listIter li;
     listNode *ln;
     int impossible = 1, found = 0;
-    int ret;
+    int ret = C_OK;
 
     listRewind(server.ssdb_write_oplist, &li);
     while((ln = listNext(&li))) {
@@ -2878,9 +2887,13 @@ int confirmAndRetrySlaveSSDBwriteOp(time_t time, int index) {
                 server.master->argv = zmalloc(sizeof(robj *) * 1);
                 server.master->argv[0] = createObject(OBJ_STRING, sdsnew("flushall"));
 
-                /* we had clean slave ssdb write op list before process 'flushall', so
-                 * we can assert there is only one op in server.ssdb_write_oplist.
-                 * see processCommandMaybeFlushdb */
+                /* we had clean slave ssdb write op list before process 'flushall'.
+                 * if 'flushall' is in server.ssdb_write_oplist, it must be the last
+                 * command before server.master disconnect(because 'flushall' is a
+                 * special command which need to block this client, once it execute success,
+                 * it will be remove from server.ssdb_write_oplist), so we can assert there
+                 * is only one op in server.ssdb_write_oplist.
+                 * see processCommandMaybeFlushdb and handleResponseOfSlaveSSDBflush */
                 serverAssert(1 == listLength(server.ssdb_write_oplist));
                 ret = blockAndFlushSlaveSSDB(server.master);
             } else {
@@ -2907,6 +2920,9 @@ int confirmAndRetrySlaveSSDBwriteOp(time_t time, int index) {
                       op->cmd->name, op->time, op->index);
         }
     }
+
+    if (C_OK == ret) server.master->ssdb_conn_flags |= CONN_SUCCESS;
+
     if (server.slave_failed_retry_interrupted)
         serverAssert(found);
 
@@ -2976,6 +2992,7 @@ int updateSendRepopidToSSDB(client* c) {
     return ret;
 }
 
+// todo: refactor for server.master connection
 /* Process keys may be in SSDB, only handle the command jdjr_mode supported.
  The rest cases will be handled by processCommand. */
 int processCommandMaybeInSSDB(client *c, struct ssdb_write_op* slave_retry_write) {
@@ -3563,10 +3580,26 @@ int processCommand(client *c) {
         }
     }
 
+    /* to ensure data consistency of this slave with my master, if connnection status of
+    * server.master is CONN_CHECK_REPOPID/CONN_CONNECT_FAILED, we can do nothing but
+    * save this write operation to the tail of server.ssdb_write_oplist and wait to re-send
+    * it.
+    *
+    * NOTE: even if the key of c->argv is in redis now, and also the key is not in transferring/
+    * loading/delete_confirm status, we can't process the command directly, because maybe there are
+    * write operations on the same key in server.ssdb_write_oplist.
+    * */
+    if (server.jdjr_mode && c->argc > 1 && c == server.master && !(c->ssdb_conn_flags & CONN_SUCCESS)) {
+        updateSlaveSSDBwriteIndex();
+        saveSlaveSSDBwriteOp(c, server.last_send_writeop_time, server.last_send_writeop_index);
+        /* the c->argv pointer is reused by saveSlaveSSDBwriteOp, set to NULL avoid it to be
+         * freed by resetClient. */
+        c->argv = NULL;
+        return C_OK;
+    }
+
     /* Check if current cmd contains blocked keys. */
-    if (server.jdjr_mode
-        && c->argc > 1
-        && checkKeysInMediateState(c) == C_ERR) {
+    if (server.jdjr_mode && c->argc > 1 && checkKeysInMediateState(c) == C_ERR) {
         /* Return C_ERR to keep client info and handle it later. */
         return C_ERR;
     }

@@ -1218,7 +1218,7 @@ int blockForLoadingkeys(client *c, robj **keys, int numkeys, mstime_t timeout) {
     return blockednum;
 }
 
-void transferringOrLoadingBlockedClientTimeOut(client *c) {
+void removeBlockedKeysFromTransferOrLoadingKeys(client* c) {
     dictIterator *di = dictGetIterator(c->bpop.loading_or_transfer_keys);
     dictEntry *de;
     int found = 1;
@@ -1237,14 +1237,18 @@ void transferringOrLoadingBlockedClientTimeOut(client *c) {
 
         if (found) {
             signalBlockingKeyAsReady(&server.db[0], keyobj);
-            serverLog(LL_DEBUG, "key: %s is deleted from loading_or_transfer_keys.", (char *)keyobj->ptr);
+            serverLog(LL_DEBUG, "key: %s is unblocked and deleted from loading/"
+                    "transferring/delete_confirm_keys.", (char *)keyobj->ptr);
         }
-        /* remove this client from blocked client list of this key, so we can process timeout case
-         * in our way. */
+        /* remove myself(this client) from blocked client list of this key, so we can
+         * safely unblock this client and continue to process immediately. */
         removeClientFromListForBlockedKey(c, keyobj);
-        serverLog(LL_DEBUG, "client: %d key: %s is timeout.", c->fd, (char *)keyobj->ptr);
         serverAssert(dictDelete(c->bpop.loading_or_transfer_keys, keyobj) == DICT_OK);
     }
+}
+
+void transferringOrLoadingBlockedClientTimeOut(client *c) {
+    removeBlockedKeysFromTransferOrLoadingKeys(c);
 
     /* process timeout case in our way. */
     unblockClient(c);
