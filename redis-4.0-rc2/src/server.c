@@ -2765,7 +2765,7 @@ int processCommandMaybeFlushdb(client *c) {
                 ret = blockAndFlushSlaveSSDB(c);
                 if (ret != C_OK) return ret;
 
-                ln = listLast(server.ssdb_write_oplist);
+                ln = listFirst(server.ssdb_write_oplist);
                 op = ln->value;
                 serverLog(LL_DEBUG, "[REPOPID]redis send %s(op time:%ld, op id:%d) to ssdb success",
                           op->cmd->name, op->time, op->index);
@@ -2847,6 +2847,9 @@ int confirmAndRetrySlaveSSDBwriteOp(time_t time, int index) {
     int impossible = 1, found = 0;
     int ret = C_OK;
 
+    if (time == -1 && index == -1)
+        serverLog(LL_DEBUG, "flushall success, check and re-send the reset write operations.");
+
     listRewind(server.ssdb_write_oplist, &li);
     while((ln = listNext(&li))) {
         op = ln->value;
@@ -2856,64 +2859,59 @@ int confirmAndRetrySlaveSSDBwriteOp(time_t time, int index) {
             if (0 == server.slave_failed_retry_interrupted) {
                 listDelNode(server.ssdb_write_oplist, ln);
             }
-        } else if (time == op->time && index == op->index) {
-            if (0 == server.slave_failed_retry_interrupted) {
-                /* last successful SSDB write command is 'flushall', but we don't get its response before
-                 * replication connection disconnect, so we need empty redis also. */
-                if (op->cmd->proc == flushallCommand) {
-                    serverLog(LL_DEBUG, "last timeout cmd is flushall, ssdb flushall ok, now we need empty redis");
-                    flushallIfSSDBflushallsuccess();
-                }
-                listDelNode(server.ssdb_write_oplist, ln);
-            } else {
-                found = 1;
-                /* server.master is unblocked now and we can go on. */
-                ret = runCommandSlaveFailedRetry(server.master, op);
-                resetClient(server.master);
-            }
         } else {
             // for assert
             impossible = 0;
-            if (server.slave_failed_retry_interrupted)
-                serverAssert(found);
 
-            /* this is a failed write, retry it. */
-            if (op->cmd->proc == flushallCommand) {
-                ret = sendRepopidToSSDB(server.master, op->time, op->index);
-                if (ret != C_OK) break;
-
-                server.master->cmd = lookupCommandByCString("flushall");
-                server.master->argc = 1;
-                server.master->argv = zmalloc(sizeof(robj *) * 1);
-                server.master->argv[0] = createObject(OBJ_STRING, sdsnew("flushall"));
-
-                /* we had clean slave ssdb write op list before process 'flushall'.
-                 * if 'flushall' is in server.ssdb_write_oplist, it must be the last
-                 * command before server.master disconnect(because 'flushall' is a
-                 * special command which need to block this client, once it execute success,
-                 * it will be remove from server.ssdb_write_oplist), so we can assert there
-                 * is only one op in server.ssdb_write_oplist.
-                 * see processCommandMaybeFlushdb and handleResponseOfSlaveSSDBflush */
-                serverAssert(1 == listLength(server.ssdb_write_oplist));
-                ret = blockAndFlushSlaveSSDB(server.master);
-            } else {
-                server.master->cmd = op->cmd;
-                server.master->argv = op->argv;
-                server.master->argc = op->argc;
-
-                /* Check if current cmd contains blocked keys. */
-                if (op->argc > 1 && checkKeysInMediateState(server.master) == C_ERR) {
-                    /* server.master is blocked, return and handle it later. */
-                    server.slave_failed_retry_interrupted = 1;
-                    server.blocked_write_op = op;
-                    return C_ERR;
+            /* if last successful SSDB write command is 'flushall' but redis don't receive its response,
+             * we just redo it to empty redis. */
+            if (time == op->time && index == op->index && op->cmd->proc != flushallCommand) {
+                if (0 == server.slave_failed_retry_interrupted) {
+                    /* this write op was successful commited on SSDB, we can remove it from the list. */
+                    listDelNode(server.ssdb_write_oplist, ln);
+                } else {
+                    found = 1;
+                    /* we have found the write op saved by server.blocked_write_op, server.master is
+                     * unblocked now and we can go on. */
+                    ret = runCommandSlaveFailedRetry(server.master, op);
+                    resetClient(server.master);
+                    /* reset */
+                    server.slave_failed_retry_interrupted = 0;
+                    server.blocked_write_op = NULL;
                 }
+            } else {
+                /* this is a failed write, retry it. */
+                if (op->cmd->proc == flushallCommand) {
+                    ret = sendRepopidToSSDB(server.master, op->time, op->index);
+                    if (ret != C_OK) break;
 
-                ret = runCommandSlaveFailedRetry(server.master, op);
-                resetClient(server.master);
+                    server.master->cmd = lookupCommandByCString("flushall");
+                    server.master->argc = 1;
+                    server.master->argv = zmalloc(sizeof(robj *) * 1);
+                    server.master->argv[0] = createObject(OBJ_STRING, sdsnew("flushall"));
+
+                    ret = blockAndFlushSlaveSSDB(server.master);
+                    /* server.master is blocked, return and handle the rest after unblock.*/
+                    if (ret == C_OK) return C_OK;
+                } else {
+                    server.master->cmd = op->cmd;
+                    server.master->argv = op->argv;
+                    server.master->argc = op->argc;
+
+                    /* Check if current cmd contains blocked keys. */
+                    if (op->argc > 1 && checkKeysInMediateState(server.master) == C_ERR) {
+                        /* server.master is blocked, return and handle it later. */
+                        server.slave_failed_retry_interrupted = 1;
+                        server.blocked_write_op = op;
+                        return C_ERR;
+                    }
+
+                    ret = runCommandSlaveFailedRetry(server.master, op);
+                    resetClient(server.master);
+                }
             }
             /* we need reconnect SSDB for server.master, just break and will do these on
-             * the new SSDB connnection. */
+            * the new SSDB connnection. */
             if (ret != C_OK) break;
 
             serverLog(LL_DEBUG, "[REPOPID CHECK] re-send failed write op(cmd:%s, op time:%ld, op id:%d) to SSDB",
@@ -2923,10 +2921,8 @@ int confirmAndRetrySlaveSSDBwriteOp(time_t time, int index) {
 
     if (C_OK == ret) server.master->ssdb_conn_flags |= CONN_SUCCESS;
 
-    if (server.slave_failed_retry_interrupted)
-        serverAssert(found);
-
     server.slave_failed_retry_interrupted = 0;
+    server.blocked_write_op = NULL;
     return ret;
 }
 

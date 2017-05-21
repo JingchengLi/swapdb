@@ -1152,9 +1152,10 @@ int handleResponseOfSlaveSSDBflush(client *c, redisReply* reply) {
             int resp_op_index;
             int ret;
 
-            /* because the replication connection(server.master) has been blocked by 'flushall'
-             * operation, so we are sure the last write op must be 'flushall'. */
-            ln = listLast(server.ssdb_write_oplist);
+            /* if 'flushall' is in server.ssdb_write_oplist, all the previous writes had been
+             * removed by emptySlaveSSDBwriteOperations.
+             * so we are sure the first write op must be 'flushall'. */
+            ln = listFirst(server.ssdb_write_oplist);
             op = ln->value;
             serverAssert(op->cmd->proc == flushallCommand);
 
@@ -1172,6 +1173,10 @@ int handleResponseOfSlaveSSDBflush(client *c, redisReply* reply) {
                     resetClient(c);
                     /* flushall success, we can remove it from ssdb_write_oplist. */
                     listDelNode(server.ssdb_write_oplist, ln);
+                    /* if conn status of server.master is not CONN_SUCCESS, continue to process
+                     * the reset failed writes. */
+                    if (!(c->ssdb_conn_flags & CONN_SUCCESS))
+                        confirmAndRetrySlaveSSDBwriteOp(-1, -1);
                 } else {
                     resetClient(c);
                     /* close SSDB connection and we will retry flushall after connected. */
