@@ -100,7 +100,7 @@ SSDB *SSDB::open(const Options &opt, const std::string &dir) {
     ssdb->options.block_size = opt.block_size * 1024;
     ssdb->options.compaction_speed = opt.compaction_speed;
 #else
-    rocksdb::BlockBasedTableOptions op;
+    leveldb::BlockBasedTableOptions op;
 
     //for spin disk
 //	op.cache_index_and_filter_blocks = true;
@@ -127,6 +127,11 @@ SSDB *SSDB::open(const Options &opt, const std::string &dir) {
         ssdb->options.compression = leveldb::kSnappyCompression;
     } else {
         ssdb->options.compression = leveldb::kNoCompression;
+    }
+
+    if (ROCKSDB_MAJOR >= 5) {
+        ssdb->options.allow_concurrent_memtable_write = true;
+        ssdb->options.enable_write_thread_adaptive_yield = true;
     }
 
     //level config
@@ -176,9 +181,16 @@ int SSDBImpl::flushdb(Context &ctx) {
 #ifdef USE_LEVELDB
 
 #else
+    log_info("[flushdb] using DeleteFilesInRange");
     leveldb::Slice begin("0");
     leveldb::Slice end("z");
     leveldb::DeleteFilesInRange(ldb, ldb->DefaultColumnFamily(), &begin, &end);
+
+    if (ROCKSDB_MAJOR >= 5) {
+        log_info("[flushdb] using DeleteRange");
+
+        ldb->DeleteRange(leveldb::WriteOptions(), ldb->DefaultColumnFamily(), begin, end);
+    }
 #endif
 
 

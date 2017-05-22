@@ -5,6 +5,7 @@ option(ROCKSDB "enable rocksdb support" ON)
 option(PTIMER "performance monitor" ON)
 
 SET(LEVELDB_PATH=${CMAKE_CURRENT_SOURCE_DIR}/deps/leveldb-1.18)
+SET(ROCKSDB_PATH=${CMAKE_CURRENT_SOURCE_DIR}/deps/rocksdb-5.3.6)
 SET(JEMALLOC_PATH=${CMAKE_CURRENT_SOURCE_DIR}/deps/jemalloc-4.1.0)
 SET(SNAPPY_PATH=${CMAKE_CURRENT_SOURCE_DIR}/deps/snappy-1.1.0)
 SET(CMAKE_C_FLAGS "--std=gnu99 ${CMAKE_C_FLAGS}")
@@ -50,14 +51,14 @@ ENDIF()
 IF(ROCKSDB)
     message("==================use rocksdb===================")
     INCLUDE_DIRECTORIES(
-            ${CMAKE_CURRENT_SOURCE_DIR}/deps/rocksdb-4.11.2/include
+            ${CMAKE_CURRENT_SOURCE_DIR}/deps/rocksdb-5.3.6/include
     )
     LINK_DIRECTORIES(
-            ${CMAKE_CURRENT_SOURCE_DIR}/deps/rocksdb-4.11.2/third-party/gtest-1.7.0/fused-src/gtest
-            ${CMAKE_CURRENT_SOURCE_DIR}/deps/rocksdb-4.11.2/
+            ${CMAKE_CURRENT_SOURCE_DIR}/deps/rocksdb-5.3.6/third-party/gtest-1.7.0/fused-src/gtest
+            ${CMAKE_CURRENT_SOURCE_DIR}/deps/rocksdb-5.3.6/
     )
     SET(CMAKE_CXX_FLAGS " -D__STDC_FORMAT_MACROS -Wall -g -O0 -Wno-sign-compare -std=c++11")
-    ADD_LIBRARY(librocksdb-static deps/rocksdb-4.11.2)
+    ADD_LIBRARY(librocksdb-static deps/rocksdb-5.3.6)
     TARGET_LINK_LIBRARIES ( librocksdb-static snappy gtest gflags )
     SET_TARGET_PROPERTIES(librocksdb-static PROPERTIES
             LINKER_LANGUAGE CXX

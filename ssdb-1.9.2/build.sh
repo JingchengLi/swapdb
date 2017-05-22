@@ -3,7 +3,7 @@ BASE_DIR=`pwd`
 JEMALLOC_PATH="$BASE_DIR/deps/jemalloc-4.1.0"
 LEVELDB_PATH="$BASE_DIR/deps/leveldb-1.18"
 SNAPPY_PATH="$BASE_DIR/deps/snappy-1.1.0"
-ROCKSDB_PATH="$BASE_DIR/deps/rocksdb-4.11.2"
+ROCKSDB_PATH="$BASE_DIR/deps/rocksdb-5.3.6"
 BZ2_PATH="$BASE_DIR/deps/bzip2-1.0.6"
 GFLAGS_PATH="$BASE_DIR/deps/gflags-2.2.0"
 
@@ -102,7 +102,7 @@ cd $ROCKSDB_PATH
 if [ -f CMakeLists.txt ];then
     echo "##### building rocksdb... #####"
     cmake .
-    make -j16
+    make -j4
     echo "##### building rocksdb finished #####"
 fi
 
