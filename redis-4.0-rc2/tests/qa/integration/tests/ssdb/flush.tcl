@@ -136,7 +136,7 @@ start_server {tags {"ssdb"}} {
                 }
 
                 $master $flush
-                wait_for_condition 10 500 {
+                wait_for_condition 30 100 {
                     [$master debug digest] == 0000000000000000000000000000000000000000 &&
                     [$slave debug digest] == 0000000000000000000000000000000000000000
                 } else {
@@ -172,7 +172,6 @@ start_server {tags {"ssdb"}} {
     }
 }
 
-# TODO flush IO reply error
 # flush during clients writing
 start_server {tags {"ssdb"}} {
     set master [srv client]
@@ -199,7 +198,7 @@ start_server {tags {"ssdb"}} {
                 }
 
                 test "master and one slave are identical after $flush" {
-                    wait_for_condition 100 100 {
+                    wait_for_condition 300 100 {
                         [$master dbsize] == [[lindex $slaves 0] dbsize]
                     } else {
                         fail "Different number of keys between master and slaves after too long time."
@@ -235,7 +234,7 @@ start_server {tags {"ssdb"}} {
                         [$master dbsize] == [[lindex $slaves 0] dbsize] &&
                         [$master dbsize] == [[lindex $slaves 1] dbsize]
                     } else {
-                        puts "Different number of keys between master and slaves after too long time."
+                        fail "Different number of keys between master and slaves after too long time."
                     }
                     assert {[$master dbsize] > 0}
                     wait_for_condition 10 500 {
@@ -282,7 +281,7 @@ start_server {tags {"ssdb"}} {
                 } {PONG}
 
                 test "master and slave are both null after $flush" {
-                    wait_for_condition 100 100 {
+                    wait_for_condition 300 100 {
                         [$master dbsize] == 0 &&
                         [[lindex $slaves 0] dbsize] == 0
                     } else {

@@ -68,7 +68,9 @@ start_server {
     }
 
     test "Set encoding after DEBUG RELOAD" {
-        ssdbr del myintset myhashset mylargeintset
+        ssdbr del myintset
+        ssdbr del myhashset
+        ssdbr del mylargeintset
         for {set i 0} {$i <  100} {incr i} { r sadd myintset $i }
         for {set i 0} {$i < 1280} {incr i} { r sadd mylargeintset $i }
         for {set i 0} {$i <  256} {incr i} { r sadd myhashset [format "i%03d" $i] }

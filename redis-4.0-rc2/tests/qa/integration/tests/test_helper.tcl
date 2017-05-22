@@ -604,6 +604,15 @@ for {set j 0} {$j < [llength $argv]} {incr j} {
     } elseif {$opt eq {--help}} {
         print_help_screen
         exit 0
+    } elseif {$opt eq {--debug}} {
+        proc error {errMsg {errInfo 0}} {
+            puts "$errMsg"
+            if {$errInfo} {
+                puts "error info: $errInfo"
+            }
+            puts "waiting........."
+            after 1000000
+        }
     } else {
         puts "Wrong argument: $opt"
         exit 1

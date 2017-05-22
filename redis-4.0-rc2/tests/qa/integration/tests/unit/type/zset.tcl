@@ -947,7 +947,9 @@ overrides {maxmemory 0}} {
 
         test "ZREMRANGEBYLEX fuzzy test, 100 ranges in $elements element sorted set - $encoding" {
             set lexset {}
-            ssdbr del zset zsetcopy
+            ssdbr del zset
+            ssdbr del zsetcopy
+            # ssdbr del zset zsetcopy
             for {set j 0} {$j < $elements} {incr j} {
                 set e [randstring 0 30 alpha]
                 lappend lexset $e
