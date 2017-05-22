@@ -1067,7 +1067,7 @@ int proc_migrate(Context &ctx, Link *link, const Request &req, Response *resp) {
     }
 
 
-    if (num_keys == 0) {
+    if (kv.size() == 0) {
         resp->reply_ok();
         {
             resp->redisResponse = new RedisResponse("NOKEY");
@@ -1092,7 +1092,7 @@ int proc_migrate(Context &ctx, Link *link, const Request &req, Response *resp) {
     }
 
     /* Create RESTORE payload and generate the protocol to call the command. */
-    for (j = 0; j < num_keys; j++) {
+    for (j = 0; j < kv.size(); j++) {
         std::string payload;
         int ret = serv->ssdb->dump(ctx, kv[j], &payload);
         if (ret == 0) {
@@ -1162,7 +1162,7 @@ int proc_migrate(Context &ctx, Link *link, const Request &req, Response *resp) {
     std::string error_info_from_target;
     int socket_error = 0;
 
-    for (j = 0; j < num_keys; j++) {
+    for (j = 0; j < kv.size(); j++) {
         buf2 = r.redisResponse();
         if (buf2 == nullptr) {
             socket_error = 1;
