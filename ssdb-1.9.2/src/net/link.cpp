@@ -324,11 +324,11 @@ int Link::write() {
             } else if (errno == EWOULDBLOCK) {
                 break;
             } else {
-//                log_debug("fd: %d, write: -1, error: %s", sock, strerror(errno));
+                log_debug("fd: %d, write: -1, error: %s", sock, strerror(errno));
                 return -1;
             }
         } else {
-//            log_debug("fd: %d, want: %d, write: %d", sock, want, len); //, hexmem( output->data(),len).c_str()
+            log_debug("fd: %d, want: %d, write: %d ,data: %s", sock, want, len, hexmem(output->data(),len).c_str()); //
             if (len == 0) {
                 // ?
                 break;

@@ -30,7 +30,7 @@ bool Fdevents::isset(int fd, int flag){
 }
 
 int Fdevents::set(int fd, int flags, int data_num, void *data_ptr){
-//	log_debug("fd: %d, Fdevents::set %d", fd, flags);
+	log_debug("fd: %d, Fdevents::set %d", fd, flags);
 
 	struct Fdevent *fde = get_fde(fd);
 	if(fde->s_flags & flags){
@@ -56,7 +56,7 @@ int Fdevents::set(int fd, int flags, int data_num, void *data_ptr){
 }
 
 int Fdevents::del(int fd){
-//	log_debug("fd: %d, Fdevents::del", fd);
+	log_debug("fd: %d, Fdevents::del", fd);
 
 	struct epoll_event epe;
 	int ret = epoll_ctl(ep_fd, EPOLL_CTL_DEL, fd, &epe);
@@ -70,7 +70,7 @@ int Fdevents::del(int fd){
 }
 
 int Fdevents::clr(int fd, int flags){
-//	log_debug("fd: %d, Fdevents::clr %d", fd, flags);
+	log_debug("fd: %d, Fdevents::clr %d", fd, flags);
 
 	struct Fdevent *fde = get_fde(fd);
 	if(!(fde->s_flags & flags)){
