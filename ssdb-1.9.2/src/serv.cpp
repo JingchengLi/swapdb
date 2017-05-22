@@ -1109,7 +1109,8 @@ int proc_migrate(Context &ctx, Link *link, const Request &req, Response *resp) {
         }
 
         std::vector<std::string> cmd_item;
-        cmd_item.emplace_back("RESTORE");
+//        cmd_item.emplace_back("RESTORE");
+        cmd_item.emplace_back("RESTORE-ASKING");
         cmd_item.emplace_back(kv[j]);
         cmd_item.emplace_back(str(pttl));
         cmd_item.emplace_back(payload);
@@ -1174,7 +1175,7 @@ int proc_migrate(Context &ctx, Link *link, const Request &req, Response *resp) {
         } else {
             if (!copy) {
                 /* No COPY option: remove the local key, signal the change. */
-                serv->ssdb->del(ctx, key);
+                serv->ssdb->del(ctx, kv[j]);
             }
         }
     }

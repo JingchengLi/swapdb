@@ -129,6 +129,13 @@ SSDB *SSDB::open(const Options &opt, const std::string &dir) {
         ssdb->options.compression = leveldb::kNoCompression;
     }
 
+    //level config
+
+    ssdb->options.level_compaction_dynamic_level_bytes = true;  //see : http://rocksdb.org/blog/2015/07/23/dynamic-level.html
+    ssdb->options.max_bytes_for_level_base = 256 * 1024 * 1024; //256M
+    ssdb->options.max_bytes_for_level_multiplier = 10; //10  // multiplier between levels
+
+
 #ifdef USE_LEVELDB
 #else
     ssdb->options.listeners.push_back(std::shared_ptr<t_listener>(new t_listener()));
