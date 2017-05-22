@@ -1174,7 +1174,7 @@ int handleResponseOfSlaveSSDBflush(client *c, redisReply* reply) {
                     /* flushall success, we can remove it from ssdb_write_oplist. */
                     listDelNode(server.ssdb_write_oplist, ln);
                     /* if conn status of server.master is not CONN_SUCCESS, continue to process
-                     * the reset failed writes. */
+                     * the rest failed writes. */
                     if (!(c->ssdb_conn_flags & CONN_SUCCESS))
                         confirmAndRetrySlaveSSDBwriteOp(-1, -1);
                 } else {
