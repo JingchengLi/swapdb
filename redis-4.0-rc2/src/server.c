@@ -281,7 +281,7 @@ struct redisCommand redisCommandTable[] = {
     {"restore",restoreCommand,-4,"wmJ",0,NULL,1,1,1,0,0},
     // todo: support migrate and restore-asking(?)
     {"restore-asking",restoreCommand,-4,"wmk",0,NULL,1,1,1,0,0},
-    {"migrate",migrateCommand,-6,"w",0,migrateGetKeys,0,0,0,0,0},
+    {"migrate",migrateCommand,-6,"wJ",0,migrateGetKeys,0,0,0,0,0},
     {"asking",askingCommand,1,"F",0,NULL,0,0,0,0,0},
     {"readonly",readonlyCommand,1,"F",0,NULL,0,0,0,0,0},
     {"readwrite",readwriteCommand,1,"F",0,NULL,0,0,0,0,0},
@@ -2293,6 +2293,8 @@ void initServer(void) {
         server.loadAndEvictCmdList = listCreate();
         listSetFreeMethod(server.loadAndEvictCmdList, (void (*)(void*))freeMultiCmd);
 
+        server.delayed_migrate_clients = listCreate();
+
         server.retry_del_snapshot = 0;
         server.is_doing_flushall = 0;
         server.current_flushall_client = NULL;
@@ -2713,20 +2715,30 @@ int checkKeysInMediateState(client* c) {
     return C_OK;
 }
 
-int blockAndFlushSlaveSSDB(client* c) {
-    int ret;
 
-    /* flushall STEP 1: clean all intermediate state keys, avoid to cause unexpected issues. */
-    cleanSpecialClientsAndIntermediateKeys(1);
+int checkKeysForMigrate(client *c) {
+    int first_key = 3, j;
+    robj *keyobj;
 
-    sds finalcmd = sdsnew("*1\r\n$14\r\nrr_do_flushall\r\n");
-    ret = sendCommandToSSDB(c, finalcmd);
-    if (ret != C_OK) return ret;
-    serverLog(LL_DEBUG, "send rr_do_flushall ok");
+    serverAssert(c->cmd->proc == migrateCommand);
 
-    /* we just wait flushall done. */
-    c->bpop.timeout = 8000+mstime();
-    blockClient(c, BLOCKED_BY_FLUSHALL);
+    for (j = 6; j < c->argc; j ++) {
+        if (!strcasecmp(c->argv[j]->ptr, "keys")) {
+            addReplyError(c, "Not supported yet in jdjr-mode");
+            serverLog(LL_DEBUG, "Migrate not supported keys yet in jdjr-mode");
+            return C_NOTSUPPORT_ERR;
+        }
+    }
+
+    keyobj = c->argv[first_key];
+    if (dictFind(EVICTED_DATA_DB->transferring_keys, keyobj->ptr)
+        || dictFind(EVICTED_DATA_DB->loading_hot_keys, keyobj->ptr)
+        || dictFind(EVICTED_DATA_DB->delete_confirm_keys, keyobj->ptr)
+        || dictFind(EVICTED_DATA_DB->visiting_ssdb_keys, keyobj->ptr)) {
+        listAddNodeTail(server.delayed_migrate_clients, c);
+        return C_ERR;
+    }
+
     return C_OK;
 }
 
@@ -2991,7 +3003,8 @@ int updateSendRepopidToSSDB(client* c) {
 // todo: refactor for server.master connection
 /* Process keys may be in SSDB, only handle the command jdjr_mode supported.
  The rest cases will be handled by processCommand. */
-int processCommandMaybeInSSDB(client *c, struct ssdb_write_op* slave_retry_write) {
+int processCommandMaybeInSSDB(client *c) {
+    robj *keyobj = NULL;
     if ( !c->cmd || !(c->cmd->flags & (CMD_READONLY | CMD_WRITE)) )
         return C_ERR;
     if (c->cmd->flags & CMD_JDJR_REDIS_ONLY)
@@ -3000,20 +3013,27 @@ int processCommandMaybeInSSDB(client *c, struct ssdb_write_op* slave_retry_write
     if (server.verbosity != LL_DEBUG
         && !(c->cmd->flags & CMD_JDJR_MODE))
         return C_NOTSUPPORT_ERR;
-    if (c->argc <= 1 || !dictFind(EVICTED_DATA_DB->dict, c->argv[1]->ptr))
+
+    /* TODO: support multiple key migrateCommand ??? */
+    if (c->cmd->proc == migrateCommand)
+        keyobj = c->argv[3];
+    else
+        keyobj = c->argv[1];
+
+    if (c->argc <= 1 || !dictFind(EVICTED_DATA_DB->dict, keyobj->ptr))
         return C_ERR;
 
     /* Handle the exception caused by restart redis,
        due to the async operations between SSDB. */
-    if (dictFind(c->db->dict, c->argv[1]->ptr)) {
-        propagateExpire(EVICTED_DATA_DB, c->argv[1], server.lazyfree_lazy_eviction);
+    if (dictFind(c->db->dict, keyobj->ptr)) {
+        propagateExpire(EVICTED_DATA_DB, keyobj, server.lazyfree_lazy_eviction);
         if (server.lazyfree_lazy_eviction)
-            dbAsyncDelete(EVICTED_DATA_DB, c->argv[1]);
+            dbAsyncDelete(EVICTED_DATA_DB, keyobj);
         else
-            dbSyncDelete(EVICTED_DATA_DB, c->argv[1]);
+            dbSyncDelete(EVICTED_DATA_DB, keyobj);
 
         /* Undo the slotToKeyDel in dbAsyncDelete or dbSyncDelete. */
-        if (server.cluster_enabled) slotToKeyAdd(c->argv[1]);
+        if (server.cluster_enabled) slotToKeyAdd(keyobj);
 
         /* Exec the cmd in redis. */
         return C_ERR;
@@ -3047,7 +3067,7 @@ int processCommandMaybeInSSDB(client *c, struct ssdb_write_op* slave_retry_write
     if ((c->cmd->flags & (CMD_READONLY | CMD_WRITE)) &&
          (c->cmd->flags & CMD_JDJR_MODE)) {
         /* Calling lookupKey to update lru or lfu counter. */
-        robj* val = lookupKey(EVICTED_DATA_DB, c->argv[1], LOOKUP_NONE);
+        robj* val = lookupKey(EVICTED_DATA_DB, keyobj, LOOKUP_NONE);
         if (val) {
             if (server.master == c) {
                 int ret;
@@ -3078,6 +3098,7 @@ int processCommandMaybeInSSDB(client *c, struct ssdb_write_op* slave_retry_write
                 int *keys = NULL, numkeys = 0, j;
                 keys = getKeysFromCommand(c->cmd, c->argv, c->argc, &numkeys);
                 for (j = 0; j < numkeys; j ++)
+                    /* TODO: only support single key command. */
                     addVisitingSSDBKey(c, c->argv[keys[j]]->ptr);
 
                 if (keys) getKeysFreeResult(keys);
@@ -3107,7 +3128,7 @@ int processCommandMaybeInSSDB(client *c, struct ssdb_write_op* slave_retry_write
 
                 serverAssert(server.maxmemory_policy & MAXMEMORY_FLAG_LFU);
 
-                dictEntry* de = dictFind(EVICTED_DATA_DB->dict, c->argv[1]->ptr);
+                dictEntry* de = dictFind(EVICTED_DATA_DB->dict, keyobj->ptr);
                 sds db_key = dictGetKey(de);
 
                 unsigned int lfu = sdsgetlfu(db_key);
@@ -3116,9 +3137,9 @@ int processCommandMaybeInSSDB(client *c, struct ssdb_write_op* slave_retry_write
 
                 // todo: add config option for LFU value
                 if ((counter > LFU_INIT_VAL) && !memoryReachLoadUpperLimit()) {
-                    listAddNodeHead(server.hot_keys, dupStringObject(c->argv[1]));
+                    listAddNodeHead(server.hot_keys, dupStringObject(keyobj));
                     serverLog(LL_DEBUG, "key: %s is added to server.hot_keys, client fd: %d.",
-                              (char *)c->argv[1]->ptr, c->fd);
+                              (char *)keyobj->ptr, c->fd);
                 }
                 return C_OK;
             }
@@ -3364,6 +3385,8 @@ void handleCustomizedBlockedClients() {
     if ((server.prohibit_ssdb_read_write == NO_PROHIBIT_SSDB_READ_WRITE)
         && listLength(server.ssdb_flushall_blocked_clients))
         handleClientsBlockedOnFlushall();
+    if (listLength(server.delayed_migrate_clients))
+        handleClientsBlockedOnMigrate();
 }
 
 /* If this function gets called we already read a whole
@@ -3576,22 +3599,17 @@ int processCommand(client *c) {
         }
     }
 
-    /* to ensure data consistency of this slave with my master, if connnection status of
-    * server.master is CONN_CHECK_REPOPID/CONN_CONNECT_FAILED, we can do nothing but
-    * save this write operation to the tail of server.ssdb_write_oplist and wait to re-send
-    * it.
-    *
-    * NOTE: even if the key of c->argv is in redis now, and also the key is not in transferring/
-    * loading/delete_confirm status, we can't process the command directly, because maybe there are
-    * write operations on the same key in server.ssdb_write_oplist.
-    * */
-    if (server.jdjr_mode && c->argc > 1 && c == server.master && !(c->ssdb_conn_flags & CONN_SUCCESS)) {
-        updateSlaveSSDBwriteIndex();
-        saveSlaveSSDBwriteOp(c, server.last_send_writeop_time, server.last_send_writeop_index);
-        /* the c->argv pointer is reused by saveSlaveSSDBwriteOp, set to NULL avoid it to be
-         * freed by resetClient. */
-        c->argv = NULL;
-        return C_OK;
+    if (server.jdjr_mode
+        && c->cmd->proc == migrateCommand) {
+        ret = checkKeysForMigrate(c);
+        if (ret == C_NOTSUPPORT_ERR) return C_OK;
+        if (ret == C_ERR) {
+            /* TODO: use a suitable timeout. */
+            c->bpop.timeout = 60000 + mstime();
+            blockClient(c, BLOCKED_MIGRATING_CLIENT);
+            listAddNodeTail(server.delayed_migrate_clients, c);
+            return C_ERR;
+        }
     }
 
     /* Check if current cmd contains blocked keys. */

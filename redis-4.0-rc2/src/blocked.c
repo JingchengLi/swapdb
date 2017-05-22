@@ -152,7 +152,8 @@ void unblockClient(client *c) {
                    || c->btype == BLOCKED_BY_FLUSHALL
                    || c->btype == BLOCKED_NO_READ_WRITE_TO_SSDB
                    || c->btype == BLOCKED_NO_WRITE_TO_SSDB
-                   || c->btype == BLOCKED_BY_DELETE_CONFIRM)) {
+                   || c->btype == BLOCKED_BY_DELETE_CONFIRM
+                   || c->btype == BLOCKED_MIGRATING_CLIENT)) {
         /* Doing nothing. */
     } else if (server.jdjr_mode && c->btype == BLOCKED_VISITING_SSDB) {
             removeVisitingSSDBKey(c->cmd, c->argc, c->argv);
@@ -206,7 +207,8 @@ int replyToBlockedClientTimedOut(client *c) {
     } else if (server.jdjr_mode
                && (c->btype == BLOCKED_VISITING_SSDB
                    || c->btype == BLOCKED_BY_FLUSHALL
-                   || c->btype == BLOCKED_BY_DELETE_CONFIRM)) {
+                   || c->btype == BLOCKED_BY_DELETE_CONFIRM
+                   || c->btype == BLOCKED_MIGRATING_CLIENT)) {
         addReplyError(c, "timeout");
         serverLog(LOG_DEBUG, "[!!!!]block timeout(client:%p,btype:%d), will free client", (void*)c, c->btype);
         /* free client to avoid unexpected issues.*/

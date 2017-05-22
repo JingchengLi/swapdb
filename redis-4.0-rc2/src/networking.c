@@ -1082,6 +1082,20 @@ void handleClientsBlockedOnFlushall(void) {
     }
 }
 
+void handleClientsBlockedOnMigrate(void) {
+    listIter li;
+    listNode *ln;
+
+    listRewind(server.delayed_migrate_clients, &li);
+    while((ln = listNext(&li))) {
+        client *c = listNodeValue(ln);
+        if (checkKeysForMigrate(c) == C_OK) {
+            listDelNode(server.delayed_migrate_clients, ln);
+            runCommand(c, NULL);
+        }
+    }
+}
+
 static void revertClientBufReply(client *c, size_t revertlen) {
     listNode *ln;
     sds tail;
@@ -1694,6 +1708,28 @@ void handleSSDBReply(client *c, int revert_len) {
                 dbAsyncDelete(EVICTED_DATA_DB, c->argv[j]);
             else
                 dbSyncDelete(EVICTED_DATA_DB, c->argv[j]);
+        }
+    }
+
+    if (c->cmd && c->cmd->proc == migrateCommand) {
+        robj *keyobj = c->argv[3];
+        robj *keydbid = c->argv[4];
+        dictEntry *de = dictFind(EVICTED_DATA_DB->dict, keyobj->ptr);
+        sds db_key, evdb_key;
+        unsigned int lfu;
+        serverAssert(keyobj && de);
+
+        if (c->btype != BLOCKED_VISITING_SSDB)
+            serverLog(LL_WARNING, "Client btype should be 'BLOCKED_VISITING_SSDB'");
+        if (reply && reply->type == REDIS_REPLY_STRING
+            && !strcasecmp(reply->str, "OK")) {
+            if (keydbid && keydbid->type == OBJ_STRING
+                && keydbid->encoding == OBJ_ENCODING_INT) {
+                revertClientBufReply(c, revert_len);
+                keydbid->ptr = EVICTED_DATA_DBID;
+                unblockClient(c);
+                migrateCommand(c);
+            }
         }
     }
 

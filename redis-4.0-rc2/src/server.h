@@ -297,6 +297,7 @@ typedef long long mstime_t; /* millisecond time type. */
 #define BLOCKED_VISITING_SSDB 13   /* Client is visiting SSDB. */
 #define BLOCKED_BY_FLUSHALL 14
 #define BLOCKED_BY_DELETE_CONFIRM  15 /* Client is blocked by delete key confirm. */
+#define BLOCKED_MIGRATING_CLIENT 16
 /* ================================================= */
 
 
@@ -1322,6 +1323,7 @@ struct redisServer {
     list *loadAndEvictCmdList;
     int cmdNotDone;
     client *delete_confirm_client;
+    list *delayed_migrate_clients;
 
     /* for slave redis, we save ssdb write operations before receive responses from ssdb. */
     time_t last_send_writeop_time;
@@ -1777,7 +1779,8 @@ int runCommandSlaveFailedRetry(client *c, struct ssdb_write_op* slave_retry_writ
 int runCommand(client *c);
 int checkValidCommand(client* c);
 int checkKeysInMediateState(client* c);
-int processCommandMaybeInSSDB(client *c,  struct ssdb_write_op* slave_retry_write);
+int checkKeysForMigrate(client *c);
+int processCommandMaybeInSSDB(client *c);
 int isSSDBrespCmd(struct redisCommand *cmd);
 void setupSignalHandlers(void);
 struct redisCommand *lookupCommand(sds name);
