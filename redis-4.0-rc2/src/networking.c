@@ -1715,8 +1715,6 @@ void handleSSDBReply(client *c, int revert_len) {
         robj *keyobj = c->argv[3];
         robj *keydbid = c->argv[4];
         dictEntry *de = dictFind(EVICTED_DATA_DB->dict, keyobj->ptr);
-        sds db_key, evdb_key;
-        unsigned int lfu;
         serverAssert(keyobj && de);
 
         if (c->btype != BLOCKED_VISITING_SSDB)
@@ -2022,6 +2020,9 @@ void unlinkClient(client *c) {
 
             ln = listSearchKey(server.no_writing_ssdb_blocked_clients, c);
             if (ln) listDelNode(server.no_writing_ssdb_blocked_clients, ln);
+
+            ln = listSearchKey(server.delayed_migrate_clients, c);
+            if (ln) listDelNode(server.delayed_migrate_clients, ln);
 
             di = dictGetIterator(server.db->ssdb_blocking_keys);
             while((de = dictNext(di))) {

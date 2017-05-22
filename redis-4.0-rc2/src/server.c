@@ -2742,6 +2742,20 @@ int checkKeysForMigrate(client *c) {
     return C_OK;
 }
 
+int blockAndFlushSlaveSSDB(client* c) {
+    int ret;
+
+    /* flushall STEP 1: clean all intermediate state keys, avoid to cause unexpected issues. */
+    cleanSpecialClientsAndIntermediateKeys(1);
+
+    sds finalcmd = sdsnew("*1\r\n$14\r\nrr_do_flushall\r\n");
+    ret = sendCommandToSSDB(c, finalcmd);
+    if (ret != C_OK) return ret;
+    serverLog(LL_DEBUG, "send rr_do_flushall ok");
+
+    return C_OK;
+}
+
 int processCommandMaybeFlushdb(client *c) {
     int ret;
     if ((c->cmd->proc == flushallCommand
