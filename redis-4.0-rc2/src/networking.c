@@ -31,7 +31,7 @@
 #include <sys/uio.h>
 #include <math.h>
 #include <ctype.h>
-//#define TEST_CLIENT_BUF
+#define TEST_CLIENT_BUF
 
 static void setProtocolError(const char *errstr, client *c, int pos);
 
@@ -814,6 +814,8 @@ int closeAndReconnectSSDBconnection(client* c) {
         server.ssdb_is_up = 0;
         if (server.ssdb_down_time == -1)
             server.ssdb_down_time = server.unixtime;
+        serverLog(LL_DEBUG, "ssdb connection disconnect! c->fd:%d,c->context->fd:%d",
+                  c->fd, c->context ? c->context->fd : -1);
     }
     handleSSDBconnectionDisconnect(c);
 
@@ -912,6 +914,8 @@ void sendFlushCheckCommandToSSDB(aeEventLoop *el, int fd, void *privdata, int ma
         }
     } else {
         aeDeleteFileEvent(server.el, c->fd, AE_WRITABLE);
+        serverLog(LL_DEBUG, "[flushall]send flush check sucess, c->flags:%d, c->ssdb_conn_flags:%d",
+                  c->flags, c->ssdb_conn_flags);
     }
 }
 
@@ -1215,30 +1219,35 @@ int handleResponseOfSSDBflushDone(client *c, redisReply* reply, int revert_len) 
     UNUSED(c);
 
     if (IsReplyEqual(reply, shared.flushdoneok) || IsReplyEqual(reply, shared.flushdonenok)) {
-        /* clean the ssdb reply*/
-        revertClientBufReply(c, revert_len);
+        if (server.is_doing_flushall) {
+            /* clean the ssdb reply*/
+            revertClientBufReply(c, revert_len);
 
-        cur_flush_client = server.current_flushall_client;
+            cur_flush_client = server.current_flushall_client;
 
-        /* unblock the client doing flushall and do flushall in redis. */
-        unblockClient(cur_flush_client);
-        if (IsReplyEqual(reply, shared.flushdoneok)) {
-            serverLog(LL_DEBUG, "[flushall] receive do flush ok");
-            if (runCommand(cur_flush_client) == C_OK)
+            /* unblock the client doing flushall and do flushall in redis. */
+            unblockClient(cur_flush_client);
+            if (IsReplyEqual(reply, shared.flushdoneok)) {
+                serverLog(LL_DEBUG, "[flushall] receive do flush ok");
+                if (runCommand(cur_flush_client) == C_OK)
+                    resetClient(cur_flush_client);
+            } else if (IsReplyEqual(reply, shared.flushdonenok)) {
+                serverLog(LL_DEBUG, "[flushall] receive do flush nok, ssdb flushall failed");
+                addReplyError(cur_flush_client, "do ssdb flushall failed!");
                 resetClient(cur_flush_client);
-        } else if (IsReplyEqual(reply, shared.flushdonenok)) {
-            serverLog(LL_DEBUG, "[flushall] receive do flush nok, ssdb flushall failed");
-            addReplyError(cur_flush_client, "do ssdb flushall failed!");
-            resetClient(cur_flush_client);
+            }
+
+            /* allow read/write operations to ssdb. */
+            server.prohibit_ssdb_read_write = NO_PROHIBIT_SSDB_READ_WRITE;
+            server.is_doing_flushall = 0;
+            server.current_flushall_client = NULL;
+
+            handleClientsBlockedOnFlushall();
+        } else {
+            /* unexpected response, revert it to be send to user client. */
+            revertClientBufReply(c, revert_len);
+            serverLog(LL_DEBUG, "unexpected response:%s", reply->str);
         }
-
-        /* allow read/write operations to ssdb. */
-        server.prohibit_ssdb_read_write = NO_PROHIBIT_SSDB_READ_WRITE;
-        server.is_doing_flushall = 0;
-        server.current_flushall_client = NULL;
-
-        handleClientsBlockedOnFlushall();
-
         process_status = C_OK;
     } else
         process_status = C_ERR;
@@ -1269,21 +1278,29 @@ int handleResponseOfFlushCheck(client *c, redisReply* reply) {
     UNUSED(c);
 
     if (IsReplyEqual(reply, shared.flushcheckok)) {
-        server.flush_check_unresponse_num -= 1;
+        if (server.is_doing_flushall) {
+            server.flush_check_unresponse_num -= 1;
 
-        /* unset this flag here, if this client disconnect after we receive flushall-check response,
-         * we can ignore this client in freeClient and don't decrease server.flush_check_unresponse_num. */
-        c->ssdb_conn_flags &= ~CONN_WAIT_FLUSH_CHECK_REPLY;
+            /* unset this flag here, if this client disconnect after we receive flushall-check response,
+             * we can ignore this client in freeClient and don't decrease server.flush_check_unresponse_num. */
+            c->ssdb_conn_flags &= ~CONN_WAIT_FLUSH_CHECK_REPLY;
 
-        serverLog(LL_DEBUG, "[flushall]receive flush check ok(c->context->fd:%d), unresponse num:%d",
-                  c->context ? c->context->fd : -1, server.flush_check_unresponse_num);
-        doSSDBflushIfCheckDone();
+            serverLog(LL_DEBUG, "[flushall]receive flush check ok(c->context->fd:%d), unresponse num:%d",
+                      c->context ? c->context->fd : -1, server.flush_check_unresponse_num);
+            doSSDBflushIfCheckDone();
+        } else {
+            serverLog(LL_DEBUG, "unexpected response:%s", shared.flushcheckok);
+        }
         process_status = C_OK;
     } else if (IsReplyEqual(reply, shared.flushchecknok)) {
-        serverLog(LL_DEBUG, "[flushall]receive flush check failed response, check failed and abort");
-        /* set to 0 so flush check will be timeout. exception case
-         * of flush check will be processed in serverCron.*/
-        server.flush_check_begin_time = 0;
+        if (server.is_doing_flushall) {
+            serverLog(LL_DEBUG, "[flushall]receive flush check failed response, check failed and abort");
+            /* set to 0 so flush check will be timeout. exception case
+             * of flush check will be processed in serverCron.*/
+            server.flush_check_begin_time = 0;
+        } else {
+            serverLog(LL_DEBUG, "unexpected response:%s", shared.flushchecknok);
+        }
         process_status = C_OK;
     } else
         process_status = C_ERR;
@@ -1314,21 +1331,36 @@ int handleResponseOfCheckWrite(client *c, redisReply* reply) {
     UNUSED(c);
 
     if (IsReplyEqual(reply, shared.checkwriteok)) {
-        /* Update check_write_unresponse_num. */
-        server.check_write_unresponse_num -= 1;
+        if (server.ssdb_status == MASTER_SSDB_SNAPSHOT_CHECK_WRITE
+            && !isSpecialConnection(c)
+            && (c->ssdb_conn_flags & CONN_WAIT_WRITE_CHECK_REPLY)) {
 
-        /* unset this flag here, if this client disconnect after we receive write-check response,
-         * we can ignore this client in freeClient and don't decrease server.check_write_unresponse_num. */
-        c->ssdb_conn_flags &= ~CONN_WAIT_WRITE_CHECK_REPLY;
+            /* Update check_write_unresponse_num. */
+             server.check_write_unresponse_num -= 1;
 
-        serverLog(LL_DEBUG, "Replication log: rr_check_write fd: %d, counter: %d", c->fd, server.check_write_unresponse_num);
+             /* unset this flag here, if this client disconnect after we receive write-check response,
+              * we can ignore this client in freeClient and don't decrease server.check_write_unresponse_num. */
+             c->ssdb_conn_flags &= ~CONN_WAIT_WRITE_CHECK_REPLY;
 
-        makeSSDBsnapshotIfCheckOK();
+             serverLog(LL_DEBUG, "Replication log: rr_check_write fd: %d, counter: %d", c->fd,
+                       server.check_write_unresponse_num);
+
+            makeSSDBsnapshotIfCheckOK();
+        } else
+            serverLog(LL_DEBUG, "unexpected response:%s", shared.checkwriteok);
+
         process_status = C_OK;
     } else if (IsReplyEqual(reply, shared.checkwritenok)) {
-        /* Reset customized replication status immediately. */
-        resetCustomizedReplication();
-        serverLog(LL_WARNING, "SSDB returns 'rr_check_write nok'.");
+         if (server.ssdb_status == MASTER_SSDB_SNAPSHOT_CHECK_WRITE
+            && !isSpecialConnection(c)
+            && (c->ssdb_conn_flags & CONN_WAIT_WRITE_CHECK_REPLY)) {
+
+             /* Reset customized replication status immediately. */
+             resetCustomizedReplication();
+             serverLog(LL_WARNING, "SSDB returns 'rr_check_write nok'.");
+         } else
+             serverLog(LL_DEBUG, "unexpected response:%s", shared.checkwritenok);
+
         process_status = C_OK;
     } else
         process_status = C_ERR;
@@ -1343,14 +1375,21 @@ int handleResponseOfPsync(client *c, redisReply* reply) {
     /* Reset is_allow_ssdb_write to ALLOW_SSDB_WRITE
        as soon as rr_make_snapshot is responsed. */
     if (IsReplyEqual(reply, shared.makesnapshotok)) {
-        server.make_snapshot_begin_time = -1;
-        server.ssdb_status = MASTER_SSDB_SNAPSHOT_OK;
-        serverAssert(c == server.ssdb_replication_client);
+        if (c == server.ssdb_replication_client && server.ssdb_status == MASTER_SSDB_SNAPSHOT_PRE) {
+            server.make_snapshot_begin_time = -1;
+            server.ssdb_status = MASTER_SSDB_SNAPSHOT_OK;
+        } else
+            serverLog(LL_DEBUG, "unexpected response:%s", shared.makesnapshotok);
+
         process_status = C_OK;
         serverLog(LL_DEBUG, "Replication log: rr_make_snapshot ok.");
     } else if (IsReplyEqual(reply, shared.makesnapshotnok)) {
-        /* Reset customized replication status immediately. */
-        resetCustomizedReplication();
+        if (c == server.ssdb_replication_client && server.ssdb_status == MASTER_SSDB_SNAPSHOT_PRE) {
+            /* Reset customized replication status immediately. */
+            resetCustomizedReplication();
+        } else
+            serverLog(LL_DEBUG, "unexpected response:%s", shared.makesnapshotnok);
+
         process_status = C_OK;
     } else
         process_status = C_ERR;
@@ -1374,13 +1413,21 @@ int handleResponseOfDelSnapshot(client *c, redisReply* reply) {
     UNUSED(c);
 
     if (IsReplyEqual(reply, shared.delsnapshotok)) {
-        server.retry_del_snapshot = 0;
+        if (c == server.ssdb_replication_client && server.ssdb_status == MASTER_SSDB_SNAPSHOT_OK)
+            server.retry_del_snapshot = 0;
+        else
+            serverLog(LL_DEBUG, "unexpected response:%s", shared.delsnapshotok);
+
         process_status = C_OK;
     } else if (IsReplyEqual(reply, shared.delsnapshotnok)) {
-        if (server.ssdb_status == SSDB_NONE) {
-            /* Notify ssdb to release snapshot once more. */
-            sendDelSSDBsnapshot();
-        }
+        if (c == server.ssdb_replication_client && server.ssdb_status == MASTER_SSDB_SNAPSHOT_OK) {
+            if (server.ssdb_status == SSDB_NONE) {
+                /* Notify ssdb to release snapshot once more. */
+                sendDelSSDBsnapshot();
+            }
+        } else
+            serverLog(LL_DEBUG, "unexpected response:%s", shared.delsnapshotok);
+
         process_status = C_OK;
     } else
         process_status = C_ERR;
@@ -1402,48 +1449,59 @@ int handleResponseTimeoutOfTransferSnapshot(struct aeEventLoop *eventLoop, long 
 int handleResponseOfTransferSnapshot(client *c, redisReply* reply) {
     int process_status;
 
-    if (c->ssdb_status == SLAVE_SSDB_SNAPSHOT_TRANSFER_PRE) {
-        if (IsReplyEqual(reply, shared.transfersnapshotok)) {
+    if (IsReplyEqual(reply, shared.transfersnapshotok)) {
+        if ((c->flags & CLIENT_SLAVE) && c->ssdb_status == SLAVE_SSDB_SNAPSHOT_TRANSFER_PRE) {
             if (c->repl_timer_id != -1) {
-                aeDeleteTimeEvent(server.el,c->repl_timer_id);
+                aeDeleteTimeEvent(server.el, c->repl_timer_id);
                 c->repl_timer_id = -1;
             }
+
             c->ssdb_status = SLAVE_SSDB_SNAPSHOT_TRANSFER_START;
 
+            serverLog(LL_DEBUG, "Replication log: transfersnapshotok, fd: %d", c->fd);
             aeDeleteFileEvent(server.el, c->fd, AE_WRITABLE);
             if (aeCreateFileEvent(server.el, c->fd, AE_WRITABLE,
                                   sendBulkToSlave, c) == AE_ERR)
                 freeClientAsync(c);
+        } else
+            serverLog(LL_DEBUG, "unexpected response:%s", shared.transfersnapshotok);
 
-            process_status = C_OK;
+        process_status = C_OK;
 
-            serverLog(LL_DEBUG, "Replication log: transfersnapshotok, fd: %d", c->fd);
-        } else if (IsReplyEqual(reply, shared.transfersnapshotnok)) {
-            serverAssert(server.ssdb_status == MASTER_SSDB_SNAPSHOT_OK);
+    } else if (IsReplyEqual(reply, shared.transfersnapshotnok)) {
+        if ((c->flags & CLIENT_SLAVE) && c->ssdb_status == SLAVE_SSDB_SNAPSHOT_TRANSFER_PRE) {
             if (c->repl_timer_id != -1) {
-                aeDeleteTimeEvent(server.el,c->repl_timer_id);
+                aeDeleteTimeEvent(server.el, c->repl_timer_id);
                 c->repl_timer_id = -1;
             }
+            serverAssert(server.ssdb_status == MASTER_SSDB_SNAPSHOT_OK);
+
+            serverLog(LL_DEBUG, "Replication log: transfersnapshotnok, fd: %d", c->fd);
             addReplyError(c, "snapshot transfer nok");
             freeClientAsync(c);
-            process_status = C_OK;
-            serverLog(LL_DEBUG, "Replication log: transfersnapshotnok, fd: %d", c->fd);
         } else
-            process_status = C_ERR;
+            serverLog(LL_DEBUG, "unexpected response:%s", shared.transfersnapshotnok);
 
-    } else if (c->ssdb_status == SLAVE_SSDB_SNAPSHOT_TRANSFER_START) {
-        if (IsReplyEqual(reply, shared.transfersnapshotfinished)) {
+        process_status = C_OK;
+    } else if (IsReplyEqual(reply, shared.transfersnapshotfinished)) {
+        if ((c->flags & CLIENT_SLAVE) && c->ssdb_status == SLAVE_SSDB_SNAPSHOT_TRANSFER_START) {
             serverLog(LL_DEBUG, "Replication log: snapshot transfer finished, fd: %d", c->fd);
             c->ssdb_status = SLAVE_SSDB_SNAPSHOT_TRANSFER_END;
-            process_status = C_OK;
-        } else if (IsReplyEqual(reply, shared.transfersnapshotunfinished)) {
+        } else
+            serverLog(LL_DEBUG, "unexpected response:%s", shared.transfersnapshotfinished);
+
+        process_status = C_OK;
+    } else if (IsReplyEqual(reply, shared.transfersnapshotunfinished)) {
+        if ((c->flags & CLIENT_SLAVE) && c->ssdb_status == SLAVE_SSDB_SNAPSHOT_TRANSFER_START) {
+
             serverAssert(server.ssdb_status == MASTER_SSDB_SNAPSHOT_OK);
+            serverLog(LL_DEBUG, "Replication log: snapshot transfer unfinished, fd: %d", c->fd);
             addReplyError(c, "snapshot transfer unfinished");
             freeClientAsync(c);
-            process_status = C_OK;
-            serverLog(LL_DEBUG, "Replication log: snapshot transfer unfinished, fd: %d", c->fd);
         } else
-            process_status = C_ERR;
+            serverLog(LL_DEBUG, "unexpected response:%s", shared.transfersnapshotunfinished);
+
+        process_status = C_OK;
     } else
         process_status = C_ERR;
 
@@ -1677,6 +1735,7 @@ void handleSSDBReply(client *c, int revert_len) {
     int j;
 
     reply = c->ssdb_replies[0];
+
     if (reply && reply->type == REDIS_REPLY_ERROR)
         serverLog(LL_WARNING, "Reply from SSDB is ERROR: %s, c->fd:%d, context fd:%d",
                   reply->str, c->fd, c->context ? c->context->fd : -1);
@@ -1732,45 +1791,35 @@ void handleSSDBReply(client *c, int revert_len) {
     }
 
     if (reply && reply->type == REDIS_REPLY_STRING) {
-        if (server.is_doing_flushall && handleResponseOfFlushCheck(c, reply) == C_OK) {
+        if (handleResponseOfFlushCheck(c, reply) == C_OK) {
             revertClientBufReply(c, revert_len);
             return;
         }
 
-        if (server.is_doing_flushall && handleResponseOfSSDBflushDone(c, reply, revert_len) == C_OK ) {
+        if (handleResponseOfSSDBflushDone(c, reply, revert_len) == C_OK ) {
             /* we need reply the flushall result to user client, so don't call revertClientBufReply. */
             return;
         }
 
         /* Handle the response of rr_check_write. */
-        if (server.ssdb_status == MASTER_SSDB_SNAPSHOT_CHECK_WRITE
-            && !isSpecialConnection(c)
-            && (c->ssdb_conn_flags & CONN_WAIT_WRITE_CHECK_REPLY)
-            && handleResponseOfCheckWrite(c, reply) == C_OK) {
+        if (handleResponseOfCheckWrite(c, reply) == C_OK) {
             revertClientBufReply(c, revert_len);
             return;
         }
 
         /* Handle the response of rr_make_snapshot. */
-        if (c == server.ssdb_replication_client
-            && server.ssdb_status == MASTER_SSDB_SNAPSHOT_PRE
-            && handleResponseOfPsync(c, reply) == C_OK) {
+        if (handleResponseOfPsync(c, reply) == C_OK) {
             return;
         }
 
         /* Handle the response of rr_transfer_snapshot. */
-        if ((c->flags & CLIENT_SLAVE)
-            && (c->ssdb_status == SLAVE_SSDB_SNAPSHOT_TRANSFER_PRE
-                || c->ssdb_status == SLAVE_SSDB_SNAPSHOT_TRANSFER_START)
-            && handleResponseOfTransferSnapshot(c, reply) == C_OK) {
+        if (handleResponseOfTransferSnapshot(c, reply) == C_OK) {
             revertClientBufReply(c, revert_len);
             return;
         }
 
         /* Handle the respons of rr_del_snapshot. */
-        if (c == server.ssdb_replication_client
-            && server.ssdb_status == MASTER_SSDB_SNAPSHOT_OK
-            && handleResponseOfDelSnapshot(c, reply) == C_OK) {
+        if (handleResponseOfDelSnapshot(c, reply) == C_OK) {
             return;
         }
     }
@@ -1808,6 +1857,7 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
     char* reply_start;
     int first_reply_len;
 #ifdef TEST_CLIENT_BUF
+    serverLog(LOG_DEBUG, "reader process>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
     sds tmp = sdsempty();
 #endif
 
@@ -1938,6 +1988,12 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
         }
     }
 
+#ifdef TEST_CLIENT_BUF
+    // todo: fix rr_check_flushall timeout issue.
+    if (c->context->reader->len != 0)
+        serverLog(LL_WARNING, "[!!!]there is unprocessed data in the ssdb reader.");
+    serverLog(LL_DEBUG, "read process end<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<");
+#endif
     handleSSDBReply(c, first_reply_len);
 
 clean:
