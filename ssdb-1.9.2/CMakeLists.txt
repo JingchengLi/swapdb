@@ -40,7 +40,7 @@ LINK_DIRECTORIES(
 
 IF(GCOV)
     ADD_DEFINITIONS("-fprofile-arcs -ftest-coverage")
-    SET(CMAKE_EXE_LINKER_FLAGS "-fprofile-arcs -ftest-coverage")  
+    SET(CMAKE_EXE_LINKER_FLAGS "-fprofile-arcs -ftest-coverage")
     SET(CMAKE_CXX_FLAGS " -D__STDC_FORMAT_MACROS -Wall -O0 -Wno-sign-compare -std=c++11")
 ELSE()
     SET(CMAKE_CXX_FLAGS " -D__STDC_FORMAT_MACROS -Wall -O0 -Wno-sign-compare -std=c++11") #-DNDEBUG
@@ -50,8 +50,11 @@ ENDIF()
 
 IF(ROCKSDB)
     message("==================use rocksdb===================")
+    add_compile_options("-DROCKSDB_PLATFORM_POSIX")
+
     INCLUDE_DIRECTORIES(
             ${CMAKE_CURRENT_SOURCE_DIR}/deps/rocksdb-5.3.6/include
+            ${CMAKE_CURRENT_SOURCE_DIR}/deps/rocksdb-5.3.6
     )
     LINK_DIRECTORIES(
             ${CMAKE_CURRENT_SOURCE_DIR}/deps/rocksdb-5.3.6/third-party/gtest-1.7.0/fused-src/gtest

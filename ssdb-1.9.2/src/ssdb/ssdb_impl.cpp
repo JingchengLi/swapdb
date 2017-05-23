@@ -22,6 +22,7 @@ found in the LICENSE file.
 #include "rocksdb/convenience.h"
 
 #include "t_listener.h"
+#include "util/rate_limiter.h"
 
 #define leveldb rocksdb
 #endif
@@ -34,33 +35,6 @@ SSDBImpl::SSDBImpl()
     ldb = NULL;
     this->bgtask_flag_ = true;
     expiration = NULL;
-}
-
-int createCF(const std::string &dir) {
-    leveldb::DB *tdb;
-    leveldb::Options options;
-    options.create_if_missing = true;
-    leveldb::Status status = leveldb::DB::Open(options, dir, &tdb);
-    if (!status.ok()) {
-        if (status.IsInvalidArgument()) {
-            //may exist
-            return 0;
-        }
-        log_error("open db failed: %s", status.ToString().c_str());
-        return -1;
-    }
-
-    // create column family
-    leveldb::ColumnFamilyHandle *cf;
-    status = tdb->CreateColumnFamily(leveldb::ColumnFamilyOptions(), REPOPID_CF, &cf);
-    if (!status.ok()) {
-
-    }
-    // close DB
-    delete cf;
-    delete tdb;
-
-    return 0;
 }
 
 SSDBImpl::~SSDBImpl() {
@@ -93,6 +67,7 @@ SSDBImpl::~SSDBImpl() {
 SSDB *SSDB::open(const Options &opt, const std::string &dir) {
     SSDBImpl *ssdb = new SSDBImpl();
     ssdb->options.create_if_missing = true;
+    ssdb->options.create_missing_column_families = true;
     ssdb->options.max_open_files = opt.max_open_files;
 #ifdef USE_LEVELDB
     ssdb->options.filter_policy = leveldb::NewBloomFilterPolicy(10);
@@ -103,8 +78,8 @@ SSDB *SSDB::open(const Options &opt, const std::string &dir) {
     leveldb::BlockBasedTableOptions op;
 
     //for spin disk
-	op.cache_index_and_filter_blocks = true;
-    ssdb->options.optimize_filters_for_hits = true;
+//	op.cache_index_and_filter_blocks = true;
+//    ssdb->options.optimize_filters_for_hits = true;
     ssdb->options.compaction_readahead_size = 4 * 1024 * 1024;
 //	ssdb->options.skip_stats_update_on_db_open = true;
 //	ssdb->options.level_compaction_dynamic_level_bytes = true;
@@ -122,10 +97,6 @@ SSDB *SSDB::open(const Options &opt, const std::string &dir) {
 
     ssdb->options.table_factory = std::shared_ptr<leveldb::TableFactory>(rocksdb::NewBlockBasedTableFactory(op));
 
-    if (ROCKSDB_MAJOR >= 5) {
-        ssdb->options.allow_concurrent_memtable_write = true;
-        ssdb->options.enable_write_thread_adaptive_yield = true;
-    }
 
     //level config
 
@@ -133,8 +104,12 @@ SSDB *SSDB::open(const Options &opt, const std::string &dir) {
     ssdb->options.max_bytes_for_level_base = 256 * 1024 * 1024; //256M
     ssdb->options.max_bytes_for_level_multiplier = 10; //10  // multiplier between levels
 
+            //rate_limiter
+//    ssdb->options.rate_limiter = std::shared_ptr<leveldb::GenericRateLimiter>(new leveldb::GenericRateLimiter(1024 * 50, 1000, 10));
+    // refill_bytes  refill_period_us  1024, 1000 = 1MB/s
 
-    ssdb->options.listeners.push_back(std::shared_ptr<t_listener>(new t_listener()));
+   ssdb->options.listeners.push_back(std::shared_ptr<t_listener>(new t_listener()));
+
 
 #endif
     ssdb->options.write_buffer_size = static_cast<size_t >(opt.write_buffer_size) * 1024 * 1024;
@@ -146,8 +121,6 @@ SSDB *SSDB::open(const Options &opt, const std::string &dir) {
 
 
     leveldb::Status status;
-
-    createCF(dir);
 
     // open DB with two column families
     std::vector<leveldb::ColumnFamilyDescriptor> column_families;
