@@ -2758,46 +2758,44 @@ int blockAndFlushSlaveSSDB(client* c) {
 
 int processCommandMaybeFlushdb(client *c) {
     int ret;
-    if ((c->cmd->proc == flushallCommand
-         || c->cmd->proc == flushdbCommand)) {
-        if (server.masterhost == NULL) {
-            /* only allow one flushall task running. */
-            if (server.is_doing_flushall) {
-                return C_ANOTHER_FLUSHALL_ERR;
-            } else {
-                prepareSSDBflush(c);
-                return C_OK;
-            }
+
+    if (server.masterhost == NULL) {
+        /* only allow one flushall task running. */
+        if (server.is_doing_flushall) {
+            return C_ANOTHER_FLUSHALL_ERR;
         } else {
-            if (server.master == c) {
-                struct ssdb_write_op* op;
-                listNode *ln;
+            prepareSSDBflush(c);
+            return C_OK;
+        }
+    } else {
+        if (server.master == c) {
+            struct ssdb_write_op* op;
+            listNode *ln;
 
-                /* it's safe to do flushall even if ssdb connection status of server.master is CONN_CHECK_REPOPID
-                 * or CONN_CONNECT_FAILED.
-                 * Reason:
-                 * although sendCommandToSSDB will fail, we can empty server.ssdb_write_list and save 'flushall'
-                 * to the list, so that we don't need to re-send previous failed writes after connection status
-                 * turn into CONN_SUCCESS. */
-                if (!(c->ssdb_conn_flags & CONN_SUCCESS))
-                    serverLog(LL_DEBUG, "sdb connection status of server,master is not CONN_SUCCESS");
+            /* it's safe to do flushall even if ssdb connection status of server.master is CONN_CHECK_REPOPID
+             * or CONN_CONNECT_FAILED.
+             * Reason:
+             * although sendCommandToSSDB will fail, we can empty server.ssdb_write_list and save 'flushall'
+             * to the list, so that we don't need to re-send previous failed writes after connection status
+             * turn into CONN_SUCCESS. */
+            if (!(c->ssdb_conn_flags & CONN_SUCCESS))
+                serverLog(LL_DEBUG, "sdb connection status of server,master is not CONN_SUCCESS");
 
-                /* before flushall, clean all visiting keys and all writes in ssdb write op list. */
-                emptySlaveSSDBwriteOperations();
+            /* before flushall, clean all visiting keys and all writes in ssdb write op list. */
+            emptySlaveSSDBwriteOperations();
 
-                ret = updateSendRepopidToSSDB(c);
-                if (ret != C_OK) return ret;
+            ret = updateSendRepopidToSSDB(c);
+            if (ret != C_OK) return ret;
 
-                ret = blockAndFlushSlaveSSDB(c);
-                if (ret != C_OK) return ret;
+            ret = blockAndFlushSlaveSSDB(c);
+            if (ret != C_OK) return ret;
 
-                ln = listFirst(server.ssdb_write_oplist);
-                op = ln->value;
-                serverLog(LL_DEBUG, "[REPOPID]redis send %s(op time:%ld, op id:%d) to ssdb success",
-                          op->cmd->name, op->time, op->index);
+            ln = listFirst(server.ssdb_write_oplist);
+            op = ln->value;
+            serverLog(LL_DEBUG, "[REPOPID]redis send %s(op time:%ld, op id:%d) to ssdb success",
+                      op->cmd->name, op->time, op->index);
 
-                return C_OK;
-            }
+            return C_OK;
         }
     }
     return C_ERR;
@@ -2973,15 +2971,9 @@ void saveSlaveSSDBwriteOp(client *c, time_t time, int index) {
     op->time = time;
     op->index = index;
     op->cmd = c->cmd;
-    if (c->cmd->proc == flushallCommand) {
-        op->argc = 1;
-        op->argv = zmalloc(sizeof(robj*)*1);
-        op->argv[0] = createObject(OBJ_STRING,sdsnew("flushall"));
-    } else {
-        op->argc = c->argc;
-        /* NOTE:we use c->argv directly, avoid to reset it later. */
-        op->argv = c->argv;
-    }
+    op->argc = c->argc;
+    /* NOTE:we use c->argv directly, avoid to reset it later. */
+    op->argv = c->argv;
 
     /* recored consumed memory size. */
     server.writeop_mem_size += sizeof(struct ssdb_write_op) + sizeof(listNode*);
@@ -3596,20 +3588,26 @@ int processCommand(client *c) {
         loadAndEvictCmd *cmdinfo = createLoadAndEvictCmd(c->argv, c->argc, c->cmd);
         listAddNodeTail(server.loadAndEvictCmdList, cmdinfo);
         /* Keep c->argv alocated memory. */
-        serverLog(LL_DEBUG, "load_or_store cmd: %s, key: %s is added to loadAndEvictCmdList.", c->cmd->name, (char *)c->argv[1]->ptr);
+        serverLog(LL_DEBUG, "load_or_store cmd: %s, key: %s is added to loadAndEvictCmdList.",
+                  c->cmd->name, (char *)c->argv[1]->ptr);
         c->argv = NULL;
 
         return C_OK;
     }
 
-    if (server.jdjr_mode) {
+    if (server.jdjr_mode && (c->cmd->proc == flushallCommand || c->cmd->proc == flushdbCommand)) {
         ret = processCommandMaybeFlushdb(c);
-        if (C_OK == ret) {
-            /* Return C_ERR to keep client info and handle it later. */
-            return C_ERR;
-        } else if (C_ANOTHER_FLUSHALL_ERR == ret) {
-            addReplyError(c, "there is already another flushall task processing!");
+        if (c == server.master) {
+            c->argv = NULL;
             return C_OK;
+        } else {
+            if (C_OK == ret) {
+                /* Return C_ERR to keep client info and handle it later. */
+                return C_ERR;
+            } else if (C_ANOTHER_FLUSHALL_ERR == ret) {
+                addReplyError(c, "there is already another flushall task processing!");
+                return C_OK;
+            }
         }
     }
 
