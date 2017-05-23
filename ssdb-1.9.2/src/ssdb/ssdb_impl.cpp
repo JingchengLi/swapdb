@@ -103,7 +103,7 @@ SSDB *SSDB::open(const Options &opt, const std::string &dir) {
     leveldb::BlockBasedTableOptions op;
 
     //for spin disk
-//	op.cache_index_and_filter_blocks = true;
+	op.cache_index_and_filter_blocks = true;
     ssdb->options.optimize_filters_for_hits = true;
     ssdb->options.compaction_readahead_size = 4 * 1024 * 1024;
 //	ssdb->options.skip_stats_update_on_db_open = true;
@@ -121,13 +121,6 @@ SSDB *SSDB::open(const Options &opt, const std::string &dir) {
     op.block_size = opt.block_size * 1024;
 
     ssdb->options.table_factory = std::shared_ptr<leveldb::TableFactory>(rocksdb::NewBlockBasedTableFactory(op));
-#endif
-    ssdb->options.write_buffer_size = static_cast<size_t >(opt.write_buffer_size) * 1024 * 1024;
-    if (opt.compression == "yes") {
-        ssdb->options.compression = leveldb::kSnappyCompression;
-    } else {
-        ssdb->options.compression = leveldb::kNoCompression;
-    }
 
     if (ROCKSDB_MAJOR >= 5) {
         ssdb->options.allow_concurrent_memtable_write = true;
@@ -141,10 +134,16 @@ SSDB *SSDB::open(const Options &opt, const std::string &dir) {
     ssdb->options.max_bytes_for_level_multiplier = 10; //10  // multiplier between levels
 
 
-#ifdef USE_LEVELDB
-#else
     ssdb->options.listeners.push_back(std::shared_ptr<t_listener>(new t_listener()));
+
 #endif
+    ssdb->options.write_buffer_size = static_cast<size_t >(opt.write_buffer_size) * 1024 * 1024;
+    if (opt.compression == "yes") {
+        ssdb->options.compression = leveldb::kSnappyCompression;
+    } else {
+        ssdb->options.compression = leveldb::kNoCompression;
+    }
+
 
     leveldb::Status status;
 
@@ -152,10 +151,10 @@ SSDB *SSDB::open(const Options &opt, const std::string &dir) {
 
     // open DB with two column families
     std::vector<leveldb::ColumnFamilyDescriptor> column_families;
-    column_families.push_back(leveldb::ColumnFamilyDescriptor(
-            leveldb::kDefaultColumnFamilyName, leveldb::ColumnFamilyOptions()));
-    column_families.push_back(leveldb::ColumnFamilyDescriptor(
-            REPOPID_CF, leveldb::ColumnFamilyOptions()));
+
+    column_families.emplace_back(leveldb::ColumnFamilyDescriptor(leveldb::kDefaultColumnFamilyName, ssdb->options));
+
+    column_families.emplace_back(leveldb::ColumnFamilyDescriptor(REPOPID_CF, leveldb::ColumnFamilyOptions()));
 
     status = leveldb::DB::Open(ssdb->options, dir, column_families, &ssdb->handles, &ssdb->ldb);
     if (!status.ok()) {

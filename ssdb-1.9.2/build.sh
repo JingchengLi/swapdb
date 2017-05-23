@@ -96,26 +96,6 @@ if [ ! -f Makefile ];then
 	make
 fi
 
-cd "$DIR"
-DIR=`pwd`
-cd $ROCKSDB_PATH
-if [ -f CMakeLists.txt ];then
-    echo "##### building rocksdb... #####"
-    cmake .
-    make -j4
-    echo "##### building rocksdb finished #####"
-fi
-
-cd "$DIR"
-DIR=`pwd`
-cd $LEVELDB_PATH
-if [ -f Makefile ]; then
-    echo ""
-    echo "##### building leveldb... #####"
-    make
-    echo "##### building leveldb finished #####"
-    echo ""
-fi
 
 cd "$DIR"
 
@@ -139,7 +119,33 @@ case "$TARGET_OS" in
 	;;
 esac
 
+cd "$DIR"
+DIR=`pwd`
+cd $ROCKSDB_PATH
+if [ -f CMakeLists.txt ];then
+    echo "##### building rocksdb... #####"
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${JEMALLOC_PATH}/lib/
+    cmake . \
+     -DWITH_SNAPPY=ON -DSNAPPY_LIBRARIES=${SNAPPY_PATH}/.libs/libsnappy.so -DSNAPPY_INCLUDE_DIR=${SNAPPY_PATH}/ \
+     -DWITH_JEMALLOC=ON -DJEMALLOC_INCLUDE_DIR=${JEMALLOC_PATH}/include/ -DJEMALLOC_LIBRARIES=${JEMALLOC_PATH}/lib/libjemalloc.so \
+     -DOPTDBG=1
+    make -j8
+    echo "##### building rocksdb finished #####"
+fi
 
+cd "$DIR"
+DIR=`pwd`
+cd $LEVELDB_PATH
+if [ -f Makefile ]; then
+    echo ""
+    echo "##### building leveldb... #####"
+    make
+    echo "##### building leveldb finished #####"
+    echo ""
+fi
+
+
+cd "$DIR"
 rm -f src/version.h
 echo "#ifndef SSDB_DEPS_H" >> src/version.h
 echo "#ifndef SSDB_VERSION" >> src/version.h
