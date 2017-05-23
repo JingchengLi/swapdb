@@ -1092,9 +1092,12 @@ void handleClientsBlockedOnMigrate(void) {
     listRewind(server.delayed_migrate_clients, &li);
     while((ln = listNext(&li))) {
         client *c = listNodeValue(ln);
-        if (checkKeysForMigrate(c, 0) == C_OK) {
+        if (checkKeysForMigrate(c) == C_OK) {
             listDelNode(server.delayed_migrate_clients, ln);
-            runCommand(c, NULL);
+            unblockClient(c);
+            serverLog(LL_DEBUG, "client migrate list del: %ld", (long)c);
+            if (runCommand(c) == C_OK)
+                resetClient(c);
         }
     }
 }
@@ -2079,6 +2082,7 @@ void unlinkClient(client *c) {
 
             ln = listSearchKey(server.delayed_migrate_clients, c);
             if (ln) listDelNode(server.delayed_migrate_clients, ln);
+            serverLog(LL_DEBUG, "client migrate list del: %ld", (long)c);
 
             di = dictGetIterator(server.db->ssdb_blocking_keys);
             while((de = dictNext(di))) {

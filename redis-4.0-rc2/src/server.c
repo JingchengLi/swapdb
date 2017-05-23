@@ -2715,7 +2715,7 @@ int checkKeysInMediateState(client* c) {
     return C_OK;
 }
 
-int checkKeysForMigrate(client *c, int atl) {
+int checkKeysForMigrate(client *c) {
     int first_key = 3, j;
     robj *keyobj;
 
@@ -2734,7 +2734,6 @@ int checkKeysForMigrate(client *c, int atl) {
         || dictFind(EVICTED_DATA_DB->loading_hot_keys, keyobj->ptr)
         || dictFind(EVICTED_DATA_DB->delete_confirm_keys, keyobj->ptr)
         || dictFind(EVICTED_DATA_DB->visiting_ssdb_keys, keyobj->ptr)) {
-        if (atl) listAddNodeTail(server.delayed_migrate_clients, c);
         return C_ERR;
     }
 
@@ -3612,13 +3611,14 @@ int processCommand(client *c) {
 
     if (server.jdjr_mode
         && c->cmd->proc == migrateCommand) {
-        ret = checkKeysForMigrate(c, 1);
+        ret = checkKeysForMigrate(c);
         if (ret == C_NOTSUPPORT_ERR) return C_OK;
         if (ret == C_ERR) {
             /* TODO: use a suitable timeout. */
             c->bpop.timeout = 60000 + mstime();
             blockClient(c, BLOCKED_MIGRATING_CLIENT);
             listAddNodeTail(server.delayed_migrate_clients, c);
+            serverLog(LL_DEBUG, "client migrate list add: %ld", (long)c);
             return C_ERR;
         }
     }
