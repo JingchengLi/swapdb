@@ -31,6 +31,7 @@ set ::all_tests {
     ssdb/flush
     ssdb/ssdbinfo
 
+    unit/dump
     unit/type/hash
     unit/type/incr
     unit/type/string

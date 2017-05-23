@@ -1,4 +1,5 @@
 start_server {tags {"dump"}} {
+
     test {DUMP / RESTORE are able to serialize / unserialize a simple key} {
         r set foo bar
         set encoded [r dump foo]
@@ -53,26 +54,26 @@ start_server {tags {"dump"}} {
         r dump nonexisting_key
     } {}
 
-    test {MIGRATE is caching connections} {
-        # Note, we run this as first test so that the connection cache
-        # is empty.
-        set first [srv 0 client]
-        r set key "Some Value"
-        start_server {tags {"repl"}} {
-            set second [srv 0 client]
-            set second_host [srv 0 host]
-            set second_port [srv 0 port]
-
-            assert_match {*migrate_cached_sockets:0*} [r -1 info]
-            r -1 migrate $second_host $second_port key 9 1000
-            assert_match {*migrate_cached_sockets:1*} [r -1 info]
-        }
-    }
-
-    test {MIGRATE cached connections are released after some time} {
-        after 15000
-        assert_match {*migrate_cached_sockets:0*} [r info]
-    }
+#    test {MIGRATE is caching connections} {
+#        # Note, we run this as first test so that the connection cache
+#        # is empty.
+#        set first [srv 0 client]
+#        r set key "Some Value"
+#        start_server {tags {"repl"}} {
+#            set second [srv 0 client]
+#            set second_host [srv 0 host]
+#            set second_port [srv 0 port]
+#
+#            assert_match {*migrate_cached_sockets:0*} [r -1 info]
+#            r -1 migrate $second_host $second_port key 0 1000
+#            assert_match {*migrate_cached_sockets:1*} [r -1 info]
+#        }
+#    }
+#
+#    test {MIGRATE cached connections are released after some time} {
+#        after 15000
+#        assert_match {*migrate_cached_sockets:0*} [r info]
+#    }
 
     test {MIGRATE is able to migrate a key between two instances} {
         set first [srv 0 client]
@@ -84,7 +85,8 @@ start_server {tags {"dump"}} {
 
             assert {[$first exists key] == 1}
             assert {[$second exists key] == 0}
-            set ret [r -1 migrate $second_host $second_port key 9 5000]
+            after 1000000
+            set ret [r -1 migrate $second_host $second_port key 0 5000]
             assert {$ret eq {OK}}
             assert {[$first exists key] == 0}
             assert {[$second exists key] == 1}
@@ -104,7 +106,7 @@ start_server {tags {"dump"}} {
 
             assert {[$first exists list] == 1}
             assert {[$second exists list] == 0}
-            set ret [r -1 migrate $second_host $second_port list 9 5000 copy]
+            set ret [r -1 migrate $second_host $second_port list 0 5000 copy]
             assert {$ret eq {OK}}
             assert {[$first exists list] == 1}
             assert {[$second exists list] == 1}
@@ -124,9 +126,9 @@ start_server {tags {"dump"}} {
             assert {[$first exists list] == 1}
             assert {[$second exists list] == 0}
             $second set list somevalue
-            catch {r -1 migrate $second_host $second_port list 9 5000 copy} e
+            catch {r -1 migrate $second_host $second_port list 0 5000 copy} e
             assert_match {ERR*} $e
-            set res [r -1 migrate $second_host $second_port list 9 5000 copy replace]
+            set res [r -1 migrate $second_host $second_port list 0 5000 copy replace]
             assert {$ret eq {OK}}
             assert {[$first exists list] == 1}
             assert {[$second exists list] == 1}
@@ -145,7 +147,7 @@ start_server {tags {"dump"}} {
             assert {[$first exists key] == 1}
             assert {[$second exists key] == 0}
             $first expire key 10
-            set ret [r -1 migrate $second_host $second_port key 9 5000]
+            set ret [r -1 migrate $second_host $second_port key 0 5000]
             assert {$ret eq {OK}}
             assert {[$first exists key] == 0}
             assert {[$second exists key] == 1}
@@ -170,7 +172,7 @@ start_server {tags {"dump"}} {
 
             assert {[$first exists key] == 1}
             assert {[$second exists key] == 0}
-            set ret [r -1 migrate $second_host $second_port key 9 10000]
+            set ret [r -1 migrate $second_host $second_port key 0 10000]
             assert {$ret eq {OK}}
             assert {[$first exists key] == 0}
             assert {[$second exists key] == 1}
@@ -191,7 +193,7 @@ start_server {tags {"dump"}} {
 
             assert {[$first exists key] == 1}
             assert {[$second exists key] == 0}
-            set ret [r -1 migrate $second_host $second_port key 9 10000]
+            set ret [r -1 migrate $second_host $second_port key 0 10000]
             assert {$ret eq {OK}}
             assert {[$first exists key] == 0}
             assert {[$second exists key] == 1}
@@ -213,99 +215,99 @@ start_server {tags {"dump"}} {
             set rd [redis_deferring_client]
             $rd debug sleep 1.0 ; # Make second server unable to reply.
             set e {}
-            catch {r -1 migrate $second_host $second_port key 9 500} e
+            catch {r -1 migrate $second_host $second_port key 0 500} e
             assert_match {IOERR*} $e
         }
     }
 
-    test {MIGRATE can migrate multiple keys at once} {
-        set first [srv 0 client]
-        r set key1 "v1"
-        r set key2 "v2"
-        r set key3 "v3"
-        start_server {tags {"repl"}} {
-            set second [srv 0 client]
-            set second_host [srv 0 host]
-            set second_port [srv 0 port]
-
-            assert {[$first exists key1] == 1}
-            assert {[$second exists key1] == 0}
-            set ret [r -1 migrate $second_host $second_port "" 9 5000 keys key1 key2 key3]
-            assert {$ret eq {OK}}
-            assert {[$first exists key1] == 0}
-            assert {[$first exists key2] == 0}
-            assert {[$first exists key3] == 0}
-            assert {[$second get key1] eq {v1}}
-            assert {[$second get key2] eq {v2}}
-            assert {[$second get key3] eq {v3}}
-        }
-    }
-
-    test {MIGRATE with multiple keys must have empty key arg} {
-        catch {r MIGRATE 127.0.0.1 6379 NotEmpty 9 5000 keys a b c} e
-        set e
-    } {*empty string*}
-
-    test {MIGRATE with mutliple keys migrate just existing ones} {
-        set first [srv 0 client]
-        r set key1 "v1"
-        r set key2 "v2"
-        r set key3 "v3"
-        start_server {tags {"repl"}} {
-            set second [srv 0 client]
-            set second_host [srv 0 host]
-            set second_port [srv 0 port]
-
-            set ret [r -1 migrate $second_host $second_port "" 9 5000 keys nokey-1 nokey-2 nokey-2]
-            assert {$ret eq {NOKEY}}
-
-            assert {[$first exists key1] == 1}
-            assert {[$second exists key1] == 0}
-            set ret [r -1 migrate $second_host $second_port "" 9 5000 keys nokey-1 key1 nokey-2 key2 nokey-3 key3]
-            assert {$ret eq {OK}}
-            assert {[$first exists key1] == 0}
-            assert {[$first exists key2] == 0}
-            assert {[$first exists key3] == 0}
-            assert {[$second get key1] eq {v1}}
-            assert {[$second get key2] eq {v2}}
-            assert {[$second get key3] eq {v3}}
-        }
-    }
-
-    test {MIGRATE with multiple keys: stress command rewriting} {
-        set first [srv 0 client]
-        r flushdb
-        r mset a 1 b 2 c 3 d 4 c 5 e 6 f 7 g 8 h 9 i 10 l 11 m 12 n 13 o 14 p 15 q 16
-        start_server {tags {"repl"}} {
-            set second [srv 0 client]
-            set second_host [srv 0 host]
-            set second_port [srv 0 port]
-
-            set ret [r -1 migrate $second_host $second_port "" 9 5000 keys a b c d e f g h i l m n o p q]
-
-            assert {[$first dbsize] == 0}
-            assert {[$second dbsize] == 15}
-        }
-    }
-
-    test {MIGRATE with multiple keys: delete just ack keys} {
-        set first [srv 0 client]
-        r flushdb
-        r mset a 1 b 2 c 3 d 4 c 5 e 6 f 7 g 8 h 9 i 10 l 11 m 12 n 13 o 14 p 15 q 16
-        start_server {tags {"repl"}} {
-            set second [srv 0 client]
-            set second_host [srv 0 host]
-            set second_port [srv 0 port]
-
-            $second mset c _ d _; # Two busy keys and no REPLACE used
-
-            catch {r -1 migrate $second_host $second_port "" 9 5000 keys a b c d e f g h i l m n o p q} e
-
-            assert {[$first dbsize] == 2}
-            assert {[$second dbsize] == 15}
-            assert {[$first exists c] == 1}
-            assert {[$first exists d] == 1}
-        }
-    }
+#    test {MIGRATE can migrate multiple keys at once} {
+#        set first [srv 0 client]
+#        r set key1 "v1"
+#        r set key2 "v2"
+#        r set key3 "v3"
+#        start_server {tags {"repl"}} {
+#            set second [srv 0 client]
+#            set second_host [srv 0 host]
+#            set second_port [srv 0 port]
+#
+#            assert {[$first exists key1] == 1}
+#            assert {[$second exists key1] == 0}
+#            set ret [r -1 migrate $second_host $second_port "" 0 5000 keys key1 key2 key3]
+#            assert {$ret eq {OK}}
+#            assert {[$first exists key1] == 0}
+#            assert {[$first exists key2] == 0}
+#            assert {[$first exists key3] == 0}
+#            assert {[$second get key1] eq {v1}}
+#            assert {[$second get key2] eq {v2}}
+#            assert {[$second get key3] eq {v3}}
+#        }
+#    }
+#
+#    test {MIGRATE with multiple keys must have empty key arg} {
+#        catch {r MIGRATE 127.0.0.1 6379 NotEmpty 0 5000 keys a b c} e
+#        set e
+#    } {*empty string*}
+#
+#    test {MIGRATE with mutliple keys migrate just existing ones} {
+#        set first [srv 0 client]
+#        r set key1 "v1"
+#        r set key2 "v2"
+#        r set key3 "v3"
+#        start_server {tags {"repl"}} {
+#            set second [srv 0 client]
+#            set second_host [srv 0 host]
+#            set second_port [srv 0 port]
+#
+#            set ret [r -1 migrate $second_host $second_port "" 0 5000 keys nokey-1 nokey-2 nokey-2]
+#            assert {$ret eq {NOKEY}}
+#
+#            assert {[$first exists key1] == 1}
+#            assert {[$second exists key1] == 0}
+#            set ret [r -1 migrate $second_host $second_port "" 0 5000 keys nokey-1 key1 nokey-2 key2 nokey-3 key3]
+#            assert {$ret eq {OK}}
+#            assert {[$first exists key1] == 0}
+#            assert {[$first exists key2] == 0}
+#            assert {[$first exists key3] == 0}
+#            assert {[$second get key1] eq {v1}}
+#            assert {[$second get key2] eq {v2}}
+#            assert {[$second get key3] eq {v3}}
+#        }
+#    }
+#
+#    test {MIGRATE with multiple keys: stress command rewriting} {
+#        set first [srv 0 client]
+#        r flushdb
+#        r mset a 1 b 2 c 3 d 4 c 5 e 6 f 7 g 8 h 9 i 10 l 11 m 12 n 13 o 14 p 15 q 16
+#        start_server {tags {"repl"}} {
+#            set second [srv 0 client]
+#            set second_host [srv 0 host]
+#            set second_port [srv 0 port]
+#
+#            set ret [r -1 migrate $second_host $second_port "" 0 5000 keys a b c d e f g h i l m n o p q]
+#
+#            assert {[$first dbsize] == 0}
+#            assert {[$second dbsize] == 15}
+#        }
+#    }
+#
+#    test {MIGRATE with multiple keys: delete just ack keys} {
+#        set first [srv 0 client]
+#        r flushdb
+#        r mset a 1 b 2 c 3 d 4 c 5 e 6 f 7 g 8 h 9 i 10 l 11 m 12 n 13 o 14 p 15 q 16
+#        start_server {tags {"repl"}} {
+#            set second [srv 0 client]
+#            set second_host [srv 0 host]
+#            set second_port [srv 0 port]
+#
+#            $second mset c _ d _; # Two busy keys and no REPLACE used
+#
+#            catch {r -1 migrate $second_host $second_port "" 0 5000 keys a b c d e f g h i l m n o p q} e
+#
+#            assert {[$first dbsize] == 2}
+#            assert {[$second dbsize] == 15}
+#            assert {[$first exists c] == 1}
+#            assert {[$first exists d] == 1}
+#        }
+#    }
 
 }
