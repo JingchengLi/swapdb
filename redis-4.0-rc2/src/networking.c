@@ -1246,7 +1246,7 @@ int handleResponseOfSSDBflushDone(client *c, redisReply* reply, int revert_len) 
 
             handleClientsBlockedOnFlushall();
         } else {
-            /* unexpected response, revert it to be send to user client. */
+            /* unexpected response, revert it to avoid be send to user client. */
             revertClientBufReply(c, revert_len);
             serverLog(LL_DEBUG, "unexpected response:%s", reply->str);
         }
@@ -1843,7 +1843,8 @@ void handleSSDBReply(client *c, int revert_len) {
     }
 }
 
-/* Only handle AE_READABLE. */
+
+#define AE_BUFFER_HAVE_UNPROCESSED_DATA AE_WRITABLE
 void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
     UNUSED(el);
     UNUSED(mask);
@@ -1991,10 +1992,20 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
         }
     }
 
+    /* the redisBufferRead function may read more than two ssdb replies, the rest replies
+     * will be stored in the buffer of c->context->reader, use writeable fd event
+     * to trigger this callback again, to avoid the rest replies not processed. */
+    if (r->len - r->pos != 0) {
+        aeCreateFileEvent(server.el, c->context->fd,
+                              AE_BUFFER_HAVE_UNPROCESSED_DATA, ssdbClientUnixHandler, c);
+    } else {
+        aeDeleteFileEvent(server.el, c->context->fd, AE_BUFFER_HAVE_UNPROCESSED_DATA);
+    }
+
 #ifdef TEST_CLIENT_BUF
-    // todo: fix rr_check_flushall timeout issue.
-    if (c->context->reader->len != 0)
-        serverLog(LL_WARNING, "[!!!]there is unprocessed data in the ssdb reader.");
+    if (r->len - r->pos != 0)
+        serverLog(LL_DEBUG, "[!]there is unprocessed data in the ssdb reader."
+                "install write callback to handle it");
     serverLog(LL_DEBUG, "read process end<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<");
 #endif
     handleSSDBReply(c, first_reply_len);
