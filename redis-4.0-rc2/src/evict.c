@@ -611,11 +611,6 @@ int epilogOfEvictingToSSDB(robj *keyobj) {
     else
         dbSyncDelete(db,keyobj);
 
-    /* Undo the slotToKeyDel in dbAsyncDelete or dbSyncDelete.
-       slotToKeyDel wiil be called when keyobj is removed from
-       EVICTED_DATA_DB. */
-    if (server.cluster_enabled) slotToKeyAdd(keyobj);
-
     latencyEndMonitor(eviction_latency);
     latencyAddSampleIfNeeded("coldkey-transfer",eviction_latency);
     server.stat_ssdbkeys++;

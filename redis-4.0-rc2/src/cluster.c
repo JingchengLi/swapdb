@@ -4703,9 +4703,10 @@ void ssdbRespRestoreCommand(client *c) {
             sds db_key = dictGetKey(de);
             sdssetlfu(db_key, lfu);
 
-            if (getExpire(EVICTED_DATA_DB, key) != -1)
-                dictDelete(EVICTED_DATA_DB->expires, key->ptr);
-            dictDelete(EVICTED_DATA_DB->dict, key->ptr);
+            if (server.lazyfree_lazy_eviction)
+                dbAsyncDelete(EVICTED_DATA_DB, key);
+            else
+                dbSyncDelete(EVICTED_DATA_DB, key);
 
             /* propagate aof */
             robj** restore_argv = zmalloc(c->argc * sizeof(robj*));
