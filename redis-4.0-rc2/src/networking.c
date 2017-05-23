@@ -847,6 +847,7 @@ int sendCommandToSSDB(client *c, sds finalcmd) {
             serverLog(LL_DEBUG, "ssdb connection status is connecting");
         else
             serverLog(LL_DEBUG, "ssdb connection status is disconnected");
+        sdsfree(finalcmd);
         return C_FD_ERR;
     }
 
@@ -877,12 +878,10 @@ int sendCommandToSSDB(client *c, sds finalcmd) {
                 if (isSpecialConnection(c))
                     freeClient(c);
                 else {
-                    serverLog(LL_WARNING,
-                              "Error writing to SSDB server: %s", strerror(errno));
-                    sdsfree(finalcmd);
-
+                    serverLog(LL_WARNING, "Error writing to SSDB server: %s", strerror(errno));
                     closeAndReconnectSSDBconnection(c);
                 }
+                sdsfree(finalcmd);
                 return C_FD_ERR;
             }
         } else if (nwritten > 0) {
@@ -1413,17 +1412,18 @@ int handleResponseOfDelSnapshot(client *c, redisReply* reply) {
     UNUSED(c);
 
     if (IsReplyEqual(reply, shared.delsnapshotok)) {
-        if (c == server.ssdb_replication_client && server.ssdb_status == MASTER_SSDB_SNAPSHOT_OK)
-            server.retry_del_snapshot = 0;
-        else
+        if (c == server.ssdb_replication_client) {
+            if (server.ssdb_status == SSDB_NONE) {
+                server.retry_del_snapshot = 0;
+            }
+        } else
             serverLog(LL_DEBUG, "unexpected response:%s", shared.delsnapshotok);
 
         process_status = C_OK;
     } else if (IsReplyEqual(reply, shared.delsnapshotnok)) {
-        if (c == server.ssdb_replication_client && server.ssdb_status == MASTER_SSDB_SNAPSHOT_OK) {
+        if (c == server.ssdb_replication_client) {
             if (server.ssdb_status == SSDB_NONE) {
-                /* Notify ssdb to release snapshot once more. */
-                sendDelSSDBsnapshot();
+                server.retry_del_snapshot = 1;
             }
         } else
             serverLog(LL_DEBUG, "unexpected response:%s", shared.delsnapshotok);
