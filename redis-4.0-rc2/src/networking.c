@@ -1092,7 +1092,7 @@ void handleClientsBlockedOnMigrate(void) {
     listRewind(server.delayed_migrate_clients, &li);
     while((ln = listNext(&li))) {
         client *c = listNodeValue(ln);
-        if (checkKeysForMigrate(c) == C_OK) {
+        if (checkKeysForMigrate(c, 0) == C_OK) {
             listDelNode(server.delayed_migrate_clients, ln);
             runCommand(c, NULL);
         }

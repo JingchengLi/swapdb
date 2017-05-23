@@ -1779,8 +1779,8 @@ int runCommandSlaveFailedRetry(client *c, struct ssdb_write_op* slave_retry_writ
 int runCommand(client *c);
 int checkValidCommand(client* c);
 int checkKeysInMediateState(client* c);
-int checkKeysForMigrate(client *c);
-int processCommandMaybeInSSDB(client *c);
+int checkKeysForMigrate(client *c, int atl);
+int processCommandMaybeInSSDB(client *c,  struct ssdb_write_op* slave_retry_write);
 int isSSDBrespCmd(struct redisCommand *cmd);
 void setupSignalHandlers(void);
 struct redisCommand *lookupCommand(sds name);

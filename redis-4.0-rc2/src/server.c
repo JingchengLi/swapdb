@@ -2715,8 +2715,7 @@ int checkKeysInMediateState(client* c) {
     return C_OK;
 }
 
-
-int checkKeysForMigrate(client *c) {
+int checkKeysForMigrate(client *c, int atl) {
     int first_key = 3, j;
     robj *keyobj;
 
@@ -2735,7 +2734,7 @@ int checkKeysForMigrate(client *c) {
         || dictFind(EVICTED_DATA_DB->loading_hot_keys, keyobj->ptr)
         || dictFind(EVICTED_DATA_DB->delete_confirm_keys, keyobj->ptr)
         || dictFind(EVICTED_DATA_DB->visiting_ssdb_keys, keyobj->ptr)) {
-        listAddNodeTail(server.delayed_migrate_clients, c);
+        if (atl) listAddNodeTail(server.delayed_migrate_clients, c);
         return C_ERR;
     }
 
@@ -3613,7 +3612,7 @@ int processCommand(client *c) {
 
     if (server.jdjr_mode
         && c->cmd->proc == migrateCommand) {
-        ret = checkKeysForMigrate(c);
+        ret = checkKeysForMigrate(c, 1);
         if (ret == C_NOTSUPPORT_ERR) return C_OK;
         if (ret == C_ERR) {
             /* TODO: use a suitable timeout. */
