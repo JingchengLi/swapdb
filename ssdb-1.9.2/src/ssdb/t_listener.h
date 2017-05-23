@@ -10,6 +10,17 @@
 
 #include "rocksdb/listener.h"
 
+const char* CompactionReasonString[] = {
+        "[Level] number of L0 files > level0_file_num_compaction_trigger",
+        "[Level] total size of level > MaxBytesForLevel",
+        "[Universal] Compacting for size amplification",
+        "[Universal] Compacting for size ratio",
+        "[Universal] number of sorted runs > level0_file_num_compaction_trigger",
+        "[FIFO] total size > max_table_files_size",
+        "Manual compaction",
+        "DB::SuggestCompactRange marked files for compaction"
+};
+
 class t_listener : public rocksdb::EventListener {
 
 public:
@@ -72,11 +83,13 @@ public:
     //  outside of this function.
     void OnCompactionCompleted(rocksdb::DB *db,
                                const rocksdb::CompactionJobInfo &ci) {
-        log_info("[OnCompactionCompleted] costs %d ms , reason %d , base_input_level %d, output_level %d",
-                 ci.stats.elapsed_micros / 1000,
-                 (int)ci.compaction_reason,
+
+
+        log_info("[OnCompactionCompleted] costs %d ms , base_input_level %d, output_level %d , reason %s ",
+                 ci.stats.elapsed_micros,
                  ci.base_input_level,
-                 ci.output_level
+                 ci.output_level,
+                 CompactionReasonString[(int)ci.compaction_reason]
         );
 
 
