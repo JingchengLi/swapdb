@@ -190,6 +190,7 @@ int SSDBImpl::flushdb(Context &ctx) {
         log_info("[flushdb] using DeleteRange");
 
         ldb->DeleteRange(leveldb::WriteOptions(), ldb->DefaultColumnFamily(), begin, end);
+        ldb->Flush(leveldb::FlushOptions(), ldb->DefaultColumnFamily());
     }
 #endif
 
@@ -202,7 +203,7 @@ int SSDBImpl::flushdb(Context &ctx) {
     iterate_options.fill_cache = false;
     leveldb::WriteOptions write_opts;
 
-    unique_ptr<leveldb::Iterator> it = unique_ptr<leveldb::Iterator>(ldb->NewIterator(iterate_options));
+    unique_ptr<leveldb::Iterator> it = unique_ptr<leveldb::Iterator>(ldb->NewIterator(iterate_options, ldb->DefaultColumnFamily()));
 
     it->SeekToFirst();
 
