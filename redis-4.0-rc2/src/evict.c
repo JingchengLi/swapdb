@@ -1073,11 +1073,6 @@ void handleClientsBlockedOnSSDB(void) {
                     client *c = clientnode->value;
                     int retval;
 
-                    if (c->fd < 0 || !c->context || c->context->fd < 0) {
-                        serverLog(LL_DEBUG, "The client is already closed");
-                        continue;
-                    }
-
                     removeClientFromListForBlockedKey(c, rl->key);
 
                     /* Remove this key from the blocked keys dict of this client */

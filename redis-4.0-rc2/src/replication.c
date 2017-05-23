@@ -227,7 +227,8 @@ void replicationFeedSlaves(list *slaves, int dictid, robj **argv, int argc) {
         if (dictid < 0 || dictid >= PROTO_SHARED_SELECT_CMDS)
             decrRefCount(selectcmd);
 
-        serverLog(LL_DEBUG, "dbid changed. propagate select db command to slaves.");
+        serverLog(LL_DEBUG, "dbid changed from %d to %d. propagate select db command to slaves.",
+                  server.slaveseldb, dictid);
     }
     serverLog(LL_DEBUG, "propagate command(%s) to slaves", (sds)argv[0]->ptr);
     server.slaveseldb = dictid;
