@@ -128,12 +128,19 @@ void *ssdb_sync(void *arg) {
                 uint64_t oper_len = 0, raw_len = 0, compressed_len = 0;
 
                 if (replic_decode_len(decoder.data(), &oper_offset, &oper_len) == -1) {
+                    log_error("replic_decode_len error :  oper_offset %d, oper_len %d", oper_offset, oper_len);
                     errorCode = -1;
                     break;
                 }
-                decoder.skip(oper_offset);
+
+                if (decoder.skip(oper_offset) == -1) {
+                    log_info("skip oper_offset len need retry");
+                    link->input->grow();
+                    break;
+                }
 
                 if (decoder.size() < ((int) oper_len)) {
+                    log_info("skip oper_len len need retry");
                     link->input->grow();
                     break;
                 }
@@ -229,6 +236,7 @@ void *ssdb_sync(void *arg) {
                     complete = true;
                     job->quit = true;
                 } else {
+                    //TODO 处理遇到的 oper_len == 0 ???
                     log_error("unknown oper code %s", hexstr(oper).c_str());
                     errorCode = -1;
                     break;
