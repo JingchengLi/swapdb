@@ -70,8 +70,9 @@ private:
 
 	leveldb::DB* ldb;
 	leveldb::Options options;
+	leveldb::ReadOptions commonRdOpt = leveldb::ReadOptions();
 
-	RedisCursorService redisCursorService;
+	RedisCursorService redisCursorService;;
 
 	SSDBImpl();
 public:

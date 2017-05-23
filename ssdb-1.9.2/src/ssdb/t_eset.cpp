@@ -56,7 +56,23 @@ int SSDBImpl::eget(Context &ctx, const Bytes &key, int64_t *ts) {
 
     std::string str_score;
     std::string dbkey = encode_eset_key(key);
-    leveldb::Status s = ldb->Get(leveldb::ReadOptions(), dbkey, &str_score);
+    bool found = true;
+
+    leveldb::Status s;
+
+
+#ifdef USE_LEVELDB
+    s = ldb->Get(commonRdOpt, dbkey, &str_score);
+#else
+    if (ldb->KeyMayExist(commonRdOpt, dbkey, &str_score, &found)) {
+        if (!found) {
+            s = ldb->Get(commonRdOpt, dbkey, &str_score);
+        }
+    } else {
+        return 0;
+    }
+#endif
+
     if (s.IsNotFound()) {
         return 0;
     }

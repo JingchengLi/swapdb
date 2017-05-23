@@ -46,7 +46,7 @@ Link::Link(bool is_server) {
 }
 
 Link::~Link() {
-//    log_debug("fd: %d, ~rr_link address:%lld", sock, this);
+//    net_debug("fd: %d, ~rr_link address:%lld", sock, this);
     if (redis) {
         delete redis;
         redis = nullptr;
@@ -149,13 +149,13 @@ Link *Link::connect(const char *host, int port) {
         goto sock_err;
     }
 
-    //log_debug("fd: %d, connect to %s:%d", sock, ip, port);
+    //net_debug("fd: %d, connect to %s:%d", sock, ip, port);
     link = new Link();
     link->sock = sock;
     link->keepalive(true);
     return link;
     sock_err:
-    //log_debug("connect to %s:%d failed: %s", ip, port, strerror(errno));
+    //net_debug("connect to %s:%d failed: %s", ip, port, strerror(errno));
     if (sock >= 0) {
         ::close(sock);
     }
@@ -193,7 +193,7 @@ Link *Link::unixsocket(const std::string &path) {
     return link;
 
 sock_err:
-    //log_debug("listen %s:%d failed: %s", ip, port, strerror(errno));
+    //net_debug("listen %s:%d failed: %s", ip, port, strerror(errno));
     if (sock >= 0) {
         ::close(sock);
     }
@@ -223,7 +223,7 @@ Link *Link::listen(const char *ip, int port) {
     if (::listen(sock, 1024) == -1) {
         goto sock_err;
     }
-    //log_debug("server socket fd: %d, listen on: %s:%d", sock, ip, port);
+    //net_debug("server socket fd: %d, listen on: %s:%d", sock, ip, port);
 
     link = new Link(true);
     link->sock = sock;
@@ -231,7 +231,7 @@ Link *Link::listen(const char *ip, int port) {
     link->remote_port = port;
     return link;
 sock_err:
-    //log_debug("listen %s:%d failed: %s", ip, port, strerror(errno));
+    //net_debug("listen %s:%d failed: %s", ip, port, strerror(errno));
     if (sock >= 0) {
         ::close(sock);
     }
@@ -291,11 +291,11 @@ int Link::read(int shrink) {
             } else if (errno == EWOULDBLOCK) {
                 break;
             } else {
-//                log_debug("fd: %d, read: -1, want: %d, error: %s", sock, want, strerror(errno));
+//                net_debug("fd: %d, read: -1, want: %d, error: %s", sock, want, strerror(errno));
                 return -1;
             }
         } else {
-//            log_debug("fd: %d, want=%d, read: %d", sock, want, len);
+//            net_debug("fd: %d, want=%d, read: %d", sock, want, len);
             if (len == 0) {
                 return 0;
             }
@@ -306,7 +306,7 @@ int Link::read(int shrink) {
             break;
         }
     }
-    //log_debug("read %d", ret);
+    //net_debug("read %d", ret);
     //printf("%s\n", hexmem(input->data(), input->size()).c_str());
     return ret;
 }
@@ -324,11 +324,11 @@ int Link::write() {
             } else if (errno == EWOULDBLOCK) {
                 break;
             } else {
-                log_debug("fd: %d, write: -1, error: %s", sock, strerror(errno));
-                return -1;
+                net_debug("fd: %d, write: -1, error: %s", sock, strerror(errno));
+                 return -1;
             }
         } else {
-            log_debug("fd: %d, want: %d, write: %d ,data: %s", sock, want, len, hexmem(output->data(),len).c_str()); //
+            net_debug("fd: %d, want: %d, write: %d ,data: %s", sock, want, len, hexmem(output->data(),len).c_str()); //
             if (len == 0) {
                 // ?
                 break;
@@ -423,7 +423,7 @@ const std::vector<Bytes> *Link::recv() {
             //log_warn("bad format");
             return NULL;
         }
-        //log_debug("size: %d, head_len: %d, body_len: %d", size, head_len, body_len);
+        //net_debug("size: %d, head_len: %d, body_len: %d", size, head_len, body_len);
         size -= head_len + body_len;
         if (size < 0) {
             break;
@@ -460,7 +460,7 @@ const std::vector<Bytes> *Link::recv() {
                 //log_error("fd: %d, unable to resize input buffer!", this->sock);
                 return NULL;
             }
-            //log_debug("fd: %d, resize input buffer, %s", this->sock, input->stats().c_str());
+            //net_debug("fd: %d, resize input buffer, %s", this->sock, input->stats().c_str());
         }
     }
 

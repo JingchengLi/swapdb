@@ -23,7 +23,23 @@ static bool getNextString(unsigned char *zl, unsigned char **p, std::string &ret
 
 int SSDBImpl::GetKvMetaVal(const std::string &meta_key, KvMetaVal &kv) {
     std::string meta_val;
-    leveldb::Status s = ldb->Get(leveldb::ReadOptions(), meta_key, &meta_val);
+    bool found = true;
+
+    leveldb::Status s;
+
+
+#ifdef USE_LEVELDB
+    s = ldb->Get(commonRdOpt, meta_key, &meta_val);
+#else
+    if (ldb->KeyMayExist(commonRdOpt, meta_key, &meta_val, &found)) {
+        if (!found) {
+            s = ldb->Get(commonRdOpt, meta_key, &meta_val);
+        }
+    } else {
+        s = s.NotFound();
+    }
+#endif
+
     if (s.IsNotFound()) {
         kv.version = 0;
         kv.del = KEY_ENABLED_MASK;

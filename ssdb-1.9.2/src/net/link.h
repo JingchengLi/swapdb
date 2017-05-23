@@ -6,6 +6,8 @@ found in the LICENSE file.
 #ifndef NET_LINK_H_
 #define NET_LINK_H_
 
+//#define NET_DEBUG ON
+
 #include <vector>
 #include <unistd.h>
 #include <arpa/inet.h>
@@ -115,5 +117,11 @@ class Link{
 
 
 };
+
+#ifdef NET_DEBUG
+#define net_debug(fmt, args...) log_write(Logger::LEVEL_DEBUG, "%s:%d " fmt, __FILENAME__, __LINE__, ##args)
+#else
+#define net_debug(fmt, args...) do {} while (0)
+#endif
 
 #endif

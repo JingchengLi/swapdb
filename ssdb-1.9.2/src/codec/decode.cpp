@@ -125,7 +125,7 @@ int EScoreItemKey::DecodeItemKey(const Bytes &str) {
 /*
  * decode meta value class
  */
-int KvMetaVal::DecodeMetaVal(const Bytes &str) {
+int KvMetaVal::DecodeMetaVal(const std::string &str) {
     Decoder decoder(str.data(), str.size());
     if(decoder.skip(1) == -1){
         return -1;
