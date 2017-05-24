@@ -1143,8 +1143,9 @@ void setLoadingDB(robj *key) {
     kde = dictFind(EVICTED_DATA_DB->dict,key->ptr);
     de = dictAddOrFind(EVICTED_DATA_DB->loading_hot_keys,dictGetKey(kde));
     serverAssert(de);
-    /* delete the key from server.hot_keys */
-    serverAssert(DICT_OK == dictDelete(server.hot_keys, key->ptr));
+    /* delete the key from server.hot_keys. but for "dumpfromssdb", the key
+     * maybe is not in server.hot_keys before. */
+    dictDelete(server.hot_keys, key->ptr);
     serverLog(LL_DEBUG, "key: %s is added to loading_hot_keys.", (char *)key->ptr);
 }
 
