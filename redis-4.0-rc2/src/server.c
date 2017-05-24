@@ -1360,7 +1360,10 @@ int isMeetLoadCondition() {
  * transferring_keys/delete_confirm_keys/loading_hot_keys, we call this function to
  * load the key immediately if the key is in server.hot_keys. */
 void loadThisKeyImmediately(sds key) {
-    if (0 == isMeetLoadCondition()) return;
+    if (0 == isMeetLoadCondition()) {
+        cleanAndSignalHotKeys();
+        return;
+    }
 
     robj* o = createObject(OBJ_STRING, sdsdup(key));
     if (NULL == dictFind(EVICTED_DATA_DB->dict, key)) {
@@ -1380,7 +1383,10 @@ void startToLoadIfNeeded() {
     dictIterator *di;
     dictEntry *de;
 
-    if (0 == isMeetLoadCondition()) return;
+    if (0 == isMeetLoadCondition()) {
+        cleanAndSignalHotKeys();
+        return;
+    }
 
     di = dictGetSafeIterator(server.hot_keys);
     while((de = dictNext(di)) != NULL) {
@@ -1395,7 +1401,7 @@ void startToLoadIfNeeded() {
         }
 
         if (dictFind(EVICTED_DATA_DB->visiting_ssdb_keys, key)) {
-            /* Try to load the keys in the next loop. */
+            /* Try to load the key later. */
             continue;
         }
 
@@ -1412,8 +1418,11 @@ void startToLoadIfNeeded() {
                 (server.maxmemory - RESERVED_MEMORY_WHEN_LOAD <= zmalloc_used_memory()))) {
             serverLog(LL_DEBUG, "No more memory to load key: %s from SSDB to redis.",
                       (char *)key);
-            /* Try to load the key in the next loop. */
-            continue;
+            /* we have no more memory to load keys, just clean and signal all keys in
+             * server.hot_keys to unblock some clients are blocking and waiting for them
+             * to load. */
+            cleanAndSignalHotKeys();
+            return;
         }
 
         serverLog(LL_DEBUG, "Try loading key: %s from SSDB.", (char *)key);
@@ -1423,6 +1432,7 @@ void startToLoadIfNeeded() {
         decrRefCount(o);
     }
     dictReleaseIterator(di);
+    return;
 }
 
 void cleanKeysToLoadAndEvict() {
@@ -3203,13 +3213,13 @@ int processCommandMaybeInSSDB(client *c) {
     return C_ERR;
 }
 
-void cleanAndSignalDeleteConfirmKeys() {
+void cleanAndSignalImmediateKeys(dict* dictory) {
     dictEntry *de;
     dictIterator *di;
     sds key;
     robj* o;
 
-    di = dictGetSafeIterator(server.db[EVICTED_DATA_DBID].delete_confirm_keys);
+    di = dictGetSafeIterator(dictory);
     while((de = dictNext(di)) != NULL) {
         key = dictGetKey(de);
         o = createObject(OBJ_STRING, sdsdup(key));
@@ -3218,56 +3228,25 @@ void cleanAndSignalDeleteConfirmKeys() {
         decrRefCount(o);
     }
     dictReleaseIterator(di);
-    dictEmpty(server.db[EVICTED_DATA_DBID].delete_confirm_keys, NULL);
+    dictEmpty(dictory, NULL);
 
     handleClientsBlockedOnSSDB();
 }
 
+void cleanAndSignalDeleteConfirmKeys() {
+    cleanAndSignalImmediateKeys(server.db[EVICTED_DATA_DBID].delete_confirm_keys);
+}
+
+void cleanAndSignalHotKeys() {
+    cleanAndSignalImmediateKeys(server.hot_keys);
+}
+
 void cleanAndSignalLoadingOrTransferringKeys() {
-    dictEntry *de;
-    dictIterator *di;
-    sds key;
-    robj* o;
-
-    /* signal and unblock clients blocked by all loading/transferring keys. */
-    di = dictGetSafeIterator(server.db[EVICTED_DATA_DBID].transferring_keys);
-    while((de = dictNext(di)) != NULL) {
-        key = dictGetKey(de);
-        o = createObject(OBJ_STRING, sdsdup(key));
-
-        signalBlockingKeyAsReady(&server.db[0], o);
-        decrRefCount(o);
-    }
-    dictReleaseIterator(di);
-
-    di = dictGetSafeIterator(server.db[EVICTED_DATA_DBID].loading_hot_keys);
-    while((de = dictNext(di)) != NULL) {
-        key = dictGetKey(de);
-        o = createObject(OBJ_STRING, sdsdup(key));
-
-        signalBlockingKeyAsReady(&server.db[0], o);
-        decrRefCount(o);
-    }
-    dictReleaseIterator(di);
-
-    di = dictGetSafeIterator(server.hot_keys);
-    while((de = dictNext(di)) != NULL) {
-        key = dictGetKey(de);
-        o = createObject(OBJ_STRING, sdsdup(key));
-
-        signalBlockingKeyAsReady(&server.db[0], o);
-        decrRefCount(o);
-    }
-    dictReleaseIterator(di);
-
-    dictEmpty(server.db[EVICTED_DATA_DBID].transferring_keys, NULL);
-    dictEmpty(server.db[EVICTED_DATA_DBID].loading_hot_keys, NULL);
-    dictEmpty(server.hot_keys, NULL);
+    cleanAndSignalImmediateKeys(server.db[EVICTED_DATA_DBID].transferring_keys);
+    cleanAndSignalImmediateKeys(server.db[EVICTED_DATA_DBID].loading_hot_keys);
+    cleanAndSignalImmediateKeys(server.hot_keys);
 
     server.evicting_keys_num = 0;
-
-    /* NOTE:must empty loading_hot_keys and transferring_keys and then handle blocked clients */
-    handleClientsBlockedOnSSDB();
 }
 
 void cleanSpecialClientsAndIntermediateKeys(int is_flushall) {
