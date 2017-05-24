@@ -4,8 +4,8 @@ overrides {maxmemory 0}} {
         r set foo bar
         r set fooxxx barxxx
         dumpto_ssdb_and_wait r fooxxx
-        assert_equal 1 [s "keys in redis count"] 
-        assert_equal 1 [s "keys in SSDB count"] 
+        assert_equal 1 [s "keys_in_redis_count"]
+        assert_equal 1 [s "keys_in_ssdb_count"]
         wait_keys_processed r
     }
 }
@@ -41,16 +41,16 @@ start_server {tags {"ssdb"}} {
                 [lindex $slaves 0] slaveof $master_host $master_port
                 wait_for_online $master 1
                 wait_for_condition 100 100 {
-                   [s -2 "keys loading from SSDB"] > 0 &&
-                   [s -2 "keys transferring to SSDB"] > 0 &&
-                   [s -2 "keys visiting SSDB"] > 0
+                   [s -2 "keys_loading_from_ssdb"] > 0 &&
+                   [s -2 "keys_transferring_to_ssdb"] > 0 &&
+                   [s -2 "keys_visiting_ssdb"] > 0
                 } else {
                     fail "keys should transfer/load/visit ssdb in master"
                 }
                 wait_for_condition 100 100 {
-                   [s -1 "keys loading from SSDB"] > 0 &&
-                   [s -1 "keys transferring to SSDB"] > 0 &&
-                   [s -1 "keys visiting SSDB"] > 0
+                   [s -1 "keys_loading_from_ssdb"] > 0 &&
+                   [s -1 "keys_transferring_to_ssdb"] > 0 &&
+                   [s -1 "keys_visiting_ssdb"] > 0
                 } else {
                     fail "keys should transfer/load/visit ssdb in slave"
                 }
