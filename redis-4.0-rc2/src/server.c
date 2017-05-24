@@ -1513,6 +1513,7 @@ void handleDeleteConfirmKeys(void) {
             break;
         }
 
+        dictDelete(server.maybe_deleted_ssdb_keys, de->key);
         dictAddOrFind(EVICTED_DATA_DB->delete_confirm_keys, de->key);
         serverLog(LL_DEBUG, "start to confirm with ssdb whether key: %s is deleted", (sds)de->key);
 
