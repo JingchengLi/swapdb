@@ -1143,6 +1143,8 @@ void setLoadingDB(robj *key) {
     kde = dictFind(EVICTED_DATA_DB->dict,key->ptr);
     de = dictAddOrFind(EVICTED_DATA_DB->loading_hot_keys,dictGetKey(kde));
     serverAssert(de);
+    /* delete the key from server.hot_keys */
+    serverAssert(DICT_OK == dictDelete(server.hot_keys, key->ptr));
     serverLog(LL_DEBUG, "key: %s is added to loading_hot_keys.", (char *)key->ptr);
 }
 
@@ -1228,10 +1230,10 @@ int expireIfNeeded(redisDb *db, robj *key) {
     server.stat_expiredkeys++;
 
     serverLog(LL_DEBUG, "expireIfNeeded: %s, now: %lld, when: %lld", (char *)key->ptr, now, when);
-    if (server.jdjr_mode && server.active_expire_enabled) {
-        if (dictFind(EVICTED_DATA_DB->dict, key->ptr)
-            && dictFind(EVICTED_DATA_DB->visiting_ssdb_keys, key->ptr)) {
-            dictAddOrFind(EVICTED_DATA_DB->delete_confirm_keys, key->ptr);
+    if (server.jdjr_mode) {
+        if (dictFind(EVICTED_DATA_DB->dict, key->ptr)) {
+            if (NULL == dictFind(EVICTED_DATA_DB->delete_confirm_keys, key->ptr))
+                dictAddOrFind(server.maybe_deleted_ssdb_keys, key->ptr);
             return 1;
         } else {
             if (db->id == EVICTED_DATA_DBID)

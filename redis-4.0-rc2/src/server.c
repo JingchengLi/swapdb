@@ -1307,7 +1307,7 @@ void startToEvictIfNeeded() {
     int mem_tofree, old_mem_tofree = 0;
     float transfer_lower_threshold;
 
-    if (server.ssdb_client == NULL) return;
+    if (server.ssdb_client == NULL || !(server.ssdb_client->ssdb_conn_flags & CONN_SUCCESS)) return;
 
     if (server.maxmemory == 0
         || !(server.maxmemory_policy & MAXMEMORY_FLAG_LFU))
@@ -1334,78 +1334,95 @@ void startToEvictIfNeeded() {
     }
 }
 
-
 #define RESERVED_MEMORY_WHEN_LOAD (1024*1024*2)
-void startToLoadIfNeeded() {
-    listIter li;
-    listNode *ln;
-    list *tmp;
-
-    if (server.ssdb_client == NULL) return;
+int isMeetLoadCondition() {
+    if (server.ssdb_client == NULL || !(server.ssdb_client->ssdb_conn_flags & CONN_SUCCESS)) return 0;
 
     int mem_free = server.maxmemory - zmalloc_used_memory();
 
-    if (server.maxmemory > 0 && mem_free <= 0) return;
+    if (server.maxmemory > 0 && mem_free <= RESERVED_MEMORY_WHEN_LOAD) return 0;
 
-    if (!server.hot_keys || !listLength(server.hot_keys))
-        return;
+    if (!server.hot_keys || !dictSize(server.hot_keys))
+        return 0;
 
     if (memoryReachLoadUpperLimit()) {
-        return;
+        return 0;
     }
 
     if (server.is_allow_ssdb_write == DISALLOW_SSDB_WRITE ||
         server.prohibit_ssdb_read_write == PROHIBIT_SSDB_READ_WRITE)
+        return 0;
+    return 1;
+}
+
+/* when the visiting count of this key in visiting_ssdb_keys decrese to 0 and this
+ * key is deleted from visiting_ssdb_keys, we can confirm that this key is not in
+ * transferring_keys/delete_confirm_keys/loading_hot_keys, we call this function to
+ * load the key immediately if the key is in server.hot_keys. */
+void loadThisKeyImmediately(sds key) {
+    if (0 == isMeetLoadCondition()) return;
+
+    robj* o = createObject(OBJ_STRING, sdsdup(key));
+    if (NULL == dictFind(EVICTED_DATA_DB->dict, key)) {
+        /* key is not existed any more. */
+        if (dictDelete(server.hot_keys, key) == DICT_OK)
+            signalBlockingKeyAsReady(&server.db[0], o);
+        decrRefCount(o);
         return;
+    }
 
-    listRewind(server.hot_keys, &li);
+    prologOfLoadingFromSSDB(NULL, o);
+    /* the key is in loading_hot_keys now, so don't signal it. */
+    decrRefCount(o);
+}
 
-    tmp = listCreate();
-    listSetFreeMethod(tmp, (void (*)(void*))decrRefCount);
+void startToLoadIfNeeded() {
+    dictIterator *di;
+    dictEntry *de;
 
-    while((ln = listNext(&li))) {
-        robj *keyobj = (robj *)(ln->value);
-        dictEntry *de;
+    if (0 == isMeetLoadCondition()) return;
 
-        if (dictFind(EVICTED_DATA_DB->transferring_keys, keyobj->ptr))
-            continue;
+    di = dictGetSafeIterator(server.hot_keys);
+    while((de = dictNext(di)) != NULL) {
+        sds key = dictGetKey(de);
 
-        if (dictFind(EVICTED_DATA_DB->delete_confirm_keys, keyobj->ptr))
-            continue;
-
-        /* Try to load the keys in the next loop. */
-        if (dictFind(EVICTED_DATA_DB->visiting_ssdb_keys, keyobj->ptr)) {
-            incrRefCount(keyobj);
-            listAddNodeTail(tmp, keyobj);
+        if (dictFind(EVICTED_DATA_DB->transferring_keys, key)
+            || dictFind(EVICTED_DATA_DB->loading_hot_keys, key)
+            || dictFind(EVICTED_DATA_DB->delete_confirm_keys, key)) {
+            /* although this is impossible. */
+            serverAssert(0);
             continue;
         }
 
-        /* Elements in hot_keys list may be duplicated. */
-        if (dictFind(EVICTED_DATA_DB->loading_hot_keys, keyobj->ptr))
+        if (dictFind(EVICTED_DATA_DB->visiting_ssdb_keys, key)) {
+            /* Try to load the keys in the next loop. */
             continue;
+        }
 
-        de = dictFind(EVICTED_DATA_DB->dict, keyobj->ptr);
-
-        /* key is not existed any more. */
-        if (!de) continue;
+        if (NULL == dictFind(EVICTED_DATA_DB->dict, key)) {
+            /* key is not existed any more. */
+            robj* o = createObject(OBJ_STRING, sdsdup(key));
+            if (DICT_OK == dictDelete(server.hot_keys, key))
+                signalBlockingKeyAsReady(&server.db[0], o);
+            decrRefCount(o);
+            continue;
+        }
 
         if (server.maxmemory > 0 && (memoryReachLoadUpperLimit() ||
                 (server.maxmemory - RESERVED_MEMORY_WHEN_LOAD <= zmalloc_used_memory()))) {
             serverLog(LL_DEBUG, "No more memory to load key: %s from SSDB to redis.",
-                      (char *)keyobj->ptr);
-            /* Try to load the keys in the next loop. */
-            incrRefCount(keyobj);
-            listAddNodeTail(tmp, keyobj);
+                      (char *)key);
+            /* Try to load the key in the next loop. */
             continue;
         }
 
-        serverLog(LL_DEBUG, "Try loading key: %s from SSDB.", (char *)keyobj->ptr);
-        if (prologOfLoadingFromSSDB(keyobj) == C_OK)
-            setLoadingDB(keyobj);
-    }
+        serverLog(LL_DEBUG, "Try loading key: %s from SSDB.", (char *)key);
 
-    listRelease(server.hot_keys);
-    server.hot_keys = tmp;
+        robj* o = createObject(OBJ_STRING, sdsdup(key));
+        prologOfLoadingFromSSDB(NULL, o);
+        decrRefCount(o);
+    }
+    dictReleaseIterator(di);
 }
 
 void cleanKeysToLoadAndEvict() {
@@ -1418,11 +1435,6 @@ void cleanKeysToLoadAndEvict() {
         while((ln = listNext(&li))) {
             listDelNode(server.loadAndEvictCmdList, ln);
         }
-    } else {
-        /* clean server.hot_keys */
-        listRelease(server.hot_keys);
-        server.hot_keys = listCreate();
-        listSetFreeMethod(server.hot_keys, (void (*)(void*))decrRefCount);
     }
 }
 
@@ -1459,16 +1471,35 @@ void handleDeleteConfirmKeys(void) {
     dictIterator *di;
     dictEntry *de;
 
-    if (dictSize(EVICTED_DATA_DB->delete_confirm_keys) == 0
-        || (!server.delete_confirm_client) ||
-        (server.delete_confirm_client->flags & CLIENT_BLOCKED))
+    if (0 == dictSize(server.maybe_deleted_ssdb_keys))
         return;
 
-    di = dictGetIterator(EVICTED_DATA_DB->delete_confirm_keys);
+    if (!server.delete_confirm_client ||
+        !(server.delete_confirm_client->ssdb_conn_flags & CONN_SUCCESS))
+        return;
 
+    if (server.delete_confirm_client->flags & CLIENT_BLOCKED)
+        return;
+
+    di = dictGetSafeIterator(server.maybe_deleted_ssdb_keys);
     while((de = dictNext(di))) {
-        if (dictFind(EVICTED_DATA_DB->visiting_ssdb_keys, de->key))
+        if (dictFind(EVICTED_DATA_DB->delete_confirm_keys, de->key)) {
+            /* although this is impossible.*/
+            dictDelete(server.maybe_deleted_ssdb_keys, de->key);
             continue;
+        }
+
+        if (dictFind(EVICTED_DATA_DB->visiting_ssdb_keys, de->key)) {
+            /* will try it the next time. */
+            continue;
+        }
+        if (dictFind(EVICTED_DATA_DB->transferring_keys, de->key)
+            || dictFind(server.hot_keys, de->key)
+            || dictFind(EVICTED_DATA_DB->loading_hot_keys, de->key)) {
+            /* just remove it. */
+            dictDelete(server.maybe_deleted_ssdb_keys, de->key);
+            continue;
+        }
 
         server.delete_confirm_client->argc = 2;
         server.delete_confirm_client->argv = zmalloc(sizeof(robj *)
@@ -1482,11 +1513,16 @@ void handleDeleteConfirmKeys(void) {
             break;
         }
 
+        dictAddOrFind(EVICTED_DATA_DB->delete_confirm_keys, de->key);
+        serverLog(LL_DEBUG, "start to confirm with ssdb whether key: %s is deleted", (sds)de->key);
+
         /* TODO: use a suitable timeout. */
         server.delete_confirm_client->bpop.timeout = 2000 + mstime();
         blockClient(server.delete_confirm_client, BLOCKED_BY_DELETE_CONFIRM);
+        /* we are blocked to wait ssdb's response for this key, can't continue and just break this loop. */
         break;
     }
+    dictReleaseIterator(di);
 }
 
 /* This function gets called every time Redis is entering the
@@ -2133,8 +2169,6 @@ void initServer(void) {
     server.slaves = listCreate();
     server.monitors = listCreate();
     server.clients_pending_write = listCreate();
-    server.hot_keys = listCreate();
-    listSetFreeMethod(server.hot_keys, (void (*)(void*))decrRefCount);
     server.slaveseldb = -1; /* Force to emit the first SELECT command. */
     server.unblocked_clients = listCreate();
     server.ready_keys = listCreate();
@@ -2194,6 +2228,9 @@ void initServer(void) {
         server.db[EVICTED_DATA_DBID].loading_hot_keys = dictCreate(&keyDictType,NULL);
         server.db[EVICTED_DATA_DBID].visiting_ssdb_keys = dictCreate(&keyDictType,NULL);
         server.db[EVICTED_DATA_DBID].delete_confirm_keys = dictCreate(&keyDictType,NULL);
+
+        server.hot_keys = dictCreate(&keyDictType,NULL);
+        server.maybe_deleted_ssdb_keys = dictCreate(&keyDictType,NULL);
     }
 
     evictionPoolAlloc(); /* Initialize the LRU keys pool. */
@@ -3141,7 +3178,18 @@ int processCommandMaybeInSSDB(client *c) {
 
                 // todo: add config option for LFU value
                 if ((counter > LFU_INIT_VAL) && !memoryReachLoadUpperLimit()) {
-                    listAddNodeHead(server.hot_keys, dupStringObject(keyobj));
+                    /* to ensure the key only exists in one dict of loading/transferring/
+                     * delete_confirming/hot_keys, if the key is already in intermediate state,
+                     * we just give up to load the key and will try it the next time.
+                     *
+                     * NOTE: we don't care visiting_ssdb_keys, because we must ensure there is a
+                     * chance for a very hot key to be loaded.
+                     * */
+                    if (NULL == dictFind(EVICTED_DATA_DB->loading_hot_keys, keyobj->ptr)
+                        && NULL == dictFind(EVICTED_DATA_DB->transferring_keys, keyobj->ptr)
+                        && NULL == dictFind(EVICTED_DATA_DB->delete_confirm_keys, keyobj->ptr))
+                        dictAddOrFind(server.hot_keys, keyobj->ptr);
+
                     serverLog(LL_DEBUG, "key: %s is added to server.hot_keys, client fd: %d.",
                               (char *)keyobj->ptr, c->fd);
                 }
@@ -3160,7 +3208,7 @@ void cleanAndSignalDeleteConfirmKeys() {
     sds key;
     robj* o;
 
-    di = dictGetIterator(server.db[EVICTED_DATA_DBID].delete_confirm_keys);
+    di = dictGetSafeIterator(server.db[EVICTED_DATA_DBID].delete_confirm_keys);
     while((de = dictNext(di)) != NULL) {
         key = dictGetKey(de);
         o = createObject(OBJ_STRING, sdsdup(key));
@@ -3168,6 +3216,7 @@ void cleanAndSignalDeleteConfirmKeys() {
         signalBlockingKeyAsReady(&server.db[0], o);
         decrRefCount(o);
     }
+    dictReleaseIterator(di);
     dictEmpty(server.db[EVICTED_DATA_DBID].delete_confirm_keys, NULL);
 
     handleClientsBlockedOnSSDB();
@@ -3180,7 +3229,7 @@ void cleanAndSignalLoadingOrTransferringKeys() {
     robj* o;
 
     /* signal and unblock clients blocked by all loading/transferring keys. */
-    di = dictGetIterator(server.db[EVICTED_DATA_DBID].transferring_keys);
+    di = dictGetSafeIterator(server.db[EVICTED_DATA_DBID].transferring_keys);
     while((de = dictNext(di)) != NULL) {
         key = dictGetKey(de);
         o = createObject(OBJ_STRING, sdsdup(key));
@@ -3188,7 +3237,9 @@ void cleanAndSignalLoadingOrTransferringKeys() {
         signalBlockingKeyAsReady(&server.db[0], o);
         decrRefCount(o);
     }
-    di = dictGetIterator(server.db[EVICTED_DATA_DBID].loading_hot_keys);
+    dictReleaseIterator(di);
+
+    di = dictGetSafeIterator(server.db[EVICTED_DATA_DBID].loading_hot_keys);
     while((de = dictNext(di)) != NULL) {
         key = dictGetKey(de);
         o = createObject(OBJ_STRING, sdsdup(key));
@@ -3196,9 +3247,22 @@ void cleanAndSignalLoadingOrTransferringKeys() {
         signalBlockingKeyAsReady(&server.db[0], o);
         decrRefCount(o);
     }
+    dictReleaseIterator(di);
+
+    di = dictGetSafeIterator(server.hot_keys);
+    while((de = dictNext(di)) != NULL) {
+        key = dictGetKey(de);
+        o = createObject(OBJ_STRING, sdsdup(key));
+
+        signalBlockingKeyAsReady(&server.db[0], o);
+        decrRefCount(o);
+    }
+    dictReleaseIterator(di);
 
     dictEmpty(server.db[EVICTED_DATA_DBID].transferring_keys, NULL);
     dictEmpty(server.db[EVICTED_DATA_DBID].loading_hot_keys, NULL);
+    dictEmpty(server.hot_keys, NULL);
+
     server.evicting_keys_num = 0;
 
     /* NOTE:must empty loading_hot_keys and transferring_keys and then handle blocked clients */

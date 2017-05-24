@@ -4876,12 +4876,10 @@ void storetossdbCommand(client *c) {
 
     /* Try restoring the redis dumped data to SSDB. */
     if (prologOfEvictingToSSDB(keyobj, c->db) != C_OK) {
-        addReplyErrorFormat(c,"Failed to send the restore cmd to SSDB.");
-        serverLog(LL_DEBUG, "Failed to send the restore cmd to SSDB.");
-        /* TODO: handle server.cmdNotDone */
+        addReplyErrorFormat(c,"ssdb connection for key transfer/load is diconnected");
+        serverLog(LL_DEBUG, "ssdb connection for key transfer/load is diconnected");
         return;
-    } else
-        setTransferringDB(c->db, keyobj);
+    }
 
     addReply(c,shared.ok);
 }
@@ -4941,17 +4939,7 @@ void dumpfromssdbCommand(client *c) {
         serverLog(LL_DEBUG, "Not existed in ssdb.");
         return;
     }
-
-    if (prologOfLoadingFromSSDB(keyobj) == C_OK) {
-        setLoadingDB(keyobj);
-        addReply(c,shared.ok);
-    } else {
-        // todo improve
-        if (server.ssdb_client == NULL)
-            addReplyError(c, "client for cold key transfer/hot keys load is disconnected!");
-        else
-            addReplyError(c, "the key is expired.");
-    }
+    prologOfLoadingFromSSDB(c, keyobj);
 }
 
 

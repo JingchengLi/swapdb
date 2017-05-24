@@ -628,12 +628,13 @@ int epilogOfEvictingToSSDB(robj *keyobj) {
     return C_OK;
 }
 
-int prologOfLoadingFromSSDB(robj *keyobj) {
+int prologOfLoadingFromSSDB(client* c, robj *keyobj) {
     rio cmd;
 
     if (expireIfNeeded(EVICTED_DATA_DB, keyobj)) {
         serverLog(LL_DEBUG, "key: %s is expired in redis.", (char *)keyobj->ptr);
-        return C_ERR;
+        if (c) addReplyError(c, "this key is expired");
+        return C_OK;
     }
 
     rioInitWithBuffer(&cmd, sdsempty());
@@ -644,9 +645,12 @@ int prologOfLoadingFromSSDB(robj *keyobj) {
 
     /* sendCommandToSSDB will free cmd.io.buffer.ptr. */
     if (sendCommandToSSDB(server.ssdb_client, cmd.io.buffer.ptr) != C_OK) {
-        serverLog(LL_WARNING, "sendCommandToSSDB: server.ssdb_client failed.");
+        if (c) addReplyError(c, "ssdb transfer/loading connection is disconnected.");
         return C_ERR;
     }
+
+    setLoadingDB(keyobj);
+    if (c) addReply(c,shared.ok);
 
     serverLog(LL_DEBUG, "Loading key: %s from SSDB started.", (char *)(keyobj->ptr));
     return C_OK;
@@ -702,10 +706,11 @@ int prologOfEvictingToSSDB(robj *keyobj, redisDb *db) {
     /* sendCommandToSSDB will free cmd.io.buffer.ptr. */
     /* Using the same connection with propagate method. */
     if (sendCommandToSSDB(server.ssdb_client, cmd.io.buffer.ptr) != C_OK) {
-        serverLog(LL_WARNING, "sendCommandToSSDB: server.ssdb_client failed.");
+        serverLog(LL_DEBUG, "Failed to send the restore cmd to SSDB.");
         return C_ERR;
     }
 
+    setTransferringDB(db, keyobj);
     serverLog(LL_DEBUG, "Evicting key: %s to SSDB, maxmemory: %lld, zmalloc_used_memory: %lu.",
               (char *)(keyobj->ptr), server.maxmemory, zmalloc_used_memory());
 
@@ -770,7 +775,9 @@ int tryEvictingKeysToSSDB(int *mem_tofree) {
          * a ghost and we need to try the next element. */
         if (de && dictFind(EVICTED_DATA_DB->transferring_keys, dictGetKey(de)) == NULL
             && dictFind(EVICTED_DATA_DB->visiting_ssdb_keys, dictGetKey(de)) == NULL
-            && dictFind(EVICTED_DATA_DB->delete_confirm_keys, dictGetKey(de)) == NULL) {
+            && dictFind(EVICTED_DATA_DB->delete_confirm_keys, dictGetKey(de)) == NULL
+            && dictFind(server.hot_keys, dictGetKey(de)) == NULL
+            && dictFind(EVICTED_DATA_DB->loading_hot_keys, dictGetKey(de)) == NULL) {
             size_t usage;
             bestkey = dictGetKey(de);
             /* Estimate the memory usage of the bestkey. */
@@ -788,10 +795,7 @@ int tryEvictingKeysToSSDB(int *mem_tofree) {
         robj *keyobj = createStringObject(bestkey,sdslen(bestkey));
 
         /* Try restoring the redis dumped data to SSDB. */
-        if (prologOfEvictingToSSDB(keyobj, db) != C_OK)
-            serverLog(LL_DEBUG, "Failed to send the restore cmd to SSDB.");
-        else
-            setTransferringDB(db, keyobj);
+        prologOfEvictingToSSDB(keyobj, db);
 
         decrRefCount(keyobj);
     }
@@ -1164,11 +1168,13 @@ int blockForLoadingkeys(client *c, robj **keys, int numkeys, mstime_t timeout) {
         if (((c->cmd->flags & CMD_WRITE)
              && (dictFind(EVICTED_DATA_DB->transferring_keys, keys[j]->ptr)
                  || dictFind(EVICTED_DATA_DB->loading_hot_keys, keys[j]->ptr)
+                 || dictFind(server.hot_keys, keys[j]->ptr)
                  || dictFind(EVICTED_DATA_DB->delete_confirm_keys, keys[j]->ptr))
             )
             ||
             ( (c->cmd->flags & CMD_READONLY)
               && (dictFind(EVICTED_DATA_DB->loading_hot_keys, keys[j]->ptr)
+                  || dictFind(server.hot_keys, keys[j]->ptr)
                   || dictFind(EVICTED_DATA_DB->delete_confirm_keys, keys[j]->ptr))
             )
         ) {
@@ -1220,6 +1226,8 @@ void removeBlockedKeysFromTransferOrLoadingKeys(client* c) {
             dictDelete(EVICTED_DATA_DB->transferring_keys, keyobj->ptr);
         else if (dictFind(EVICTED_DATA_DB->loading_hot_keys, keyobj->ptr))
             dictDelete(EVICTED_DATA_DB->loading_hot_keys, keyobj->ptr);
+        else if (dictFind(server.hot_keys, keyobj->ptr))
+            dictDelete(server.hot_keys, keyobj->ptr);
         else if (dictFind(EVICTED_DATA_DB->delete_confirm_keys, keyobj->ptr))
             dictDelete(EVICTED_DATA_DB->delete_confirm_keys, keyobj->ptr);
         else

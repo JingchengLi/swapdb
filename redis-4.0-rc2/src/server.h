@@ -971,6 +971,8 @@ struct redisServer {
     char **exec_argv;           /* Executable argv vector (copy). */
     int hz;                     /* serverCron() calls frequency in hertz */
     redisDb *db;
+    dict *hot_keys;             /* dict of keys is to be loaded from SSDB to redis. */
+    dict *maybe_deleted_ssdb_keys;/* dict of keys that are maybe deleted in SSDB and need to confirm. */
     dict *commands;             /* Command table */
     dict *orig_commands;        /* Command table before command renaming. */
     aeEventLoop *el;
@@ -1009,7 +1011,6 @@ struct redisServer {
     list *clients_to_close;     /* Clients to close asynchronously */
     list *clients_pending_write; /* There is to write or install handler. */
     list *slaves, *monitors;    /* List of slaves and MONITORs */
-    list *hot_keys;         /* List of keys is to be loaded to redis. */
     client *current_client; /* Current client, only used on crash report */
     int clients_paused;         /* True if clients are currently paused */
     mstime_t clients_pause_end_time; /* Time when we undo clients_paused */
@@ -2185,7 +2186,7 @@ void locatekeyCommand(client *c);
 void slaveDelCommand(client *c);
 void dumpfromssdbCommand(client *c);
 int prologOfEvictingToSSDB(robj *keyobj, redisDb *db);
-int prologOfLoadingFromSSDB(robj *keyobj);
+int prologOfLoadingFromSSDB(client* c, robj *keyobj);
 void removeVisitingSSDBKey(struct redisCommand *cmd, int argc, robj** argv);
 void handleCustomizedBlockedClients();
 void removeClientFromListForBlockedKey(client* c, robj* key);
@@ -2193,6 +2194,7 @@ void sendDelSSDBsnapshot();
 int handleResponseTimeoutOfTransferSnapshot(struct aeEventLoop *eventLoop, long long id, void *clientData);
 void doSSDBflushIfCheckDone();
 void makeSSDBsnapshotIfCheckOK();
+void loadThisKeyImmediately(sds key);
 
 #if defined(__GNUC__)
 void *calloc(size_t count, size_t size) __attribute__ ((deprecated));

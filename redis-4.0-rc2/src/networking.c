@@ -1551,7 +1551,9 @@ void checkSSDBkeyIsDeleted(char* check_reply, struct redisCommand* cmd, int argc
 
         key = argv[indexs[0]]->ptr;
 
-        dictAddOrFind(EVICTED_DATA_DB->delete_confirm_keys, key);
+        if (NULL == dictFind(EVICTED_DATA_DB->delete_confirm_keys, key))
+            dictAddOrFind(server.maybe_deleted_ssdb_keys, key);
+
         serverLog(LL_DEBUG, "cmd: %s, key: %s is added to delete_confirm_keys.", cmd->name, key);
 
         if (indexs) getKeysFreeResult(indexs);
@@ -1710,6 +1712,9 @@ void removeVisitingSSDBKey(struct redisCommand *cmd, int argc, robj** argv) {
                 /* only this client is visiting the specified key, remove the key
                  * from visiting keys. */
                 dictDelete(EVICTED_DATA_DB->visiting_ssdb_keys, key->ptr);
+                /* if this key is in server.hot_keys, load it to redis immediately. */
+                if (dictFind(server.hot_keys, key->ptr))
+                    loadThisKeyImmediately(key->ptr);
                 serverLog(LL_DEBUG, "key: %s is deleted from visiting_ssdb_keys.", (char *) key->ptr);
             } else {
                 /* there are other clients visiting the specified key, just reduce the visiting
@@ -2095,12 +2100,13 @@ void unlinkClient(client *c) {
             if (ln) listDelNode(server.delayed_migrate_clients, ln);
             serverLog(LL_DEBUG, "client migrate list del: %ld", (long)c);
 
-            di = dictGetIterator(server.db->ssdb_blocking_keys);
+            di = dictGetSafeIterator(server.db->ssdb_blocking_keys);
             while((de = dictNext(di))) {
                 keyobj = dictGetKey(de);
 
                 removeClientFromListForBlockedKey(c, keyobj);
             }
+            dictReleaseIterator(di);
         }
 
         /* Remove from the list of active clients. */
