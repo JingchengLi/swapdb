@@ -657,7 +657,7 @@ int proc_getbit(Context &ctx, Link *link, const Request &req, Response *resp){
 	long long offset;
 	string2ll(req[2].data(), (size_t)req[2].size(), &offset);
     if(offset < 0 || ((uint64_t)offset >> 3) >= Link::MAX_PACKET_SIZE * 4){
-        std::string msg = "offset is is not an integer or out of range";
+        std::string msg = "ERR offset is is not an integer or out of range";
 		reply_errinfo_return(msg);
     }
 
@@ -683,11 +683,10 @@ int proc_setbit(Context &ctx, Link *link, const Request &req, Response *resp){
 
 	int on = req[3].Int();
 	if(on & ~1){
-		reply_errinfo_return("bit is not an integer or out of range");
+		reply_errinfo_return("ERR bit is not an integer or out of range");
 	}
 	if(offset < 0 || ((uint64_t)offset >> 3) >= Link::MAX_PACKET_SIZE * 4){
-		std::string msg = "offset is out of range [0, 4294967296)";
-		reply_errinfo_return(msg);
+		reply_errinfo_return("ERR offset is out of range [0, 4294967296)");
 	}
 
 	int res = 0;

@@ -845,7 +845,7 @@ int proc_rr_del_snapshot(Context &ctx, Link *link, const Request &req, Response 
 
         if(serv->replicState == REPLIC_TRANS) {
             log_error("The replication is not finish");
-            reply_errinfo_return("rr_del_snapshot error");
+            reply_errinfo_return("ERR rr_del_snapshot error");
         }
 
         if (serv->replicSnapshot != nullptr){
@@ -892,7 +892,7 @@ int proc_repopid(Context &ctx, Link *link, const Request &req, Response *resp) {
 
         RepoKey repoKey;
         if (repoKey.DecodeRepoKey(repo_val) == -1) {
-            reply_errinfo_return("DecodeRepoKey error");
+            reply_errinfo_return("ERR DecodeRepoKey error");
         }
 
         std::string result = "repopid " + str(repoKey.timestamp) + " " + str(repoKey.id);
@@ -1021,7 +1021,7 @@ int proc_migrate(Context &ctx, Link *link, const Request &req, Response *resp) {
                 replace = 1;
             } else if (q4 == "keys") {
                 if (!req[3].empty()) {
-                    reply_errinfo_return("When using MIGRATE KEYS option, the key argument"
+                    reply_errinfo_return("ERR When using MIGRATE KEYS option, the key argument"
                                     " must be set to the empty string");
                 }
                 first_key = j+1;
@@ -1136,7 +1136,7 @@ int proc_migrate(Context &ctx, Link *link, const Request &req, Response *resp) {
                     log_debug("%s" , strerror(errno));
                 }
 
-                reply_errinfo_return("write failed");
+                reply_errinfo_return("ERR write failed");
             }
             pos += nwritten;
         }
@@ -1150,7 +1150,7 @@ int proc_migrate(Context &ctx, Link *link, const Request &req, Response *resp) {
         buf1 = r.redisResponse();
         if (buf1 == nullptr || buf1->type == REDIS_REPLY_ERROR) {
             if (buf1 != nullptr) delete buf1;
-            reply_errinfo_return(("Target instance replied with error: " + buf1->str));
+            reply_errinfo_return(("ERR Target instance replied with error: " + buf1->str));
         }
     }
 
@@ -1171,7 +1171,7 @@ int proc_migrate(Context &ctx, Link *link, const Request &req, Response *resp) {
         }
 
         if (buf2->type == REDIS_REPLY_ERROR) {
-            reply_errinfo_return(("Target instance replied with error: " + buf2->str));
+            reply_errinfo_return(("ERR Target instance replied with error: " + buf2->str));
         } else {
             if (!copy) {
                 /* No COPY option: remove the local key, signal the change. */
@@ -1184,7 +1184,7 @@ int proc_migrate(Context &ctx, Link *link, const Request &req, Response *resp) {
        * Just signal the problem to the client, but only do it if we don't
        * already queued a different error reported by the destination server. */
     if (socket_error) {
-        reply_errinfo_return("write to remote server failed");
+        reply_errinfo_return("ERR write to remote server failed");
     }
 
      /* Success! Update the last_dbid in migrateCachedSocket, so that we can

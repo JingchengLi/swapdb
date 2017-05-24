@@ -748,7 +748,7 @@ static int proc_auth(Context &ctx, Link *link, const Request &req, Response *res
 			resp->push_back("ok");
 			resp->push_back("1");
 		}else{
-			reply_errinfo_return("invalid password");
+			reply_errinfo_return("ERR invalid password");
 		}
 	}
 	return 0;

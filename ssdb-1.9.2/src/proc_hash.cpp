@@ -32,7 +32,7 @@ int proc_hexists(Context &ctx, Link *link, const Request &req, Response *resp) {
 int proc_hmset(Context &ctx, Link *link, const Request &req, Response *resp) {
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
     if (req.size() < 4 || req.size() % 2 != 0) {
-        reply_errinfo_return("wrong number of arguments for 'hmset' command");
+        reply_errinfo_return("ERR wrong number of arguments for 'hmset' command");
     }
 
     std::map<Bytes, Bytes> kvs;
