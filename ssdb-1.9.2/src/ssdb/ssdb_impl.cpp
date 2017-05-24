@@ -20,6 +20,7 @@ found in the LICENSE file.
 #include "rocksdb/filter_policy.h"
 #include "rocksdb/table.h"
 #include "rocksdb/convenience.h"
+#include "rocksdb/slice_transform.h"
 
 #include "t_listener.h"
 #include "util/rate_limiter.h"
@@ -75,11 +76,25 @@ SSDB *SSDB::open(const Options &opt, const std::string &dir) {
     ssdb->options.block_size = opt.block_size * 1024;
     ssdb->options.compaction_speed = opt.compaction_speed;
 #else
-    leveldb::BlockBasedTableOptions op;
 
-    //for spin disk
-//	op.cache_index_and_filter_blocks = true;
-//    ssdb->options.optimize_filters_for_hits = true;
+    {
+        //BlockBasedTableOptions
+        leveldb::BlockBasedTableOptions op;
+
+//        op.cache_index_and_filter_blocks = true;
+        op.filter_policy = std::shared_ptr<const leveldb::FilterPolicy>(leveldb::NewBloomFilterPolicy(10));
+        op.block_cache = leveldb::NewLRUCache(opt.cache_size * 1048576);
+        op.block_size = opt.block_size * 1024;
+        ssdb->options.table_factory = std::shared_ptr<leveldb::TableFactory>(rocksdb::NewBlockBasedTableFactory(op));
+    }
+
+    ssdb->options.prefix_extractor.reset(leveldb::NewFixedPrefixTransform(1));
+    ssdb->options.memtable_prefix_bloom_size_ratio = 0.25;
+//    ssdb->options.memtable_prefix_bloom_bits = 100000000;
+//    ssdb->options.memtable_prefix_bloom_probes = 6;
+
+
+    //    ssdb->options.optimize_filters_for_hits = true;
     ssdb->options.compaction_readahead_size = 4 * 1024 * 1024;
 //	ssdb->options.skip_stats_update_on_db_open = true;
 //	ssdb->options.level_compaction_dynamic_level_bytes = true;
@@ -91,11 +106,7 @@ SSDB *SSDB::open(const Options &opt, const std::string &dir) {
     //========
 //	ssdb->options.target_file_size_base = 2 * 1024 * 1024; //sst file target size
 
-    op.filter_policy = std::shared_ptr<const leveldb::FilterPolicy>(leveldb::NewBloomFilterPolicy(10));
-    op.block_cache = leveldb::NewLRUCache(opt.cache_size * 1048576);
-    op.block_size = opt.block_size * 1024;
-
-    ssdb->options.table_factory = std::shared_ptr<leveldb::TableFactory>(rocksdb::NewBlockBasedTableFactory(op));
+    ssdb->options.IncreaseParallelism(4);
 
 
     //level config
