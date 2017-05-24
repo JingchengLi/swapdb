@@ -4444,12 +4444,12 @@ sds genRedisInfoString(char *section) {
     if (server.jdjr_mode && (allsections || defsections || !strcasecmp(section,"redis-ssdb"))) {
         if (sections++) info = sdscat(info,"\r\n");
         info = sdscatprintf(info, "# Redis-SSDB\r\n"
-                                    "keys in redis count:%lu\r\n"
-                                    "keys in SSDB count:%lu\r\n"
-                                    "keys loading from SSDB:%lu\r\n"
-                                    "keys transferring to SSDB:%lu\r\n"
-                                    "keys visiting SSDB:%lu\r\n"
-                                    "keys delete confirming:%lu\r\n",
+                                    "keys_in_redis_count:%lu\r\n"
+                                    "keys_in_ssdb_count:%lu\r\n"
+                                    "keys_loading_from_ssdb:%lu\r\n"
+                                    "keys_transferring_to_ssdb:%lu\r\n"
+                                    "keys_visiting_ssdb:%lu\r\n"
+                                    "keys_delete_confirming:%lu\r\n",
                             dictSize(server.db[0].dict),
                             dictSize(EVICTED_DATA_DB->dict),
                             dictSize(EVICTED_DATA_DB->loading_hot_keys),
@@ -4458,10 +4458,10 @@ sds genRedisInfoString(char *section) {
                             dictSize(EVICTED_DATA_DB->delete_confirm_keys)
         );
         if (server.masterhost) {
-            info = sdscatprintf(info, "\r\nslave unprocessed transfer/load keys:%lu\r\n"
-                                        "slave write op list num:%lu\r\n"
-                                        "slave write op list memsize:%lld\r\n"
-                                "slave ssdb critical write error count:%d\r\n",
+            info = sdscatprintf(info, "\r\nslave_unprocessed_transferring_or_loading_keys:%lu\r\n"
+                                        "slave_write_op_list_num:%lu\r\n"
+                                        "slave_write_op_list_memsize:%lld\r\n"
+                                        "slave_ssdb_critical_write_error_count:%d\r\n",
                                 listLength(server.loadAndEvictCmdList),
                                 listLength(server.ssdb_write_oplist),
                                 server.writeop_mem_size,
