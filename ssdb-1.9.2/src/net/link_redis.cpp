@@ -7,6 +7,7 @@ found in the LICENSE file.
 #include <map>
 #include <cstring>
 #include <net/redis/reponse_redis.h>
+#include <unordered_map>
 
 enum REPLY{
 	REPLY_BULK = 0,
@@ -39,7 +40,9 @@ enum STRATEGY{
 };
 
 static bool inited = false;
-static std::map<std::string, RedisRequestDesc> cmd_table;
+
+typedef std::unordered_map<std::string, RedisRequestDesc> RedisRequestConvertTable;
+static RedisRequestConvertTable cmd_table;
 
 struct RedisCommand_raw
 {
@@ -208,13 +211,13 @@ int RedisLink::convert_req(){
 	}
 	
 	this->req_desc = NULL;
-	
-	std::map<std::string, RedisRequestDesc>::iterator it;
-	it = cmd_table.find(cmd);
+
+	const RedisRequestConvertTable::iterator &it = cmd_table.find(cmd);
 	if(it == cmd_table.end()){
+		recv_string.reserve(recv_bytes.size());
 		recv_string.push_back(cmd);
 		for(int i=1; i<recv_bytes.size(); i++){
-			recv_string.push_back(recv_bytes[i].String());
+			recv_string.emplace_back(recv_bytes[i].String());
 		}
 		return 0;
 	}
@@ -375,9 +378,10 @@ int RedisLink::convert_req(){
 		return 0;
 	}
 
+	recv_string.reserve(recv_bytes.size());
 	recv_string.push_back(req_desc->ssdb_cmd);
 	for(int i=1; i<recv_bytes.size(); i++){
-		recv_string.push_back(recv_bytes[i].String());
+		recv_string.emplace_back(recv_bytes[i].String());
 	}
 	
 	return 0;
