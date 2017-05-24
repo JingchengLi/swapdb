@@ -8,9 +8,8 @@ static string encode_key_internal(char type, const Bytes& key, const Bytes& fiel
 static string encode_meta_val_internal(const char type, uint64_t length, uint16_t version, char del);
 
 string encode_meta_key(const Bytes& key){
-    string buf;
+    string buf(1, DataType::META);
 
-    buf.append(1, DataType::META);
     uint16_t slot = (uint16_t)keyHashSlot(key.data(), key.size());
     slot = htobe16(slot);
     buf.append((char *)&slot, sizeof(uint16_t));
@@ -20,9 +19,7 @@ string encode_meta_key(const Bytes& key){
 }
 
 static string encode_key_internal(char type, const Bytes& key, const Bytes& field, uint16_t version){
-    string buf;
-
-    buf.append(1, type);
+    string buf(1, type);
 
     uint16_t len = htobe16((uint16_t)key.size());
     buf.append((char *)&len, sizeof(uint16_t));
@@ -53,8 +50,8 @@ string encode_zscore_prefix(const Bytes &key, uint16_t version){
 }
 
 string encode_eset_key(const Bytes& member){
-    string buf;
-    buf.append(1, DataType::EKEY);
+    string buf(1, DataType::EKEY);
+
     buf.append(member.data(), member.size());
     return buf;
 }
@@ -70,9 +67,7 @@ uint64_t encodeScore(const double score) {
 }
 
 string encode_zscore_key(const Bytes& key, const Bytes& field, double score, uint16_t version){
-    string buf;
-
-    buf.append(1, DataType::ZSCORE);
+    string buf(1, DataType::ZSCORE);
 
     uint16_t len = htobe16((uint16_t)key.size());
     buf.append((char *)&len, sizeof(uint16_t));
@@ -91,10 +86,9 @@ string encode_zscore_key(const Bytes& key, const Bytes& field, double score, uin
 }
 
 string encode_escore_key(const Bytes& member, uint64_t score){
-    score = htobe64(score);
+    string buf(1, DataType::ESCORE);
 
-    string buf;
-    buf.append(1, DataType::ESCORE);
+    score = htobe64(score);
     buf.append((char *)&score, sizeof(uint64_t));
     buf.append(member.data(), member.size());
 
@@ -102,9 +96,7 @@ string encode_escore_key(const Bytes& member, uint64_t score){
 }
 
 string encode_list_key(const Bytes& key, uint64_t seq, uint16_t version){
-    string buf;
-
-    buf.append(1, DataType::ITEM);
+    string buf(1, DataType::ITEM);
 
     uint16_t len = htobe16((uint16_t)key.size());
     buf.append((char *)&len, sizeof(uint16_t));
@@ -120,8 +112,7 @@ string encode_list_key(const Bytes& key, uint64_t seq, uint16_t version){
 }
 
 string encode_kv_val(const Bytes& val, uint16_t version, char del){
-    string buf;
-    buf.append(1, DataType::KV);
+    string buf(1, DataType::KV);
 
     version = htobe16(version);
     buf.append((char *)&version, sizeof(uint16_t));
@@ -133,9 +124,8 @@ string encode_kv_val(const Bytes& val, uint16_t version, char del){
 }
 
 static string encode_meta_val_internal(const char type, uint64_t length, uint16_t version, char del){
-    string buf;
+    string buf(1, type);
 
-    buf.append(1, type);
     version = htobe16(version);
     buf.append((char *)&version, sizeof(uint16_t));
 
@@ -160,9 +150,8 @@ string encode_zset_meta_val(uint64_t length, uint16_t version, char del){
 }
 
 string encode_list_meta_val(uint64_t length, uint64_t left, uint64_t right, uint16_t version, char del){
-    string buf;
+    string buf(1, DataType::LSIZE);
 
-    buf.append(1, DataType::LSIZE);
     version = htobe16(version);
     buf.append((char *)&version, sizeof(uint16_t));
 
@@ -184,8 +173,7 @@ string encode_list_meta_val(uint64_t length, uint64_t left, uint64_t right, uint
  * delete key
  */
 string encode_delete_key(const Bytes& key, uint16_t version){
-    string buf;
-    buf.append(1, KEY_DELETE_MASK);
+    string buf(1, KEY_DELETE_MASK);
 
     uint16_t slot = (uint16_t)keyHashSlot(key.data(), key.size());
     slot = htobe16(slot);
@@ -203,15 +191,13 @@ string encode_delete_key(const Bytes& key, uint16_t version){
 
 
 string encode_repo_key() {
-    string buf;
-    buf.append(1, DataType::REPOKEY);
+    string buf(1, DataType::REPOKEY);
 
     return buf;
 }
 
 string encode_repo_item(uint64_t timestamp, uint64_t index) {
-    string buf;
-    buf.append(1, DataType::REPOITEM);
+    string buf(1, DataType::REPOITEM);
 
     timestamp = htobe64(timestamp);
     buf.append((char *)&timestamp, sizeof(uint64_t));
