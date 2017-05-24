@@ -150,8 +150,6 @@ public:
     virtual int zremrangebylex(Context &ctx, const Bytes &name,const Bytes &key_start, const Bytes &key_end, int64_t *count) = 0;
 
 	/* eset */
-	virtual int eset(Context &ctx, const Bytes &key,int64_t ts) = 0;
-	virtual int eget(Context &ctx, const Bytes &key,int64_t *ts) = 0;
     virtual int check_meta_key(Context &ctx, const Bytes &key) = 0;
 
 	virtual int redisCursorCleanup() = 0;

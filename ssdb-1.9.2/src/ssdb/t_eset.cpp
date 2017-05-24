@@ -5,32 +5,6 @@
 #include "ssdb_impl.h"
 
 
-static int eset_one(Context &ctx, const Bytes &key, SSDBImpl *ssdb, leveldb::WriteBatch &batch, int64_t ts);
-
-
-int SSDBImpl::eset(Context &ctx, const Bytes &key, int64_t ts) {
-    RecordLock<Mutex> l(&mutex_record_, key.String());
-
-    leveldb::WriteBatch batch;
-
-    int ret = check_meta_key(ctx, key);
-    if (ret <= 0) {
-        return ret;
-    }
-
-    ret = eset_one(ctx, key, this, batch, ts);
-    if (ret >= 0) {
-        leveldb::Status s = CommitBatch(ctx, &(batch));
-        if (!s.ok()) {
-            log_error("eset error: %s", s.ToString().c_str());
-            return -1;
-        }
-    }
-
-    return ret;
-}
-
-
 int SSDBImpl::edel_one(Context &ctx, const Bytes &key,leveldb::WriteBatch &batch) {
 
     int64_t old_ts = 0;
@@ -87,13 +61,13 @@ int SSDBImpl::eget(Context &ctx, const Bytes &key, int64_t *ts) {
 
 
 
-int eset_one(Context &ctx, const Bytes &key, SSDBImpl *ssdb, leveldb::WriteBatch &batch, int64_t ts) {
+int SSDBImpl::eset_one(Context &ctx, const Bytes &key, leveldb::WriteBatch &batch, int64_t ts_ms) {
 
     int ret = 1;
 
     int64_t old_ts = 0;
 
-    int found = ssdb->eget(ctx, key, &old_ts);
+    int found = this->eget(ctx, key, &old_ts);
     if (found == -1) {
         return -1;
     }
@@ -101,7 +75,7 @@ int eset_one(Context &ctx, const Bytes &key, SSDBImpl *ssdb, leveldb::WriteBatch
     if (found == 0) {
         //skip
     } else if (found == 1) {
-        if (old_ts == ts) {
+        if (old_ts == ts_ms) {
             //same
         } else {
             string old_score_key = encode_escore_key(key, static_cast<uint64_t>(old_ts));
@@ -114,8 +88,8 @@ int eset_one(Context &ctx, const Bytes &key, SSDBImpl *ssdb, leveldb::WriteBatch
 
     string ekey = encode_eset_key(key);
 
-    string ekey_value((char *) (&ts), sizeof(int64_t));
-    string score_key = encode_escore_key(key, static_cast<uint64_t>(ts));
+    string ekey_value((char *) (&ts_ms), sizeof(int64_t));
+    string score_key = encode_escore_key(key, static_cast<uint64_t>(ts_ms));
 
     batch.Put(ekey, ekey_value);
     batch.Put(score_key, "");

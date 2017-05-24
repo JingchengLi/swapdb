@@ -244,15 +244,22 @@ private:
 template <typename T>
 class RecordLock {
 public:
-    RecordLock(RecordMutex<T> *mu, const std::string &key)
-            : mu_(mu), key_(key) {
-        mu_->Lock(key_);
+    RecordLock(RecordMutex<T> *mu, const std::string &key, bool lock = true)
+            : mu_(mu), key_(key) , lock_(lock) {
+		if (lock_) {
+			mu_->Lock(key_);
+		}
     }
-    ~RecordLock() { mu_->Unlock(key_); }
+    ~RecordLock() {
+		if (lock_) {
+			mu_->Unlock(key_);
+		}
+	}
 
 private:
     RecordMutex<T> *const mu_;
     std::string key_;
+	bool lock_ = true;
 
     // No copying allowed
     RecordLock(const RecordLock&);

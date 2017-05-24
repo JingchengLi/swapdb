@@ -220,10 +220,11 @@ public:
 
 
 	/* eset */
-	virtual int eset(Context &ctx, const Bytes &key,int64_t ts);
-	virtual int eget(Context &ctx, const Bytes &key,int64_t *ts);
-    virtual int check_meta_key(Context &ctx, const Bytes &key);
-	virtual int edel_one(Context &ctx, const Bytes &key,leveldb::WriteBatch &batch);
+	virtual int eget(Context &ctx, const Bytes &key, int64_t *ts);
+	virtual int eset_one(Context &ctx, const Bytes &key, leveldb::WriteBatch &batch, int64_t ts_ms);
+	virtual int edel_one(Context &ctx, const Bytes &key, leveldb::WriteBatch &batch);
+
+	virtual int check_meta_key(Context &ctx, const Bytes &key);
 
 	virtual int redisCursorCleanup();
 

@@ -32,9 +32,9 @@ public:
     // The caller must hold mutex before calling set/del functions
     int persist(Context &ctx, const Bytes &key);
 
-    int expire(Context &ctx, const Bytes &key, int64_t ttl, TimeUnit tu);
+    int expire(Context &ctx, const Bytes &key, int64_t ttl, TimeUnit tu, leveldb::WriteBatch *batch = nullptr);
 
-    int expireAt(Context &ctx, const Bytes &key, int64_t ts_ms);
+    int expireAt(Context &ctx, const Bytes &key, int64_t pexpireat_ms, leveldb::WriteBatch *batch = nullptr);
 
     void start();
 
@@ -57,6 +57,8 @@ private:
     static void *thread_func(void *arg);
 
     void load_expiration_keys_from_db(int num);
+
+    void insertFastKey(const std::string &key, int64_t pexpireat_ms);
 };
 
 
