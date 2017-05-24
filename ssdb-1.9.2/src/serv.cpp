@@ -1150,7 +1150,7 @@ int proc_migrate(Context &ctx, Link *link, const Request &req, Response *resp) {
         buf1 = r.redisResponse();
         if (buf1 == nullptr || buf1->type == REDIS_REPLY_ERROR) {
             if (buf1 != nullptr) delete buf1;
-            reply_errinfo_return(buf1->str);
+            reply_errinfo_return(("Target instance replied with error: " + buf1->str));
         }
     }
 
@@ -1171,7 +1171,7 @@ int proc_migrate(Context &ctx, Link *link, const Request &req, Response *resp) {
         }
 
         if (buf2->type == REDIS_REPLY_ERROR) {
-            reply_errinfo_return(buf2->str);
+            reply_errinfo_return(("Target instance replied with error: " + buf2->str));
         } else {
             if (!copy) {
                 /* No COPY option: remove the local key, signal the change. */
