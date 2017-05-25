@@ -3177,7 +3177,10 @@ int processCommandMaybeInSSDB(client *c) {
                     return C_OK;
                 } else {
                     /* TODO: use a suitable timeout. */
-                    c->bpop.timeout = 5000 + mstime();
+                    if (c->cmd && c->cmd->proc == migrateCommand)
+                        c->bpop.timeout = 900000 + mstime();
+                    else
+                        c->bpop.timeout = 5000 + mstime();
                     blockClient(c, BLOCKED_VISITING_SSDB);
                 }
             }
