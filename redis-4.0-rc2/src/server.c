@@ -137,12 +137,15 @@ struct redisCommand redisCommandTable[] = {
     {"append",appendCommand,3,"wmJ",0,NULL,1,1,1,0,0},
     {"strlen",strlenCommand,2,"rFJ",0,NULL,1,1,1,0,0},
     /* in jdjr mode, we only support one key command */
-    //{"del",delCommand,-2,"wJ",0,NULL,1,-1,1,0,0},
+#ifdef RUN_MAKE_TEST
+    {"del",delCommand,-2,"wJ",0,NULL,1,-1,1,0,0},
+    {"unlink",unlinkCommand,-2,"wF",0,NULL,1,-1,1,0,0},
+    {"exists",existsCommand,-2,"rFJ",0,NULL,1,-1,1,0,0},
+#else
     {"del",delCommand,2,"wJ",0,NULL,1,1,1,0,0},
-    //{"unlink",unlinkCommand,-2,"wF",0,NULL,1,-1,1,0,0},
     {"unlink",unlinkCommand,2,"wF",0,NULL,1,1,1,0,0},
-    //{"exists",existsCommand,-2,"rFJ",0,NULL,1,-1,1,0,0},
     {"exists",existsCommand,2,"rFJ",0,NULL,1,1,1,0,0},
+#endif
     {"setbit",setbitCommand,4,"wmJ",0,NULL,1,1,1,0,0},
     {"getbit",getbitCommand,3,"rFJ",0,NULL,1,1,1,0,0},
     {"bitfield",bitfieldCommand,-2,"wm",0,NULL,1,1,1,0,0},
@@ -248,15 +251,20 @@ struct redisCommand redisCommandTable[] = {
     {"shutdown",shutdownCommand,-1,"alt",0,NULL,0,0,0,0,0},
     {"lastsave",lastsaveCommand,1,"RF",0,NULL,0,0,0,0,0},
     {"type",typeCommand,2,"rFJ",0,NULL,1,1,1,0,0},
-    //{"multi",multiCommand,1,"sF",0,NULL,0,0,0,0,0},
+#ifdef RUN_MAKE_TEST
+    {"multi",multiCommand,1,"sF",0,NULL,0,0,0,0,0},
+#endif
     {"exec",execCommand,1,"sM",0,NULL,0,0,0,0,0},
     {"discard",discardCommand,1,"sF",0,NULL,0,0,0,0,0},
     {"sync",syncCommand,1,"arsj",0,NULL,0,0,0,0,0},
     {"psync",syncCommand,3,"arsj",0,NULL,0,0,0,0,0},
     {"replconf",replconfCommand,-1,"aslt",0,NULL,0,0,0,0,0},
     /* for jdjr mode, we replace flushdb by flushall */
-    //{"flushdb",flushdbCommand,-1,"wJ",0,NULL,0,0,0,0,0},
+#ifdef RUN_MAKE_TEST
+    {"flushdb",flushdbCommand,-1,"wJ",0,NULL,0,0,0,0,0},
+#else
     {"flushdb",flushallCommand,-1,"wJ",0,NULL,0,0,0,0,0},
+#endif
     {"flushall",flushallCommand,-1,"wJ",0,NULL,0,0,0,0,0},
     {"sort",sortCommand,-2,"wm",0,sortGetKeys,1,1,1,0,0},
     {"info",infoCommand,-1,"lt",0,NULL,0,0,0,0,0},
@@ -275,8 +283,10 @@ struct redisCommand redisCommandTable[] = {
     {"punsubscribe",punsubscribeCommand,-1,"pslt",0,NULL,0,0,0,0,0},
     {"publish",publishCommand,3,"pltF",0,NULL,0,0,0,0,0},
     {"pubsub",pubsubCommand,-2,"pltR",0,NULL,0,0,0,0,0},
-    //{"watch",watchCommand,-2,"sF",0,NULL,1,-1,1,0,0},
-    //{"unwatch",unwatchCommand,1,"sF",0,NULL,0,0,0,0,0},
+#ifdef RUN_MAKE_TEST
+    {"watch",watchCommand,-2,"sF",0,NULL,1,-1,1,0,0},
+    {"unwatch",unwatchCommand,1,"sF",0,NULL,0,0,0,0,0},
+#endif
     {"cluster",clusterCommand,-2,"a",0,NULL,0,0,0,0,0},
     {"restore",restoreCommand,-4,"wmJ",0,NULL,1,1,1,0,0},
     // todo: support migrate and restore-asking(?)
@@ -2759,7 +2769,7 @@ int checkKeysInMediateState(client* c) {
         keyobjs[j] = c->argv[keys[j]];
 
     /* TODO: use a suitable timeout */
-    blockednum = blockForLoadingkeys(c, keyobjs, numkeys, 5000 + mstime());
+    blockednum = blockForLoadingkeys(c, keyobjs, numkeys, 15000 + mstime());
 
     if (numkeys && keyobjs) zfree(keyobjs);
     if (keys) getKeysFreeResult(keys);
