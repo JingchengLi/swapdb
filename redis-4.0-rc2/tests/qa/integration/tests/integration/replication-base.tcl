@@ -41,6 +41,7 @@ start_server {tags {"repl"}} {
             } else {
                 fail "Can't turn the instance into a slave"
             }
+            wait_for_online $B
         }
 
         test {Slave A is identical with Master B} {

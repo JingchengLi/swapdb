@@ -19,6 +19,35 @@ start_server {tags {"ssdb"}} {
     }
 }
 
+start_server {tags {"ssdb"}} {
+    set master [srv client]
+    set master_host [srv host]
+    set master_port [srv port]
+    $master set foo bar
+    start_server {} {
+        set slave [srv client]
+        foreach flush $allflush {
+            test "#issue $flush disconnect master-slave link" {
+                $slave slaveof $master_host $master_port
+                # wait_for_online $master
+                wait_for_condition 50 100 {
+                    {bar} == [$slave get foo]
+                } else {
+                    fail "SET on master did not propagated on slave"
+                }
+                $master $flush
+                wait_for_condition 30 100 {
+                    [$slave debug digest] == 0000000000000000000000000000000000000000
+                } else {
+                    fail "Digest not null:slave([$slave debug digest]) after too long time."
+                }
+                assert_equal 0 [s -1 sync_partial_ok] "no partial sync"
+                assert_equal 1 [s -1 sync_full] "only one full sync"
+            }
+        }
+    }
+}
+
 start_server {tags {"ssdb"}
 overrides {maxmemory 0}} {
     foreach flush $allflush {
