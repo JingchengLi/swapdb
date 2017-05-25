@@ -2836,6 +2836,8 @@ int processCommandMaybeFlushdb(client *c) {
             ret = blockAndFlushSlaveSSDB(c);
             if (ret != C_OK) return ret;
 
+            serverLog(LL_DEBUG, "send ssdb flushall success, server.master client is blocked");
+
             ln = listFirst(server.ssdb_write_oplist);
             op = ln->value;
             serverLog(LL_DEBUG, "[REPOPID]redis send %s(op time:%ld, op id:%d) to ssdb success",
@@ -3640,8 +3642,15 @@ int processCommand(client *c) {
     if (server.jdjr_mode && (c->cmd->proc == flushallCommand || c->cmd->proc == flushdbCommand)) {
         ret = processCommandMaybeFlushdb(c);
         if (c == server.master) {
-            c->argv = NULL;
-            return C_OK;
+            if (C_OK == ret) {
+                /* we are blocked by flushall, return C_ERR to keep client info and handle it later. */
+                return C_ERR;
+            } else {
+                /* when ssdb connection is disconnected, the c->argv pointer is already saved
+                 * in server.write_op_list, avoid it to be freed by resetClient. */
+                c->argv = NULL;
+                return C_OK;
+            }
         } else {
             if (C_OK == ret) {
                 /* Return C_ERR to keep client info and handle it later. */

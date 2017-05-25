@@ -1185,11 +1185,15 @@ int handleResponseOfSlaveSSDBflush(client *c, redisReply* reply) {
             serverAssert(2 == ret);
             if (resp_op_time == op->time && resp_op_index == op->index) {
                 /* this is the response of 'flushall' */
-                serverLog(LL_DEBUG, "this is the response of 'flushall'");
                 unblockClient(c);
+                serverLog(LL_DEBUG, "received ssdb flushall response, server.master client is unblocked");
                 if (IsReplyEqual(reply, shared.flushdoneok)){
                     /* we receive flushall response of SSDB, now we can empty redis.*/
                     flushallCommand(c);
+                    /* the pointer of c->argv is used by server.ssdb_write_oplist when call
+                     * saveSlaveSSDBwriteOp in processCommandMaybeFlushdb, set it to NULL to
+                     * avoid double-free. */
+                    c->argv = NULL;
                     resetClient(c);
                     /* flushall success, we can remove it from ssdb_write_oplist. */
                     listDelNode(server.ssdb_write_oplist, ln);
