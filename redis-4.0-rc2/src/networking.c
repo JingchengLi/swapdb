@@ -1793,6 +1793,7 @@ void handleSSDBReply(client *c, int revert_len) {
         char buf[32];
         dictEntry *de = dictFind(EVICTED_DATA_DB->dict, keyobj->ptr);
         int restoreportok = 0;
+        redisDb *olddb;
         serverAssert(keyobj && de);
 
         /* Restore the port argument. */
@@ -1831,7 +1832,10 @@ void handleSSDBReply(client *c, int revert_len) {
 
             revertClientBufReply(c, revert_len);
             /* TODO: handle migrate exec succeeded in ssdb, however fail in the target redis. */
+            olddb = c->db;
+            c->db = EVICTED_DATA_DB;
             migrateCommand(c);
+            c->db = olddb;
         }
     }
 
