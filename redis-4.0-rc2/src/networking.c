@@ -1440,6 +1440,8 @@ int handleResponseOfDelSnapshot(client *c, redisReply* reply) {
 
 int handleResponseTimeoutOfTransferSnapshot(struct aeEventLoop *eventLoop, long long id, void *clientData) {
     client* c = clientData;
+    UNUSED(eventLoop);
+    UNUSED(id);
 
     c->repl_timer_id = -1;
     if (c->ssdb_status == SLAVE_SSDB_SNAPSHOT_TRANSFER_PRE)
@@ -1541,7 +1543,7 @@ int handleResponseOfDeleteCheckConfirm(client *c) {
 
 void checkSSDBkeyIsDeleted(char* check_reply, struct redisCommand* cmd, int argc, robj** argv) {
     int *indexs = NULL;
-    int numkeys = 0, j;
+    int numkeys = 0;
     sds key;
     if (!check_reply && !strcmp(check_reply, "check 1")) {
         if (cmd->proc == delCommand)
@@ -1583,7 +1585,6 @@ int handleExtraSSDBReply(client *c) {
         int repopid_index;
         struct ssdb_write_op* op;
         listNode *ln;
-        listIter *li;
         int ret;
 
         element1 = reply->element[1];
@@ -1783,7 +1784,6 @@ void handleSSDBReply(client *c, int revert_len) {
         robj *keyobj = c->argv[3];
         robj *keydbid = c->argv[4];
         char buf[32];
-        redisDb *olddb = NULL;
         dictEntry *de = dictFind(EVICTED_DATA_DB->dict, keyobj->ptr);
         int restoreportok = 0;
         serverAssert(keyobj && de);
@@ -1798,7 +1798,7 @@ void handleSSDBReply(client *c, int revert_len) {
                 ll2string(buf, 32, ptnum);
                 c->argv[2] = createEmbeddedStringObject(buf, strlen(buf));
                 restoreportok = 1;
-                serverLog(LL_DEBUG, "migrate restore port to %s", c->argv[2]->ptr);
+                serverLog(LL_DEBUG, "migrate restore port to %s", (char *)c->argv[2]->ptr);
             } else
                 serverLog(LL_WARNING, "migrate port error.");
         }
@@ -1819,7 +1819,7 @@ void handleSSDBReply(client *c, int revert_len) {
                 decrRefCount(keydbid);
                 ll2string(buf, 32, EVICTED_DATA_DBID);
                 c->argv[4] = createEmbeddedStringObject(buf, strlen(buf));
-                serverLog(LL_DEBUG, "migrate adjust dbid to %s", c->argv[4]->ptr);
+                serverLog(LL_DEBUG, "migrate adjust dbid to %s", (char *)c->argv[4]->ptr);
             }
 
             revertClientBufReply(c, revert_len);
@@ -2113,12 +2113,9 @@ void unlinkClient(client *c) {
 
         /* Remove from the new added lists in jdjr-mode. */
         if (server.jdjr_mode) {
-            listIter li;
-            client *tmpc;
             dictIterator *di;
             dictEntry *de;
             robj *keyobj;
-            list *l;
 
             ln = listSearchKey(server.ssdb_flushall_blocked_clients, c);
             if (ln) listDelNode(server.ssdb_flushall_blocked_clients, ln);

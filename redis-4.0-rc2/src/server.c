@@ -903,7 +903,7 @@ void reconnectSSDB() {
         nonBlockConnectToSsdbServer(server.ssdb_replication_client);
 
     listRewind(server.clients, &li);
-    while (ln = listNext(&li)) {
+    while ((ln = listNext(&li))) {
         client *c = listNodeValue(ln);
         if (c->ssdb_conn_flags & CONN_CONNECT_FAILED) {
             nonBlockConnectToSsdbServer(c);
@@ -2882,7 +2882,6 @@ void freeSSDBwriteOp(struct ssdb_write_op* op) {
 }
 
 void emptySlaveSSDBwriteOperations() {
-    struct ssdb_write_op* op;
     listIter li;
     listNode *ln;
 
@@ -2917,7 +2916,7 @@ int confirmAndRetrySlaveSSDBwriteOp(time_t time, int index) {
     struct ssdb_write_op* op;
     listIter li;
     listNode *ln;
-    int impossible = 1, found = 0;
+    int impossible = 1;
     int ret = C_OK;
 
     if (time == -1 && index == -1)
@@ -2943,7 +2942,6 @@ int confirmAndRetrySlaveSSDBwriteOp(time_t time, int index) {
                     /* this write op was successful commited on SSDB, we can remove it from the list. */
                     listDelNode(server.ssdb_write_oplist, ln);
                 } else {
-                    found = 1;
                     /* we have found the write op saved by server.blocked_write_op, server.master is
                      * unblocked now and we can go on. */
                     ret = runCommandSlaveFailedRetry(server.master, op);
@@ -3143,7 +3141,7 @@ int processCommandMaybeInSSDB(client *c) {
                         decrRefCount(c->argv[2]);
                         ll2string(buf, 32, ptnum);
                         c->argv[2] = createEmbeddedStringObject(buf, strlen(buf));
-                        serverLog(LL_DEBUG, "migrate adjust port to %s", c->argv[2]->ptr);
+                        serverLog(LL_DEBUG, "migrate adjust port to %s", (char *)c->argv[2]->ptr);
                     }
                 } else {
                     addReplyError(c, "migrate port error");

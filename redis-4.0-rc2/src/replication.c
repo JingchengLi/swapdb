@@ -2801,10 +2801,9 @@ void replicationCron(void) {
             && (server.ssdb_status == MASTER_SSDB_SNAPSHOT_OK)
             && (slave->ssdb_status == SLAVE_SSDB_SNAPSHOT_TRANSFER_PRE)) {
             char buf[64];
-            int len;
             char * argv[3];
 
-            len = ll2string(buf, 64, slave->slave_listening_port + SSDB_SLAVE_PORT_INCR);
+            ll2string(buf, 64, slave->slave_listening_port + SSDB_SLAVE_PORT_INCR);
 
             argv[0] = "rr_transfer_snapshot";
             argv[1] = slave->client_ip;

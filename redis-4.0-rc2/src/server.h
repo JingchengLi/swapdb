@@ -1771,6 +1771,7 @@ int blockForLoadingkeys(client *c, robj **keys, int numkeys, mstime_t timeout);
 void handleClientsBlockedOnSSDB(void);
 void handleClientsBlockedOnCustomizedPsync(void);
 void handleClientsBlockedOnFlushall(void);
+void handleClientsBlockedOnMigrate(void);
 void handleLoadAndEvictCmdInSlave(void);
 void prepareSSDBreplication(client* slave);
 int tryEvictingKeysToSSDB(int *mem_tofree);

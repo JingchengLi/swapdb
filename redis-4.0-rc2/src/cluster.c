@@ -4319,8 +4319,8 @@ void clusterCommand(client *c) {
         /* If the instance is currently a master, it should have no assigned
          * slots nor keys to accept to replicate some other node.
          * Slaves can switch to another master without issues. */
-        if (nodeIsMaster(myself) &&
-            (myself->numslots != 0 || dictSize(server.db[0].dict) != 0) ||
+        if ((nodeIsMaster(myself) &&
+             (myself->numslots != 0 || dictSize(server.db[0].dict) != 0)) ||
                 (server.jdjr_mode && (dictSize(server.db[0].dict)+dictSize(EVICTED_DATA_DB->dict)) != 0)) {
             addReplyError(c,
                 "To set a master the node must be empty and "
@@ -5127,7 +5127,7 @@ void migrateCommand(client *c) {
 
     for (j = 0; j < num_keys; j++) {
         if ((ov[oi] = lookupKeyRead(c->db,c->argv[first_key+j])) != NULL
-            || server.jdjr_mode && (ov[oi] = lookupKeyRead(EVICTED_DATA_DB, c->argv[first_key + j]))) {
+            || (server.jdjr_mode && (ov[oi] = lookupKeyRead(EVICTED_DATA_DB, c->argv[first_key + j])))) {
             kv[oi] = c->argv[first_key+j];
             oi++;
         }
