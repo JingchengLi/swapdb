@@ -110,6 +110,7 @@ proc test {name code {okpattern undefined}} {
             send_data_packet $::test_server_fd ok $name
         } else {
             set msg "Expected '$okpattern' to equal or match '$retval'"
+            catch {error $msg} err ;# just to wait for debug when --debug.
             lappend details $msg
             lappend ::tests_failed $details
 
