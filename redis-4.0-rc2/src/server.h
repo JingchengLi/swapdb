@@ -2189,7 +2189,7 @@ void slaveDelCommand(client *c);
 void dumpfromssdbCommand(client *c);
 int prologOfEvictingToSSDB(robj *keyobj, redisDb *db);
 int prologOfLoadingFromSSDB(client* c, robj *keyobj);
-void removeVisitingSSDBKey(struct redisCommand *cmd, int argc, robj** argv);
+int removeVisitingSSDBKey(struct redisCommand *cmd, int argc, robj** argv);
 void handleCustomizedBlockedClients();
 void removeClientFromListForBlockedKey(client* c, robj* key);
 void sendDelSSDBsnapshot();

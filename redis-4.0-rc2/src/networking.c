@@ -1516,8 +1516,7 @@ int handleResponseOfTransferSnapshot(client *c, redisReply* reply) {
 int handleResponseOfDeleteCheckConfirm(client *c) {
     redisReply *reply = c->ssdb_replies[0];
 
-    if (reply->type == REDIS_REPLY_INTEGER
-        && reply->integer == 0) {
+    if (reply->type == REDIS_REPLY_INTEGER && reply->integer == 0) {
         robj *argv[2] = {createStringObject("del", 3), c->argv[1]};
 
         /* the keys is not exist in ssdb, delete its key index in redis. */
@@ -1531,6 +1530,11 @@ int handleResponseOfDeleteCheckConfirm(client *c) {
         propagate(lookupCommandByCString("del"), 0, argv, 2, PROPAGATE_REPL | PROPAGATE_AOF);
         serverLog(LL_DEBUG, "propagate key: %s to slave", (char *)c->argv[1]->ptr);
         decrRefCount(argv[0]);
+    } else if (reply->type == REDIS_REPLY_INTEGER && reply->integer == 1) {
+        serverLog(LL_DEBUG, "key: %s exists in ssdb", (char *)c->argv[1]->ptr);
+    } else {
+        /* response content is wrong. */
+        serverLog(LL_WARNING, "[!!!]delete-confirm response content is wrong.");
     }
 
     serverAssert(dictDelete(EVICTED_DATA_DB->delete_confirm_keys, c->argv[1]->ptr) == DICT_OK);
@@ -1545,10 +1549,8 @@ void checkSSDBkeyIsDeleted(char* check_reply, struct redisCommand* cmd, int argc
     int *indexs = NULL;
     int numkeys = 0;
     sds key;
-    if (!check_reply && !strcmp(check_reply, "check 1")) {
-        if (cmd->proc == delCommand)
-            return;
 
+    if (check_reply && !strcmp(check_reply, "check 1")) {
         indexs = getKeysFromCommand(cmd, argv, argc, &numkeys);
 
         key = argv[indexs[0]]->ptr;
@@ -1617,10 +1619,13 @@ int handleExtraSSDBReply(client *c) {
         }
 
         if (repopid_index == op->index && repopid_time == op->time) {
-            checkSSDBkeyIsDeleted(element0->str, op->cmd, op->argc, op->argv);
             serverLog(LL_DEBUG, "[REPOPID]ssdb process %s(op time:%ld, op id:%d) success,"
                     " remove from write op list", op->cmd->name, op->time, op->index);
-            removeVisitingSSDBKey(op->cmd, op->argc, op->argv);
+            /* for server.master connection of slave, we check whether the key is deleted when
+             * there are no other write commands on this key, that is to say, when this key is
+             * removed from visiting_ssdb_keys)*/
+            if (removeVisitingSSDBKey(op->cmd, op->argc, op->argv))
+                checkSSDBkeyIsDeleted(element0->str, op->cmd, op->argc, op->argv);
             listDelNode(server.ssdb_write_oplist, ln);
         } else {
             serverLog(LL_WARNING, "repopid time/index don't match the first in server.ssdb_write_oplist");
@@ -1697,12 +1702,15 @@ int handleResponseOfReplicationConn(client* c, redisReply* reply) {
     return C_OK;
 }
 
-void removeVisitingSSDBKey(struct redisCommand *cmd, int argc, robj** argv) {
+int removeVisitingSSDBKey(struct redisCommand *cmd, int argc, robj** argv) {
     int *keys = NULL, numkeys = 0, j;
+    int removed = 0;
 
     if ( (cmd->flags & (CMD_READONLY | CMD_WRITE)) &&
          (cmd->flags & CMD_JDJR_MODE) ) {
         keys = getKeysFromCommand(cmd, argv, argc, &numkeys);
+        /* in jdjr_mode, we only support one key command. */
+        serverAssert(1 == numkeys);
 
         for (j = 0; j < numkeys; j ++) {
             robj* key = argv[keys[j]];
@@ -1713,20 +1721,23 @@ void removeVisitingSSDBKey(struct redisCommand *cmd, int argc, robj** argv) {
                 /* only this client is visiting the specified key, remove the key
                  * from visiting keys. */
                 dictDelete(EVICTED_DATA_DB->visiting_ssdb_keys, key->ptr);
-                /* if this key is in server.hot_keys, load it to redis immediately. */
+                /* if this key is in server.hot_keys, load it to redis immediately. for master only. */
                 if (dictFind(server.hot_keys, key->ptr))
                     loadThisKeyImmediately(key->ptr);
                 serverLog(LL_DEBUG, "key: %s is deleted from visiting_ssdb_keys.", (char *) key->ptr);
+                removed = 1;
             } else {
                 /* there are other clients visiting the specified key, just reduce the visiting
                  * clients num by 1. */
                 clients_visiting_num--;
                 dictSetUnsignedIntegerVal(entry, clients_visiting_num);
+                removed = 0;
             }
         }
 
         if (keys) getKeysFreeResult(keys);
     }
+    return removed;
 }
 
 int isSpecialConnection(client *c) {
@@ -1763,20 +1774,6 @@ void handleSSDBReply(client *c, int revert_len) {
             resetClient(c);
         }
         return;
-    }
-
-    /* Maintain the EVICTED_DATA_DB. */
-    if (c->cmd && (c->cmd->proc == delCommand)) {
-        if (c->btype != BLOCKED_VISITING_SSDB)
-            serverLog(LL_WARNING, "Client btype should be 'BLOCKED_VISITING_SSDB'");
-
-        for (j = 1; j < c->argc; j ++) {
-            propagateExpire(EVICTED_DATA_DB, c->argv[j], server.lazyfree_lazy_eviction);
-            if (server.lazyfree_lazy_eviction)
-                dbAsyncDelete(EVICTED_DATA_DB, c->argv[j]);
-            else
-                dbSyncDelete(EVICTED_DATA_DB, c->argv[j]);
-        }
     }
 
     if (c->cmd && c->cmd->proc == migrateCommand) {

@@ -1521,17 +1521,22 @@ void handleDeleteConfirmKeys(void) {
         server.delete_confirm_client->cmd = lookupCommandByCString("exists");
 
         if (C_OK != sendCommandToSSDB(server.delete_confirm_client, NULL)) {
+            /* server.delete_confirm_client->argv will be freed in freeClient */
             break;
         }
-
-        dictDelete(server.maybe_deleted_ssdb_keys, de->key);
-        dictAddOrFind(EVICTED_DATA_DB->delete_confirm_keys, de->key);
-        serverLog(LL_DEBUG, "start to confirm with ssdb whether key: %s is deleted", (sds)de->key);
 
         /* TODO: use a suitable timeout. */
         server.delete_confirm_client->bpop.timeout = 2000 + mstime();
         blockClient(server.delete_confirm_client, BLOCKED_BY_DELETE_CONFIRM);
         /* we are blocked to wait ssdb's response for this key, can't continue and just break this loop. */
+
+
+        dictAddOrFind(EVICTED_DATA_DB->delete_confirm_keys, de->key);
+        serverLog(LL_DEBUG, "start to confirm with ssdb whether key: %s is deleted", (sds)de->key);
+
+        /* to avoid access null pointer, we must delete the key from dict at the last line.*/
+        dictDelete(server.maybe_deleted_ssdb_keys, de->key);
+        /* !!! the memory of 'de' pointer is free now. don't use it after this */
         break;
     }
     dictReleaseIterator(di);
