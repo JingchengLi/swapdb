@@ -63,7 +63,7 @@ set ::verbose 0
 set ::quiet 0
 set ::denytags {}
 set ::allowtags {}
-set ::external 1; # If "1" this means, we are running against external instance
+set ::external 0; # If "1" this means, we are running against external instance
 set ::file ""; # If set, runs only the tests in this comma separated list
 set ::curfile ""; # Hold the filename of the current suite
 set ::accurate 0; # If true runs fuzz tests with more iterations

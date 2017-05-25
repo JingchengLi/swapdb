@@ -4,7 +4,7 @@ set ::valgrind_errors {}
 
 proc start_server_error {config_file error} {
     set err {}
-    append err "Cant' start the Redis server\n"
+    append err "Cant' start the SSDB server\n"
     append err "CONFIGURATION:"
     append err [exec cat $config_file]
     append err "\nERROR:"
@@ -94,7 +94,7 @@ proc ping_server {host port} {
     if {[catch {
         set fd [socket $host $port]
         fconfigure $fd -translation binary
-        puts $fd "PING\r\n"
+        puts $fd "*1\r\n\$4\r\nping\r\n"
         flush $fd
         set reply [gets $fd]
         if {[string range $reply 0 0] eq {+} ||
@@ -157,7 +157,7 @@ proc start_server {options {code undefined}} {
     }
 
     # setup defaults
-    set baseconfig "default.conf"
+    set baseconfig "ssdb_default.conf"
     set overrides {}
     set tags {}
 
@@ -176,17 +176,6 @@ proc start_server {options {code undefined}} {
         }
     }
 
-    set data [split [exec cat "tests/assets/$baseconfig"] "\n"]
-    set config {}
-    foreach line $data {
-        if {[string length $line] > 0 && [string index $line 0] ne "#"} {
-            set elements [split $line " "]
-            set directive [lrange $elements 0 0]
-            set arguments [lrange $elements 1 end]
-            dict set config $directive $arguments
-        }
-    }
-
     # use a different directory every time a server is started
     dict set config dir [tmpdir server]
 
@@ -194,24 +183,23 @@ proc start_server {options {code undefined}} {
     set ::port [find_available_port [expr {$::port+1}]]
     dict set config port $::port
 
-    # apply overrides from global space and arguments
-    foreach {directive arguments} [concat $::global_overrides $overrides] {
-        dict set config $directive $arguments
-    }
+    set workdir [dict get $config dir]
+    set workdir [string range $workdir 12 end]
+    set ssdbport [expr $::port]
 
-    # write new configuration to temporary file
-    set config_file [tmpfile redis.conf]
+    set data [exec cat "tests/assets/$baseconfig"]
+    set config_file [tmpfile ssdb.conf]
     set fp [open $config_file w+]
-    foreach directive [dict keys $config] {
-        puts -nonewline $fp "$directive "
-        puts $fp [dict get $config $directive]
-    }
+    set data [regsub -all {{work_dir}} $data $workdir]
+    set data [regsub -all {{ssdbport}} $data $ssdbport]
+    set data [regsub -all {{redisport}} $data $::port]
+    puts $fp $data
     close $fp
 
     set stdout [format "%s/%s" [dict get $config "dir"] "stdout"]
     set stderr [format "%s/%s" [dict get $config "dir"] "stderr"]
 
-    set pid [exec output/bin/r2m_proxy /home/zts/IdeaProjects/redis-cluster-proxy/config/setting_timothy.ini > $stdout 2> $stderr &]
+    set pid [exec ssdb-server $config_file > $stdout 2> $stderr &]
 
     # Tell the test server about this new instance.
     send_data_packet $::test_server_fd server-spawned $pid
@@ -225,7 +213,7 @@ proc start_server {options {code undefined}} {
     }
 
     if {$code ne "undefined"} {
-        set serverisup [server_is_up $::host $::port $retrynum]
+        set serverisup [server_is_up $::host $ssdbport $retrynum]
     } else {
         set serverisup 1
     }
@@ -243,7 +231,7 @@ proc start_server {options {code undefined}} {
 
     # Wait for actual startup
     while {![info exists _pid]} {
-        regexp {PID:\s(\d+)} [exec cat $stdout] _ _pid
+        regexp {pid:\s(\d+)} [exec cat $stdout] _ _pid
         after 100
     }
 
@@ -272,7 +260,7 @@ proc start_server {options {code undefined}} {
 
         while 1 {
             # check that the server actually started and is ready for connections
-            if {[exec grep "ready to accept" | wc -l < $stdout] > 0} {
+            if {[exec grep "ssdb server started." | wc -l < $stdout] > 0} {
                 break
             }
             after 10
