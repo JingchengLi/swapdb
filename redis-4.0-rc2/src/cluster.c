@@ -5126,7 +5126,8 @@ void migrateCommand(client *c) {
     int oi = 0;
 
     for (j = 0; j < num_keys; j++) {
-        if ((ov[oi] = lookupKeyRead(c->db,c->argv[first_key+j])) != NULL) {
+        if ((ov[oi] = lookupKeyRead(c->db,c->argv[first_key+j])) != NULL
+            || server.jdjr_mode && (ov[oi] = lookupKeyRead(EVICTED_DATA_DB, c->argv[first_key + j]))) {
             kv[oi] = c->argv[first_key+j];
             oi++;
         }
@@ -5171,8 +5172,13 @@ try_again:
         if (server.cluster_enabled)
             serverAssertWithInfo(c,NULL,
                 rioWriteBulkString(&cmd,"RESTORE-ASKING",14));
-        else
-            serverAssertWithInfo(c,NULL,rioWriteBulkString(&cmd,"RESTORE",7));
+        else {
+            if (server.jdjr_mode)
+                serverAssertWithInfo(c,NULL,rioWriteBulkString(&cmd,"RESTORESSDBKEY",14));
+            else
+                serverAssertWithInfo(c,NULL,rioWriteBulkString(&cmd,"RESTORE",7));
+        }
+
         serverAssertWithInfo(c,NULL,sdsEncodedObject(kv[j]));
         serverAssertWithInfo(c,NULL,rioWriteBulkString(&cmd,kv[j]->ptr,
                 sdslen(kv[j]->ptr)));

@@ -1779,22 +1779,52 @@ void handleSSDBReply(client *c, int revert_len) {
     }
 
     if (c->cmd && c->cmd->proc == migrateCommand) {
+        robj *port = c->argv[2];
         robj *keyobj = c->argv[3];
         robj *keydbid = c->argv[4];
+        char buf[32];
+        redisDb *olddb = NULL;
         dictEntry *de = dictFind(EVICTED_DATA_DB->dict, keyobj->ptr);
+        int restoreportok = 0;
         serverAssert(keyobj && de);
+
+        /* Restore the port argument. */
+        if (port && port->type == OBJ_STRING
+            && port->encoding == OBJ_ENCODING_EMBSTR) {
+            long long ptnum = 0;
+            if (isObjectRepresentableAsLongLong(port, &ptnum) == C_OK) {
+                ptnum -= SSDB_SLAVE_PORT_INCR;
+                decrRefCount(port);
+                ll2string(buf, 32, ptnum);
+                c->argv[2] = createEmbeddedStringObject(buf, strlen(buf));
+                restoreportok = 1;
+                serverLog(LL_DEBUG, "migrate restore port to %s", c->argv[2]->ptr);
+            } else
+                serverLog(LL_WARNING, "migrate port error.");
+        }
+
+        if (!restoreportok) {
+            revertClientBufReply(c, revert_len);
+            addReplyError(c, "migrate port error");
+        }
 
         if (c->btype != BLOCKED_VISITING_SSDB)
             serverLog(LL_WARNING, "Client btype should be 'BLOCKED_VISITING_SSDB'");
-        if (reply && reply->type == REDIS_REPLY_STRING
+
+        if (reply && reply->type == REDIS_REPLY_STATUS
+            && restoreportok
             && !strcasecmp(reply->str, "OK")) {
             if (keydbid && keydbid->type == OBJ_STRING
-                && keydbid->encoding == OBJ_ENCODING_INT) {
-                revertClientBufReply(c, revert_len);
-                keydbid->ptr = EVICTED_DATA_DBID;
-                unblockClient(c);
-                migrateCommand(c);
+                && keydbid->encoding == OBJ_ENCODING_EMBSTR) {
+                decrRefCount(keydbid);
+                ll2string(buf, 32, EVICTED_DATA_DBID);
+                c->argv[4] = createEmbeddedStringObject(buf, strlen(buf));
+                serverLog(LL_DEBUG, "migrate adjust dbid to %s", c->argv[4]->ptr);
             }
+
+            revertClientBufReply(c, revert_len);
+            /* TODO: handle migrate exec succeeded in ssdb, however fail in the target redis. */
+            migrateCommand(c);
         }
     }
 
@@ -2097,8 +2127,10 @@ void unlinkClient(client *c) {
             if (ln) listDelNode(server.no_writing_ssdb_blocked_clients, ln);
 
             ln = listSearchKey(server.delayed_migrate_clients, c);
-            if (ln) listDelNode(server.delayed_migrate_clients, ln);
-            serverLog(LL_DEBUG, "client migrate list del: %ld", (long)c);
+            if (ln) {
+                listDelNode(server.delayed_migrate_clients, ln);
+                serverLog(LL_DEBUG, "client migrate list del: %ld", (long)c);
+            }
 
             di = dictGetSafeIterator(server.db->ssdb_blocking_keys);
             while((de = dictNext(di))) {

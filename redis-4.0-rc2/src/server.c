@@ -323,6 +323,7 @@ struct redisCommand redisCommandTable[] = {
     {"storetossdb",storetossdbCommand,-2,"wj",0,NULL,1,1,1,0,0},
     {"dumpfromssdb",dumpfromssdbCommand,2,"wj",0,NULL,1,1,1,0,0},
     {"locatekey",locatekeyCommand,2,"rj",0,NULL,1,1,1,0,0},
+    {"restoressdbkey",restoreCommand,-4,"wmj",0,NULL,1,1,1,0,0},
 };
 
 /*============================ Utility functions ============================ */
@@ -3083,22 +3084,6 @@ int processCommandMaybeInSSDB(client *c) {
     if (c->argc <= 1 || !dictFind(EVICTED_DATA_DB->dict, keyobj->ptr))
         return C_ERR;
 
-    /* Handle the exception caused by restart redis,
-       due to the async operations between SSDB. */
-    if (dictFind(c->db->dict, keyobj->ptr)) {
-        propagateExpire(EVICTED_DATA_DB, keyobj, server.lazyfree_lazy_eviction);
-        if (server.lazyfree_lazy_eviction)
-            dbAsyncDelete(EVICTED_DATA_DB, keyobj);
-        else
-            dbSyncDelete(EVICTED_DATA_DB, keyobj);
-
-        /* Undo the slotToKeyDel in dbAsyncDelete or dbSyncDelete. */
-        if (server.cluster_enabled) slotToKeyAdd(keyobj);
-
-        /* Exec the cmd in redis. */
-        return C_ERR;
-    }
-
     /* prohibit write operations to SSDB when replication,
      *
      * Note: we also can have slaves if this server is a slave. */
@@ -3145,6 +3130,27 @@ int processCommandMaybeInSSDB(client *c) {
                 }
             }
             serverAssert(c->argv);
+
+            if (c->cmd->proc == migrateCommand) {
+                /* Adjust the port argument. */
+                robj *port = c->argv[2];
+                if (port && port->type == OBJ_STRING
+                    && port->encoding == OBJ_ENCODING_EMBSTR) {
+                    long long ptnum = 0;
+                    char buf[32];
+                    if (isObjectRepresentableAsLongLong(port, &ptnum) == C_OK) {
+                        ptnum += SSDB_SLAVE_PORT_INCR;
+                        decrRefCount(c->argv[2]);
+                        ll2string(buf, 32, ptnum);
+                        c->argv[2] = createEmbeddedStringObject(buf, strlen(buf));
+                        serverLog(LL_DEBUG, "migrate adjust port to %s", c->argv[2]->ptr);
+                    }
+                } else {
+                    addReplyError(c, "migrate port error");
+                    return C_OK;
+                }
+            }
+
             int ret = sendCommandToSSDB(c, NULL);
             if (ret != C_OK) {
                 /* avoid to reset c->argv for the replication connection of slave redis. we use it to save

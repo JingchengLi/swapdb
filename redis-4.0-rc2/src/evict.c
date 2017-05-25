@@ -1067,7 +1067,7 @@ void handleClientsBlockedOnSSDB(void) {
 
             /* We serve clients in the same order they blocked for
              * this key, from the first blocked to the last. */
-            de = dictFind(rl->db->ssdb_blocking_keys,rl->key);
+            de = dictFind(server.db->ssdb_blocking_keys,rl->key);
             if (de) {
                 list *clients = dictGetVal(de);
                 int numclients = listLength(clients);
@@ -1138,7 +1138,7 @@ void signalBlockingKeyAsReady(redisDb *db, robj *key) {
     readyList *rl;
 
     /* No clients blocking for this key? No need to queue it. */
-    if (dictFind(db->ssdb_blocking_keys,key) == NULL) return;
+    if (dictFind(server.db->ssdb_blocking_keys,key) == NULL) return;
 
     /* Key was already signaled? No need to queue it again. */
     if (dictFind(db->ssdb_ready_keys,key) != NULL) return;
@@ -1184,12 +1184,12 @@ int blockForLoadingkeys(client *c, robj **keys, int numkeys, mstime_t timeout) {
 
             incrRefCount(keys[j]);
 
-            de = dictFind(c->db->ssdb_blocking_keys, keys[j]);
+            de = dictFind(server.db->ssdb_blocking_keys, keys[j]);
             if (de == NULL) {
                 int retval;
 
                 l = listCreate();
-                retval = dictAdd(c->db->ssdb_blocking_keys, keys[j], l);
+                retval = dictAdd(server.db->ssdb_blocking_keys, keys[j], l);
                 serverLog(LL_DEBUG, "key: %s is added to ssdb_blocking_keys.",
                           (char *)keys[j]->ptr);
                 incrRefCount(keys[j]);
