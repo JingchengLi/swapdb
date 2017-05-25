@@ -436,6 +436,17 @@ int proc_debug(Context &ctx, Link *link, const Request &req, Response *resp) {
 
     if (action == "segfault") {
         *((char *) -1) = 'x';
+    } else if (action == "sleep") {
+        CHECK_NUM_PARAMS(3);
+        double dtime = req[2].Double();
+
+        long long utime = dtime*1000000;
+        struct timespec tv;
+
+        tv.tv_sec = utime / 1000000;
+        tv.tv_nsec = (utime % 1000000) * 1000;
+        nanosleep(&tv, NULL);
+
     } else if (action == "digest") {
 
         std::string res;
@@ -1177,7 +1188,7 @@ int proc_migrate(Context &ctx, Link *link, const Request &req, Response *resp) {
        * Just signal the problem to the client, but only do it if we don't
        * already queued a different error reported by the destination server. */
     if (socket_error) {
-        reply_errinfo_return("ERR write to remote server failed");
+        reply_errinfo_return("IOERR error or timeout to target instance");
     }
 
      /* Success! Update the last_dbid in migrateCachedSocket, so that we can
