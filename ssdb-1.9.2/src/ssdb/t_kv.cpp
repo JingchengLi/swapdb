@@ -70,9 +70,11 @@ int SSDBImpl::GetKvMetaVal(const std::string &meta_key, KvMetaVal &kv) {
 }
 
 int SSDBImpl::SetGeneric(Context &ctx, const Bytes &key, leveldb::WriteBatch &batch, const Bytes &val, int flags, const int64_t expire_ms, int *added){
-	if (expire_ms < 0){
-		return INVALID_EX_TIME; //NOT USED
-	}
+    if (flags & OBJ_SET_EX || flags & OBJ_SET_PX) {
+        if (expire_ms <= 0){
+            return INVALID_EX_TIME; //NOT USED
+        }
+    }
 
     std::string meta_key = encode_meta_key(key);
     std::string meta_val;
@@ -939,7 +941,7 @@ int SSDBImpl::restore(Context &ctx, const Bytes &key, int64_t expire, const Byte
             }
 
             int added = 0;
-            ret = this->setNoLock(ctx, key, r, OBJ_SET_PX, expire, &added);
+            ret = this->setNoLock(ctx, key, r, ((expire > 0 ? OBJ_SET_PX : OBJ_SET_NO_FLAGS)), expire, &added);
 
             break;
         }
