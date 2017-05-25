@@ -31,7 +31,7 @@ set ::redis_cluster::plain_commands {
     hget hmset hmget hincrby hincrbyfloat hdel hlen hkeys hvals
     hgetall hexists hscan incrby decrby incrbyfloat getset move
     expire expireat pexpire pexpireat type ttl pttl persist restore
-    dump bitcount bitpos pfadd pfcount
+    dump bitcount bitpos pfadd pfcount del
 }
 
 proc redis_cluster {nodes} {

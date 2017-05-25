@@ -144,3 +144,40 @@ proc setDatacenter_id {nodes datacenter_id} {
         assert {[lindex [R $id config get datacenter-id] 1] eq $datacenter_id}
     }
 }
+
+# Returns the node id.
+proc get_nodeaddr_by_id id {
+    set addr [dict get [get_myself $id] addr]
+    return [lindex [split $addr @] 0]
+}
+
+# Returns the node id.
+proc get_node_by_id id {
+    return [dict get [get_myself $id] id]
+}
+
+proc get_node_by_slot slot {
+    set node_addr [dict get $::redis_cluster::slots($::redis_cluster::id) $slot]
+    return [dict get $::redis_cluster::nodes($::redis_cluster::id) $node_addr]
+}
+
+proc get_slot_by_key {key} {
+    return [::redis_cluster::get_slot_from_keys $key]
+}
+
+proc get_id_by_slot {slot} {
+    set node_addr [dict get $::redis_cluster::slots($::redis_cluster::id) $slot]
+    set port [lindex [split $node_addr ":"] 1]
+    return [ get_instance_id_by_port redis $port ]
+}
+
+proc get_id_by_key {key} {
+    set slot [::redis_cluster::get_slot_from_keys $key]
+    set node_addr [dict get $::redis_cluster::slots($::redis_cluster::id) $slot]
+    set port [lindex [split $node_addr ":"] 1]
+    return [ get_instance_id_by_port redis $port ]
+}
+
+proc set_slot_addr_map {slot addr} {
+    dict set ::redis_cluster::slots($::redis_cluster::id) $slot $addr
+}
