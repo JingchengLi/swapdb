@@ -125,6 +125,7 @@ client *createClient(int fd) {
         c->context = NULL;
         c->repl_timer_id = -1;
         c->ssdb_status = SSDB_NONE;
+        c->transfer_snapshot_last_keepalive_time = -1;
         c->bpop.loading_or_transfer_keys = dictCreate(&objectKeyPointerValueDictType,NULL);
         c->ssdb_conn_flags = 0;
         c->ssdb_replies[0] = NULL;
@@ -1461,6 +1462,7 @@ int handleResponseOfTransferSnapshot(client *c, redisReply* reply) {
                 c->repl_timer_id = -1;
             }
 
+            c->transfer_snapshot_last_keepalive_time = server.unixtime;
             c->ssdb_status = SLAVE_SSDB_SNAPSHOT_TRANSFER_START;
 
             serverLog(LL_DEBUG, "Replication log: transfersnapshotok, fd: %d", c->fd);
@@ -1486,6 +1488,14 @@ int handleResponseOfTransferSnapshot(client *c, redisReply* reply) {
             freeClientAsync(c);
         } else
             serverLog(LL_DEBUG, "unexpected response:%s", shared.transfersnapshotnok);
+
+        process_status = C_OK;
+    } else if (IsReplyEqual(reply, shared.transfersnapshotcontinue)) {
+        if ((c->flags & CLIENT_SLAVE) && c->ssdb_status == SLAVE_SSDB_SNAPSHOT_TRANSFER_START) {
+            serverLog(LL_DEBUG, "Replication log: receive keepalive message, transfer ssdb snapshot continue...");
+            c->transfer_snapshot_last_keepalive_time = server.unixtime;
+        } else
+            serverLog(LL_DEBUG, "unexpected response:%s", shared.transfersnapshotcontinue);
 
         process_status = C_OK;
     } else if (IsReplyEqual(reply, shared.transfersnapshotfinished)) {

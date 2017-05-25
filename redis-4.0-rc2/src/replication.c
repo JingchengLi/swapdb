@@ -2820,7 +2820,8 @@ void replicationCron(void) {
             } else {
                 // todo: test and use a suitable timeout
                 /* handle response timeout in timer function. */
-                long long timer_id = aeCreateTimeEvent(server.el,5000,handleResponseTimeoutOfTransferSnapshot,slave,NULL);
+                long long timer_id = aeCreateTimeEvent(server.el,5000,
+                    handleResponseTimeoutOfTransferSnapshot,slave,NULL);
                 if (timer_id  == AE_ERR) {
                     freeClient(slave);
                     /* continue to avoid acess invalid slave pointer later. */
@@ -2831,12 +2832,22 @@ void replicationCron(void) {
             }
         }
 
-        if (server.jdjr_mode && server.use_customized_replication
-            && slave->replstate == SLAVE_STATE_SEND_BULK_FINISHED
-            && slave->ssdb_status == SLAVE_SSDB_SNAPSHOT_TRANSFER_END) {
-            putSlaveOnline(slave);
-            slave->ssdb_status = SSDB_NONE;
-            serverLog(LL_DEBUG, "Replication log: replication done: %d", slave->fd);
+        if (server.jdjr_mode && server.use_customized_replication) {
+            if (slave->ssdb_status == SLAVE_SSDB_SNAPSHOT_TRANSFER_START &&
+                (server.unixtime - slave->transfer_snapshot_last_keepalive_time)
+                    > TRANSFER_SSDB_SNAPSHOT_KEEPALIVE_TIMEOUT) {
+                serverLog(LL_WARNING, "have not received SSDB transfer snapshot keepalive message in %d "
+                          "seconds, disconnect the slave(%s:%d)!", TRANSFER_SSDB_SNAPSHOT_KEEPALIVE_TIMEOUT,
+                          slave->client_ip, slave->slave_listening_port);
+                freeClient(slave);
+                continue;
+            }
+            if (slave->replstate == SLAVE_STATE_SEND_BULK_FINISHED
+                && slave->ssdb_status == SLAVE_SSDB_SNAPSHOT_TRANSFER_END) {
+                putSlaveOnline(slave);
+                slave->ssdb_status = SSDB_NONE;
+                serverLog(LL_DEBUG, "Replication log: replication done: %d", slave->fd);
+            }
         }
     }
 

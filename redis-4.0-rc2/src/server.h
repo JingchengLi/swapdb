@@ -796,10 +796,18 @@ typedef struct client {
     redisContext *context;  /* Used by redis client in jdjr-mode. */
     int ssdb_conn_flags;
     char ssdb_status; /* Record the ssdb state. */
+
+    /* use this time to judge whether 'transfer snapshot' is timeout, if timeout,
+     * we can disconnect the slave. */
+    time_t transfer_snapshot_last_keepalive_time;
     char client_ip[NET_IP_STR_LEN]; /* Used by customized-replication in jdjr-mode. */
     redisReply *ssdb_replies[2]; /* Pointers for ssdb replies. */
     long long repl_timer_id; /* the timer event id which is used to delete the timer event. */
 } client;
+
+/* SSDB send "rr_transfer_snapshot continue" every 5 seconds, we use a double time
+ * as the timeout interval.*/
+#define TRANSFER_SSDB_SNAPSHOT_KEEPALIVE_TIMEOUT 10
 
 struct saveparam {
     time_t seconds;
@@ -833,8 +841,8 @@ struct sharedObjectsStruct {
     /* jdjr-mdoe shared sds. */
     sds checkwriteok, checkwritenok, makesnapshotok, makesnapshotnok,
         transfersnapshotok, transfersnapshotnok, transfersnapshotfinished,
-        transfersnapshotunfinished, delsnapshotok, delsnapshotnok,
-        flushcheckok, flushchecknok, flushdoneok, flushdonenok,
+        transfersnapshotunfinished, transfersnapshotcontinue, delsnapshotok,
+        delsnapshotnok, flushcheckok, flushchecknok, flushdoneok, flushdonenok,
         repopidsetok;
 };
 
@@ -1314,6 +1322,7 @@ struct redisServer {
     /* use this time to process 'ssdb make snapshot' timeout in replication if we
      * don't receive response from SSDB. */
     time_t make_snapshot_begin_time;
+
 
     /* if this is true, we need try to send delete SSDB snapshot request til we
      * receive "delete snapshot ok" response. */

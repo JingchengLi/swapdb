@@ -1725,6 +1725,8 @@ void createSharedObjects(void) {
         shared.makesnapshotnok = sdsnew("rr_make_snapshot nok");
         shared.transfersnapshotok = sdsnew("rr_transfer_snapshot ok");
         shared.transfersnapshotnok = sdsnew("rr_transfer_snapshot nok");
+        /* for keep alive when transfer snapshot, so we can disconnect the slave if timeout. */
+        shared.transfersnapshotcontinue = sdsnew("rr_transfer_snapshot continue");
         shared.transfersnapshotfinished = sdsnew("rr_transfer_snapshot finished");
         shared.transfersnapshotunfinished = sdsnew("rr_transfer_snapshot unfinished");
         shared.delsnapshotok = sdsnew("rr_del_snapshot ok");
@@ -4427,7 +4429,7 @@ sds genRedisInfoString(char *section) {
                     state = "send_bulk";
                     break;
                 case SLAVE_STATE_SEND_BULK_FINISHED:
-                    state = "send_buld_finished";
+                    state = "send_bulk_finished";
                     break;
                 case SLAVE_STATE_ONLINE:
                     state = "online";
