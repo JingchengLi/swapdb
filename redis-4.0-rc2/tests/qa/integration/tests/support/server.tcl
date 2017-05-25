@@ -250,19 +250,21 @@ proc start_server {options {code undefined}} {
     set stdout [format "%s/%s" [dict get $config "dir"] "stdout"]
     set stderr [format "%s/%s" [dict get $config "dir"] "stderr"]
 
+    if {[file exists ../../../build/redis-server]} {
+        set program ../../../build/redis-server
+    } elseif {[file exists ../../../src/redis-server]} {
+        set program ../../../src/redis-server
+    } else {
+        error "no redis-server found in src or build directory!!!"
+    }
+
     if {$::valgrind} {
-        set pid [exec valgrind --track-origins=yes --suppressions=src/valgrind.sup --show-reachable=no --show-possibly-lost=no --leak-check=full ../../../src/redis-server $config_file > $stdout 2> $stderr &]
+        set pid [exec valgrind --track-origins=yes --suppressions=../../../src/valgrind.sup --show-reachable=no --show-possibly-lost=no --leak-check=full $program $config_file > $stdout 2> $stderr &]
     } elseif ($::stack_logging) {
-        set pid [exec /usr/bin/env MallocStackLogging=1 MallocLogFile=/tmp/malloc_log.txt ../../../src/redis-server $config_file > $stdout 2> $stderr &]
+        set pid [exec /usr/bin/env MallocStackLogging=1 MallocLogFile=/tmp/malloc_log.txt $program $config_file > $stdout 2> $stderr &]
     } else {
         puts "start redis port: $::port"
-        if {[file exists ../../../build/redis-server]} {
-            set pid [exec ../../../build/redis-server $config_file > $stdout 2> $stderr &]
-        } elseif {[file exists ../../../src/redis-server]} {
-            set pid [exec ../../../src/redis-server $config_file > $stdout 2> $stderr &]
-        } else {
-            error "no redis-server found in src or build directory!!!"
-        }
+        set pid [exec $program $config_file > $stdout 2> $stderr &]
     }
 
     # Tell the test server about this new instance.
