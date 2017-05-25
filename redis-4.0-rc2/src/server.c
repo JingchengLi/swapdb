@@ -2771,7 +2771,7 @@ int checkKeysInMediateState(client* c) {
         keyobjs[j] = c->argv[keys[j]];
 
     /* TODO: use a suitable timeout */
-    blockednum = blockForLoadingkeys(c, keyobjs, numkeys, 15000 + mstime());
+    blockednum = blockForLoadingkeys(c, keyobjs, numkeys, 5000 + mstime());
 
     if (numkeys && keyobjs) zfree(keyobjs);
     if (keys) getKeysFreeResult(keys);
