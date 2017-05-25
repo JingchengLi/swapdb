@@ -3019,9 +3019,15 @@ void saveSlaveSSDBwriteOp(client *c, time_t time, int index) {
     op->time = time;
     op->index = index;
     op->cmd = c->cmd;
-    op->argc = c->argc;
-    /* NOTE:we use c->argv directly, avoid to reset it later. */
-    op->argv = c->argv;
+    if (c->cmd->proc == flushallCommand) {
+        op->argc = 1;
+        op->argv = zmalloc(sizeof(robj*)*1);
+        op->argv[0] = createObject(OBJ_STRING,sdsnew("flushall"));
+    } else {
+        /* NOTE:we use c->argv directly, avoid to reset it later. */
+        op->argc = c->argc;
+        op->argv = c->argv;
+    }
 
     /* recored consumed memory size. */
     server.writeop_mem_size += sizeof(struct ssdb_write_op) + sizeof(listNode*);
@@ -3646,9 +3652,8 @@ int processCommand(client *c) {
                 /* we are blocked by flushall, return C_ERR to keep client info and handle it later. */
                 return C_ERR;
             } else {
-                /* when ssdb connection is disconnected, the c->argv pointer is already saved
-                 * in server.write_op_list, avoid it to be freed by resetClient. */
-                c->argv = NULL;
+                /* when ssdb connection is disconnected, just save 'flushall' in server.write_op_list
+                 * and go on. */
                 return C_OK;
             }
         } else {

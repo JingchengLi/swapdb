@@ -1190,10 +1190,6 @@ int handleResponseOfSlaveSSDBflush(client *c, redisReply* reply) {
                 if (IsReplyEqual(reply, shared.flushdoneok)){
                     /* we receive flushall response of SSDB, now we can empty redis.*/
                     flushallCommand(c);
-                    /* the pointer of c->argv is used by server.ssdb_write_oplist when call
-                     * saveSlaveSSDBwriteOp in processCommandMaybeFlushdb, set it to NULL to
-                     * avoid double-free. */
-                    c->argv = NULL;
                     resetClient(c);
                     /* flushall success, we can remove it from ssdb_write_oplist. */
                     listDelNode(server.ssdb_write_oplist, ln);
