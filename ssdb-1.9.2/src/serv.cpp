@@ -117,6 +117,7 @@ DEF_PROC(info);
 DEF_PROC(version);
 DEF_PROC(dbsize);
 DEF_PROC(compact);
+DEF_PROC(flush);
 DEF_PROC(flushdb);
 DEF_PROC(dreply);
 DEF_PROC(cursor_cleanup);
@@ -271,6 +272,7 @@ void SSDBServer::reg_procs(NetworkServer *net) {
 
     REG_PROC(dreply, "r");
     REG_PROC(flushdb, "wt");
+    REG_PROC(flush, "wt");
 
     REG_PROC(slowlog, "r"); // attention!
 
@@ -348,6 +350,14 @@ int proc_flushdb(Context &ctx, Link *link, const Request &req, Response *resp) {
 
 	log_warn("[!!!] do flushdb");
 	serv->ssdb->flushdb(ctx);
+	resp->reply_ok();
+
+    return 0;
+}
+int proc_flush(Context &ctx, Link *link, const Request &req, Response *resp) {
+    SSDBServer *serv = (SSDBServer *) ctx.net->data;
+
+	serv->ssdb->flush(ctx);
 	resp->reply_ok();
 
     return 0;

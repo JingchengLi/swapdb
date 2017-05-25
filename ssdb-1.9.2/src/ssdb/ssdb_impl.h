@@ -83,6 +83,7 @@ public:
 	virtual ~SSDBImpl();
 
 	virtual int flushdb(Context &ctx);
+	virtual int flush(Context &ctx);
 
 	// return (start, end], not include start
 	virtual Iterator* iterator(const std::string &start, const std::string &end, uint64_t limit,

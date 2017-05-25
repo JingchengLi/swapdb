@@ -150,6 +150,13 @@ SSDB *SSDB::open(const Options &opt, const std::string &dir) {
     return ssdb;
 }
 
+int SSDBImpl::flush(Context &ctx) {
+
+    ldb->Flush(leveldb::FlushOptions());
+
+    return 0;
+}
+
 int SSDBImpl::flushdb(Context &ctx) {
 //lock
 
