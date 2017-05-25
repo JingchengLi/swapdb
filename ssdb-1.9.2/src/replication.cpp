@@ -34,6 +34,7 @@ void ReplicationWorker::init() {
 
 int ReplicationWorker::proc(ReplicationJob *job) {
 
+
     SSDBServer *serv = (SSDBServer *) job->ctx.net->data;
     HostAndPort hnp = job->hnp;
     Link *master_link = job->upstream;
@@ -86,9 +87,27 @@ int ReplicationWorker::proc(ReplicationJob *job) {
 
     uint64_t sendBytes = 0;
 
+    int64_t lastHeartBeat = time_ms();
     while (!job->quit) {
         ready_list.swap(ready_list_2);
         ready_list_2.clear();
+
+
+        if (job->heartbeat) {
+            if ((time_ms() - lastHeartBeat) > 5000) {
+                RedisResponse r("rr_transfer_snapshot continue");
+                master_link->output->append(Bytes(r.toRedis()));
+                if (master_link->append_reply) {
+                    master_link->send_append_res(std::vector<std::string>({"check 0"}));
+                }
+
+                lastHeartBeat = time_ms();
+
+                if (!master_link->output->empty()) {
+                    fdes->set(master_link->fd(), FDEVENT_OUT, 1, master_link);
+                }
+            }
+        }
 
         if (!ready_list.empty()) {
             // ready_list not empty, so we should return immediately
@@ -276,7 +295,7 @@ int ReplicationWorker::proc(ReplicationJob *job) {
 
     log_info("[ReplicationWorker] send snapshot to %s:%d finished!", hnp.ip.c_str(), hnp.port);
     log_debug("send rr_transfer_snapshot finished!!");
-    log_error("replic procedure finish! sendByes %d", sendBytes);
+    log_info("replic procedure finish! sendByes %d", sendBytes);
     delete ssdb_slave_link;
     return 0;
 
@@ -296,7 +315,7 @@ void ReplicationWorker::reportError(ReplicationJob *job) {
 
 void send_error_to_redis(Link *link) {
     if (link != nullptr) {
-        link->quick_send({"error", "rr_transfer_snapshot unfinished"});
+        link->quick_send({"ok", "rr_transfer_snapshot unfinished"});
         log_error("send rr_transfer_snapshot error!!");
     }
 }

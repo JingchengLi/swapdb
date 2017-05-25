@@ -834,7 +834,7 @@ int proc_rr_transfer_snapshot(Context &ctx, Link *link, const Request &req, Resp
 
     link->quick_send({"ok","rr_transfer_snapshot ok"});
 
-    ReplicationJob *job = new ReplicationJob(ctx, HostAndPort{ip, port}, link);
+    ReplicationJob *job = new ReplicationJob(ctx, HostAndPort{ip, port}, link, true);
     ctx.net->replication->push(job);
 
     resp->resp.clear(); //prevent send resp
@@ -849,7 +849,8 @@ int proc_rr_del_snapshot(Context &ctx, Link *link, const Request &req, Response 
 
         if(serv->replicState == REPLIC_TRANS) {
             log_error("The replication is not finish");
-            reply_errinfo_return("ERR rr_del_snapshot error");
+            resp->push_back("ok");
+            resp->push_back("rr_del_snapshot nok");
         }
 
         if (serv->replicSnapshot != nullptr){

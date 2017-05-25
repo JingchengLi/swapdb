@@ -29,11 +29,14 @@ public:
     HostAndPort hnp;
     Link *upstream;
 
-    int64_t ts  ;
+    int64_t ts;
+
+    bool heartbeat;
 
     volatile bool quit = false;
 
-    ReplicationJob(const Context& ctx, const HostAndPort& hnp, Link *link) : ctx(ctx), hnp(hnp), upstream(link) {
+    ReplicationJob(const Context& ctx, const HostAndPort& hnp, Link *link, bool heartbeat = false) :
+            ctx(ctx), hnp(hnp), upstream(link), heartbeat(heartbeat) {
         ts = time_ms();
     }
 
