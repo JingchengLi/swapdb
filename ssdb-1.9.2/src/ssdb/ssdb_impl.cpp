@@ -88,11 +88,6 @@ SSDB *SSDB::open(const Options &opt, const std::string &dir) {
         ssdb->options.table_factory = std::shared_ptr<leveldb::TableFactory>(rocksdb::NewBlockBasedTableFactory(op));
     }
 
-    ssdb->options.prefix_extractor.reset(leveldb::NewFixedPrefixTransform(1));
-    ssdb->options.memtable_prefix_bloom_size_ratio = 0.25;
-//    ssdb->options.memtable_prefix_bloom_bits = 100000000;
-//    ssdb->options.memtable_prefix_bloom_probes = 6;
-
 
     //    ssdb->options.optimize_filters_for_hits = true;
     ssdb->options.compaction_readahead_size = 4 * 1024 * 1024;
