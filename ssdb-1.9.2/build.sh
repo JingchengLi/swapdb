@@ -122,14 +122,9 @@ esac
 cd "$DIR"
 DIR=`pwd`
 cd $ROCKSDB_PATH
-if [ -f CMakeLists.txt ];then
+if [ -f Makefile ];then
     echo "##### building rocksdb... #####"
-    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${JEMALLOC_PATH}/lib/
-    cmake . \
-     -DWITH_SNAPPY=ON -DSNAPPY_LIBRARIES=${SNAPPY_PATH}/.libs/libsnappy.so -DSNAPPY_INCLUDE_DIR=${SNAPPY_PATH}/ \
-     -DWITH_JEMALLOC=ON -DJEMALLOC_INCLUDE_DIR=${JEMALLOC_PATH}/include/ -DJEMALLOC_LIBRARIES=${JEMALLOC_PATH}/lib/libjemalloc.so \
-     -DOPTDBG=1
-    make -j8
+    make -j10 static_lib
     echo "##### building rocksdb finished #####"
 fi
 
