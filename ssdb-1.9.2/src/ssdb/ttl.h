@@ -29,12 +29,19 @@ public:
 
     int64_t pttl(Context &ctx, const Bytes &key, TimeUnit tu);
 
+    int convert2ms(int64_t *ttl, TimeUnit tu);
+
     // The caller must hold mutex before calling set/del functions
     int persist(Context &ctx, const Bytes &key);
 
-    int expire(Context &ctx, const Bytes &key, int64_t ttl, TimeUnit tu, leveldb::WriteBatch *batch = nullptr);
+    int expire(Context &ctx, const Bytes &key, int64_t ttl, TimeUnit tu);
 
-    int expireAt(Context &ctx, const Bytes &key, int64_t pexpireat_ms, leveldb::WriteBatch *batch = nullptr);
+    int expireAt(Context &ctx, const Bytes &key, int64_t pexpireat_ms) {
+        leveldb::WriteBatch batch;
+        return expireAt(ctx, key, pexpireat_ms, batch);
+    }
+
+    int expireAt(Context &ctx, const Bytes &key, int64_t pexpireat_ms, leveldb::WriteBatch &batch, bool lock = true);
 
     void start();
 

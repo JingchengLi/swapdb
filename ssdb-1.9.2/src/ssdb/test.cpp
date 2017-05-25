@@ -40,7 +40,7 @@ int main(int argc, char **argv){
 	int num = str_to_int(val) + 1;
 
 	int added = 0;
-	ssdb->set(ctx, key, str(num), 0, &added);
+	ssdb->set(ctx, key, str(num), 0, 0, &added);
 	ssdb->get(ctx, key, &val);
 	
 	log_debug("%s", val.c_str());

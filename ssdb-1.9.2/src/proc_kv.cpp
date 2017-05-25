@@ -79,7 +79,7 @@ int proc_set(Context &ctx, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(3);
 
-	long long when = 0;
+	int64_t ttl = 0;
 
 	TimeUnit tu = TimeUnit::Second;
 	int flags = OBJ_SET_NO_FLAGS;
@@ -108,12 +108,12 @@ int proc_set(Context &ctx, Link *link, const Request &req, Response *resp){
 					reply_err_return(SYNTAX_ERR);
 
 				} else {
-					when = req[i].Int64();
+					ttl = req[i].Int64();
 					if (errno == EINVAL){
 						reply_err_return(INVALID_INT);
 					}
 
-					if (when <= 0) {
+					if (ttl <= 0) {
 						reply_err_return(INVALID_EX_TIME);
 					}
 
@@ -125,40 +125,21 @@ int proc_set(Context &ctx, Link *link, const Request &req, Response *resp){
 		}
 	}
 
-	if (when > 0) {
-
-		int added = 0;
-		int ret = serv->ssdb->set(ctx, req[1], req[2], flags, &added);
-		check_key(ret);
-		if(ret < 0){
-			reply_err_return(ret);
-		} else if (added == 0) {
-			resp->reply_bool(0);
-			return 0;
-		}
-
-
-		ret = serv->ssdb->expiration->expire(ctx, req[1], (int64_t)when, tu);
-		if(ret < 0){
-			serv->ssdb->del(ctx, req[1]);
-			reply_err_return(ret);
-		} else {
-			resp->reply_bool(1);
-			return 0;
-		}
-
-
-	} else {
-		int added = 0;
-		int ret = serv->ssdb->set(ctx, req[1], req[2], flags, &added);
-		check_key(ret);
-		if(ret < 0){
-			reply_err_return(ret);
-		}
-
-		resp->reply_bool(added);
-
+	int t_ret = serv->ssdb->expiration->convert2ms(&ttl, tu);
+	if (t_ret < 0) {
+		return t_ret;
 	}
+
+
+	int added = 0;
+	int ret = serv->ssdb->set(ctx, req[1], req[2], flags, ttl, &added);
+	check_key(ret);
+	if(ret < 0){
+		reply_err_return(ret);
+	}
+
+	resp->reply_bool(added);
+
 
 	return 0;
 }
@@ -168,7 +149,7 @@ int proc_setnx(Context &ctx, Link *link, const Request &req, Response *resp){
 	CHECK_NUM_PARAMS(3);
 
 	int added = 0;
-	int ret = serv->ssdb->set(ctx, req[1], req[2], OBJ_SET_NX, &added);
+	int ret = serv->ssdb->set(ctx, req[1], req[2], OBJ_SET_NX, 0, &added);
 	check_key(ret);
 	if(ret < 0){
 		reply_err_return(ret);
@@ -183,27 +164,30 @@ int proc_setx(Context &ctx, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(4);
 
-    long long when;
-    if (string2ll(req[3].data(), (size_t)req[3].size(), &when) == 0) {
+
+	int64_t ttl = req[3].Int64();
+	if (errno == EINVAL){
 		reply_err_return(INVALID_INT);
-    }
-	if (when <= 0) {
+	}
+
+	if (ttl <= 0) {
 		reply_err_return(INVALID_EX_TIME);
 	}
 
+	int t_ret = serv->ssdb->expiration->convert2ms(&ttl, TimeUnit::Second);
+	if (t_ret < 0) {
+		return t_ret;
+	}
+
 	int added = 0;
-	int ret = serv->ssdb->set(ctx, req[1], req[2], OBJ_SET_NO_FLAGS, &added);
+	int ret = serv->ssdb->set(ctx, req[1], req[2], OBJ_SET_EX, ttl, &added);
 	check_key(ret);
 	if(ret < 0){
 		reply_err_return(ret);
 	}
-	ret = serv->ssdb->expiration->expire(ctx, req[1], (int64_t)when, TimeUnit::Second);
-	if(ret < 0){
-        serv->ssdb->del(ctx, req[1]);
-		reply_err_return(ret);
-	}else{
-		resp->reply_bool(1);
-	}
+
+	resp->reply_bool(1);
+
 	return 0;
 }
 
@@ -211,29 +195,31 @@ int proc_psetx(Context &ctx, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(4);
 
-    long long when;
-    if (string2ll(req[3].data(), (size_t)req[3].size(), &when) == 0) {
-		reply_err_return(INVALID_INT);
+    int64_t ttl = req[3].Int64();
+    if (errno == EINVAL){
+        reply_err_return(INVALID_INT);
     }
-	if (when <= 0) {
-		reply_err_return(INVALID_EX_TIME);
-	}
+
+    if (ttl <= 0) {
+        reply_err_return(INVALID_EX_TIME);
+    }
+
+    int t_ret = serv->ssdb->expiration->convert2ms(&ttl, TimeUnit::Millisecond);
+    if (t_ret < 0) {
+        return t_ret;
+    }
+
 
 	int added = 0;
-	int ret = serv->ssdb->set(ctx, req[1], req[2], OBJ_SET_NO_FLAGS, &added);
+	int ret = serv->ssdb->set(ctx, req[1], req[2], OBJ_SET_PX, ttl, &added);
 	check_key(ret);
 	if(ret < 0){
 		reply_err_return(ret);
 	}
 
-	ret = serv->ssdb->expiration->expire(ctx, req[1], (int64_t)when, TimeUnit::Millisecond);
-	if(ret < 0){
-        serv->ssdb->del(ctx, req[1]);
-		reply_err_return(ret);
-	}else{
-		resp->reply_bool(1);
-	}
-	return 0;
+    resp->reply_bool(1);
+
+    return 0;
 }
 
 int proc_pttl(Context &ctx, Link *link, const Request &req, Response *resp){

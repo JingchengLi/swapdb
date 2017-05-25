@@ -464,7 +464,7 @@ int proc_debug(Context &ctx, Link *link, const Request &req, Response *resp) {
             snprintf(vbuf, sizeof(vbuf), "%s:%lu", "value", i);
 
             int added = 0;
-            int ret = serv->ssdb->set(ctx, Bytes(kbuf), Bytes(vbuf), OBJ_SET_NO_FLAGS, &added);
+            int ret = serv->ssdb->set(ctx, Bytes(kbuf), Bytes(vbuf), OBJ_SET_NO_FLAGS, 0, &added);
             if (ret < 0) {
                 reply_err_return(ret);
             }
@@ -510,13 +510,6 @@ int proc_restore(Context &ctx, Link *link, const Request &req, Response *resp) {
     PTST(restore, 0.01)
     int ret = serv->ssdb->restore(ctx, req[1], ttl, req[3], replace, &val);
     PTE(restore, req[1].String())
-
-    if (ret > 0 && ttl > 0) {
-        ret = serv->ssdb->expiration->expire(ctx, req[1], ttl, TimeUnit::Millisecond);
-        if (ret < 0) {
-            serv->ssdb->del(ctx, req[1]);
-        }
-    }
 
     if (ret < 0) {
         log_warn("%s, %s : %s", GetErrorInfo(ret).c_str(), hexmem(req[1].data(), req[1].size()).c_str(),

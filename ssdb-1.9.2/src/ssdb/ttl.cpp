@@ -59,55 +59,52 @@ void ExpirationHandler::stop() {
     first_timeout = 0;
 }
 
-int ExpirationHandler::expire(Context &ctx, const Bytes &key, int64_t ttl, TimeUnit tu, leveldb::WriteBatch *batch) {
+int ExpirationHandler::convert2ms(int64_t *ttl, TimeUnit tu) {
     if (tu == TimeUnit::Second) {
-        if (INT64_MAX / 1000 <= ttl) { return INVALID_EX_TIME; }
-        ttl = ttl * 1000;
+        if (INT64_MAX / 1000 <= *ttl) { return INVALID_EX_TIME; }
+        *ttl = *ttl * 1000;
     } else if (tu == TimeUnit::Millisecond) {
-        if (INT64_MAX <= ttl) { return INVALID_EX_TIME; }
+        if (INT64_MAX <= *ttl) { return INVALID_EX_TIME; }
         //nothing
     } else {
         assert(0);
         return -1;
     }
 
+    return 1;
+}
+
+int ExpirationHandler::expire(Context &ctx, const Bytes &key, int64_t ttl, TimeUnit tu) {
+    if (int ret = convert2ms(&ttl,tu) < 0) {
+        return ret;
+    }
 
     int64_t pexpireat = time_ms() + ttl;
 
-    return expireAt(ctx, key, pexpireat, batch);
+    return expireAt(ctx, key, pexpireat);
 }
 
 
-int ExpirationHandler::expireAt(Context &ctx, const Bytes &key, int64_t pexpireat_ms, leveldb::WriteBatch *batch) {
+int ExpirationHandler::expireAt(Context &ctx, const Bytes &key, int64_t pexpireat_ms, leveldb::WriteBatch &batch, bool lock) {
 
-    bool lockKey = true;
-    bool checkMetaKey = true;
-    leveldb::WriteBatch local_batch;
-    if (batch != nullptr) {
-        local_batch = *batch;
-        lockKey = false;
-        checkMetaKey = false;
-    }
-
-    RecordLock<Mutex> l(&ssdb->mutex_record_, key.String(), lockKey);
-
+    RecordLock<Mutex> l(&ssdb->mutex_record_, key.String(), lock);
 
     int ret = 0;
 
     if (pexpireat_ms <= time_ms()) {
 
-        ret = ssdb->del_key_internal(ctx, key, local_batch);
+        ret = ssdb->del_key_internal(ctx, key, batch);
 
     } else {
 
-        if (checkMetaKey) {
+        if (lock) {
             ret = ssdb->check_meta_key(ctx, key);
             if (ret <= 0) {
                 return ret;
             }
         }
 
-        ret = ssdb->eset_one(ctx, key, local_batch, pexpireat_ms);
+        ret = ssdb->eset_one(ctx, key, batch, pexpireat_ms);
         if (ret <= 0) {
             return ret;
         }
@@ -116,9 +113,9 @@ int ExpirationHandler::expireAt(Context &ctx, const Bytes &key, int64_t pexpirea
 
     }
 
-    if (batch == nullptr) {
+    if (lock) {
         if (ret >= 0) {
-            leveldb::Status s = ssdb->CommitBatch(ctx, &(local_batch));
+            leveldb::Status s = ssdb->CommitBatch(ctx, &(batch));
             if (!s.ok()) {
                 log_error("eset error: %s", s.ToString().c_str());
                 return STORAGE_ERR;

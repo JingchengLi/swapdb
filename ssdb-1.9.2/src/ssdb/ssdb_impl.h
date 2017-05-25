@@ -117,7 +117,7 @@ public:
 
 	/* key value */
 
-	virtual int set(Context &ctx, const Bytes &key,const Bytes &val, int flags, int *added);
+	virtual int set(Context &ctx, const Bytes &key,const Bytes &val, int flags, int64_t expire_ms, int *added);
 	virtual int del(Context &ctx, const Bytes &key);
 	virtual int append(Context &ctx, const Bytes &key,const Bytes &value, uint64_t *llen);
 
@@ -230,7 +230,7 @@ public:
 
 private:
 
-	int SetGeneric(Context &ctx, const Bytes &key, leveldb::WriteBatch &batch, const Bytes &val, int flags, const int64_t expire, int *added);
+	int SetGeneric(Context &ctx, const Bytes &key, leveldb::WriteBatch &batch, const Bytes &val, int flags, const int64_t expire_ms, int *added);
     int GetKvMetaVal(const std::string &meta_key, KvMetaVal &kv);
 
     int del_key_internal(Context &ctx, const Bytes &key, leveldb::WriteBatch &batch);
@@ -268,7 +268,7 @@ private:
 	int zdel_one(leveldb::WriteBatch &batch, const Bytes &name, const Bytes &key, uint16_t version);
 	int incr_zsize(Context &ctx, const Bytes &name, leveldb::WriteBatch &batch, const ZSetMetaVal &zv,int64_t incr);
 
-	int setNoLock(Context &ctx, const Bytes &key,const Bytes &val, int flags, int *added);
+	int setNoLock(Context &ctx, const Bytes &key,const Bytes &val, int flags, const int64_t expire_ms, int *added);
 
     template <typename T>
     int saddNoLock(Context &ctx, const Bytes &key,const std::set<T> &mem_set, int64_t *num);

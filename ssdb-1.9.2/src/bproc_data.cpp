@@ -32,10 +32,6 @@ int bproc_COMMAND_DATA_SAVE(Context &ctx, TransferWorker *worker, const std::str
         return notifyFailedToRedis(worker->redisUpstream, cmd, data_key);
     }
 
-    if (ret > 0 && pttl > 0) {
-        ret = serv->ssdb->expiration->expire(ctx, dumpData->key, pttl, TimeUnit::Millisecond);
-    }
-
     if (ret < 0) {
         //notify failed
         serv->ssdb->del(ctx, dumpData->key);

@@ -69,8 +69,8 @@ int SSDBImpl::GetKvMetaVal(const std::string &meta_key, KvMetaVal &kv) {
     }
 }
 
-int SSDBImpl::SetGeneric(Context &ctx, const Bytes &key, leveldb::WriteBatch &batch, const Bytes &val, int flags, const int64_t expire, int *added){
-	if (expire < 0){
+int SSDBImpl::SetGeneric(Context &ctx, const Bytes &key, leveldb::WriteBatch &batch, const Bytes &val, int flags, const int64_t expire_ms, int *added){
+	if (expire_ms < 0){
 		return INVALID_EX_TIME; //NOT USED
 	}
 
@@ -82,25 +82,43 @@ int SSDBImpl::SetGeneric(Context &ctx, const Bytes &key, leveldb::WriteBatch &ba
         return ret;
     } else if (ret == 0) {
         if (flags & OBJ_SET_XX) {
+            //0-0
             *added = 0;
         } else {
+            //1-1
             meta_val = encode_kv_val(val, kv.version);
             batch.Put(meta_key, meta_val);
-            expiration->cancelExpiration(ctx, key, batch); //del expire ET key
             ret = 1;
             *added = 1;
         }
     } else {
         // ret = 1
         if (flags & OBJ_SET_NX) {
+            //1-0
             *added = 0;
         } else {
+            //1-1
             meta_val = encode_kv_val(val, kv.version);
             batch.Put(meta_key, meta_val);
-            expiration->cancelExpiration(ctx, key, batch); //del expire ET key
             *added = 1;
         }
     }
+
+    //if ret == 1 , key exists
+    //if *added , key new add
+    if (flags & OBJ_SET_EX || flags & OBJ_SET_PX) {
+        //expire set
+        if (ret == 1 && (*added == 1)) {
+            expiration->expireAt(ctx, key, expire_ms + time_ms(), batch, false);
+        }
+
+    } else {
+        if (*added == 1) {
+            expiration->cancelExpiration(ctx, key, batch); //del expire ET key
+        }
+    }
+
+
 
     return ret;
 }
@@ -171,10 +189,10 @@ int SSDBImpl::multi_del(Context &ctx, const std::set<Bytes> &distinct_keys, int6
 }
 
 
-int SSDBImpl::setNoLock(Context &ctx, const Bytes &key, const Bytes &val, int flags, int *added) {
+int SSDBImpl::setNoLock(Context &ctx, const Bytes &key, const Bytes &val, int flags, const int64_t expire_ms, int *added) {
     leveldb::WriteBatch batch;
 
-    int ret = SetGeneric(ctx, key, batch, val, flags, 0, added);
+    int ret = SetGeneric(ctx, key, batch, val, flags, expire_ms, added);
     if (ret < 0){
         return ret;
     }
@@ -190,10 +208,10 @@ int SSDBImpl::setNoLock(Context &ctx, const Bytes &key, const Bytes &val, int fl
     return ((*added + ret) > 0) ? 1 : 0;
 }
 
-int SSDBImpl::set(Context &ctx, const Bytes &key, const Bytes &val, int flags, int *added) {
+int SSDBImpl::set(Context &ctx, const Bytes &key, const Bytes &val, int flags, const int64_t expire_ms, int *added) {
 	RecordLock<Mutex> l(&mutex_record_, key.String());
 
-    return setNoLock(ctx, key, val, flags, added);
+    return setNoLock(ctx, key, val, flags, expire_ms, added);
 }
 
 int SSDBImpl::getset(Context &ctx, const Bytes &key, std::pair<std::string, bool> &val, const Bytes &newval){
@@ -860,6 +878,10 @@ int SSDBImpl::dump(Context &ctx, const Bytes &key, std::string *res) {
 int SSDBImpl::restore(Context &ctx, const Bytes &key, int64_t expire, const Bytes &data, bool replace, std::string *res) {
     *res = "none";
 
+    if (expire < 0) {
+        return INVALID_EX_TIME;
+    }
+
     RecordLock<Mutex> l(&mutex_record_, key.String());
 
     int ret = 0;
@@ -917,7 +939,7 @@ int SSDBImpl::restore(Context &ctx, const Bytes &key, int64_t expire, const Byte
             }
 
             int added = 0;
-            ret = this->setNoLock(ctx, key, r, OBJ_SET_NO_FLAGS, &added);
+            ret = this->setNoLock(ctx, key, r, OBJ_SET_PX, expire, &added);
 
             break;
         }
@@ -1163,6 +1185,18 @@ int SSDBImpl::restore(Context &ctx, const Bytes &key, int64_t expire, const Byte
         default:
             log_error("Unknown RDB encoding type %d %s:%s", rdbtype, hexmem(key.data(), key.size()).c_str(),(data.data(), data.size()));
             return -1;
+    }
+
+
+    if (expire > 0 && (rdbtype != RDB_TYPE_STRING)) {
+        leveldb::WriteBatch batch;
+        expiration->expireAt(ctx, key, expire + time_ms(), batch, false);
+        s = CommitBatch(ctx, &(batch));
+        if (!s.ok()) {
+            log_error("[restore] expireAt error: %s", s.ToString().c_str());
+            return STORAGE_ERR;
+        }
+
     }
 
     *res = "OK";
