@@ -1227,6 +1227,43 @@ void restartAOF() {
     }
 }
 
+void completeReplicationHandshake() {
+    int aof_is_enabled = server.aof_state != AOF_OFF;
+    serverAssert(server.tmp_repl_stream_dbid != -1);
+    /* Final setup of the connected slave <- master link */
+    replicationCreateMasterClient(server.repl_transfer_s,server.tmp_repl_stream_dbid);
+    server.tmp_repl_stream_dbid = -1;
+    if (server.jdjr_mode) {
+        if (C_OK != nonBlockConnectToSsdbServer(server.master)) {
+            serverLog(LL_WARNING, "Failed to connect SSDB when sync");
+            cancelReplicationHandshake();
+            if (aof_is_enabled) restartAOF();
+            return;
+        }
+    }
+    zfree(server.repl_transfer_tmpfile);
+    close(server.repl_transfer_fd);
+
+    server.repl_state = REPL_STATE_CONNECTED;
+    /* After a full resynchroniziation we use the replication ID and
+     * offset of the master. The secondary ID / offset are cleared since
+     * we are starting a new history. */
+    memcpy(server.replid,server.master->replid,sizeof(server.replid));
+    server.master_repl_offset = server.master->reploff;
+    clearReplicationId2();
+    /* Let's create the replication backlog if needed. Slaves need to
+     * accumulate the backlog regardless of the fact they have sub-slaves
+     * or not, in order to behave correctly if they are promoted to
+     * masters after a failover. */
+    if (server.repl_backlog == NULL) createReplicationBacklog();
+
+    serverLog(LL_NOTICE, "MASTER <-> SLAVE sync: Finished with success");
+    /* Restart the AOF subsystem now that we finished the sync. This
+     * will trigger an AOF rewrite, and when done will start appending
+     * to the new file. */
+    if (aof_is_enabled) restartAOF();
+}
+
 /* Asynchronously read the SYNC payload we receive from a master */
 #define REPL_MAX_WRITTEN_BEFORE_FSYNC (1024*1024*8) /* 8 MB */
 void readSyncBulkPayload(aeEventLoop *el, int fd, void *privdata, int mask) {
@@ -1401,8 +1438,19 @@ void readSyncBulkPayload(aeEventLoop *el, int fd, void *privdata, int mask) {
             return;
         }
 
-        if (server.jdjr_mode) emptySlaveSSDBwriteOperations();
-
+        if (server.jdjr_mode) {
+            emptySlaveSSDBwriteOperations();
+            server.tmp_repl_stream_dbid = rsi.repl_stream_db;
+            /* SSDB snapshot transfer have not completed. must wait and return, will check
+             * server.ssdb_repl_state in replicationCron, and do the rest work of replication */
+            if (server.ssdb_repl_state != REPL_STATE_TRANSFER_SSDB_SNAPSHOT_END) {
+                server.repl_state = REPL_STATE_TRANSFER_END;
+                return;
+            }
+            completeReplicationHandshake();
+        }
+#if 1
+#else
         /* Final setup of the connected slave <- master link */
         replicationCreateMasterClient(server.repl_transfer_s,rsi.repl_stream_db);
         if (server.jdjr_mode) {
@@ -1434,6 +1482,7 @@ void readSyncBulkPayload(aeEventLoop *el, int fd, void *privdata, int mask) {
          * will trigger an AOF rewrite, and when done will start appending
          * to the new file. */
         if (aof_is_enabled) restartAOF();
+#endif
     }
     return;
 
@@ -2699,8 +2748,16 @@ void replicationCron(void) {
     if (server.masterhost && server.repl_state == REPL_STATE_TRANSFER &&
         (time(NULL)-server.repl_transfer_lastio) > server.repl_timeout)
     {
-        serverLog(LL_WARNING,"Timeout receiving bulk data from MASTER... If the problem persists try to set the 'repl-timeout' parameter in redis.conf to a larger value.");
+        serverLog(LL_WARNING,"Timeout receiving bulk data from MASTER... If the problem "
+                "persists try to set the 'repl-timeout' parameter in redis.conf to a larger value.");
         cancelReplicationHandshake();
+    }
+
+    // todo: process REPL_STATE_TRANSFER_SSDB_SNAPSHOT_END/REPL_STATE_TRANSFER_SSDB_SNAPSHOT
+    if (server.jdjr_mode && server.masterhost && server.repl_state == REPL_STATE_TRANSFER_END &&
+            server.ssdb_repl_state == REPL_STATE_TRANSFER_SSDB_SNAPSHOT_END) {
+        /* RDB and SSDB snapshot transferred done, now it's time to complete replication handshake. */
+        completeReplicationHandshake();
     }
 
     /* Timed out master when we are an already connected slave? */

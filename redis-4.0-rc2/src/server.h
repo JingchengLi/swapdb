@@ -334,7 +334,16 @@ typedef long long mstime_t; /* millisecond time type. */
 #define REPL_STATE_RECEIVE_PSYNC 13 /* Wait for PSYNC reply */
 /* --- End of handshake states --- */
 #define REPL_STATE_TRANSFER 14 /* Receiving .rdb from master */
-#define REPL_STATE_CONNECTED 15 /* Connected to master */
+/*==========for jdjr_mode start==============*/
+#define REPL_STATE_TRANSFER_END 15
+/*==========for jdjr_mode end  ==============*/
+#define REPL_STATE_CONNECTED 16 /* Connected to master */
+/* if this instance is a slave, this indicates the status of
+ * SSDB receive snapshot */
+#define REPL_STATE_TRANSFER_SSDB_SNAPSHOT 17
+#define REPL_STATE_TRANSFER_SSDB_SNAPSHOT_END 18
+
+
 
 /* State of slaves from the POV of the master. Used in client->replstate.
  * In SEND_BULK and ONLINE state the slave receives new updates
@@ -1184,11 +1193,13 @@ struct redisServer {
     client *cached_master; /* Cached master to be reused for PSYNC. */
     int repl_syncio_timeout; /* Timeout for synchronous I/O calls */
     int repl_state;          /* Replication status if the instance is a slave */
+    int ssdb_repl_state;     /* SSDB snapshot receive status if the instance is a slave */
     off_t repl_transfer_size; /* Size of RDB to read from master during sync. */
     off_t repl_transfer_read; /* Amount of RDB read from master during sync. */
     off_t repl_transfer_last_fsync_off; /* Offset when we fsync-ed last time. */
     int repl_transfer_s;     /* Slave -> Master SYNC socket */
     int repl_transfer_fd;    /* Slave -> Master SYNC temp file descriptor */
+    int tmp_repl_stream_dbid; /* for jdjr_mode, save rdbSaveInfo.repl_stream_db temporarily */
     char *repl_transfer_tmpfile; /* Slave-> master SYNC temp file name */
     time_t repl_transfer_lastio; /* Unix time of the latest read, for timeout */
     int repl_serve_stale_data; /* Serve stale data when link is down? */
