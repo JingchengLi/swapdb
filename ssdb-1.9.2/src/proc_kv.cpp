@@ -127,7 +127,7 @@ int proc_set(Context &ctx, Link *link, const Request &req, Response *resp){
 
 	int t_ret = serv->ssdb->expiration->convert2ms(&ttl, tu);
 	if (t_ret < 0) {
-		return t_ret;
+		reply_err_return(t_ret);
 	}
 
 
@@ -176,7 +176,7 @@ int proc_setx(Context &ctx, Link *link, const Request &req, Response *resp){
 
 	int t_ret = serv->ssdb->expiration->convert2ms(&ttl, TimeUnit::Second);
 	if (t_ret < 0) {
-		return t_ret;
+		reply_err_return(t_ret);
 	}
 
 	int added = 0;
@@ -206,7 +206,7 @@ int proc_psetx(Context &ctx, Link *link, const Request &req, Response *resp){
 
     int t_ret = serv->ssdb->expiration->convert2ms(&ttl, TimeUnit::Millisecond);
     if (t_ret < 0) {
-        return t_ret;
+		reply_err_return(t_ret);
     }
 
 

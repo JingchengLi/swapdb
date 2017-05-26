@@ -5,8 +5,9 @@
 #include "redis_stream.h"
 #include "../util/log.h"
 
-RedisUpstream::RedisUpstream(const std::string &ip, int port) : ip(ip), port(port) {
+RedisUpstream::RedisUpstream(const std::string &ip, int port, long timeout_ms) : ip(ip), port(port), timeout_ms(timeout_ms) {
     client = getNewLink();
+
 }
 
 RedisUpstream::~RedisUpstream() {
@@ -17,7 +18,7 @@ RedisUpstream::~RedisUpstream() {
 
 RedisClient *RedisUpstream::getNewLink() {
     log_debug("new connection to redis %s:%d", ip.c_str(), port);
-    return RedisClient::connect(ip.c_str(), port);
+    return RedisClient::connect(ip.c_str(), port, timeout_ms);
 }
 
 RedisClient *RedisUpstream::getLink() {
@@ -40,7 +41,7 @@ RedisClient *RedisUpstream::reset() {
 RedisResponse *RedisUpstream::sendCommand(const std::vector<std::string> &args) {
     RedisResponse *res = nullptr;
 
-    for (int i = 0; i < 5; ++i) {
+    for (int i = 0; i < maxRetry; ++i) {
         if (client == nullptr) {
             //reconnect
             reset();
@@ -63,4 +64,10 @@ RedisResponse *RedisUpstream::sendCommand(const std::vector<std::string> &args) 
     return res;
 }
 
+void RedisUpstream::setMaxRetry(int maxRetry) {
+    RedisUpstream::maxRetry = maxRetry;
+}
 
+void RedisUpstream::setRetryConnect(int retryConnect) {
+    RedisUpstream::retryConnect = retryConnect;
+}

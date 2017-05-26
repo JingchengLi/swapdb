@@ -21,7 +21,7 @@ public:
 
     RedisResponse *redisRequest(const std::vector<std::string> &args);
 
-    static RedisClient *connect(const char *host, int port);
+    static RedisClient *connect(const char *host, int port, long timeout_ms = -1);
 
 private:
     Link *so_link;

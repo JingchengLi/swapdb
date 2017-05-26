@@ -42,6 +42,13 @@ void *ssdb_sync(void *arg) {
     fdes->set(master_link->fd(), FDEVENT_IN, 1, master_link); //open evin
     master_link->noblock(true);
 
+//
+//
+//    RedisUpstream redisUpstream(serv->redisConf.ip, serv->redisConf.port, 1000);
+//    redisUpstream.setMaxRetry(1);
+//    redisUpstream.setRetryConnect(1);
+
+
 
     const Fdevents::events_t *events;
     ready_list_t ready_list;

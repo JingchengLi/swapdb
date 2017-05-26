@@ -63,8 +63,8 @@ RedisResponse *RedisClient::redisRequest(const std::vector<std::string> &args) {
     return this->redisResponse();
 }
 
-RedisClient *RedisClient::connect(const char *host, int port) {
-    Link *so_link = Link::connect(host, port);
+RedisClient *RedisClient::connect(const char *host, int port, long timeout_ms) {
+    Link *so_link = Link::connect(host, port, timeout_ms);
     if (so_link == NULL) {
         return NULL;
     }
