@@ -5126,8 +5126,7 @@ void migrateCommand(client *c) {
     int oi = 0;
 
     for (j = 0; j < num_keys; j++) {
-        if ((ov[oi] = lookupKeyRead(c->db,c->argv[first_key+j])) != NULL
-            || (server.jdjr_mode && (ov[oi] = lookupKeyRead(EVICTED_DATA_DB, c->argv[first_key + j])))) {
+        if ((ov[oi] = lookupKeyRead(c->db,c->argv[first_key+j])) != NULL) {
             kv[oi] = c->argv[first_key+j];
             oi++;
         }
