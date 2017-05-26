@@ -1152,20 +1152,16 @@ int proc_migrate(Context &ctx, Link *link, const Request &req, Response *resp) {
     }
 
 
-    RedisResponse *buf1 = nullptr;
-    RedisResponse *buf2 = nullptr;
 
     if (dbid != 0) {
-        buf1 = r.redisResponse();
-        if (buf1 == nullptr || buf1->type == REDIS_REPLY_ERROR) {
-            if (buf1 != nullptr) delete buf1;
-            reply_errinfo_return(("ERR Target instance replied with error: " + buf1->str));
+        std::unique_ptr<RedisResponse> buf1(r.redisResponse());
+        if (buf1) {
+            if (buf1->type == REDIS_REPLY_ERROR) {
+                reply_errinfo_return(("ERR Target instance replied with error: " + buf1->str));
+            }
+        } else {
+            reply_errinfo_return("IOERR error or timeout to target instance");
         }
-    }
-
-    if (buf1 != nullptr) {
-        delete buf1;
-        buf1 = nullptr;
     }
 
     /* Read the RESTORE replies. */
@@ -1173,8 +1169,8 @@ int proc_migrate(Context &ctx, Link *link, const Request &req, Response *resp) {
     int socket_error = 0;
 
     for (j = 0; j < kv.size(); j++) {
-        buf2 = r.redisResponse();
-        if (buf2 == nullptr) {
+        std::unique_ptr<RedisResponse> buf2(r.redisResponse());
+        if (!buf2) {
             socket_error = 1;
             break;
         }
@@ -1189,8 +1185,6 @@ int proc_migrate(Context &ctx, Link *link, const Request &req, Response *resp) {
             }
         }
 
-        delete buf2;
-        buf2 = nullptr;
     }
 
     /* If we are here and a socket error happened, we don't want to retry.
