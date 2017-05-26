@@ -630,13 +630,8 @@ void handleConnectSSDBok(client* c) {
                   (void*)server.master->context,
                   server.master->context? server.master->context->fd : -1,
                   server.master->ssdb_conn_flags);
-        const char* tmpargv[2];
-        tmpargv[0] = "repopid";
-        tmpargv[1] = "get";
 
-        sds cmd = composeRedisCmd(2, tmpargv, NULL);
-
-        if (sendCommandToSSDB(server.master, cmd) == C_OK)
+        if (sendRepopidCheckToSSDB(server.master) == C_OK)
             server.master->ssdb_conn_flags |= CONN_CHECK_REPOPID;
     } else {
         c->ssdb_conn_flags |= CONN_SUCCESS;
@@ -822,6 +817,85 @@ int closeAndReconnectSSDBconnection(client* c) {
     return C_OK;
 }
 
+/* don't call this function directly, use sendCommandToSSDB instead. */
+static int internalSendCommandToSSDB(client *c, sds finalcmd) {
+    int nwritten;
+    if (!c || !finalcmd) {
+        return C_ERR;
+    }
+     while (finalcmd && sdslen(finalcmd) > 0) {
+        nwritten = write(c->context->fd, finalcmd, sdslen(finalcmd));
+        if (nwritten == -1) {
+            if (errno == EAGAIN || errno == EINTR) {
+                /* Try again later. */
+            } else {
+                if (isSpecialConnection(c))
+                    freeClient(c);
+                else {
+                    serverLog(LL_WARNING, "Error writing to SSDB server: %s", strerror(errno));
+                    closeAndReconnectSSDBconnection(c);
+                }
+                sdsfree(finalcmd);
+                return C_FD_ERR;
+            }
+        } else if (nwritten > 0) {
+            if (nwritten == (signed) sdslen(finalcmd)) {
+                sdsfree(finalcmd);
+                finalcmd = NULL;
+            } else {
+                sdsrange(finalcmd, nwritten, -1);
+            }
+        }
+    }
+
+    return C_OK;
+}
+
+int sendFailedRetryCommandToSSDB(client* c, sds finalcmd) {
+    if (!finalcmd) {
+        struct redisCommand *cmd = lookupCommand(c->argv[0]->ptr);
+        finalcmd = composeCmdFromArgs(c->argc, c->argv);
+    }
+    return internalSendCommandToSSDB(c, finalcmd);
+}
+
+int sendRepopidCheckToSSDB(client* c) {
+    if (c != server.master) return C_ERR;
+
+    const char* tmpargv[2];
+    tmpargv[0] = "repopid";
+    tmpargv[1] = "get";
+
+    sds cmd = composeRedisCmd(2, tmpargv, NULL);
+
+    return internalSendCommandToSSDB(server.master, cmd);
+}
+
+/* for server.master, we must send all failed writes to SSDB at first, and then
+ * we can set server.master->ssdb_conn_flags to CONN_SUCCESS, if is_slave_retry
+ * is true, we don't check CONN_SUCCESS flag. */
+int sendRepopidToSSDB(client* c, time_t op_time, int op_id, int is_slave_retry) {
+    const char* tmpargv[4];
+    char time[64];
+    char index[32];
+    int ret;
+
+    tmpargv[0] = "repopid";
+    tmpargv[1] = "set";
+    ll2string(time, sizeof(time), op_time);
+    tmpargv[2] = time;
+    ll2string(index, sizeof(index), op_id);
+    tmpargv[3] = index;
+
+    sds cmd = composeRedisCmd(4, tmpargv, NULL);
+
+    if (is_slave_retry)
+        ret = sendFailedRetryCommandToSSDB(c, cmd);
+    else
+        ret = sendCommandToSSDB(c, cmd);
+    return ret;
+}
+
 /* Querying SSDB server if querying redis fails, Compose the finalcmd if finalcmd is NULL. */
 int sendCommandToSSDB(client *c, sds finalcmd) {
     int nwritten;
@@ -866,32 +940,7 @@ int sendCommandToSSDB(client *c, sds finalcmd) {
     serverLog(LL_DEBUG, "sendCommandToSSDB context fd: %d, redis fd:%d",
               c->context ? c->context->fd : -1, c->fd);
 
-    while (finalcmd && sdslen(finalcmd) > 0) {
-        nwritten = write(c->context->fd, finalcmd, sdslen(finalcmd));
-        if (nwritten == -1) {
-            if (errno == EAGAIN || errno == EINTR) {
-                /* Try again later. */
-            } else {
-                if (isSpecialConnection(c))
-                    freeClient(c);
-                else {
-                    serverLog(LL_WARNING, "Error writing to SSDB server: %s", strerror(errno));
-                    closeAndReconnectSSDBconnection(c);
-                }
-                sdsfree(finalcmd);
-                return C_FD_ERR;
-            }
-        } else if (nwritten > 0) {
-            if (nwritten == (signed) sdslen(finalcmd)) {
-                sdsfree(finalcmd);
-                finalcmd = NULL;
-            } else {
-                sdsrange(finalcmd, nwritten, -1);
-            }
-        }
-    }
-
-    return C_OK;
+    return internalSendCommandToSSDB(c, finalcmd);
 }
 
 void sendFlushCheckCommandToSSDB(aeEventLoop *el, int fd, void *privdata, int mask) {

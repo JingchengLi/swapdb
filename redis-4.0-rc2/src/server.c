@@ -2967,25 +2967,6 @@ void emptySlaveSSDBwriteOperations() {
     server.writeop_mem_size = 0;
 }
 
-int sendRepopidToSSDB(client* c, time_t op_time, int op_id) {
-    const char* tmpargv[4];
-    char time[64];
-    char index[32];
-    int ret;
-
-    tmpargv[0] = "repopid";
-    tmpargv[1] = "set";
-    ll2string(time, sizeof(time), op_time);
-    tmpargv[2] = time;
-    ll2string(index, sizeof(index), op_id);
-    tmpargv[3] = index;
-
-    sds cmd = composeRedisCmd(4, tmpargv, NULL);
-
-    ret = sendCommandToSSDB(c, cmd);
-    return ret;
-}
-
 int confirmAndRetrySlaveSSDBwriteOp(time_t time, int index) {
     struct ssdb_write_op* op;
     listIter li;
@@ -3027,7 +3008,7 @@ int confirmAndRetrySlaveSSDBwriteOp(time_t time, int index) {
             } else {
                 /* this is a failed write, retry it. */
                 if (op->cmd->proc == flushallCommand) {
-                    ret = sendRepopidToSSDB(server.master, op->time, op->index);
+                    ret = sendRepopidToSSDB(server.master, op->time, op->index, 1);
                     if (ret != C_OK) break;
 
                     server.master->cmd = lookupCommandByCString("flushall");
@@ -3122,7 +3103,7 @@ int updateSendRepopidToSSDB(client* c) {
      * in server.ssdb_write_oplist, we just return and process next write command. */
     saveSlaveSSDBwriteOp(c, server.last_send_writeop_time, server.last_send_writeop_index);
 
-    ret = sendRepopidToSSDB(c, server.last_send_writeop_time, server.last_send_writeop_index);
+    ret = sendRepopidToSSDB(c, server.last_send_writeop_time, server.last_send_writeop_index, 0);
     if (ret == C_OK)
         serverLog(LL_DEBUG, "repopid set %ld %d, server.master:%p, context:%p, context->fd:%d, ssdb conn flags:%d",
                   server.last_send_writeop_time, server.last_send_writeop_index,
@@ -3186,11 +3167,11 @@ int processCommandMaybeInSSDB(client *c) {
         /* Calling lookupKey to update lru or lfu counter. */
         robj* val = lookupKey(EVICTED_DATA_DB, keyobj, LOOKUP_NONE);
         if (val) {
+            int ret;
             if (server.master == c) {
-                int ret;
                 if (slave_retry_write) {
                     /* this is a failed write retry, reuse its write op time and id. */
-                    ret = sendRepopidToSSDB(server.master, slave_retry_write->time, slave_retry_write->index);
+                    ret = sendRepopidToSSDB(server.master, slave_retry_write->time, slave_retry_write->index, 1);
                 } else {
                     ret = updateSendRepopidToSSDB(c);
                 }
@@ -3223,7 +3204,10 @@ int processCommandMaybeInSSDB(client *c) {
                 }
             }
 
-            int ret = sendCommandToSSDB(c, NULL);
+            if (server.master == c && slave_retry_write)
+                ret = sendFailedRetryCommandToSSDB(c, NULL);
+            else
+                ret = sendCommandToSSDB(c, NULL);
             if (ret != C_OK) {
                 /* avoid to reset c->argv for the replication connection of slave redis. we use it to save
                  * commands in server.ssdb_write_oplist */
