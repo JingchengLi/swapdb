@@ -522,23 +522,25 @@ void keysCommand(client *c) {
     unsigned long numkeys = 0;
     void *replylen = addDeferredMultiBulkLength(c);
 
-    di = dictGetSafeIterator(c->db->dict);
+    /* if command name is not "ssdbkeys" */
+    if (!server.jdjr_mode || (server.jdjr_mode && 0 == sdscmp(c->argv[0]->ptr,(sds)"keys"))) {
+        di = dictGetSafeIterator(c->db->dict);
+        allkeys = (pattern[0] == '*' && pattern[1] == '\0');
+        while((de = dictNext(di)) != NULL) {
+            sds key = dictGetKey(de);
+            robj *keyobj;
 
-    allkeys = (pattern[0] == '*' && pattern[1] == '\0');
-    while((de = dictNext(di)) != NULL) {
-        sds key = dictGetKey(de);
-        robj *keyobj;
-
-        if (allkeys || stringmatchlen(pattern,plen,key,sdslen(key),0)) {
-            keyobj = createStringObject(key,sdslen(key));
-            if (expireIfNeeded(c->db,keyobj) == 0) {
-                addReplyBulk(c,keyobj);
-                numkeys++;
+            if (allkeys || stringmatchlen(pattern,plen,key,sdslen(key),0)) {
+                keyobj = createStringObject(key,sdslen(key));
+                if (expireIfNeeded(c->db,keyobj) == 0) {
+                    addReplyBulk(c,keyobj);
+                    numkeys++;
+                }
+                decrRefCount(keyobj);
             }
-            decrRefCount(keyobj);
         }
+        dictReleaseIterator(di);
     }
-    dictReleaseIterator(di);
     if (server.jdjr_mode) {
         ev_di = dictGetSafeIterator(EVICTED_DATA_DB->dict);
         while((de = dictNext(ev_di)) != NULL) {

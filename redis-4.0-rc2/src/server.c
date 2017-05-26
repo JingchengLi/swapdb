@@ -240,6 +240,7 @@ struct redisCommand redisCommandTable[] = {
     {"pexpire",pexpireCommand,3,"wFJ",0,NULL,1,1,1,0,0},
     {"pexpireat",pexpireatCommand,3,"wFJ",0,NULL,1,1,1,0,0},
     {"keys",keysCommand,2,"rSj",0,NULL,0,0,0,0,0},
+    {"ssdbkeys",keysCommand,2,"rSj",0,NULL,0,0,0,0,0},
     {"scan",scanCommand,-2,"rR",0,NULL,0,0,0,0,0},
     {"dbsize",dbsizeCommand,1,"rFj",0,NULL,0,0,0,0,0},
     {"auth",authCommand,2,"sltF",0,NULL,0,0,0,0,0},
@@ -897,36 +898,61 @@ void reconnectSSDB() {
         /* redis is doing write check before replication. */
         return;
     }
+    int total_ssdb_conn = 0;
+    int total_ssdb_disconnected = 0;
     if (!server.ssdb_client)
         server.ssdb_client = createSpecialSSDBclient();
-    else if (server.ssdb_client->ssdb_conn_flags & CONN_CONNECT_FAILED)
+    else if (server.ssdb_client->ssdb_conn_flags & CONN_CONNECT_FAILED) {
         nonBlockConnectToSsdbServer(server.ssdb_client);
+        total_ssdb_disconnected++;
+    }
+    total_ssdb_conn++;
 
     if (!server.delete_confirm_client)
         server.delete_confirm_client = createSpecialSSDBclient();
-    else if (server.delete_confirm_client->ssdb_conn_flags & CONN_CONNECT_FAILED)
+    else if (server.delete_confirm_client->ssdb_conn_flags & CONN_CONNECT_FAILED) {
         nonBlockConnectToSsdbServer(server.delete_confirm_client);
+        total_ssdb_disconnected++;
+    }
+    total_ssdb_conn++;
+
+    /* if ssdb is down before this, we just try two connections. avoid too many
+     * reconnect retries. */
+    if (server.ssdb_is_down) return;
 
     if (!server.slave_ssdb_load_evict_client)
         server.slave_ssdb_load_evict_client = createSpecialSSDBclient();
-    else if (server.slave_ssdb_load_evict_client->ssdb_conn_flags & CONN_CONNECT_FAILED)
+    else if (server.slave_ssdb_load_evict_client->ssdb_conn_flags & CONN_CONNECT_FAILED) {
         nonBlockConnectToSsdbServer(server.slave_ssdb_load_evict_client);
+        total_ssdb_disconnected++;
+    }
+    total_ssdb_conn++;
 
     if (!server.ssdb_replication_client)
         server.ssdb_replication_client = createSpecialSSDBclient();
-    else if (server.ssdb_replication_client->ssdb_conn_flags & CONN_CONNECT_FAILED)
+    else if (server.ssdb_replication_client->ssdb_conn_flags & CONN_CONNECT_FAILED) {
         nonBlockConnectToSsdbServer(server.ssdb_replication_client);
+        total_ssdb_disconnected++;
+    }
+    total_ssdb_conn++;
 
     listRewind(server.clients, &li);
     while ((ln = listNext(&li))) {
         client *c = listNodeValue(ln);
+        total_ssdb_conn++;
         if (c->ssdb_conn_flags & CONN_CONNECT_FAILED) {
+            total_ssdb_disconnected++;
             nonBlockConnectToSsdbServer(c);
         }
-        if (!server.ssdb_is_up) break;
+    }
+
+    if (total_ssdb_conn == total_ssdb_disconnected) {
+        server.ssdb_is_down = 1;
+        server.ssdb_down_time = server.unixtime;
     }
 
     run_with_period(2000) {
+        // todo: use a suitable timeout
         if (server.ssdb_down_time != -1 && server.ssdb_down_time - server.unixtime > 10)
             serverLog(LL_WARNING, "ssdb is down and last for %ld seconds", server.ssdb_down_time - server.unixtime);
     }
@@ -2382,8 +2408,8 @@ void initServer(void) {
         server.cmdNotDone = 0;
 
         server.slave_ssdb_critical_err_cnt = 0;
-        server.ssdb_is_up = 0;
         server.ssdb_down_time = -1;
+        server.ssdb_is_down = 0;
         server.ssdb_ready_keys = listCreate();
 
         server.slave_failed_retry_interrupted = 0;

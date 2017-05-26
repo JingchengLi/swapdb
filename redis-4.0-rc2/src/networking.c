@@ -611,8 +611,7 @@ int clientHasPendingReplies(client *c) {
 }
 
 void handleConnectSSDBok(client* c) {
-    server.ssdb_is_up = 1;
-    server.ssdb_down_time = -1;
+    if (server.ssdb_is_down) server.ssdb_is_down = 0;
     if (server.master == c && listLength(server.ssdb_write_oplist) > 0) {
         /* NOTE: to ensure data consistency between the slave myself and our master,
          * for server.master connection, if there are unconfirmed write operations in
@@ -653,7 +652,6 @@ void ssdbConnectCallback(aeEventLoop *el, int fd, void *privdata, int mask) {
     if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &sockerr, &errlen) == -1)
         sockerr = errno;
     if (sockerr) {
-        server.ssdb_is_up = 0;
         serverLog(LL_WARNING,"Error condition on socket for connect ssdb: %s",
             strerror(sockerr));
         goto error;
@@ -687,9 +685,6 @@ int nonBlockConnectToSsdbServer(client *c) {
 
         context = redisConnectUnixNonBlock(server.ssdb_server_unixsocket);
         if (context->err) {
-            server.ssdb_is_up = 0;
-            if (server.ssdb_down_time == -1)
-                server.ssdb_down_time = server.unixtime;
             c->ssdb_conn_flags |= CONN_CONNECT_FAILED;
             redisFree(context);
             serverLog(LL_VERBOSE, "Could not connect to SSDB server:%s", context->errstr);
@@ -812,9 +807,6 @@ void handleSSDBconnectionDisconnect(client* c) {
 
 int closeAndReconnectSSDBconnection(client* c) {
     if (c->context) {
-        server.ssdb_is_up = 0;
-        if (server.ssdb_down_time == -1)
-            server.ssdb_down_time = server.unixtime;
         serverLog(LL_DEBUG, "ssdb connection disconnect! c->fd:%d,c->context->fd:%d",
                   c->fd, c->context ? c->context->fd : -1);
     }
@@ -1934,7 +1926,8 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
 
         /* encountered a read error. */
         if (c->context->err) {
-            serverLog(LL_WARNING, "Error: Could not connect to SSDB, %s ", c->context->errstr);
+            serverLog(LL_WARNING, "ssdb read error: %s ", c->context->errstr);
+
             if (isSpecialConnection(c)) {
                 freeClient(c);
                 return;

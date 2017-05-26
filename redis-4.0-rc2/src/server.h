@@ -1362,7 +1362,7 @@ struct redisServer {
     int slave_failed_retry_interrupted;
     struct ssdb_write_op* blocked_write_op;
 
-    int ssdb_is_up;
+    int ssdb_is_down;
     /* when ssdb is down, record the time */
     time_t ssdb_down_time;
     int slave_ssdb_critical_err_cnt;
