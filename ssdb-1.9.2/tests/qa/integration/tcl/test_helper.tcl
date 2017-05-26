@@ -25,6 +25,7 @@ set ::all_tests {
     ssdb/zset
     ssdb/zset-2
     ssdb/repopid
+    ssdb/migrate
 }
 # need run with redis
 # ssdb/dump

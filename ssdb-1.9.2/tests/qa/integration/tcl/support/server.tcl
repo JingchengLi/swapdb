@@ -143,12 +143,12 @@ proc start_server {options {code undefined}} {
     if {$::external} {
         if {[llength $::servers] == 0} {
             set srv {}
+            set ::port 8888
             dict set srv "host" $::host
             dict set srv "port" $::port
-            set ::port 8888 
             set client [redis $::host $::port]
             dict set srv "client" $client
-            $client select 9
+            $client select 0
 
             # append the server to the stack
             lappend ::servers $srv
