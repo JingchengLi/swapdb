@@ -947,6 +947,7 @@ void reconnectSSDB() {
     }
 
     if (total_ssdb_conn == total_ssdb_disconnected) {
+        serverLog(LL_NOTICE, "[!!!]SSDB is down");
         server.ssdb_is_down = 1;
         server.ssdb_down_time = server.unixtime;
     }

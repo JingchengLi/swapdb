@@ -611,7 +611,10 @@ int clientHasPendingReplies(client *c) {
 }
 
 void handleConnectSSDBok(client* c) {
-    if (server.ssdb_is_down) server.ssdb_is_down = 0;
+    if (server.ssdb_is_down) {
+        serverLog(LL_NOTICE, "[!!!]SSDB is up now");
+        server.ssdb_is_down = 0;
+    }
     if (server.master == c && listLength(server.ssdb_write_oplist) > 0) {
         /* NOTE: to ensure data consistency between the slave myself and our master,
          * for server.master connection, if there are unconfirmed write operations in
