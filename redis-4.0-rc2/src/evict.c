@@ -778,6 +778,7 @@ int tryEvictingKeysToSSDB(int *mem_tofree) {
             && dictFind(EVICTED_DATA_DB->delete_confirm_keys, dictGetKey(de)) == NULL
             && dictFind(server.hot_keys, dictGetKey(de)) == NULL
             && dictFind(EVICTED_DATA_DB->loading_hot_keys, dictGetKey(de)) == NULL) {
+            //&& !isMigratingSSDBKey(dictGetKey(de))) {
             size_t usage;
             bestkey = dictGetKey(de);
             /* Estimate the memory usage of the bestkey. */

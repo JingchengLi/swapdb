@@ -298,6 +298,7 @@ typedef long long mstime_t; /* millisecond time type. */
 #define BLOCKED_BY_FLUSHALL 14
 #define BLOCKED_BY_DELETE_CONFIRM  15 /* Client is blocked by delete key confirm. */
 #define BLOCKED_MIGRATING_CLIENT 16
+#define BLOCKED_MIGRATING_SSDB 17 /* Client is migrating in SSDB. */
 /* ================================================= */
 
 
@@ -683,6 +684,7 @@ typedef struct redisDb {
     dict *visiting_ssdb_keys;   /* Keys are visiting SSDB, including reading and writing. */
     dict *delete_confirm_keys;  /* need to confirm whether keys are deleted in SSDB when receive
                                  * 'check 1' responses for get like APIs or hdel like APIs. */
+    dict *migrating_ssdb_keys;  /* For jdjr-mode: record the migrating keys in ssdb. */
     int id;                     /* Database ID */
     long long avg_ttl;          /* Average TTL, just for stats */
 } redisDb;
@@ -1810,6 +1812,9 @@ int checkValidCommand(client* c);
 int checkKeysInMediateState(client* c);
 int checkKeysForMigrate(client *c);
 int processCommandMaybeInSSDB(client *c,  struct ssdb_write_op* slave_retry_write);
+int isMigratingSSDBKey(sds keysds);
+int addMigratingSSDBKey(sds keysds);
+int delMigratingSSDBKey(sds keysds);
 int isSSDBrespCmd(struct redisCommand *cmd);
 void setupSignalHandlers(void);
 struct redisCommand *lookupCommand(sds name);

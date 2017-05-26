@@ -1414,7 +1414,8 @@ void startToLoadIfNeeded() {
             continue;
         }
 
-        if (dictFind(EVICTED_DATA_DB->visiting_ssdb_keys, key)) {
+        if (dictFind(EVICTED_DATA_DB->visiting_ssdb_keys, key)
+            || isMigratingSSDBKey(key)) {
             /* Try to load the key later. */
             continue;
         }
@@ -2255,6 +2256,7 @@ void initServer(void) {
     if (server.jdjr_mode) {
         server.db[0].ssdb_blocking_keys = dictCreate(&keylistDictType,NULL);
         server.db[0].ssdb_ready_keys = dictCreate(&objectKeyPointerValueDictType,NULL);
+        server.db[0].migrating_ssdb_keys = dictCreate(&keyDictType,NULL);
 
         server.db[EVICTED_DATA_DBID].transferring_keys = dictCreate(&keyDictType,NULL);
         server.db[EVICTED_DATA_DBID].loading_hot_keys = dictCreate(&keyDictType,NULL);
@@ -2874,6 +2876,20 @@ int processCommandMaybeFlushdb(client *c) {
 }
 
 
+int addMigratingSSDBKey(sds keysds) {
+    dictEntry *entry, *existing;
+    entry = dictAddRaw(server.db->migrating_ssdb_keys, keysds, &existing);
+    return !entry ? DICT_OK : DICT_ERR;
+}
+
+int isMigratingSSDBKey(sds keysds) {
+    return dictFind(server.db->migrating_ssdb_keys, keysds) ? 1 : 0;
+}
+
+int delMigratingSSDBKey(sds keysds) {
+    return dictDelete(server.db->migrating_ssdb_keys, keysds);
+}
+
 void addVisitingSSDBKey(client *c, sds *keysds) {
     dictEntry *entry, *existing;
     uint64_t clients_visiting_num = 0;
@@ -3186,7 +3202,10 @@ int processCommandMaybeInSSDB(client *c) {
                 keys = getKeysFromCommand(c->cmd, c->argv, c->argc, &numkeys);
                 for (j = 0; j < numkeys; j ++)
                     /* TODO: only support single key command. */
-                    addVisitingSSDBKey(c, c->argv[keys[j]]->ptr);
+                    if (c->cmd->proc == migrateCommand)
+                        addMigratingSSDBKey(c->argv[keys[j]]->ptr);
+                    else
+                        addVisitingSSDBKey(c, c->argv[keys[j]]->ptr);
 
                 if (keys) getKeysFreeResult(keys);
 
@@ -3198,11 +3217,14 @@ int processCommandMaybeInSSDB(client *c) {
                     return C_OK;
                 } else {
                     /* TODO: use a suitable timeout. */
-                    if (c->cmd && c->cmd->proc == migrateCommand)
+                    if (c->cmd && c->cmd->proc == migrateCommand) {
                         c->bpop.timeout = 900000 + mstime();
-                    else
+                        blockClient(c, BLOCKED_MIGRATING_SSDB);
+                        addMigratingSSDBKey(keyobj->ptr);
+                    } else {
                         c->bpop.timeout = 5000 + mstime();
-                    blockClient(c, BLOCKED_VISITING_SSDB);
+                        blockClient(c, BLOCKED_VISITING_SSDB);
+                    }
                 }
             }
 
@@ -3403,6 +3425,24 @@ int runCommandSlaveFailedRetry(client *c, struct ssdb_write_op* slave_retry_writ
 }
 
 int runCommand(client *c) {
+    /* Check the migrating keys. Don not move out from runCommand as async operations. */
+    if (server.jdjr_mode) {
+        robj *firstkey = NULL;
+        if (c->cmd->firstkey != 0)
+            firstkey = c->argv[c->cmd->firstkey];
+        else if (c->cmd->proc == migrateCommand)
+            firstkey = c->argv[3];
+        else
+            /* TODO: check all the cmds. */
+            serverLog(LL_DEBUG, "cmd->name: %s, c->argc: %d", c->cmd->name, c->argc);
+
+        /* TODO: block the client and delay the operations ??? */
+        if (firstkey && isMigratingSSDBKey(firstkey->ptr)) {
+            addReplyError(c, "key is migrating in ssdb");
+            return C_OK;
+        }
+    }
+
     /* Exec the command */
     if (server.jdjr_mode) {
         int ret = processCommandMaybeInSSDB(c, NULL);

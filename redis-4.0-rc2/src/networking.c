@@ -1762,7 +1762,6 @@ int isSpecialConnection(client *c) {
 
 void handleSSDBReply(client *c, int revert_len) {
     redisReply *reply;
-    int j;
 
     reply = c->ssdb_replies[0];
 
@@ -1816,8 +1815,8 @@ void handleSSDBReply(client *c, int revert_len) {
             addReplyError(c, "migrate port error");
         }
 
-        if (c->btype != BLOCKED_VISITING_SSDB)
-            serverLog(LL_WARNING, "Client btype should be 'BLOCKED_VISITING_SSDB'");
+        if (c->btype != BLOCKED_MIGRATING_SSDB)
+            serverLog(LL_WARNING, "Client btype should be 'BLOCKED_MIGRATING_SSDB'");
 
         if (reply && reply->type == REDIS_REPLY_STATUS
             && restoreportok
@@ -1836,6 +1835,7 @@ void handleSSDBReply(client *c, int revert_len) {
             c->db = EVICTED_DATA_DB;
             migrateCommand(c);
             c->db = olddb;
+            serverAssert(delMigratingSSDBKey(keyobj->ptr) == DICT_OK);
         }
     }
 
@@ -1876,7 +1876,8 @@ void handleSSDBReply(client *c, int revert_len) {
     handleExtraSSDBReply(c);
 
     /* Unblock the client is reading/writing SSDB. */
-    if (c->btype == BLOCKED_VISITING_SSDB) {
+    if (c->btype == BLOCKED_VISITING_SSDB
+        || c->btype == BLOCKED_MIGRATING_SSDB) {
         unblockClient(c);
 
         if ((c->cmd
@@ -1944,7 +1945,9 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
                     revertClientBufReply(c, total_reply_len);
 
                 /* we don't need to reply to server.master and server.delete_confirm_client. */
-                if (c->btype == BLOCKED_VISITING_SSDB || c->btype == BLOCKED_BY_FLUSHALL) {
+                if (c->btype == BLOCKED_VISITING_SSDB
+                    || c->btype == BLOCKED_MIGRATING_SSDB
+                    || c->btype == BLOCKED_BY_FLUSHALL) {
                     unblockClient(c);
                     resetClient(c);
                     /* only reply to redis user client when there is a write/read SSDB request. */
