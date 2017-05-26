@@ -18,9 +18,10 @@ void *ssdb_sync(void *arg) {
     Context ctx = job->ctx;
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
     HostAndPort hnp = job->hnp;
-    Link *master_link = job->upstream;
+    std::unique_ptr <Link>master_link(job->upstream); //job->upstream cannot be null !
 
     delete job;
+
 
     if (serv->ssdb->expiration) {
         serv->ssdb->expiration->stop();
@@ -39,7 +40,7 @@ void *ssdb_sync(void *arg) {
 
     unique_ptr<Fdevents> fdes = unique_ptr<Fdevents>(new Fdevents());
 
-    fdes->set(master_link->fd(), FDEVENT_IN, 1, master_link); //open evin
+    fdes->set(master_link->fd(), FDEVENT_IN, 1, master_link.get()); //open evin
     master_link->noblock(true);
 
 
@@ -78,11 +79,9 @@ void *ssdb_sync(void *arg) {
         if (job->heartbeat) {
             if ((time_ms() - lastHeartBeat) > 3000) {
 
-                auto res = redisUpstream.sendCommand({"ssdb-notify-redis", "transfer", "continue"});
-                if (res == nullptr) {
-
-                } else {
-                    delete res;
+                std::unique_ptr<RedisResponse> t_res(redisUpstream.sendCommand({"ssdb-notify-redis", "transfer", "continue"}));
+                if (!t_res) {
+                    //log
                 }
 
                 lastHeartBeat = time_ms();
@@ -303,29 +302,16 @@ void *ssdb_sync(void *arg) {
         log_error("[ssdb_sync] recieve snapshot from %s:%d failed!, err: %d", hnp.ip.c_str(), hnp.port, errorCode);
 
         if (job->heartbeat) {
-            auto res = redisUpstream.sendCommand({"ssdb-notify-redis", "transfer", "unfinished"});
-            if (res == nullptr) {
-
-            } else {
-                delete res;
-            }
+            std::unique_ptr<RedisResponse> t_res(redisUpstream.sendCommand({"ssdb-notify-redis", "transfer", "unfinished"}));
         }
     } else {
         master_link->quick_send({"ok", "recieve snapshot finished"});
         log_info("[ssdb_sync] recieve snapshot from %s:%d finished!", hnp.ip.c_str(), hnp.port);
 
         if (job->heartbeat) {
-            auto res = redisUpstream.sendCommand({"ssdb-notify-redis", "transfer", "finished"});
-            if (res == nullptr) {
-
-            } else {
-                delete res;
-            }
+            std::unique_ptr<RedisResponse> t_res(redisUpstream.sendCommand({"ssdb-notify-redis", "transfer", "finished"}));
         }
     }
-
-    delete master_link;
-
 
 
     return (void *) NULL;

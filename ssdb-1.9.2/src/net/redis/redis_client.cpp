@@ -8,7 +8,7 @@
 RedisResponse *RedisClient::redisResponse() {
     // Redis protocol supports
     // - + : $
-    if (so_link->redis == NULL) {
+    if (so_link->redis == nullptr) {
         so_link->redis = new RedisLink();
     }
 
@@ -23,7 +23,7 @@ RedisResponse *RedisClient::redisResponse() {
             resp->reset();
             if (so_link->read() <= 0) {
                 delete resp;
-                return NULL;
+                return nullptr;
             }
         } else {
             so_link->input->decr(parsed);
@@ -32,7 +32,7 @@ RedisResponse *RedisClient::redisResponse() {
     }
 
     delete resp;
-    return NULL;
+    return nullptr;
 }
 
 int RedisClient::redisRequestSend(const std::vector<std::string> &args) {
@@ -52,12 +52,16 @@ int RedisClient::redisRequestSend(const std::vector<std::string> &args) {
 }
 
 RedisResponse *RedisClient::redisRequest(const std::vector<std::string> &args) {
+    if (so_link == nullptr) {
+        return nullptr;
+    }
+
     if (this->redisRequestSend(args) == -1) {
-        return NULL;
+        return nullptr;
     }
 
     if (so_link->flush() == -1) {
-        return NULL;
+        return nullptr;
     }
 
     return this->redisResponse();
@@ -65,8 +69,8 @@ RedisResponse *RedisClient::redisRequest(const std::vector<std::string> &args) {
 
 RedisClient *RedisClient::connect(const char *host, int port, long timeout_ms) {
     Link *so_link = Link::connect(host, port, timeout_ms);
-    if (so_link == NULL) {
-        return NULL;
+    if (so_link == nullptr) {
+        return nullptr;
     }
 
     RedisClient *redisClient = new RedisClient(so_link);

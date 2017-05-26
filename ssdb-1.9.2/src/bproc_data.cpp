@@ -33,16 +33,14 @@ int bproc_COMMAND_DATA_SAVE(Context &ctx, TransferWorker *worker, const std::str
     std::vector<std::string> req = {del_cmd, data_key};
     log_debug("[request->redis] : %s %s", hexstr(req[0]).c_str(), hexstr(req[1]).c_str());
 
-    RedisResponse *t_res = worker->redisUpstream->sendCommand(req);
-    if (t_res == nullptr) {
+    std::unique_ptr<RedisResponse> t_res(worker->redisUpstream->sendCommand(req));
+    if (!t_res) {
         log_error("[%s %s] redis response is null", hexstr(req[0]).c_str(), hexstr(req[1]).c_str());
         //redis res failed
         return -1;
     }
 
     log_debug("[response<-redis] : %s %s %s", hexstr(req[0]).c_str(), hexstr(req[1]).c_str(), t_res->toString().c_str());
-
-    delete t_res;
 
     return 0;
 }
@@ -81,8 +79,8 @@ int bproc_COMMAND_DATA_DUMP(Context &ctx, TransferWorker *worker, const std::str
         std::vector<std::string> req = {cmd, data_key, str(pttl), val, "replace"};
         log_debug("[request->redis] : %s %s", hexstr(req[0]).c_str(), hexstr(req[1]).c_str());
 
-        RedisResponse *t_res = worker->redisUpstream->sendCommand(req);
-        if (t_res == nullptr) {
+        std::unique_ptr<RedisResponse> t_res(worker->redisUpstream->sendCommand(req));
+        if (!t_res) {
             log_error("[%s %s] redis response is null", hexstr(req[0]).c_str(), hexstr(req[1]).c_str());
             //redis res failed
             return -1;
@@ -95,7 +93,6 @@ int bproc_COMMAND_DATA_DUMP(Context &ctx, TransferWorker *worker, const std::str
             serv->ssdb->del(ctx, data_key);
         }
 
-        delete t_res;
     }
 
 
@@ -110,8 +107,8 @@ int notifyFailedToRedis(RedisUpstream *redisUpstream, std::string responseComman
     std::vector<std::string> req = {cmd, responseCommand, dataKey};
     log_debug("[request->redis] : %s %s %s", hexstr(req[0]).c_str(), hexstr(req[1]).c_str(), hexstr(req[2]).c_str());
 
-    RedisResponse *t_res = redisUpstream->sendCommand(req);
-    if (t_res == nullptr) {
+    std::unique_ptr<RedisResponse> t_res(redisUpstream->sendCommand(req));
+    if (!t_res) {
         log_error("[%s %s %s] redis response is null", hexstr(req[0]).c_str(), hexstr(req[1]).c_str(), hexstr(req[2]).c_str());
         //redis res failed
         return -1;
@@ -120,7 +117,6 @@ int notifyFailedToRedis(RedisUpstream *redisUpstream, std::string responseComman
     log_debug("[response<-redis] : %s %s  %s %s", hexstr(req[0]).c_str(), hexstr(req[1]).c_str(), hexstr(req[2]).c_str(),
               t_res->toString().c_str());
 
-    delete t_res;
     return -1;
 }
 
@@ -130,8 +126,8 @@ int notifyNotFoundToRedis(RedisUpstream *redisUpstream, std::string responseComm
     std::vector<std::string> req = {cmd, responseCommand, dataKey};
     log_debug("[request->redis] : %s %s %s", hexstr(req[0]).c_str(), hexstr(req[1]).c_str(), hexstr(req[2]).c_str());
 
-    RedisResponse *t_res = redisUpstream->sendCommand(req);
-    if (t_res == nullptr) {
+    std::unique_ptr<RedisResponse> t_res(redisUpstream->sendCommand(req));
+    if (!t_res) {
         log_error("[%s %s %s] redis response is null", hexstr(req[0]).c_str(), hexstr(req[1]).c_str(), hexstr(req[2]).c_str());
         //redis res failed
         return -1;
@@ -140,6 +136,5 @@ int notifyNotFoundToRedis(RedisUpstream *redisUpstream, std::string responseComm
     log_debug("[response<-redis] : %s %s  %s %s", hexstr(req[0]).c_str(), hexstr(req[1]).c_str(), hexstr(req[2]).c_str(),
               t_res->toString().c_str());
 
-    delete t_res;
     return -1;
 }
