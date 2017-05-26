@@ -97,12 +97,12 @@ SIterator *SSDBImpl::sscan_internal(Context &ctx, const Bytes &name, uint16_t ve
 }
 
 int SSDBImpl::sadd(Context &ctx, const Bytes &key, const std::set<Bytes> &mem_set, int64_t *num) {
-    RecordLock<Mutex> l(&mutex_record_, key.String());
+    RecordKeyLock l(&mutex_record_, key.String());
     return saddNoLock<Bytes>(ctx, key, mem_set, num);
 }
 
 int SSDBImpl::srem(Context &ctx, const Bytes &key, const std::vector<Bytes> &members, int64_t *num) {
-    RecordLock<Mutex> l(&mutex_record_, key.String());
+    RecordKeyLock l(&mutex_record_, key.String());
     leveldb::WriteBatch batch;
 
     int ret = 0;
@@ -189,7 +189,7 @@ int SSDBImpl::srandmember(Context &ctx, const Bytes &key, std::vector<std::strin
     SetMetaVal sv;
     int ret;
     {
-        RecordLock<Mutex> l(&mutex_record_, key.String());
+        RecordKeyLock l(&mutex_record_, key.String());
 
         std::string meta_key = encode_meta_key(key);
         ret = GetSetMetaVal(meta_key, sv);
@@ -258,7 +258,7 @@ int SSDBImpl::spop(Context &ctx, const Bytes &key, std::vector<std::string> &mem
     SetMetaVal sv;
     int ret;
 
-    RecordLock<Mutex> l(&mutex_record_, key.String());
+    RecordKeyLock l(&mutex_record_, key.String());
 
     std::string meta_key = encode_meta_key(key);
     ret = GetSetMetaVal(meta_key, sv);
@@ -324,7 +324,7 @@ int SSDBImpl::smembers(Context &ctx, const Bytes &key, std::vector<std::string> 
     int ret;
 
     {
-        RecordLock<Mutex> l(&mutex_record_, key.String());
+        RecordKeyLock l(&mutex_record_, key.String());
 
         std::string meta_key = encode_meta_key(key);
         ret = GetSetMetaVal(meta_key, sv);

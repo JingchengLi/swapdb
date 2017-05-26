@@ -87,7 +87,7 @@ int ExpirationHandler::expire(Context &ctx, const Bytes &key, int64_t ttl, TimeU
 
 int ExpirationHandler::expireAt(Context &ctx, const Bytes &key, int64_t pexpireat_ms, leveldb::WriteBatch &batch, bool lock) {
 
-    RecordLock<Mutex> l(&ssdb->mutex_record_, key.String(), lock);
+    RecordKeyLock l(&ssdb->mutex_record_, key.String(), lock);
 
     int ret = 0;
 
@@ -148,7 +148,7 @@ void ExpirationHandler::insertFastKey(const std::string &s_key, int64_t pexpirea
 int ExpirationHandler::persist(Context &ctx, const Bytes &key) {
     int ret = 0;
     if (first_timeout != INT64_MAX) {
-        RecordLock<Mutex> l(&ssdb->mutex_record_, key.String());
+        RecordKeyLock l(&ssdb->mutex_record_, key.String());
         leveldb::WriteBatch batch;
 
         ret = cancelExpiration(ctx, key, batch);

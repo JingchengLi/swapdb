@@ -12,12 +12,12 @@ found in the LICENSE file.
  * @return -1: error, 0: item updated, 1: new item inserted
  */
 int SSDBImpl::hmset(Context &ctx, const Bytes &name, const std::map<Bytes ,Bytes> &kvs) {
-	RecordLock<Mutex> l(&mutex_record_, name.String());
+	RecordKeyLock l(&mutex_record_, name.String());
 	return hmsetNoLock<Bytes>(ctx, name, kvs, true);
 }
 
 int SSDBImpl::hset(Context &ctx, const Bytes &name, const Bytes &key, const Bytes &val, int *added){
-	RecordLock<Mutex> l(&mutex_record_, name.String());
+	RecordKeyLock l(&mutex_record_, name.String());
 	leveldb::WriteBatch batch;
 
     int ret = 0;
@@ -52,7 +52,7 @@ int SSDBImpl::hset(Context &ctx, const Bytes &name, const Bytes &key, const Byte
 }
 
 int SSDBImpl::hsetnx(Context &ctx, const Bytes &name, const Bytes &key, const Bytes &val, int *added){
-	RecordLock<Mutex> l(&mutex_record_, name.String());
+	RecordKeyLock l(&mutex_record_, name.String());
 	leveldb::WriteBatch batch;
 
     int ret = 0;
@@ -100,7 +100,7 @@ int SSDBImpl::hsetnx(Context &ctx, const Bytes &name, const Bytes &key, const By
 
 
 int SSDBImpl::hdel(Context &ctx, const Bytes &name, const std::set<Bytes> &fields, int *deleted) {
-	RecordLock<Mutex> l(&mutex_record_, name.String());
+	RecordKeyLock l(&mutex_record_, name.String());
 	leveldb::WriteBatch batch;
 	HashMetaVal hv;
 	std::string meta_key = encode_meta_key(name);
@@ -144,7 +144,7 @@ int SSDBImpl::hdel(Context &ctx, const Bytes &name, const std::set<Bytes> &field
 
 
 int SSDBImpl::hincrbyfloat(Context &ctx, const Bytes &name, const Bytes &key, long double by, long double *new_val){
-    RecordLock<Mutex> l(&mutex_record_, name.String());
+    RecordKeyLock l(&mutex_record_, name.String());
     leveldb::WriteBatch batch;
 
     int ret = 0;
@@ -214,7 +214,7 @@ int SSDBImpl::hincrbyfloat(Context &ctx, const Bytes &name, const Bytes &key, lo
 }
 
 int SSDBImpl::hincr(Context &ctx, const Bytes &name, const Bytes &key, int64_t by, int64_t *new_val){
-	RecordLock<Mutex> l(&mutex_record_, name.String());
+	RecordKeyLock l(&mutex_record_, name.String());
 	leveldb::WriteBatch batch;
 
     int ret = 0;
@@ -294,7 +294,7 @@ int SSDBImpl::hmget(Context &ctx, const Bytes &name, const std::vector<std::stri
 	const leveldb::Snapshot* snapshot = nullptr;
 
 	{
-		RecordLock<Mutex> l(&mutex_record_, name.String());
+		RecordKeyLock l(&mutex_record_, name.String());
 		std::string meta_key = encode_meta_key(name);
 		int ret = GetHashMetaVal(meta_key, hv);
 		if (ret != 1){
@@ -349,7 +349,7 @@ int SSDBImpl::hgetall(Context &ctx, const Bytes &name, std::map<std::string, std
 	const leveldb::Snapshot* snapshot = nullptr;
 
 	{
-		RecordLock<Mutex> l(&mutex_record_, name.String());
+		RecordKeyLock l(&mutex_record_, name.String());
 		std::string meta_key = encode_meta_key(name);
 		int ret = GetHashMetaVal(meta_key, hv);
 		if (ret != 1){

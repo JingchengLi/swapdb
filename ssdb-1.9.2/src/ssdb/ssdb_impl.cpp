@@ -160,7 +160,7 @@ int SSDBImpl::flush(Context &ctx) {
 int SSDBImpl::flushdb(Context &ctx) {
 //lock
 
-    Locking<RecordMutex<Mutex>> gl(&mutex_record_);
+    Locking<RecordKeyMutex> gl(&mutex_record_);
     redisCursorService.ClearAllCursor();
 
 #ifdef USE_LEVELDB
@@ -554,7 +554,7 @@ void SSDBImpl::delete_key_loop(const std::string &del_key) {
     }
 
     batch.Delete(del_key);
-    RecordLock<Mutex> l(&mutex_record_, dk.key);
+    RecordKeyLock l(&mutex_record_, dk.key);
     if (delete_meta_key(dk, batch) == -1) {
         log_fatal("delete meta key error! %s", hexstr(del_key).c_str());
         return;

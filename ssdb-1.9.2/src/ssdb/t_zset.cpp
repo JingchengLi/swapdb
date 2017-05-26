@@ -14,12 +14,12 @@ found in the LICENSE file.
  */
 
 int SSDBImpl::multi_zset(Context &ctx, const Bytes &name, const std::map<Bytes, Bytes> &sortedSet, int flags, int64_t *num) {
-    RecordLock<Mutex> l(&mutex_record_, name.String());
+    RecordKeyLock l(&mutex_record_, name.String());
     return zsetNoLock<Bytes>(ctx, name, sortedSet, flags, num);
 }
 
 int SSDBImpl::multi_zdel(Context &ctx, const Bytes &name, const std::set<Bytes> &keys, int64_t *count) {
-    RecordLock<Mutex> l(&mutex_record_, name.String());
+    RecordKeyLock l(&mutex_record_, name.String());
     return zdelNoLock(ctx, name, keys, count);
 }
 
@@ -61,7 +61,7 @@ int SSDBImpl::zdelNoLock(Context &ctx, const Bytes &name, const std::set<Bytes> 
 }
 
 int SSDBImpl::zincr(Context &ctx, const Bytes &name, const Bytes &key, double by, int &flags, double *new_val) {
-    RecordLock<Mutex> l(&mutex_record_, name.String());
+    RecordKeyLock l(&mutex_record_, name.String());
     leveldb::WriteBatch batch;
     ZSetMetaVal zv;
     bool needCheck = false;
@@ -245,7 +245,7 @@ int SSDBImpl::zrank(Context &ctx, const Bytes &name, const Bytes &key, int64_t *
     const leveldb::Snapshot *snapshot = nullptr;
 
     {
-        RecordLock<Mutex> l(&mutex_record_, name.String());
+        RecordKeyLock l(&mutex_record_, name.String());
         std::string meta_key = encode_meta_key(name);
         int ret = GetZSetMetaVal(meta_key, zv);
         if (ret != 1) {
@@ -282,7 +282,7 @@ int SSDBImpl::zrrank(Context &ctx, const Bytes &name, const Bytes &key, int64_t 
     const leveldb::Snapshot *snapshot = nullptr;
 
     {
-        RecordLock<Mutex> l(&mutex_record_, name.String());
+        RecordKeyLock l(&mutex_record_, name.String());
 
         std::string meta_key = encode_meta_key(name);
         int ret = GetZSetMetaVal(meta_key, zv);
@@ -335,7 +335,7 @@ int SSDBImpl::zrangeGeneric(Context &ctx, const Bytes &name, const Bytes &begin,
     ZIterator *it = NULL;
 
     {
-        RecordLock<Mutex> l(&mutex_record_, name.String());
+        RecordKeyLock l(&mutex_record_, name.String());
         std::string meta_key = encode_meta_key(name);
         int ret = GetZSetMetaVal(meta_key, zv);
         if (ret <= 0) {
@@ -472,7 +472,7 @@ int SSDBImpl::genericZrangebyscore(Context &ctx, const Bytes &name, const Bytes 
     const leveldb::Snapshot *snapshot = nullptr;
     ZIterator *it = NULL;
     {
-        RecordLock<Mutex> l(&mutex_record_, name.String());
+        RecordKeyLock l(&mutex_record_, name.String());
         std::string meta_key = encode_meta_key(name);
         int ret = GetZSetMetaVal(meta_key, zv);
         if (ret <= 0) {
@@ -578,7 +578,7 @@ int SSDBImpl::zremrangebyscore(Context &ctx, const Bytes &name, const Bytes &sco
         end_score = str(ZSET_SCORE_MAX);
     }
 
-    RecordLock<Mutex> l(&mutex_record_, name.String());
+    RecordKeyLock l(&mutex_record_, name.String());
     ZSetMetaVal zv;
     std::string meta_key = encode_meta_key(name);
     int ret = GetZSetMetaVal(meta_key, zv);
@@ -873,7 +873,7 @@ int SSDBImpl::genericZrangebylex(Context &ctx, const Bytes &name, const Bytes &k
     ZSetMetaVal zv;
     const leveldb::Snapshot *snapshot = nullptr;
     {
-        RecordLock<Mutex> l(&mutex_record_, name.String());
+        RecordKeyLock l(&mutex_record_, name.String());
         std::string meta_key = encode_meta_key(name);
         int ret = GetZSetMetaVal(meta_key, zv);
         if (ret <= 0) {
@@ -934,7 +934,7 @@ int SSDBImpl::zremrangebylex(Context &ctx, const Bytes &name, const Bytes &key_s
         return 1;
     }
 
-    RecordLock<Mutex> l(&mutex_record_, name.String());
+    RecordKeyLock l(&mutex_record_, name.String());
     ZSetMetaVal zv;
     std::string meta_key = encode_meta_key(name);
     int ret = GetZSetMetaVal(meta_key, zv);
@@ -1005,7 +1005,7 @@ int SSDBImpl::zrevrangebylex(Context &ctx, const Bytes &name, const Bytes &key_s
     ZSetMetaVal zv;
     const leveldb::Snapshot *snapshot = nullptr;
     {
-        RecordLock<Mutex> l(&mutex_record_, name.String());
+        RecordKeyLock l(&mutex_record_, name.String());
         std::string meta_key = encode_meta_key(name);
         int ret = GetZSetMetaVal(meta_key, zv);
         if (ret <= 0) {

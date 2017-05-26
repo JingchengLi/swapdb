@@ -144,7 +144,7 @@ int SSDBImpl::multi_set(Context &ctx, const std::vector<Bytes> &kvs, int offset)
             lock_key.insert(key);
             rval++;
         }
-        RecordLock<Mutex> l(&mutex_record_, key.String());
+        RecordKeyLock l(&mutex_record_, key.String());
 
         int added = 0;
 		int ret = SetGeneric(ctx, key, batch, val, OBJ_SET_NO_FLAGS, 0, &added);
@@ -171,7 +171,7 @@ int SSDBImpl::multi_del(Context &ctx, const std::set<Bytes> &distinct_keys, int6
 	for(; itor != distinct_keys.end(); itor++){
 		const Bytes &key = *itor;
 //        l.Lock(key.String());
-        RecordLock<Mutex> l(&mutex_record_, key.String());
+        RecordKeyLock l(&mutex_record_, key.String());
         int iret = del_key_internal(ctx, key, batch);
         if (iret < 0) {
             return iret;
@@ -211,13 +211,13 @@ int SSDBImpl::setNoLock(Context &ctx, const Bytes &key, const Bytes &val, int fl
 }
 
 int SSDBImpl::set(Context &ctx, const Bytes &key, const Bytes &val, int flags, const int64_t expire_ms, int *added) {
-	RecordLock<Mutex> l(&mutex_record_, key.String());
+	RecordKeyLock l(&mutex_record_, key.String());
 
     return setNoLock(ctx, key, val, flags, expire_ms, added);
 }
 
 int SSDBImpl::getset(Context &ctx, const Bytes &key, std::pair<std::string, bool> &val, const Bytes &newval){
-	RecordLock<Mutex> l(&mutex_record_, key.String());
+	RecordKeyLock l(&mutex_record_, key.String());
 	leveldb::WriteBatch batch;
 
 	std::string meta_key = encode_meta_key(key);
@@ -284,7 +284,7 @@ int SSDBImpl::mark_key_deleted(Context &ctx, const Bytes &key, leveldb::WriteBat
 
 
 int SSDBImpl::del(Context &ctx, const Bytes &key){
-	RecordLock<Mutex> l(&mutex_record_, key.String());
+	RecordKeyLock l(&mutex_record_, key.String());
 	leveldb::WriteBatch batch;
 
 	int ret = del_key_internal(ctx, key, batch);
@@ -303,7 +303,7 @@ int SSDBImpl::del(Context &ctx, const Bytes &key){
 
 
 int SSDBImpl::incrbyfloat(Context &ctx, const Bytes &key, long double by, long double *new_val) {
-    RecordLock<Mutex> l(&mutex_record_, key.String());
+    RecordKeyLock l(&mutex_record_, key.String());
     leveldb::WriteBatch batch;
 
     std::string old;
@@ -350,7 +350,7 @@ int SSDBImpl::incrbyfloat(Context &ctx, const Bytes &key, long double by, long d
 
 
 int SSDBImpl::incr(Context &ctx, const Bytes &key, int64_t by, int64_t *new_val){
-	RecordLock<Mutex> l(&mutex_record_, key.String());
+	RecordKeyLock l(&mutex_record_, key.String());
 	leveldb::WriteBatch batch;
 
     std::string old;
@@ -403,7 +403,7 @@ int SSDBImpl::get(Context &ctx, const Bytes &key, std::string *val) {
 
 
 int SSDBImpl::append(Context &ctx, const Bytes &key, const Bytes &value, uint64_t *llen) {
-    RecordLock<Mutex> l(&mutex_record_, key.String());
+    RecordKeyLock l(&mutex_record_, key.String());
     leveldb::WriteBatch batch;
 
     std::string val;
@@ -439,7 +439,7 @@ int SSDBImpl::append(Context &ctx, const Bytes &key, const Bytes &value, uint64_
 
 
 int SSDBImpl::setbit(Context &ctx, const Bytes &key, int64_t bitoffset, int on, int *res){
-	RecordLock<Mutex> l(&mutex_record_, key.String());
+	RecordKeyLock l(&mutex_record_, key.String());
 	leveldb::WriteBatch batch;
 
 	std::string val;
@@ -504,7 +504,7 @@ int SSDBImpl::getbit(Context &ctx, const Bytes &key, int64_t bitoffset, int *res
 }
 
 int SSDBImpl::setrange(Context &ctx, const Bytes &key, int64_t start, const Bytes &value, uint64_t *new_len) {
-    RecordLock<Mutex> l(&mutex_record_, key.String());
+    RecordKeyLock l(&mutex_record_, key.String());
     leveldb::WriteBatch batch;
 
     std::string val;
@@ -694,7 +694,7 @@ int SSDBImpl::dump(Context &ctx, const Bytes &key, std::string *res) {
     const leveldb::Snapshot* snapshot = nullptr;
 
     {
-        RecordLock<Mutex> l(&mutex_record_, key.String());
+        RecordKeyLock l(&mutex_record_, key.String());
 
         std::string meta_key = encode_meta_key(key);
         leveldb::Status s = ldb->Get(leveldb::ReadOptions(), meta_key, &meta_val);
@@ -884,7 +884,7 @@ int SSDBImpl::restore(Context &ctx, const Bytes &key, int64_t expire, const Byte
         return INVALID_EX_TIME;
     }
 
-    RecordLock<Mutex> l(&mutex_record_, key.String());
+    RecordKeyLock l(&mutex_record_, key.String());
 
     int ret = 0;
     std::string meta_val;

@@ -60,6 +60,8 @@ enum DIRECTION{
 	BACKWARD,
 };
 
+typedef RecordLock<Mutex> RecordKeyLock;
+typedef RecordMutex<Mutex> RecordKeyMutex;
 
 class SSDBImpl : public SSDB
 {
@@ -296,7 +298,7 @@ private:
 	pthread_t bg_tid_;
     std::queue<std::string> tasks_;
 	CondVar bg_cv_;
-    RecordMutex<Mutex> mutex_record_;
+	RecordKeyMutex mutex_record_;
 
 	void load_delete_keys_from_db(int num);
     void delete_key_loop(const std::string& del_key);
