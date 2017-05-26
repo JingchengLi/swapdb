@@ -887,6 +887,7 @@ int clientsCronResizeQueryBuffer(client *c) {
     return 0;
 }
 
+#define IS_NOT_CONNECTED(c) (!(c) || (!((c)->ssdb_conn_flags & CONN_CHECK_REPOPID) && !((c)->ssdb_conn_flags & CONN_SUCCESS)))
 void reconnectSSDB() {
     listNode* ln;
     listIter li;
@@ -904,17 +905,19 @@ void reconnectSSDB() {
         server.ssdb_client = createSpecialSSDBclient();
     else if (server.ssdb_client->ssdb_conn_flags & CONN_CONNECT_FAILED) {
         nonBlockConnectToSsdbServer(server.ssdb_client);
-        total_ssdb_disconnected++;
     }
     total_ssdb_conn++;
+    if (IS_NOT_CONNECTED(server.ssdb_client))
+        total_ssdb_disconnected++;
 
     if (!server.delete_confirm_client)
         server.delete_confirm_client = createSpecialSSDBclient();
     else if (server.delete_confirm_client->ssdb_conn_flags & CONN_CONNECT_FAILED) {
         nonBlockConnectToSsdbServer(server.delete_confirm_client);
-        total_ssdb_disconnected++;
     }
     total_ssdb_conn++;
+    if (IS_NOT_CONNECTED(server.delete_confirm_client))
+        total_ssdb_disconnected++;
 
     /* if ssdb is down before this, we just try two connections. avoid too many
      * reconnect retries. */
@@ -924,24 +927,27 @@ void reconnectSSDB() {
         server.slave_ssdb_load_evict_client = createSpecialSSDBclient();
     else if (server.slave_ssdb_load_evict_client->ssdb_conn_flags & CONN_CONNECT_FAILED) {
         nonBlockConnectToSsdbServer(server.slave_ssdb_load_evict_client);
-        total_ssdb_disconnected++;
     }
     total_ssdb_conn++;
+    if (IS_NOT_CONNECTED(server.slave_ssdb_load_evict_client))
+        total_ssdb_disconnected++;
 
     if (!server.ssdb_replication_client)
         server.ssdb_replication_client = createSpecialSSDBclient();
     else if (server.ssdb_replication_client->ssdb_conn_flags & CONN_CONNECT_FAILED) {
         nonBlockConnectToSsdbServer(server.ssdb_replication_client);
-        total_ssdb_disconnected++;
     }
     total_ssdb_conn++;
+    if (IS_NOT_CONNECTED(server.ssdb_replication_client))
+        total_ssdb_disconnected++;
 
     listRewind(server.clients, &li);
     while ((ln = listNext(&li))) {
         client *c = listNodeValue(ln);
         total_ssdb_conn++;
-        if (c->ssdb_conn_flags & CONN_CONNECT_FAILED) {
+        if (IS_NOT_CONNECTED(c))
             total_ssdb_disconnected++;
+        if (c->ssdb_conn_flags & CONN_CONNECT_FAILED) {
             nonBlockConnectToSsdbServer(c);
         }
     }

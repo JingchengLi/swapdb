@@ -611,6 +611,7 @@ int clientHasPendingReplies(client *c) {
 }
 
 void handleConnectSSDBok(client* c) {
+    serverLog(LL_DEBUG, "connect ssdb success");
     if (server.ssdb_is_down) {
         serverLog(LL_NOTICE, "[!!!]SSDB is up now");
         server.ssdb_is_down = 0;
