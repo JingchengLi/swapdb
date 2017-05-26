@@ -854,7 +854,7 @@ static int cliSendCommand(int argc, char **argv, int repeat) {
     if (context == NULL) return REDIS_ERR;
 
     output_raw = 0;
-    if (!strcasecmp(command,"info") ||
+    if (!strcasecmp(command,"info") || !strcasecmp(command,"listloadingkeys") ||
         (argc >= 2 && !strcasecmp(command,"debug") &&
                        !strcasecmp(argv[1],"htstats")) ||
         (argc >= 2 && !strcasecmp(command,"memory") &&

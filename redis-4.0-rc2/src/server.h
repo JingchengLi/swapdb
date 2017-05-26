@@ -2106,6 +2106,7 @@ void sortCommand(client *c);
 void lremCommand(client *c);
 void rpoplpushCommand(client *c);
 void infoCommand(client *c);
+void listLoadingKeysCommand(client* c);
 void mgetCommand(client *c);
 void monitorCommand(client *c);
 void expireCommand(client *c);

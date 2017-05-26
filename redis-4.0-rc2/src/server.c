@@ -333,6 +333,8 @@ struct redisCommand redisCommandTable[] = {
     /* used by slave ssdb to notify slave redis when transfer snapshot. */
     {"ssdb-notify-redis",ssdbNotifyCommand,-3,"lj",0,NULL,0,0,0,0,0},
 
+    {"listloadingkeys",listLoadingKeysCommand,1,"j",0,NULL,0,0,0,0,0},
+
     {"storetossdb",storetossdbCommand,-2,"wj",0,NULL,1,1,1,0,0},
     {"dumpfromssdb",dumpfromssdbCommand,2,"wj",0,NULL,1,1,1,0,0},
     {"locatekey",locatekeyCommand,2,"rj",0,NULL,1,1,1,0,0},
@@ -4071,6 +4073,53 @@ void bytesToHuman(char *s, unsigned long long n) {
     }
 }
 
+void printIntermediateSSDBkeys(sds info, dict* dictory) {
+    dictEntry *de;
+    dictIterator *di;
+    sds key;
+
+    serverAssert(dictory->type == &keyDictType);
+
+    di = dictGetSafeIterator(dictory);
+    while((de = dictNext(di)) != NULL) {
+        key = dictGetKey(de);
+        info = sdscatprintf(info, "%s\r\n", key);
+    }
+    dictReleaseIterator(di);
+}
+
+void listAllIntermediateSSDBkeys(sds* s) {
+    if (!s) return;
+
+    sds info = *s;
+    info = sdscatprintf(info, "\r\n# loading_hot_keys\r\n");
+    printIntermediateSSDBkeys(info, EVICTED_DATA_DB->loading_hot_keys);
+
+    info = sdscatprintf(info, "\r\n# transferring_keys\r\n");
+    printIntermediateSSDBkeys(info, EVICTED_DATA_DB->transferring_keys);
+
+    info = sdscatprintf(info, "\r\n# visiting_ssdb_keys\r\n");
+    printIntermediateSSDBkeys(info, EVICTED_DATA_DB->visiting_ssdb_keys);
+
+    info = sdscatprintf(info, "\r\n# delete_confirm_keys\r\n");
+    printIntermediateSSDBkeys(info, EVICTED_DATA_DB->delete_confirm_keys);
+
+    info = sdscatprintf(info, "\r\n# hot_keys_to_be_load\r\n");
+    printIntermediateSSDBkeys(info, server.hot_keys);
+
+    info = sdscatprintf(info, "\r\n# keys_may_be_deleted\r\n");
+    printIntermediateSSDBkeys(info, server.maybe_deleted_ssdb_keys);
+
+    *s = info;
+}
+
+void listLoadingKeysCommand(client* c) {
+    sds info = sdsempty();
+    listAllIntermediateSSDBkeys(&info);
+
+    addReplyBulkSds(c, info);
+}
+
 /* Create the string returned by the INFO command. This is decoupled
  * by the INFO command itself as we need to report the same information
  * on memory corruption problems. */
@@ -4580,14 +4629,19 @@ sds genRedisInfoString(char *section) {
                                     "keys_loading_from_ssdb:%lu\r\n"
                                     "keys_transferring_to_ssdb:%lu\r\n"
                                     "keys_visiting_ssdb:%lu\r\n"
-                                    "keys_delete_confirming:%lu\r\n",
+                                    "keys_delete_confirming:%lu\r\n"
+                                    "keys_hot_to_be_load:%lu\r\n"
+                                    "keys_may_be_deleted:%lu\r\n",
                             dictSize(server.db[0].dict),
                             dictSize(EVICTED_DATA_DB->dict),
                             dictSize(EVICTED_DATA_DB->loading_hot_keys),
                             dictSize(EVICTED_DATA_DB->transferring_keys),
                             dictSize(EVICTED_DATA_DB->visiting_ssdb_keys),
-                            dictSize(EVICTED_DATA_DB->delete_confirm_keys)
+                            dictSize(EVICTED_DATA_DB->delete_confirm_keys),
+                            dictSize(server.hot_keys),
+                            dictSize(server.maybe_deleted_ssdb_keys)
         );
+
         if (server.masterhost) {
             info = sdscatprintf(info, "\r\nslave_unprocessed_transferring_or_loading_keys:%lu\r\n"
                                         "slave_write_op_list_num:%lu\r\n"
@@ -4598,6 +4652,11 @@ sds genRedisInfoString(char *section) {
                                 server.writeop_mem_size,
                                 server.slave_ssdb_critical_err_cnt
             );
+        }
+
+        /* only print this in debug mode */
+        if (server.verbosity == LL_DEBUG) {
+            listAllIntermediateSSDBkeys(&info);
         }
     }
     return info;
