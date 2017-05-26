@@ -266,7 +266,7 @@ ADD_EXECUTABLE(ssdb-server ${SRC_OBJS})
 
 
 IF(ROCKSDB)
-    TARGET_LINK_LIBRARIES(ssdb-server libssdb-static librdb-static libutil-static libnet-static libcodec-static rocksdb gtest gflags snappy jemalloc pthread rt z bz2)
+    TARGET_LINK_LIBRARIES(ssdb-server libssdb-static librdb-static libutil-static libnet-static libcodec-static rocksdb gflags snappy jemalloc pthread rt z bz2)
 ELSE()
     TARGET_LINK_LIBRARIES(ssdb-server leveldb libssdb-static librdb-static libutil-static libnet-static libcodec-static gflags snappy jemalloc pthread rt z bz2)
 ENDIF()
