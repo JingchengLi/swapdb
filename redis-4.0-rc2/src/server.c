@@ -4362,6 +4362,7 @@ sds genRedisInfoString(char *section) {
                 "master_link_status:%s\r\n"
                 "master_last_io_seconds_ago:%d\r\n"
                 "master_sync_in_progress:%d\r\n"
+                "master_transfer_ssdb_snapshot_in_progress:%d\r\n"
                 "slave_repl_offset:%lld\r\n"
                 ,server.masterhost,
                 server.masterport,
@@ -4370,10 +4371,12 @@ sds genRedisInfoString(char *section) {
                 server.master ?
                 ((int)(server.unixtime-server.master->lastinteraction)) : -1,
                 server.repl_state == REPL_STATE_TRANSFER,
+                server.jdjr_mode && server.repl_state == REPL_STATE_TRANSFER_END,
                 slave_repl_offset
             );
 
-            if (server.repl_state == REPL_STATE_TRANSFER) {
+            if (server.repl_state == REPL_STATE_TRANSFER ||
+                (server.jdjr_mode && server.repl_state == REPL_STATE_TRANSFER_END)) {
                 info = sdscatprintf(info,
                     "master_sync_left_bytes:%lld\r\n"
                     "master_sync_last_io_seconds_ago:%d\r\n"

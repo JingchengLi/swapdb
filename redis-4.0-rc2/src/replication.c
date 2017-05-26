@@ -2128,7 +2128,8 @@ void undoConnectWithMaster(void) {
  * Never call this function directly, use cancelReplicationHandshake() instead.
  */
 void replicationAbortSyncTransfer(void) {
-    serverAssert(server.repl_state == REPL_STATE_TRANSFER);
+    serverAssert(server.repl_state == REPL_STATE_TRANSFER ||
+                 (server.jdjr_mode && server.repl_state == REPL_STATE_TRANSFER_END));
     undoConnectWithMaster();
     close(server.repl_transfer_fd);
     unlink(server.repl_transfer_tmpfile);
@@ -2144,7 +2145,12 @@ void replicationAbortSyncTransfer(void) {
  *
  * Otherwise zero is returned and no operation is perforemd at all. */
 int cancelReplicationHandshake(void) {
-    if (server.repl_state == REPL_STATE_TRANSFER) {
+    if (server.jdjr_mode) {
+        server.ssdb_repl_state = REPL_STATE_NONE;
+        server.slave_ssdb_transfer_keepalive_time = -1;
+    }
+    if (server.repl_state == REPL_STATE_TRANSFER ||
+        (server.jdjr_mode && server.repl_state == REPL_STATE_TRANSFER_END)) {
         replicationAbortSyncTransfer();
         server.repl_state = REPL_STATE_CONNECT;
     } else if (server.repl_state == REPL_STATE_CONNECTING ||
@@ -2154,10 +2160,6 @@ int cancelReplicationHandshake(void) {
         server.repl_state = REPL_STATE_CONNECT;
     } else {
         return 0;
-    }
-    if (server.jdjr_mode) {
-        server.ssdb_repl_state = REPL_STATE_NONE;
-        server.slave_ssdb_transfer_keepalive_time = -1;
     }
     return 1;
 }
@@ -2320,6 +2322,7 @@ void roleCommand(client *c) {
             case REPL_STATE_CONNECT: slavestate = "connect"; break;
             case REPL_STATE_CONNECTING: slavestate = "connecting"; break;
             case REPL_STATE_TRANSFER: slavestate = "sync"; break;
+            case REPL_STATE_TRANSFER_END: slavestate = "receiving ssdb snapshot"; break;
             case REPL_STATE_CONNECTED: slavestate = "connected"; break;
             default: slavestate = "unknown"; break;
             }
