@@ -1165,7 +1165,7 @@ int proc_migrate(Context &ctx, Link *link, const Request &req, Response *resp) {
 
     if (buf1 != nullptr) {
         delete buf1;
-        buf1 == nullptr;
+        buf1 = nullptr;
     }
 
     /* Read the RESTORE replies. */
@@ -1188,6 +1188,9 @@ int proc_migrate(Context &ctx, Link *link, const Request &req, Response *resp) {
                 serv->ssdb->del(ctx, kv[j]);
             }
         }
+
+        delete buf2;
+        buf2 = nullptr;
     }
 
     /* If we are here and a socket error happened, we don't want to retry.
