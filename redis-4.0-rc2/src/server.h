@@ -343,6 +343,10 @@ typedef long long mstime_t; /* millisecond time type. */
 #define REPL_STATE_TRANSFER_SSDB_SNAPSHOT 17
 #define REPL_STATE_TRANSFER_SSDB_SNAPSHOT_END 18
 
+/* for slave redis, after we complete RDB receiving, we wait
+ * for my SSDB to send ssdb transfer message to me. if timeout,
+ * cancel replication handshake this time. */
+#define SLAVE_SSDB_TRANSFER_KEEPALIVE_TIMEOUT 10
 
 
 /* State of slaves from the POV of the master. Used in client->replstate.
@@ -1194,6 +1198,8 @@ struct redisServer {
     int repl_syncio_timeout; /* Timeout for synchronous I/O calls */
     int repl_state;          /* Replication status if the instance is a slave */
     int ssdb_repl_state;     /* SSDB snapshot receive status if the instance is a slave */
+    time_t slave_ssdb_transfer_keepalive_time; /* in jdjr_mode, slave ssdb will send keepalive
+                                                * message to its redis when transfer snapshot. */
     off_t repl_transfer_size; /* Size of RDB to read from master during sync. */
     off_t repl_transfer_read; /* Amount of RDB read from master during sync. */
     off_t repl_transfer_last_fsync_off; /* Offset when we fsync-ed last time. */
@@ -2203,6 +2209,7 @@ void ssdbRespDelCommand(client *c);
 void ssdbRespRestoreCommand(client *c);
 void ssdbRespFailCommand(client *c);
 void ssdbRespNotfoundCommand(client *c);
+void ssdbNotifyCommand(client* c);
 void storetossdbCommand(client *c);
 void locatekeyCommand(client *c);
 void slaveDelCommand(client *c);

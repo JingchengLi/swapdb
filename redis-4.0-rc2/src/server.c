@@ -330,6 +330,9 @@ struct redisCommand redisCommandTable[] = {
     {"ssdb-resp-fail",ssdbRespFailCommand,3,"wj",0,NULL,1,1,1,0,0},
     {"ssdb-resp-notfound",ssdbRespNotfoundCommand,3,"wj",0,NULL,1,1,1,0,0},
 
+    /* used by slave ssdb to notify slave redis when transfer snapshot. */
+    {"ssdb-notify-redis",ssdbNotifyCommand,-3,"lj",0,NULL,0,0,0,0,0},
+
     {"storetossdb",storetossdbCommand,-2,"wj",0,NULL,1,1,1,0,0},
     {"dumpfromssdb",dumpfromssdbCommand,2,"wj",0,NULL,1,1,1,0,0},
     {"locatekey",locatekeyCommand,2,"rj",0,NULL,1,1,1,0,0},
@@ -2351,6 +2354,7 @@ void initServer(void) {
         server.is_allow_ssdb_write = ALLOW_SSDB_WRITE;
         server.ssdb_status = SSDB_NONE;
         server.ssdb_repl_state = REPL_STATE_NONE;
+        server.slave_ssdb_transfer_keepalive_time = -1;
         server.tmp_repl_stream_dbid = -1;
         server.check_write_begin_time = -1;
         server.check_write_unresponse_num = -1;

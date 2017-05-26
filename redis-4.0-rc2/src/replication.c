@@ -1227,6 +1227,37 @@ void restartAOF() {
     }
 }
 
+/* in jdjr_mode, slave redis don't know the SSDB snapshot transfer state,
+ * add this command so SSDB can send notify message to its redis after
+ * snapshot transfer completed or aborted. */
+void ssdbNotifyCommand(client* c) {
+    int aof_is_enabled = server.aof_state != AOF_OFF;
+    if (c->argv[1]->ptr, "transfer") {
+        if (server.ssdb_repl_state == REPL_STATE_TRANSFER_SSDB_SNAPSHOT) {
+            if (c->argv[2]->ptr, "finished") {
+                server.ssdb_repl_state = REPL_STATE_TRANSFER_SSDB_SNAPSHOT_END;
+                addReply(c, shared.ok);
+                c->flags |= CLIENT_CLOSE_AFTER_REPLY;
+            } else if (c->argv[2]->ptr, "unfinished") {
+                cancelReplicationHandshake();
+                if (aof_is_enabled) restartAOF();
+                addReply(c, shared.ok);
+                c->flags |= CLIENT_CLOSE_AFTER_REPLY;
+            } else if (c->argv[2]->ptr, "continue") {
+                server.slave_ssdb_transfer_keepalive_time = server.unixtime;
+                addReply(c, shared.ok);
+            } else {
+                addReplyErrorFormat(c, "unknow argument:%s", (char*)c->argv[2]->ptr);
+            }
+        } else {
+            addReplyError(c, "unexpected snapshot transfer message");
+            c->flags |= CLIENT_CLOSE_AFTER_REPLY;
+        }
+    } else {
+        addReplyErrorFormat(c, "unknow argument:%s", (char*)c->argv[1]->ptr);
+    }
+}
+
 void completeReplicationHandshake() {
     int aof_is_enabled = server.aof_state != AOF_OFF;
     serverAssert(server.tmp_repl_stream_dbid != -1);
@@ -1243,6 +1274,8 @@ void completeReplicationHandshake() {
     }
     zfree(server.repl_transfer_tmpfile);
     close(server.repl_transfer_fd);
+
+    if (server.jdjr_mode) server.slave_ssdb_transfer_keepalive_time = -1;
 
     server.repl_state = REPL_STATE_CONNECTED;
     /* After a full resynchroniziation we use the replication ID and
@@ -1445,6 +1478,7 @@ void readSyncBulkPayload(aeEventLoop *el, int fd, void *privdata, int mask) {
              * server.ssdb_repl_state in replicationCron, and do the rest work of replication */
             if (server.ssdb_repl_state != REPL_STATE_TRANSFER_SSDB_SNAPSHOT_END) {
                 server.repl_state = REPL_STATE_TRANSFER_END;
+                server.slave_ssdb_transfer_keepalive_time = server.unixtime;
                 return;
             }
             completeReplicationHandshake();
@@ -2101,6 +2135,7 @@ int cancelReplicationHandshake(void) {
     } else {
         return 0;
     }
+    if (server.jdjr_mode) server.slave_ssdb_transfer_keepalive_time = -1;
     return 1;
 }
 
@@ -2753,11 +2788,20 @@ void replicationCron(void) {
         cancelReplicationHandshake();
     }
 
-    // todo: process REPL_STATE_TRANSFER_SSDB_SNAPSHOT_END/REPL_STATE_TRANSFER_SSDB_SNAPSHOT
-    if (server.jdjr_mode && server.masterhost && server.repl_state == REPL_STATE_TRANSFER_END &&
-            server.ssdb_repl_state == REPL_STATE_TRANSFER_SSDB_SNAPSHOT_END) {
-        /* RDB and SSDB snapshot transferred done, now it's time to complete replication handshake. */
-        completeReplicationHandshake();
+    /* when RDB transfer is done but SSDB snapshot transfer have not, we check whether it's ok now
+     * or we don't receive notify message from SSDB for a long time. */
+    if (server.jdjr_mode && server.masterhost && server.repl_state == REPL_STATE_TRANSFER_END) {
+        if (server.ssdb_repl_state == REPL_STATE_TRANSFER_SSDB_SNAPSHOT_END) {
+            /* RDB and SSDB snapshot transferred done, now it's time to complete replication handshake. */
+            completeReplicationHandshake();
+        } else if (server.ssdb_repl_state == REPL_STATE_TRANSFER_SSDB_SNAPSHOT &&
+            (server.unixtime - server.slave_ssdb_transfer_keepalive_time) > SLAVE_SSDB_TRANSFER_KEEPALIVE_TIMEOUT) {
+            /* we don't receive snapshot transfer message from SSDB for a long time */
+            serverAssert(server.slave_ssdb_transfer_keepalive_time != -1);
+            int aof_is_enabled = server.aof_state != AOF_OFF;
+            cancelReplicationHandshake();
+            if (aof_is_enabled) restartAOF();
+        }
     }
 
     /* Timed out master when we are an already connected slave? */
