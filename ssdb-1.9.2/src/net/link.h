@@ -53,8 +53,8 @@ class Link{
 		void noblock(bool enable=true);
 		void keepalive(bool enable=true);
 
-		void readtimeout(long sec, long usec);
-		void sendtimeout(long sec, long usec);
+		int readtimeout(long timeout_ms);
+		int sendtimeout(long timeout_ms);
 
 		int fd() const{
 			return sock;
@@ -67,7 +67,7 @@ class Link{
 		}
 
 		static Link *unixsocket(const std::string &path);
-		static Link* connect(const char *ip, int port);
+		static Link* connect(const char *ip, int port, long timeout_ms = -1);
 		static Link* listen(const char *ip, int port);
 		Link* accept();
 

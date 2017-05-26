@@ -993,13 +993,6 @@ int proc_ssdb_sync(Context &ctx, Link *link, const Request &req, Response *resp)
 }
 
 
-
-void process_socket_err() {
-
-}
-
-
-
 int proc_migrate(Context &ctx, Link *link, const Request &req, Response *resp) {
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
     CHECK_NUM_PARAMS(6);
@@ -1091,13 +1084,13 @@ int proc_migrate(Context &ctx, Link *link, const Request &req, Response *resp) {
     }
 
 
-    Link *cs = Link::connect(host.c_str(), port);
-    if (cs == NULL) {
+    Link *cs = Link::connect(host.c_str(), port, timeout);
+    if (cs == nullptr) {
         reply_errinfo_return("IOERR error or timeout connecting to the client");
     }
 
-    cs->sendtimeout(0, timeout * 1000);
-    cs->readtimeout(0, timeout * 1000);
+    cs->sendtimeout(timeout);
+    cs->readtimeout(timeout);
 
     //managed link
     RedisClient r(cs);
@@ -1111,17 +1104,17 @@ int proc_migrate(Context &ctx, Link *link, const Request &req, Response *resp) {
     for (j = 0; j < kv.size(); j++) {
         std::string payload;
         int ret = serv->ssdb->dump(ctx, kv[j], &payload);
-        if (ret == 0) {
-            continue;
-        } else if (ret < 0) {
+         if (ret < 0) {
             reply_err_return(ret);
-        }
+        } else if (ret == 0) {
+             continue;
+         }
 
         int64_t pttl = serv->ssdb->expiration->pttl(ctx, kv[j], TimeUnit::Millisecond);
-        if (pttl == -2) {
-            continue;
-        } else if (pttl == -1) {
+        if (pttl == -1) {
             pttl = 0;
+        } else if (pttl == -2) {
+            continue;
         }
 
         std::vector<std::string> cmd_item;
@@ -1204,7 +1197,7 @@ int proc_migrate(Context &ctx, Link *link, const Request &req, Response *resp) {
         reply_errinfo_return("IOERR error or timeout to target instance");
     }
 
-    if (error_info_from_target.size() != 0) {
+    if (!error_info_from_target.empty()) {
         reply_errinfo_return(("ERR Target instance replied with error: " + error_info_from_target));
     }
 

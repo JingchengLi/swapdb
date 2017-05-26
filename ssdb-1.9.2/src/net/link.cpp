@@ -91,18 +91,18 @@ void Link::noblock(bool enable) {
     }
 }
 
-void Link::readtimeout(long sec, long usc) {
+int Link::readtimeout(long timeout_ms) {
     struct timeval tv;
-    tv.tv_sec = sec;
-    tv.tv_usec = usc;
-    ::setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv,sizeof(struct timeval));
+    tv.tv_sec = (__time_t)(timeout_ms / 1000.0);
+    tv.tv_usec = (__suseconds_t)(timeout_ms % 1000) * 1000;
+    return ::setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv,sizeof(struct timeval));
 }
 
-void Link::sendtimeout(long sec, long usc) {
+int Link::sendtimeout(long timeout_ms) {
     struct timeval tv;
-    tv.tv_sec = sec;
-    tv.tv_usec = usc;
-    ::setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, (const char*)&tv,sizeof(struct timeval));
+    tv.tv_sec = (__time_t)(timeout_ms / 1000.0);
+    tv.tv_usec = (__suseconds_t)(timeout_ms % 1000) * 1000;
+    return ::setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, (const char*)&tv,sizeof(struct timeval));
 }
 
 // TODO: check less than 256
@@ -126,7 +126,7 @@ static bool is_ip(const char *host) {
     return dot_count == 3;
 }
 
-Link *Link::connect(const char *host, int port) {
+Link *Link::connect(const char *host, int port, long timeout_ms) {
     Link *link;
     int sock = -1;
 
@@ -152,6 +152,19 @@ Link *Link::connect(const char *host, int port) {
     if ((sock = ::socket(AF_INET, SOCK_STREAM, 0)) == -1) {
         goto sock_err;
     }
+
+    if (timeout_ms > 0) {
+        struct timeval timeout;
+        timeout.tv_sec = (__time_t)(timeout_ms / 1000.0);
+        timeout.tv_usec = (__suseconds_t)(timeout_ms % 1000) * 1000;
+        socklen_t len = sizeof(timeout);
+
+        if (setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &timeout, len) == -1) {
+            goto sock_err;
+        }
+
+    }
+
     if (::connect(sock, (struct sockaddr *) &addr, sizeof(addr)) == -1) {
         goto sock_err;
     }
@@ -165,6 +178,7 @@ Link *Link::connect(const char *host, int port) {
     //net_debug("connect to %s:%d failed: %s", ip, port, strerror(errno));
     if (sock >= 0) {
         ::close(sock);
+        sock = -1;
     }
     return NULL;
 }
