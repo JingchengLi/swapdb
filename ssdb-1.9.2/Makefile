@@ -39,38 +39,73 @@ cmake_force:
 SHELL = /bin/sh
 
 # The CMake executable.
-CMAKE_COMMAND = /usr/local/bin/cmake
+CMAKE_COMMAND = /home/zts/Software/apps/CLion/ch-0/172.2465.12/bin/cmake/bin/cmake
 
 # The command to remove a file.
-RM = /usr/local/bin/cmake -E remove -f
+RM = /home/zts/Software/apps/CLion/ch-0/172.2465.12/bin/cmake/bin/cmake -E remove -f
 
 # Escaping for special characters.
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /home/a1/work/rocksdb_dev2/ssdb-1.9.2
+CMAKE_SOURCE_DIR = /home/zts/ClionProjects/wy_redis/ssdb-1.9.2
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /home/a1/work/rocksdb_dev2/ssdb-1.9.2
+CMAKE_BINARY_DIR = /home/zts/ClionProjects/wy_redis/ssdb-1.9.2
 
 #=============================================================================
 # Targets provided globally by CMake.
 
-# Special rule for the target rebuild_cache
-rebuild_cache:
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Running CMake to regenerate build system..."
-	/usr/local/bin/cmake -H$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR)
-.PHONY : rebuild_cache
+# Special rule for the target install/strip
+install/strip: preinstall
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Installing the project stripped..."
+	/home/zts/Software/apps/CLion/ch-0/172.2465.12/bin/cmake/bin/cmake -DCMAKE_INSTALL_DO_STRIP=1 -P cmake_install.cmake
+.PHONY : install/strip
 
-# Special rule for the target rebuild_cache
-rebuild_cache/fast: rebuild_cache
+# Special rule for the target install/strip
+install/strip/fast: preinstall/fast
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Installing the project stripped..."
+	/home/zts/Software/apps/CLion/ch-0/172.2465.12/bin/cmake/bin/cmake -DCMAKE_INSTALL_DO_STRIP=1 -P cmake_install.cmake
+.PHONY : install/strip/fast
 
-.PHONY : rebuild_cache/fast
+# Special rule for the target install
+install: preinstall
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Install the project..."
+	/home/zts/Software/apps/CLion/ch-0/172.2465.12/bin/cmake/bin/cmake -P cmake_install.cmake
+.PHONY : install
+
+# Special rule for the target install
+install/fast: preinstall/fast
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Install the project..."
+	/home/zts/Software/apps/CLion/ch-0/172.2465.12/bin/cmake/bin/cmake -P cmake_install.cmake
+.PHONY : install/fast
+
+# Special rule for the target list_install_components
+list_install_components:
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Available install components are: \"Unspecified\""
+.PHONY : list_install_components
+
+# Special rule for the target list_install_components
+list_install_components/fast: list_install_components
+
+.PHONY : list_install_components/fast
+
+# Special rule for the target install/local
+install/local: preinstall
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Installing only the local directory..."
+	/home/zts/Software/apps/CLion/ch-0/172.2465.12/bin/cmake/bin/cmake -DCMAKE_INSTALL_LOCAL_ONLY=1 -P cmake_install.cmake
+.PHONY : install/local
+
+# Special rule for the target install/local
+install/local/fast: preinstall/fast
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Installing only the local directory..."
+	/home/zts/Software/apps/CLion/ch-0/172.2465.12/bin/cmake/bin/cmake -DCMAKE_INSTALL_LOCAL_ONLY=1 -P cmake_install.cmake
+.PHONY : install/local/fast
 
 # Special rule for the target edit_cache
 edit_cache:
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "No interactive CMake dialog available..."
-	/usr/local/bin/cmake -E echo No\ interactive\ CMake\ dialog\ available.
+	/home/zts/Software/apps/CLion/ch-0/172.2465.12/bin/cmake/bin/cmake -E echo No\ interactive\ CMake\ dialog\ available.
 .PHONY : edit_cache
 
 # Special rule for the target edit_cache
@@ -78,11 +113,22 @@ edit_cache/fast: edit_cache
 
 .PHONY : edit_cache/fast
 
+# Special rule for the target rebuild_cache
+rebuild_cache:
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Running CMake to regenerate build system..."
+	/home/zts/Software/apps/CLion/ch-0/172.2465.12/bin/cmake/bin/cmake -H$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR)
+.PHONY : rebuild_cache
+
+# Special rule for the target rebuild_cache
+rebuild_cache/fast: rebuild_cache
+
+.PHONY : rebuild_cache/fast
+
 # The main all target
 all: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/a1/work/rocksdb_dev2/ssdb-1.9.2/CMakeFiles /home/a1/work/rocksdb_dev2/ssdb-1.9.2/CMakeFiles/progress.marks
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/zts/ClionProjects/wy_redis/ssdb-1.9.2/CMakeFiles /home/zts/ClionProjects/wy_redis/ssdb-1.9.2/CMakeFiles/progress.marks
 	$(MAKE) -f CMakeFiles/Makefile2 all
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/a1/work/rocksdb_dev2/ssdb-1.9.2/CMakeFiles 0
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/zts/ClionProjects/wy_redis/ssdb-1.9.2/CMakeFiles 0
 .PHONY : all
 
 # The main clean target
@@ -111,95 +157,69 @@ depend:
 .PHONY : depend
 
 #=============================================================================
-# Target rules for targets named ssdb-server
+# Target rules for targets named libcodec-shared
 
 # Build rule for target.
-ssdb-server: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 ssdb-server
-.PHONY : ssdb-server
+libcodec-shared: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 libcodec-shared
+.PHONY : libcodec-shared
 
 # fast build rule for target.
-ssdb-server/fast:
-	$(MAKE) -f CMakeFiles/ssdb-server.dir/build.make CMakeFiles/ssdb-server.dir/build
-.PHONY : ssdb-server/fast
+libcodec-shared/fast:
+	$(MAKE) -f CMakeFiles/libcodec-shared.dir/build.make CMakeFiles/libcodec-shared.dir/build
+.PHONY : libcodec-shared/fast
 
 #=============================================================================
-# Target rules for targets named librdb-shared
+# Target rules for targets named libcodec-static
 
 # Build rule for target.
-librdb-shared: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 librdb-shared
-.PHONY : librdb-shared
+libcodec-static: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 libcodec-static
+.PHONY : libcodec-static
 
 # fast build rule for target.
-librdb-shared/fast:
-	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/build
-.PHONY : librdb-shared/fast
+libcodec-static/fast:
+	$(MAKE) -f CMakeFiles/libcodec-static.dir/build.make CMakeFiles/libcodec-static.dir/build
+.PHONY : libcodec-static/fast
 
 #=============================================================================
-# Target rules for targets named librdb-static
+# Target rules for targets named libssdb-client-shared
 
 # Build rule for target.
-librdb-static: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 librdb-static
-.PHONY : librdb-static
+libssdb-client-shared: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 libssdb-client-shared
+.PHONY : libssdb-client-shared
 
 # fast build rule for target.
-librdb-static/fast:
-	$(MAKE) -f CMakeFiles/librdb-static.dir/build.make CMakeFiles/librdb-static.dir/build
-.PHONY : librdb-static/fast
+libssdb-client-shared/fast:
+	$(MAKE) -f CMakeFiles/libssdb-client-shared.dir/build.make CMakeFiles/libssdb-client-shared.dir/build
+.PHONY : libssdb-client-shared/fast
 
 #=============================================================================
-# Target rules for targets named libutil-shared
+# Target rules for targets named libnet-shared
 
 # Build rule for target.
-libutil-shared: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 libutil-shared
-.PHONY : libutil-shared
+libnet-shared: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 libnet-shared
+.PHONY : libnet-shared
 
 # fast build rule for target.
-libutil-shared/fast:
-	$(MAKE) -f CMakeFiles/libutil-shared.dir/build.make CMakeFiles/libutil-shared.dir/build
-.PHONY : libutil-shared/fast
+libnet-shared/fast:
+	$(MAKE) -f CMakeFiles/libnet-shared.dir/build.make CMakeFiles/libnet-shared.dir/build
+.PHONY : libnet-shared/fast
 
 #=============================================================================
-# Target rules for targets named librocksdb-static
+# Target rules for targets named test_link
 
 # Build rule for target.
-librocksdb-static: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 librocksdb-static
-.PHONY : librocksdb-static
+test_link: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 test_link
+.PHONY : test_link
 
 # fast build rule for target.
-librocksdb-static/fast:
-	$(MAKE) -f CMakeFiles/librocksdb-static.dir/build.make CMakeFiles/librocksdb-static.dir/build
-.PHONY : librocksdb-static/fast
-
-#=============================================================================
-# Target rules for targets named libjemalloc-static
-
-# Build rule for target.
-libjemalloc-static: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 libjemalloc-static
-.PHONY : libjemalloc-static
-
-# fast build rule for target.
-libjemalloc-static/fast:
-	$(MAKE) -f CMakeFiles/libjemalloc-static.dir/build.make CMakeFiles/libjemalloc-static.dir/build
-.PHONY : libjemalloc-static/fast
-
-#=============================================================================
-# Target rules for targets named libutil-static
-
-# Build rule for target.
-libutil-static: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 libutil-static
-.PHONY : libutil-static
-
-# fast build rule for target.
-libutil-static/fast:
-	$(MAKE) -f CMakeFiles/libutil-static.dir/build.make CMakeFiles/libutil-static.dir/build
-.PHONY : libutil-static/fast
+test_link/fast:
+	$(MAKE) -f CMakeFiles/test_link.dir/build.make CMakeFiles/test_link.dir/build
+.PHONY : test_link/fast
 
 #=============================================================================
 # Target rules for targets named libssdb-client-static
@@ -228,30 +248,121 @@ libsnappy-static/fast:
 .PHONY : libsnappy-static/fast
 
 #=============================================================================
-# Target rules for targets named test_link
+# Target rules for targets named libutil-static
 
 # Build rule for target.
-test_link: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 test_link
-.PHONY : test_link
+libutil-static: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 libutil-static
+.PHONY : libutil-static
 
 # fast build rule for target.
-test_link/fast:
-	$(MAKE) -f CMakeFiles/test_link.dir/build.make CMakeFiles/test_link.dir/build
-.PHONY : test_link/fast
+libutil-static/fast:
+	$(MAKE) -f CMakeFiles/libutil-static.dir/build.make CMakeFiles/libutil-static.dir/build
+.PHONY : libutil-static/fast
 
 #=============================================================================
-# Target rules for targets named libnet-shared
+# Target rules for targets named libjemalloc-static
 
 # Build rule for target.
-libnet-shared: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 libnet-shared
-.PHONY : libnet-shared
+libjemalloc-static: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 libjemalloc-static
+.PHONY : libjemalloc-static
 
 # fast build rule for target.
-libnet-shared/fast:
-	$(MAKE) -f CMakeFiles/libnet-shared.dir/build.make CMakeFiles/libnet-shared.dir/build
-.PHONY : libnet-shared/fast
+libjemalloc-static/fast:
+	$(MAKE) -f CMakeFiles/libjemalloc-static.dir/build.make CMakeFiles/libjemalloc-static.dir/build
+.PHONY : libjemalloc-static/fast
+
+#=============================================================================
+# Target rules for targets named linkedlist
+
+# Build rule for target.
+linkedlist: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 linkedlist
+.PHONY : linkedlist
+
+# fast build rule for target.
+linkedlist/fast:
+	$(MAKE) -f CMakeFiles/linkedlist.dir/build.make CMakeFiles/linkedlist.dir/build
+.PHONY : linkedlist/fast
+
+#=============================================================================
+# Target rules for targets named librocksdb-static
+
+# Build rule for target.
+librocksdb-static: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 librocksdb-static
+.PHONY : librocksdb-static
+
+# fast build rule for target.
+librocksdb-static/fast:
+	$(MAKE) -f CMakeFiles/librocksdb-static.dir/build.make CMakeFiles/librocksdb-static.dir/build
+.PHONY : librocksdb-static/fast
+
+#=============================================================================
+# Target rules for targets named libutil-shared
+
+# Build rule for target.
+libutil-shared: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 libutil-shared
+.PHONY : libutil-shared
+
+# fast build rule for target.
+libutil-shared/fast:
+	$(MAKE) -f CMakeFiles/libutil-shared.dir/build.make CMakeFiles/libutil-shared.dir/build
+.PHONY : libutil-shared/fast
+
+#=============================================================================
+# Target rules for targets named librdb-static
+
+# Build rule for target.
+librdb-static: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 librdb-static
+.PHONY : librdb-static
+
+# fast build rule for target.
+librdb-static/fast:
+	$(MAKE) -f CMakeFiles/librdb-static.dir/build.make CMakeFiles/librdb-static.dir/build
+.PHONY : librdb-static/fast
+
+#=============================================================================
+# Target rules for targets named libnet-static
+
+# Build rule for target.
+libnet-static: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 libnet-static
+.PHONY : libnet-static
+
+# fast build rule for target.
+libnet-static/fast:
+	$(MAKE) -f CMakeFiles/libnet-static.dir/build.make CMakeFiles/libnet-static.dir/build
+.PHONY : libnet-static/fast
+
+#=============================================================================
+# Target rules for targets named librdb-shared
+
+# Build rule for target.
+librdb-shared: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 librdb-shared
+.PHONY : librdb-shared
+
+# fast build rule for target.
+librdb-shared/fast:
+	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/build
+.PHONY : librdb-shared/fast
+
+#=============================================================================
+# Target rules for targets named ssdb-server
+
+# Build rule for target.
+ssdb-server: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 ssdb-server
+.PHONY : ssdb-server
+
+# fast build rule for target.
+ssdb-server/fast:
+	$(MAKE) -f CMakeFiles/ssdb-server.dir/build.make CMakeFiles/ssdb-server.dir/build
+.PHONY : ssdb-server/fast
 
 #=============================================================================
 # Target rules for targets named libssdb-static
@@ -267,83 +378,43 @@ libssdb-static/fast:
 .PHONY : libssdb-static/fast
 
 #=============================================================================
-# Target rules for targets named libssdb-client-shared
+# Target rules for targets named integ-test
 
 # Build rule for target.
-libssdb-client-shared: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 libssdb-client-shared
-.PHONY : libssdb-client-shared
+integ-test: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 integ-test
+.PHONY : integ-test
 
 # fast build rule for target.
-libssdb-client-shared/fast:
-	$(MAKE) -f CMakeFiles/libssdb-client-shared.dir/build.make CMakeFiles/libssdb-client-shared.dir/build
-.PHONY : libssdb-client-shared/fast
+integ-test/fast:
+	$(MAKE) -f tests/qa/fake/CMakeFiles/integ-test.dir/build.make tests/qa/fake/CMakeFiles/integ-test.dir/build
+.PHONY : integ-test/fast
 
 #=============================================================================
-# Target rules for targets named libcodec-static
+# Target rules for targets named gtest_main
 
 # Build rule for target.
-libcodec-static: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 libcodec-static
-.PHONY : libcodec-static
+gtest_main: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 gtest_main
+.PHONY : gtest_main
 
 # fast build rule for target.
-libcodec-static/fast:
-	$(MAKE) -f CMakeFiles/libcodec-static.dir/build.make CMakeFiles/libcodec-static.dir/build
-.PHONY : libcodec-static/fast
+gtest_main/fast:
+	$(MAKE) -f tests/qa/fake/gtest/CMakeFiles/gtest_main.dir/build.make tests/qa/fake/gtest/CMakeFiles/gtest_main.dir/build
+.PHONY : gtest_main/fast
 
 #=============================================================================
-# Target rules for targets named libcodec-shared
+# Target rules for targets named gtest
 
 # Build rule for target.
-libcodec-shared: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 libcodec-shared
-.PHONY : libcodec-shared
+gtest: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 gtest
+.PHONY : gtest
 
 # fast build rule for target.
-libcodec-shared/fast:
-	$(MAKE) -f CMakeFiles/libcodec-shared.dir/build.make CMakeFiles/libcodec-shared.dir/build
-.PHONY : libcodec-shared/fast
-
-#=============================================================================
-# Target rules for targets named libnet-static
-
-# Build rule for target.
-libnet-static: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 libnet-static
-.PHONY : libnet-static
-
-# fast build rule for target.
-libnet-static/fast:
-	$(MAKE) -f CMakeFiles/libnet-static.dir/build.make CMakeFiles/libnet-static.dir/build
-.PHONY : libnet-static/fast
-
-src/backend_dump.o: src/backend_dump.cpp.o
-
-.PHONY : src/backend_dump.o
-
-# target to build an object file
-src/backend_dump.cpp.o:
-	$(MAKE) -f CMakeFiles/ssdb-server.dir/build.make CMakeFiles/ssdb-server.dir/src/backend_dump.cpp.o
-.PHONY : src/backend_dump.cpp.o
-
-src/backend_dump.i: src/backend_dump.cpp.i
-
-.PHONY : src/backend_dump.i
-
-# target to preprocess a source file
-src/backend_dump.cpp.i:
-	$(MAKE) -f CMakeFiles/ssdb-server.dir/build.make CMakeFiles/ssdb-server.dir/src/backend_dump.cpp.i
-.PHONY : src/backend_dump.cpp.i
-
-src/backend_dump.s: src/backend_dump.cpp.s
-
-.PHONY : src/backend_dump.s
-
-# target to generate assembly for a file
-src/backend_dump.cpp.s:
-	$(MAKE) -f CMakeFiles/ssdb-server.dir/build.make CMakeFiles/ssdb-server.dir/src/backend_dump.cpp.s
-.PHONY : src/backend_dump.cpp.s
+gtest/fast:
+	$(MAKE) -f tests/qa/fake/gtest/CMakeFiles/gtest.dir/build.make tests/qa/fake/gtest/CMakeFiles/gtest.dir/build
+.PHONY : gtest/fast
 
 src/bproc_data.o: src/bproc_data.cpp.o
 
@@ -378,9 +449,9 @@ src/client/SSDB_impl.o: src/client/SSDB_impl.cpp.o
 
 # target to build an object file
 src/client/SSDB_impl.cpp.o:
-	$(MAKE) -f CMakeFiles/ssdb-server.dir/build.make CMakeFiles/ssdb-server.dir/src/client/SSDB_impl.cpp.o
-	$(MAKE) -f CMakeFiles/libssdb-client-static.dir/build.make CMakeFiles/libssdb-client-static.dir/src/client/SSDB_impl.cpp.o
 	$(MAKE) -f CMakeFiles/libssdb-client-shared.dir/build.make CMakeFiles/libssdb-client-shared.dir/src/client/SSDB_impl.cpp.o
+	$(MAKE) -f CMakeFiles/libssdb-client-static.dir/build.make CMakeFiles/libssdb-client-static.dir/src/client/SSDB_impl.cpp.o
+	$(MAKE) -f CMakeFiles/ssdb-server.dir/build.make CMakeFiles/ssdb-server.dir/src/client/SSDB_impl.cpp.o
 .PHONY : src/client/SSDB_impl.cpp.o
 
 src/client/SSDB_impl.i: src/client/SSDB_impl.cpp.i
@@ -389,9 +460,9 @@ src/client/SSDB_impl.i: src/client/SSDB_impl.cpp.i
 
 # target to preprocess a source file
 src/client/SSDB_impl.cpp.i:
-	$(MAKE) -f CMakeFiles/ssdb-server.dir/build.make CMakeFiles/ssdb-server.dir/src/client/SSDB_impl.cpp.i
-	$(MAKE) -f CMakeFiles/libssdb-client-static.dir/build.make CMakeFiles/libssdb-client-static.dir/src/client/SSDB_impl.cpp.i
 	$(MAKE) -f CMakeFiles/libssdb-client-shared.dir/build.make CMakeFiles/libssdb-client-shared.dir/src/client/SSDB_impl.cpp.i
+	$(MAKE) -f CMakeFiles/libssdb-client-static.dir/build.make CMakeFiles/libssdb-client-static.dir/src/client/SSDB_impl.cpp.i
+	$(MAKE) -f CMakeFiles/ssdb-server.dir/build.make CMakeFiles/ssdb-server.dir/src/client/SSDB_impl.cpp.i
 .PHONY : src/client/SSDB_impl.cpp.i
 
 src/client/SSDB_impl.s: src/client/SSDB_impl.cpp.s
@@ -400,9 +471,9 @@ src/client/SSDB_impl.s: src/client/SSDB_impl.cpp.s
 
 # target to generate assembly for a file
 src/client/SSDB_impl.cpp.s:
-	$(MAKE) -f CMakeFiles/ssdb-server.dir/build.make CMakeFiles/ssdb-server.dir/src/client/SSDB_impl.cpp.s
-	$(MAKE) -f CMakeFiles/libssdb-client-static.dir/build.make CMakeFiles/libssdb-client-static.dir/src/client/SSDB_impl.cpp.s
 	$(MAKE) -f CMakeFiles/libssdb-client-shared.dir/build.make CMakeFiles/libssdb-client-shared.dir/src/client/SSDB_impl.cpp.s
+	$(MAKE) -f CMakeFiles/libssdb-client-static.dir/build.make CMakeFiles/libssdb-client-static.dir/src/client/SSDB_impl.cpp.s
+	$(MAKE) -f CMakeFiles/ssdb-server.dir/build.make CMakeFiles/ssdb-server.dir/src/client/SSDB_impl.cpp.s
 .PHONY : src/client/SSDB_impl.cpp.s
 
 src/client/hello-ssdb.o: src/client/hello-ssdb.cpp.o
@@ -411,8 +482,8 @@ src/client/hello-ssdb.o: src/client/hello-ssdb.cpp.o
 
 # target to build an object file
 src/client/hello-ssdb.cpp.o:
-	$(MAKE) -f CMakeFiles/libssdb-client-static.dir/build.make CMakeFiles/libssdb-client-static.dir/src/client/hello-ssdb.cpp.o
 	$(MAKE) -f CMakeFiles/libssdb-client-shared.dir/build.make CMakeFiles/libssdb-client-shared.dir/src/client/hello-ssdb.cpp.o
+	$(MAKE) -f CMakeFiles/libssdb-client-static.dir/build.make CMakeFiles/libssdb-client-static.dir/src/client/hello-ssdb.cpp.o
 .PHONY : src/client/hello-ssdb.cpp.o
 
 src/client/hello-ssdb.i: src/client/hello-ssdb.cpp.i
@@ -421,8 +492,8 @@ src/client/hello-ssdb.i: src/client/hello-ssdb.cpp.i
 
 # target to preprocess a source file
 src/client/hello-ssdb.cpp.i:
-	$(MAKE) -f CMakeFiles/libssdb-client-static.dir/build.make CMakeFiles/libssdb-client-static.dir/src/client/hello-ssdb.cpp.i
 	$(MAKE) -f CMakeFiles/libssdb-client-shared.dir/build.make CMakeFiles/libssdb-client-shared.dir/src/client/hello-ssdb.cpp.i
+	$(MAKE) -f CMakeFiles/libssdb-client-static.dir/build.make CMakeFiles/libssdb-client-static.dir/src/client/hello-ssdb.cpp.i
 .PHONY : src/client/hello-ssdb.cpp.i
 
 src/client/hello-ssdb.s: src/client/hello-ssdb.cpp.s
@@ -431,8 +502,8 @@ src/client/hello-ssdb.s: src/client/hello-ssdb.cpp.s
 
 # target to generate assembly for a file
 src/client/hello-ssdb.cpp.s:
-	$(MAKE) -f CMakeFiles/libssdb-client-static.dir/build.make CMakeFiles/libssdb-client-static.dir/src/client/hello-ssdb.cpp.s
 	$(MAKE) -f CMakeFiles/libssdb-client-shared.dir/build.make CMakeFiles/libssdb-client-shared.dir/src/client/hello-ssdb.cpp.s
+	$(MAKE) -f CMakeFiles/libssdb-client-static.dir/build.make CMakeFiles/libssdb-client-static.dir/src/client/hello-ssdb.cpp.s
 .PHONY : src/client/hello-ssdb.cpp.s
 
 src/codec/decode.o: src/codec/decode.cpp.o
@@ -441,8 +512,8 @@ src/codec/decode.o: src/codec/decode.cpp.o
 
 # target to build an object file
 src/codec/decode.cpp.o:
-	$(MAKE) -f CMakeFiles/libcodec-static.dir/build.make CMakeFiles/libcodec-static.dir/src/codec/decode.cpp.o
 	$(MAKE) -f CMakeFiles/libcodec-shared.dir/build.make CMakeFiles/libcodec-shared.dir/src/codec/decode.cpp.o
+	$(MAKE) -f CMakeFiles/libcodec-static.dir/build.make CMakeFiles/libcodec-static.dir/src/codec/decode.cpp.o
 .PHONY : src/codec/decode.cpp.o
 
 src/codec/decode.i: src/codec/decode.cpp.i
@@ -451,8 +522,8 @@ src/codec/decode.i: src/codec/decode.cpp.i
 
 # target to preprocess a source file
 src/codec/decode.cpp.i:
-	$(MAKE) -f CMakeFiles/libcodec-static.dir/build.make CMakeFiles/libcodec-static.dir/src/codec/decode.cpp.i
 	$(MAKE) -f CMakeFiles/libcodec-shared.dir/build.make CMakeFiles/libcodec-shared.dir/src/codec/decode.cpp.i
+	$(MAKE) -f CMakeFiles/libcodec-static.dir/build.make CMakeFiles/libcodec-static.dir/src/codec/decode.cpp.i
 .PHONY : src/codec/decode.cpp.i
 
 src/codec/decode.s: src/codec/decode.cpp.s
@@ -461,8 +532,8 @@ src/codec/decode.s: src/codec/decode.cpp.s
 
 # target to generate assembly for a file
 src/codec/decode.cpp.s:
-	$(MAKE) -f CMakeFiles/libcodec-static.dir/build.make CMakeFiles/libcodec-static.dir/src/codec/decode.cpp.s
 	$(MAKE) -f CMakeFiles/libcodec-shared.dir/build.make CMakeFiles/libcodec-shared.dir/src/codec/decode.cpp.s
+	$(MAKE) -f CMakeFiles/libcodec-static.dir/build.make CMakeFiles/libcodec-static.dir/src/codec/decode.cpp.s
 .PHONY : src/codec/decode.cpp.s
 
 src/codec/encode.o: src/codec/encode.cpp.o
@@ -471,8 +542,8 @@ src/codec/encode.o: src/codec/encode.cpp.o
 
 # target to build an object file
 src/codec/encode.cpp.o:
-	$(MAKE) -f CMakeFiles/libcodec-static.dir/build.make CMakeFiles/libcodec-static.dir/src/codec/encode.cpp.o
 	$(MAKE) -f CMakeFiles/libcodec-shared.dir/build.make CMakeFiles/libcodec-shared.dir/src/codec/encode.cpp.o
+	$(MAKE) -f CMakeFiles/libcodec-static.dir/build.make CMakeFiles/libcodec-static.dir/src/codec/encode.cpp.o
 .PHONY : src/codec/encode.cpp.o
 
 src/codec/encode.i: src/codec/encode.cpp.i
@@ -481,8 +552,8 @@ src/codec/encode.i: src/codec/encode.cpp.i
 
 # target to preprocess a source file
 src/codec/encode.cpp.i:
-	$(MAKE) -f CMakeFiles/libcodec-static.dir/build.make CMakeFiles/libcodec-static.dir/src/codec/encode.cpp.i
 	$(MAKE) -f CMakeFiles/libcodec-shared.dir/build.make CMakeFiles/libcodec-shared.dir/src/codec/encode.cpp.i
+	$(MAKE) -f CMakeFiles/libcodec-static.dir/build.make CMakeFiles/libcodec-static.dir/src/codec/encode.cpp.i
 .PHONY : src/codec/encode.cpp.i
 
 src/codec/encode.s: src/codec/encode.cpp.s
@@ -491,8 +562,8 @@ src/codec/encode.s: src/codec/encode.cpp.s
 
 # target to generate assembly for a file
 src/codec/encode.cpp.s:
-	$(MAKE) -f CMakeFiles/libcodec-static.dir/build.make CMakeFiles/libcodec-static.dir/src/codec/encode.cpp.s
 	$(MAKE) -f CMakeFiles/libcodec-shared.dir/build.make CMakeFiles/libcodec-shared.dir/src/codec/encode.cpp.s
+	$(MAKE) -f CMakeFiles/libcodec-static.dir/build.make CMakeFiles/libcodec-static.dir/src/codec/encode.cpp.s
 .PHONY : src/codec/encode.cpp.s
 
 src/codec/util.o: src/codec/util.cpp.o
@@ -501,8 +572,8 @@ src/codec/util.o: src/codec/util.cpp.o
 
 # target to build an object file
 src/codec/util.cpp.o:
-	$(MAKE) -f CMakeFiles/libcodec-static.dir/build.make CMakeFiles/libcodec-static.dir/src/codec/util.cpp.o
 	$(MAKE) -f CMakeFiles/libcodec-shared.dir/build.make CMakeFiles/libcodec-shared.dir/src/codec/util.cpp.o
+	$(MAKE) -f CMakeFiles/libcodec-static.dir/build.make CMakeFiles/libcodec-static.dir/src/codec/util.cpp.o
 .PHONY : src/codec/util.cpp.o
 
 src/codec/util.i: src/codec/util.cpp.i
@@ -511,8 +582,8 @@ src/codec/util.i: src/codec/util.cpp.i
 
 # target to preprocess a source file
 src/codec/util.cpp.i:
-	$(MAKE) -f CMakeFiles/libcodec-static.dir/build.make CMakeFiles/libcodec-static.dir/src/codec/util.cpp.i
 	$(MAKE) -f CMakeFiles/libcodec-shared.dir/build.make CMakeFiles/libcodec-shared.dir/src/codec/util.cpp.i
+	$(MAKE) -f CMakeFiles/libcodec-static.dir/build.make CMakeFiles/libcodec-static.dir/src/codec/util.cpp.i
 .PHONY : src/codec/util.cpp.i
 
 src/codec/util.s: src/codec/util.cpp.s
@@ -521,8 +592,8 @@ src/codec/util.s: src/codec/util.cpp.s
 
 # target to generate assembly for a file
 src/codec/util.cpp.s:
-	$(MAKE) -f CMakeFiles/libcodec-static.dir/build.make CMakeFiles/libcodec-static.dir/src/codec/util.cpp.s
 	$(MAKE) -f CMakeFiles/libcodec-shared.dir/build.make CMakeFiles/libcodec-shared.dir/src/codec/util.cpp.s
+	$(MAKE) -f CMakeFiles/libcodec-static.dir/build.make CMakeFiles/libcodec-static.dir/src/codec/util.cpp.s
 .PHONY : src/codec/util.cpp.s
 
 src/net/fde.o: src/net/fde.cpp.o
@@ -561,9 +632,9 @@ src/net/link.o: src/net/link.cpp.o
 
 # target to build an object file
 src/net/link.cpp.o:
-	$(MAKE) -f CMakeFiles/libssdb-client-static.dir/build.make CMakeFiles/libssdb-client-static.dir/src/net/link.cpp.o
-	$(MAKE) -f CMakeFiles/libnet-shared.dir/build.make CMakeFiles/libnet-shared.dir/src/net/link.cpp.o
 	$(MAKE) -f CMakeFiles/libssdb-client-shared.dir/build.make CMakeFiles/libssdb-client-shared.dir/src/net/link.cpp.o
+	$(MAKE) -f CMakeFiles/libnet-shared.dir/build.make CMakeFiles/libnet-shared.dir/src/net/link.cpp.o
+	$(MAKE) -f CMakeFiles/libssdb-client-static.dir/build.make CMakeFiles/libssdb-client-static.dir/src/net/link.cpp.o
 	$(MAKE) -f CMakeFiles/libnet-static.dir/build.make CMakeFiles/libnet-static.dir/src/net/link.cpp.o
 .PHONY : src/net/link.cpp.o
 
@@ -573,9 +644,9 @@ src/net/link.i: src/net/link.cpp.i
 
 # target to preprocess a source file
 src/net/link.cpp.i:
-	$(MAKE) -f CMakeFiles/libssdb-client-static.dir/build.make CMakeFiles/libssdb-client-static.dir/src/net/link.cpp.i
-	$(MAKE) -f CMakeFiles/libnet-shared.dir/build.make CMakeFiles/libnet-shared.dir/src/net/link.cpp.i
 	$(MAKE) -f CMakeFiles/libssdb-client-shared.dir/build.make CMakeFiles/libssdb-client-shared.dir/src/net/link.cpp.i
+	$(MAKE) -f CMakeFiles/libnet-shared.dir/build.make CMakeFiles/libnet-shared.dir/src/net/link.cpp.i
+	$(MAKE) -f CMakeFiles/libssdb-client-static.dir/build.make CMakeFiles/libssdb-client-static.dir/src/net/link.cpp.i
 	$(MAKE) -f CMakeFiles/libnet-static.dir/build.make CMakeFiles/libnet-static.dir/src/net/link.cpp.i
 .PHONY : src/net/link.cpp.i
 
@@ -585,9 +656,9 @@ src/net/link.s: src/net/link.cpp.s
 
 # target to generate assembly for a file
 src/net/link.cpp.s:
-	$(MAKE) -f CMakeFiles/libssdb-client-static.dir/build.make CMakeFiles/libssdb-client-static.dir/src/net/link.cpp.s
-	$(MAKE) -f CMakeFiles/libnet-shared.dir/build.make CMakeFiles/libnet-shared.dir/src/net/link.cpp.s
 	$(MAKE) -f CMakeFiles/libssdb-client-shared.dir/build.make CMakeFiles/libssdb-client-shared.dir/src/net/link.cpp.s
+	$(MAKE) -f CMakeFiles/libnet-shared.dir/build.make CMakeFiles/libnet-shared.dir/src/net/link.cpp.s
+	$(MAKE) -f CMakeFiles/libssdb-client-static.dir/build.make CMakeFiles/libssdb-client-static.dir/src/net/link.cpp.s
 	$(MAKE) -f CMakeFiles/libnet-static.dir/build.make CMakeFiles/libnet-static.dir/src/net/link.cpp.s
 .PHONY : src/net/link.cpp.s
 
@@ -969,8 +1040,8 @@ src/redis/crc/crc64speed.o: src/redis/crc/crc64speed.c.o
 
 # target to build an object file
 src/redis/crc/crc64speed.c.o:
-	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/crc/crc64speed.c.o
 	$(MAKE) -f CMakeFiles/librdb-static.dir/build.make CMakeFiles/librdb-static.dir/src/redis/crc/crc64speed.c.o
+	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/crc/crc64speed.c.o
 .PHONY : src/redis/crc/crc64speed.c.o
 
 src/redis/crc/crc64speed.i: src/redis/crc/crc64speed.c.i
@@ -979,8 +1050,8 @@ src/redis/crc/crc64speed.i: src/redis/crc/crc64speed.c.i
 
 # target to preprocess a source file
 src/redis/crc/crc64speed.c.i:
-	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/crc/crc64speed.c.i
 	$(MAKE) -f CMakeFiles/librdb-static.dir/build.make CMakeFiles/librdb-static.dir/src/redis/crc/crc64speed.c.i
+	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/crc/crc64speed.c.i
 .PHONY : src/redis/crc/crc64speed.c.i
 
 src/redis/crc/crc64speed.s: src/redis/crc/crc64speed.c.s
@@ -989,8 +1060,8 @@ src/redis/crc/crc64speed.s: src/redis/crc/crc64speed.c.s
 
 # target to generate assembly for a file
 src/redis/crc/crc64speed.c.s:
-	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/crc/crc64speed.c.s
 	$(MAKE) -f CMakeFiles/librdb-static.dir/build.make CMakeFiles/librdb-static.dir/src/redis/crc/crc64speed.c.s
+	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/crc/crc64speed.c.s
 .PHONY : src/redis/crc/crc64speed.c.s
 
 src/redis/crc/crcspeed.o: src/redis/crc/crcspeed.c.o
@@ -999,8 +1070,8 @@ src/redis/crc/crcspeed.o: src/redis/crc/crcspeed.c.o
 
 # target to build an object file
 src/redis/crc/crcspeed.c.o:
-	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/crc/crcspeed.c.o
 	$(MAKE) -f CMakeFiles/librdb-static.dir/build.make CMakeFiles/librdb-static.dir/src/redis/crc/crcspeed.c.o
+	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/crc/crcspeed.c.o
 .PHONY : src/redis/crc/crcspeed.c.o
 
 src/redis/crc/crcspeed.i: src/redis/crc/crcspeed.c.i
@@ -1009,8 +1080,8 @@ src/redis/crc/crcspeed.i: src/redis/crc/crcspeed.c.i
 
 # target to preprocess a source file
 src/redis/crc/crcspeed.c.i:
-	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/crc/crcspeed.c.i
 	$(MAKE) -f CMakeFiles/librdb-static.dir/build.make CMakeFiles/librdb-static.dir/src/redis/crc/crcspeed.c.i
+	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/crc/crcspeed.c.i
 .PHONY : src/redis/crc/crcspeed.c.i
 
 src/redis/crc/crcspeed.s: src/redis/crc/crcspeed.c.s
@@ -1019,8 +1090,8 @@ src/redis/crc/crcspeed.s: src/redis/crc/crcspeed.c.s
 
 # target to generate assembly for a file
 src/redis/crc/crcspeed.c.s:
-	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/crc/crcspeed.c.s
 	$(MAKE) -f CMakeFiles/librdb-static.dir/build.make CMakeFiles/librdb-static.dir/src/redis/crc/crcspeed.c.s
+	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/crc/crcspeed.c.s
 .PHONY : src/redis/crc/crcspeed.c.s
 
 src/redis/endianconv.o: src/redis/endianconv.c.o
@@ -1029,8 +1100,8 @@ src/redis/endianconv.o: src/redis/endianconv.c.o
 
 # target to build an object file
 src/redis/endianconv.c.o:
-	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/endianconv.c.o
 	$(MAKE) -f CMakeFiles/librdb-static.dir/build.make CMakeFiles/librdb-static.dir/src/redis/endianconv.c.o
+	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/endianconv.c.o
 .PHONY : src/redis/endianconv.c.o
 
 src/redis/endianconv.i: src/redis/endianconv.c.i
@@ -1039,8 +1110,8 @@ src/redis/endianconv.i: src/redis/endianconv.c.i
 
 # target to preprocess a source file
 src/redis/endianconv.c.i:
-	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/endianconv.c.i
 	$(MAKE) -f CMakeFiles/librdb-static.dir/build.make CMakeFiles/librdb-static.dir/src/redis/endianconv.c.i
+	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/endianconv.c.i
 .PHONY : src/redis/endianconv.c.i
 
 src/redis/endianconv.s: src/redis/endianconv.c.s
@@ -1049,8 +1120,8 @@ src/redis/endianconv.s: src/redis/endianconv.c.s
 
 # target to generate assembly for a file
 src/redis/endianconv.c.s:
-	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/endianconv.c.s
 	$(MAKE) -f CMakeFiles/librdb-static.dir/build.make CMakeFiles/librdb-static.dir/src/redis/endianconv.c.s
+	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/endianconv.c.s
 .PHONY : src/redis/endianconv.c.s
 
 src/redis/intset.o: src/redis/intset.c.o
@@ -1059,8 +1130,8 @@ src/redis/intset.o: src/redis/intset.c.o
 
 # target to build an object file
 src/redis/intset.c.o:
-	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/intset.c.o
 	$(MAKE) -f CMakeFiles/librdb-static.dir/build.make CMakeFiles/librdb-static.dir/src/redis/intset.c.o
+	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/intset.c.o
 .PHONY : src/redis/intset.c.o
 
 src/redis/intset.i: src/redis/intset.c.i
@@ -1069,8 +1140,8 @@ src/redis/intset.i: src/redis/intset.c.i
 
 # target to preprocess a source file
 src/redis/intset.c.i:
-	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/intset.c.i
 	$(MAKE) -f CMakeFiles/librdb-static.dir/build.make CMakeFiles/librdb-static.dir/src/redis/intset.c.i
+	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/intset.c.i
 .PHONY : src/redis/intset.c.i
 
 src/redis/intset.s: src/redis/intset.c.s
@@ -1079,8 +1150,8 @@ src/redis/intset.s: src/redis/intset.c.s
 
 # target to generate assembly for a file
 src/redis/intset.c.s:
-	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/intset.c.s
 	$(MAKE) -f CMakeFiles/librdb-static.dir/build.make CMakeFiles/librdb-static.dir/src/redis/intset.c.s
+	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/intset.c.s
 .PHONY : src/redis/intset.c.s
 
 src/redis/lzf_c.o: src/redis/lzf_c.c.o
@@ -1089,8 +1160,8 @@ src/redis/lzf_c.o: src/redis/lzf_c.c.o
 
 # target to build an object file
 src/redis/lzf_c.c.o:
-	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/lzf_c.c.o
 	$(MAKE) -f CMakeFiles/librdb-static.dir/build.make CMakeFiles/librdb-static.dir/src/redis/lzf_c.c.o
+	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/lzf_c.c.o
 .PHONY : src/redis/lzf_c.c.o
 
 src/redis/lzf_c.i: src/redis/lzf_c.c.i
@@ -1099,8 +1170,8 @@ src/redis/lzf_c.i: src/redis/lzf_c.c.i
 
 # target to preprocess a source file
 src/redis/lzf_c.c.i:
-	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/lzf_c.c.i
 	$(MAKE) -f CMakeFiles/librdb-static.dir/build.make CMakeFiles/librdb-static.dir/src/redis/lzf_c.c.i
+	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/lzf_c.c.i
 .PHONY : src/redis/lzf_c.c.i
 
 src/redis/lzf_c.s: src/redis/lzf_c.c.s
@@ -1109,8 +1180,8 @@ src/redis/lzf_c.s: src/redis/lzf_c.c.s
 
 # target to generate assembly for a file
 src/redis/lzf_c.c.s:
-	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/lzf_c.c.s
 	$(MAKE) -f CMakeFiles/librdb-static.dir/build.make CMakeFiles/librdb-static.dir/src/redis/lzf_c.c.s
+	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/lzf_c.c.s
 .PHONY : src/redis/lzf_c.c.s
 
 src/redis/lzf_d.o: src/redis/lzf_d.c.o
@@ -1119,8 +1190,8 @@ src/redis/lzf_d.o: src/redis/lzf_d.c.o
 
 # target to build an object file
 src/redis/lzf_d.c.o:
-	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/lzf_d.c.o
 	$(MAKE) -f CMakeFiles/librdb-static.dir/build.make CMakeFiles/librdb-static.dir/src/redis/lzf_d.c.o
+	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/lzf_d.c.o
 .PHONY : src/redis/lzf_d.c.o
 
 src/redis/lzf_d.i: src/redis/lzf_d.c.i
@@ -1129,8 +1200,8 @@ src/redis/lzf_d.i: src/redis/lzf_d.c.i
 
 # target to preprocess a source file
 src/redis/lzf_d.c.i:
-	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/lzf_d.c.i
 	$(MAKE) -f CMakeFiles/librdb-static.dir/build.make CMakeFiles/librdb-static.dir/src/redis/lzf_d.c.i
+	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/lzf_d.c.i
 .PHONY : src/redis/lzf_d.c.i
 
 src/redis/lzf_d.s: src/redis/lzf_d.c.s
@@ -1139,8 +1210,8 @@ src/redis/lzf_d.s: src/redis/lzf_d.c.s
 
 # target to generate assembly for a file
 src/redis/lzf_d.c.s:
-	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/lzf_d.c.s
 	$(MAKE) -f CMakeFiles/librdb-static.dir/build.make CMakeFiles/librdb-static.dir/src/redis/lzf_d.c.s
+	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/lzf_d.c.s
 .PHONY : src/redis/lzf_d.c.s
 
 src/redis/rdb_decoder.o: src/redis/rdb_decoder.cpp.o
@@ -1149,8 +1220,8 @@ src/redis/rdb_decoder.o: src/redis/rdb_decoder.cpp.o
 
 # target to build an object file
 src/redis/rdb_decoder.cpp.o:
-	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/rdb_decoder.cpp.o
 	$(MAKE) -f CMakeFiles/librdb-static.dir/build.make CMakeFiles/librdb-static.dir/src/redis/rdb_decoder.cpp.o
+	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/rdb_decoder.cpp.o
 .PHONY : src/redis/rdb_decoder.cpp.o
 
 src/redis/rdb_decoder.i: src/redis/rdb_decoder.cpp.i
@@ -1159,8 +1230,8 @@ src/redis/rdb_decoder.i: src/redis/rdb_decoder.cpp.i
 
 # target to preprocess a source file
 src/redis/rdb_decoder.cpp.i:
-	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/rdb_decoder.cpp.i
 	$(MAKE) -f CMakeFiles/librdb-static.dir/build.make CMakeFiles/librdb-static.dir/src/redis/rdb_decoder.cpp.i
+	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/rdb_decoder.cpp.i
 .PHONY : src/redis/rdb_decoder.cpp.i
 
 src/redis/rdb_decoder.s: src/redis/rdb_decoder.cpp.s
@@ -1169,8 +1240,8 @@ src/redis/rdb_decoder.s: src/redis/rdb_decoder.cpp.s
 
 # target to generate assembly for a file
 src/redis/rdb_decoder.cpp.s:
-	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/rdb_decoder.cpp.s
 	$(MAKE) -f CMakeFiles/librdb-static.dir/build.make CMakeFiles/librdb-static.dir/src/redis/rdb_decoder.cpp.s
+	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/rdb_decoder.cpp.s
 .PHONY : src/redis/rdb_decoder.cpp.s
 
 src/redis/rdb_encoder.o: src/redis/rdb_encoder.cpp.o
@@ -1179,8 +1250,8 @@ src/redis/rdb_encoder.o: src/redis/rdb_encoder.cpp.o
 
 # target to build an object file
 src/redis/rdb_encoder.cpp.o:
-	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/rdb_encoder.cpp.o
 	$(MAKE) -f CMakeFiles/librdb-static.dir/build.make CMakeFiles/librdb-static.dir/src/redis/rdb_encoder.cpp.o
+	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/rdb_encoder.cpp.o
 .PHONY : src/redis/rdb_encoder.cpp.o
 
 src/redis/rdb_encoder.i: src/redis/rdb_encoder.cpp.i
@@ -1189,8 +1260,8 @@ src/redis/rdb_encoder.i: src/redis/rdb_encoder.cpp.i
 
 # target to preprocess a source file
 src/redis/rdb_encoder.cpp.i:
-	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/rdb_encoder.cpp.i
 	$(MAKE) -f CMakeFiles/librdb-static.dir/build.make CMakeFiles/librdb-static.dir/src/redis/rdb_encoder.cpp.i
+	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/rdb_encoder.cpp.i
 .PHONY : src/redis/rdb_encoder.cpp.i
 
 src/redis/rdb_encoder.s: src/redis/rdb_encoder.cpp.s
@@ -1199,9 +1270,39 @@ src/redis/rdb_encoder.s: src/redis/rdb_encoder.cpp.s
 
 # target to generate assembly for a file
 src/redis/rdb_encoder.cpp.s:
-	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/rdb_encoder.cpp.s
 	$(MAKE) -f CMakeFiles/librdb-static.dir/build.make CMakeFiles/librdb-static.dir/src/redis/rdb_encoder.cpp.s
+	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/rdb_encoder.cpp.s
 .PHONY : src/redis/rdb_encoder.cpp.s
+
+src/redis/sha1.o: src/redis/sha1.c.o
+
+.PHONY : src/redis/sha1.o
+
+# target to build an object file
+src/redis/sha1.c.o:
+	$(MAKE) -f CMakeFiles/librdb-static.dir/build.make CMakeFiles/librdb-static.dir/src/redis/sha1.c.o
+	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/sha1.c.o
+.PHONY : src/redis/sha1.c.o
+
+src/redis/sha1.i: src/redis/sha1.c.i
+
+.PHONY : src/redis/sha1.i
+
+# target to preprocess a source file
+src/redis/sha1.c.i:
+	$(MAKE) -f CMakeFiles/librdb-static.dir/build.make CMakeFiles/librdb-static.dir/src/redis/sha1.c.i
+	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/sha1.c.i
+.PHONY : src/redis/sha1.c.i
+
+src/redis/sha1.s: src/redis/sha1.c.s
+
+.PHONY : src/redis/sha1.s
+
+# target to generate assembly for a file
+src/redis/sha1.c.s:
+	$(MAKE) -f CMakeFiles/librdb-static.dir/build.make CMakeFiles/librdb-static.dir/src/redis/sha1.c.s
+	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/sha1.c.s
+.PHONY : src/redis/sha1.c.s
 
 src/redis/ziplist.o: src/redis/ziplist.c.o
 
@@ -1209,8 +1310,8 @@ src/redis/ziplist.o: src/redis/ziplist.c.o
 
 # target to build an object file
 src/redis/ziplist.c.o:
-	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/ziplist.c.o
 	$(MAKE) -f CMakeFiles/librdb-static.dir/build.make CMakeFiles/librdb-static.dir/src/redis/ziplist.c.o
+	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/ziplist.c.o
 .PHONY : src/redis/ziplist.c.o
 
 src/redis/ziplist.i: src/redis/ziplist.c.i
@@ -1219,8 +1320,8 @@ src/redis/ziplist.i: src/redis/ziplist.c.i
 
 # target to preprocess a source file
 src/redis/ziplist.c.i:
-	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/ziplist.c.i
 	$(MAKE) -f CMakeFiles/librdb-static.dir/build.make CMakeFiles/librdb-static.dir/src/redis/ziplist.c.i
+	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/ziplist.c.i
 .PHONY : src/redis/ziplist.c.i
 
 src/redis/ziplist.s: src/redis/ziplist.c.s
@@ -1229,8 +1330,8 @@ src/redis/ziplist.s: src/redis/ziplist.c.s
 
 # target to generate assembly for a file
 src/redis/ziplist.c.s:
-	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/ziplist.c.s
 	$(MAKE) -f CMakeFiles/librdb-static.dir/build.make CMakeFiles/librdb-static.dir/src/redis/ziplist.c.s
+	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/ziplist.c.s
 .PHONY : src/redis/ziplist.c.s
 
 src/redis/zmalloc.o: src/redis/zmalloc.c.o
@@ -1239,8 +1340,8 @@ src/redis/zmalloc.o: src/redis/zmalloc.c.o
 
 # target to build an object file
 src/redis/zmalloc.c.o:
-	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/zmalloc.c.o
 	$(MAKE) -f CMakeFiles/librdb-static.dir/build.make CMakeFiles/librdb-static.dir/src/redis/zmalloc.c.o
+	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/zmalloc.c.o
 .PHONY : src/redis/zmalloc.c.o
 
 src/redis/zmalloc.i: src/redis/zmalloc.c.i
@@ -1249,8 +1350,8 @@ src/redis/zmalloc.i: src/redis/zmalloc.c.i
 
 # target to preprocess a source file
 src/redis/zmalloc.c.i:
-	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/zmalloc.c.i
 	$(MAKE) -f CMakeFiles/librdb-static.dir/build.make CMakeFiles/librdb-static.dir/src/redis/zmalloc.c.i
+	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/zmalloc.c.i
 .PHONY : src/redis/zmalloc.c.i
 
 src/redis/zmalloc.s: src/redis/zmalloc.c.s
@@ -1259,9 +1360,63 @@ src/redis/zmalloc.s: src/redis/zmalloc.c.s
 
 # target to generate assembly for a file
 src/redis/zmalloc.c.s:
-	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/zmalloc.c.s
 	$(MAKE) -f CMakeFiles/librdb-static.dir/build.make CMakeFiles/librdb-static.dir/src/redis/zmalloc.c.s
+	$(MAKE) -f CMakeFiles/librdb-shared.dir/build.make CMakeFiles/librdb-shared.dir/src/redis/zmalloc.c.s
 .PHONY : src/redis/zmalloc.c.s
+
+src/replication.o: src/replication.cpp.o
+
+.PHONY : src/replication.o
+
+# target to build an object file
+src/replication.cpp.o:
+	$(MAKE) -f CMakeFiles/ssdb-server.dir/build.make CMakeFiles/ssdb-server.dir/src/replication.cpp.o
+.PHONY : src/replication.cpp.o
+
+src/replication.i: src/replication.cpp.i
+
+.PHONY : src/replication.i
+
+# target to preprocess a source file
+src/replication.cpp.i:
+	$(MAKE) -f CMakeFiles/ssdb-server.dir/build.make CMakeFiles/ssdb-server.dir/src/replication.cpp.i
+.PHONY : src/replication.cpp.i
+
+src/replication.s: src/replication.cpp.s
+
+.PHONY : src/replication.s
+
+# target to generate assembly for a file
+src/replication.cpp.s:
+	$(MAKE) -f CMakeFiles/ssdb-server.dir/build.make CMakeFiles/ssdb-server.dir/src/replication.cpp.s
+.PHONY : src/replication.cpp.s
+
+src/replication_slave.o: src/replication_slave.cpp.o
+
+.PHONY : src/replication_slave.o
+
+# target to build an object file
+src/replication_slave.cpp.o:
+	$(MAKE) -f CMakeFiles/ssdb-server.dir/build.make CMakeFiles/ssdb-server.dir/src/replication_slave.cpp.o
+.PHONY : src/replication_slave.cpp.o
+
+src/replication_slave.i: src/replication_slave.cpp.i
+
+.PHONY : src/replication_slave.i
+
+# target to preprocess a source file
+src/replication_slave.cpp.i:
+	$(MAKE) -f CMakeFiles/ssdb-server.dir/build.make CMakeFiles/ssdb-server.dir/src/replication_slave.cpp.i
+.PHONY : src/replication_slave.cpp.i
+
+src/replication_slave.s: src/replication_slave.cpp.s
+
+.PHONY : src/replication_slave.s
+
+# target to generate assembly for a file
+src/replication_slave.cpp.s:
+	$(MAKE) -f CMakeFiles/ssdb-server.dir/build.make CMakeFiles/ssdb-server.dir/src/replication_slave.cpp.s
+.PHONY : src/replication_slave.cpp.s
 
 src/serv.o: src/serv.cpp.o
 
@@ -1647,8 +1802,8 @@ src/util/app.o: src/util/app.cpp.o
 
 # target to build an object file
 src/util/app.cpp.o:
-	$(MAKE) -f CMakeFiles/libutil-shared.dir/build.make CMakeFiles/libutil-shared.dir/src/util/app.cpp.o
 	$(MAKE) -f CMakeFiles/libutil-static.dir/build.make CMakeFiles/libutil-static.dir/src/util/app.cpp.o
+	$(MAKE) -f CMakeFiles/libutil-shared.dir/build.make CMakeFiles/libutil-shared.dir/src/util/app.cpp.o
 .PHONY : src/util/app.cpp.o
 
 src/util/app.i: src/util/app.cpp.i
@@ -1657,8 +1812,8 @@ src/util/app.i: src/util/app.cpp.i
 
 # target to preprocess a source file
 src/util/app.cpp.i:
-	$(MAKE) -f CMakeFiles/libutil-shared.dir/build.make CMakeFiles/libutil-shared.dir/src/util/app.cpp.i
 	$(MAKE) -f CMakeFiles/libutil-static.dir/build.make CMakeFiles/libutil-static.dir/src/util/app.cpp.i
+	$(MAKE) -f CMakeFiles/libutil-shared.dir/build.make CMakeFiles/libutil-shared.dir/src/util/app.cpp.i
 .PHONY : src/util/app.cpp.i
 
 src/util/app.s: src/util/app.cpp.s
@@ -1667,9 +1822,39 @@ src/util/app.s: src/util/app.cpp.s
 
 # target to generate assembly for a file
 src/util/app.cpp.s:
-	$(MAKE) -f CMakeFiles/libutil-shared.dir/build.make CMakeFiles/libutil-shared.dir/src/util/app.cpp.s
 	$(MAKE) -f CMakeFiles/libutil-static.dir/build.make CMakeFiles/libutil-static.dir/src/util/app.cpp.s
+	$(MAKE) -f CMakeFiles/libutil-shared.dir/build.make CMakeFiles/libutil-shared.dir/src/util/app.cpp.s
 .PHONY : src/util/app.cpp.s
+
+src/util/backtrace.o: src/util/backtrace.cpp.o
+
+.PHONY : src/util/backtrace.o
+
+# target to build an object file
+src/util/backtrace.cpp.o:
+	$(MAKE) -f CMakeFiles/libutil-static.dir/build.make CMakeFiles/libutil-static.dir/src/util/backtrace.cpp.o
+	$(MAKE) -f CMakeFiles/libutil-shared.dir/build.make CMakeFiles/libutil-shared.dir/src/util/backtrace.cpp.o
+.PHONY : src/util/backtrace.cpp.o
+
+src/util/backtrace.i: src/util/backtrace.cpp.i
+
+.PHONY : src/util/backtrace.i
+
+# target to preprocess a source file
+src/util/backtrace.cpp.i:
+	$(MAKE) -f CMakeFiles/libutil-static.dir/build.make CMakeFiles/libutil-static.dir/src/util/backtrace.cpp.i
+	$(MAKE) -f CMakeFiles/libutil-shared.dir/build.make CMakeFiles/libutil-shared.dir/src/util/backtrace.cpp.i
+.PHONY : src/util/backtrace.cpp.i
+
+src/util/backtrace.s: src/util/backtrace.cpp.s
+
+.PHONY : src/util/backtrace.s
+
+# target to generate assembly for a file
+src/util/backtrace.cpp.s:
+	$(MAKE) -f CMakeFiles/libutil-static.dir/build.make CMakeFiles/libutil-static.dir/src/util/backtrace.cpp.s
+	$(MAKE) -f CMakeFiles/libutil-shared.dir/build.make CMakeFiles/libutil-shared.dir/src/util/backtrace.cpp.s
+.PHONY : src/util/backtrace.cpp.s
 
 src/util/bytes.o: src/util/bytes.cpp.o
 
@@ -1677,10 +1862,10 @@ src/util/bytes.o: src/util/bytes.cpp.o
 
 # target to build an object file
 src/util/bytes.cpp.o:
-	$(MAKE) -f CMakeFiles/libutil-shared.dir/build.make CMakeFiles/libutil-shared.dir/src/util/bytes.cpp.o
-	$(MAKE) -f CMakeFiles/libutil-static.dir/build.make CMakeFiles/libutil-static.dir/src/util/bytes.cpp.o
-	$(MAKE) -f CMakeFiles/libssdb-client-static.dir/build.make CMakeFiles/libssdb-client-static.dir/src/util/bytes.cpp.o
 	$(MAKE) -f CMakeFiles/libssdb-client-shared.dir/build.make CMakeFiles/libssdb-client-shared.dir/src/util/bytes.cpp.o
+	$(MAKE) -f CMakeFiles/libssdb-client-static.dir/build.make CMakeFiles/libssdb-client-static.dir/src/util/bytes.cpp.o
+	$(MAKE) -f CMakeFiles/libutil-static.dir/build.make CMakeFiles/libutil-static.dir/src/util/bytes.cpp.o
+	$(MAKE) -f CMakeFiles/libutil-shared.dir/build.make CMakeFiles/libutil-shared.dir/src/util/bytes.cpp.o
 .PHONY : src/util/bytes.cpp.o
 
 src/util/bytes.i: src/util/bytes.cpp.i
@@ -1689,10 +1874,10 @@ src/util/bytes.i: src/util/bytes.cpp.i
 
 # target to preprocess a source file
 src/util/bytes.cpp.i:
-	$(MAKE) -f CMakeFiles/libutil-shared.dir/build.make CMakeFiles/libutil-shared.dir/src/util/bytes.cpp.i
-	$(MAKE) -f CMakeFiles/libutil-static.dir/build.make CMakeFiles/libutil-static.dir/src/util/bytes.cpp.i
-	$(MAKE) -f CMakeFiles/libssdb-client-static.dir/build.make CMakeFiles/libssdb-client-static.dir/src/util/bytes.cpp.i
 	$(MAKE) -f CMakeFiles/libssdb-client-shared.dir/build.make CMakeFiles/libssdb-client-shared.dir/src/util/bytes.cpp.i
+	$(MAKE) -f CMakeFiles/libssdb-client-static.dir/build.make CMakeFiles/libssdb-client-static.dir/src/util/bytes.cpp.i
+	$(MAKE) -f CMakeFiles/libutil-static.dir/build.make CMakeFiles/libutil-static.dir/src/util/bytes.cpp.i
+	$(MAKE) -f CMakeFiles/libutil-shared.dir/build.make CMakeFiles/libutil-shared.dir/src/util/bytes.cpp.i
 .PHONY : src/util/bytes.cpp.i
 
 src/util/bytes.s: src/util/bytes.cpp.s
@@ -1701,10 +1886,10 @@ src/util/bytes.s: src/util/bytes.cpp.s
 
 # target to generate assembly for a file
 src/util/bytes.cpp.s:
-	$(MAKE) -f CMakeFiles/libutil-shared.dir/build.make CMakeFiles/libutil-shared.dir/src/util/bytes.cpp.s
-	$(MAKE) -f CMakeFiles/libutil-static.dir/build.make CMakeFiles/libutil-static.dir/src/util/bytes.cpp.s
-	$(MAKE) -f CMakeFiles/libssdb-client-static.dir/build.make CMakeFiles/libssdb-client-static.dir/src/util/bytes.cpp.s
 	$(MAKE) -f CMakeFiles/libssdb-client-shared.dir/build.make CMakeFiles/libssdb-client-shared.dir/src/util/bytes.cpp.s
+	$(MAKE) -f CMakeFiles/libssdb-client-static.dir/build.make CMakeFiles/libssdb-client-static.dir/src/util/bytes.cpp.s
+	$(MAKE) -f CMakeFiles/libutil-static.dir/build.make CMakeFiles/libutil-static.dir/src/util/bytes.cpp.s
+	$(MAKE) -f CMakeFiles/libutil-shared.dir/build.make CMakeFiles/libutil-shared.dir/src/util/bytes.cpp.s
 .PHONY : src/util/bytes.cpp.s
 
 src/util/config.o: src/util/config.cpp.o
@@ -1713,8 +1898,8 @@ src/util/config.o: src/util/config.cpp.o
 
 # target to build an object file
 src/util/config.cpp.o:
-	$(MAKE) -f CMakeFiles/libutil-shared.dir/build.make CMakeFiles/libutil-shared.dir/src/util/config.cpp.o
 	$(MAKE) -f CMakeFiles/libutil-static.dir/build.make CMakeFiles/libutil-static.dir/src/util/config.cpp.o
+	$(MAKE) -f CMakeFiles/libutil-shared.dir/build.make CMakeFiles/libutil-shared.dir/src/util/config.cpp.o
 .PHONY : src/util/config.cpp.o
 
 src/util/config.i: src/util/config.cpp.i
@@ -1723,8 +1908,8 @@ src/util/config.i: src/util/config.cpp.i
 
 # target to preprocess a source file
 src/util/config.cpp.i:
-	$(MAKE) -f CMakeFiles/libutil-shared.dir/build.make CMakeFiles/libutil-shared.dir/src/util/config.cpp.i
 	$(MAKE) -f CMakeFiles/libutil-static.dir/build.make CMakeFiles/libutil-static.dir/src/util/config.cpp.i
+	$(MAKE) -f CMakeFiles/libutil-shared.dir/build.make CMakeFiles/libutil-shared.dir/src/util/config.cpp.i
 .PHONY : src/util/config.cpp.i
 
 src/util/config.s: src/util/config.cpp.s
@@ -1733,8 +1918,8 @@ src/util/config.s: src/util/config.cpp.s
 
 # target to generate assembly for a file
 src/util/config.cpp.s:
-	$(MAKE) -f CMakeFiles/libutil-shared.dir/build.make CMakeFiles/libutil-shared.dir/src/util/config.cpp.s
 	$(MAKE) -f CMakeFiles/libutil-static.dir/build.make CMakeFiles/libutil-static.dir/src/util/config.cpp.s
+	$(MAKE) -f CMakeFiles/libutil-shared.dir/build.make CMakeFiles/libutil-shared.dir/src/util/config.cpp.s
 .PHONY : src/util/config.cpp.s
 
 src/util/log.o: src/util/log.cpp.o
@@ -1743,8 +1928,8 @@ src/util/log.o: src/util/log.cpp.o
 
 # target to build an object file
 src/util/log.cpp.o:
-	$(MAKE) -f CMakeFiles/libutil-shared.dir/build.make CMakeFiles/libutil-shared.dir/src/util/log.cpp.o
 	$(MAKE) -f CMakeFiles/libutil-static.dir/build.make CMakeFiles/libutil-static.dir/src/util/log.cpp.o
+	$(MAKE) -f CMakeFiles/libutil-shared.dir/build.make CMakeFiles/libutil-shared.dir/src/util/log.cpp.o
 .PHONY : src/util/log.cpp.o
 
 src/util/log.i: src/util/log.cpp.i
@@ -1753,8 +1938,8 @@ src/util/log.i: src/util/log.cpp.i
 
 # target to preprocess a source file
 src/util/log.cpp.i:
-	$(MAKE) -f CMakeFiles/libutil-shared.dir/build.make CMakeFiles/libutil-shared.dir/src/util/log.cpp.i
 	$(MAKE) -f CMakeFiles/libutil-static.dir/build.make CMakeFiles/libutil-static.dir/src/util/log.cpp.i
+	$(MAKE) -f CMakeFiles/libutil-shared.dir/build.make CMakeFiles/libutil-shared.dir/src/util/log.cpp.i
 .PHONY : src/util/log.cpp.i
 
 src/util/log.s: src/util/log.cpp.s
@@ -1763,9 +1948,36 @@ src/util/log.s: src/util/log.cpp.s
 
 # target to generate assembly for a file
 src/util/log.cpp.s:
-	$(MAKE) -f CMakeFiles/libutil-shared.dir/build.make CMakeFiles/libutil-shared.dir/src/util/log.cpp.s
 	$(MAKE) -f CMakeFiles/libutil-static.dir/build.make CMakeFiles/libutil-static.dir/src/util/log.cpp.s
+	$(MAKE) -f CMakeFiles/libutil-shared.dir/build.make CMakeFiles/libutil-shared.dir/src/util/log.cpp.s
 .PHONY : src/util/log.cpp.s
+
+src/util/test_linkedlist.o: src/util/test_linkedlist.cpp.o
+
+.PHONY : src/util/test_linkedlist.o
+
+# target to build an object file
+src/util/test_linkedlist.cpp.o:
+	$(MAKE) -f CMakeFiles/linkedlist.dir/build.make CMakeFiles/linkedlist.dir/src/util/test_linkedlist.cpp.o
+.PHONY : src/util/test_linkedlist.cpp.o
+
+src/util/test_linkedlist.i: src/util/test_linkedlist.cpp.i
+
+.PHONY : src/util/test_linkedlist.i
+
+# target to preprocess a source file
+src/util/test_linkedlist.cpp.i:
+	$(MAKE) -f CMakeFiles/linkedlist.dir/build.make CMakeFiles/linkedlist.dir/src/util/test_linkedlist.cpp.i
+.PHONY : src/util/test_linkedlist.cpp.i
+
+src/util/test_linkedlist.s: src/util/test_linkedlist.cpp.s
+
+.PHONY : src/util/test_linkedlist.s
+
+# target to generate assembly for a file
+src/util/test_linkedlist.cpp.s:
+	$(MAKE) -f CMakeFiles/linkedlist.dir/build.make CMakeFiles/linkedlist.dir/src/util/test_linkedlist.cpp.s
+.PHONY : src/util/test_linkedlist.cpp.s
 
 # Help Target
 help:
@@ -1773,27 +1985,32 @@ help:
 	@echo "... all (the default if no target is provided)"
 	@echo "... clean"
 	@echo "... depend"
-	@echo "... rebuild_cache"
-	@echo "... edit_cache"
-	@echo "... ssdb-server"
-	@echo "... librdb-shared"
-	@echo "... librdb-static"
-	@echo "... libutil-shared"
-	@echo "... librocksdb-static"
-	@echo "... libjemalloc-static"
-	@echo "... libutil-static"
+	@echo "... install/strip"
+	@echo "... install"
+	@echo "... libcodec-shared"
+	@echo "... libcodec-static"
+	@echo "... libssdb-client-shared"
+	@echo "... list_install_components"
+	@echo "... libnet-shared"
+	@echo "... test_link"
+	@echo "... install/local"
 	@echo "... libssdb-client-static"
 	@echo "... libsnappy-static"
-	@echo "... test_link"
-	@echo "... libnet-shared"
-	@echo "... libssdb-static"
-	@echo "... libssdb-client-shared"
-	@echo "... libcodec-static"
-	@echo "... libcodec-shared"
+	@echo "... libutil-static"
+	@echo "... libjemalloc-static"
+	@echo "... linkedlist"
+	@echo "... librocksdb-static"
+	@echo "... libutil-shared"
+	@echo "... librdb-static"
 	@echo "... libnet-static"
-	@echo "... src/backend_dump.o"
-	@echo "... src/backend_dump.i"
-	@echo "... src/backend_dump.s"
+	@echo "... librdb-shared"
+	@echo "... ssdb-server"
+	@echo "... libssdb-static"
+	@echo "... edit_cache"
+	@echo "... rebuild_cache"
+	@echo "... integ-test"
+	@echo "... gtest_main"
+	@echo "... gtest"
 	@echo "... src/bproc_data.o"
 	@echo "... src/bproc_data.i"
 	@echo "... src/bproc_data.s"
@@ -1881,12 +2098,21 @@ help:
 	@echo "... src/redis/rdb_encoder.o"
 	@echo "... src/redis/rdb_encoder.i"
 	@echo "... src/redis/rdb_encoder.s"
+	@echo "... src/redis/sha1.o"
+	@echo "... src/redis/sha1.i"
+	@echo "... src/redis/sha1.s"
 	@echo "... src/redis/ziplist.o"
 	@echo "... src/redis/ziplist.i"
 	@echo "... src/redis/ziplist.s"
 	@echo "... src/redis/zmalloc.o"
 	@echo "... src/redis/zmalloc.i"
 	@echo "... src/redis/zmalloc.s"
+	@echo "... src/replication.o"
+	@echo "... src/replication.i"
+	@echo "... src/replication.s"
+	@echo "... src/replication_slave.o"
+	@echo "... src/replication_slave.i"
+	@echo "... src/replication_slave.s"
 	@echo "... src/serv.o"
 	@echo "... src/serv.i"
 	@echo "... src/serv.s"
@@ -1932,6 +2158,9 @@ help:
 	@echo "... src/util/app.o"
 	@echo "... src/util/app.i"
 	@echo "... src/util/app.s"
+	@echo "... src/util/backtrace.o"
+	@echo "... src/util/backtrace.i"
+	@echo "... src/util/backtrace.s"
 	@echo "... src/util/bytes.o"
 	@echo "... src/util/bytes.i"
 	@echo "... src/util/bytes.s"
@@ -1941,6 +2170,9 @@ help:
 	@echo "... src/util/log.o"
 	@echo "... src/util/log.i"
 	@echo "... src/util/log.s"
+	@echo "... src/util/test_linkedlist.o"
+	@echo "... src/util/test_linkedlist.i"
+	@echo "... src/util/test_linkedlist.s"
 .PHONY : help
 
 

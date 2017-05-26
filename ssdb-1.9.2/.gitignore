@@ -52,4 +52,3 @@ ssdb.cbp
 deps/rocksdb-4.11.2/Makefile
 ssdb_slave1.conf
 /Makefile
-ssdb.cbp
