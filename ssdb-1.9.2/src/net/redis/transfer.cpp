@@ -34,6 +34,7 @@ int TransferWorker::proc(TransferJob *job) {
             return -1;
         }
         this->redisUpstream = new RedisUpstream(conf.ip.c_str(), conf.port);
+        this->redisUpstream->reset();
     }
 
     if (this->redisUpstream->getLink() == nullptr) {

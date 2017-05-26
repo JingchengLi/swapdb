@@ -24,6 +24,12 @@ public:
 
     void setMaxRetry(int maxRetry);
 
+    void setRetryConnect(int retryConnect);
+
+    bool isConnected() {
+        return client != nullptr;
+    }
+
 private:
     RedisClient *client = nullptr;
 
@@ -33,10 +39,6 @@ private:
     bool inited = false;
     int maxRetry = 5;
     int retryConnect = 5;
-public:
-    void setMaxRetryConnect(int maxRetryConnect);
-
-    void setRetryConnect(int retryConnect);
 };
 
 #endif //SSDB_REDISUPSTREAM_H

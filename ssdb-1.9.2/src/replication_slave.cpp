@@ -16,7 +16,7 @@ extern "C" {
 void *ssdb_sync(void *arg) {
     ReplicationJob *job = (ReplicationJob *) arg;
     Context ctx = job->ctx;
-    SSDBServer *serv = (SSDBServer *)ctx.net->data;
+    SSDBServer *serv = (SSDBServer *) ctx.net->data;
     HostAndPort hnp = job->hnp;
     Link *master_link = job->upstream;
 
@@ -42,12 +42,18 @@ void *ssdb_sync(void *arg) {
     fdes->set(master_link->fd(), FDEVENT_IN, 1, master_link); //open evin
     master_link->noblock(true);
 
-//
-//
-//    RedisUpstream redisUpstream(serv->redisConf.ip, serv->redisConf.port, 1000);
-//    redisUpstream.setMaxRetry(1);
-//    redisUpstream.setRetryConnect(1);
 
+    RedisUpstream redisUpstream(serv->redisConf.ip, serv->redisConf.port, 500);
+
+    if (job->heartbeat) {
+        redisUpstream.setMaxRetry(1);
+        redisUpstream.setRetryConnect(-1);
+        redisUpstream.reset();
+        if (!redisUpstream.isConnected()) {
+            log_warn("cannot connect to redis");
+        }
+
+    }
 
 
     const Fdevents::events_t *events;
@@ -62,9 +68,28 @@ void *ssdb_sync(void *arg) {
     int ret = 0;
     bool complete = false;
 
+
+    int64_t lastHeartBeat = time_ms();
     while (!job->quit) {
         ready_list.swap(ready_list_2);
         ready_list_2.clear();
+
+
+        if (job->heartbeat) {
+            if ((time_ms() - lastHeartBeat) > 3000) {
+
+                auto res = redisUpstream.sendCommand({"ssdb-notify-redis", "transfer", "continue"});
+                if (res == nullptr) {
+
+                } else {
+                    delete res;
+                }
+
+                lastHeartBeat = time_ms();
+
+            }
+        }
+
 
         if (!ready_list.empty()) {
             // ready_list not empty, so we should return immediately
@@ -268,21 +293,39 @@ void *ssdb_sync(void *arg) {
         kvs.clear();
     }
 
-
-    if (errorCode != 0) {
-        master_link->quick_send({"error", "recieve snapshot failed!"});
-        log_error("[ssdb_sync] recieve snapshot from %s:%d failed!, err: %d", hnp.ip.c_str(), hnp.port, errorCode);
-    } else {
-        master_link->quick_send({"ok", "recieve snapshot finished"});
-        log_info("[ssdb_sync] recieve snapshot from %s:%d finished!", hnp.ip.c_str(), hnp.port);
-    }
-
-    delete master_link;
-
     if (serv->ssdb->expiration != nullptr) {
         serv->ssdb->expiration->start();
     }
     serv->ssdb->start();
+
+    if (errorCode != 0) {
+        master_link->quick_send({"error", "recieve snapshot failed!"});
+        log_error("[ssdb_sync] recieve snapshot from %s:%d failed!, err: %d", hnp.ip.c_str(), hnp.port, errorCode);
+
+        if (job->heartbeat) {
+            auto res = redisUpstream.sendCommand({"ssdb-notify-redis", "transfer", "unfinished"});
+            if (res == nullptr) {
+
+            } else {
+                delete res;
+            }
+        }
+    } else {
+        master_link->quick_send({"ok", "recieve snapshot finished"});
+        log_info("[ssdb_sync] recieve snapshot from %s:%d finished!", hnp.ip.c_str(), hnp.port);
+
+        if (job->heartbeat) {
+            auto res = redisUpstream.sendCommand({"ssdb-notify-redis", "transfer", "finished"});
+            if (res == nullptr) {
+
+            } else {
+                delete res;
+            }
+        }
+    }
+
+    delete master_link;
+
 
 
     return (void *) NULL;

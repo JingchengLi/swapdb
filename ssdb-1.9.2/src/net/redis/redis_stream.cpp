@@ -6,18 +6,24 @@
 #include "../util/log.h"
 
 RedisUpstream::RedisUpstream(const std::string &ip, int port, long timeout_ms) : ip(ip), port(port), timeout_ms(timeout_ms) {
-    client = getNewLink();
-
 }
 
 RedisUpstream::~RedisUpstream() {
+    log_debug("disconnect from redis %s:%d ", ip.c_str(), port);
     if (client != nullptr) {
         delete client;
     }
 }
 
 RedisClient *RedisUpstream::getNewLink() {
-    log_debug("new connection to redis %s:%d", ip.c_str(), port);
+    if (retryConnect >= 0) {
+        if (retryConnect == 0) {
+            return nullptr;
+        }
+    }
+
+    retryConnect --;
+    log_debug("connect to redis %s:%d", ip.c_str(), port);
     return RedisClient::connect(ip.c_str(), port, timeout_ms);
 }
 
@@ -45,6 +51,11 @@ RedisResponse *RedisUpstream::sendCommand(const std::vector<std::string> &args) 
         if (client == nullptr) {
             //reconnect
             reset();
+            continue;
+        }
+
+        if (client == nullptr) {
+            //cannot connect
             continue;
         }
 
