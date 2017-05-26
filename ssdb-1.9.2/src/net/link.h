@@ -53,7 +53,8 @@ class Link{
 		void noblock(bool enable=true);
 		void keepalive(bool enable=true);
 
-		void settimeout(long sec, long usec);
+		void readtimeout(long sec, long usec);
+		void sendtimeout(long sec, long usec);
 
 		int fd() const{
 			return sock;

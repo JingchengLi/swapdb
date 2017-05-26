@@ -199,24 +199,24 @@ start_server {tags {"dump"}} {
         }
     }
 
-#    test {MIGRATE timeout actually works} {
-#        set first [srv 0 client]
-#        r set key "Some Value"
-#        start_server {tags {"repl"}} {
-#            set second [srv 0 client]
-#            set second_host [srv 0 host]
-#            set second_port [srv 0 port]
+    test {MIGRATE timeout actually works} {
+        set first [srv 0 client]
+        r set key "Some Value"
+        start_server {tags {"repl"}} {
+            set second [srv 0 client]
+            set second_host [srv 0 host]
+            set second_port [srv 0 port]
 
-#            assert {[$first exists key] == 1}
-#            assert {[$second exists key] == 0}
+            assert {[$first exists key] == 1}
+            assert {[$second exists key] == 0}
 
-#            set rd [redis_deferring_client]
-#            $rd debug sleep 1.0 ; # Make second server unable to reply.
-#            set e {}
-#            catch {r -1 migrate $second_host $second_port key 9 500} e
-#            assert_match {IOERR*} $e
-#        }
-#    }
+            set rd [redis_deferring_client]
+            $rd debug sleep 1.0 ; # Make second server unable to reply.
+            set e {}
+            catch {r -1 migrate $second_host $second_port key 9 500} e
+            assert_match {IOERR*} $e
+        }
+    }
 
     test {MIGRATE can migrate multiple keys at once} {
         set first [srv 0 client]

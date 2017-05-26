@@ -978,7 +978,7 @@ int proc_ssdb_sync(Context &ctx, Link *link, const Request &req, Response *resp)
 
     log_info("ssdb_sync , link address:%lld", link);
 
-    ReplicationJob *job = new ReplicationJob(ctx, HostAndPort{link->remote_ip, link->remote_port}, link);
+    ReplicationJob *job = new ReplicationJob(ctx, HostAndPort{link->remote_ip, link->remote_port}, link, true);
 //	net->replication->push(job);
 
     pthread_t tid;
@@ -1096,7 +1096,8 @@ int proc_migrate(Context &ctx, Link *link, const Request &req, Response *resp) {
         reply_errinfo_return("IOERR error or timeout connecting to the client");
     }
 
-    cs->settimeout(0, timeout * 1000);
+    cs->sendtimeout(0, timeout * 1000);
+    cs->readtimeout(0, timeout * 1000);
 
     //managed link
     RedisClient r(cs);
@@ -1186,7 +1187,8 @@ int proc_migrate(Context &ctx, Link *link, const Request &req, Response *resp) {
         }
 
         if (buf2->type == REDIS_REPLY_ERROR) {
-            reply_errinfo_return(("ERR Target instance replied with error: " + buf2->str));
+            error_info_from_target.append(" " + buf2->str);
+
         } else {
             if (!copy) {
                 /* No COPY option: remove the local key, signal the change. */
@@ -1200,6 +1202,10 @@ int proc_migrate(Context &ctx, Link *link, const Request &req, Response *resp) {
        * already queued a different error reported by the destination server. */
     if (socket_error) {
         reply_errinfo_return("IOERR error or timeout to target instance");
+    }
+
+    if (error_info_from_target.size() != 0) {
+        reply_errinfo_return(("ERR Target instance replied with error: " + error_info_from_target));
     }
 
      /* Success! Update the last_dbid in migrateCachedSocket, so that we can
