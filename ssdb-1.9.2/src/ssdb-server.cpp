@@ -24,6 +24,19 @@ public:
 void MyApplication::welcome(){
 	fprintf(stderr, "%s %s\n", APP_NAME, APP_VERSION);
 	fprintf(stderr, "Copyright (c) 2012-2015 ssdb.io\n");
+	fprintf(stderr,
+            "　　　　　　 ,-､　　　 　 　　     　..-､\n"
+			"　　  　　 ./::＼　　R2M-SSDB     ／:::ヽ\n"
+			" 　　　　　/::::;ゝ--─---------._/:::::ヽ\n"
+			"　　　　　/,.-‐''\"′ 　　         ＼:::::|\n"
+			" 　　　　／　 　　　　　　　　　　   　ヽ､::|\n"
+			"　　　　/　　　　●　　　 　 　 　 　  　 ヽ|\n"
+			"　　   l　　　､､､　　 　 　 　 　 　 ●　　 l\n"
+			"　　  .|　　　 　　　　(_人__丿　　､､､　 　|\n"
+			"　 　 　l　　　　　　　　　　　　　　　　   l\n"
+			"　　　　` ､　　　　　　         　 　 　 /\n"
+			"　　　　　　`ｰ ､__　　　 　 　 　　  　.／\n"
+			"　　　　　　　　　/`'''ｰ‐‐──‐‐‐┬--- ／\n");
 	fprintf(stderr, "\n");
 }
 
