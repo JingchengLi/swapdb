@@ -1231,6 +1231,11 @@ void restartAOF() {
  * add this command so SSDB can send notify message to its redis after
  * snapshot transfer completed or aborted. */
 void ssdbNotifyCommand(client* c) {
+    if (server.masterhost == NULL) {
+        addReplyError(c, "this is a master instance.");
+        c->flags |= CLIENT_CLOSE_AFTER_REPLY;
+        return;
+    }
     int aof_is_enabled = server.aof_state != AOF_OFF;
     if (c->argv[1]->ptr, "transfer") {
         if (server.ssdb_repl_state == REPL_STATE_TRANSFER_SSDB_SNAPSHOT) {
