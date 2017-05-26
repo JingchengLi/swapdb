@@ -1289,7 +1289,10 @@ void completeReplicationHandshake() {
     zfree(server.repl_transfer_tmpfile);
     close(server.repl_transfer_fd);
 
-    if (server.jdjr_mode) server.slave_ssdb_transfer_keepalive_time = -1;
+    if (server.jdjr_mode) {
+        server.ssdb_repl_state = REPL_STATE_NONE;
+        server.slave_ssdb_transfer_keepalive_time = -1;
+    }
 
     server.repl_state = REPL_STATE_CONNECTED;
     /* After a full resynchroniziation we use the replication ID and
@@ -2152,7 +2155,10 @@ int cancelReplicationHandshake(void) {
     } else {
         return 0;
     }
-    if (server.jdjr_mode) server.slave_ssdb_transfer_keepalive_time = -1;
+    if (server.jdjr_mode) {
+        server.ssdb_repl_state = REPL_STATE_NONE;
+        server.slave_ssdb_transfer_keepalive_time = -1;
+    }
     return 1;
 }
 
