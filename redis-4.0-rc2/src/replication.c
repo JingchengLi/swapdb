@@ -1274,7 +1274,6 @@ void ssdbNotifyCommand(client* c) {
 
 void completeReplicationHandshake() {
     int aof_is_enabled = server.aof_state != AOF_OFF;
-    serverAssert(server.tmp_repl_stream_dbid != -1);
     /* Final setup of the connected slave <- master link */
     replicationCreateMasterClient(server.repl_transfer_s,server.tmp_repl_stream_dbid);
     server.tmp_repl_stream_dbid = -1;
