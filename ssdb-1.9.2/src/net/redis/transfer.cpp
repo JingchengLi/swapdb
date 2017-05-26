@@ -36,6 +36,11 @@ int TransferWorker::proc(TransferJob *job) {
         this->redisUpstream = new RedisUpstream(conf.ip.c_str(), conf.port);
     }
 
+    if (this->redisUpstream == nullptr) {
+        log_error("cannot connect to redis");
+        return -1;
+    }
+
     int64_t current = time_ms();
     int res = (*job->proc)(job->ctx, this, job->data_key, job->value);
     if (res != 0) {

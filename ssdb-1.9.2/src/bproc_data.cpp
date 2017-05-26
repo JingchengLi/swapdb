@@ -19,25 +19,16 @@ int bproc_COMMAND_DATA_SAVE(Context &ctx, TransferWorker *worker, const std::str
 
     DumpData *dumpData = (DumpData *) value;
 
-    int64_t pttl = dumpData->expire;
     std::string val;
 
     PTST(restore, 0.03)
     int ret = serv->ssdb->restore(ctx, dumpData->key, dumpData->expire, dumpData->data, dumpData->replace, &val);
     PTE(restore, hexstr(data_key))
 
-
     if (ret < 0) {
         //notify failed
         return notifyFailedToRedis(worker->redisUpstream, cmd, data_key);
     }
-
-    if (ret < 0) {
-        //notify failed
-        serv->ssdb->del(ctx, dumpData->key);
-        return notifyFailedToRedis(worker->redisUpstream, cmd, data_key);
-    }
-
 
     std::vector<std::string> req = {del_cmd, data_key};
     log_debug("[request->redis] : %s %s", hexstr(req[0]).c_str(), hexstr(req[1]).c_str());
