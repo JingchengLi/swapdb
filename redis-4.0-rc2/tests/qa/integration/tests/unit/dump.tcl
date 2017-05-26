@@ -94,6 +94,30 @@ start_server {tags {"dump"}} {
         }
     }
 
+    test {MIGRATE is able to migrate a key between two instances multi times} {
+        set first [srv 0 client]
+        set first_host [srv 0 host]
+        set first_port [srv 0 port]
+        r set key "Some Value"
+        start_server {tags {"repl"}} {
+            set second [srv 0 client]
+            set second_host [srv 0 host]
+            set second_port [srv 0 port]
+
+            for {set n 0} {$n < 100} {incr n} {
+                r -1 migrate $second_host $second_port key 0 5000
+                r 0 migrate $first_host $first_port key 0 5000
+            }
+
+            set ret [r -1 migrate $second_host $second_port key 0 5000]
+            assert {$ret eq {OK}}
+            assert {[$first exists key] == 0}
+            assert {[$second exists key] == 1}
+            assert {[$second get key] eq {Some Value}}
+            assert {[$second ttl key] == -1}
+        }
+    }
+
     test {MIGRATE is able to copy a key between two instances} {
         set first [srv 0 client]
         r del list
@@ -127,7 +151,7 @@ start_server {tags {"dump"}} {
             $second set list somevalue
             catch {r -1 migrate $second_host $second_port list 0 5000 copy} e
             assert_match {ERR*} $e
-            set res [r -1 migrate $second_host $second_port list 0 5000 copy replace]
+            set ret [r -1 migrate $second_host $second_port list 0 5000 copy replace]
             assert {$ret eq {OK}}
             assert {[$first exists list] == 1}
             assert {[$second exists list] == 1}
@@ -223,6 +247,27 @@ start_server {tags {"dump"}} {
             set e {}
             catch {r -1 migrate $second_host $second_port key 0 500} e
             assert_match {IOERR*} $e
+        }
+    }
+
+    test {MIGRATE with wrong params} {
+        set first [srv 0 client]
+        $first flushdb
+        $first set foo bar
+        start_server {tags {"repl"}} {
+            set second [srv 0 client]
+            set second_host [srv 0 host]
+            set second_port [srv 0 port]
+
+            assert_error "ERR*connect*target*" {$first migrate abc $second_port foo 0 5000}
+            assert_error "IOERR*timeout*target*" {$first migrate $second_host abc foo 0 5000}
+            assert_error "ERR*integer*out of range*" {$first migrate $second_host $second_port foo a 5000}
+            assert_error "ERR*integer*out of range*" {$first migrate $second_host $second_port foo 0 abc}
+            assert_error "ERR*syntax*" {$first migrate $second_host $second_port foo 0 abc c}
+            assert_error "ERR*syntax*" {$first migrate $second_host $second_port foo 0 abc copy r}
+            assert_error "ERR*syntax*" {$first migrate $second_host $second_port foo 0 abc copy replace k}
+            assert_error "ERR*Not*jdjr-mode*" {$first migrate $second_host $second_port foo 0 abc copy replace keys foo}
+            assert_error "ERR*Not*jdjr-mode*" {$first migrate $second_host $second_port "" 0 abc copy replace keys}
         }
     }
 

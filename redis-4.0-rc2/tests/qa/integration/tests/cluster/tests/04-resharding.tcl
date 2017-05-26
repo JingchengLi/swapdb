@@ -6,7 +6,7 @@
 source "../tests/includes/init-tests.tcl"
 
 test "Create a 5 nodes cluster" {
-    create_cluster 5 0
+    create_cluster 5 5
 }
 
 test "Cluster is up" {
@@ -62,27 +62,27 @@ test "Cluster consistency during live resharding" {
     set ele 0
     for {set j 0} {$j < $numops} {incr j} {
         # Trigger the resharding once we execute half the ops.
-#        if {$tribpid ne {} &&
-#            ($j % 10000) == 0 &&
-#            ![process_is_running $tribpid]} {
-#            set tribpid {}
-#        }
-#
-#        if {$j >= $numops/2 && $tribpid eq {}} {
-#            puts -nonewline "...Starting resharding..."
-#            flush stdout
-#            set target [dict get [get_myself [randomInt 5]] id]
-#            set tribpid [lindex [exec \
-#                ../../../../../../src/redis-trib.rb reshard \
-#                --from all \
-#                --to $target \
-#                --slots 100 \
-#                --yes \
-#                127.0.0.1:[get_instance_attrib redis 0 port] \
-#                | [info nameofexecutable] \
-#                ../tests/helpers/onlydots.tcl \
-#                &] 0]
-#        }
+        if {$tribpid ne {} &&
+            ($j % 10000) == 0 &&
+            ![process_is_running $tribpid]} {
+            set tribpid {}
+        }
+
+        if {$j >= $numops/2 && $tribpid eq {}} {
+            puts -nonewline "...Starting resharding..."
+            flush stdout
+            set target [dict get [get_myself [randomInt 5]] id]
+            set tribpid [lindex [exec \
+                ../../../../../../src/redis-trib.rb reshard \
+                --from all \
+                --to $target \
+                --slots 100 \
+                --yes \
+                127.0.0.1:[get_instance_attrib redis 0 port] \
+                | [info nameofexecutable] \
+                ../tests/helpers/onlydots.tcl \
+                &] 0]
+        }
 
         # Write random data to random list.
         set listid [randomInt $numkeys]
@@ -113,7 +113,7 @@ test "Cluster consistency during live resharding" {
     }
 
 }
-after 1000000
+
 test "Verify $numkeys keys for consistency with logical content" {
     # Check that the Redis Cluster content matches our logical content.
     foreach {key value} [array get content] {
