@@ -34,7 +34,6 @@ LINK_DIRECTORIES(
     ${CMAKE_CURRENT_SOURCE_DIR}/src/net
     ${CMAKE_CURRENT_SOURCE_DIR}/deps/bzip2-1.0.6
     ${CMAKE_CURRENT_SOURCE_DIR}/deps/gflags-2.2.0/lib
-    ${CMAKE_CURRENT_SOURCE_DIR}/deps/snappy-1.1.0/.libs
     )
 
 
@@ -46,6 +45,16 @@ ELSE()
     SET(CMAKE_CXX_FLAGS " -D__STDC_FORMAT_MACROS -Wall -O0 -Wno-sign-compare -std=c++11") #-DNDEBUG
 ENDIF()
 
+
+ADD_LIBRARY(libjemalloc-static STATIC deps/jemalloc-4.1.0/lib)
+SET_TARGET_PROPERTIES(libjemalloc-static PROPERTIES
+        LINKER_LANGUAGE C
+        OUTPUT_NAME "jemalloc")
+
+ADD_LIBRARY(libsnappy-static STATIC deps/snappy-1.1.0/.libs/)
+SET_TARGET_PROPERTIES(libsnappy-static PROPERTIES
+        LINKER_LANGUAGE CXX
+        OUTPUT_NAME "snappy")
 
 
 IF(ROCKSDB)
@@ -62,7 +71,7 @@ IF(ROCKSDB)
     )
     SET(CMAKE_CXX_FLAGS " -D__STDC_FORMAT_MACROS -Wall -g -O0 -Wno-sign-compare -std=c++11")
     ADD_LIBRARY(librocksdb-static deps/rocksdb-5.3.6)
-    TARGET_LINK_LIBRARIES ( librocksdb-static snappy gtest gflags )
+    TARGET_LINK_LIBRARIES ( librocksdb-static gtest gflags )
     SET_TARGET_PROPERTIES(librocksdb-static PROPERTIES
             LINKER_LANGUAGE CXX
             OUTPUT_NAME "rocksdb")
@@ -92,18 +101,6 @@ IF(DREPLY)
     add_compile_options(-DDREPLY)
 ENDIF()
 
-
-ADD_LIBRARY(libjemalloc-static deps/jemalloc-4.1.0/lib)
-SET_TARGET_PROPERTIES(libjemalloc-static PROPERTIES 
-    LINKER_LANGUAGE C
-    OUTPUT_NAME "jemalloc")
-
-ADD_LIBRARY(libsnappy-static deps/snappy-1.1.0/.libs)
-SET_TARGET_PROPERTIES(libsnappy-static PROPERTIES
-    LINKER_LANGUAGE CXX
-    OUTPUT_NAME "snappy")
-
-
 SET( SSDB_OBJS  
 src/ssdb/ssdb_impl.cpp
 src/ssdb/iterator.cpp
@@ -125,7 +122,7 @@ ADD_LIBRARY(libssdb-static STATIC ${SSDB_OBJS})
 
 
 IF(ROCKSDB)
-    TARGET_LINK_LIBRARIES ( libssdb-static rocksdb snappy z bz2)
+    TARGET_LINK_LIBRARIES ( libssdb-static rocksdb libsnappy.a z bz2)
     #TARGET_LINK_LIBRARIES ( libssdb-shared rocksdb )
 ELSE()
     TARGET_LINK_LIBRARIES ( libssdb-static leveldb snappy )
@@ -262,13 +259,12 @@ src/replication_slave.cpp
 )
 
 ADD_EXECUTABLE(ssdb-server ${SRC_OBJS})
-#TARGET_LINK_LIBRARIES(ssdb-server libssdb-static libutil-static libnet-static libcodec-static leveldb gtest gflags snappy jemalloc pthread rt z bz2)
 
 
 IF(ROCKSDB)
-    TARGET_LINK_LIBRARIES(ssdb-server libssdb-static librdb-static libutil-static libnet-static libcodec-static rocksdb gflags snappy jemalloc pthread rt z bz2)
+    TARGET_LINK_LIBRARIES(ssdb-server libssdb-static librdb-static libutil-static libnet-static libcodec-static rocksdb gflags libjemalloc.a pthread rt z bz2)
 ELSE()
-    TARGET_LINK_LIBRARIES(ssdb-server leveldb libssdb-static librdb-static libutil-static libnet-static libcodec-static gflags snappy jemalloc pthread rt z bz2)
+    TARGET_LINK_LIBRARIES(ssdb-server leveldb libssdb-static librdb-static libutil-static libnet-static libcodec-static gflags jemalloc pthread rt z bz2)
 ENDIF()
 
 #ADD_EXECUTABLE(hello-ssdb ${CLIENT_OBJS})
