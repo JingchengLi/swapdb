@@ -1,8 +1,10 @@
 start_server {tags {"ssdb"}} {
+    r flushdb
     set ssdb_8889 [redis $::host 8889]
 
     test {MIGRATE is able to migrate a key between two instances} {
         r set key "Some Value"
+        $ssdb_8889 flushdb
         assert {[r exists key] == 1}
         assert {[$ssdb_8889 exists key] == 0}
         set ret [r migrate $::host 8889 key 0 5000]
@@ -16,6 +18,7 @@ start_server {tags {"ssdb"}} {
     test {MIGRATE is able to copy a key between two instances} {
         r del list
         r lpush list a b c d
+        $ssdb_8889 flushdb
 
         assert {[r exists list] == 1}
         assert {[$ssdb_8889 exists list] == 0}
@@ -105,7 +108,7 @@ start_server {tags {"ssdb"}} {
         assert {[r exists key] == 1}
         assert {[$ssdb_8889 exists key] == 0}
 
-        set rd [redis_deferring_client]
+        set rd [redis $::host 8889 1]
         $rd debug sleep 1.0 ; # Make ssdb_8889 server unable to reply.
         set e {}
         catch {r migrate $::host 8889 key 0 500} e
