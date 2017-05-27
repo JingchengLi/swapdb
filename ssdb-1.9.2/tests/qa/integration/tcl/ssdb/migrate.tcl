@@ -189,8 +189,14 @@ start_server {tags {"ssdb"}} {
         r set foo bar
 
         assert_error "ERR*connect*target*" {r migrate abc 8889 foo 0 5000}
+        assert_error "IOERR*timeout*client*" {r migrate 111.111.111.111 8889 foo 0 5000}
+        puts "1"
         assert_error "IOERR*timeout*target*" {r migrate $::host abc foo 0 5000}
+        puts "2"
+        assert_error "IOERR*timeout*target*" {r migrate $::host 1111 foo 0 5000}
+        puts "3"
         assert_error "ERR*integer*out of range*" {r migrate $::host 8889 foo a 5000}
+        puts "4"
         assert_error "ERR*integer*out of range*" {r migrate $::host 8889 foo 0 abc}
         assert_error "ERR*syntax*" {r migrate $::host 8889 foo 0 abc c}
         assert_error "ERR*syntax*" {r migrate $::host 8889 foo 0 abc copy r}

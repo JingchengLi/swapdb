@@ -22,7 +22,7 @@ start_server {tags {"ssdb"}} {
     set mstime [clock milliseconds]
     foreach timestamp [list 0 $time $mstime] {
         test "crash ssdb at first" {
-            r repopid set [expr $timestamp+0] 0
+            r repopid set 0 0
             assert_error "I/O error reading reply" {r set foo bar}
         }
 
@@ -89,7 +89,10 @@ start_server {tags {"ssdb"}} {
             r repopid set [expr $timestamp+1] 2
             r set foo bar11
             r repopid set [expr $timestamp+1] 4
-            assert_error "I/O error reading reply" {r set foo bar}
+            # policy update, ssdb not assert 2->4.
+            r set foo bar
+            assert_equal "repopid [expr $timestamp+1] 4" [r repopid get]
+            # assert_error "I/O error reading reply" {r set foo bar}
         }
 
         test "Repopid receive id not 1 and timestamp changed" {
@@ -99,17 +102,20 @@ start_server {tags {"ssdb"}} {
             r repopid set [expr $timestamp+1] 2
             r set foo bar11
             r repopid set [expr $timestamp+2] 2
-            assert_error "I/O error reading reply" {r set foo bar}
+            r set foo bar
+            assert_equal "repopid [expr $timestamp+2] 2" [r repopid get]
+            # assert_error "I/O error reading reply" {r set foo bar}
         }
 
-        test "ReplLink not receive two write ops continous" {
-            restart_ssdb
-            r repopid set [expr $timestamp+1] 1
-            r set foo bar
-            r repopid set [expr $timestamp+1] 2 ;# recognize is repllink when receive repopid
-            r set foo12 bar12
-            assert_error "I/O error reading reply" {r set foo bar}
-        }
+        # remove it.
+        #test "ReplLink not receive two write ops continous" {
+        #    restart_ssdb
+        #    r repopid set [expr $timestamp+1] 1
+        #    r set foo bar
+        #    r repopid set [expr $timestamp+1] 2 ;# recognize is repllink when receive repopid
+        #    r set foo12 bar12
+        #    assert_error "I/O error reading reply" {r set foo bar}
+        #}
 
         # TODO 实际中ReplLink不会收到读操作，当前ssdb对这种异常情况不做任何处理，应该是可以的。
         #    test "ReplLink not receive read ops" {
@@ -119,20 +125,23 @@ start_server {tags {"ssdb"}} {
         #        assert_error "I/O error reading reply" {r get foo}
         #    }
 
-        test "Repopid process receivedID < 0" {
-            restart_ssdb
-            r repopid set [expr $timestamp+1] 1
-            r set foo bar
-            r repopid set [expr $timestamp+3] -1
-            assert_error "I/O error reading reply" {r set foo bar}
-        }
+        # ssdb not assert it, redis assert it.
+        #test "Repopid process receivedID < 0" {
+        #    restart_ssdb
+        #    r repopid set [expr $timestamp+1] 1
+        #    r set foo bar
+        #    r repopid set [expr $timestamp+3] -1
+        #    assert_error "I/O error reading reply" {r set foo bar}
+        #}
 
         test "Repopid process receivedID skip at first 1->3" {
             restart_ssdb
             r repopid set [expr $timestamp+1] 1
             r set foo bar
             r repopid set [expr $timestamp+1] 3
-            assert_error "I/O error reading reply" {r set foo bar}
+            r set foo bar
+            assert_equal "repopid [expr $timestamp+1] 3" [r repopid get]
+            # assert_error "I/O error reading reply" {r set foo bar}
         }
 
         test "Repopid can process args which is not available" {
