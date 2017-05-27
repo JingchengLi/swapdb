@@ -1926,6 +1926,7 @@ void handleSSDBReply(client *c, int revert_len) {
         unblockClient(c);
 
         if ((c->cmd
+             && c->cmd->proc != migrateCommand
              && (c->cmd->flags & CMD_WRITE)
              && server.masterhost == NULL && reply->type != REDIS_REPLY_ERROR)) {
             propagate(c->cmd, 0, c->argv, c->argc, PROPAGATE_REPL);
