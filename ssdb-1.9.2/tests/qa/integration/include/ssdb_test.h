@@ -61,7 +61,11 @@ public:
 
     virtual void SetUp(){
         set_log_level(Logger::LEVEL_INFO);
-        port = 8888;
+#ifdef TIMOTHY
+		port = 26379;
+#else
+		port = 8888;
+#endif
         ip = "127.0.0.1";
         client = ssdb::Client::connect(ip.data(), port);
         ASSERT_TRUE(client != NULL)<<"fail to connect to server!";
@@ -71,30 +75,30 @@ public:
         delete client;
     }
 
-	string GetRandomBytes_(const unsigned int length)
-	{
-		struct timeval currentTime;
-		gettimeofday(&currentTime, NULL);
-		srand(currentTime.tv_usec);
-		string randomBytes;
-		for(unsigned int index = 0; index != length; index++)
-		{
-			randomBytes += char(random()%95+32);//visible bytes
-		}
-		return randomBytes;
-	}
+    string GetRandomBytes_(const unsigned int length)
+    {
+        struct timeval currentTime;
+        gettimeofday(&currentTime, NULL);
+        srand(currentTime.tv_usec);
+        string randomBytes;
+        for(unsigned int index = 0; index != length; index++)
+        {
+            randomBytes += char(random()%95+32);//visible bytes
+        }
+        return randomBytes;
+    }
 
-	unsigned int GetRandomUint_(unsigned int Min, unsigned int Max)
-	{
-		struct timeval currentTime;
-		gettimeofday(&currentTime, NULL);
-		srand(currentTime.tv_usec);
-		return (random()%(Max+1-Min))+Min;
-	}
+    unsigned int GetRandomUint_(unsigned int Min, unsigned int Max)
+    {
+        struct timeval currentTime;
+        gettimeofday(&currentTime, NULL);
+        srand(currentTime.tv_usec);
+        return (random()%(Max+1-Min))+Min;
+    }
 
-	int64_t GetRandomInt64_() {
+    int64_t GetRandomInt64_() {
         int64_t randomInt64 = 0;
-		struct timeval currentTime;
+        struct timeval currentTime;
         int bits = rand()%64;
         for(int count = 0; count < bits; count++)
         {
@@ -102,82 +106,82 @@ public:
             srand(currentTime.tv_usec);
             randomInt64 = ( randomInt64<<1 ) | ( rand()&1 );
         }
-		return randomInt64;
-	}
+        return randomInt64;
+    }
 
-	uint64_t GetRandomUInt64_(uint64_t Min, uint64_t Max) {
-		assert(Max >= Min);
-		struct timeval currentTime;
-		gettimeofday(&currentTime, NULL);
-		srand(currentTime.tv_usec);
-		return (random()%(Max+1-Min))+Min;
-	}
+    uint64_t GetRandomUInt64_(uint64_t Min, uint64_t Max) {
+        assert(Max >= Min);
+        struct timeval currentTime;
+        gettimeofday(&currentTime, NULL);
+        srand(currentTime.tv_usec);
+        return (random()%(Max+1-Min))+Min;
+    }
 
-	double GetRandomDouble_() {
-		/* int base_precision = 1000000;
-		int64_t res_int = GetRandomInt64_();
-		return res_int*1.0/base_precision; */
-		struct timeval currentTime;
-		gettimeofday(&currentTime, NULL);
-		srand(currentTime.tv_usec);
+    double GetRandomDouble_() {
+        /* int base_precision = 1000000;
+        int64_t res_int = GetRandomInt64_();
+        return res_int*1.0/base_precision; */
+        struct timeval currentTime;
+        gettimeofday(&currentTime, NULL);
+        srand(currentTime.tv_usec);
         int eNum = rand()%26 - 13;
         float base = rand()*1.0/rand();
         if (base > 1) {
             base = 1.0/base;
         }
         double randomDouble = base*pow(10, eNum);
-        return randomDouble; 
-	}
-	
-	inline unsigned int GetRandomSeq_()
-	{
-		return GetRandomUInt64_(minSeq, maxSeq);
-	}
+        return randomDouble;
+    }
 
-	inline unsigned int GetRandomVer_()
-	{
-		return GetRandomUint_(minVersion, maxVersion);
-	}
+    inline unsigned int GetRandomSeq_()
+    {
+        return GetRandomUInt64_(minSeq, maxSeq);
+    }
 
-	inline string GetRandomKey_()
-	{
-		return GetRandomBytes_(GetRandomUint_(minKeyLen_, maxKeyLen_));
-	}
-	inline string GetRandomField_()
-	{
-		return GetRandomBytes_(GetRandomUint_(minFieldLen_, maxFieldLen_));
-	}
-	inline string GetRandomVal_()
-	{
-		return GetRandomBytes_(GetRandomUint_(minValLen_, maxValLen_));
-	}
+    inline unsigned int GetRandomVer_()
+    {
+        return GetRandomUint_(minVersion, maxVersion);
+    }
 
-	void GetRandomKeyValue_(string &key, string &val)
-	{
-		key = GetRandomBytes_(GetRandomUint_(minKeyLen_, maxKeyLen_));
-		val = GetRandomBytes_(GetRandomUint_(minValLen_, maxValLen_));
-	}
-	
-	
-	bool isDoubleEqual(double d1, double d2) {
-		double d_diff = d1 - d2;
-		return (d_diff<eps) && (d_diff>-eps);
-	}
-	
+    inline string GetRandomKey_()
+    {
+        return GetRandomBytes_(GetRandomUint_(minKeyLen_, maxKeyLen_));
+    }
+    inline string GetRandomField_()
+    {
+        return GetRandomBytes_(GetRandomUint_(minFieldLen_, maxFieldLen_));
+    }
+    inline string GetRandomVal_()
+    {
+        return GetRandomBytes_(GetRandomUint_(minValLen_, maxValLen_));
+    }
+
+    void GetRandomKeyValue_(string &key, string &val)
+    {
+        key = GetRandomBytes_(GetRandomUint_(minKeyLen_, maxKeyLen_));
+        val = GetRandomBytes_(GetRandomUint_(minValLen_, maxValLen_));
+    }
+
+
+    bool isDoubleEqual(double d1, double d2) {
+        double d_diff = d1 - d2;
+        return (d_diff<eps) && (d_diff>-eps);
+    }
+
 protected:
-	static const uint64_t maxSeq = MAX_UINT64-1;
-	static const uint64_t minSeq = 0;
-	static const unsigned int maxVersion = 65535;
-	static const unsigned int minVersion = 0;
-	static const unsigned int maxKeyLen_ = 65535;
-	static const unsigned int minKeyLen_ = 1;
-	static const unsigned int maxMemberLen_ = 1024*multi;
-	static const unsigned int minMemberLen_ = 0;
-	static const unsigned int maxFieldLen_ = 1024*multi;
-	static const unsigned int minFieldLen_ = 0;
-	static const unsigned int maxValLen_ = 1024*multi;
-	static const unsigned int minValLen_ = 1;
-	static const unsigned int charsSetLen_ = 62;
+    static const uint64_t maxSeq = MAX_UINT64-1;
+    static const uint64_t minSeq = 0;
+    static const unsigned int maxVersion = 65535;
+    static const unsigned int minVersion = 0;
+    static const unsigned int maxKeyLen_ = 65535;
+    static const unsigned int minKeyLen_ = 1;
+    static const unsigned int maxMemberLen_ = 1024*multi;
+    static const unsigned int minMemberLen_ = 0;
+    static const unsigned int maxFieldLen_ = 1024*multi;
+    static const unsigned int minFieldLen_ = 0;
+    static const unsigned int maxValLen_ = 1024*multi;
+    static const unsigned int minValLen_ = 1;
+    static const unsigned int charsSetLen_ = 62;
     std::vector<std::string> Keys;
     ssdb::Client *client;
     string ip;

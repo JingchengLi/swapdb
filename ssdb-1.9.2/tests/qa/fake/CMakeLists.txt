@@ -16,6 +16,8 @@ AUX_SOURCE_DIRECTORY(../integration/ GTEST_SRC)
 AUX_SOURCE_DIRECTORY(../unit/codec CODEC_SRC)
 #AUX_SOURCE_DIRECTORY(./codec GTEST_CODEC_SRC)
 
+add_compile_options(-DTIMOTHY)
+
 IF(GCOV)
     ADD_DEFINITIONS("-fprofile-arcs -ftest-coverage")
     SET(CMAKE_EXE_LINKER_FLAGS "-fprofile-arcs -ftest-coverage")  
