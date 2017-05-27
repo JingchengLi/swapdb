@@ -410,14 +410,12 @@ SSDBImpl::CommitBatch(Context &ctx, const leveldb::WriteOptions &options, leveld
                 if (res != 1) {
                     log_error("ctx.currentSeqCnx.id(%d) - ctx.lastSeqCnx.id(%d) != 1", ctx.currentSeqCnx.id,
                               ctx.lastSeqCnx.id);
-                     assert(0);
                 }
             }
 
         } else {
             if (ctx.currentSeqCnx != 1) {
                 log_error("ctx.currentSeqCnx.id(%d) != 1", ctx.currentSeqCnx.id);
-                assert(0);
             }
 
         }
