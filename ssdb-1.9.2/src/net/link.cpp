@@ -130,9 +130,16 @@ Link *Link::connect(const char *host, int port, long timeout_ms) {
     Link *link;
     int sock = -1;
 
+    errno = 0;
     char ip_resolve[INET_ADDRSTRLEN];
     if (!is_ip(host)) {
         struct hostent *hptr = gethostbyname(host);
+        if (hptr == nullptr) {
+            ///................
+            errno = EHOSTUNREACH;
+            return nullptr;
+        }
+
         for (int i = 0; hptr && hptr->h_addr_list[i] != NULL; i++) {
             struct in_addr *addr = (struct in_addr *) hptr->h_addr_list[i];
             if (inet_ntop(AF_INET, addr, ip_resolve, sizeof(ip_resolve))) {

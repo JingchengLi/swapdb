@@ -1086,7 +1086,11 @@ int proc_migrate(Context &ctx, Link *link, const Request &req, Response *resp) {
 
     Link *cs = Link::connect(host.c_str(), port, timeout);
     if (cs == nullptr) {
-        reply_errinfo_return("IOERR error or timeout connecting to the client");
+        if (errno == EHOSTUNREACH) {
+            reply_errinfo_return("ERR Can't connect to target node: Name or service not known");
+        } else {
+            reply_errinfo_return("IOERR error or timeout connecting to the client");
+        }
     }
 
     cs->sendtimeout(timeout);
