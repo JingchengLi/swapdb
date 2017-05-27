@@ -21,11 +21,11 @@ public:
         timestamp = 0;
     }
 
-    bool operator<=(const RepopContext &b) const {
+    bool operator<(const RepopContext &b) const {
         if (this->timestamp < b.timestamp) {
             return true;
         } else if (this->timestamp == b.timestamp) {
-            return this->id <= b.id;
+            return this->id < b.id;
         } else {
             return false;
         }

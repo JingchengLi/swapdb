@@ -1044,10 +1044,6 @@ int proc_migrate(Context &ctx, Link *link, const Request &req, Response *resp) {
 
     host = req[1].String();
     port = req[2].Int();
-    if (errno == EINVAL || port < 1) {
-        reply_err_return(INVALID_INT);
-    }
-
     key = req[3].Int();
 
     dbid = req[4].Int();
