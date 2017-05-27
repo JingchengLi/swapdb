@@ -417,7 +417,17 @@ robj *tryObjectEncoding(robj *o) {
             incrRefCount(shared.integers[value]);
             return shared.integers[value];
         } else {
-            if (o->encoding == OBJ_ENCODING_RAW) sdsfree(o->ptr);
+            /* for some commands like set, setex, etc..., its c->argv[j]->ptr
+            * may be modified when call tryObjectEncoding.
+            * in jdjr_mode, if c->argv[j]->ptr is modified, we must
+            * create a new object to replace original c->argv[j]. otherwise
+            * freeSSDBwriteOp will may crash. */
+            if (server.jdjr_mode) {
+                decrRefCount(o);
+                o = createObject(OBJ_STRING, NULL);
+            } else {
+                if (o->encoding == OBJ_ENCODING_RAW) sdsfree(o->ptr);
+            }
             o->encoding = OBJ_ENCODING_INT;
             o->ptr = (void*) value;
             return o;
@@ -449,7 +459,16 @@ robj *tryObjectEncoding(robj *o) {
     if (o->encoding == OBJ_ENCODING_RAW &&
         sdsavail(s) > len/10)
     {
-        o->ptr = sdsRemoveFreeSpace(o->ptr);
+        /* for some commands like set, setex, etc..., its c->argv[j]->ptr
+         * may be modified when call tryObjectEncoding.
+         * in jdjr_mode, if c->argv[j]->ptr is modified, we must
+         * create a new object to replace original c->argv[j]. otherwise
+         * freeSSDBwriteOp will crash. */
+        if (server.jdjr_mode) {
+            /* avoid to modify c->argv[j]->ptr */
+        } else {
+            o->ptr = sdsRemoveFreeSpace(o->ptr);
+        }
     }
 
     /* Return the original object. */

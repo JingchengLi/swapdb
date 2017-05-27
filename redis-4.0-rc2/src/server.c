@@ -2925,7 +2925,7 @@ int delMigratingSSDBKey(sds keysds) {
     return dictDelete(server.db->migrating_ssdb_keys, keysds);
 }
 
-void addVisitingSSDBKey(client *c, sds *keysds) {
+void addVisitingSSDBKey(sds keysds) {
     dictEntry *entry, *existing;
     uint64_t clients_visiting_num = 0;
     entry = dictAddRaw(EVICTED_DATA_DB->visiting_ssdb_keys, keysds, &existing);
@@ -2938,19 +2938,50 @@ void addVisitingSSDBKey(client *c, sds *keysds) {
         /* no other clients are visiting this key, set client visiting num to 1. */
         dictSetUnsignedIntegerVal(entry, 1);
     }
-    serverLog(LL_DEBUG, "key: %s is added to visiting_ssdb_keys, fd: %d, counter: %ld",
-              (char *)keysds, c->fd,
-              clients_visiting_num ? clients_visiting_num : 1);
+    serverLog(LL_DEBUG, "key: %s is added to visiting_ssdb_keys, counter: %ld",
+              (char *)keysds, clients_visiting_num ? clients_visiting_num : 1);
+}
+
+void saveSlaveSSDBwriteOp(client *c, time_t time, int index) {
+    int j;
+
+    struct ssdb_write_op * op = zmalloc(sizeof(struct ssdb_write_op));
+    op->time = time;
+    op->index = index;
+    op->cmd = c->cmd;
+    if (c->cmd->proc == flushallCommand) {
+        op->argc = 1;
+        op->argv = zmalloc(sizeof(robj*) * 1);
+        op->argv[0] = createObject(OBJ_STRING,sdsnew("flushall"));
+
+        server.writeop_mem_size += SDS_MEM_SIZE((char*)op->argv[0]->ptr) + sizeof(op->argv[0]);
+    } else {
+        op->argc = c->argc;
+        op->argv = zmalloc(sizeof(robj*) * c->argc);
+
+        /* recored consumed memory size. */
+        for (j = 0; j < c->argc; j++) {
+            incrRefCount(c->argv[j]);
+            op->argv[j] = c->argv[j];
+
+            server.writeop_mem_size += SDS_MEM_SIZE((char*)(op->argv[j]->ptr)) + sizeof(op->argv[j]);
+        }
+
+    }
+    server.writeop_mem_size += sizeof(robj*) * op->argc + sizeof(struct ssdb_write_op) + sizeof(listNode);
+
+    listAddNodeTail(server.ssdb_write_oplist, op);
 }
 
 void freeSSDBwriteOp(struct ssdb_write_op* op) {
     int j;
-    server.writeop_mem_size -= sizeof(struct ssdb_write_op) + sizeof(listNode*);
+
     // free argv
     for (j = 0; j < op->argc; j++) {
-        server.writeop_mem_size -= SDS_MEM_SIZE((char*)(op->argv[j]->ptr)) + sizeof(op->argv[j]);
+        server.writeop_mem_size -= SDS_MEM_SIZE((char*)(op->argv[j]->ptr)) + sizeof(robj);
         decrRefCount(op->argv[j]);
     }
+    server.writeop_mem_size -= sizeof(robj*) * op->argc + sizeof(struct ssdb_write_op) + sizeof(listNode);
     zfree(op->argv);
     zfree(op);
 }
@@ -2999,8 +3030,9 @@ int confirmAndRetrySlaveSSDBwriteOp(time_t time, int index) {
                 } else {
                     /* we have found the write op saved by server.blocked_write_op, server.master is
                      * unblocked now and we can go on. */
-                    ret = runCommandSlaveFailedRetry(server.master, op);
+                    ret = runCommandReplicationConn(server.master, op);
                     resetClient(server.master);
+                    if (C_CMD_PROCESSED == ret) listDelNode(server.ssdb_write_oplist, ln);
                     /* reset */
                     server.slave_failed_retry_interrupted = 0;
                     server.blocked_write_op = NULL;
@@ -3032,20 +3064,22 @@ int confirmAndRetrySlaveSSDBwriteOp(time_t time, int index) {
                         return C_ERR;
                     }
 
-                    ret = runCommandSlaveFailedRetry(server.master, op);
+                    ret = runCommandReplicationConn(server.master, op);
                     resetClient(server.master);
+                    /* the key is in redis and this op is processed, just remove it */
+                    if (C_CMD_PROCESSED == ret) listDelNode(server.ssdb_write_oplist, ln);
                 }
             }
             /* we need reconnect SSDB for server.master, just break and will do these on
             * the new SSDB connnection. */
-            if (ret != C_OK) break;
+            if (ret != C_OK && ret != C_CMD_PROCESSED) break;
 
             serverLog(LL_DEBUG, "[REPOPID CHECK] re-send failed write op(cmd:%s, op time:%ld, op id:%d) to SSDB",
                       op->cmd->name, op->time, op->index);
         }
     }
 
-    if (C_OK == ret) server.master->ssdb_conn_flags |= CONN_SUCCESS;
+    if (C_OK == ret || C_CMD_PROCESSED == ret) server.master->ssdb_conn_flags |= CONN_SUCCESS;
 
     server.slave_failed_retry_interrupted = 0;
     server.blocked_write_op = NULL;
@@ -3065,31 +3099,6 @@ void updateSlaveSSDBwriteIndex() {
             server.last_send_writeop_index = 1;
         }
     }
-}
-
-void saveSlaveSSDBwriteOp(client *c, time_t time, int index) {
-    int j;
-    struct ssdb_write_op * op = zmalloc(sizeof(struct ssdb_write_op));
-    op->time = time;
-    op->index = index;
-    op->cmd = c->cmd;
-    if (c->cmd->proc == flushallCommand) {
-        op->argc = 1;
-        op->argv = zmalloc(sizeof(robj*)*1);
-        op->argv[0] = createObject(OBJ_STRING,sdsnew("flushall"));
-    } else {
-        /* NOTE:we use c->argv directly, avoid to reset it later. */
-        op->argc = c->argc;
-        op->argv = c->argv;
-    }
-
-    /* recored consumed memory size. */
-    server.writeop_mem_size += sizeof(struct ssdb_write_op) + sizeof(listNode*);
-    for (j = 0; j < op->argc; j++) {
-        server.writeop_mem_size += SDS_MEM_SIZE((char*)(op->argv[j]->ptr)) + sizeof(op->argv[j]);
-    }
-
-    listAddNodeTail(server.ssdb_write_oplist, op);
 }
 
 int updateSendRepopidToSSDB(client* c) {
@@ -3114,6 +3123,129 @@ int updateSendRepopidToSSDB(client* c) {
     return ret;
 }
 
+void recordVisitingSSDBkeys(struct redisCommand* cmd, robj** argv, int argc) {
+    int *keys = NULL, numkeys = 0, j;
+    keys = getKeysFromCommand(cmd, argv, argc, &numkeys);
+    for (j = 0; j < numkeys; j ++)
+        /* TODO: only support single key command. */
+        if (cmd->proc == migrateCommand)
+            addMigratingSSDBKey(argv[keys[j]]->ptr);
+        else
+            addVisitingSSDBKey(argv[keys[j]]->ptr);
+
+    if (keys) getKeysFreeResult(keys);
+}
+
+/* for the replication connection only, if returned value is C_ERR, this failed write
+ * command will be process in redis, if */
+int processCommandReplicationConn(client* c, struct ssdb_write_op* slave_retry_write) {
+    robj *keyobj = NULL;
+    struct redisCommand* cmd;
+    int argc;
+    robj** argv;
+
+    if (c != server.master)
+        return C_ERR;
+
+    if (slave_retry_write) {
+        cmd = slave_retry_write->cmd;
+        argc = slave_retry_write->argc;
+        argv = slave_retry_write->argv;
+    } else {
+        cmd = c->cmd;
+        argc = c->argc;
+        argv = c->argv;
+    }
+
+    if ( !cmd || !(cmd->flags & CMD_WRITE) )
+        return C_ERR;
+    if (cmd->flags & CMD_JDJR_REDIS_ONLY)
+        return C_ERR;
+    if (!(cmd->flags & CMD_JDJR_MODE))
+        return C_NOTSUPPORT_ERR;
+    if (argc <= 1)
+        return C_ERR;
+
+    keyobj = argv[1];
+    if (!dictFind(EVICTED_DATA_DB->dict, keyobj->ptr))
+        return C_ERR;
+
+    /* prohibit write operations to SSDB when replication,
+     *
+     * Note: we also can have slaves if this server is a slave. */
+    if ((server.is_allow_ssdb_write == DISALLOW_SSDB_WRITE)
+        && (cmd->flags & CMD_WRITE) && (cmd->flags & CMD_JDJR_MODE)) {
+        listAddNodeTail(server.no_writing_ssdb_blocked_clients, server.master);
+        serverLog(LL_DEBUG, "server.master is added to server.no_writing_ssdb_blocked_clients");
+        /* TODO: use a suitable timeout. */
+        server.master->bpop.timeout = 5000 + mstime();
+        blockClient(server.master, BLOCKED_NO_WRITE_TO_SSDB);
+
+        return C_OK;
+    }
+
+    /* Calling lookupKey to update lru or lfu counter. */
+    robj* val = lookupKey(EVICTED_DATA_DB, keyobj, LOOKUP_NONE);
+    if (val) {
+        int ret;
+        if (slave_retry_write) {
+            /* this is a failed write retry, reuse its write op time and id. */
+            ret = sendRepopidToSSDB(server.master, slave_retry_write->time, slave_retry_write->index, 1);
+        } else
+            ret = updateSendRepopidToSSDB(c);
+
+        if (ret != C_OK) return ret;
+
+        if (slave_retry_write) {
+            sds finalcmd = composeCmdFromArgs(slave_retry_write->argc, slave_retry_write->argv);
+            ret = sendFailedRetryCommandToSSDB(c, finalcmd);
+        } else
+            ret = sendCommandToSSDB(c, NULL);
+
+        if (ret != C_OK) return ret;
+
+        /* Record the keys visting SSDB. */
+        if (slave_retry_write)
+            recordVisitingSSDBkeys(slave_retry_write->cmd, slave_retry_write->argv, slave_retry_write->argc);
+        else
+            recordVisitingSSDBkeys(c->cmd, c->argv, c->argc);
+
+        return C_OK;
+    }
+    return C_ERR;
+}
+
+void chooseHotKeysByLFUcounter(robj* keyobj) {
+    if (!server.load_from_ssdb) return;
+
+    serverAssert(server.maxmemory_policy & MAXMEMORY_FLAG_LFU);
+
+    dictEntry* de = dictFind(EVICTED_DATA_DB->dict, keyobj->ptr);
+    sds db_key = dictGetKey(de);
+
+    unsigned int lfu = sdsgetlfu(db_key);
+
+    unsigned char counter = lfu & 255;
+
+    // todo: add config option for LFU value
+    if ((counter > LFU_INIT_VAL) && !memoryReachLoadUpperLimit()) {
+        /* to ensure the key only exists in one dict of loading/transferring/
+         * delete_confirming/hot_keys, if the key is already in intermediate state,
+         * we just give up to load the key and will try it the next time.
+         *
+         * NOTE: we don't care visiting_ssdb_keys, because we must ensure there is a
+         * chance for a very hot key to be loaded.
+         * */
+        if (NULL == dictFind(EVICTED_DATA_DB->loading_hot_keys, keyobj->ptr)
+            && NULL == dictFind(EVICTED_DATA_DB->transferring_keys, keyobj->ptr)
+            && NULL == dictFind(EVICTED_DATA_DB->delete_confirm_keys, keyobj->ptr))
+            dictAddOrFind(server.hot_keys, keyobj->ptr);
+
+        serverLog(LL_DEBUG, "key: %s is added to server.hot_keys", (char *)keyobj->ptr);
+    }
+    return;
+}
+
 // todo: refactor for server.master connection
 /* Process keys may be in SSDB, only handle the command jdjr_mode supported.
  The rest cases will be handled by processCommand. */
@@ -3124,13 +3256,16 @@ int processCommandMaybeInSSDB(client *c) {
     if (c->cmd->flags & CMD_JDJR_REDIS_ONLY)
         return C_ERR;
 
+    if (c->argc <= 1)
+        return C_ERR;
+
     /* TODO: support multiple key migrateCommand ??? */
     if (c->cmd->proc == migrateCommand)
         keyobj = c->argv[3];
     else
         keyobj = c->argv[1];
 
-    if (c->argc <= 1 || !dictFind(EVICTED_DATA_DB->dict, keyobj->ptr))
+    if (!dictFind(EVICTED_DATA_DB->dict, keyobj->ptr))
         return C_ERR;
 
     /* TODO: ignore C_NOTSUPPORT_ERR in LL_DEBUG temporary. */
@@ -3169,22 +3304,6 @@ int processCommandMaybeInSSDB(client *c) {
         robj* val = lookupKey(EVICTED_DATA_DB, keyobj, LOOKUP_NONE);
         if (val) {
             int ret;
-            if (server.master == c) {
-                if (slave_retry_write) {
-                    /* this is a failed write retry, reuse its write op time and id. */
-                    ret = sendRepopidToSSDB(server.master, slave_retry_write->time, slave_retry_write->index, 1);
-                } else {
-                    ret = updateSendRepopidToSSDB(c);
-                }
-                if (ret != C_OK) {
-                    /* avoid to free c->argv for the replication connection of slave redis. we use it to save
-                     * commands in server.ssdb_write_oplist */
-                    c->argv = NULL;
-                    return ret;
-                }
-            }
-            serverAssert(c->argv);
-
             if (c->cmd->proc == migrateCommand) {
                 /* Adjust the port argument. */
                 robj *port = c->argv[2];
@@ -3205,88 +3324,29 @@ int processCommandMaybeInSSDB(client *c) {
                 }
             }
 
-            if (server.master == c && slave_retry_write)
-                ret = sendFailedRetryCommandToSSDB(c, NULL);
-            else
-                ret = sendCommandToSSDB(c, NULL);
-            if (ret != C_OK) {
-                /* avoid to reset c->argv for the replication connection of slave redis. we use it to save
-                 * commands in server.ssdb_write_oplist */
-                c->argv = NULL;
-                return ret;
-            }
-            serverAssert(c->argv);
+            ret = sendCommandToSSDB(c, NULL);
+            if (ret != C_OK) return ret;
+
             /* Record the keys visting SSDB. */
-            {
-                int *keys = NULL, numkeys = 0, j;
-                keys = getKeysFromCommand(c->cmd, c->argv, c->argc, &numkeys);
-                for (j = 0; j < numkeys; j ++)
-                    /* TODO: only support single key command. */
-                    if (c->cmd->proc == migrateCommand)
-                        addMigratingSSDBKey(c->argv[keys[j]]->ptr);
-                    else
-                        addVisitingSSDBKey(c, c->argv[keys[j]]->ptr);
+            recordVisitingSSDBkeys(c->cmd, c->argv, c->argc);
 
-                if (keys) getKeysFreeResult(keys);
-
-                /* for the replication connection */
-                if (server.master == c) {
-                    /* avoid to reset c->argv for the replication connection of slave redis. we use it to save
-                    * commands in server.ssdb_write_oplist */
-                    c->argv = NULL;
-                    return C_OK;
-                } else {
-                    /* TODO: use a suitable timeout. */
-                    if (c->cmd && c->cmd->proc == migrateCommand) {
-                        c->bpop.timeout = 900000 + mstime();
-                        blockClient(c, BLOCKED_MIGRATING_SSDB);
-                        addMigratingSSDBKey(keyobj->ptr);
-                    } else {
-                        c->bpop.timeout = 5000 + mstime();
-                        blockClient(c, BLOCKED_VISITING_SSDB);
-                    }
-                }
+            /* TODO: use a suitable timeout. */
+            if (c->cmd && c->cmd->proc == migrateCommand) {
+                c->bpop.timeout = 900000 + mstime();
+                blockClient(c, BLOCKED_MIGRATING_SSDB);
+                addMigratingSSDBKey(keyobj->ptr);
+            } else {
+                c->bpop.timeout = 5000 + mstime();
+                blockClient(c, BLOCKED_VISITING_SSDB);
             }
 
             /* Slaves do not load data from ssdb automatically. */
             if (server.masterhost) return C_OK;
 
-            /* TODO: temporary code. Using the distribute of lfu counter to
-               determine if the key is to load to redis. */
-            {
-                if (!server.load_from_ssdb) return C_OK;
+            if (c->cmd->proc == delCommand) return C_OK;
 
-                if (c->cmd->proc == delCommand) return C_OK;
-
-                serverAssert(server.maxmemory_policy & MAXMEMORY_FLAG_LFU);
-
-                dictEntry* de = dictFind(EVICTED_DATA_DB->dict, keyobj->ptr);
-                sds db_key = dictGetKey(de);
-
-                unsigned int lfu = sdsgetlfu(db_key);
-
-                unsigned char counter = lfu & 255;
-
-                // todo: add config option for LFU value
-                if ((counter > LFU_INIT_VAL) && !memoryReachLoadUpperLimit()) {
-                    /* to ensure the key only exists in one dict of loading/transferring/
-                     * delete_confirming/hot_keys, if the key is already in intermediate state,
-                     * we just give up to load the key and will try it the next time.
-                     *
-                     * NOTE: we don't care visiting_ssdb_keys, because we must ensure there is a
-                     * chance for a very hot key to be loaded.
-                     * */
-                    if (NULL == dictFind(EVICTED_DATA_DB->loading_hot_keys, keyobj->ptr)
-                        && NULL == dictFind(EVICTED_DATA_DB->transferring_keys, keyobj->ptr)
-                        && NULL == dictFind(EVICTED_DATA_DB->delete_confirm_keys, keyobj->ptr))
-                        dictAddOrFind(server.hot_keys, keyobj->ptr);
-
-                    serverLog(LL_DEBUG, "key: %s is added to server.hot_keys, client fd: %d.",
-                              (char *)keyobj->ptr, c->fd);
-                }
-                return C_OK;
-            }
-
+            chooseHotKeysByLFUcounter(keyobj);
+            return C_OK;
         }
     }
 
@@ -3405,10 +3465,10 @@ void prepareSSDBflush(client* c) {
 
 /* for replication connection(server.master), after reconnect with SSDB success, we
  * use this to retry failed/timeout write commands.*/
-int runCommandSlaveFailedRetry(client *c, struct ssdb_write_op* slave_retry_write) {
-    if (c != server.master || !slave_retry_write) return C_ERR;
+int runCommandReplicationConn(client *c, struct ssdb_write_op* slave_retry_write) {
+    if (c != server.master) return C_ERR;
 
-    int ret = processCommandMaybeInSSDB(c, slave_retry_write);
+    int ret = processCommandReplicationConn(c, slave_retry_write);
     if (ret == C_OK) {
         /* for the replication connection of slave redis, after we send write commands
          * to SSDB and record them in server.ssdb_write_oplist, we just return and
@@ -3417,7 +3477,8 @@ int runCommandSlaveFailedRetry(client *c, struct ssdb_write_op* slave_retry_writ
     } else {
         if (ret == C_NOTSUPPORT_ERR) {
             addReplyErrorFormat(c, "don't support this command in jdjr mode:%s.", c->cmd->name);
-            return C_OK;
+            serverLog(LL_NOTICE, "unsupported cmd:%s in ssdb", c->cmd->name);
+            return C_CMD_PROCESSED;
         } else if (ret == C_FD_ERR) {
             /* for a slave failed write retry, we retrun error so don't go on to retry
              * the rest failed writes. */
@@ -3428,20 +3489,17 @@ int runCommandSlaveFailedRetry(client *c, struct ssdb_write_op* slave_retry_writ
     call(c,CMD_CALL_FULL);
     c->woff = server.master_repl_offset;
 
-    /* avoid double-free by resetClient */
-    c->argv = NULL;
+    if (slave_retry_write) {
+        serverLog(LL_DEBUG, "[REPOPID]the keys is now in redis, remove write op from"
+                          " list(op cmd:%s, time:%ld, index:%d)",
+                  slave_retry_write->cmd->name,
+                  slave_retry_write->time,
+                  slave_retry_write->index);
 
-    serverLog(LL_DEBUG, "[REPOPID]the keys is now in redis, remove write op from"
-                      " list(op cmd:%s, time:%ld, index:%d)",
-              slave_retry_write->cmd->name,
-              slave_retry_write->time,
-              slave_retry_write->index);
-
-    listNode* ln = listFirst(server.ssdb_write_oplist);
-    serverAssert(ln->value == slave_retry_write);
-    listDelNode(server.ssdb_write_oplist, ln);
-
-    return C_OK;
+        return C_CMD_PROCESSED;
+    } else {
+        return C_OK;
+    }
 }
 
 int runCommand(client *c) {
@@ -3465,15 +3523,8 @@ int runCommand(client *c) {
 
     /* Exec the command */
     if (server.jdjr_mode) {
-        int ret = processCommandMaybeInSSDB(c, NULL);
+        int ret = processCommandMaybeInSSDB(c);
         if (ret == C_OK) {
-            if (server.master == c) {
-                /* for the replication connection of slave redis, after we send write commands
-                 * to SSDB and record them in server.ssdb_write_oplist, we just return and
-                 * process next write command. */
-                return C_OK;
-            }
-
             /* The client will be reseted in sendCommandToSSDB if C_FD_ERR
               is returned in sendCommandToSSDB.
               Otherwise, return C_ERR to avoid calling resetClient,
@@ -3771,13 +3822,31 @@ int processCommand(client *c) {
         }
     }
 
+    /* to ensure data consistency of this slave with my master, if connnection status of
+    * server.master is CONN_CHECK_REPOPID/CONN_CONNECT_FAILED, we can do nothing but
+    * save this write operation to the tail of server.ssdb_write_oplist and wait to re-send
+    * it.
+    *
+    * NOTE: even if the key of c->argv is in redis now, and also the key is not in transferring/
+    * loading/delete_confirm status, we can't process the command directly, because maybe there are
+    * write operations on the same key in server.ssdb_write_oplist.
+    * */
+    if (server.jdjr_mode && c->argc > 1 && c == server.master && !(c->ssdb_conn_flags & CONN_SUCCESS)) {
+        updateSlaveSSDBwriteIndex();
+        saveSlaveSSDBwriteOp(c, server.last_send_writeop_time, server.last_send_writeop_index);
+        return C_OK;
+    }
+
     /* Check if current cmd contains blocked keys. */
     if (server.jdjr_mode && c->argc > 1 && checkKeysInMediateState(c) == C_ERR) {
         /* Return C_ERR to keep client info and handle it later. */
         return C_ERR;
     }
 
-    ret = runCommand(c);
+    if (server.master == c)
+        ret = runCommandReplicationConn(c, NULL);
+    else
+        ret = runCommand(c);
 
     if (listLength(server.ready_keys))
         handleClientsBlockedOnLists();

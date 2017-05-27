@@ -852,10 +852,7 @@ static int internalSendCommandToSSDB(client *c, sds finalcmd) {
 }
 
 int sendFailedRetryCommandToSSDB(client* c, sds finalcmd) {
-    if (!finalcmd) {
-        struct redisCommand *cmd = lookupCommand(c->argv[0]->ptr);
-        finalcmd = composeCmdFromArgs(c->argc, c->argv);
-    }
+    serverAssert(finalcmd != NULL);
     return internalSendCommandToSSDB(c, finalcmd);
 }
 
@@ -1664,6 +1661,8 @@ int handleExtraSSDBReply(client *c) {
             /* this is a response of the first "repopid set" request. */
             return C_OK;
         }
+
+        if (0 == listLength(server.ssdb_write_oplist)) return C_OK;
 
         ln = listFirst(server.ssdb_write_oplist);
         op = ln->value;
