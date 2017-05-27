@@ -818,6 +818,8 @@ typedef struct client {
     char client_ip[NET_IP_STR_LEN]; /* Used by customized-replication in jdjr-mode. */
     redisReply *ssdb_replies[2]; /* Pointers for ssdb replies. */
     long long repl_timer_id; /* the timer event id which is used to delete the timer event. */
+    int revert_len; /* save the length we have feed to c->buf or c->reply, we may need
+                     * to revert it from client buffer. */
 } client;
 
 /* SSDB send "rr_transfer_snapshot continue" every 5 seconds, we use a double time

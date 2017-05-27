@@ -130,6 +130,7 @@ client *createClient(int fd) {
         c->ssdb_conn_flags = 0;
         c->ssdb_replies[0] = NULL;
         c->ssdb_replies[1] = NULL;
+        c->revert_len = 0;
     }
     c->bpop.target = NULL;
     c->bpop.numreplicas = 0;
@@ -616,6 +617,7 @@ void handleConnectSSDBok(client* c) {
         serverLog(LL_NOTICE, "[!!!]SSDB is up now");
         server.ssdb_is_down = 0;
     }
+    c->revert_len = 0;
     if (server.master == c && listLength(server.ssdb_write_oplist) > 0) {
         /* NOTE: to ensure data consistency between the slave myself and our master,
          * for server.master connection, if there are unconfirmed write operations in
@@ -1958,6 +1960,7 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
 #endif
 
     do {
+        int conn_read_bytes = 0;
         int reply_len = 0;
 #ifdef TEST_CLIENT_BUF
         int oldlen = r->len;
@@ -1967,14 +1970,17 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
             /* the returned 'aux' may be NULL when redisGetReplyFromReader return REDIS_OK,
              * so we may need to read multiple times to get a completed response. */
 #ifdef TEST_CLIENT_BUF
-            // debug only
-            sds debug_s = sdsempty();
-            debug_s = sdscatlen(debug_s, r->buf+oldlen, r->len - oldlen);
-            debug_s = sdscatlen(debug_s, "\0", 1);
+            if (r->len - oldlen > 0) {
+                // debug only
+                sds debug_s = sdsempty();
+                debug_s = sdscatlen(debug_s, r->buf+oldlen, r->len - oldlen);
+                debug_s = sdscatlen(debug_s, "\0", 1);
 
-            serverLog(LL_DEBUG, "[read from SSDB]%s", debug_s);
-            sdsfree(debug_s);
+                serverLog(LL_DEBUG, "[read from SSDB]%s", debug_s);
+                sdsfree(debug_s);
+            }
 #endif
+            conn_read_bytes = r->len - oldlen;
         }
 
         /* encountered a read error. */
@@ -2009,7 +2015,7 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
             break;
         total_reply_len += reply_len;
 
-        /* maybe we don't get a reply, but r->pos maybe has changed.*/
+       /* maybe we don't get a reply, but r->pos maybe has changed.*/
         if (!c->ssdb_replies[0]) {
             if (reply_len) {
                 reply_start = r->buf+r->pos-reply_len;
@@ -2022,6 +2028,17 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
             }
         }
 
+        /* if we have not read any data, and there is no enough data in the reader
+        * buffer to construct a integral reply, just return and avoid to waste CPU.
+        *
+        * we will enter this callback again if new data arrive. */
+        if (!aux && conn_read_bytes == 0) {
+            if (!c->ssdb_replies[0]) {
+                c->revert_len += total_reply_len;
+            }
+            return;
+        }
+
         /* we get a reply, record 1th reply. */
         if (aux && !c->ssdb_replies[0]) {
 #ifdef TEST_CLIENT_BUF
@@ -2030,7 +2047,7 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
             sdsfree(tmp);
 #endif
             /* save the first reply len and we may need to revert it from the user buffer.*/
-            first_reply_len = total_reply_len;
+            first_reply_len = total_reply_len + c->revert_len;
             /* reset total reply len for the second reply. */
             total_reply_len = 0;
             c->ssdb_replies[0] = aux;
@@ -2106,6 +2123,7 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
     handleSSDBReply(c, first_reply_len);
 
 clean:
+    c->revert_len = 0;
     if (c->ssdb_replies[0]) {
         freeReplyObject(c->ssdb_replies[0]);
         c->ssdb_replies[0] = NULL;
@@ -2351,7 +2369,6 @@ void freeClient(client *c) {
     }
 
     if (server.jdjr_mode) {
-
         if (c->ssdb_replies[0]) freeReplyObject(c->ssdb_replies[0]);
         if (c->ssdb_replies[1]) freeReplyObject(c->ssdb_replies[1]);
 

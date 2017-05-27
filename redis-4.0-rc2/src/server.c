@@ -2949,7 +2949,6 @@ void saveSlaveSSDBwriteOp(client *c, time_t time, int index) {
     op->time = time;
     op->index = index;
     op->cmd = c->cmd;
-    // todo: remove flushallCommand branch
     if (c->cmd->proc == flushallCommand) {
         op->argc = 1;
         op->argv = zmalloc(sizeof(robj*) * 1);
