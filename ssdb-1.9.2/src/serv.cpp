@@ -1075,7 +1075,7 @@ int proc_migrate(Context &ctx, Link *link, const Request &req, Response *resp) {
     }
 
 
-    if (kv.size() == 0) {
+    if (kv.empty()) {
         resp->reply_ok();
         {
             resp->redisResponse = new RedisResponse("NOKEY");
