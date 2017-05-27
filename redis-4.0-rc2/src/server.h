@@ -80,7 +80,6 @@ typedef long long mstime_t; /* millisecond time type. */
 #define C_NOTSUPPORT_ERR        -3
 #define C_ANOTHER_FLUSHALL_ERR  -4
 #define C_RETURN                -5
-#define C_CMD_PROCESSED         -6
 
 /* SSDB connection flags in jdjr_mode */
 #define CONN_CONNECT_FAILED         (1<<0)
@@ -1810,7 +1809,7 @@ int tryEvictingKeysToSSDB(int *mem_tofree);
 size_t objectComputeSize(robj *o, size_t sample_size);
 size_t estimateKeyMemoryUsage(dictEntry *de);
 int processCommand(client *c);
-int runCommandReplicationConn(client *c, struct ssdb_write_op* slave_retry_write);
+int runCommandReplicationConn(client *c, listNode* writeop_ln);
 int runCommand(client *c);
 int checkValidCommand(client* c);
 int checkKeysInMediateState(client* c);

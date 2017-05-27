@@ -2967,24 +2967,27 @@ void saveSlaveSSDBwriteOp(client *c, time_t time, int index) {
 
             server.writeop_mem_size += SDS_MEM_SIZE((char*)(op->argv[j]->ptr)) + sizeof(robj);
         }
-
     }
-    server.writeop_mem_size += sizeof(robj*) * op->argc + sizeof(struct ssdb_write_op) + sizeof(listNode);
-
     listAddNodeTail(server.ssdb_write_oplist, op);
+
+    server.writeop_mem_size += sizeof(robj*) * op->argc + sizeof(struct ssdb_write_op) + sizeof(listNode);
 }
 
 void freeSSDBwriteOp(struct ssdb_write_op* op) {
     int j;
 
     // free argv
-    for (j = 0; j < op->argc; j++) {
-        server.writeop_mem_size -= SDS_MEM_SIZE((char*)(op->argv[j]->ptr)) + sizeof(robj);
-        decrRefCount(op->argv[j]);
+    if (op->argv) {
+        /* op->argv may be set to NULL in runCommandReplicationConn */
+        for (j = 0; j < op->argc; j++) {
+            decrRefCount(op->argv[j]);
+            server.writeop_mem_size -= SDS_MEM_SIZE((char*)(op->argv[j]->ptr)) + sizeof(robj);
+        }
     }
-    server.writeop_mem_size -= sizeof(robj*) * op->argc + sizeof(struct ssdb_write_op) + sizeof(listNode);
-    zfree(op->argv);
+    if (op->argv) zfree(op->argv);
     zfree(op);
+
+    server.writeop_mem_size -= sizeof(robj*) * op->argc + sizeof(struct ssdb_write_op) + sizeof(listNode);
 }
 
 void emptySlaveSSDBwriteOperations() {
@@ -3031,9 +3034,8 @@ int confirmAndRetrySlaveSSDBwriteOp(time_t time, int index) {
                 } else {
                     /* we have found the write op saved by server.blocked_write_op, server.master is
                      * unblocked now and we can go on. */
-                    ret = runCommandReplicationConn(server.master, op);
+                    ret = runCommandReplicationConn(server.master, ln);
                     resetClient(server.master);
-                    if (C_CMD_PROCESSED == ret) listDelNode(server.ssdb_write_oplist, ln);
                     /* reset */
                     server.slave_failed_retry_interrupted = 0;
                     server.blocked_write_op = NULL;
@@ -3065,22 +3067,20 @@ int confirmAndRetrySlaveSSDBwriteOp(time_t time, int index) {
                         return C_ERR;
                     }
 
-                    ret = runCommandReplicationConn(server.master, op);
+                    ret = runCommandReplicationConn(server.master, ln);
                     resetClient(server.master);
-                    /* the key is in redis and this op is processed, just remove it */
-                    if (C_CMD_PROCESSED == ret) listDelNode(server.ssdb_write_oplist, ln);
                 }
             }
             /* we need reconnect SSDB for server.master, just break and will do these on
             * the new SSDB connnection. */
-            if (ret != C_OK && ret != C_CMD_PROCESSED) break;
+            if (ret != C_OK) break;
 
             serverLog(LL_DEBUG, "[REPOPID CHECK] re-send failed write op(cmd:%s, op time:%ld, op id:%d) to SSDB",
                       op->cmd->name, op->time, op->index);
         }
     }
 
-    if (C_OK == ret || C_CMD_PROCESSED == ret) server.master->ssdb_conn_flags |= CONN_SUCCESS;
+    if (C_OK == ret) server.master->ssdb_conn_flags |= CONN_SUCCESS;
 
     server.slave_failed_retry_interrupted = 0;
     server.blocked_write_op = NULL;
@@ -3466,8 +3466,12 @@ void prepareSSDBflush(client* c) {
 
 /* for replication connection(server.master), after reconnect with SSDB success, we
  * use this to retry failed/timeout write commands.*/
-int runCommandReplicationConn(client *c, struct ssdb_write_op* slave_retry_write) {
+int runCommandReplicationConn(client *c, listNode* writeop_ln) {
     if (c != server.master) return C_ERR;
+    struct ssdb_write_op* slave_retry_write = NULL;
+
+    if (writeop_ln)
+        slave_retry_write = writeop_ln->value;
 
     int ret = processCommandReplicationConn(c, slave_retry_write);
     if (ret == C_OK) {
@@ -3479,7 +3483,7 @@ int runCommandReplicationConn(client *c, struct ssdb_write_op* slave_retry_write
         if (ret == C_NOTSUPPORT_ERR) {
             addReplyErrorFormat(c, "don't support this command in jdjr mode:%s.", c->cmd->name);
             serverLog(LL_NOTICE, "unsupported cmd:%s in ssdb", c->cmd->name);
-            return C_CMD_PROCESSED;
+            return C_OK;
         } else if (ret == C_FD_ERR) {
             /* for a slave failed write retry, we retrun error so don't go on to retry
              * the rest failed writes. */
@@ -3487,20 +3491,40 @@ int runCommandReplicationConn(client *c, struct ssdb_write_op* slave_retry_write
         }
     }
 
+    if (slave_retry_write) {
+        int j;
+        /*NOTE: for some commands like set, setex, etc..., its c->argv[j]->ptr
+        * may be modified when call tryObjectEncoding.
+         *
+        * so, before call redis command, we just save slave_retry_write->argv
+        * to c->argv, and delete this write op from server.ssdb_write_oplist,
+        * otherwise freeSSDBwriteOp will may crash. */
+
+        c->cmd = slave_retry_write->cmd;
+        c->argc = slave_retry_write->argc;
+        c->argv = slave_retry_write->argv;
+
+        slave_retry_write->argv = NULL;
+
+        for (j = 0; j < c->argc; j++) {
+            server.writeop_mem_size -= SDS_MEM_SIZE((char*)(c->argv[j]->ptr)) + sizeof(robj);
+        }
+    }
+
     call(c,CMD_CALL_FULL);
     c->woff = server.master_repl_offset;
 
     if (slave_retry_write) {
+         /* the key is in redis and this op is processed, just remove it */
+        listDelNode(server.ssdb_write_oplist, writeop_ln);
+
         serverLog(LL_DEBUG, "[REPOPID]the keys is now in redis, remove write op from"
                           " list(op cmd:%s, time:%ld, index:%d)",
                   slave_retry_write->cmd->name,
                   slave_retry_write->time,
                   slave_retry_write->index);
-
-        return C_CMD_PROCESSED;
-    } else {
-        return C_OK;
     }
+    return C_OK;
 }
 
 int runCommand(client *c) {
@@ -3835,6 +3859,9 @@ int processCommand(client *c) {
     if (server.jdjr_mode && c->argc > 1 && c == server.master && !(c->ssdb_conn_flags & CONN_SUCCESS)) {
         updateSlaveSSDBwriteIndex();
         saveSlaveSSDBwriteOp(c, server.last_send_writeop_time, server.last_send_writeop_index);
+        /* the c->argv pointer is reused by saveSlaveSSDBwriteOp, set to NULL avoid it to be
+         * freed by resetClient. */
+        c->argv = NULL;
         return C_OK;
     }
 
