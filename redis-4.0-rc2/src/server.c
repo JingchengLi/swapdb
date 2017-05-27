@@ -2949,12 +2949,13 @@ void saveSlaveSSDBwriteOp(client *c, time_t time, int index) {
     op->time = time;
     op->index = index;
     op->cmd = c->cmd;
+    // todo: remove flushallCommand branch
     if (c->cmd->proc == flushallCommand) {
         op->argc = 1;
         op->argv = zmalloc(sizeof(robj*) * 1);
         op->argv[0] = createObject(OBJ_STRING,sdsnew("flushall"));
 
-        server.writeop_mem_size += SDS_MEM_SIZE((char*)op->argv[0]->ptr) + sizeof(op->argv[0]);
+        server.writeop_mem_size += SDS_MEM_SIZE((char*)op->argv[0]->ptr) + sizeof(robj);
     } else {
         op->argc = c->argc;
         op->argv = zmalloc(sizeof(robj*) * c->argc);
@@ -2964,7 +2965,7 @@ void saveSlaveSSDBwriteOp(client *c, time_t time, int index) {
             incrRefCount(c->argv[j]);
             op->argv[j] = c->argv[j];
 
-            server.writeop_mem_size += SDS_MEM_SIZE((char*)(op->argv[j]->ptr)) + sizeof(op->argv[j]);
+            server.writeop_mem_size += SDS_MEM_SIZE((char*)(op->argv[j]->ptr)) + sizeof(robj);
         }
 
     }
