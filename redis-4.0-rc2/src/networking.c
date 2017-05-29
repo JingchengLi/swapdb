@@ -1953,7 +1953,6 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
     int total_reply_len = 0;
     redisReader *r = c->context->reader;
     char* reply_start;
-    int first_reply_len;
 #ifdef TEST_CLIENT_BUF
     serverLog(LOG_DEBUG, "reader process>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
     sds tmp = sdsempty();
@@ -1992,7 +1991,7 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
                 return;
             } else {
                 if (c->ssdb_replies[0])
-                    revertClientBufReply(c, first_reply_len);
+                    revertClientBufReply(c, c->revert_len);
                 else
                     revertClientBufReply(c, total_reply_len);
 
@@ -2047,7 +2046,7 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
             sdsfree(tmp);
 #endif
             /* save the first reply len and we may need to revert it from the user buffer.*/
-            first_reply_len = total_reply_len + c->revert_len;
+            c->revert_len += total_reply_len;
             /* reset total reply len for the second reply. */
             total_reply_len = 0;
             c->ssdb_replies[0] = aux;
@@ -2120,7 +2119,7 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
                 "install write callback to handle it");
     serverLog(LL_DEBUG, "read process end<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<");
 #endif
-    handleSSDBReply(c, first_reply_len);
+    handleSSDBReply(c, c->revert_len);
 
 clean:
     c->revert_len = 0;

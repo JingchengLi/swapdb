@@ -4187,7 +4187,7 @@ void bytesToHuman(char *s, unsigned long long n) {
     }
 }
 
-void printIntermediateSSDBkeys(sds info, dict* dictory) {
+sds printIntermediateSSDBkeys(sds info, dict* dictory) {
     dictEntry *de;
     dictIterator *di;
     sds key;
@@ -4200,36 +4200,34 @@ void printIntermediateSSDBkeys(sds info, dict* dictory) {
         info = sdscatprintf(info, "%s\r\n", key);
     }
     dictReleaseIterator(di);
+    return info;
 }
 
-void listAllIntermediateSSDBkeys(sds* s) {
-    if (!s) return;
-
-    sds info = *s;
+sds listAllIntermediateSSDBkeys(sds info) {
     info = sdscatprintf(info, "\r\n# loading_hot_keys\r\n");
-    printIntermediateSSDBkeys(info, EVICTED_DATA_DB->loading_hot_keys);
+    info = printIntermediateSSDBkeys(info, EVICTED_DATA_DB->loading_hot_keys);
 
     info = sdscatprintf(info, "\r\n# transferring_keys\r\n");
-    printIntermediateSSDBkeys(info, EVICTED_DATA_DB->transferring_keys);
+    info = printIntermediateSSDBkeys(info, EVICTED_DATA_DB->transferring_keys);
 
     info = sdscatprintf(info, "\r\n# visiting_ssdb_keys\r\n");
-    printIntermediateSSDBkeys(info, EVICTED_DATA_DB->visiting_ssdb_keys);
+    info = printIntermediateSSDBkeys(info, EVICTED_DATA_DB->visiting_ssdb_keys);
 
     info = sdscatprintf(info, "\r\n# delete_confirm_keys\r\n");
-    printIntermediateSSDBkeys(info, EVICTED_DATA_DB->delete_confirm_keys);
+    info = printIntermediateSSDBkeys(info, EVICTED_DATA_DB->delete_confirm_keys);
 
     info = sdscatprintf(info, "\r\n# hot_keys_to_be_load\r\n");
-    printIntermediateSSDBkeys(info, server.hot_keys);
+    info = printIntermediateSSDBkeys(info, server.hot_keys);
 
     info = sdscatprintf(info, "\r\n# keys_may_be_deleted\r\n");
-    printIntermediateSSDBkeys(info, server.maybe_deleted_ssdb_keys);
+    info = printIntermediateSSDBkeys(info, server.maybe_deleted_ssdb_keys);
 
-    *s = info;
+    return info;
 }
 
 void listLoadingKeysCommand(client* c) {
     sds info = sdsempty();
-    listAllIntermediateSSDBkeys(&info);
+    info = listAllIntermediateSSDBkeys(info);
 
     addReplyBulkSds(c, info);
 }
@@ -4770,7 +4768,7 @@ sds genRedisInfoString(char *section) {
 
         /* only print this in debug mode */
         if (server.verbosity == LL_DEBUG) {
-            listAllIntermediateSSDBkeys(&info);
+            info = listAllIntermediateSSDBkeys(info);
         }
     }
     return info;
