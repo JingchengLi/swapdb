@@ -3016,7 +3016,7 @@ int confirmAndRetrySlaveSSDBwriteOp(time_t time, int index) {
     int ret = C_OK;
 
     if (time == -1 && index == -1)
-        serverLog(LL_DEBUG, "flushall success, check and re-send the reset write operations.");
+        serverLog(LL_DEBUG, "flushall success, check and re-send the rest write operations.");
 
     listRewind(server.ssdb_write_oplist, &li);
     while((ln = listNext(&li))) {
