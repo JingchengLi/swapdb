@@ -2852,14 +2852,18 @@ int checkKeysForMigrate(client *c) {
     return C_OK;
 }
 
-int blockAndFlushSlaveSSDB(client* c) {
+int blockAndFlushSlaveSSDB(client* c, struct ssdb_write_op* slave_retry_write) {
     int ret;
 
     /* flushall STEP 1: clean all intermediate state keys, avoid to cause unexpected issues. */
     cleanSpecialClientsAndIntermediateKeys(1);
 
     sds finalcmd = sdsnew("*1\r\n$14\r\nrr_do_flushall\r\n");
-    ret = sendCommandToSSDB(c, finalcmd);
+    if (slave_retry_write)
+        ret = sendFailedRetryCommandToSSDB(c, finalcmd);
+    else
+        ret = sendCommandToSSDB(c, finalcmd);
+
     if (ret != C_OK) return ret;
     serverLog(LL_DEBUG, "send rr_do_flushall ok");
 
@@ -2897,7 +2901,7 @@ int processCommandMaybeFlushdb(client *c) {
             ret = updateSendRepopidToSSDB(c);
             if (ret != C_OK) return ret;
 
-            ret = blockAndFlushSlaveSSDB(c);
+            ret = blockAndFlushSlaveSSDB(c, NULL);
             if (ret != C_OK) return ret;
 
             serverLog(LL_DEBUG, "send ssdb flushall success, server.master client is blocked");
@@ -3053,7 +3057,7 @@ int confirmAndRetrySlaveSSDBwriteOp(time_t time, int index) {
                     server.master->argv = zmalloc(sizeof(robj *) * 1);
                     server.master->argv[0] = createObject(OBJ_STRING, sdsnew("flushall"));
 
-                    ret = blockAndFlushSlaveSSDB(server.master);
+                    ret = blockAndFlushSlaveSSDB(server.master, op);
                     /* server.master is blocked, return and handle the rest after unblock.*/
                     if (ret == C_OK)
                         return C_OK;
@@ -3086,6 +3090,10 @@ int confirmAndRetrySlaveSSDBwriteOp(time_t time, int index) {
     }
 
     if (C_OK == ret) server.master->ssdb_conn_flags |= CONN_SUCCESS;
+    if (C_OK == ret)
+        serverLog(LL_DEBUG, "server.master status is CONN_SUCCESS now");
+    else
+        serverLog(LL_DEBUG, "server.master status is NOT CONN_SUCCESS");
 
     server.slave_failed_retry_interrupted = 0;
     server.blocked_write_op = NULL;
