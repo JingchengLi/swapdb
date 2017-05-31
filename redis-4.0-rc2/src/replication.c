@@ -1273,7 +1273,6 @@ void ssdbNotifyCommand(client* c) {
 }
 
 void completeReplicationHandshake() {
-    int aof_is_enabled = server.aof_state != AOF_OFF;
     /* Final setup of the connected slave <- master link */
     replicationCreateMasterClient(server.repl_transfer_s,server.tmp_repl_stream_dbid);
     server.tmp_repl_stream_dbid = -1;
@@ -1281,7 +1280,6 @@ void completeReplicationHandshake() {
         if (C_OK != nonBlockConnectToSsdbServer(server.master)) {
             serverLog(LL_WARNING, "Failed to connect SSDB when sync");
             cancelReplicationHandshake();
-            if (aof_is_enabled) restartAOF();
             return;
         }
     }
@@ -1307,10 +1305,6 @@ void completeReplicationHandshake() {
     if (server.repl_backlog == NULL) createReplicationBacklog();
 
     serverLog(LL_NOTICE, "MASTER <-> SLAVE sync: Finished with success");
-    /* Restart the AOF subsystem now that we finished the sync. This
-     * will trigger an AOF rewrite, and when done will start appending
-     * to the new file. */
-    if (aof_is_enabled) restartAOF();
 }
 
 /* Asynchronously read the SYNC payload we receive from a master */
@@ -1491,6 +1485,12 @@ void readSyncBulkPayload(aeEventLoop *el, int fd, void *privdata, int mask) {
             emptySlaveSSDBwriteOperations();
             server.tmp_repl_stream_dbid = rsi.repl_stream_db;
             server.repl_state = REPL_STATE_TRANSFER_END;
+
+             /* Restart the AOF subsystem now that we finished the sync. This
+            * will trigger an AOF rewrite, and when done will start appending
+            * to the new file. */
+            if (aof_is_enabled) restartAOF();
+
             /* SSDB snapshot transfer have not completed. must wait and return, will check
              * server.ssdb_repl_state in replicationCron, and do the rest work of replication */
             if (server.ssdb_repl_state != REPL_STATE_TRANSFER_SSDB_SNAPSHOT_END) {
@@ -1500,42 +1500,33 @@ void readSyncBulkPayload(aeEventLoop *el, int fd, void *privdata, int mask) {
                              server.ssdb_repl_state == REPL_STATE_TRANSFER_SSDB_SNAPSHOT);
                 return;
             }
+
             completeReplicationHandshake();
-        }
-#if 1
-#else
-        /* Final setup of the connected slave <- master link */
-        replicationCreateMasterClient(server.repl_transfer_s,rsi.repl_stream_db);
-        if (server.jdjr_mode) {
-            if (C_OK != nonBlockConnectToSsdbServer(server.master)) {
-                serverLog(LL_WARNING, "Failed to connect SSDB when sync");
-                cancelReplicationHandshake();
-                if (aof_is_enabled) restartAOF();
-                return;
-            }
-        }
-        zfree(server.repl_transfer_tmpfile);
-        close(server.repl_transfer_fd);
+        } else {
+            /* Final setup of the connected slave <- master link */
+            replicationCreateMasterClient(server.repl_transfer_s,rsi.repl_stream_db);
+            zfree(server.repl_transfer_tmpfile);
+            close(server.repl_transfer_fd);
 
-        server.repl_state = REPL_STATE_CONNECTED;
-        /* After a full resynchroniziation we use the replication ID and
-         * offset of the master. The secondary ID / offset are cleared since
-         * we are starting a new history. */
-        memcpy(server.replid,server.master->replid,sizeof(server.replid));
-        server.master_repl_offset = server.master->reploff;
-        clearReplicationId2();
-        /* Let's create the replication backlog if needed. Slaves need to
-         * accumulate the backlog regardless of the fact they have sub-slaves
-         * or not, in order to behave correctly if they are promoted to
-         * masters after a failover. */
-        if (server.repl_backlog == NULL) createReplicationBacklog();
+            server.repl_state = REPL_STATE_CONNECTED;
+            /* After a full resynchroniziation we use the replication ID and
+             * offset of the master. The secondary ID / offset are cleared since
+             * we are starting a new history. */
+            memcpy(server.replid,server.master->replid,sizeof(server.replid));
+            server.master_repl_offset = server.master->reploff;
+            clearReplicationId2();
+            /* Let's create the replication backlog if needed. Slaves need to
+             * accumulate the backlog regardless of the fact they have sub-slaves
+             * or not, in order to behave correctly if they are promoted to
+             * masters after a failover. */
+            if (server.repl_backlog == NULL) createReplicationBacklog();
 
-        serverLog(LL_NOTICE, "MASTER <-> SLAVE sync: Finished with success");
-        /* Restart the AOF subsystem now that we finished the sync. This
-         * will trigger an AOF rewrite, and when done will start appending
-         * to the new file. */
-        if (aof_is_enabled) restartAOF();
-#endif
+            serverLog(LL_NOTICE, "MASTER <-> SLAVE sync: Finished with success");
+            /* Restart the AOF subsystem now that we finished the sync. This
+             * will trigger an AOF rewrite, and when done will start appending
+             * to the new file. */
+            if (aof_is_enabled) restartAOF();
+        }
     }
     return;
 
@@ -2815,9 +2806,7 @@ void replicationCron(void) {
             serverAssert(server.slave_ssdb_transfer_keepalive_time != -1);
             serverLog(LL_DEBUG, "don't receive SSDB snapshot transfer message for a long "
                     "time, cancel replication handshake");
-            int aof_is_enabled = server.aof_state != AOF_OFF;
             cancelReplicationHandshake();
-            if (aof_is_enabled) restartAOF();
         }
     }
 
