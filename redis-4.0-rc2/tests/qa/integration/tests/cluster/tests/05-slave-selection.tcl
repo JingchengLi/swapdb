@@ -63,6 +63,7 @@ test "Write data while slave #10 is paused and can't receive it" {
     # Wait for the slave to return available again
     R 10 deferred 0
     assert {[R 10 read] eq {OK}}
+    assert {[R 10 read] eq {OK}}
     # assert {[R 10 read] eq {OK OK}}
 
     # Kill the master so that a reconnection will not be possible.

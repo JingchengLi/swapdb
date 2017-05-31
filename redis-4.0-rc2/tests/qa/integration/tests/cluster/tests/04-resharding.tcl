@@ -52,7 +52,7 @@ proc process_is_running {pid} {
 # - Finally the keys are checked to see if they contain the value they should.
 
 set numkeys 50000
-set numops 200000
+set numops 50000
 set cluster [redis_cluster 127.0.0.1:[get_instance_attrib redis 0 port]]
 catch {unset content}
 array set content {}
@@ -63,7 +63,7 @@ test "Cluster consistency during live resharding" {
     for {set j 0} {$j < $numops} {incr j} {
         # Trigger the resharding once we execute half the ops.
         if {$tribpid ne {} &&
-            ($j % 10000) == 0 &&
+            ($j % 5000) == 0 &&
             ![process_is_running $tribpid]} {
             set tribpid {}
         }
@@ -99,6 +99,16 @@ test "Cluster consistency during live resharding" {
             # $cluster eval {redis.call("rpush",KEYS[1],ARGV[1])} 1 $key $ele
         # }
         lappend content($key) $ele
+
+        if {$j == $numops/2} {
+           set size [array size content]
+           set keys [array names content]
+        }
+        if {$j > $numops/2} {
+            set r [randomInt $size] ;# rand key
+            $cluster llen [lindex $keys $r]
+            # puts "key: [lindex $keys $r]"
+        }
 
         if {($j % 1000) == 0} {
             puts -nonewline W; flush stdout
@@ -141,6 +151,10 @@ test "Verify $numkeys keys after the crash & restart" {
             fail "Key $key expected to hold '$value' but actual content is [$cluster lrange $key 0 -1]"
         }
     }
+}
+
+test "Cluster is writable" {
+    cluster_write_test 0
 }
 
 test "Disable AOF in all the instances" {
