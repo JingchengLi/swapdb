@@ -1541,6 +1541,9 @@ void handleDeleteConfirmKeys(void) {
     if (server.delete_confirm_client->flags & CLIENT_BLOCKED)
         return;
 
+    if (server.masterhost && server.repl_state != REPL_STATE_CONNECTED)
+        return;
+
     di = dictGetSafeIterator(server.maybe_deleted_ssdb_keys);
     while((de = dictNext(di))) {
         if (dictFind(EVICTED_DATA_DB->delete_confirm_keys, de->key)) {
