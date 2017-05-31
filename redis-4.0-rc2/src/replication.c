@@ -2368,26 +2368,15 @@ void replicationSendAck(void) {
  * handshake in order to reactivate the cached master.
  */
 void replicationCacheMaster(client *c) {
-    redisContext *reuse_context;
     serverAssert(server.master != NULL && server.cached_master == NULL);
     serverLog(LL_NOTICE,"Caching the disconnected master state.");
 
-    if (server.jdjr_mode) {
-        serverAssert(c == server.master);
-        reuse_context = c->context;
-        c->context = NULL;
-    }
     /* Unlink the client from the server structures. */
     unlinkClient(c);
 
     /* Save the master. Server.master will be set to null later by
      * replicationHandleMasterDisconnection(). */
     server.cached_master = server.master;
-    if (server.jdjr_mode) {
-        /* we may do a partial sync with our master later, just reuse
-         * the SSDB connection to avoid to process server.ssdb_write_oplist */
-        server.cached_master->context = reuse_context;
-    }
 
     /* Invalidate the Peer ID cache. */
     if (c->peerid) {

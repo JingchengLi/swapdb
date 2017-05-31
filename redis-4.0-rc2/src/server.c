@@ -3055,7 +3055,10 @@ int confirmAndRetrySlaveSSDBwriteOp(time_t time, int index) {
 
                     ret = blockAndFlushSlaveSSDB(server.master);
                     /* server.master is blocked, return and handle the rest after unblock.*/
-                    if (ret == C_OK) return C_OK;
+                    if (ret == C_OK)
+                        return C_OK;
+                    else
+                        resetClient(server.master);
                 } else {
                     server.master->cmd = op->cmd;
                     server.master->argv = op->argv;

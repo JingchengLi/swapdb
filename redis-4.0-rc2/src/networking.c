@@ -792,6 +792,7 @@ void handleSSDBconnectionDisconnect(client* c) {
     c->ssdb_conn_flags &= ~CONN_SUCCESS;
     /* for server.master only */
     c->ssdb_conn_flags &= ~CONN_CHECK_REPOPID;
+    c->ssdb_conn_flags |= CONN_CONNECT_FAILED;
 
     if (c->context) {
          /* Unlink resources used in connecting to SSDB. */
