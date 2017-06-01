@@ -2957,6 +2957,17 @@ void addVisitingSSDBKey(sds keysds) {
               (char *)keysds, clients_visiting_num ? clients_visiting_num : 1);
 }
 
+void copyArgsFromWriteOp(client* c, struct ssdb_write_op* op) {
+    int j;
+    c->argc = op->argc;
+    c->cmd = op->cmd;
+    c->argv = zmalloc(sizeof(robj*) * op->argc);
+    for (j = 0; j < op->argc; j++) {
+        incrRefCount(op->argv[j]);
+        c->argv[j] = op->argv[j];
+    }
+}
+
 void saveSlaveSSDBwriteOp(client *c, time_t time, int index) {
     int j;
 
@@ -2964,6 +2975,7 @@ void saveSlaveSSDBwriteOp(client *c, time_t time, int index) {
     op->time = time;
     op->index = index;
     op->cmd = c->cmd;
+    // todo: remove flushall branch
     if (c->cmd->proc == flushallCommand) {
         op->argc = 1;
         op->argv = zmalloc(sizeof(robj*) * 1);
@@ -3072,9 +3084,7 @@ int confirmAndRetrySlaveSSDBwriteOp(time_t time, int index) {
                     else
                         resetClient(server.master);
                 } else {
-                    server.master->cmd = op->cmd;
-                    server.master->argv = op->argv;
-                    server.master->argc = op->argc;
+                    copyArgsFromWriteOp(server.master, op);
 
                     /* Check if current cmd contains blocked keys. */
                     if (op->argc > 1 && checkKeysInMediateState(server.master) == C_ERR) {
@@ -3890,9 +3900,6 @@ int processCommand(client *c) {
     if (server.jdjr_mode && c->argc > 1 && c == server.master && !(c->ssdb_conn_flags & CONN_SUCCESS)) {
         updateSlaveSSDBwriteIndex();
         saveSlaveSSDBwriteOp(c, server.last_send_writeop_time, server.last_send_writeop_index);
-        /* the c->argv pointer is reused by saveSlaveSSDBwriteOp, set to NULL avoid it to be
-         * freed by resetClient. */
-        c->argv = NULL;
         return C_OK;
     }
 
@@ -3902,10 +3909,7 @@ int processCommand(client *c) {
         return C_ERR;
     }
 
-    if (server.master == c)
-        ret = runCommandReplicationConn(c, NULL);
-    else
-        ret = runCommand(c);
+    ret = runCommand(c);
 
     if (listLength(server.ready_keys))
         handleClientsBlockedOnLists();
