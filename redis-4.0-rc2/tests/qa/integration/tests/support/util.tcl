@@ -719,7 +719,7 @@ proc wait_ssdb_reconnect {{level 0}} {
     r $level set foonull null
     while {$retry} {
         catch {[r $level storetossdb foonull]} err
-        if {[string match "*OK*" $err]} {
+        if {![string match "*ERR*disconnected*" $err]} {
             break
         }
         incr retry -1
