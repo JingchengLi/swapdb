@@ -66,9 +66,6 @@ void *ssdb_sync(void *arg) {
 
     std::vector<std::string> kvs;
 
-    int ret = 0;
-    bool complete = false;
-
 
     int64_t lastHeartBeat = time_ms();
     while (!job->quit) {
@@ -81,7 +78,7 @@ void *ssdb_sync(void *arg) {
 
                 std::unique_ptr<RedisResponse> t_res(redisUpstream.sendCommand({"ssdb-notify-redis", "transfer", "continue"}));
                 if (!t_res) {
-                    //log
+                    log_warn("send transfer continue to redis<%s:%d> failed", serv->redisConf.ip.c_str(), serv->redisConf.port);
                 }
 
                 lastHeartBeat = time_ms();
@@ -264,7 +261,6 @@ void *ssdb_sync(void *arg) {
 
                 } else if (oper == "complete") {
                     link->input->decr(link->input->size() - decoder.size());
-                    complete = true;
                     job->quit = true;
                 } else {
                     //TODO 处理遇到的 oper_len == 0 ???
@@ -292,9 +288,14 @@ void *ssdb_sync(void *arg) {
         kvs.clear();
     }
 
+    log_info("[ssdb_sync] expiration starting");
+
     if (serv->ssdb->expiration != nullptr) {
         serv->ssdb->expiration->start();
     }
+
+    log_info("[ssdb_sync] ssdb starting");
+
     serv->ssdb->start();
 
     if (errorCode != 0) {
@@ -303,6 +304,9 @@ void *ssdb_sync(void *arg) {
 
         if (job->heartbeat) {
             std::unique_ptr<RedisResponse> t_res(redisUpstream.sendCommand({"ssdb-notify-redis", "transfer", "unfinished"}));
+            if (!t_res) {
+                log_warn("send transfer unfinished to redis<%s:%d> failed", serv->redisConf.ip.c_str(), serv->redisConf.port);
+            }
         }
     } else {
         master_link->quick_send({"ok", "recieve snapshot finished"});
@@ -310,6 +314,9 @@ void *ssdb_sync(void *arg) {
 
         if (job->heartbeat) {
             std::unique_ptr<RedisResponse> t_res(redisUpstream.sendCommand({"ssdb-notify-redis", "transfer", "finished"}));
+            if (!t_res) {
+                log_warn("send transfer finished to redis<%s:%d> failed", serv->redisConf.ip.c_str(), serv->redisConf.port);
+            }
         }
     }
 
