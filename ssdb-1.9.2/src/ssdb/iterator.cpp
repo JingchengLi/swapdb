@@ -108,11 +108,6 @@ bool MIterator::next(){
 		}
 		key = mk.key;
 
-		Bytes vs = it->val();
-//		this->rawKey = it->key().String();
-//		this->rawVal = it->val().String();
-		this->dataType = vs.data()[0];
-		this->delType = vs.data()[3];
 		return true;
 	}
 	return false;
@@ -166,7 +161,6 @@ SIterator::SIterator(Iterator *it, const Bytes &name, uint16_t version) {
 
 SIterator::~SIterator() {
 	delete it;
-	it = NULL;
 }
 
 bool SIterator::next() {

@@ -53,11 +53,7 @@ private:
 
 class MIterator{
 public:
-	char dataType;
-	char delType;
 	std::string key;
-//    std::string rawVal;
-//    std::string rawKey;
 
 	MIterator(Iterator *it);
 	~MIterator();
