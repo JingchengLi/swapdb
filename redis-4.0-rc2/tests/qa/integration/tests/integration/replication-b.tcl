@@ -83,7 +83,7 @@ config {real.conf}} {
             wait_for_condition 10 100 {
                 [$master dbsize] == [[lindex $slaves 0] dbsize]
             } else {
-                puts [ populate_diff_keys $master [lindex $slaves 0] 5 ]
+                # puts [ populate_diff_keys $master [lindex $slaves 0] 5 ]
                 fail "Different number of keys between master and slave after too long time."
             }
             wait_for_condition 100 100 {
