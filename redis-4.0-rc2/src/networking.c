@@ -31,7 +31,7 @@
 #include <sys/uio.h>
 #include <math.h>
 #include <ctype.h>
-#define TEST_CLIENT_BUF
+//#define TEST_CLIENT_BUF
 
 static void setProtocolError(const char *errstr, client *c, int pos);
 
@@ -1962,9 +1962,8 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
     do {
         int conn_read_bytes = 0;
         int reply_len = 0;
-#ifdef TEST_CLIENT_BUF
         int oldlen = r->len;
-#endif
+
         if (redisBufferRead(c->context) == REDIS_OK) {
 
             /* the returned 'aux' may be NULL when redisGetReplyFromReader return REDIS_OK,

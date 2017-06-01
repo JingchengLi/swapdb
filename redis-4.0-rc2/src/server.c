@@ -3552,6 +3552,13 @@ int runCommandReplicationConn(client *c, listNode* writeop_ln) {
 }
 
 int runCommand(client *c) {
+    int ret;
+    if (c == server.master) {
+        ret = runCommandReplicationConn(server.master, NULL);
+        resetClient(server.master);
+        return ret;
+    }
+
     /* Check the migrating keys. Don not move out from runCommand as async operations. */
     if (server.jdjr_mode) {
         robj *firstkey = NULL;
@@ -3572,7 +3579,7 @@ int runCommand(client *c) {
 
     /* Exec the command */
     if (server.jdjr_mode) {
-        int ret = processCommandMaybeInSSDB(c);
+        ret = processCommandMaybeInSSDB(c);
         if (ret == C_OK) {
             /* The client will be reseted in sendCommandToSSDB if C_FD_ERR
               is returned in sendCommandToSSDB.
