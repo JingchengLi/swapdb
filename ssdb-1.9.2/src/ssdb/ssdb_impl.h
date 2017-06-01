@@ -128,7 +128,7 @@ public:
 	virtual int incr(Context &ctx, const Bytes &key,int64_t by, int64_t *new_val);
 	virtual int incrbyfloat(Context &ctx, const Bytes &key,long double by, long double *new_val);
 	virtual int multi_set(Context &ctx, const std::vector<Bytes> &kvs, int offset=0);
-	virtual int multi_del(Context &ctx, const std::set<Bytes> &keys, int64_t *count);
+	virtual int multi_del(Context &ctx, const std::set<std::string> &keys, int64_t *count);
 	virtual int setbit(Context &ctx, const Bytes &key,int64_t bitoffset, int on, int *res);
 	virtual int getbit(Context &ctx, const Bytes &key,int64_t bitoffset, int *res);
 	

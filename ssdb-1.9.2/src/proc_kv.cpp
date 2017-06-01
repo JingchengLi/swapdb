@@ -385,11 +385,11 @@ int proc_multi_del(Context &ctx, Link *link, const Request &req, Response *resp)
 	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(2);
 
-	std::set<Bytes> distinct_keys;
+	std::set<std::string> distinct_keys;
 	std::vector<Bytes>::const_iterator it;
 	it = req.begin() + 1;
 	for(; it != req.end(); ++it){
-		distinct_keys.insert(*it);
+		distinct_keys.insert((*it).String());
 	}
 
 	int64_t num = 0;

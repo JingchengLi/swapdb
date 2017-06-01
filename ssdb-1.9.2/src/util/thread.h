@@ -18,6 +18,7 @@ found in the LICENSE file.
 #include <unordered_map>
 #include <sys/time.h>
 #include <atomic>
+#include <set>
 
 class Mutex{
 	private:
@@ -180,9 +181,7 @@ public:
         g_mutex_.unlock();
     }
 
-	void Lock(const std::string &key) {
-        g_mutex_.lock();
-        g_mutex_.unlock();
+	void lockKeyInternal(const std::string &key) {
 
 		mutex_.lock();
 		typename std::unordered_map<std::string, RefMutex<T> *>::const_iterator it = records_.find(key);
@@ -209,6 +208,13 @@ public:
 		}
 	}
 
+	void Lock(const std::string &key) {
+        g_mutex_.lock();
+        g_mutex_.unlock();
+
+		lockKeyInternal(key);
+	}
+
 	void Unlock(const std::string &key) {
 		mutex_.lock();
 		typename std::unordered_map<std::string, RefMutex<T> *>::const_iterator it = records_.find(key);
@@ -229,9 +235,10 @@ public:
 		//log_info ("tid=(%u) <Unlock key=(%s) new", pthread_self(), key.c_str());
 	}
 
+	SpinMutexLock g_mutex_;
+
 private:
 	T mutex_;
-    SpinMutexLock g_mutex_;
 
 	std::unordered_map<std::string, RefMutex<T> *> records_;
 	int64_t charge_;
@@ -269,23 +276,32 @@ private:
 template <typename T>
 class RecordLocks {
 public:
-	RecordLocks(RecordMutex<T> *mu)
-            : mu_(mu) {
+	RecordLocks(RecordMutex<T> *mu, const std::set<std::string> &distinct_keys)
+            : mu_(mu), distinct_keys(distinct_keys) {
     }
+
     ~RecordLocks() {
-		for (int i = 0; i < keys_.size(); ++i) {
-			mu_->Unlock(keys_[i]);
+		for (auto key : distinct_keys) {
+			mu_->Unlock(key);
 		}
+
 	}
 
-	void Lock(const std::string& key_) {
-		mu_->Lock(key_);
-		keys_.push_back(key_);
+	void Lock() {
+		mu_->g_mutex_.lock();
+
+		for (auto key : distinct_keys) {
+			mu_->lockKeyInternal(key);
+		}
+
+		mu_->g_mutex_.unlock();
+
 	};
 
 private:
     RecordMutex<T> *const mu_;
-    std::vector<std::string> keys_;
+
+	const std::set<std::string> &distinct_keys;
 
     // No copying allowed
 	RecordLocks(const RecordLocks&);

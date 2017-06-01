@@ -161,31 +161,25 @@ int SSDBImpl::multi_set(Context &ctx, const std::vector<Bytes> &kvs, int offset)
 	return rval;
 }
 
-int SSDBImpl::multi_del(Context &ctx, const std::set<Bytes> &distinct_keys, int64_t *num){ //注：redis中不支持该接口
+int SSDBImpl::multi_del(Context &ctx, const std::set<std::string> &distinct_keys, int64_t *num){
 	leveldb::WriteBatch batch;
 
-//    RecordLocks<Mutex> l(&mutex_record_);
+    RecordLocks<Mutex> ls(&mutex_record_, distinct_keys);
 
-
-    std::set<Bytes>::const_iterator itor = distinct_keys.begin();
-	for(; itor != distinct_keys.end(); itor++){
-		const Bytes &key = *itor;
-//        l.Lock(key.String());
-        RecordKeyLock l(&mutex_record_, key.String());
+    for (const auto &key : distinct_keys) {
         int iret = del_key_internal(ctx, key, batch);
         if (iret < 0) {
             return iret;
         }
 
         *num = (*num) + iret;
-	}
-//	if ((*num) > 0){
-		leveldb::Status s = CommitBatch(ctx, &(batch));
-		if(!s.ok()){
-			log_error("multi_del error: %s", s.ToString().c_str());
-			return STORAGE_ERR;
-		}
-//	}
+    }
+
+    leveldb::Status s = CommitBatch(ctx, &(batch));
+    if(!s.ok()){
+        log_error("multi_del error: %s", s.ToString().c_str());
+        return STORAGE_ERR;
+    }
 
 	return 1;
 }
@@ -248,7 +242,10 @@ int SSDBImpl::getset(Context &ctx, const Bytes &key, std::pair<std::string, bool
 int SSDBImpl::del_key_internal(Context &ctx, const Bytes &key, leveldb::WriteBatch &batch) {
     std::string meta_key = encode_meta_key(key);
     std::string meta_val;
-    leveldb::Status s = ldb->Get(leveldb::ReadOptions(), meta_key, &meta_val);
+    leveldb::ReadOptions readOptions = leveldb::ReadOptions();
+    readOptions.fill_cache = false;
+
+    leveldb::Status s = ldb->Get(readOptions, meta_key, &meta_val);
     if (s.IsNotFound()) {
         return 0;
     } else if (!s.ok()) {

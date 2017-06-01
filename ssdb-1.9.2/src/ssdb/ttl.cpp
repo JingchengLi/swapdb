@@ -239,24 +239,8 @@ void ExpirationHandler::expire_loop() {
     int64_t score;
     std::string key;
 
-//
-//    if (this->fast_keys.front(&key, &score)) {
-//        this->first_timeout = score;
-//
-//        int64_t latency = time_ms() - score;
-//
-//        if (latency >= 0) {
-//            log_debug("expired %s latency %d", hexstr(key).c_str(), latency);
-//
-//            ssdb->del(ctx, key);
-//
-//            this->fast_keys.pop_front();
-//        }
-//    }
-//
 
-    std::vector<std::string> keys;
-    std::set<Bytes> bkeys;
+    std::set<std::string> keys;
 
     {
         Locking<Mutex> exl(&this->mutex);
@@ -268,25 +252,20 @@ void ExpirationHandler::expire_loop() {
 
             if (latency >= 0) {
                 log_debug("expired %s latency %d", hexstr(key).c_str(), latency);
-                keys.push_back(key);
+                keys.insert(key);
                 this->fast_keys.pop_front();
             } else {
                 break;
             }
 
-            if (count > 20) break;
+            if (count > 101) break;
         }
     }
-
-    for (int i = 0; i < keys.size(); ++i) {
-        bkeys.insert(Bytes(keys[i]));
-    }
-
 
     Context ctx;
 
     int64_t num = 0;
-    ssdb->multi_del(ctx, bkeys, &num);
+    ssdb->multi_del(ctx, keys, &num);
 
 }
 
