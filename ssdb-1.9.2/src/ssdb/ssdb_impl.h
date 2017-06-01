@@ -291,6 +291,10 @@ private:
     int genericZrangebylex(Context &ctx, const Bytes &name,const Bytes &key_start, const Bytes &key_end, std::vector<string> &keys,
 						   long offset, long limit, int save, int64_t *count);
 
+	template <typename L>
+	int hincrCommon(Context &ctx, const Bytes &name, const Bytes &key, L lambda);
+    int hsetCommon(Context &ctx, const Bytes &name, const Bytes &key, const Bytes &val, int *added, bool nx);
+
 private:
 	//    pthread_mutex_t mutex_bgtask_;
 	Mutex mutex_bgtask_;

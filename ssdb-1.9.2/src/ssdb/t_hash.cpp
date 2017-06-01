@@ -17,85 +17,11 @@ int SSDBImpl::hmset(Context &ctx, const Bytes &name, const std::map<Bytes ,Bytes
 }
 
 int SSDBImpl::hset(Context &ctx, const Bytes &name, const Bytes &key, const Bytes &val, int *added){
-	RecordKeyLock l(&mutex_record_, name.String());
-	leveldb::WriteBatch batch;
-
-    int ret = 0;
-    HashMetaVal hv;
-    std::string meta_key = encode_meta_key(name);
-    ret = GetHashMetaVal(meta_key, hv);
-    if(ret < 0) {
-        return ret;
-    }
-
-    *added = hset_one(batch, hv, true, name, key, val);
-	if(*added < 0) {
-		return *added;
-	}
-
-	int iret = incr_hsize(ctx, name, batch, meta_key , hv, *added);
-	if (iret < 0) {
-		return iret;
-	} else if (iret == 0) {
-        ret = 0;
-	} else {
-        ret = 1;
-    }
-
-	leveldb::Status s = CommitBatch(ctx, &(batch));
-	if(!s.ok()){
-		log_error("error: %s", s.ToString().c_str());
-		return STORAGE_ERR;
-	}
-
-	return ret;
+    return hsetCommon(ctx, name, key, val ,added, false);
 }
 
 int SSDBImpl::hsetnx(Context &ctx, const Bytes &name, const Bytes &key, const Bytes &val, int *added){
-	RecordKeyLock l(&mutex_record_, name.String());
-	leveldb::WriteBatch batch;
-
-    int ret = 0;
-    HashMetaVal hv;
-    std::string meta_key = encode_meta_key(name);
-    ret = GetHashMetaVal(meta_key, hv);
-    if(ret < 0) {
-        return ret;
-    } else if (ret == 1) {
-        std::string dbval;
-        std::string hkey = encode_hash_key(name, key, hv.version);
-
-        ret = GetHashItemValInternal(hkey, &dbval);
-        if (ret == 1) {
-            *added = 0;
-			return ret;
-		} else if (ret < 0) {
-            return ret;
-        }
-    }
-
-    //ret == 0
-	*added = hset_one(batch, hv, false, name, key, val);
-	if(added < 0) {
-		return *added;
-	}
-
-	int iret =incr_hsize(ctx, name, batch, meta_key , hv, *added);
-	if (iret < 0) {
-		return iret;
-	} else if (iret == 0) {
-        ret = 0;
-	} else {
-        ret = 1;
-    }
-
-	leveldb::Status s = CommitBatch(ctx, &(batch));
-	if(!s.ok()){
-		log_error("error: %s", s.ToString().c_str());
-		return STORAGE_ERR;
-	}
-
-	return ret;
+    return hsetCommon(ctx, name, key, val ,added, true);
 }
 
 
@@ -144,137 +70,64 @@ int SSDBImpl::hdel(Context &ctx, const Bytes &name, const std::set<Bytes> &field
 
 
 int SSDBImpl::hincrbyfloat(Context &ctx, const Bytes &name, const Bytes &key, long double by, long double *new_val){
-    RecordKeyLock l(&mutex_record_, name.String());
-    leveldb::WriteBatch batch;
 
-    int ret = 0;
-    HashMetaVal hv;
-    std::string meta_key = encode_meta_key(name);
-    ret = GetHashMetaVal(meta_key, hv);
-    if(ret < 0) {
-        return ret;
-    }
+	auto func = [&] (leveldb::WriteBatch &batch, const HashMetaVal &hv, const std::string &old, int ret) {
 
-    std::string old;
-    if (ret > 0) {
-        std::string hkey = encode_hash_key(name, key, hv.version);
-        ret = GetHashItemValInternal(hkey, &old);
-    }
+		if (ret == 0) {
+			*new_val = by;
 
-	int added = 0;
+		} else {
 
-	if(ret < 0) {
-		return ret;
-	} else if (ret == 0) {
-        *new_val = by;
-		added = hset_one(batch, hv, false, name, key, str(*new_val));
+			long double oldvalue = str_to_long_double(old.c_str(), old.size());
+			if (errno == EINVAL){
+				return INVALID_DBL;
+			}
 
-	} else {
+			if ((by < 0 && oldvalue < 0 && by < (DBL_MAX -oldvalue)) ||
+				(by > 0 && oldvalue > 0 && by > (DBL_MAX -oldvalue))) {
+				return DBL_OVERFLOW;
+			}
 
-        long double oldvalue = str_to_long_double(old.c_str(), old.size());
-		if (errno == EINVAL){
-			return INVALID_DBL;
+			*new_val = oldvalue + by;
+
+			if (std::isnan(*new_val) || std::isinf(*new_val)) {
+				return INVALID_INCR_PDC_NAN_OR_INF;
+			}
+
 		}
 
-        if ((by < 0 && oldvalue < 0 && by < (DBL_MAX -oldvalue)) ||
-            (by > 0 && oldvalue > 0 && by > (DBL_MAX -oldvalue))) {
-            return DBL_OVERFLOW;
-        }
-
-        *new_val = oldvalue + by;
-
-		if (std::isnan(*new_val) || std::isinf(*new_val)) {
-			return INVALID_INCR_PDC_NAN_OR_INF;
-		}
-
-		hset_one(batch, hv, false, name, key, str(*new_val));
-	}
+        return hset_one(batch, hv, false, name, key, str(*new_val));
+    };
 
 
-    if(added < 0){
-        return added;
-    }
-
-    int iret = incr_hsize(ctx, name, batch, meta_key , hv, added);
-	if (iret < 0) {
-		return iret;
-	} else if (iret == 0) {
-        ret = 0;
-	} else {
-        ret = 1;
-    }
-
-	leveldb::Status s = CommitBatch(ctx, &(batch));
-	if(!s.ok()){
-		log_error("error: %s", s.ToString().c_str());
-		return STORAGE_ERR;
-	}
-
-    return ret;
+	return this->hincrCommon<decltype(func)>(ctx, name, key, func);
 }
 
 int SSDBImpl::hincr(Context &ctx, const Bytes &name, const Bytes &key, int64_t by, int64_t *new_val){
-	RecordKeyLock l(&mutex_record_, name.String());
-	leveldb::WriteBatch batch;
 
-    int ret = 0;
-    HashMetaVal hv;
-    std::string meta_key = encode_meta_key(name);
-    ret = GetHashMetaVal(meta_key, hv);
-    if(ret < 0) {
-        return ret;
-    }
+    auto func = [&] (leveldb::WriteBatch &batch, const HashMetaVal &hv, const std::string &old, int ret) {
 
-    std::string old;
-    if (ret > 0) {
-        std::string hkey = encode_hash_key(name, key, hv.version);
-        ret = GetHashItemValInternal(hkey, &old);
-    }
+        if (ret == 0) {
+            *new_val = by;
 
-    if(ret < 0) {
-        return ret;
-    }
+        } else {
+            long long oldvalue;
+            if (string2ll(old.c_str(), old.size(), &oldvalue) == 0) {
+                return INVALID_INT;
+            }
+            if ((by < 0 && oldvalue < 0 && by < (LLONG_MIN-oldvalue)) ||
+                (by > 0 && oldvalue > 0 && by > (LLONG_MAX-oldvalue))) {
+                return INT_OVERFLOW;
+            }
+            *new_val = oldvalue + by;
 
-	int added = 0;
-
-    if (ret == 0) {
-        *new_val = by;
-		added = hset_one(batch, hv, false, name, key, str(*new_val));
-
-	} else {
-        long long oldvalue;
-        if (string2ll(old.c_str(), old.size(), &oldvalue) == 0) {
-            return INVALID_INT;
         }
-        if ((by < 0 && oldvalue < 0 && by < (LLONG_MIN-oldvalue)) ||
-            (by > 0 && oldvalue > 0 && by > (LLONG_MAX-oldvalue))) {
-            return INT_OVERFLOW;
-        }
-        *new_val = oldvalue + by;
-		hset_one(batch, hv, false, name, key, str(*new_val));
-	}
 
-	if(added < 0){
-		return added;
-	}
-
-	int iret = incr_hsize(ctx, name, batch, meta_key , hv, added);
-	if (iret < 0) {
-		return iret;
-	} else if (iret == 0) {
-        ret = 0;
-    } else {
-        ret = 1;
-    }
+        return hset_one(batch, hv, false, name, key, str(*new_val));
+    };
 
 
-    leveldb::Status s = CommitBatch(ctx, &(batch));
-	if(!s.ok()){
-		log_error("error: %s", s.ToString().c_str());
-		return STORAGE_ERR;
-	}
-
-	return ret;
+    return this->hincrCommon<decltype(func)>(ctx, name, key, func);
 }
 
 int SSDBImpl::hsize(Context &ctx, const Bytes &name, uint64_t *size){
@@ -447,6 +300,58 @@ int SSDBImpl::GetHashItemValInternal(const std::string &item_key, std::string *v
 		return STORAGE_ERR;
 	}
 	return 1;
+}
+
+
+int SSDBImpl::hsetCommon(Context &ctx, const Bytes &name, const Bytes &key, const Bytes &val, int *added, bool nx) {
+    RecordKeyLock l(&mutex_record_, name.String());
+    leveldb::WriteBatch batch;
+
+    int ret = 0;
+    HashMetaVal hv;
+    std::string meta_key = encode_meta_key(name);
+    ret = GetHashMetaVal(meta_key, hv);
+    if(ret < 0) {
+        return ret;
+    }
+
+    if (nx) {
+        if (ret == 1) {
+            std::string dbval;
+            std::string hkey = encode_hash_key(name, key, hv.version);
+
+            ret = GetHashItemValInternal(hkey, &dbval);
+            if (ret == 1) {
+                *added = 0;
+                return ret;
+            } else if (ret < 0) {
+                return ret;
+            }
+        }
+    }
+
+    //ret == 0
+    *added = hset_one(batch, hv, (!nx), name, key, val);
+    if(added < 0) {
+        return *added;
+    }
+
+    int iret =incr_hsize(ctx, name, batch, meta_key , hv, *added);
+    if (iret < 0) {
+        return iret;
+    } else if (iret == 0) {
+        ret = 0;
+    } else {
+        ret = 1;
+    }
+
+    leveldb::Status s = CommitBatch(ctx, &(batch));
+    if(!s.ok()){
+        log_error("error: %s", s.ToString().c_str());
+        return STORAGE_ERR;
+    }
+
+    return ret;
 }
 
 
