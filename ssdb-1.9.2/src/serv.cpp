@@ -959,24 +959,6 @@ int proc_repopid(Context &ctx, Link *link, const Request &req, Response *resp) {
     return 0;
 }
 
-int proc_after_proc(Context &ctx, Link *link, const Request &req, Response *resp) {
-    SSDBServer *serv = (SSDBServer *)ctx.net->data;
-
-    if (req[0] == "repopid") {
-        return 0;
-    }
-
-    log_debug("proc_after_proc");
-
-//    std::pair<uint64_t, uint64_t> commitedInfo = serv->ssdb->getCommitedInfo();
-
-//    resp->r.timestamp = commitedInfo.first;
-//    resp->r.id = commitedInfo.second;
-
-
-    return 0;
-}
-
 
 
 int proc_ssdb_sync(Context &ctx, Link *link, const Request &req, Response *resp){

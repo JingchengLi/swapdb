@@ -19,8 +19,6 @@ static DEF_PROC(ping);
 static DEF_PROC(info);
 static DEF_PROC(auth);
 
-DEF_PROC(after_proc);
-
 
 #define TICK_INTERVAL          100 // ms
 #define STATUS_REPORT_TICKS    (300 * 1000/TICK_INTERVAL) // second
