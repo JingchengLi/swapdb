@@ -43,7 +43,7 @@ void ExpirationHandler::start() {
 
 void ExpirationHandler::stop() {
 
-    log_info("ExpirationHandler stop");
+    log_info("ExpirationHandler stopping");
 
     thread_quit = true;
     for (int i = 0; i < 100; i++) {

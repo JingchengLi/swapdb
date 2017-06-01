@@ -33,7 +33,7 @@ found in the LICENSE file.
 
 SSDBImpl::SSDBImpl()  {
     ldb = NULL;
-    this->bgtask_flag_ = true;
+    this->bgtask_quit = false;
     expiration = NULL;
 }
 
@@ -444,7 +444,7 @@ leveldb::Status SSDBImpl::CommitBatch(Context &ctx, leveldb::WriteBatch *updates
 
 
 void SSDBImpl::start() {
-    this->bgtask_flag_ = true;
+    this->bgtask_quit = false;
     int err = pthread_create(&bg_tid_, NULL, &thread_func, this);
     if (err != 0) {
         log_fatal("can't create thread: %s", strerror(err));
@@ -454,10 +454,11 @@ void SSDBImpl::start() {
 
 void SSDBImpl::stop() {
     Locking<Mutex> l(&this->mutex_bgtask_);
+    log_info("del thread stopping");
 
-    this->bgtask_flag_ = false;
+    this->bgtask_quit = true;
     for (int i = 0; i < 100; i++) {
-        if (!bgtask_flag_) {
+        if (!bgtask_quit) {
             break;
         }
         log_info("waiting for del thread stop");
@@ -577,7 +578,7 @@ void SSDBImpl::delete_key_loop(const std::string &del_key) {
 }
 
 void SSDBImpl::runBGTask() {
-    while (bgtask_flag_) {
+    while (!bgtask_quit) {
         mutex_bgtask_.lock();
         if (tasks_.empty()) {
             load_delete_keys_from_db(1000);
@@ -600,7 +601,7 @@ void SSDBImpl::runBGTask() {
         }
     }
 
-    bgtask_flag_ = true;
+    bgtask_quit = false;
 }
 
 void *SSDBImpl::thread_func(void *arg) {

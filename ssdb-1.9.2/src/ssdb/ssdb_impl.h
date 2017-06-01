@@ -294,7 +294,7 @@ private:
 private:
 	//    pthread_mutex_t mutex_bgtask_;
 	Mutex mutex_bgtask_;
-	std::atomic<bool> bgtask_flag_;
+	std::atomic<bool> bgtask_quit;
 	pthread_t bg_tid_;
     std::queue<std::string> tasks_;
 
