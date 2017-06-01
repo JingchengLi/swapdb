@@ -4876,8 +4876,8 @@ void storetossdbCommand(client *c) {
 
     /* Try restoring the redis dumped data to SSDB. */
     if (prologOfEvictingToSSDB(keyobj, c->db) != C_OK) {
-        addReplyErrorFormat(c,"ssdb connection for key transfer/load is diconnected");
-        serverLog(LL_DEBUG, "ssdb connection for key transfer/load is diconnected");
+        addReplyErrorFormat(c,"ssdb connection for key transfer/load is disconnected");
+        serverLog(LL_DEBUG, "ssdb connection for key transfer/load is disconnected");
         return;
     }
 

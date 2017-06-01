@@ -1182,7 +1182,7 @@ static void revertClientBufReply(client *c, size_t revertlen) {
             } else {
 #ifdef TEST_CLIENT_BUF
                 cursor = cursor-length;
-                sdscpylen(cursor, tail, length);
+                memcpy(cursor, tail, length);
 #endif
                 listDelNode(c->reply, ln);
                 c->reply_bytes -= length;

@@ -1385,23 +1385,33 @@ void startToEvictIfNeeded() {
 
 #define RESERVED_MEMORY_WHEN_LOAD (1024*1024*2)
 int isMeetLoadCondition() {
-    if (server.ssdb_client == NULL || !(server.ssdb_client->ssdb_conn_flags & CONN_SUCCESS)) return 0;
-
-    int mem_free = server.maxmemory - zmalloc_used_memory();
-
-    if (server.maxmemory > 0 && mem_free <= RESERVED_MEMORY_WHEN_LOAD) return 0;
-
     if (!server.hot_keys || !dictSize(server.hot_keys))
         return 0;
 
-    if (memoryReachLoadUpperLimit()) {
+    if (server.is_allow_ssdb_write == DISALLOW_SSDB_WRITE ||
+        server.prohibit_ssdb_read_write == PROHIBIT_SSDB_READ_WRITE) {
+        serverLog(LL_DEBUG, "replication write check write is going on.");
         return 0;
     }
 
-    if (server.is_allow_ssdb_write == DISALLOW_SSDB_WRITE ||
-        server.prohibit_ssdb_read_write == PROHIBIT_SSDB_READ_WRITE)
-        return 0;
+    if (server.ssdb_client == NULL || !(server.ssdb_client->ssdb_conn_flags & CONN_SUCCESS)) {
+        serverLog(LL_DEBUG, "server.ssdb_client is not connected");
+        goto clean_hot_keys;
+    }
+
+    int mem_free = server.maxmemory - zmalloc_used_memory();
+
+    if (server.maxmemory > 0 && mem_free <= RESERVED_MEMORY_WHEN_LOAD)
+        goto clean_hot_keys;
+
+    if (memoryReachLoadUpperLimit())
+        goto clean_hot_keys;
+
     return 1;
+
+clean_hot_keys:
+    cleanAndSignalHotKeys();
+    return 0;
 }
 
 /* when the visiting count of this key in visiting_ssdb_keys decrese to 0 and this
@@ -1410,7 +1420,6 @@ int isMeetLoadCondition() {
  * load the key immediately if the key is in server.hot_keys. */
 void loadThisKeyImmediately(sds key) {
     if (0 == isMeetLoadCondition()) {
-        cleanAndSignalHotKeys();
         return;
     }
 
@@ -1433,7 +1442,6 @@ void startToLoadIfNeeded() {
     dictEntry *de;
 
     if (0 == isMeetLoadCondition()) {
-        cleanAndSignalHotKeys();
         return;
     }
 
@@ -3388,14 +3396,17 @@ void cleanAndSignalImmediateKeys(dict* dictory) {
 }
 
 void cleanAndSignalDeleteConfirmKeys() {
+    serverLog(LL_DEBUG, "clean and signal delete confirm keys");
     cleanAndSignalImmediateKeys(server.db[EVICTED_DATA_DBID].delete_confirm_keys);
 }
 
 void cleanAndSignalHotKeys() {
+    serverLog(LL_DEBUG, "clean and signal hot keys to be load");
     cleanAndSignalImmediateKeys(server.hot_keys);
 }
 
 void cleanAndSignalLoadingOrTransferringKeys() {
+    serverLog(LL_DEBUG, "clean and signal all loading/transferring/hot keys");
     cleanAndSignalImmediateKeys(server.db[EVICTED_DATA_DBID].transferring_keys);
     cleanAndSignalImmediateKeys(server.db[EVICTED_DATA_DBID].loading_hot_keys);
     cleanAndSignalImmediateKeys(server.hot_keys);
