@@ -659,10 +659,7 @@ template<class W, class JOB>
 int WorkerPool<W, JOB>::stop(){
 	// TODO: notify works quit and wait
 	for(int i=0; i<tids.size(); i++){
-#ifdef OS_ANDROID
-#else
 		pthread_cancel(tids[i]);
-#endif
 	}
 	started = false;
 	return 0;

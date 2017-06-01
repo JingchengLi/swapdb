@@ -130,4 +130,13 @@ FILE * log_fd();
 	#define log_fatal(fmt, args...) do{}while(0)
 #endif
 
+
+//#define NET_DEBUG ON
+
+#ifdef NET_DEBUG
+#define net_debug(fmt, args...) log_write(Logger::LEVEL_DEBUG, "%s:%d " fmt, __FILENAME__, __LINE__, ##args)
+#else
+#define net_debug(fmt, args...) do {} while (0)
+#endif
+
 #endif

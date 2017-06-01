@@ -326,6 +326,11 @@ SSDBServer::~SSDBServer() {
 
     {
         Locking<Mutex> l(&replicMutex);
+
+        if(replicState == REPLIC_TRANS) {
+            log_error("The replication is not finish");
+        }
+
         if (replicSnapshot != nullptr) {
             ssdb->ReleaseSnapshot(replicSnapshot);
         }
@@ -861,6 +866,7 @@ int proc_rr_del_snapshot(Context &ctx, Link *link, const Request &req, Response 
             log_error("The replication is not finish");
             resp->push_back("ok");
             resp->push_back("rr_del_snapshot nok");
+            return 0;
         }
 
         if (serv->replicSnapshot != nullptr){

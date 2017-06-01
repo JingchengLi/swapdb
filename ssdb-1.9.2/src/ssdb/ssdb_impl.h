@@ -297,7 +297,7 @@ private:
 	std::atomic<bool> bgtask_flag_;
 	pthread_t bg_tid_;
     std::queue<std::string> tasks_;
-	CondVar bg_cv_;
+
 	RecordKeyMutex mutex_record_;
 
 	void load_delete_keys_from_db(int num);

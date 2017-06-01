@@ -31,8 +31,7 @@ found in the LICENSE file.
 #include "iterator.h"
 #include "ssdb_impl.h"
 
-SSDBImpl::SSDBImpl()
-        : bg_cv_(&mutex_bgtask_) {
+SSDBImpl::SSDBImpl()  {
     ldb = NULL;
     this->bgtask_flag_ = true;
     expiration = NULL;
@@ -46,12 +45,15 @@ SSDBImpl::~SSDBImpl() {
     this->stop();
 
     for (auto handle : handles) {
+        log_info("ColumnFamilyHandle %s finalized", handle->GetName().c_str());
         delete handle;
     }
 
     if (ldb) {
+        log_info("DB %s finalized", ldb->GetName().c_str());
         delete ldb;
     }
+
     log_info("SSDBImpl finalized");
 
 #ifdef USE_LEVELDB
@@ -462,7 +464,7 @@ void SSDBImpl::load_delete_keys_from_db(int num) {
     start.append(1, DataType::DELETE);
     auto it = std::unique_ptr<Iterator>(this->iterator(start, "", num));
     while (it->next()) {
-        if (it->key().String()[0] != KEY_DELETE_MASK) {
+        if (it->key().String()[0] != DataType::DELETE) {
             break;
         }
         tasks_.push(it->key().String());

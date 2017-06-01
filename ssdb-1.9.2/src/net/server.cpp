@@ -134,6 +134,7 @@ NetworkServer::~NetworkServer(){
 
 	writer->stop();
 	delete writer;
+
 	reader->stop();
 	delete reader;
 
