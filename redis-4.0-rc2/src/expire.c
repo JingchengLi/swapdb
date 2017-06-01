@@ -113,6 +113,10 @@ void activeExpireCycle(int type) {
     if (server.jdjr_mode)
         dbs_per_call += 1;
 
+    /* We cannot expire keys while clients are paused as the dataset is
+     * supposed to be static. */
+    if (clientsArePaused()) return;
+
     if (type == ACTIVE_EXPIRE_CYCLE_FAST) {
         /* Don't start a fast cycle if the previous cycle did not exited
          * for time limt. Also don't repeat a fast cycle for the same period
