@@ -22,25 +22,19 @@ ExpirationHandler::ExpirationHandler(SSDBImpl *ssdb) {
 }
 
 ExpirationHandler::~ExpirationHandler() {
-    {
-        Locking<Mutex> exl(&this->mutex);
-        fast_keys.clear();
-    }
+    this->clear();
     this->stop();
-    ssdb = NULL;
+    ssdb = nullptr;
 }
 
 void ExpirationHandler::start() {
     thread_quit = false;
 
-    {
-        Locking<Mutex> exl(&this->mutex);
-        fast_keys.clear();
-    }
+    this->clear();
 
     first_timeout = 0;
     pthread_t tid;
-    int err = pthread_create(&tid, NULL, &ExpirationHandler::thread_func, this);
+    int err = pthread_create(&tid, nullptr, &ExpirationHandler::thread_func, this);
     if (err != 0) {
         log_fatal("can't create thread: %s", strerror(err));
         exit(0);
@@ -48,14 +42,19 @@ void ExpirationHandler::start() {
 }
 
 void ExpirationHandler::stop() {
+
+    log_info("ExpirationHandler stop");
+
     thread_quit = true;
     for (int i = 0; i < 100; i++) {
         if (!thread_quit) {
             break;
         }
-        usleep(10 * 1000);
+        log_info("waiting for expiration stop");
+        usleep(100 * 1000);
     }
-    fast_keys.clear();
+
+    this->clear();
     first_timeout = 0;
 }
 
@@ -75,7 +74,8 @@ int ExpirationHandler::convert2ms(int64_t *ttl, TimeUnit tu) {
 }
 
 int ExpirationHandler::expire(Context &ctx, const Bytes &key, int64_t ttl, TimeUnit tu) {
-    if (int ret = convert2ms(&ttl,tu) < 0) {
+    int ret = convert2ms(&ttl,tu);
+    if (ret < 0) {
         return ret;
     }
 
@@ -117,7 +117,7 @@ int ExpirationHandler::expireAt(Context &ctx, const Bytes &key, int64_t pexpirea
         if (ret >= 0) {
             leveldb::Status s = ssdb->CommitBatch(ctx, &(batch));
             if (!s.ok()) {
-                log_error("eset error: %s", s.ToString().c_str());
+                log_error("expireAt CommitBatch error: %s", s.ToString().c_str());
                 return STORAGE_ERR;
             }
         }
@@ -304,7 +304,7 @@ void *ExpirationHandler::thread_func(void *arg) {
 
     log_info("ExpirationHandler thread quit");
     handler->thread_quit = false;
-    return (void *) NULL;
+    return (void *) nullptr;
 }
 
 int ExpirationHandler::cancelExpiration(Context &ctx, const Bytes &key, leveldb::WriteBatch &batch) {

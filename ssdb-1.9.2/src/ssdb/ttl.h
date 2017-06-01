@@ -54,8 +54,8 @@ public:
 
 private:
     SSDBImpl *ssdb;
+
     volatile bool thread_quit;
-//	std::string list_name;
     std::atomic<int64_t> first_timeout;
     SortedSet<int64_t> fast_keys;
 

@@ -35,21 +35,10 @@ void Options::load(const Config &conf){
 	write_buffer_size = (size_t)conf.get_num("rocksdb.write_buffer_size");
 	compression = conf.get_str("rocksdb.compression");
 #endif
-	std::string binlog = conf.get_str("replication.binlog");
-	binlog_capacity = (size_t)conf.get_num("replication.binlog.capacity");
 
 	strtolower(&compression);
 	if(compression != "no"){
 		compression = "yes";
-	}
-	strtolower(&binlog);
-	if(binlog != "yes"){
-		this->binlog = false;
-	}else{
-		this->binlog = true;
-	}
-	if(binlog_capacity <= 0){
-		binlog_capacity = LOG_QUEUE_SIZE;
 	}
 
 	if(cache_size <= 0){

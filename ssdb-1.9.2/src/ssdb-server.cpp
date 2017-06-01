@@ -24,19 +24,19 @@ public:
 void MyApplication::welcome(){
 	fprintf(stderr, "%s %s\n", APP_NAME, APP_VERSION);
 	fprintf(stderr, "Copyright (c) 2012-2015 ssdb.io\n");
-	fprintf(stderr,
-            "　　　　　　 ,-､　　　 　 　　     　..-､\n"
-			"　　  　　 ./::＼　　R2M-SSDB     ／:::ヽ\n"
-			" 　　　　　/::::;ゝ--─---------._/:::::ヽ\n"
-			"　　　　　/,.-‐''\"′ 　　         ＼:::::|\n"
-			" 　　　　／　 　　　　　　　　　　   　ヽ､::|\n"
-			"　　　　/　　　　●　　　 　 　 　 　  　 ヽ|\n"
-			"　　   l　　　､､､　　 　 　 　 　 　 ●　　 l\n"
-			"　　  .|　　　 　　　　(_人__丿　　､､､　 　|\n"
-			"　 　 　l　　　　　　　　　　　　　　　　   l\n"
-			"　　　　` ､　　　　　　         　 　 　 /\n"
-			"　　　　　　`ｰ ､__　　　 　 　 　　  　.／\n"
-			"　　　　　　　　　/`'''ｰ‐‐──‐‐‐┬--- ／\n");
+//	fprintf(stderr,
+//            "　　　　　　 ,-､　　　 　 　　     　..-､\n"
+//			"　　  　　 ./::＼　　R2M-SSDB     ／:::ヽ\n"
+//			" 　　　　　/::::;ゝ--─---------._/:::::ヽ\n"
+//			"　　　　　/,.-‐''\"′ 　　         ＼:::::|\n"
+//			" 　　　　／　 　　　　　　　　　　   　ヽ､::|\n"
+//			"　　　　/　　　　●　　　 　 　 　 　  　 ヽ|\n"
+//			"　　   l　　　､､､　　 　 　 　 　 　 ●　　 l\n"
+//			"　　  .|　　　 　　　　(_人__丿　　､､､　 　|\n"
+//			"　 　 　l　　　　　　　　　　　　　　　　   l\n"
+//			"　　　　` ､　　　　　　         　 　 　 /\n"
+//			"　　　　　　`ｰ ､__　　　 　 　 　　  　.／\n"
+//			"　　　　　　　　　/`'''ｰ‐‐──‐‐‐┬--- ／\n");
 	fprintf(stderr, "\n");
 }
 
@@ -54,7 +54,6 @@ void MyApplication::run(){
 	option.load(*conf);
 
 	std::string data_db_dir = app_args.work_dir + "/data";
-	std::string meta_db_dir = app_args.work_dir + "/meta";
 
 	log_info("ssdb-server %s", APP_VERSION);
 	log_info("conf_file        : %s", app_args.conf_file.c_str());
@@ -63,7 +62,6 @@ void MyApplication::run(){
 	log_info("log_rotate_size  : %" PRId64, Logger::shared()->rotate_size());
 
 	log_info("main_db          : %s", data_db_dir.c_str());
-	log_info("meta_db          : %s", meta_db_dir.c_str());
 	log_info("cache_size       : %d MB", option.cache_size);
 	log_info("block_size       : %d KB", option.block_size);
 #ifdef USE_LEVELDB
@@ -72,8 +70,6 @@ void MyApplication::run(){
 	log_info("write_buffer     : %d MB", option.write_buffer_size);
 	log_info("max_open_files   : %d", option.max_open_files);
 	log_info("compression      : %s", option.compression.c_str());
-	log_info("binlog           : %s", option.binlog? "yes" : "no");
-	log_info("binlog_capacity  : %d", option.binlog_capacity);
 	log_info("sync_speed       : %d MB/s", conf->get_num("replication.sync_speed"));
 
 #ifdef PTIMER
@@ -85,7 +81,6 @@ void MyApplication::run(){
 
 
 	SSDB *data_db = nullptr;
-	SSDB *meta_db = nullptr;
 	data_db = SSDB::open(option, data_db_dir);
 	if(!data_db){
 		log_fatal("could not open data db: %s", data_db_dir.c_str());
@@ -103,15 +98,14 @@ void MyApplication::run(){
 	NetworkServer *net = NULL;	
 	SSDBServer *server;
 	net = NetworkServer::init(*conf);
-	server = new SSDBServer(data_db, meta_db, *conf, net);
+	server = new SSDBServer(data_db, *conf, net);
 	
 	log_info("pidfile: %s, pid: %d", app_args.pidfile.c_str(), (int)getpid());
-	log_info("ssdb server started.");
+	log_info("ssdb server ready.");
 	net->serve();
 	
 	delete net;
 	delete server;
-//	delete meta_db;
 	delete data_db;
 
 	log_info("%s exit.", APP_NAME);

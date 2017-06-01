@@ -289,6 +289,8 @@ void NetworkServer::serve(){
 	uint32_t status_ticks = g_ticks;
 	uint32_t cursor_ticks = g_ticks;
 
+	log_info("ssdb server started.");
+
 	while(!quit){
 		double loop_stime = millitime();
 

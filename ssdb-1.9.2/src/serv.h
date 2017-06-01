@@ -28,19 +28,17 @@ enum ReplicState{
 
 class SSDBServer
 {
-private:
-	void reg_procs(NetworkServer *net);
-
-	SSDB *meta;
-
 public:
+	SSDBServer(SSDB *ssdb, const Config &conf, NetworkServer *net);
+	~SSDBServer();
+
 	SSDBImpl *ssdb;
+    RecordMutex<Mutex> transfer_mutex_record_;
 
     HostAndPort redisConf;
 
-	RecordMutex<Mutex> transfer_mutex_record_;
 
-
+    //replication relate
 	const leveldb::Snapshot* replicSnapshot = nullptr;
     Mutex         			 replicMutex;
     enum ReplicState 		 replicState = REPLIC_START;
@@ -61,8 +59,8 @@ public:
 		}
 	}
 
-	SSDBServer(SSDB *ssdb, SSDB *meta, const Config &conf, NetworkServer *net);
-	~SSDBServer();
+private:
+    void reg_procs(NetworkServer *net);
 
 };
 

@@ -302,9 +302,8 @@ void SSDBServer::reg_procs(NetworkServer *net) {
 #define COMMAND_DATA_DUMP 2
 
 
-SSDBServer::SSDBServer(SSDB *ssdb, SSDB *meta, const Config &conf, NetworkServer *net) {
+SSDBServer::SSDBServer(SSDB *ssdb, const Config &conf, NetworkServer *net) {
     this->ssdb = (SSDBImpl *) ssdb;
-    this->meta = meta;
 
     net->data = this;
     this->reg_procs(net);
@@ -328,7 +327,7 @@ SSDBServer::~SSDBServer() {
         Locking<Mutex> l(&replicMutex);
 
         if(replicState == REPLIC_TRANS) {
-            log_error("The replication is not finish");
+            log_error("The replication is not finish but we are on quiting!");
         }
 
         if (replicSnapshot != nullptr) {

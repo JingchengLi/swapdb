@@ -38,11 +38,12 @@ SSDBImpl::SSDBImpl()  {
 }
 
 SSDBImpl::~SSDBImpl() {
+    this->stop();
+
     if (expiration) {
         delete expiration;
     }
 
-    this->stop();
 
     for (auto handle : handles) {
         log_info("ColumnFamilyHandle %s finalized", handle->GetName().c_str());
@@ -455,6 +456,14 @@ void SSDBImpl::stop() {
     Locking<Mutex> l(&this->mutex_bgtask_);
 
     this->bgtask_flag_ = false;
+    for (int i = 0; i < 100; i++) {
+        if (!bgtask_flag_) {
+            break;
+        }
+        log_info("waiting for del thread stop");
+        usleep(100 * 1000);
+    }
+
     std::queue<std::string> tmp_tasks_;
     tasks_.swap(tmp_tasks_);
 }
@@ -590,6 +599,8 @@ void SSDBImpl::runBGTask() {
             delete_key_loop(del_key);
         }
     }
+
+    bgtask_flag_ = true;
 }
 
 void *SSDBImpl::thread_func(void *arg) {
