@@ -31,6 +31,12 @@ test "Enable AOF in all the instances" {
     }
 }
 
+test "set maxmemory 0" {
+    foreach_redis_id id {
+        R $id config set maxmemory 0
+        R $id config rewrite
+    }
+}
 # Return nno-zero if the specified PID is about a process still in execution,
 # otherwise 0 is returned.
 proc process_is_running {pid} {
@@ -95,6 +101,7 @@ test "Cluster consistency during live resharding" {
         # Not support eval
         # if {$listid % 2} {
             $cluster rpush $key $ele
+            $cluster storetossdb $key
         # } else {
             # $cluster eval {redis.call("rpush",KEYS[1],ARGV[1])} 1 $key $ele
         # }
@@ -106,7 +113,9 @@ test "Cluster consistency during live resharding" {
         }
         if {$j > $numops/2} {
             set r [randomInt $size] ;# rand key
-            $cluster llen [lindex $keys $r]
+            if {rand() < 0.5} {
+                $cluster llen [lindex $keys $r]
+            }
             # puts "key: [lindex $keys $r]"
         }
 
@@ -121,7 +130,29 @@ test "Cluster consistency during live resharding" {
     } else {
         fail "Resharding is not terminating after some time."
     }
+}
 
+test "Verify slaves consistency before the crash & restart" {
+    set verified_masters 0
+    foreach_redis_id id {
+        set role [R $id role]
+        lassign $role myrole myoffset slaves
+        if {$myrole eq {slave}} continue
+        set masterport [get_instance_attrib redis $id port]
+        set masterdigest [R $id debug digest]
+        foreach_redis_id sid {
+            set srole [R $sid role]
+            if {[lindex $srole 0] eq {master}} continue
+            if {[lindex $srole 2] != $masterport} continue
+            wait_for_condition 100 500 {
+                [R $sid debug digest] eq $masterdigest
+            } else {
+                fail "Master and slave data digest are different:master($id) and slave($sid)"
+            }
+            incr verified_masters
+        }
+    }
+    assert {$verified_masters >= 5}
 }
 
 test "Verify $numkeys keys for consistency with logical content" {
@@ -163,7 +194,7 @@ test "Disable AOF in all the instances" {
     }
 }
 
-test "Verify slaves consistency" {
+test "Verify slaves consistency after the crash & restart" {
     set verified_masters 0
     foreach_redis_id id {
         set role [R $id role]

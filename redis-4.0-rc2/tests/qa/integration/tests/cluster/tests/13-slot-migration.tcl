@@ -17,11 +17,11 @@ proc migrate_slot {src des slot} {
         }
         set keys_slot [R $src cluster getkeysinslot $slot 100]
     }
-    R $des cluster setslot $slot node [get_node_by_id $des]
-    R $src cluster setslot $slot node [get_node_by_id $des]
+    foreach_redis_id id {
+        R $id cluster setslot $slot node [get_node_by_id $des]
+    }
     set_slot_addr_map $slot [get_nodeaddr_by_id $des]
-    R $src cluster setslot $slot stable
-    R $des cluster setslot $slot stable
+    # after 1500
 }
 
 proc get_slot_with_keys {} {
@@ -47,19 +47,19 @@ test "Cluster is up" {
 }
 
 set numkeys 50000
-set numops 100
+set numops 50000
 set cluster [redis_cluster 127.0.0.1:[get_instance_attrib redis 0 port]]
 catch {unset content}
 array set content {}
 set tribpid {}
 
 test "Migrate slot without keys" {
-    for {set n 0} {$n < 100} {incr n} {
+    for {set n 0} {$n < 1} {incr n} {
         set key "key:[randomInt $numkeys]"
         set slot [get_slot_by_key $key]
         set sourceId [get_id_by_slot $slot]
         set destinId [expr ($sourceId+1)%5]
-        puts "$slot:$key:$sourceId->$destinId"
+        # puts "$slot:$key:$sourceId->$destinId"
         set keys_slot [R $sourceId cluster getkeysinslot $slot 100]
         while {[llength $keys_slot] > 0} {
             foreach key $keys_slot {
@@ -87,7 +87,6 @@ test "Cluster fill keys" {
         incr ele
         $cluster rpush $key $ele
         lappend content($key) $ele
-        puts "$key: $ele"
 
         if {($j % 1000) == 0} {
             puts -nonewline W; flush stdout
@@ -96,30 +95,27 @@ test "Cluster fill keys" {
 }
 
 test "Migrate slot with keys" {
-for {set n 0} {$n < 100} {incr n} {
-    set slot [ get_slot_with_keys ]
-    puts "slot:$slot"
-    set sourceId [get_id_by_slot $slot]
-    set destinId [expr ($sourceId+1)%5]
-    set key [lindex [R $sourceId cluster getkeysinslot $slot 1] 0]
-    migrate_slot $sourceId $destinId $slot
+    for {set n 0} {$n < 1} {incr n} {
+        set slot [ get_slot_with_keys ]
+        set sourceId [get_id_by_slot $slot]
+        set destinId [expr ($sourceId+1)%5]
+        set key [lindex [R $sourceId cluster getkeysinslot $slot 1] 0]
+        migrate_slot $sourceId $destinId $slot
 
-    puts "$sourceId->$destinId:$slot:$key"
-    assert_equal $content($key) [ R $destinId lrange $key 0 -1 ] "$sourceId->$destinId:$slot:$key:read it before del and restore"
-    set dump [R $destinId dump $key]
-    R $destinId del $key
-    R $destinId restore $key 0 $dump
-    assert_equal $content($key) [ R $destinId lrange $key 0 -1 ] "$sourceId->$destinId:$slot:$key:read it after restore"
-}
+        # puts "$sourceId->$destinId:$slot:$key"
+        assert_equal $content($key) [ R $destinId lrange $key 0 -1 ] "$sourceId->$destinId:$slot:$key:read it before del and restore"
+        set dump [R $destinId dump $key]
+        R $destinId del $key
+        R $destinId restore $key 0 $dump
+        assert_equal $content($key) [ R $destinId lrange $key 0 -1 ] "$sourceId->$destinId:$slot:$key:read it after restore"
+    }
 }
 
 test "Verify $numkeys keys for consistency with logical content" {
     # Check that the Redis Cluster content matches our logical content.
     foreach {key value} [array get content] {
-        puts "verify $key"
         if {[$cluster lrange $key 0 -1] ne $value} {
             fail "Key $key expected to hold '$value' but actual content is [$cluster lrange $key 0 -1]"
         }
     }
 }
-after 1000000

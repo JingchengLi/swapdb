@@ -600,25 +600,28 @@ proc compare_debug_digest {{levels {0 -1}}} {
 
 proc debug_digest {r {level 0}} {
     set oldmemory [lindex [$r $level config get maxmemory] 1 ]
-    set keyslist {}
     # avoid keys transfer to ssdb again after debug digest.
     if {[lindex [$r $level role] 0] == "master"} {
         assert_equal 0 $oldmemory "maxmemory should be 0 for all keys load to redis"
-        $r $level select 16
-        set keyslist [$r $level keys *]
-        $r $level select 0
-        foreach key $keyslist {
-            $r $level exists $key ;#load keys to redis
+        set retry 10
+        while {$retry} {
+            set keyslist [$r $level ssdbkeys *]
+            if {[llength $keyslist] == 0} {break}
+            foreach key $keyslist {
+                $r $level exists $key ;#load keys to redis
+            }
+            after 1000
+        }
+        if {$retry == 0} {
+            error "assertion:master not load all keys after multi access key"
         }
     }
 
-    $r $level select 16
     wait_for_condition 200 100 {
-        [$r $level dbsize] eq 0
+        [s $level keys_in_ssdb_count] eq 0
     } else {
         fail "wait $r $level debug digest timeout."
     }
-    $r $level select 0
 
     set digest [$r $level debug digest]
     return $digest
