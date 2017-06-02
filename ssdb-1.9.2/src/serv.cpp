@@ -324,14 +324,14 @@ SSDBServer::SSDBServer(SSDB *ssdb, const Config &conf, NetworkServer *net) {
 SSDBServer::~SSDBServer() {
 
     {
-        Locking<Mutex> l(&replicMutex);
+        Locking<Mutex> l(&replicState.rMutex);
 
-        if(replicState == REPLIC_TRANS) {
+        if(replicState.inTransState()) {
             log_error("The replication is not finish but we are on quiting!");
         }
 
-        if (replicSnapshot != nullptr) {
-            ssdb->ReleaseSnapshot(replicSnapshot);
+        if (replicState.rSnapshot != nullptr) {
+            ssdb->ReleaseSnapshot(replicState.rSnapshot);
         }
     }
 
@@ -709,27 +709,19 @@ int proc_info(Context &ctx, Link *link, const Request &req, Response *resp) {
 int proc_replic_info(Context &ctx, Link *link, const Request &req, Response *resp) {
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
-
-    const char* ReplicStateString[] = {
-            "REPLIC_START",
-            "REPLIC_TRANS",
-            "REPLIC_END"
-    };
-
-
     resp->reply_list_ready();
     {
         //update replic stats
-        Locking<Mutex> l(&serv->replicMutex);
+        Locking<Mutex> l(&serv->replicState.rMutex);
 
         resp->push_back("replicNumStarted");
-        resp->add(serv->replicNumStarted);
+        resp->add(serv->replicState.numStarted);
         resp->push_back("replicNumFailed");
-        resp->add(serv->replicNumFailed);
+        resp->add(serv->replicState.numFailed);
         resp->push_back("replicNumFinished");
-        resp->add(serv->replicNumFinished);
+        resp->add(serv->replicState.numFinished);
         resp->push_back("replicState");
-        resp->push_back(ReplicStateString[serv->replicState]);
+        resp->push_back(serv->replicState.States[serv->replicState.rState]);
     }
 
     return 0;
@@ -743,11 +735,10 @@ int proc_replic(Context &ctx, Link *link, const Request &req, Response *resp) {
     int port = req[2].Int();
 
     {
-        Locking<Mutex> l(&serv->replicMutex);
-        serv->replicSnapshot = serv->ssdb->GetSnapshot();
+        Locking<Mutex> l(&serv->replicState.rMutex);
+        serv->replicState.rSnapshot = serv->ssdb->GetSnapshot();
 
-        serv->replicState = REPLIC_TRANS;
-        serv->replicNumStarted++;
+        serv->replicState.startReplic();
     }
 
     ReplicationJob *job = new ReplicationJob(ctx, HostAndPort{ip, port}, link);
@@ -812,18 +803,21 @@ int proc_rr_make_snapshot(Context &ctx, Link *link, const Request &req, Response
 
 
     {
-        Locking<Mutex> l(&serv->replicMutex);
+        Locking<Mutex> l(&serv->replicState.rMutex);
 
-        //TODO 判断snapshot是否已经无效.再release
-        if (serv->replicSnapshot != nullptr) {
-            serv->ssdb->ReleaseSnapshot(serv->replicSnapshot);
+        if (serv->replicState.inTransState()) {
+            log_fatal("i am in transferring state, cannot make a new snapshot!");
+            resp->push_back("ok");
+            resp->push_back("rr_make_snapshot nok");
         }
-        serv->replicSnapshot = serv->ssdb->GetSnapshot();
 
-        serv->replicState = REPLIC_START;
-        serv->replicNumStarted = 0;
-        serv->replicNumFinished = 0;
-        serv->replicNumFailed = 0;
+        if (serv->replicState.rSnapshot != nullptr) {
+            serv->ssdb->ReleaseSnapshot(serv->replicState.rSnapshot);
+            serv->replicState.rSnapshot = nullptr;
+        }
+        serv->replicState.rSnapshot = serv->ssdb->GetSnapshot();
+
+        serv->replicState.resetReplic();
     }
 
     resp->push_back("ok");
@@ -839,9 +833,8 @@ int proc_rr_transfer_snapshot(Context &ctx, Link *link, const Request &req, Resp
     int port = req[2].Int();
 
     {
-        Locking<Mutex> l(&serv->replicMutex);
-        serv->replicState = REPLIC_TRANS;
-        serv->replicNumStarted++;
+        Locking<Mutex> l(&serv->replicState.rMutex);
+        serv->replicState.startReplic();
     }
 
     log_info("transfer_snapshot start %s:%d , link address:%lld", ip.c_str(), port, link);
@@ -859,25 +852,21 @@ int proc_rr_del_snapshot(Context &ctx, Link *link, const Request &req, Response 
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
     {
-        Locking<Mutex> l(&serv->replicMutex);
+        Locking<Mutex> l(&serv->replicState.rMutex);
 
-        if(serv->replicState == REPLIC_TRANS) {
+        if(serv->replicState.inTransState()) {
             log_error("The replication is not finish");
             resp->push_back("ok");
             resp->push_back("rr_del_snapshot nok");
             return 0;
         }
 
-        if (serv->replicSnapshot != nullptr){
-            serv->ssdb->ReleaseSnapshot(serv->replicSnapshot);
-            serv->replicSnapshot = nullptr;
+        if (serv->replicState.rSnapshot != nullptr){
+            serv->ssdb->ReleaseSnapshot(serv->replicState.rSnapshot);
+            serv->replicState.rSnapshot = nullptr;
         }
-        log_debug("3:link address:%lld", link);
 
-        serv->replicState = REPLIC_START;
-        serv->replicNumStarted = 0;
-        serv->replicNumFinished = 0;
-        serv->replicNumFailed = 0;
+        serv->replicState.resetReplic();
     }
 
     resp->push_back("ok");

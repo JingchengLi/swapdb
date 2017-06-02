@@ -34,7 +34,6 @@ void ReplicationWorker::init() {
 
 int ReplicationWorker::proc(ReplicationJob *job) {
 
-
     SSDBServer *serv = (SSDBServer *) job->ctx.net->data;
     HostAndPort hnp = job->hnp;
     Link *master_link = job->upstream;
@@ -42,15 +41,14 @@ int ReplicationWorker::proc(ReplicationJob *job) {
 
     log_info("[ReplicationWorker] send snapshot to %s:%d start!", hnp.ip.c_str(), hnp.port);
     {
-        Locking<Mutex> l(&serv->replicMutex);
-        if (serv->replicSnapshot == nullptr) {
+        Locking<Mutex> l(&serv->replicState.rMutex);
+        snapshot = serv->replicState.rSnapshot;
+
+        if (snapshot == nullptr) {
             log_error("snapshot is null, maybe rr_make_snapshot not receive or error!");
-
             reportError(job);
-
             return -1;
         }
-        snapshot = serv->replicSnapshot;
     }
 
     std::unique_ptr<Iterator> fit = std::unique_ptr<Iterator>(serv->ssdb->iterator("", "", -1, snapshot));
@@ -189,7 +187,9 @@ int ReplicationWorker::proc(ReplicationJob *job) {
 
                 {
                     //update replic stats
-                    serv->addReplicResult(false);
+
+                    Locking<Mutex> l(&serv->replicState.rMutex);
+                    serv->replicState.finishReplic(false);
                 }
 
                 return -1;
@@ -289,9 +289,11 @@ int ReplicationWorker::proc(ReplicationJob *job) {
         return -1;
     }
 
-
-    //update replic stats
-    serv->addReplicResult(true);
+    {
+        //update replic stats
+        Locking<Mutex> l(&serv->replicState.rMutex);
+        serv->replicState.finishReplic(true);
+    }
 
     log_info("[ReplicationWorker] send snapshot to %s:%d finished!", hnp.ip.c_str(), hnp.port);
     log_debug("send rr_transfer_snapshot finished!!");
@@ -306,7 +308,8 @@ void ReplicationWorker::reportError(ReplicationJob *job) {
     SSDBServer *serv = (SSDBServer *) job->ctx.net->data;
 
     {
-        serv->addReplicResult(false);
+        Locking<Mutex> l(&serv->replicState.rMutex);
+        serv->replicState.finishReplic(false);
     }
     delete job->upstream;
     job->upstream = nullptr; //reset

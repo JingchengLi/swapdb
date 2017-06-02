@@ -22,6 +22,16 @@ void *ssdb_sync(void *arg) {
 
     delete job;
 
+    {
+        Locking<Mutex> l(&serv->replicState.rMutex);
+
+        if(serv->replicState.inTransState()) {
+            log_fatal("i am in transferring state, should not into this step!!!!!!");
+        }
+
+        serv->replicState.startReplic();
+    }
+
 
     if (serv->ssdb->expiration) {
         serv->ssdb->expiration->stop();
@@ -88,7 +98,6 @@ void *ssdb_sync(void *arg) {
 
 
         if (!ready_list.empty()) {
-            // ready_list not empty, so we should return immediately
             events = fdes->wait(0);
         } else {
             events = fdes->wait(50);
@@ -320,6 +329,11 @@ void *ssdb_sync(void *arg) {
         }
     }
 
+
+    {
+        Locking<Mutex> l(&serv->replicState.rMutex);
+        serv->replicState.finishReplic((errorCode == 0));
+    }
 
     return (void *) NULL;
 }
