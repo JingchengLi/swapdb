@@ -2979,24 +2979,17 @@ void saveSlaveSSDBwriteOp(client *c, time_t time, int index) {
     op->time = time;
     op->index = index;
     op->cmd = c->cmd;
-    // todo: remove flushall branch
-    if (c->cmd->proc == flushallCommand) {
-        op->argc = 1;
-        op->argv = zmalloc(sizeof(robj*) * 1);
-        op->argv[0] = createObject(OBJ_STRING,sdsnew("flushall"));
+    op->argc = c->argc;
+    op->argv = zmalloc(sizeof(robj*) * c->argc);
 
-        server.writeop_mem_size += SDS_MEM_SIZE((char*)op->argv[0]->ptr) + sizeof(robj);
-    } else {
-        op->argc = c->argc;
-        op->argv = zmalloc(sizeof(robj*) * c->argc);
+    /* recored consumed memory size. */
+    for (j = 0; j < c->argc; j++) {
+        incrRefCount(c->argv[j]);
+        op->argv[j] = c->argv[j];
 
-        /* recored consumed memory size. */
-        for (j = 0; j < c->argc; j++) {
-            incrRefCount(c->argv[j]);
-            op->argv[j] = c->argv[j];
-
-            server.writeop_mem_size += SDS_MEM_SIZE((char*)(op->argv[j]->ptr)) + sizeof(robj);
-        }
+        server.writeop_mem_size += sizeof(robj);
+        if (op->argv[j]->type == OBJ_STRING)
+            server.writeop_mem_size += SDS_MEM_SIZE((char*)(op->argv[j]->ptr));
     }
     listAddNodeTail(server.ssdb_write_oplist, op);
 
@@ -3010,8 +3003,11 @@ void freeSSDBwriteOp(struct ssdb_write_op* op) {
     if (op->argv) {
         /* op->argv may be set to NULL in runCommandReplicationConn */
         for (j = 0; j < op->argc; j++) {
+            server.writeop_mem_size -= sizeof(robj);
+            if (op->argv[j]->type == OBJ_STRING)
+                server.writeop_mem_size -= SDS_MEM_SIZE((char*)(op->argv[j]->ptr));
+
             decrRefCount(op->argv[j]);
-            server.writeop_mem_size -= SDS_MEM_SIZE((char*)(op->argv[j]->ptr)) + sizeof(robj);
         }
     }
     if (op->argv) zfree(op->argv);
@@ -3541,7 +3537,9 @@ int runCommandReplicationConn(client *c, listNode* writeop_ln) {
         slave_retry_write->argv = NULL;
 
         for (j = 0; j < c->argc; j++) {
-            server.writeop_mem_size -= SDS_MEM_SIZE((char*)(c->argv[j]->ptr)) + sizeof(robj);
+            server.writeop_mem_size -= sizeof(robj);
+            if (c->argv[j]->type == OBJ_STRING)
+                server.writeop_mem_size -= SDS_MEM_SIZE((char*)(c->argv[j]->ptr));
         }
     }
 
