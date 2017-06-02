@@ -142,10 +142,15 @@ fi
 
 cd "$DIR"
 rm -f src/version.h
+
+
 echo "#ifndef SSDB_DEPS_H" >> src/version.h
 echo "#ifndef SSDB_VERSION" >> src/version.h
 echo "#define SSDB_VERSION \"`cat version`\"" >> src/version.h
 echo "#endif" >> src/version.h
+echo "#define GIT_BUILD \"`git rev-parse HEAD 2>/dev/null`\"" >> src/version.h
+echo "#define BUILD_DATE \"`date +%Y-%m-%dT%H:%M:%S-%Z`\"" >> src/version.h
+
 echo "#endif" >> src/version.h
 case "$TARGET_OS" in
 	CYGWIN*|FreeBSD)
@@ -154,10 +159,8 @@ case "$TARGET_OS" in
         echo "#define OS_ANDROID 1" >> src/version.h
 	;;
 	*)
-		echo "#ifndef IOS" >> src/version.h
-		echo "#include <stdlib.h>" >> src/version.h
-		echo "#include <jemalloc/jemalloc.h>" >> src/version.h
-		echo "#endif" >> src/version.h
+
+	echo "#include <jemalloc/jemalloc.h>" >> src/version.h
 	;;
 esac
 

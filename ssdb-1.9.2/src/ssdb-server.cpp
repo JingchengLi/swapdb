@@ -12,6 +12,8 @@ found in the LICENSE file.
 
 #define APP_NAME "ssdb-server"
 #define APP_VERSION SSDB_VERSION
+#define APP_GIT_BUILD GIT_BUILD
+#define APP_BUILD_DATE BUILD_DATE
 
 class MyApplication : public Application
 {
@@ -56,6 +58,8 @@ void MyApplication::run(){
 	std::string data_db_dir = app_args.work_dir + "/data";
 
 	log_info("ssdb-server %s", APP_VERSION);
+	log_info("build_version %s", APP_GIT_BUILD);
+	log_info("build_date %s", APP_BUILD_DATE);
 	log_info("conf_file        : %s", app_args.conf_file.c_str());
 	log_info("log_level        : %s", Logger::shared()->level_name().c_str());
 	log_info("log_output       : %s", Logger::shared()->output_name().c_str());

@@ -25,6 +25,7 @@ found in the LICENSE file.
 #include <sys/stat.h>
 
 #include "version.h"
+#include <stdlib.h>
 
 #ifndef UINT64_MAX
 	#define UINT64_MAX		18446744073709551615ULL
