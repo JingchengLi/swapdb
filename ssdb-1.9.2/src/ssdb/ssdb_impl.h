@@ -19,18 +19,19 @@ found in the LICENSE file.
 #include "leveldb/write_batch.h"
 
 #include <memory>
-
 #else
-
 #define SSDB_ENGINE "rocksdb"
 #include "rocksdb/db.h"
 #include "rocksdb/slice.h"
 #define leveldb rocksdb
 #endif
+
+
 #include "util/log.h"
 #include "util/config.h"
 #include "util/PTimer.h"
 #include "util/thread.h"
+#include "util/error.h"
 
 #include "ssdb.h"
 #include "iterator.h"
@@ -38,10 +39,10 @@ found in the LICENSE file.
 #include "codec/decode.h"
 #include "codec/encode.h"
 
-#include "ssdb/ttl.h"
+#include "ttl.h"
 #include "t_cursor.h"
+#include "t_scan.h"
 
-#define MAX_NUM_DELETE 10
 
 inline
 static leveldb::Slice slice(const Bytes &b){
@@ -62,6 +63,7 @@ enum DIRECTION{
 
 typedef RecordLock<Mutex> RecordKeyLock;
 typedef RecordMutex<Mutex> RecordKeyMutex;
+
 
 class SSDBImpl : public SSDB
 {

@@ -4,32 +4,27 @@ Use of this source code is governed by a BSD-style license that can be
 found in the LICENSE file.
 */
 #include "ssdb_impl.h"
-#include "../util/PTimer.h"
 
 #ifdef USE_LEVELDB
 #include "leveldb/env.h"
-#include "leveldb/iterator.h"
 #include "leveldb/cache.h"
 #include "leveldb/filter_policy.h"
 #else
 
 #include "rocksdb/options.h"
 #include "rocksdb/env.h"
-#include "rocksdb/iterator.h"
 #include "rocksdb/cache.h"
 #include "rocksdb/filter_policy.h"
 #include "rocksdb/table.h"
 #include "rocksdb/convenience.h"
 #include "rocksdb/slice_transform.h"
+#include "util/rate_limiter.h"
 
 #include "t_listener.h"
-#include "util/rate_limiter.h"
 
 #define leveldb rocksdb
 #endif
 
-#include "iterator.h"
-#include "ssdb_impl.h"
 
 SSDBImpl::SSDBImpl()  {
     ldb = NULL;

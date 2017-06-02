@@ -1,8 +1,6 @@
 //
 // Created by a1 on 16-11-21.
 //
-#include <util/error.h>
-#include "ssdb_impl.h"
 #include "t_set.h"
 
 

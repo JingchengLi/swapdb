@@ -4,7 +4,6 @@
 #include "ssdb_impl.h"
 
 
-
 int SSDBImpl::GetListItemValInternal(const std::string &item_key, std::string *val, const leveldb::ReadOptions &options) {
     leveldb::Status s = ldb->Get(options, item_key, val);
     if (s.IsNotFound()){

@@ -10,16 +10,23 @@ found in the LICENSE file.
 #include <set>
 #include <string>
 #include <map>
-#include <util/sorted_set.h>
 #include <memory>
-#include "const.h"
 #include "options.h"
-#include "iterator.h"
-#include "internal_error.h"
-#include "t_scan.h"
 
 class Bytes;
 class Config;
+class Iterator;
+
+
+#ifdef USE_LEVELDB
+namespace leveldb{
+#else
+#define leveldb rocksdb
+namespace rocksdb {
+#endif
+	class Snapshot;
+}
+
 
 class SSDB{
 public:
@@ -155,10 +162,5 @@ public:
 	virtual int redisCursorCleanup() = 0;
 
 };
-
-//
-//template <class T>
-//bool doScanGeneric(const T &mit, const std::string &pattern, uint64_t limit, std::vector<std::string> &resp);
-
 
 #endif

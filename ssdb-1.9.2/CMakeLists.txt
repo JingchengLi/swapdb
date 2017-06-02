@@ -115,7 +115,6 @@ SET( SSDB_OBJS
         src/ssdb/t_list.cpp
         src/ssdb/t_set.cpp
         src/ssdb/t_eset.cpp
-        src/ssdb/internal_error.cpp
         src/ssdb/t_cursor.cpp
         )
 
@@ -150,13 +149,13 @@ SET( CLIENT_OBJS
         )
 
 ADD_LIBRARY(libssdb-client-static STATIC ${CLIENT_OBJS})
-ADD_LIBRARY(libssdb-client-shared SHARED ${CLIENT_OBJS})
+#ADD_LIBRARY(libssdb-client-shared SHARED ${CLIENT_OBJS})
 set_target_properties(libssdb-client-static PROPERTIES
         LINKER_LANGUAGE CXX
         OUTPUT_NAME "ssdb-client")
-set_target_properties(libssdb-client-shared PROPERTIES
-        LINKER_LANGUAGE CXX
-        OUTPUT_NAME "ssdb-client")
+#set_target_properties(libssdb-client-shared PROPERTIES
+#        LINKER_LANGUAGE CXX
+#       OUTPUT_NAME "ssdb-client")
 
 # src/codec
 # libcodec.a
@@ -167,13 +166,13 @@ SET( CODEC_OBJS
         )
 
 ADD_LIBRARY(libcodec-static STATIC ${CODEC_OBJS})
-ADD_LIBRARY(libcodec-shared SHARED ${CODEC_OBJS})
+#ADD_LIBRARY(libcodec-shared SHARED ${CODEC_OBJS})
 set_target_properties(libcodec-static PROPERTIES
         LINKER_LANGUAGE CXX
         OUTPUT_NAME "codec")
-set_target_properties(libcodec-shared PROPERTIES
-        LINKER_LANGUAGE CXX
-        OUTPUT_NAME "codec")
+#set_target_properties(libcodec-shared PROPERTIES
+#        LINKER_LANGUAGE CXX
+#        OUTPUT_NAME "codec")
 
 # src/net
 # libnet.a
@@ -191,13 +190,13 @@ SET( NET_OBJS
         )
 
 ADD_LIBRARY(libnet-static STATIC ${NET_OBJS})
-ADD_LIBRARY(libnet-shared SHARED ${NET_OBJS})
+#ADD_LIBRARY(libnet-shared SHARED ${NET_OBJS})
 set_target_properties(libnet-static PROPERTIES
         LINKER_LANGUAGE CXX
         OUTPUT_NAME "net")
-set_target_properties(libnet-shared PROPERTIES
-        LINKER_LANGUAGE CXX
-        OUTPUT_NAME "net")
+#set_target_properties(libnet-shared PROPERTIES
+#       LINKER_LANGUAGE CXX
+#       OUTPUT_NAME "net")
 
 
 # src/util
@@ -210,16 +209,17 @@ SET( UTIL_OBJS
         #src/util/sorted_set.cpp
         src/util/app.cpp
         src/util/backtrace.cpp
+        src/util/internal_error.cpp
         )
 
 ADD_LIBRARY(libutil-static STATIC ${UTIL_OBJS})
-ADD_LIBRARY(libutil-shared SHARED ${UTIL_OBJS})
+#ADD_LIBRARY(libutil-shared SHARED ${UTIL_OBJS})
 set_target_properties(libutil-static PROPERTIES
         LINKER_LANGUAGE CXX
         OUTPUT_NAME "util")
-set_target_properties(libutil-shared PROPERTIES
-        LINKER_LANGUAGE CXX
-        OUTPUT_NAME "util")
+#set_target_properties(libutil-shared PROPERTIES
+#        LINKER_LANGUAGE CXX
+#        OUTPUT_NAME "util")
 
 # src
 
@@ -239,13 +239,13 @@ SET( RDB_OBJS
 
 
 ADD_LIBRARY(librdb-static STATIC ${RDB_OBJS})
-ADD_LIBRARY(librdb-shared SHARED ${RDB_OBJS})
+#ADD_LIBRARY(librdb-shared SHARED ${RDB_OBJS})
 set_target_properties(librdb-static PROPERTIES
         LINKER_LANGUAGE CXX
         OUTPUT_NAME "rdb")
-set_target_properties(librdb-shared PROPERTIES
-        LINKER_LANGUAGE CXX
-        OUTPUT_NAME "rdb")
+#set_target_properties(librdb-shared PROPERTIES
+#        LINKER_LANGUAGE CXX
+#        OUTPUT_NAME "rdb")
 
 SET( SRC_OBJS
         src/ssdb-server.cpp

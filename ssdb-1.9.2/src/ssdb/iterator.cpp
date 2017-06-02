@@ -4,15 +4,15 @@ Use of this source code is governed by a BSD-style license that can be
 found in the LICENSE file.
 */
 #include "iterator.h"
-#include "../util/log.h"
-#include "../util/config.h"
 #include "codec/decode.h"
+
+
 #ifdef USE_LEVELDB
 #include "leveldb/iterator.h"
 #else
 #include "rocksdb/iterator.h"
-#define leveldb rocksdb
 #endif
+
 
 Iterator::Iterator(leveldb::Iterator *it,
 		const std::string &end,
@@ -44,7 +44,7 @@ Bytes Iterator::val(){
 
 bool Iterator::skip(uint64_t offset){
 	while(offset-- > 0){
-		if(this->next() == false){
+		if(!this->next()){
 			return false;
 		}
 	}
@@ -117,7 +117,7 @@ bool MIterator::next(){
 
 HIterator::HIterator(Iterator *it, const Bytes &name, uint16_t version){
 	this->it = it;
-	this->name.assign(name.data(), name.size());
+	this->name.assign(name.data(), (unsigned long) name.size());
 	this->version = version;
 	this->return_val_ = true;
 }
@@ -145,7 +145,7 @@ bool HIterator::next(){
 		}
 		this->key = hk.field;
 		if(return_val_){
-			this->val.assign(vs.data(), vs.size());
+			this->val.assign(vs.data(), (unsigned long) vs.size());
 		}
 		return true;
 	}
@@ -155,7 +155,7 @@ bool HIterator::next(){
 /* SET */
 SIterator::SIterator(Iterator *it, const Bytes &name, uint16_t version) {
 	this->it = it;
-	this->name.assign(name.data(), name.size());
+	this->name.assign(name.data(), (unsigned long) name.size());
 	this->version = version;
 }
 
@@ -185,7 +185,7 @@ bool SIterator::next() {
 
 ZIterator::ZIterator(Iterator *it, const Bytes &name, uint16_t version){
 	this->it = it;
-	this->name.assign(name.data(), name.size());
+	this->name.assign(name.data(), (unsigned long) name.size());
 
 	this->version = version;
 }
@@ -196,7 +196,7 @@ ZIterator::~ZIterator(){
 
 bool ZIterator::skip(uint64_t offset){
 	while(offset-- > 0){
-		if(this->next() == false){
+		if(!this->next()){
 			return false;
 		}
 	}
@@ -230,7 +230,7 @@ bool ZIterator::next(){
 
 ZIteratorByLex::ZIteratorByLex(Iterator *it, const Bytes &name, uint16_t version) {
 	this->it = it;
-	this->name.assign(name.data(), name.size());
+	this->name.assign(name.data(), (unsigned long) name.size());
 	this->version = version;
 }
 
@@ -240,7 +240,7 @@ ZIteratorByLex::~ZIteratorByLex() {
 
 bool ZIteratorByLex::skip(uint64_t offset) {
 	while(offset-- > 0){
-		if(this->next() == false){
+		if(!this->next()){
 			return false;
 		}
 	}
@@ -269,7 +269,7 @@ bool ZIteratorByLex::next() {
 //TODO impl ?
 LIterator::LIterator(Iterator *it, const Bytes &name, uint16_t version) {
 	this->it = it;
-	this->name.assign(name.data(), name.size());
+	this->name.assign(name.data(), (unsigned long) name.size());
 	this->version = version;
 }
 
@@ -308,7 +308,7 @@ EIterator::~EIterator(){
 
 bool EIterator::skip(uint64_t offset){
 	while(offset-- > 0){
-		if(this->next() == false){
+		if(!this->next()){
 			return false;
 		}
 	}

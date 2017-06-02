@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string>
+
 using namespace std;
 
 #define KEY_DELETE_MASK 'D'

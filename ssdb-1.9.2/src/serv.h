@@ -16,7 +16,8 @@ found in the LICENSE file.
 #include "net/server.h"
 #include "SSDB_client.h"
 #include "net/link.h"
-#include <util/error.h>
+#include "util/error.h"
+#include "util/internal_error.h"
 
 
 enum ReplicState{

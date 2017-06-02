@@ -5,29 +5,28 @@
 #ifndef SSDB_REDIS_ERROR_H
 #define SSDB_REDIS_ERROR_H
 
-#define SUCCESS                      0
-//#define ERR                          -1
-#define STORAGE_ERR                  -2
-#define WRONG_TYPE_ERR               -3
-#define MKEY_DECODEC_ERR             -4
-#define MKEY_RESIZE_ERR              -5
-#define INT_OVERFLOW                 -6
-#define DBL_OVERFLOW                 -7
-#define INVALID_INT                  -8
-#define INVALID_DBL                  -9
-#define INVALID_INCR_LEN             -10
-#define STRING_OVERMAX               -11
-#define INDEX_OUT_OF_RANGE           -12
-#define INVALID_METAVAL              -13
-#define SYNTAX_ERR                   -14
-#define INVALID_EX_TIME              -15
-#define INVALID_INCR_PDC_NAN_OR_INF  -16
-#define NAN_SCORE                    -17
-//#define ZSET_OVERFLOW                -18
-#define ZSET_INVALID_STR             -19
-#define BUSY_KEY_EXISTS              -20
-#define INVALID_DUMP_STR             -21
-#define INVALID_ARGS                 -22
-#define VALUE_OUT_OF_RANGE           -23
+const int SUCCESS                      =0;
+//const int ERR                         =   -1;
+const int STORAGE_ERR                  =  -2;
+const int WRONG_TYPE_ERR               =  -3;
+const int MKEY_DECODEC_ERR             =  -4;
+const int MKEY_RESIZE_ERR              =  -5;
+const int INT_OVERFLOW                 =  -6;
+const int DBL_OVERFLOW                 =  -7;
+const int INVALID_INT                  =  -8;
+const int INVALID_DBL                  =  -9;
+const int INVALID_INCR_LEN             = -10;
+const int STRING_OVERMAX               = -11;
+const int INDEX_OUT_OF_RANGE           = -12;
+const int INVALID_METAVAL              = -13;
+const int SYNTAX_ERR                   = -14;
+const int INVALID_EX_TIME              = -15;
+const int INVALID_INCR_PDC_NAN_OR_INF  = -16;
+const int NAN_SCORE                    = -17;
+const int ZSET_INVALID_STR             = -19;
+const int BUSY_KEY_EXISTS              = -20;
+const int INVALID_DUMP_STR             = -21;
+const int INVALID_ARGS                 = -22;
+const int VALUE_OUT_OF_RANGE           = -23;
 
 #endif //SSDB_REDIS_ERROR_H

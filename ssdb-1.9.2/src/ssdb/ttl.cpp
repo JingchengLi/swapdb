@@ -3,15 +3,11 @@ Copyright (c) 2012-2014 The SSDB Authors. All rights reserved.
 Use of this source code is governed by a BSD-style license that can be
 found in the LICENSE file.
 */
-#include <net/server.h>
 #include <serv.h>
-#include "ssdb_impl.h"
 #include "../include.h"
 #include "ttl.h"
 
-//#define EXPIRATION_LIST_KEY "\xff\xff\xff\xff\xff|EXPIRE_LIST|KV"
-#define BATCH_SIZE    1000
-
+const int BATCH_SIZE = 1000;
 
 ExpirationHandler::ExpirationHandler(SSDBImpl *ssdb) {
     this->ssdb = ssdb;

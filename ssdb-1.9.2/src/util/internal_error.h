@@ -7,7 +7,7 @@
 
 #include <string>
 #include <map>
-#include "../util/error.h"
+#include "util/error.h"
 
 std::string GetErrorInfo(int ret);
 

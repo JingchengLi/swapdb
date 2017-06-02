@@ -6,21 +6,20 @@ found in the LICENSE file.
 #ifndef SSDB_ITERATOR_H_
 #define SSDB_ITERATOR_H_
 
-#include <inttypes.h>
 #include <string>
-#include "../util/bytes.h"
+#include "util/bytes.h"
 
 #ifdef USE_LEVELDB
 #include <leveldb/db.h>
 
 namespace leveldb{
 #else
-#include <rocksdb/snapshot.h>
 
 #define leveldb rocksdb
-namespace rocksdb{
+namespace rocksdb {
 #endif
 	class Iterator;
+	class Snapshot;
 }
 
 class Iterator{

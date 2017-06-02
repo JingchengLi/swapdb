@@ -3,11 +3,9 @@ Copyright (c) 2012-2014 The SSDB Authors. All rights reserved.
 Use of this source code is governed by a BSD-style license that can be
 found in the LICENSE file.
 */
-#include <limits.h>
+#include <climits>
 #include <stack>
-#include "ssdb_impl.h"
 #include "t_zset.h"
-
 
 /**
  * @return -1: error, 0: item updated, 1: new item inserted

@@ -6,7 +6,7 @@ found in the LICENSE file.
 #ifndef SSDB_TTL_H_
 #define SSDB_TTL_H_
 
-#include "ssdb.h"
+#include "ssdb_impl.h"
 #include "../util/thread.h"
 #include "../util/sorted_set.h"
 #include <string>

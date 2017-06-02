@@ -991,7 +991,6 @@ int proc_migrate(Context &ctx, Link *link, const Request &req, Response *resp) {
     long dbid = 0;
     long timeout = 0;
 
-    int write_error = 0;
 
     std::vector<std::string> kv;
 
