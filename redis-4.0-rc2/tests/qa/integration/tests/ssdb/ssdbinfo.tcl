@@ -19,12 +19,11 @@ start_server {tags {"repl"}} {
         }
 
         test "write after online wait ssdbinfo show keys transfer/load/visit done" {
-            createComplexDataset $master 1000
+            createComplexDataset $master 10000
             wait_keys_processed r {0 -1}
         }
     }
 }
-
 start_server {tags {"ssdb"}} {
     set master [srv client]
     set master_host [srv host]
