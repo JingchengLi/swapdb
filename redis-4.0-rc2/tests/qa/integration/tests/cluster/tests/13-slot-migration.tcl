@@ -97,6 +97,16 @@ test "Cluster fill keys" {
     }
 }
 
+test "No duplicate keys when getkeysinslot(keys in ssdb)" {
+    for {set n 0} {$n < 5} {incr n} {
+        set slot [ get_slot_with_keys ]
+        set sourceId [get_id_by_slot $slot]
+        set destinId [expr ($sourceId+1)%5]
+        set keys_slot [R $sourceId cluster getkeysinslot $slot 100]
+        assert_equal [llength $keys_slot] [llength [lsort -unique $keys_slot]] "some duplicate keys"
+    }
+}
+
 test "Migrate slot with keys" {
     for {set n 0} {$n < 5} {incr n} {
         set slot [ get_slot_with_keys ]

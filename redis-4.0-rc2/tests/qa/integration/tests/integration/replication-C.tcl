@@ -18,6 +18,9 @@ start_server {tags {"repl-abnormal"}} {
             wait_for_online $master
         }
 
+        # TODO allow cold/hot keys distribute not identical under this condition
+        # reason: real ops cached in slave_write_op_list, and storetossdb/dumpfromssdb not.
+        # No need to resolve this as evaluated.
         test "slave ssdb restart during writing" {
             after 500
             kill_ssdb_server
@@ -31,11 +34,11 @@ start_server {tags {"repl-abnormal"}} {
             } else {
                 fail "Different number of keys between master and slave after too long time."
             }
-            wait_for_condition 100 100 {
-                [$master debug digest] == [$slave debug digest]
-            } else {
-                fail "Different digest between master([$master debug digest]) and slave([$slave debug digest]) after too long time."
-            }
+#            wait_for_condition 100 100 {
+#                [$master debug digest] == [$slave debug digest]
+#            } else {
+#                fail "Different digest between master([$master debug digest]) and slave([$slave debug digest]) after too long time."
+#            }
             assert_equal "" [status $master db0] "No keys should stay in redis"
             compare_debug_digest
         }

@@ -132,6 +132,16 @@ test "Cluster consistency during live resharding" {
     }
 }
 
+test "No duplicate keys when getkeysinslot(keys in redis/ssdb)" {
+    for {set n 0} {$n < 50} {incr n} {
+        set slot [randomInt 16384]
+        set sourceId [get_id_by_slot $slot]
+        set destinId [expr ($sourceId+1)%5]
+        set keys_slot [R $sourceId cluster getkeysinslot $slot 100]
+        assert_equal [llength $keys_slot] [llength [lsort -unique $keys_slot]] "some duplicate keys"
+    }
+}
+
 test "Verify slaves consistency before the crash & restart" {
     set verified_masters 0
     foreach_redis_id id {
