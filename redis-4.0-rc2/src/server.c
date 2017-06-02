@@ -3061,7 +3061,7 @@ int confirmAndRetrySlaveSSDBwriteOp(time_t time, int index) {
                     /* we have found the write op saved by server.blocked_write_op, server.master is
                      * unblocked now and we can go on. */
                     ret = runCommandReplicationConn(server.master, ln);
-                    resetClient(server.master);
+                    if (ret != C_BLOCKED) resetClient(server.master);
                     /* reset */
                     server.slave_failed_retry_interrupted = 0;
                     server.blocked_write_op = NULL;
@@ -3095,7 +3095,7 @@ int confirmAndRetrySlaveSSDBwriteOp(time_t time, int index) {
                     }
 
                     ret = runCommandReplicationConn(server.master, ln);
-                    resetClient(server.master);
+                    if (ret != C_BLOCKED) resetClient(server.master);
                 }
             }
             /* we need reconnect SSDB for server.master, just break and will do these on
@@ -3169,7 +3169,7 @@ void recordVisitingSSDBkeys(struct redisCommand* cmd, robj** argv, int argc) {
 }
 
 /* for the replication connection only, if returned value is C_ERR, this failed write
- * command will be process in redis, if */
+ * command will be process in redis */
 int processCommandReplicationConn(client* c, struct ssdb_write_op* slave_retry_write) {
     robj *keyobj = NULL;
     struct redisCommand* cmd;
@@ -3213,7 +3213,7 @@ int processCommandReplicationConn(client* c, struct ssdb_write_op* slave_retry_w
         server.master->bpop.timeout = 5000 + mstime();
         blockClient(server.master, BLOCKED_NO_WRITE_TO_SSDB);
 
-        return C_OK;
+        return C_BLOCKED;
     }
 
     /* Calling lookupKey to update lru or lfu counter. */
@@ -3513,16 +3513,16 @@ int runCommandReplicationConn(client *c, listNode* writeop_ln) {
          * to SSDB and record them in server.ssdb_write_oplist, we just return and
          * process next write command. */
         return C_OK;
-    } else {
-        if (ret == C_NOTSUPPORT_ERR) {
-            addReplyErrorFormat(c, "don't support this command in jdjr mode:%s.", c->cmd->name);
-            serverLog(LL_NOTICE, "unsupported cmd:%s in ssdb", c->cmd->name);
-            return C_OK;
-        } else if (ret == C_FD_ERR) {
-            /* for a slave failed write retry, we retrun error so don't go on to retry
-             * the rest failed writes. */
-            return ret;
-        }
+    } else if (ret == C_NOTSUPPORT_ERR) {
+        addReplyErrorFormat(c, "don't support this command in jdjr mode:%s.", c->cmd->name);
+        serverLog(LL_NOTICE, "unsupported cmd:%s in ssdb", c->cmd->name);
+        return C_OK;
+    } else if (ret == C_FD_ERR) {
+        /* for a slave failed write retry, we retrun error so don't go on to retry
+         * the rest failed writes. */
+        return ret;
+    } else if (ret == C_BLOCKED) {
+        return ret;
     }
 
     if (slave_retry_write) {
@@ -3565,7 +3565,7 @@ int runCommand(client *c) {
     int ret;
     if (c == server.master) {
         ret = runCommandReplicationConn(server.master, NULL);
-        resetClient(server.master);
+        if (ret != C_BLOCKED) resetClient(server.master);
         return ret;
     }
 

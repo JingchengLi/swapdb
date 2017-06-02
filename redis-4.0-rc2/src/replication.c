@@ -643,6 +643,13 @@ void prepareSSDBreplication(client* slave) {
                   (server.ssdb_status == MASTER_SSDB_SNAPSHOT_WAIT_FLUSHALL
                    && slave->ssdb_status == SLAVE_SSDB_SNAPSHOT_WAIT_FLUSHALL));
 
+    if (server.masterhost && listLength(server.ssdb_write_oplist) > 0) {
+        serverLog(LL_NOTICE, "we have unprocessed write operations for replication connection(server.master),"
+                " disconnect and retry later");
+        freeClient(slave);
+        return;
+    }
+
     /* NOTE: discard transferring/loading keys and disconnect server.ssdb_client to make
      * sure consistency between master and slave.*/
     if (server.ssdb_client) freeClient(server.ssdb_client);
