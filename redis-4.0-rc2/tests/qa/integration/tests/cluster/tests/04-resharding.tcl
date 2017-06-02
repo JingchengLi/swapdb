@@ -144,7 +144,7 @@ test "Verify slaves consistency before the crash & restart" {
             set srole [R $sid role]
             if {[lindex $srole 0] eq {master}} continue
             if {[lindex $srole 2] != $masterport} continue
-            wait_for_condition 100 500 {
+            wait_for_condition 100 200 {
                 [R $sid debug digest] eq $masterdigest
             } else {
                 fail "Master and slave data digest are different:master($id) and slave($sid)"
@@ -215,4 +215,36 @@ test "Verify slaves consistency after the crash & restart" {
         }
     }
     assert {$verified_masters >= 5}
+}
+
+set current_epoch [CI 1 cluster_current_epoch]
+
+test "Wait for failover" {
+    foreach_redis_id id {
+        set role [R $id role]
+        lassign $role myrole myoffset slaves
+        if {$myrole eq {slave}} {
+            R $id cluster failover
+            break
+        }
+    }
+
+    wait_for_condition 1000 50 {
+        [CI 1 cluster_current_epoch] > $current_epoch
+    } else {
+        fail "No failover detected"
+    }
+}
+
+test "Cluster should eventually be up again" {
+    assert_cluster_state ok
+}
+
+test "Verify $numkeys keys for consistency with logical content after failover and reshard" {
+    # Check that the Redis Cluster content matches our logical content.
+    foreach {key value} [array get content] {
+        if {[$cluster lrange $key 0 -1] ne $value} {
+            fail "Key $key expected to hold '$value' but actual content is [$cluster lrange $key 0 -1]"
+        }
+    }
 }

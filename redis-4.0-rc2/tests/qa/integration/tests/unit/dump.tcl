@@ -84,10 +84,13 @@ start_server {tags {"dump"}} {
             set second_port [srv 0 port]
 
             assert {[$first exists key] == 1}
+            wait_for_dumpto_ssdb $first key
             assert {[$second exists key] == 0}
             set ret [r -1 migrate $second_host $second_port key 0 5000]
             assert {$ret eq {OK}}
+            assert {[sr -1 exists key] == 0}
             assert {[$first exists key] == 0}
+            assert {[sr exists key] == 1}
             assert {[$second exists key] == 1}
             assert {[$second get key] eq {Some Value}}
             assert {[$second ttl key] == -1}
@@ -103,15 +106,26 @@ start_server {tags {"dump"}} {
             set second [srv 0 client]
             set second_host [srv 0 host]
             set second_port [srv 0 port]
-
             for {set n 0} {$n < 100} {incr n} {
                 r -1 migrate $second_host $second_port key 0 5000
+                if {rand() < 0.5} {
+                    wait_for_dumpto_ssdb $second key
+                } else {
+                    $second exists key ;# make it hot
+                }
                 r 0 migrate $first_host $first_port key 0 5000
+                if {rand() < 0.5} {
+                    wait_for_dumpto_ssdb $first key
+                } else {
+                    $first exists key ;# make it hot
+                }
             }
 
             set ret [r -1 migrate $second_host $second_port key 0 5000]
             assert {$ret eq {OK}}
+            assert {[sr -1 exists key] == 0}
             assert {[$first exists key] == 0}
+            assert {[sr exists key] == 1}
             assert {[$second exists key] == 1}
             assert {[$second get key] eq {Some Value}}
             assert {[$second ttl key] == -1}
@@ -129,9 +143,12 @@ start_server {tags {"dump"}} {
 
             assert {[$first exists list] == 1}
             assert {[$second exists list] == 0}
+            wait_for_dumpto_ssdb $first list
             set ret [r -1 migrate $second_host $second_port list 0 5000 copy]
             assert {$ret eq {OK}}
+            assert {[sr -1 exists list] == 1}
             assert {[$first exists list] == 1}
+            assert {[sr exists list] == 1}
             assert {[$second exists list] == 1}
             assert {[$first lrange list 0 -1] eq [$second lrange list 0 -1]}
         }
@@ -149,11 +166,22 @@ start_server {tags {"dump"}} {
             assert {[$first exists list] == 1}
             assert {[$second exists list] == 0}
             $second set list somevalue
+            wait_for_dumpto_ssdb $first list
+            catch {r -1 migrate $second_host $second_port list 0 5000} e
+            assert_match {ERR*} $e
+            assert {[$first exists list] == 1}
+            assert_equal "somevalue" [sr get list]
+            wait_for_dumpto_ssdb $first list
             catch {r -1 migrate $second_host $second_port list 0 5000 copy} e
             assert_match {ERR*} $e
+            assert {[$first exists list] == 1}
+            assert_equal "somevalue" [sr get list]
+            wait_for_dumpto_ssdb $first list
             set ret [r -1 migrate $second_host $second_port list 0 5000 copy replace]
             assert {$ret eq {OK}}
+            assert {[sr -1 exists list] == 1}
             assert {[$first exists list] == 1}
+            assert {[sr exists list] == 1}
             assert {[$second exists list] == 1}
             assert {[$first lrange list 0 -1] eq [$second lrange list 0 -1]}
         }
@@ -170,16 +198,19 @@ start_server {tags {"dump"}} {
             assert {[$first exists key] == 1}
             assert {[$second exists key] == 0}
             $first expire key 10
+            wait_for_dumpto_ssdb $first key
             set ret [r -1 migrate $second_host $second_port key 0 5000]
             assert {$ret eq {OK}}
+            assert {[sr -1 exists key] == 0}
             assert {[$first exists key] == 0}
+            assert {[sr exists key] == 1}
             assert {[$second exists key] == 1}
             assert {[$second get key] eq {Some Value}}
             assert {[$second ttl key] >= 7 && [$second ttl key] <= 10}
         }
     }
 
-    foreach {loop time} {40 100 400 100 4000 1000 40000 100000} {
+    foreach {loop time} {40 100 400 100 4000 1000 40000 10000} {
         test "MIGRATE can correctly transfer large values($loop)" {
             set first [srv 0 client]
             r config set maxmemory 0
@@ -203,7 +234,9 @@ start_server {tags {"dump"}} {
                 set ret [r -1 migrate $second_host $second_port key 0 $time]
                 puts "$loop migrate cost [expr [clock milliseconds]-$pretime] ms"
                 assert {$ret eq {OK}}
+                assert {[sr -1 exists key] == 0}
                 assert {[$first exists key] == 0}
+                assert {[sr exists key] == 1}
                 assert {[$second exists key] == 1}
                 assert {[$second ttl key] == -1}
                 assert {[$second llen key] == $loop*20}
@@ -223,6 +256,7 @@ start_server {tags {"dump"}} {
 
             assert {[$first exists key] == 1}
             assert {[$second exists key] == 0}
+            wait_for_dumpto_ssdb $first key
             set ret [r -1 migrate $second_host $second_port key 0 10000]
             assert {$ret eq {OK}}
             assert {[$first exists key] == 0}
@@ -245,6 +279,7 @@ start_server {tags {"dump"}} {
             set rd [redis_deferring_client]
             $rd debug sleep 1.0 ; # Make second server unable to reply.
             set e {}
+            wait_for_dumpto_ssdb $first key
             catch {r -1 migrate $second_host $second_port key 0 500} e
             assert_match {IOERR*} $e
         }
@@ -259,8 +294,11 @@ start_server {tags {"dump"}} {
             set second_host [srv 0 host]
             set second_port [srv 0 port]
 
+            wait_for_dumpto_ssdb $first foo
             assert_error "ERR*connect*target*" {$first migrate abc $second_port foo 0 5000}
+            assert_error "IOERR*timeout*client*" {$first migrate 111.111.111.111 8889 foo 0 5000}
             assert_error "IOERR*timeout*target*" {$first migrate $second_host abc foo 0 5000}
+            assert_error "IOERR*timeout*target*" {$first migrate $second_host 1111 foo 0 5000}
             assert_error "ERR*integer*out of range*" {$first migrate $second_host $second_port foo a 5000}
             assert_error "ERR*integer*out of range*" {$first migrate $second_host $second_port foo 0 abc}
             assert_error "ERR*syntax*" {$first migrate $second_host $second_port foo 0 abc c}
@@ -271,29 +309,31 @@ start_server {tags {"dump"}} {
         }
     }
 
-#    test {MIGRATE can migrate multiple keys at once} {
-#        set first [srv 0 client]
-#        r set key1 "v1"
-#        r set key2 "v2"
-#        r set key3 "v3"
-#        start_server {tags {"repl"}} {
-#            set second [srv 0 client]
-#            set second_host [srv 0 host]
-#            set second_port [srv 0 port]
-#
-#            assert {[$first exists key1] == 1}
-#            assert {[$second exists key1] == 0}
-#            set ret [r -1 migrate $second_host $second_port "" 0 5000 keys key1 key2 key3]
-#            assert {$ret eq {OK}}
-#            assert {[$first exists key1] == 0}
-#            assert {[$first exists key2] == 0}
-#            assert {[$first exists key3] == 0}
-#            assert {[$second get key1] eq {v1}}
-#            assert {[$second get key2] eq {v2}}
-#            assert {[$second get key3] eq {v3}}
-#        }
-#    }
-#
+    test {MIGRATE can migrate multiple keys in loop} {
+        set first [srv 0 client]
+        r set key1 "v1"
+        r set key2 "v2"
+        r set key3 "v3"
+        start_server {tags {"repl"}} {
+            set second [srv 0 client]
+            set second_host [srv 0 host]
+            set second_port [srv 0 port]
+
+            assert {[$first exists key1] == 1}
+            assert {[$second exists key1] == 0}
+            foreach key {key1 key2 key3} {
+                set ret [r -1 migrate $second_host $second_port $key 0 5000]
+                assert {$ret eq {OK}}
+            }
+            assert {[$first exists key1] == 0}
+            assert {[$first exists key2] == 0}
+            assert {[$first exists key3] == 0}
+            assert {[$second get key1] eq {v1}}
+            assert {[$second get key2] eq {v2}}
+            assert {[$second get key3] eq {v3}}
+        }
+    }
+
 #    test {MIGRATE with multiple keys must have empty key arg} {
 #        catch {r MIGRATE 127.0.0.1 6379 NotEmpty 0 5000 keys a b c} e
 #        set e

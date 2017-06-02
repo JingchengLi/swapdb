@@ -134,12 +134,14 @@ proc spawn_instance {type base_port count {conf {}}} {
 
         # Push the instance into the right list
         set link [redis 127.0.0.1 $port]
+        set ssdblink [redis 127.0.0.1 [expr $port+20000]]
         $link reconnect 1
         lappend ::${type}_instances [list \
             pid $pid \
             host 127.0.0.1 \
             port $port \
             link $link \
+            ssdblink $ssdblink \
             ssdbpid $ssdbpid \
         ]
     }
@@ -309,11 +311,13 @@ proc test {descr code} {
     flush stdout
     incr ::steps
     set beforetime [clock seconds]
+    set descr [string map {& &amp; \" &quot; ' &apos; < &lt; > &gt;} $descr]
     if {[catch {set retval [uplevel 1 $code]} error]} {
         incr ::failed
         if {[string match "assertion:*" $error]} {
             set msg [string range $error 10 end]
             puts [colorstr red $msg]
+            set msg [string map {& &amp; \" &quot; ' &apos; < &lt; > &gt;} $msg]
             write_cluster_test_result_report [format {<testcase name="%02d-%s" classname="%s.%02d" time="%d">} \
             $::steps $descr $::curscript $::class [expr [clock seconds]-$beforetime]]
             write_cluster_test_result_report [format {<failure type="CASE_FAILED" message="%s FAILED">%s</failure>} \
@@ -419,6 +423,12 @@ proc S {n args} {
 proc R {n args} {
     set r [lindex $::redis_instances $n]
     [dict get $r link] {*}$args
+}
+
+# Like R but to chat with Redis instances.
+proc SR {n args} {
+    set r [lindex $::redis_instances $n]
+    [dict get $r ssdblink] {*}$args
 }
 
 proc get_info_field {info field} {
