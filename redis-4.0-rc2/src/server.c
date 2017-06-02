@@ -1494,20 +1494,6 @@ void startToLoadIfNeeded() {
     return;
 }
 
-void cleanKeysToLoadAndEvict() {
-    listIter li;
-    listNode *ln;
-
-    if (server.masterhost) {
-        ///* clean server.loadAndEvictCmdList */
-        //listRewind(server.loadAndEvictCmdList, &li);
-        //while((ln = listNext(&li))) {
-        //    listDelNode(server.loadAndEvictCmdList, ln);
-        //}
-        dictEmpty(server.loadAndEvictCmdDict, NULL);
-    }
-}
-
 void startToHandleCmdListInSlave(void) {
     dictEntry *de;
     dictIterator *di;
@@ -3444,9 +3430,9 @@ void cleanSpecialClientsAndIntermediateKeys(int is_flushall) {
     if (server.slave_ssdb_load_evict_client) freeClient(server.slave_ssdb_load_evict_client);
     if (is_flushall && server.delete_confirm_client) freeClient(server.delete_confirm_client);
 
-    emptyEvictionPool();
+    if (server.masterhost) dictEmpty(server.loadAndEvictCmdDict, NULL);
 
-    cleanKeysToLoadAndEvict();
+    emptyEvictionPool();
 }
 
 void prepareSSDBflush(client* c) {

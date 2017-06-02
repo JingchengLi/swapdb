@@ -1791,7 +1791,6 @@ void emptySlaveSSDBwriteOperations();
 void freeSSDBwriteOp(struct ssdb_write_op* op);
 void cleanSpecialClientsAndIntermediateKeys(int is_flushall);
 void prepareSSDBflush(client* c);
-void cleanKeysToLoadAndEvict();
 void cleanAndSignalHotKeys();
 void cleanAndSignalDeleteConfirmKeys();
 void cleanAndSignalLoadingOrTransferringKeys();
