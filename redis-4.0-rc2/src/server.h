@@ -299,7 +299,7 @@ typedef long long mstime_t; /* millisecond time type. */
 #define BLOCKED_BY_FLUSHALL 14
 #define BLOCKED_BY_DELETE_CONFIRM  15 /* Client is blocked by delete key confirm. */
 #define BLOCKED_MIGRATING_CLIENT 16
-#define BLOCKED_MIGRATING_SSDB 17 /* Client is migrating in SSDB. */
+#define BLOCKED_MIGRATING_DUMP 17 /* Client is migrating in SSDB. */
 /* ================================================= */
 
 

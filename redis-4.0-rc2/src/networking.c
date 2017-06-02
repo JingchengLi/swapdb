@@ -1838,8 +1838,8 @@ void handleSSDBReply(client *c, int revert_len) {
         redisDb *olddb;
         serverAssert(keyobj && de);
 
-        if (c->btype != BLOCKED_MIGRATING_SSDB)
-            serverLog(LL_WARNING, "Client btype should be 'BLOCKED_MIGRATING_SSDB'");
+        if (c->btype != BLOCKED_MIGRATING_DUMP)
+            serverLog(LL_WARNING, "Client btype should be 'BLOCKED_MIGRATING_DUMP'");
 
         if (reply && reply->type == REDIS_REPLY_STRING) {
             revertClientBufReply(c, revert_len);
@@ -1889,7 +1889,7 @@ void handleSSDBReply(client *c, int revert_len) {
 
     /* Unblock the client is reading/writing SSDB. */
     if (c->btype == BLOCKED_VISITING_SSDB
-        || c->btype == BLOCKED_MIGRATING_SSDB) {
+        || c->btype == BLOCKED_MIGRATING_DUMP) {
         unblockClient(c);
 
         if ((c->cmd
@@ -1962,7 +1962,7 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
 
                 /* we don't need to reply to server.master and server.delete_confirm_client. */
                 if (c->btype == BLOCKED_VISITING_SSDB
-                    || c->btype == BLOCKED_MIGRATING_SSDB
+                    || c->btype == BLOCKED_MIGRATING_DUMP
                     || c->btype == BLOCKED_BY_FLUSHALL) {
                     unblockClient(c);
                     resetClient(c);

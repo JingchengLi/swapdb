@@ -157,7 +157,7 @@ void unblockClient(client *c) {
         /* Doing nothing. */
     } else if (server.jdjr_mode && c->btype == BLOCKED_VISITING_SSDB) {
         removeVisitingSSDBKey(c->cmd, c->argc, c->argv);
-    } else if (server.jdjr_mode && c->btype == BLOCKED_MIGRATING_SSDB) {
+    } else if (server.jdjr_mode && c->btype == BLOCKED_MIGRATING_DUMP) {
         /* Migrate will translated to del after migrateCommand(). */
         serverAssert(c->cmd->proc == migrateCommand
                      || c->cmd->proc == delCommand);
@@ -222,7 +222,7 @@ int replyToBlockedClientTimedOut(client *c) {
                    || c->btype == BLOCKED_BY_FLUSHALL
                    || c->btype == BLOCKED_BY_DELETE_CONFIRM
                    || c->btype == BLOCKED_MIGRATING_CLIENT
-                   || c->btype == BLOCKED_MIGRATING_SSDB)) {
+                   || c->btype == BLOCKED_MIGRATING_DUMP)) {
         addReplyError(c, "timeout");
         serverLog(LOG_DEBUG, "[!!!!]block timeout(client:%p,btype:%d), will free client", (void*)c, c->btype);
         /* free client to avoid unexpected issues.*/

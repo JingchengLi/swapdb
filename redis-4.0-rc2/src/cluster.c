@@ -5187,7 +5187,7 @@ try_again:
         /* Emit the payload argument, that is the serialized object using
          * the DUMP format. */
         createDumpPayload(&payload,ov[j]);
-        if (server.jdjr_mode && (c->flags & BLOCKED_MIGRATING_SSDB))
+        if (server.jdjr_mode && (c->flags & BLOCKED_MIGRATING_DUMP))
             /* c->ssdb_replies will be free later. */
             serverAssertWithInfo(c,NULL,
                                  rioWriteBulkString(&cmd,c->ssdb_replies[0]->str,
@@ -5254,7 +5254,7 @@ try_again:
         } else {
             if (!copy) {
                 /* No COPY option: remove the local key, signal the change. */
-                if (server.jdjr_mode && (c->flags & BLOCKED_MIGRATING_SSDB)) {
+                if (server.jdjr_mode && (c->flags & BLOCKED_MIGRATING_DUMP)) {
                     int k;
                     char *argv[2];
                     sds delcmd;

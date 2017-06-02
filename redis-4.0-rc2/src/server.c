@@ -3353,7 +3353,7 @@ int processCommandMaybeInSSDB(client *c) {
 
                 /* TODO: use a suitable timeout. */
                 c->bpop.timeout = 900000 + mstime();
-                blockClient(c, BLOCKED_MIGRATING_SSDB);
+                blockClient(c, BLOCKED_MIGRATING_DUMP);
                 addMigratingSSDBKey(keyobj->ptr);
 
                 return C_OK;
