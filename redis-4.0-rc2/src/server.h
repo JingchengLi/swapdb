@@ -704,14 +704,6 @@ typedef struct multiState {
     time_t minreplicas_timeout; /* MINREPLICAS timeout as unixtime. */
 } multiState;
 
-typedef struct loadAndEvictCmd {
-    robj **argv;
-    int argc;
-    struct redisCommand *cmd;
-} loadAndEvictCmd;
-
-
-
 /* This structure holds the blocking operation state for a client.
  * The fields used depend on client->btype. */
 typedef struct blockingState {
@@ -826,6 +818,9 @@ typedef struct client {
 /* SSDB send "rr_transfer_snapshot continue" every 5 seconds, we use a double time
  * as the timeout interval.*/
 #define TRANSFER_SSDB_SNAPSHOT_KEEPALIVE_TIMEOUT 10
+
+#define TYPE_TRANSFER_TO_SSDB 999
+#define TYPE_LOAD_KEY_FORM_SSDB 888
 
 struct saveparam {
     time_t seconds;
@@ -1345,6 +1340,8 @@ struct redisServer {
      * don't receive response from SSDB. */
     time_t make_snapshot_begin_time;
 
+    robj** load_evict_argv;
+    robj* load_evict_key_arg;
 
     /* if this is true, we need try to send delete SSDB snapshot request til we
      * receive "delete snapshot ok" response. */
@@ -1352,7 +1349,7 @@ struct redisServer {
 
     char **ssdbargv;
     size_t *ssdbargvlen;
-    list *loadAndEvictCmdList;
+    dict *loadAndEvictCmdDict;
     int cmdNotDone;
     client *delete_confirm_client;
     list *delayed_migrate_clients;
@@ -1542,7 +1539,6 @@ sds getAllClientsInfoString(void);
 void rewriteClientCommandVector(client *c, int argc, ...);
 void rewriteClientCommandArgument(client *c, int i, robj *newval);
 void replaceClientCommandVector(client *c, int argc, robj **argv);
-void restoreLoadEvictCommandVector(client *c, int argc, robj **argv, struct redisCommand *cmd);
 unsigned long getClientOutputBufferMemoryUsage(client *c);
 void freeClientsInAsyncFreeQueue(void);
 void asyncCloseClientOnOutputBufferLimitReached(client *c);

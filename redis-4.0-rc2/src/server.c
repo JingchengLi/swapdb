@@ -337,7 +337,7 @@ struct redisCommand redisCommandTable[] = {
 
     {"listloadingkeys",listLoadingKeysCommand,1,"j",0,NULL,0,0,0,0,0},
 
-    {"storetossdb",storetossdbCommand,-2,"wj",0,NULL,1,1,1,0,0},
+    {"storetossdb",storetossdbCommand,2,"wj",0,NULL,1,1,1,0,0},
     {"dumpfromssdb",dumpfromssdbCommand,2,"wj",0,NULL,1,1,1,0,0},
     {"locatekey",locatekeyCommand,2,"rj",0,NULL,1,1,1,0,0},
     {"restoressdbkey",restoreCommand,-4,"wmj",0,NULL,1,1,1,0,0},
@@ -1499,41 +1499,56 @@ void cleanKeysToLoadAndEvict() {
     listNode *ln;
 
     if (server.masterhost) {
-        /* clean server.loadAndEvictCmdList */
-        listRewind(server.loadAndEvictCmdList, &li);
-        while((ln = listNext(&li))) {
-            listDelNode(server.loadAndEvictCmdList, ln);
-        }
+        ///* clean server.loadAndEvictCmdList */
+        //listRewind(server.loadAndEvictCmdList, &li);
+        //while((ln = listNext(&li))) {
+        //    listDelNode(server.loadAndEvictCmdList, ln);
+        //}
+        dictEmpty(server.loadAndEvictCmdDict, NULL);
     }
 }
 
 void startToHandleCmdListInSlave(void) {
-    listIter iter;
-    listNode *node;
+    dictEntry *de;
+    dictIterator *di;
+    uint64_t type;
 
-    if (listLength(server.loadAndEvictCmdList) == 0
+    if (dictSize(server.loadAndEvictCmdDict) == 0
         || !server.slave_ssdb_load_evict_client) return;
 
-    listRewind(server.loadAndEvictCmdList, &iter);
-    while((node = listNext(&iter)) != NULL) {
-        loadAndEvictCmd *cmdinfo = node->value;
+    di = dictGetSafeIterator(server.loadAndEvictCmdDict);
+    while((de = dictNext(di)) != NULL) {
+        sds key = dictGetKey(de);
+        type = dictGetUnsignedIntegerVal(de);
 
         server.cmdNotDone = 0;
-        restoreLoadEvictCommandVector(server.slave_ssdb_load_evict_client,
-                                      cmdinfo->argc , cmdinfo->argv, cmdinfo->cmd);
+
+        if (TYPE_LOAD_KEY_FORM_SSDB == type) {
+            server.load_evict_argv[0] = shared.dumpcmdobj;
+            server.slave_ssdb_load_evict_client->cmd = lookupCommandByCString("dumpfromssdb");
+        } else if (TYPE_TRANSFER_TO_SSDB == type) {
+            server.load_evict_argv[0] = shared.storecmdobj;
+            server.slave_ssdb_load_evict_client->cmd = lookupCommandByCString("storetossdb");
+        }
+        server.load_evict_argv[1] = server.load_evict_key_arg;
+        server.load_evict_argv[1]->ptr = key;
+
+        server.slave_ssdb_load_evict_client->argv = server.load_evict_argv;
+        server.slave_ssdb_load_evict_client->argc = 2;
 
         server.slave_ssdb_load_evict_client->lastcmd = server.slave_ssdb_load_evict_client->cmd;
+
         runCommand(server.slave_ssdb_load_evict_client);
-        if (server.cmdNotDone) {
-            /* preserve the cmdinfo for the next time, avoid to be reseted by resetClient. */
-            server.slave_ssdb_load_evict_client->argv = NULL;
-        } else {
-            serverLog(LL_DEBUG, "beforesleep processing cmd: %s",
-                      server.slave_ssdb_load_evict_client->cmd->name);
-            listDelNode(server.loadAndEvictCmdList, node);
+
+        server.slave_ssdb_load_evict_client->argv = NULL;
+        if (0 == server.cmdNotDone) {
+            serverLog(LL_DEBUG, "beforesleep processing cmd: %s", server.slave_ssdb_load_evict_client->cmd->name);
+            /* !!!don't use 'key' after dictDelete, because it has been freed. */
+            dictDelete(server.loadAndEvictCmdDict, key);
         }
         resetClient(server.slave_ssdb_load_evict_client);
     }
+    dictReleaseIterator(di);
 }
 
 void handleDeleteConfirmKeys(void) {
@@ -2411,8 +2426,7 @@ void initServer(void) {
         server.ssdbargv = zmalloc(sizeof(char *) * SSDB_CMD_DEFAULT_MAX_ARGC);
         server.ssdbargvlen = zmalloc(sizeof(size_t) * SSDB_CMD_DEFAULT_MAX_ARGC);
 
-        server.loadAndEvictCmdList = listCreate();
-        listSetFreeMethod(server.loadAndEvictCmdList, (void (*)(void*))freeMultiCmd);
+        server.loadAndEvictCmdDict = dictCreate(&keyDictType,NULL);
 
         server.delayed_migrate_clients = listCreate();
 
@@ -2425,6 +2439,9 @@ void initServer(void) {
         server.flush_check_begin_time = -1;
 
         server.cmdNotDone = 0;
+        // for server.slave_ssdb_load_evict_client only
+        server.load_evict_argv = zmalloc(sizeof(robj*) * 2);
+        server.load_evict_key_arg = createObject(OBJ_STRING, NULL);
 
         server.slave_ssdb_critical_err_cnt = 0;
         server.ssdb_down_time = -1;
@@ -3622,15 +3639,6 @@ int runCommand(client *c) {
     return C_OK;
 }
 
-/* TODO: using new defined struct if necessary. */
-loadAndEvictCmd *createLoadAndEvictCmd(robj ** argv, int argc, struct redisCommand *cmd) {
-    loadAndEvictCmd *cmdinfo = zmalloc(sizeof(*cmdinfo));
-    cmdinfo->argc = argc;
-    cmdinfo->argv = argv;
-    cmdinfo->cmd = cmd;
-    return cmdinfo;
-}
-
 void freeMultiCmd(multiCmd *md) {
     zfree(md);
 }
@@ -3833,17 +3841,19 @@ int processCommand(client *c) {
         return C_OK;
     }
 
-
     if (server.jdjr_mode
         && server.masterhost
         && (c->cmd->proc == storetossdbCommand
             || c->cmd->proc == dumpfromssdbCommand)) {
-        loadAndEvictCmd *cmdinfo = createLoadAndEvictCmd(c->argv, c->argc, c->cmd);
-        listAddNodeTail(server.loadAndEvictCmdList, cmdinfo);
-        /* Keep c->argv alocated memory. */
+
+        dictEntry* entry = dictAddOrFind(server.loadAndEvictCmdDict, c->argv[1]->ptr);
+        if (c->cmd->proc == storetossdbCommand)
+            dictSetUnsignedIntegerVal(entry, TYPE_TRANSFER_TO_SSDB);
+        else if (c->cmd->proc == dumpfromssdbCommand)
+            dictSetUnsignedIntegerVal(entry, TYPE_LOAD_KEY_FORM_SSDB);
+
         serverLog(LL_DEBUG, "load_or_store cmd: %s, key: %s is added to loadAndEvictCmdList.",
                   c->cmd->name, (char *)c->argv[1]->ptr);
-        c->argv = NULL;
 
         return C_OK;
     }
@@ -4791,7 +4801,7 @@ sds genRedisInfoString(char *section) {
                                         "slave_write_op_list_num:%lu\r\n"
                                         "slave_write_op_list_memsize:%lld\r\n"
                                         "slave_ssdb_critical_write_error_count:%d\r\n",
-                                listLength(server.loadAndEvictCmdList),
+                                dictSize(server.loadAndEvictCmdDict),
                                 listLength(server.ssdb_write_oplist),
                                 server.writeop_mem_size,
                                 server.slave_ssdb_critical_err_cnt

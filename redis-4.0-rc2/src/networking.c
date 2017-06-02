@@ -3195,12 +3195,6 @@ void replaceClientCommandVector(client *c, int argc, robj **argv) {
     serverAssertWithInfo(c,NULL,c->cmd != NULL);
 }
 
-void restoreLoadEvictCommandVector(client *c, int argc, robj **argv, struct redisCommand *cmd) {
-    c->argv = argv;
-    c->argc = argc;
-    c->cmd = cmd;
-    serverAssertWithInfo(c,NULL,c->cmd != NULL);
-}
 /* Rewrite a single item in the command vector.
  * The new val ref count is incremented, and the old decremented.
  *
