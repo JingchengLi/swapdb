@@ -4870,7 +4870,7 @@ void storetossdbCommand(client *c) {
     if (lookupKeyReadWithFlags(c->db, keyobj, LOOKUP_NOTOUCH) == NULL) {
         addReply(c, shared.nullbulk);
         /* The key is not existed any more. */
-        serverLog(LL_DEBUG, "Not existed in redis.");
+        serverLog(LL_DEBUG, "Not existed in redis. c->db->id:%d", c->db->id);
         return;
     }
 
@@ -4939,6 +4939,7 @@ void dumpfromssdbCommand(client *c) {
         serverLog(LL_DEBUG, "Not existed in ssdb.");
         return;
     }
+
     prologOfLoadingFromSSDB(c, keyobj);
 }
 

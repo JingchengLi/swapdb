@@ -240,6 +240,7 @@ struct redisCommand redisCommandTable[] = {
     {"pexpire",pexpireCommand,3,"wFJ",0,NULL,1,1,1,0,0},
     {"pexpireat",pexpireatCommand,3,"wFJ",0,NULL,1,1,1,0,0},
     {"keys",keysCommand,2,"rSj",0,NULL,0,0,0,0,0},
+    {"rediskeys",keysCommand,2,"rSj",0,NULL,0,0,0,0,0},
     {"ssdbkeys",keysCommand,2,"rSj",0,NULL,0,0,0,0,0},
     {"scan",scanCommand,-2,"rR",0,NULL,0,0,0,0,0},
     {"dbsize",dbsizeCommand,1,"rFj",0,NULL,0,0,0,0,0},
@@ -3549,14 +3550,15 @@ int runCommandReplicationConn(client *c, listNode* writeop_ln) {
     c->woff = server.master_repl_offset;
 
     if (slave_retry_write) {
-         /* the key is in redis and this op is processed, just remove it */
-        listDelNode(server.ssdb_write_oplist, writeop_ln);
-
-        serverLog(LL_DEBUG, "[REPOPID]the keys is now in redis, remove write op from"
+         serverLog(LL_DEBUG, "[REPOPID]the key: %s is now in redis, remove write op from"
                           " list(op cmd:%s, time:%ld, index:%d)",
+                  (char*)c->argv[1]->ptr,
                   slave_retry_write->cmd->name,
                   slave_retry_write->time,
                   slave_retry_write->index);
+
+         /* the key is in redis and this op is processed, just remove it */
+        listDelNode(server.ssdb_write_oplist, writeop_ln);
     }
     return C_OK;
 }
@@ -3591,10 +3593,8 @@ int runCommand(client *c) {
     if (server.jdjr_mode) {
         ret = processCommandMaybeInSSDB(c);
         if (ret == C_OK) {
-            /* The client will be reseted in sendCommandToSSDB if C_FD_ERR
-              is returned in sendCommandToSSDB.
-              Otherwise, return C_ERR to avoid calling resetClient,
-              the resetClient is delayed to ssdbClientUnixHandler. */
+            /* Otherwise, return C_ERR to avoid calling resetClient,
+               the resetClient is delayed to ssdbClientUnixHandler. */
             serverLog(LL_DEBUG, "processing %s, fd: %d in ssdb: %s",
                       c->cmd->name, c->fd, c->argc > 1 ? (char *)c->argv[1]->ptr : "");
             return C_ERR;

@@ -522,8 +522,22 @@ void keysCommand(client *c) {
     unsigned long numkeys = 0;
     void *replylen = addDeferredMultiBulkLength(c);
 
+    int is_rediskeys_command = 0;
+    int is_keys_command = 0;
+    int is_ssdbkeys_command = 0;
+
+    if (server.jdjr_mode) {
+        if (0 == strncmp(c->argv[0]->ptr, "keys", strlen("keys")))
+            is_keys_command = 1;
+        else if (0 == strncmp(c->argv[0]->ptr, "rediskeys", strlen("rediskeys")))
+            is_rediskeys_command = 1;
+        else if (0 == strncmp(c->argv[0]->ptr, "ssdbkeys", strlen("ssdbkeys")))
+            is_ssdbkeys_command = 1;
+    }
+
+    serverLog(LL_DEBUG, "argv[0]:%s", (char*)c->argv[0]->ptr);
     /* if command name is not "ssdbkeys" */
-    if (!server.jdjr_mode || (server.jdjr_mode && 0 == sdscmp(c->argv[0]->ptr,(sds)"keys"))) {
+    if (!server.jdjr_mode || (server.jdjr_mode && (is_keys_command || is_rediskeys_command))) {
         di = dictGetSafeIterator(c->db->dict);
         allkeys = (pattern[0] == '*' && pattern[1] == '\0');
         while((de = dictNext(di)) != NULL) {
@@ -541,7 +555,7 @@ void keysCommand(client *c) {
         }
         dictReleaseIterator(di);
     }
-    if (server.jdjr_mode) {
+    if (server.jdjr_mode && (is_keys_command || is_ssdbkeys_command)) {
         ev_di = dictGetSafeIterator(EVICTED_DATA_DB->dict);
         while((de = dictNext(ev_di)) != NULL) {
             sds key = dictGetKey(de);
