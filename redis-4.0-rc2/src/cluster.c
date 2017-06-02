@@ -5187,9 +5187,15 @@ try_again:
         /* Emit the payload argument, that is the serialized object using
          * the DUMP format. */
         createDumpPayload(&payload,ov[j]);
-        serverAssertWithInfo(c,NULL,
-            rioWriteBulkString(&cmd,payload.io.buffer.ptr,
-                               sdslen(payload.io.buffer.ptr)));
+        if (server.jdjr_mode && (c->flags & BLOCKED_MIGRATING_SSDB))
+            /* c->ssdb_replies will be free later. */
+            serverAssertWithInfo(c,NULL,
+                                 rioWriteBulkString(&cmd,c->ssdb_replies[0]->str,
+                                                    c->ssdb_replies[0]->len));
+        else
+            serverAssertWithInfo(c,NULL,
+                                 rioWriteBulkString(&cmd,payload.io.buffer.ptr,
+                                                    sdslen(payload.io.buffer.ptr)));
         sdsfree(payload.io.buffer.ptr);
 
         /* Add the REPLACE option to the RESTORE command if it was specified
@@ -5218,6 +5224,7 @@ try_again:
 
     char buf1[1024]; /* Select reply. */
     char buf2[1024]; /* Restore reply. */
+    char buf3[3][1024]; /* Del reply. */
 
     /* Read the SELECT reply if needed. */
     if (select && syncReadLine(cs->fd, buf1, sizeof(buf1), timeout) <= 0)
@@ -5227,6 +5234,7 @@ try_again:
     int error_from_target = 0;
     int socket_error = 0;
     int del_idx = 1; /* Index of the key argument for the replicated DEL op. */
+    int error_from_ssdb = 0;
 
     if (!copy) newargv = zmalloc(sizeof(robj*)*(num_keys+1));
 
@@ -5246,6 +5254,37 @@ try_again:
         } else {
             if (!copy) {
                 /* No COPY option: remove the local key, signal the change. */
+                if (server.jdjr_mode && (c->flags & BLOCKED_MIGRATING_SSDB)) {
+                    int k;
+                    char *argv[2];
+                    sds delcmd;
+                    argv[0] = "del";
+                    argv[1] = kv[j]->ptr;
+                    delcmd = composeRedisCmd(2, (const char **) argv, NULL);
+                    if (!delcmd || sendCommandToSSDB(c, delcmd) != C_OK) {
+                        error_from_ssdb = 1;
+                        addReplyError(c, "migrate del error in ssdb.");
+                        break;
+                    }
+
+                    for (k = 0; k < 3; k ++) {
+                        if (!c->context
+                            || ((syncReadLine(c->context->fd, buf3[k], sizeof(buf3[k]), timeout)) <= 0)
+                            || buf3[k][0] == '-') {
+                            error_from_ssdb = 1;
+                            break;
+                        }
+                    }
+
+                    if (!error_from_ssdb && !strcasecmp(buf3[0], ":0"))
+                        error_from_ssdb = 1;
+
+                    if (error_from_ssdb) {
+                        addReplyError(c, "migrate del error in ssdb.");
+                        break;
+                    }
+                }
+
                 dbDelete(c->db,kv[j]);
                 signalModifiedKey(c->db,kv[j]);
                 server.dirty++;
@@ -5261,7 +5300,7 @@ try_again:
      * command vector. We only retry if we are sure nothing was processed
      * and we failed to read the first reply (j == 0 test). */
     if (!error_from_target && socket_error && j == 0 && may_retry &&
-        errno != ETIMEDOUT)
+        errno != ETIMEDOUT && !error_from_ssdb)
     {
         goto socket_err; /* A retry is guaranteed because of tested conditions.*/
     }
@@ -5282,12 +5321,12 @@ try_again:
     /* If we are here and a socket error happened, we don't want to retry.
      * Just signal the problem to the client, but only do it if we don't
      * already queued a different error reported by the destination server. */
-    if (!error_from_target && socket_error) {
+    if (!error_from_target && socket_error && !error_from_ssdb) {
         may_retry = 0;
         goto socket_err;
     }
 
-    if (!error_from_target) {
+    if (!error_from_target && !error_from_ssdb) {
         /* Success! Update the last_dbid in migrateCachedSocket, so that we can
          * avoid SELECT the next time if the target DB is the same. Reply +OK. */
         cs->last_dbid = dbid;

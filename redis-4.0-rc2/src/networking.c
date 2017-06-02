@@ -1833,51 +1833,16 @@ void handleSSDBReply(client *c, int revert_len) {
     }
 
     if (c->cmd && c->cmd->proc == migrateCommand) {
-        robj *port = c->argv[2];
         robj *keyobj = c->argv[3];
-        robj *keydbid = c->argv[4];
-        char buf[32];
         dictEntry *de = dictFind(EVICTED_DATA_DB->dict, keyobj->ptr);
-        int restoreportok = 0;
         redisDb *olddb;
         serverAssert(keyobj && de);
-
-        /* Restore the port argument. */
-        if (port && port->type == OBJ_STRING
-            && port->encoding == OBJ_ENCODING_EMBSTR) {
-            long long ptnum = 0;
-            if (isObjectRepresentableAsLongLong(port, &ptnum) == C_OK) {
-                ptnum -= SSDB_SLAVE_PORT_INCR;
-                decrRefCount(port);
-                ll2string(buf, 32, ptnum);
-                c->argv[2] = createEmbeddedStringObject(buf, strlen(buf));
-                restoreportok = 1;
-                serverLog(LL_DEBUG, "migrate restore port to %s", (char *)c->argv[2]->ptr);
-            } else
-                serverLog(LL_WARNING, "migrate port error.");
-        }
-
-        if (!restoreportok) {
-            revertClientBufReply(c, revert_len);
-            addReplyError(c, "migrate port error");
-        }
 
         if (c->btype != BLOCKED_MIGRATING_SSDB)
             serverLog(LL_WARNING, "Client btype should be 'BLOCKED_MIGRATING_SSDB'");
 
-        if (reply && reply->type == REDIS_REPLY_STATUS
-            && restoreportok
-            && !strcasecmp(reply->str, "OK")) {
-            if (keydbid && keydbid->type == OBJ_STRING
-                && keydbid->encoding == OBJ_ENCODING_EMBSTR) {
-                decrRefCount(keydbid);
-                ll2string(buf, 32, EVICTED_DATA_DBID);
-                c->argv[4] = createEmbeddedStringObject(buf, strlen(buf));
-                serverLog(LL_DEBUG, "migrate adjust dbid to %s", (char *)c->argv[4]->ptr);
-            }
-
+        if (reply && reply->type == REDIS_REPLY_STRING) {
             revertClientBufReply(c, revert_len);
-            /* TODO: handle migrate exec succeeded in ssdb, however fail in the target redis. */
             olddb = c->db;
             c->db = EVICTED_DATA_DB;
             migrateCommand(c);

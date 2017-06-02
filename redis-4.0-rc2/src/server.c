@@ -3194,14 +3194,15 @@ int processCommandReplicationConn(client* c, struct ssdb_write_op* slave_retry_w
         return C_ERR;
     if (cmd->flags & CMD_JDJR_REDIS_ONLY)
         return C_ERR;
-    if (!(cmd->flags & CMD_JDJR_MODE))
-        return C_NOTSUPPORT_ERR;
     if (argc <= 1)
         return C_ERR;
 
     keyobj = argv[1];
     if (!dictFind(EVICTED_DATA_DB->dict, keyobj->ptr))
         return C_ERR;
+
+    if (!(cmd->flags & CMD_JDJR_MODE))
+        return C_NOTSUPPORT_ERR;
 
     /* prohibit write operations to SSDB when replication,
      *
@@ -3338,23 +3339,24 @@ int processCommandMaybeInSSDB(client *c) {
         if (val) {
             int ret;
             if (c->cmd->proc == migrateCommand) {
-                /* Adjust the port argument. */
-                robj *port = c->argv[2];
-                if (port && port->type == OBJ_STRING
-                    && port->encoding == OBJ_ENCODING_EMBSTR) {
-                    long long ptnum = 0;
-                    char buf[32];
-                    if (isObjectRepresentableAsLongLong(port, &ptnum) == C_OK) {
-                        ptnum += SSDB_SLAVE_PORT_INCR;
-                        decrRefCount(c->argv[2]);
-                        ll2string(buf, 32, ptnum);
-                        c->argv[2] = createEmbeddedStringObject(buf, strlen(buf));
-                        serverLog(LL_DEBUG, "migrate adjust port to %s", (char *)c->argv[2]->ptr);
-                    }
-                } else {
-                    addReplyError(c, "migrate port error");
+                char *argv[2];
+                sds dumpcmd;
+
+                argv[0] = "dump";
+                argv[1] = keyobj->ptr;
+                dumpcmd = composeRedisCmd(2, (const char **)argv, NULL);
+
+                if (!dumpcmd || sendCommandToSSDB(c, dumpcmd) != C_OK) {
+                    addReplyError(c, "migrate dump error in ssdb.");
                     return C_OK;
                 }
+
+                /* TODO: use a suitable timeout. */
+                c->bpop.timeout = 900000 + mstime();
+                blockClient(c, BLOCKED_MIGRATING_SSDB);
+                addMigratingSSDBKey(keyobj->ptr);
+
+                return C_OK;
             }
 
             ret = sendCommandToSSDB(c, NULL);
@@ -3364,14 +3366,8 @@ int processCommandMaybeInSSDB(client *c) {
             recordVisitingSSDBkeys(c->cmd, c->argv, c->argc);
 
             /* TODO: use a suitable timeout. */
-            if (c->cmd && c->cmd->proc == migrateCommand) {
-                c->bpop.timeout = 900000 + mstime();
-                blockClient(c, BLOCKED_MIGRATING_SSDB);
-                addMigratingSSDBKey(keyobj->ptr);
-            } else {
-                c->bpop.timeout = 5000 + mstime();
-                blockClient(c, BLOCKED_VISITING_SSDB);
-            }
+            c->bpop.timeout = 5000 + mstime();
+            blockClient(c, BLOCKED_VISITING_SSDB);
 
             /* Slaves do not load data from ssdb automatically. */
             if (server.masterhost) return C_OK;
