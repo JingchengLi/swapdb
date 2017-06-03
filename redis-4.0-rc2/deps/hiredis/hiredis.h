@@ -195,7 +195,7 @@ int redisBufferWrite(redisContext *c, int *done);
  * buffer to the socket and reads until it has a reply. In a non-blocking
  * context, it will return unconsumed replies until there are no more. */
 int redisGetReply(redisContext *c, void **reply);
-int redisGetReplyFromReader(redisContext *c, void **reply);
+int redisGetReplyFromReader(redisContext *c, void **reply, int* reply_len);
 
 /* Write a formatted command to the output buffer. Use these functions in blocking mode
  * to get a pipeline of commands. */
@@ -216,6 +216,10 @@ void *redisvCommand(redisContext *c, const char *format, va_list ap);
 void *redisCommand(redisContext *c, const char *format, ...);
 void *redisCommandArgv(redisContext *c, int argc, const char **argv, const size_t *argvlen);
 
+/* for jdjr_mode only */
+void discardSSDBreaderBuffer(redisReader *r);
+int redisGetReplyFromReader(redisContext *c, void **reply, int* reply_len);
+int redisGetSSDBreplyFromReader(redisContext *c, void **reply, int* reply_len);
 #ifdef __cplusplus
 }
 #endif

@@ -1816,7 +1816,7 @@ void handleSSDBReply(client *c, int revert_len) {
         serverLog(LL_WARNING, "Reply from SSDB is ERROR: %s, c->fd:%d, context fd:%d",
                   reply->str, c->fd, c->context ? c->context->fd : -1);
     if (reply && reply->type == REDIS_REPLY_STRING)
-        serverLog(LL_DEBUG, "reply str: %s, reply len:%d", reply->str, reply->len);
+        serverLog(LL_DEBUG, "reply str: %s, reply len:%lu", reply->str, reply->len);
 
     /* Handle special connections. */
     if (c == server.ssdb_client) return;
@@ -2061,8 +2061,6 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
 
         if ( reply->type != REDIS_REPLY_ARRAY ||
              (element->type != REDIS_REPLY_STRING || (strcmp(element->str, "check 1") && strcmp(element->str, "check 0"))) ) {
-            redisReaderSetSSDBCheckError(c->context->reader);
-
             freeClient(c);
             return;
         }

@@ -98,7 +98,7 @@ typedef struct redisReader {
 redisReader *redisReaderCreateWithFunctions(redisReplyObjectFunctions *fn);
 void redisReaderFree(redisReader *r);
 int redisReaderFeed(redisReader *r, const char *buf, size_t len);
-int redisReaderGetReply(redisReader *r, void **reply);
+int redisReaderGetReply(redisReader *r, void **reply, int* reply_len, int is_ssdb);
 
 #define redisReaderSetPrivdata(_r, _p) (int)(((redisReader*)(_r))->privdata = (_p))
 #define redisReaderGetObject(_r) (((redisReader*)(_r))->reply)

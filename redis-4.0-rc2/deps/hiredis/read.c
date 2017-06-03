@@ -474,7 +474,24 @@ int redisReaderFeed(redisReader *r, const char *buf, size_t len) {
     return REDIS_OK;
 }
 
-int redisReaderGetReply(redisReader *r, void **reply) {
+/* if consumed reader buffer discard operation has been deferred in
+ * redisReaderGetReply(when 'is_ssdb' is not 0), we need to discard
+ * it after we process the raw reply string(for jdjr mode, we need
+ * to preserve the raw reply string from SSDB and copy it to the client
+ * buffer of redis). */
+void discardSSDBreaderBuffer(redisReader *r) {
+    /* Discard part of the buffer when we've consumed at least 1k, to avoid
+     * doing unnecessary calls to memmove() in sds.c. */
+    if (r->pos >= 1024) {
+        sdsrange(r->buf,r->pos,-1);
+        r->pos = 0;
+        r->len = sdslen(r->buf);
+    }
+}
+
+/* NOTE:this function has been modified in jdjr mode (:add two arguments 'reply_len'
+ * and 'is_ssdb'.)*/
+int redisReaderGetReply(redisReader *r, void **reply, int* reply_len, int is_ssdb) {
     /* Default target pointer to NULL. */
     if (reply != NULL)
         *reply = NULL;
@@ -486,6 +503,8 @@ int redisReaderGetReply(redisReader *r, void **reply) {
     /* When the buffer is empty, there will never be a reply. */
     if (r->len == 0)
         return REDIS_OK;
+
+    int old_pos = r->pos;
 
     /* Set first item to process when the stack is empty. */
     if (r->ridx == -1) {
@@ -507,9 +526,12 @@ int redisReaderGetReply(redisReader *r, void **reply) {
     if (r->err)
         return REDIS_ERR;
 
+    /* before consume context buffer, we save the reply length for jdjr mode. */
+    if (reply_len) *reply_len = r->pos - old_pos;
+
     /* Discard part of the buffer when we've consumed at least 1k, to avoid
      * doing unnecessary calls to memmove() in sds.c. */
-    if (r->pos >= 1024) {
+    if (!is_ssdb && r->pos >= 1024) {
         sdsrange(r->buf,r->pos,-1);
         r->pos = 0;
         r->len = sdslen(r->buf);

@@ -857,10 +857,22 @@ int redisBufferWrite(redisContext *c, int *done) {
     return REDIS_OK;
 }
 
+/* we need to discard the consumed buffer by calling 'discardSSDBreaderBuffer'
+ * after we process the raw reply string (for jdjr mode, we need
+ * to preserve the raw reply string from SSDB and copy it to the client
+ * buffer of redis). */
+int redisGetSSDBreplyFromReader(redisContext *c, void **reply, int* reply_len) {
+    if (redisReaderGetReply(c->reader,reply, reply_len, 1) == REDIS_ERR) {
+        __redisSetError(c,c->reader->err,c->reader->errstr);
+        return REDIS_ERR;
+    }
+    return REDIS_OK;
+}
+
 /* Internal helper function to try and get a reply from the reader,
  * or set an error in the context otherwise. */
-int redisGetReplyFromReader(redisContext *c, void **reply) {
-    if (redisReaderGetReply(c->reader,reply) == REDIS_ERR) {
+int redisGetReplyFromReader(redisContext *c, void **reply, int* reply_len) {
+    if (redisReaderGetReply(c->reader,reply, reply_len, 0) == REDIS_ERR) {
         __redisSetError(c,c->reader->err,c->reader->errstr);
         return REDIS_ERR;
     }
@@ -872,7 +884,7 @@ int redisGetReply(redisContext *c, void **reply) {
     void *aux = NULL;
 
     /* Try to read pending replies */
-    if (redisGetReplyFromReader(c,&aux) == REDIS_ERR)
+    if (redisGetReplyFromReader(c,&aux,NULL) == REDIS_ERR)
         return REDIS_ERR;
 
     /* For the blocking context, flush output buffer and read reply */
@@ -887,7 +899,7 @@ int redisGetReply(redisContext *c, void **reply) {
         do {
             if (redisBufferRead(c) == REDIS_ERR)
                 return REDIS_ERR;
-            if (redisGetReplyFromReader(c,&aux) == REDIS_ERR)
+            if (redisGetReplyFromReader(c,&aux,NULL) == REDIS_ERR)
                 return REDIS_ERR;
         } while (aux == NULL);
     }

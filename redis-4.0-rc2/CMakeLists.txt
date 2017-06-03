@@ -45,6 +45,7 @@ SET ( SRC_HIREDIS
         deps/hiredis/hiredis.c
         deps/hiredis/net.c
         deps/hiredis/sds.c
+        deps/hiredis/read.c
         deps/hiredis/test.c
         )
 ADD_LIBRARY(hiredis-static ${SRC_HIREDIS})
