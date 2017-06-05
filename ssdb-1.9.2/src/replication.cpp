@@ -225,7 +225,7 @@ int ReplicationWorker::proc(ReplicationJob *job) {
             visitedKeys++;
 
             if (visitedKeys % 1000000 == 0) {
-                log_info("[%05.2f%%] processed %llu keys so far\n",
+                log_info("[%05.2f%%] processed %llu keys so far",
                          100 * ((double) visitedKeys * 1.0 / totalKeys * 1.0),
                          visitedKeys);
             }

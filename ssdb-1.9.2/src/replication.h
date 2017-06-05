@@ -14,8 +14,8 @@
 #include <net/redis/redis_client.h>
 #include <common/context.hpp>
 
-const uint64_t MAX_PACKAGE_SIZE = 4 * 1024 * 1024;
-const uint64_t MIN_PACKAGE_SIZE = 512 * 1024;
+const uint64_t MAX_PACKAGE_SIZE = 8 * 1024 * 1024;
+const uint64_t MIN_PACKAGE_SIZE = 1024 * 1024;
 
 void *ssdb_sync(void *arg);
 
