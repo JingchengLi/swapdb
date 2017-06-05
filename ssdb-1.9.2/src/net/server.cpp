@@ -182,6 +182,22 @@ NetworkServer* NetworkServer::init(const Config &conf, int num_readers, int num_
 	if(num_writers >= 0){
 		serv->num_writers = num_writers;
 	}
+
+	{
+
+		if(conf.get_num("server.readers") > 0){
+			serv->num_readers = conf.get_num("server.readers");
+		}
+
+		if(conf.get_num("server.writers") > 0){
+			serv->num_writers = conf.get_num("server.writers");
+		}
+
+        if(conf.get_num("server.transfers") > 0){
+			serv->num_transfers = conf.get_num("server.transfers");
+		}
+	}
+
 	// init ip_filter
 	{
 		Config *cc = (Config *)conf.get("server");
