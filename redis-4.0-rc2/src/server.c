@@ -3545,9 +3545,12 @@ int runCommandReplicationConn(client *c, listNode* writeop_ln) {
                 server.writeop_mem_size -= SDS_MEM_SIZE((char*)(c->argv[j]->ptr));
         }
     }
+    int old_dirty = server.dirty;
 
     call(c,CMD_CALL_FULL);
     c->woff = server.master_repl_offset;
+
+    if (old_dirty == server.dirty) serverLog(LL_DEBUG, "[!!]server.dirty not changed, write command excute failed.");
 
     serverLog(LL_DEBUG, "processing %s, fd: %d in redis: %s, dbid: %d, argc: %d",
               c->cmd->name, c->fd, c->argc > 1 ? (char *)c->argv[1]->ptr : "", c->db->id, c->argc);
