@@ -19,7 +19,7 @@ config {real.conf}} {
                 [lindex $slaves 0] slaveof $master_host $master_port
                 after 500000
                 stop_bg_client_list $clist
-                assert_match "*slave0:*state=online*" [r -2 info]
+                wait_for_online $master 1 1
             }
 
             test "master and slave are identical after long time" {
@@ -49,7 +49,7 @@ config {real.conf}} {
                 [lindex $slaves 1] slaveof $master_host $master_port
                 after 500000
                 stop_bg_client_list $clist
-                assert_match "*slave0:*state=online*slave1:*state=online*" [r -2 info]
+                wait_for_online $master 2 1
             }
 
             test "master and two slaves are identical after long time" {

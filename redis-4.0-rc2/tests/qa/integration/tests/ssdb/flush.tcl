@@ -148,7 +148,8 @@ start_server {tags {"ssdb"}} {
                 after 500
                 $master $flush
                 $slave slaveof $master_host $master_port
-                wait_for_condition 10 500 {
+                wait_for_online $master 1
+                wait_for_condition 1 1 {
                     [$master debug digest] == 0000000000000000000000000000000000000000 &&
                     [$slave debug digest] == 0000000000000000000000000000000000000000
                 } else {

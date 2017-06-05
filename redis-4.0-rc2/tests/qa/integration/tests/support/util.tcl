@@ -91,9 +91,9 @@ proc wait_for_sync r {
     }
 }
 
-proc wait_for_online {r {num 1}} {
+proc wait_for_online {r {num 1} {retry 500}} {
     incr num -1
-    set retry 500
+    # set retry 500
     set pattern "*"
     for {set n 0} {$n <= $num} {incr n 1} {
         append pattern "slave$n:*state=online*"
