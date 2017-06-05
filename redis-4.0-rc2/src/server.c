@@ -3557,7 +3557,7 @@ int runCommandReplicationConn(client *c, listNode* writeop_ln) {
         serverLog(LL_DEBUG, "[!!]server.dirty not changed, write command excute failed.");
         for (j = 0; j < c->argc; j++) {
             tmp = sdscatsds(tmp, c->argv[j]->ptr);
-            tmp = sdscat(tmp, "");
+            tmp = sdscat(tmp, " ");
         }
         serverLog(LL_DEBUG, "full command is:%s", tmp);
     }
