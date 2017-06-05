@@ -131,6 +131,7 @@ start_server {tags {"ssdb"}} {
                 set pattern "Sending rr_make_snapshot to SSDB"
                 wait_log_pattern $pattern [srv -1 stdout]
                 $master $flush
+                wait_for_online $master 1
                 wait_for_condition 10 500 {
                     [$master debug digest] == 0000000000000000000000000000000000000000 &&
                     [$slave debug digest] == 0000000000000000000000000000000000000000

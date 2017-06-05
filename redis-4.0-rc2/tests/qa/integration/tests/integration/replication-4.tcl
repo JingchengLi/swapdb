@@ -179,19 +179,26 @@ start_server {tags {"repl"}} {
         }
 
         test {Replication of SPOP command -- alsoPropagate() API} {
-            $master del myset
-            set size [expr 1+[randomInt 100]]
-            set content {}
-            for {set j 0} {$j < $size} {incr j} {
-                lappend content [randomValue]
+            for {set n 0} {$n < 5} {incr n} {
+                $master del myset
+                set size [expr [randomInt 100]]
+                set content {}
+                for {set j 0} {$j < $size} {incr j} {
+                    lappend content [randomValue]
+                }
+                $master sadd myset {*}$content
+
+                set count [expr [randomInt $size]]
+                set result [$master spop myset $count]
+                r -1 config set maxmemory 0
+                r -1 exists myset
+                wait_for_condition 10 50 {
+                    [r -1 debug digest] == [r debug digest]
+                } else {
+                    fail "Digest not equal:master([r -1 debug digest]) and slave([r debug digest]) after too long time."
+                }
+                r -1 config set maxmemory 100M
             }
-            $master sadd myset {*}$content
-
-            set count [randomInt 100]
-            set result [$master spop myset $count]
-
-            r -1 config set maxmemory 0
-            assert_equal [debug_digest r -1] [debug_digest r] "SPOP replication inconsistency"
         }
     }
 }
