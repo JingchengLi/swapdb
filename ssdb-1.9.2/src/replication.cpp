@@ -13,7 +13,6 @@ extern "C" {
 #include <redis/lzf.h>
 };
 
-const uint64_t MAX_PACKAGE_SIZE = 2 * 1024 * 1024;
 
 void send_error_to_redis(Link *link);
 
@@ -82,10 +81,15 @@ int ReplicationWorker::proc(ReplicationJob *job) {
     ready_list_t ready_list_2;
     ready_list_t::iterator it;
 
-    std::unique_ptr<Buffer> buffer = std::unique_ptr<Buffer>(new Buffer(8 * 1024));
+    std::unique_ptr<Buffer> buffer = std::unique_ptr<Buffer>(new Buffer(1024 * 1024));
 
     uint64_t sendBytes = 0;
-    uint64_t packageSize = 512 * 1024; //init 512k
+    uint64_t packageSize = MIN_PACKAGE_SIZE; //init 512k
+    uint64_t totalKeys = serv->ssdb->size();
+    uint64_t visitedKeys = 0;
+
+    totalKeys = (totalKeys > 0 ? totalKeys : 1);
+
 
     int64_t lastHeartBeat = time_ms();
     while (!job->quit) {
@@ -198,11 +202,11 @@ int ReplicationWorker::proc(ReplicationJob *job) {
             }
         }
 
-        if (ssdb_slave_link->output->size() > (2 * 1024 * 1024)) {
-            uint s = uint(ssdb_slave_link->output->size() * 1.0 / (1024.0 * 1024.0)) * 500;
-            log_debug("delay for output buffer write slow~ ; usleep : %d", s);
+        if (ssdb_slave_link->output->size() > (2 * MAX_PACKAGE_SIZE)) {
+            uint s = uint(ssdb_slave_link->output->size() * 1.0 / (MIN_PACKAGE_SIZE * 1.0)) * 500;
+            log_info("delay for output buffer write slow~ ; usleep : %d", s);
             usleep(s);
-            packageSize = 512 * 1024; //reset 512k
+            packageSize = MIN_PACKAGE_SIZE; //reset 512k
             continue;
         } else {
             if (packageSize < (MAX_PACKAGE_SIZE / 2)) {
@@ -218,6 +222,14 @@ int ReplicationWorker::proc(ReplicationJob *job) {
         while (fit->next()) {
             saveStrToBuffer(buffer.get(), fit->key());
             saveStrToBuffer(buffer.get(), fit->val());
+            visitedKeys++;
+
+            if (visitedKeys % 1000000 == 0) {
+                log_info("[%05.2f%%] processed %llu keys so far\n",
+                         100 * ((double) visitedKeys * 1.0 / totalKeys * 1.0),
+                         visitedKeys);
+            }
+
 
             if (buffer->size() > packageSize) {
                 saveStrToBuffer(ssdb_slave_link->output, "mset");
