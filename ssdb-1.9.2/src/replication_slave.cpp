@@ -290,12 +290,14 @@ void *ssdb_sync(void *arg) {
 
     }
 
-
     if (!kvs.empty()) {
         log_debug("parse_replic count %d", kvs.size());
         errorCode = serv->ssdb->parse_replic(ctx, kvs);
         kvs.clear();
     }
+
+    log_info("[ssdb_sync] flush memtable");
+    serv->ssdb->flush(ctx, true);
 
     log_info("[ssdb_sync] expiration starting");
 

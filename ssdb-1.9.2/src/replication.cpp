@@ -96,17 +96,16 @@ int ReplicationWorker::proc(ReplicationJob *job) {
         ready_list.swap(ready_list_2);
         ready_list_2.clear();
 
+        int64_t ts = time_ms();
 
         if (job->heartbeat) {
-            if ((time_ms() - lastHeartBeat) > 5000) {
+            if ((ts - lastHeartBeat) > 5000) {
                 RedisResponse r("rr_transfer_snapshot continue");
                 master_link->output->append(Bytes(r.toRedis()));
                 if (master_link->append_reply) {
                     master_link->send_append_res(std::vector<std::string>({"check 0"}));
                 }
-
-                lastHeartBeat = time_ms();
-
+                lastHeartBeat = ts;
                 if (!master_link->output->empty()) {
                     fdes->set(master_link->fd(), FDEVENT_OUT, 1, master_link);
                 }

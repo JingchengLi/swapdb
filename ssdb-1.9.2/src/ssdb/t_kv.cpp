@@ -1234,6 +1234,9 @@ int SSDBImpl::parse_replic(Context &ctx, const std::vector<std::string> &kvs) {
     }
 
     leveldb::WriteBatch batch;
+    leveldb::WriteOptions writeOptions;
+    writeOptions.disableWAL = true;
+
     auto it = kvs.begin();
     for(; it != kvs.end(); it += 2){
         const std::string& key = *it;
@@ -1241,7 +1244,7 @@ int SSDBImpl::parse_replic(Context &ctx, const std::vector<std::string> &kvs) {
         batch.Put(key, val);
     }
 
-    leveldb::Status s = ldb->Write(leveldb::WriteOptions() , &(batch));
+    leveldb::Status s = ldb->Write(writeOptions , &(batch));
     if(!s.ok()){
         log_error("write leveldb error: %s", s.ToString().c_str());
         return -1;

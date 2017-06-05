@@ -148,9 +148,13 @@ SSDB *SSDB::open(const Options &opt, const std::string &dir) {
     return ssdb;
 }
 
-int SSDBImpl::flush(Context &ctx) {
+int SSDBImpl::flush(Context &ctx, bool wait) {
 
-    ldb->Flush(leveldb::FlushOptions());
+    leveldb::FlushOptions flushOptions;
+
+    flushOptions.wait = wait;
+
+    ldb->Flush(flushOptions);
 
     return 0;
 }
