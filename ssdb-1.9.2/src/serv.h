@@ -48,7 +48,7 @@ public:
 
     void startReplic() {
         rState = ReplicationState::START;
-        rState++;
+        numStarted++;
     }
 
     void finishReplic(bool ok) {

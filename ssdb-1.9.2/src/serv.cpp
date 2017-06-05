@@ -809,6 +809,7 @@ int proc_rr_make_snapshot(Context &ctx, Link *link, const Request &req, Response
             log_fatal("i am in transferring state, cannot make a new snapshot!");
             resp->push_back("ok");
             resp->push_back("rr_make_snapshot nok");
+            return 0;
         }
 
         if (serv->replicState.rSnapshot != nullptr) {
