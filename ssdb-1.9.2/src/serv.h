@@ -19,15 +19,6 @@ found in the LICENSE file.
 #include "util/error.h"
 #include "util/internal_error.h"
 
-namespace Replic {
-
-    enum State {
-        START = 0,
-        TRANS,
-        END
-    };
-}
-
 
 class ReplicationState {
 public:
