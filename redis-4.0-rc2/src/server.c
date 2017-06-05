@@ -3550,7 +3550,17 @@ int runCommandReplicationConn(client *c, listNode* writeop_ln) {
     call(c,CMD_CALL_FULL);
     c->woff = server.master_repl_offset;
 
-    if (old_dirty == server.dirty) serverLog(LL_DEBUG, "[!!]server.dirty not changed, write command excute failed.");
+    if ((c->cmd->flags & CMD_WRITE)  && old_dirty == server.dirty) {
+        int j;
+        sds tmp = sdsempty();
+
+        serverLog(LL_DEBUG, "[!!]server.dirty not changed, write command excute failed.");
+        for (j = 0; j < c->argc; j++) {
+            tmp = sdscatsds(tmp, c->argv[j]->ptr);
+            tmp = sdscat(tmp, "");
+        }
+        serverLog(LL_DEBUG, "full command is:%s", tmp);
+    }
 
     serverLog(LL_DEBUG, "processing %s, fd: %d in redis: %s, dbid: %d, argc: %d",
               c->cmd->name, c->fd, c->argc > 1 ? (char *)c->argv[1]->ptr : "", c->db->id, c->argc);

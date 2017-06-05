@@ -388,6 +388,7 @@ void addReplyErrorLength(client *c, const char *s, size_t len) {
 }
 
 void addReplyError(client *c, const char *err) {
+    if (server.master == c) serverLog(LL_DEBUG, "-ERR %s", err);
     addReplyErrorLength(c,err,strlen(err));
 }
 
