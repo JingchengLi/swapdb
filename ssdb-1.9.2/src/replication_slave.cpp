@@ -119,7 +119,7 @@ void *ssdb_sync(void *arg) {
                 if (link->error()) {
                     continue;
                 }
-                int len = link->read(256 * 1024);
+                int len = link->read(1024 * 1024);
                 if (len <= 0) {
                     log_debug("fd: %d, read: %d, delete link, e:%d, f:%d", link->fd(), len, fde->events, fde->s_flags);
                     link->mark_error();

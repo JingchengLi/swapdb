@@ -13,6 +13,7 @@ extern "C" {
 #include <redis/lzf.h>
 };
 
+const uint64_t MAX_PACKAGE_SIZE = 2 * 1024 * 1024;
 
 void send_error_to_redis(Link *link);
 
@@ -84,6 +85,7 @@ int ReplicationWorker::proc(ReplicationJob *job) {
     std::unique_ptr<Buffer> buffer = std::unique_ptr<Buffer>(new Buffer(8 * 1024));
 
     uint64_t sendBytes = 0;
+    uint64_t packageSize = 512 * 1024; //init 512k
 
     int64_t lastHeartBeat = time_ms();
     while (!job->quit) {
@@ -197,10 +199,19 @@ int ReplicationWorker::proc(ReplicationJob *job) {
         }
 
         if (ssdb_slave_link->output->size() > (2 * 1024 * 1024)) {
-//            ssdb_slave_link->write();
-            log_debug("delay for output buffer write slow~");
-            usleep(500);
+            uint s = uint(ssdb_slave_link->output->size() * 1.0 / (1024.0 * 1024.0)) * 500;
+            log_debug("delay for output buffer write slow~ ; usleep : %d", s);
+            usleep(s);
+            packageSize = 512 * 1024; //reset 512k
             continue;
+        } else {
+            if (packageSize < (MAX_PACKAGE_SIZE / 2)) {
+                packageSize = packageSize * 2;
+            }
+            if (packageSize > (MAX_PACKAGE_SIZE)) {
+                packageSize = MAX_PACKAGE_SIZE;
+            }
+
         }
 
         bool finish = true;
@@ -208,7 +219,7 @@ int ReplicationWorker::proc(ReplicationJob *job) {
             saveStrToBuffer(buffer.get(), fit->key());
             saveStrToBuffer(buffer.get(), fit->val());
 
-            if (buffer->size() > (512 * 1024)) {
+            if (buffer->size() > packageSize) {
                 saveStrToBuffer(ssdb_slave_link->output, "mset");
                 moveBuffer(ssdb_slave_link->output, buffer.get());
                 int len = ssdb_slave_link->write();
