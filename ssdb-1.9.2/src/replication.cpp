@@ -51,7 +51,12 @@ int ReplicationWorker::proc(ReplicationJob *job) {
         }
     }
 
-    std::unique_ptr<Iterator> fit = std::unique_ptr<Iterator>(serv->ssdb->iterator("", "", -1, snapshot));
+    leveldb::ReadOptions iterate_options;
+    iterate_options.fill_cache = false;
+    iterate_options.snapshot = snapshot;
+    iterate_options.readahead_size = 4 * 1024 * 1024;
+
+    std::unique_ptr<Iterator> fit = std::unique_ptr<Iterator>(serv->ssdb->iterator("", "", -1, iterate_options));
 
     Link *ssdb_slave_link = Link::connect((hnp.ip).c_str(), hnp.port);
     if (ssdb_slave_link == nullptr) {
@@ -201,7 +206,7 @@ int ReplicationWorker::proc(ReplicationJob *job) {
             }
         }
 
-        if (ssdb_slave_link->output->size() > (2 * MAX_PACKAGE_SIZE)) {
+        if (ssdb_slave_link->output->size() > MAX_PACKAGE_SIZE) {
             uint s = uint(ssdb_slave_link->output->size() * 1.0 / (MIN_PACKAGE_SIZE * 1.0)) * 500;
             log_info("delay for output buffer write slow~ ; usleep : %d", s);
             usleep(s);
@@ -383,7 +388,6 @@ void saveStrToBuffer(Buffer *buffer, const Bytes &fit) {
     buffer->append(fit);
 }
 
-//#define REPLIC_NO_COMPRESS TRUE
 void moveBuffer(Buffer *dst, Buffer *src) {
 
     size_t comprlen, outlen = (size_t) src->size();

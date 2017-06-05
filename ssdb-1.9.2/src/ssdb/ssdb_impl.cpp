@@ -234,6 +234,7 @@ Iterator *SSDBImpl::iterator(const std::string &start, const std::string &end, u
     leveldb::Iterator *it;
     leveldb::ReadOptions iterate_options;
     iterate_options.fill_cache = false;
+    iterate_options.readahead_size = 4 * 1024 * 1024;
     if (snapshot) {
         iterate_options.snapshot = snapshot;
     }
@@ -242,6 +243,14 @@ Iterator *SSDBImpl::iterator(const std::string &start, const std::string &end, u
 //	if(it->Valid() && it->key() == start){
 //		it->Next();
 //	}
+    return new Iterator(it, end, limit, Iterator::FORWARD, iterate_options.snapshot);
+}
+
+Iterator *SSDBImpl::iterator(const std::string &start, const std::string &end, uint64_t limit,
+                              const leveldb::ReadOptions& iterate_options) {
+    leveldb::Iterator *it;
+    it = ldb->NewIterator(iterate_options);
+    it->Seek(start);
     return new Iterator(it, end, limit, Iterator::FORWARD, iterate_options.snapshot);
 }
 
