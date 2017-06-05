@@ -265,7 +265,8 @@ start_server {tags {"ssdb"}} {
                         [$master dbsize] == [[lindex $slaves 0] dbsize] &&
                         [$master dbsize] == [[lindex $slaves 1] dbsize]
                     } else {
-                        fail "Different number of keys between master and slaves after too long time."
+                        check_real_diff_keys $master $slaves
+                        # fail "Different number of keys between master and slaves after too long time."
                     }
                     assert {[$master dbsize] > 0}
                     wait_for_condition 10 500 {
@@ -348,7 +349,8 @@ start_server {tags {"ssdb"}} {
                         [$master dbsize] == [[lindex $slaves 0] dbsize] &&
                         [$master dbsize] == [[lindex $slaves 1] dbsize]
                     } else {
-                        fail "Different number of keys between master and slaves after too long time."
+                        check_real_diff_keys $master $slaves
+                        # fail "Different number of keys between master and slaves after too long time."
                     }
                     assert {[$master dbsize] > 0}
                     wait_for_condition 10 500 {
