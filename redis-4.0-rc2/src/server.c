@@ -3550,7 +3550,7 @@ int runCommandReplicationConn(client *c, listNode* writeop_ln) {
     call(c,CMD_CALL_FULL);
     c->woff = server.master_repl_offset;
 
-    if ((c->cmd->flags & CMD_WRITE)  && old_dirty == server.dirty) {
+    if (server.verbosity == LL_DEBUG && (c->cmd->flags & CMD_WRITE) && old_dirty == server.dirty) {
         int j;
         sds tmp = sdsempty();
 
@@ -3560,10 +3560,8 @@ int runCommandReplicationConn(client *c, listNode* writeop_ln) {
             tmp = sdscat(tmp, " ");
         }
         serverLog(LL_DEBUG, "full command is:%s", tmp);
+        sdsfree(tmp);
     }
-
-    serverLog(LL_DEBUG, "processing %s, fd: %d in redis: %s, dbid: %d, argc: %d",
-              c->cmd->name, c->fd, c->argc > 1 ? (char *)c->argv[1]->ptr : "", c->db->id, c->argc);
 
     if (slave_retry_write) {
          serverLog(LL_DEBUG, "[REPOPID]the key: %s is now in redis, remove write op from"
@@ -3575,6 +3573,9 @@ int runCommandReplicationConn(client *c, listNode* writeop_ln) {
 
          /* the key is in redis and this op is processed, just remove it */
         listDelNode(server.ssdb_write_oplist, writeop_ln);
+    } else {
+        serverLog(LL_DEBUG, "processing %s, fd: %d in redis: %s, dbid: %d, argc: %d",
+                  c->cmd->name, c->fd, c->argc > 1 ? (char *)c->argv[1]->ptr : "", c->db->id, c->argc);
     }
     return C_OK;
 }
