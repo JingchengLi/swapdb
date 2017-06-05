@@ -3243,6 +3243,9 @@ int processCommandReplicationConn(client* c, struct ssdb_write_op* slave_retry_w
         else
             recordVisitingSSDBkeys(c->cmd, c->argv, c->argc);
 
+        serverLog(LL_DEBUG, "processing %s, fd: %d in ssdb: %s",
+                  cmd->name, c->fd, argc > 1 ? (char *)argv[1]->ptr : "");
+
         return C_OK;
     }
     return C_ERR;
@@ -3545,6 +3548,9 @@ int runCommandReplicationConn(client *c, listNode* writeop_ln) {
 
     call(c,CMD_CALL_FULL);
     c->woff = server.master_repl_offset;
+
+    serverLog(LL_DEBUG, "processing %s, fd: %d in redis: %s, dbid: %d, argc: %d",
+              c->cmd->name, c->fd, c->argc > 1 ? (char *)c->argv[1]->ptr : "", c->db->id, c->argc);
 
     if (slave_retry_write) {
          serverLog(LL_DEBUG, "[REPOPID]the key: %s is now in redis, remove write op from"
