@@ -81,17 +81,16 @@ int proc_hmget(Context &ctx, Link *link, const Request &req, Response *resp) {
     CHECK_NUM_PARAMS(3);
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
-    Request::const_iterator it = req.begin() + 1;
-    const Bytes name = *it;
-    it++;
+    const Bytes &name = req[1];
+
 
     std::vector<std::string> reqKeys;
     std::map<std::string, std::string> resMap;
 
-    for (; it != req.end(); it += 1) {
-        const Bytes &key = *it;
-        reqKeys.push_back(key.String());
-    }
+    for_each(req.begin() + 2, req.end(), [&](Bytes b) {
+        reqKeys.emplace_back(b.String());
+    });
+
 
     int ret = serv->ssdb->hmget(ctx, name, reqKeys, resMap);
     check_key(ret);

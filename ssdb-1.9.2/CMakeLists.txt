@@ -109,6 +109,7 @@ SET( SSDB_OBJS
         src/ssdb/iterator.cpp
         src/ssdb/options.cpp
         src/ssdb/t_kv.cpp
+        src/ssdb/t_keys.cpp
         src/ssdb/t_hash.cpp
         src/ssdb/t_zset.cpp
         src/ssdb/ttl.cpp

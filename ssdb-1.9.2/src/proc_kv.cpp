@@ -386,11 +386,10 @@ int proc_multi_del(Context &ctx, Link *link, const Request &req, Response *resp)
 	CHECK_NUM_PARAMS(2);
 
 	std::set<std::string> distinct_keys;
-	std::vector<Bytes>::const_iterator it;
-	it = req.begin() + 1;
-	for(; it != req.end(); ++it){
-		distinct_keys.insert((*it).String());
-	}
+
+	for_each(req.begin() + 1, req.end(), [&](Bytes b) {
+		distinct_keys.emplace(b.String());
+	});
 
 	int64_t num = 0;
 	int ret = serv->ssdb->multi_del(ctx, distinct_keys, &num);

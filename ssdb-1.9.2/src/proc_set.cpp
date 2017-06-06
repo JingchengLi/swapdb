@@ -9,11 +9,11 @@ int proc_sadd(Context &ctx, Link *link, const Request &req, Response *resp){
 
     const Bytes &name = req[1];
     std::string val;
-
     std::set<Bytes> mem_set;
-    for (int j = 2; j < req.size(); ++j) {
-        mem_set.insert(req[j]);
-    }
+
+    for_each(req.begin() + 2, req.end(), [&](Bytes b) {
+        mem_set.insert(b);
+    });
 
     int64_t num = 0;
 

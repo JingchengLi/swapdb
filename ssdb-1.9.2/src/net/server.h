@@ -10,12 +10,12 @@ found in the LICENSE file.
 #include <string>
 #include <vector>
 #include <util/slowlog.h>
-#include <replication.h>
 
 #include "fde.h"
 #include "proc.h"
 #include "worker.h"
 #include "redis/transfer.h"
+#include "replication.h"
 
 class Link;
 class Config;

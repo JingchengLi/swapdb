@@ -298,6 +298,9 @@ private:
 						   long offset, long limit, int save, int64_t *count);
 
 	template <typename L>
+	int updateKvCommon(Context &ctx, const Bytes &name, L lambda);
+
+	template <typename L>
 	int hincrCommon(Context &ctx, const Bytes &name, const Bytes &key, L lambda);
     int hsetCommon(Context &ctx, const Bytes &name, const Bytes &key, const Bytes &val, int *added, bool nx);
 

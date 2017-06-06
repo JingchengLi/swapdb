@@ -131,11 +131,10 @@ int proc_multi_zdel(Context &ctx, Link *link, const Request &req, Response *resp
 
 	const Bytes &name = req[1];
     std::set<Bytes> keys;
-	std::vector<Bytes>::const_iterator it = req.begin() + 2;
-	for(; it != req.end(); it += 1){
-		const Bytes &key = *it;
-        keys.insert(key);
-	}
+
+    for_each(req.begin() + 2, req.end(), [&](Bytes b) {
+        keys.insert(b);
+    });
 
     int64_t count = 0;
     int ret = serv->ssdb->multi_zdel(ctx, name, keys, &count);

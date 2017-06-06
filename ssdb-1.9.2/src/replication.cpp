@@ -291,7 +291,7 @@ int ReplicationWorker::proc(ReplicationJob *job) {
         if (len > 0) { sendBytes = sendBytes + len; }
 
         const std::vector<Bytes> *res = ssdb_slave_link->response();
-        if (res != nullptr && res->size() > 0) {
+        if (res != nullptr && !res->empty()) {
             std::string result = (*res)[0].String();
 
             if (result == "failed" || result == "error") {
