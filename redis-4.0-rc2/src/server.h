@@ -817,9 +817,9 @@ typedef struct client {
                      * to revert it from client buffer. */
 } client;
 
-/* SSDB send "rr_transfer_snapshot continue" every 5 seconds, we use a double time
+/* SSDB send "rr_transfer_snapshot continue" every 5 seconds, we use a larger timeout
  * as the timeout interval.*/
-#define TRANSFER_SSDB_SNAPSHOT_KEEPALIVE_TIMEOUT 10
+#define TRANSFER_SSDB_SNAPSHOT_KEEPALIVE_TIMEOUT 30
 
 #define TYPE_TRANSFER_TO_SSDB 999
 #define TYPE_LOAD_KEY_FORM_SSDB 888
