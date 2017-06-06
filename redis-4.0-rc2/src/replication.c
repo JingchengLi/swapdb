@@ -1186,7 +1186,11 @@ int slaveIsInHandshakeState(void) {
  *
  * The function is called in two contexts: while we flush the current
  * data with emptyDb(), and while we load the new data received as an
- * RDB file from the master. */
+ * RDB file from the master.
+ *
+ * in jdjr mode, the function is also called when redis RDB transfer done
+ * but SSDB snapshot have not.
+ * */
 void replicationSendNewlineToMaster(void) {
     static time_t newline_sent;
     if (time(NULL) != newline_sent) {
@@ -2342,6 +2346,7 @@ void replicationSendAck(void) {
         addReplyBulkCString(c,"ACK");
         addReplyBulkLongLong(c,c->reploff);
         c->flags &= ~CLIENT_MASTER_FORCE_REPLY;
+        serverLog(LL_DEBUG, "send replconf ack");
     }
 }
 
@@ -2815,6 +2820,10 @@ void replicationCron(void) {
                     "time, cancel replication handshake");
             cancelReplicationHandshake();
         }
+
+        /* in jdjr mode, when redis RDB transfer done but SSDB snapshot have not, we need send
+         * keep-alive message, avoid the master to detect the slave is timing out. */
+        replicationSendNewlineToMaster();
     }
 
     /* Timed out master when we are an already connected slave? */
@@ -2895,7 +2904,10 @@ void replicationCron(void) {
             (slave->replstate == SLAVE_STATE_WAIT_BGSAVE_END &&
              server.rdb_child_type != RDB_CHILD_TYPE_SOCKET));
 
-        if (is_presync) {
+        /* in jdjr_mode, when redis RDB file transfer is done, ssdb snapshot may have not, so we need
+         * send keep-alive message to these slaves. */
+        if (is_presync || (server.jdjr_mode && slave->replstate == SLAVE_STATE_SEND_BULK_FINISHED &&
+                           slave->ssdb_status == SLAVE_SSDB_SNAPSHOT_TRANSFER_START)) {
             if (write(slave->fd, "\n", 1) == -1) {
                 /* Don't worry about socket errors, it's just a ping. */
             }
