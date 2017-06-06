@@ -1609,7 +1609,10 @@ void handleDeleteConfirmKeys(void) {
  * for ready file descriptors. */
 void beforeSleep(struct aeEventLoop *eventLoop) {
     UNUSED(eventLoop);
-
+#ifdef TEST_SLAVE_REPLICATION
+    long long enter_time = ustime();
+    serverLog(LL_DEBUG, "enter beforeSleep: %lld", enter_time);
+#endif
     /* Call the Redis Cluster before sleep function. Note that this function
      * may change the state of Redis Cluster (from ok to fail or vice versa),
      * so it's a good idea to call it before serving the unblocked clients
@@ -1664,12 +1667,23 @@ void beforeSleep(struct aeEventLoop *eventLoop) {
 
     if (server.jdjr_mode) handleDeleteConfirmKeys();
 
+#ifdef TEST_SLAVE_REPLICATION
+    serverLog(LL_DEBUG, "beforeSleep 1:%lld us", ustime()-enter_time);
+    enter_time = ustime();
+#endif
     /* Try to handle cmds(load/evict cmds) in an extra list in slave. */
     if (server.jdjr_mode && server.masterhost) startToHandleCmdListInSlave();
+#ifdef TEST_SLAVE_REPLICATION
+    serverLog(LL_DEBUG, "beforeSleep 2:%lld us", ustime()-enter_time);
+    enter_time = ustime();
+#endif
 
     /* Call handleCustomizedBlockedClients in beforeSleep to
        avoid timeout when there's only 1 real client. */
     if (server.jdjr_mode) handleCustomizedBlockedClients();
+#ifdef TEST_SLAVE_REPLICATION
+    serverLog(LL_DEBUG, "beforeSleep 3:%lld us", ustime()-enter_time);
+#endif
 }
 
 /* =========================== Server initialization ======================== */
@@ -3547,8 +3561,17 @@ int runCommandReplicationConn(client *c, listNode* writeop_ln) {
     }
     int old_dirty = server.dirty;
 
+#ifdef TEST_SLAVE_REPLICATION
+    long long time = ustime();
+    serverLog(LL_DEBUG, "before process redis command: %lld", time);
+#endif
+
     call(c,CMD_CALL_FULL);
     c->woff = server.master_repl_offset;
+
+#ifdef TEST_SLAVE_REPLICATION
+    serverLog(LL_DEBUG, "process redis command: %lld us", ustime()-time);
+#endif
 
     if (server.verbosity == LL_DEBUG && (c->cmd->flags & CMD_WRITE) && old_dirty == server.dirty) {
         int j;
@@ -3633,7 +3656,16 @@ int runCommand(client *c) {
         queueMultiCommand(c);
         addReply(c,shared.queued);
     } else {
+#ifdef TEST_SLAVE_REPLICATION
+        long long time = ustime();
+        serverLog(LL_DEBUG, "before process redis command: %lld", time);
+#endif
         call(c,CMD_CALL_FULL);
+
+ #ifdef TEST_SLAVE_REPLICATION
+        serverLog(LL_DEBUG, "process redis command: %lld us", ustime()-time);
+#endif
+
         c->woff = server.master_repl_offset;
     }
 
