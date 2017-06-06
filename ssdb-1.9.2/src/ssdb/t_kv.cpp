@@ -682,7 +682,7 @@ int decodeMetaVal(T &mv, const std::string &val) {
     return 1;
 }
 
-int SSDBImpl::dump(Context &ctx, const Bytes &key, std::string *res) {
+int SSDBImpl::dump(Context &ctx, const Bytes &key, std::string *res, int64_t *pttl) {
     *res = "none";
 
     int ret = 0;
@@ -729,6 +729,26 @@ int SSDBImpl::dump(Context &ctx, const Bytes &key, std::string *res) {
 
             default:break;
         }
+
+        if (pttl != nullptr) {
+            int64_t ex = 0;
+            int64_t remain = 0;
+            ret = eget(ctx, key, &ex);
+            if (ret < 0) {
+                return ret;
+            }
+
+            if (ret == 1) {
+                remain = ex - time_ms();
+                if (remain < 0)  {
+                    //expired
+                    return 0;
+                }
+            }
+
+            *pttl = remain;
+        }
+
     }
 
     SnapshotPtr spl(ldb, snapshot); //auto release
@@ -887,7 +907,22 @@ int SSDBImpl::restore(Context &ctx, const Bytes &key, int64_t expire, const Byte
     int ret = 0;
     std::string meta_val;
     std::string meta_key = encode_meta_key(key);
-    leveldb::Status s = ldb->Get(leveldb::ReadOptions(), meta_key, &meta_val);
+    leveldb::Status s;
+
+    bool found = true;
+
+#ifdef USE_LEVELDB
+    s = ldb->Get(commonRdOpt, meta_key, &meta_val);
+#else
+    if (ldb->KeyMayExist(commonRdOpt, meta_key, &meta_val, &found)) {
+        if (!found) {
+            s = ldb->Get(commonRdOpt, meta_key, &meta_val);
+        }
+    } else {
+        s = s.NotFound();
+    }
+#endif
+
     if (!s.ok() && !s.IsNotFound()) {
         return STORAGE_ERR;
     }

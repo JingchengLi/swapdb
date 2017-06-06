@@ -54,8 +54,10 @@ int bproc_COMMAND_DATA_DUMP(Context &ctx, TransferWorker *worker, const std::str
 
     std::string val;
 
+    int64_t pttl = 0;
+
     PTST(dump, 0.03)
-    int ret = serv->ssdb->dump(ctx, data_key, &val);
+    int ret = serv->ssdb->dump(ctx, data_key, &val, &pttl);
     PTE(dump, hexstr(data_key))
 
 
@@ -69,12 +71,6 @@ int bproc_COMMAND_DATA_DUMP(Context &ctx, TransferWorker *worker, const std::str
         return 0;
 
     } else {
-
-        int64_t pttl = serv->ssdb->expiration->pttl(ctx, data_key, TimeUnit::Millisecond);
-        if (pttl < 0) {
-            pttl = 0; //not sure
-        }
-
 
         std::vector<std::string> req = {cmd, data_key, str(pttl), val, "replace"};
         log_debug("[request->redis] : %s %s", hexstr(req[0]).c_str(), hexstr(req[1]).c_str());

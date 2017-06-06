@@ -554,7 +554,7 @@ int proc_dump(Context &ctx, Link *link, const Request &req, Response *resp) {
     std::string val;
 
     PTST(dump, 0.01)
-    int ret = serv->ssdb->dump(ctx, req[1], &val);
+    int ret = serv->ssdb->dump(ctx, req[1], &val, nullptr);
     PTE(dump, req[1].String())
 
     check_key(ret);
@@ -1079,19 +1079,14 @@ int proc_migrate(Context &ctx, Link *link, const Request &req, Response *resp) {
     /* Create RESTORE payload and generate the protocol to call the command. */
     for (j = 0; j < kv.size(); j++) {
         std::string payload;
-        int ret = serv->ssdb->dump(ctx, kv[j], &payload);
+        int64_t pttl = 0;
+
+        int ret = serv->ssdb->dump(ctx, kv[j], &payload, &pttl);
          if (ret < 0) {
             reply_err_return(ret);
         } else if (ret == 0) {
              continue;
          }
-
-        int64_t pttl = serv->ssdb->expiration->pttl(ctx, kv[j], TimeUnit::Millisecond);
-        if (pttl == -1) {
-            pttl = 0;
-        } else if (pttl == -2) {
-            continue;
-        }
 
         std::vector<std::string> cmd_item;
 //        cmd_item.emplace_back("RESTORE");
