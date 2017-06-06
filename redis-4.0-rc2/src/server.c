@@ -1494,10 +1494,12 @@ void startToLoadIfNeeded() {
     return;
 }
 
+#define MAX_SSDB_SWAP_COUNT_EVERY_TIME 20
 void startToHandleCmdListInSlave(void) {
     dictEntry *de;
     dictIterator *di;
     uint64_t type;
+    int processed_count = 0;
 
     if (dictSize(server.loadAndEvictCmdDict) == 0
         || !server.slave_ssdb_load_evict_client) return;
@@ -1533,6 +1535,10 @@ void startToHandleCmdListInSlave(void) {
             dictDelete(server.loadAndEvictCmdDict, key);
         }
         resetClient(server.slave_ssdb_load_evict_client);
+        processed_count++;
+        /* for slave redis, limit the transfer/load operation count to MAX_SSDB_SWAP_COUNT_EVERY_TIME every time,
+         * avoid to cause a long time delay of data replication for server.master when do stress test. */
+        if (processed_count >= MAX_SSDB_SWAP_COUNT_EVERY_TIME) break;
     }
     dictReleaseIterator(di);
 }
@@ -3265,8 +3271,14 @@ int processCommandReplicationConn(client* c, struct ssdb_write_op* slave_retry_w
     return C_ERR;
 }
 
+// todo: use a suitable value and add config option
+#define MAX_LOAD_NUM_EVERY_TIME 20
 void chooseHotKeysByLFUcounter(robj* keyobj) {
     if (!server.load_from_ssdb) return;
+
+    /* limit the max num of server.hot_keys to avoid to load too many keys
+     * when startToLoadIfNeeded called, which may block redis. */
+    if (dictSize(server.hot_keys) > MAX_LOAD_NUM_EVERY_TIME) return;
 
     serverAssert(server.maxmemory_policy & MAXMEMORY_FLAG_LFU);
 
@@ -3577,7 +3589,7 @@ int runCommandReplicationConn(client *c, listNode* writeop_ln) {
         int j;
         sds tmp = sdsempty();
 
-        serverLog(LL_DEBUG, "[!!]server.dirty not changed, write command excute failed.");
+        serverLog(LL_DEBUG, "[!!]server.dirty not changed, this write command may excute failed.");
         for (j = 0; j < c->argc; j++) {
             tmp = sdscatsds(tmp, c->argv[j]->ptr);
             tmp = sdscat(tmp, " ");
