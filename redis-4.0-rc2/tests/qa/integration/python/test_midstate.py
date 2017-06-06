@@ -4,9 +4,10 @@ import unittest
 import redis
 from multiprocessing import Pool, Queue, Manager
 import time
+import sys
 
 class RedisPool:
-    def Redis_Pool(self,ClientHost="localhost",ClientPort=6379,ClientDb=0):
+    def Redis_Pool(self,ClientHost="localhost",ClientPort=sys.argv[1],ClientDb=0):
         pool=redis.ConnectionPool(host=ClientHost,port=ClientPort,db=ClientDb)
         return redis.StrictRedis(connection_pool=pool)
 
@@ -152,5 +153,7 @@ class TestMidState(unittest.TestCase):
             flags |= result.get()
         self.assertEqual(0x6, flags, "%d : read shoule be blocked during loading status" % flags)
 
-if __name__=='__main__':
-    unittest.main(verbosity=2)
+suite = unittest.TestLoader().loadTestsFromTestCase(TestMidState)
+unittest.TextTestRunner(verbosity=2).run(suite)
+#  if __name__=='__main__':
+    #  unittest.main(verbosity=2)

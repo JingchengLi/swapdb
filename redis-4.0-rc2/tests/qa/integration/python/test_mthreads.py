@@ -3,10 +3,10 @@
 import unittest
 import redis
 from multiprocessing import Pool
-import os, time, random
+import os, time, random, sys
 
 class RedisPool:
-    def Redis_Pool(self,ClientHost="localhost",ClientPort=6379,ClientDb=0):
+    def Redis_Pool(self,ClientHost="localhost",ClientPort=sys.argv[1],ClientDb=0):
         pool=redis.ConnectionPool(host=ClientHost,port=ClientPort,db=ClientDb)
         return redis.StrictRedis(connection_pool=pool)
 
@@ -68,7 +68,7 @@ class TestMthreads(unittest.TestCase):
         self.assertNotEqual(100, n, "more than 20 secs to wait memory stable.")
         return memory
 
-    @unittest.skip("skip test_01")
+    #  @unittest.skip("skip test_01")
     def test_01(self):
         '''set/storetossdb/get concurrency'''
         for i in range(100):
@@ -82,7 +82,7 @@ class TestMthreads(unittest.TestCase):
         self.assertIn(locatekey(),["redis", "ssdb"])
         R.delete(self.key)
 
-    @unittest.skip("skip test_01_leak")
+    #  @unittest.skip("skip test_01_leak")
     def test_01_leak(self):
         '''set/storetossdb/get concurrency memory leak'''
         memory_before = R.info("memory")["used_memory"]
@@ -105,7 +105,7 @@ class TestMthreads(unittest.TestCase):
         R.delete(self.key)
 
     #  TODO need to check after lower 0.9
-    @unittest.skip("skip test_02")
+    #  @unittest.skip("skip test_02")
     def test_02(self):
         '''All keys still exist after reach 0.9*maxmemory'''
         keysNum = 2000
@@ -124,12 +124,12 @@ class TestMthreads(unittest.TestCase):
                     ssdbnum+=1
 
         print "ssdbnum is %d" % ssdbnum
-        print "redisnum is %d" % R.dbsize()
+        print "totalnum is %d" % R.dbsize()
 
         for i in range(keysNum):
             self.assertTrue(R.delete(self.key+str(i)))
 
-    @unittest.skip("skip test_03")
+    #  @unittest.skip("skip test_03")
     def test_03(self):
         '''repeat set/get to load from ssdb after dump'''
         keysNum = 2000
@@ -148,7 +148,7 @@ class TestMthreads(unittest.TestCase):
                     ssdbnum+=1
 
         print "ssdbnum is %d" % ssdbnum
-        print "redisnum is %d" % R.dbsize()
+        print "totalnum is %d" % R.dbsize()
 
         for i in range(keysNum):
             self.assertTrue(R.delete(self.key+str(i)))
@@ -185,10 +185,12 @@ class TestMthreads(unittest.TestCase):
                 print "check key none %d" % i
 
         print "ssdbnum is %d" % ssdbnum
-        print "redisnum is %d" % R.dbsize()
+        print "totalnum is %d" % R.dbsize()
         print "nonenum is %d" % nonenum
 
-if __name__=='__main__':
-    print 'Parent process %s.' % os.getpid()
-    unittest.main(verbosity=2)
-    print 'All subprocesses done.'
+suite = unittest.TestLoader().loadTestsFromTestCase(TestMthreads)
+unittest.TextTestRunner(verbosity=2).run(suite)
+#if __name__=='__main__':
+#    print 'Parent process %s.' % os.getpid()
+#    unittest.main(verbosity=2)
+#    print 'All subprocesses done.'

@@ -2,9 +2,11 @@
 #coding=utf-8
 import unittest
 import redis
+import time
+import sys
 
 class RedisPool:
-    def Redis_Pool(self,ClientHost="localhost",ClientPort=6379,ClientDb=0):
+    def Redis_Pool(self,ClientHost="localhost",ClientPort=sys.argv[1],ClientDb=0):
         pool=redis.ConnectionPool(host=ClientHost,port=ClientPort,db=ClientDb)
         return redis.StrictRedis(connection_pool=pool)
 
@@ -28,6 +30,7 @@ class TestPipeline(unittest.TestCase):
     def dumpKeys(self, patten='*'):
         for key in self.R.keys():
             self.R.execute_command("storetossdb "+key)
+        time.sleep(0.5)
 
     def test_pipleline_set_get(self, r=RedisPool().Redis_Pool()):
         self.R.set("foo", 'ssdbbar')

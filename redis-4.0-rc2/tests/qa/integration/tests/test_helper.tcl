@@ -612,7 +612,7 @@ for {set j 0} {$j < [llength $argv]} {incr j} {
                 puts "error info: $errInfo"
             }
             puts "waiting........."
-            after 1000000
+            after 100000000
         }
     } else {
         puts "Wrong argument: $opt"
