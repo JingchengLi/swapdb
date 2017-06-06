@@ -16,6 +16,8 @@ found in the LICENSE file.
 #include <string>
 #include <algorithm>
 #include <limits.h>
+#include <sstream>
+#include <iomanip>
 
 
 /* Convert a long double into a string. If humanfriendly is non-zero
@@ -882,6 +884,38 @@ void random_str(char *s, const int len) {
 	}
 
 	s[len] = 0;
+}
+
+/* Convert number of bytes into a human readable string of the form:
+ * 100B, 2G, 100M, 4K, and so forth. */
+inline std::string bytesToHuman(int64_t n) {
+	double d;
+
+	std::stringstream stream;
+
+	if (n < 0) {
+		stream << "-";
+		n = -n;
+	}
+
+	if (n < 1024) {
+		/* Bytes */
+		stream << n << "B";
+	} else if (n < (1024 * 1024)) {
+		d = (double) n / (1024.0);
+		stream << std::fixed << std::setprecision(2);
+		stream << d << "K";
+	} else if (n < (1024LL * 1024 * 1024)) {
+		d = (double) n / (1024.0 * 1024.0);
+		stream << std::fixed << std::setprecision(2);
+		stream << d << "M";
+	} else if (n < (1024LL * 1024 * 1024 * 1024)) {
+		d = (double) n / (1024.0 * 1024.0 * 1024.0);
+		stream << std::fixed << std::setprecision(2);
+		stream << d << "G";
+	}
+
+	return stream.str();
 }
 
 // is big endia. TODO: auto detect

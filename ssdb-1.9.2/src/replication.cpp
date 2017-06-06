@@ -88,6 +88,7 @@ int ReplicationWorker::proc(ReplicationJob *job) {
 
     std::unique_ptr<Buffer> buffer = std::unique_ptr<Buffer>(new Buffer(1024 * 1024));
 
+    uint64_t rawBytes = 0;
     uint64_t sendBytes = 0;
     uint64_t packageSize = MIN_PACKAGE_SIZE; //init 512k
     uint64_t totalKeys = serv->ssdb->size();
@@ -237,6 +238,7 @@ int ReplicationWorker::proc(ReplicationJob *job) {
 
             if (buffer->size() > packageSize) {
                 saveStrToBuffer(ssdb_slave_link->output, "mset");
+                rawBytes += buffer->size();
                 moveBuffer(ssdb_slave_link->output, buffer.get());
                 int len = ssdb_slave_link->write();
                 if (len > 0) { sendBytes = sendBytes + len; }
@@ -252,6 +254,7 @@ int ReplicationWorker::proc(ReplicationJob *job) {
         if (finish) {
             if (!buffer->empty()) {
                 saveStrToBuffer(ssdb_slave_link->output, "mset");
+                rawBytes += buffer->size();
                 moveBuffer(ssdb_slave_link->output, buffer.get());
                 int len = ssdb_slave_link->write();
                 if (len > 0) { sendBytes = sendBytes + len; }
@@ -324,7 +327,9 @@ int ReplicationWorker::proc(ReplicationJob *job) {
 
     log_info("[ReplicationWorker] send snapshot to %s:%d finished!", hnp.ip.c_str(), hnp.port);
     log_debug("send rr_transfer_snapshot finished!!");
-    log_info("replic procedure finish! sendByes %d", sendBytes);
+    log_info("replic procedure finish!");
+    log_info("[ReplicationWorker] task stats : dataSize %s, sendByes %s",
+             bytesToHuman(rawBytes).c_str(), bytesToHuman(sendBytes).c_str());
     delete ssdb_slave_link;
     return 0;
 
