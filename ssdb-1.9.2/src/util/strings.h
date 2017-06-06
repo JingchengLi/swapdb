@@ -918,6 +918,48 @@ inline std::string bytesToHuman(int64_t n) {
 	return stream.str();
 }
 
+
+inline std::string timestampToHuman(int64_t ts)
+{
+	std::stringstream stream;
+
+	if (ts < 0) {
+		stream << "-";
+		ts = -ts;
+	}
+
+	if (ts > (1000 * 60 * 60 * 24)) {
+		int day = (int) (ts * 1.0 / (1000 * 60 * 60 * 24 * 1.0));
+		stream << day << "d";
+		ts = ts % (1000 * 60 * 60 * 24);
+	}
+
+	if (ts > (1000 * 60 * 60)) {
+		int hour = (int) (ts * 1.0 / (1000 * 60 * 60 * 1.0));
+		stream << hour << "h";
+		ts = ts % (1000 * 60 * 60);
+	}
+
+	if (ts > (1000 * 60)) {
+		int minute = (int) (ts * 1.0 / (1000 * 60 * 1.0));
+		stream << minute << "m";
+		ts = ts % (1000 * 60);
+	}
+
+
+	if (ts > (1000)) {
+		int second = (int) (ts * 1.0 / (1000 * 1.0));
+		stream << second << "s";
+		ts = ts % (1000);
+	}
+
+	if (ts > (0)) {
+		stream << ts << "ms";
+	}
+
+	return stream.str();
+}
+
 // is big endia. TODO: auto detect
 #if 0
 	#define big_endian(v) (v)

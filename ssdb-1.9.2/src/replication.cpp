@@ -88,6 +88,8 @@ int ReplicationWorker::proc(ReplicationJob *job) {
 
     std::unique_ptr<Buffer> buffer = std::unique_ptr<Buffer>(new Buffer(1024 * 1024));
 
+    int64_t start = time_ms();
+
     uint64_t rawBytes = 0;
     uint64_t sendBytes = 0;
     uint64_t packageSize = MIN_PACKAGE_SIZE; //init 512k
@@ -328,8 +330,11 @@ int ReplicationWorker::proc(ReplicationJob *job) {
     log_info("[ReplicationWorker] send snapshot to %s:%d finished!", hnp.ip.c_str(), hnp.port);
     log_debug("send rr_transfer_snapshot finished!!");
     log_info("replic procedure finish!");
-    log_info("[ReplicationWorker] task stats : dataSize %s, sendByes %s",
-             bytesToHuman(rawBytes).c_str(), bytesToHuman(sendBytes).c_str());
+    log_info("[ReplicationWorker] task stats : dataSize %s, sendByes %s, elapsed %s",
+             bytesToHuman(rawBytes).c_str(),
+             bytesToHuman(sendBytes).c_str(),
+             timestampToHuman((time_ms() - start)).c_str()
+    );
     delete ssdb_slave_link;
     return 0;
 
