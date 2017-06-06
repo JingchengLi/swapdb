@@ -2744,10 +2744,19 @@ int processMultibulkBuffer(client *c) {
     return C_ERR;
 }
 
+#define SLAVE_MAX_PROCESSED_LIMIT 100
 void processInputBuffer(client *c) {
+    int processed_count = 0;
     server.current_client = c;
     /* Keep processing while there is something in the input buffer */
     while(sdslen(c->querybuf)) {
+        if (server.jdjr_mode && server.masterhost) {
+            /* for slave redis, redis server may process write commands on
+             * server.master connection for a long time, which may cause some
+             * serious issue such as replication keepalive timeout, etc.. */
+            processed_count++;
+            if (processed_count >= SLAVE_MAX_PROCESSED_LIMIT) break;
+        }
         /* Return if clients are paused. */
         if (!(c->flags & CLIENT_SLAVE) && clientsArePaused()) break;
 
