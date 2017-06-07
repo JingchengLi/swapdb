@@ -539,18 +539,16 @@ int NetworkServer::proc_result(ProcJob *job, ready_list_t *ready_list){
 	if(result == PROC_ERROR){
 
 		std::string error_cmd = "cmd: ";
-		for(Request::const_iterator it=job->req->begin(); it!=job->req->end(); it++){
-			const Bytes &key = *it;
-			error_cmd.append(hexmem(key.data(),key.size()));
+		for_each(job->req->begin(), job->req->end(), [&](Bytes b) {
+			error_cmd.append(hexmem(b.data(),b.size()));
 			error_cmd.append(" ");
-		}
+		});
 
 		error_cmd.append(" resp: ");
-		for(std::vector<std::string>::const_iterator it=job->resp.resp.begin(); it!=job->resp.resp.end(); it++){
-			const std::string& res = *it;
- 			error_cmd.append(hexmem(res.data(),res.size()));
+		for_each(job->resp.resp.begin(), job->resp.resp.end(), [&](Bytes b) {
+			error_cmd.append(hexmem(b.data(),b.size()));
 			error_cmd.append(" ");
-		}
+		});
 
 		log_info("fd: %d, proc error, delete link, %s", link->fd(), error_cmd.c_str());
 		delete job;

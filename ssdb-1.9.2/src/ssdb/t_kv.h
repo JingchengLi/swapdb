@@ -28,9 +28,8 @@ int SSDBImpl::updateKvCommon(Context &ctx, const Bytes &key, L lambda) {
         return ret;
     }
 
-    std::string buf = encode_meta_key(key);
     std::string meta_val = encode_kv_val(Bytes(new_val), kv.version);
-    batch.Put(buf, meta_val);
+    batch.Put(meta_key, meta_val);
 
     leveldb::Status s = CommitBatch(ctx, &(batch));
     if(!s.ok()){

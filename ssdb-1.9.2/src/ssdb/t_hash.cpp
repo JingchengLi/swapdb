@@ -130,8 +130,8 @@ int SSDBImpl::hincr(Context &ctx, const Bytes &name, const Bytes &key, int64_t b
 
 int SSDBImpl::hsize(Context &ctx, const Bytes &name, uint64_t *size){
 	HashMetaVal hv;
-	std::string size_key = encode_meta_key(name);
-	int ret = GetHashMetaVal(size_key, hv);
+	std::string meta_key = encode_meta_key(name);
+	int ret = GetHashMetaVal(meta_key, hv);
 	if (ret != 1){
 		return ret;
 	} else{
@@ -195,7 +195,6 @@ int SSDBImpl::hget(Context &ctx, const Bytes &name, const Bytes &key, std::pair<
 
 
 int SSDBImpl::hgetall(Context &ctx, const Bytes &name, std::map<std::string, std::string> &val) {
-
 	HashMetaVal hv;
 	const leveldb::Snapshot* snapshot = nullptr;
 
@@ -211,11 +210,7 @@ int SSDBImpl::hgetall(Context &ctx, const Bytes &name, std::map<std::string, std
 
 	SnapshotPtr spl(ldb, snapshot);
 
-	HIterator* hi = hscan_internal(ctx, name, hv.version, snapshot);
-	if (hi == nullptr) {
-		return -1;
-	}
-	auto it = std::unique_ptr<HIterator>(hi);
+	std::unique_ptr<HIterator> it(hscan_internal(ctx, name, hv.version, snapshot));
 
 	while(it->next()){
 		val[it->key] = it->val;
@@ -224,22 +219,6 @@ int SSDBImpl::hgetall(Context &ctx, const Bytes &name, std::map<std::string, std
 	return 1;
 }
 
-//HIterator* SSDBImpl::hscan(Context &ctx, const Bytes &name, const Bytes &start, const Bytes &end, uint64_t limit){
-//    HashMetaVal hv;
-//	uint16_t version;
-//
-//	std::string meta_key = encode_meta_key(name);
-//    int ret = GetHashMetaVal(meta_key, hv);
-//	if (0 == ret){
-//		version = hv.version;
-//	} else if (ret > 0){
-//		version = hv.version;
-//	} else{
-//		version = 0;
-//	}
-//
-//	return hscan_internal(name, start, end, version, limit);
-//}
 
 
 HIterator* SSDBImpl::hscan_internal(Context &ctx, const Bytes &name, uint16_t version, const leveldb::Snapshot *snapshot){
@@ -403,16 +382,16 @@ int SSDBImpl::hset_one(leveldb::WriteBatch &batch, const HashMetaVal &hv, bool c
 	int ret = 0;
 	if (check_exists) {
 		std::string dbval;
-		std::string item_key = encode_hash_key(name, key, hv.version);
-		ret = GetHashItemValInternal(item_key, &dbval);
+		std::string hkey = encode_hash_key(name, key, hv.version);
+		ret = GetHashItemValInternal(hkey, &dbval);
 		if (ret < 0){
 			return ret;
 		} else if (ret == 0){
-			batch.Put(item_key, slice(val));
+			batch.Put(hkey, slice(val));
 			ret = 1;
 		} else{
 			if(dbval != val){
-				batch.Put(item_key, slice(val));
+				batch.Put(hkey, slice(val));
 			}
 			ret = 0;
 		}

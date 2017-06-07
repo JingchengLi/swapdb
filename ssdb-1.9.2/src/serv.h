@@ -66,6 +66,12 @@ public:
 
 };
 
+class ScanParams {
+public:
+    std::string pattern = "*";
+    uint64_t limit = 10;
+};
+
 class SSDBServer
 {
 public:
@@ -75,6 +81,8 @@ public:
 	SSDBImpl *ssdb;
     RecordMutex<Mutex> transfer_mutex_record_;
 
+    const Config &conf;
+    
     HostAndPort redisConf;
 
     ReplicationState replicState;
@@ -95,3 +103,25 @@ private:
 
 #endif
 
+
+inline int prepareForScanParams(std::vector<Bytes> req, int startIndex,  ScanParams &scanParams) {
+
+    std::vector<Bytes>::const_iterator it = req.begin() + startIndex;
+    for(; it != req.end(); it += 2){
+        std::string key = (*it).String();
+        strtolower(&key);
+
+        if (key=="match") {
+            scanParams.pattern = (*(it+1)).String();
+        } else if (key=="count") {
+            scanParams.limit =  (*(it+1)).Uint64();
+            if (errno == EINVAL){
+                return INVALID_INT;
+            }
+        } else {
+            return SYNTAX_ERR;
+        }
+    }
+
+    return 0;
+}

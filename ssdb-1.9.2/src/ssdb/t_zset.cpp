@@ -102,8 +102,8 @@ int SSDBImpl::zincr(Context &ctx, const Bytes &name, const Bytes &key, double by
 
 int SSDBImpl::zsize(Context &ctx, const Bytes &name, uint64_t *size) {
     ZSetMetaVal zv;
-    std::string size_key = encode_meta_key(name);
-    int ret = GetZSetMetaVal(size_key, zv);
+    std::string meta_key = encode_meta_key(name);
+    int ret = GetZSetMetaVal(meta_key, zv);
     if (ret <= 0) {
         return ret;
     } else {

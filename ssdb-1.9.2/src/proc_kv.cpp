@@ -453,29 +453,16 @@ int proc_scan(Context &ctx, Link *link, const Request &req, Response *resp){
 		reply_err_return(INVALID_INT);
 	}
 
-	std::string pattern = "*";
-	uint64_t limit = 10;
+	ScanParams scanParams;
 
-	std::vector<Bytes>::const_iterator it = req.begin() + cursorIndex + 1;
-	for(; it != req.end(); it += 2){
-		std::string key = (*it).String();
-		strtolower(&key);
-
-		if (key=="match") {
-			pattern = (*(it+1)).String();
-		} else if (key=="count") {
-			limit =  (*(it+1)).Uint64();
-			if (errno == EINVAL){
-				reply_err_return(INVALID_INT);
-			}
-		} else {
-			reply_err_return(SYNTAX_ERR);
-		}
+	int ret = prepareForScanParams(req, cursorIndex + 1, scanParams);
+	if (ret < 0) {
+		reply_err_return(ret);
 	}
 
     resp->reply_scan_ready();
 
-    serv->ssdb->scan(cursor, pattern, limit, resp->resp);
+    serv->ssdb->scan(cursor, scanParams.pattern, scanParams.limit, resp->resp);
 
 	return 0;
 }

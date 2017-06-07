@@ -62,9 +62,9 @@ int proc_hdel(Context &ctx, Link *link, const Request &req, Response *resp) {
     const Bytes &name = req[1];
 
     std::set<Bytes> fields;
-    for (int j = 2; j < req.size(); ++j) {
-        fields.insert(req[j]);
-    }
+    for_each(req.begin() + 2, req.end(), [&](Bytes b) {
+        fields.insert(b);
+    });
 
     int deleted = 0;
     int ret = serv->ssdb->hdel(ctx, name, fields, &deleted);
@@ -235,28 +235,15 @@ int proc_hscan(Context &ctx, Link *link, const Request &req, Response *resp) {
         reply_err_return(INVALID_INT);
     }
 
-    std::string pattern = "*";
-    uint64_t limit = 10;
+    ScanParams scanParams;
 
-    std::vector<Bytes>::const_iterator it = req.begin() + cursorIndex + 1;
-    for (; it != req.end(); it += 2) {
-        std::string key = (*it).String();
-        strtolower(&key);
-
-        if (key == "match") {
-            pattern = (*(it + 1)).String();
-        } else if (key == "count") {
-            limit = (*(it + 1)).Uint64();
-            if (errno == EINVAL) {
-                reply_err_return(INVALID_INT);
-            }
-        } else {
-            reply_err_return(SYNTAX_ERR);
-        }
+    int ret = prepareForScanParams(req, cursorIndex + 1, scanParams);
+    if (ret < 0) {
+        reply_err_return(ret);
     }
     resp->reply_scan_ready();
 
-    int ret = serv->ssdb->hscan(ctx, req[1], cursor, pattern, limit, resp->resp);
+    ret = serv->ssdb->hscan(ctx, req[1], cursor, scanParams.pattern, scanParams.limit, resp->resp);
     check_key(ret);
     if (ret < 0) {
         resp->resp.clear();

@@ -295,7 +295,7 @@ void SSDBServer::reg_procs(NetworkServer *net) {
 #define COMMAND_DATA_DUMP 2
 
 
-SSDBServer::SSDBServer(SSDB *ssdb, const Config &conf, NetworkServer *net) {
+SSDBServer::SSDBServer(SSDB *ssdb, const Config &conf, NetworkServer *net) : conf(conf){
     this->ssdb = (SSDBImpl *) ssdb;
 
     net->data = this;
