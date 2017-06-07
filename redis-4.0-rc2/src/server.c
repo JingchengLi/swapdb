@@ -1382,6 +1382,21 @@ void startToEvictIfNeeded() {
             break;
         }
     }
+
+    while (server.evicting_keys_num <= EVICTING_TO_SSDB_KEYS_MAX_NUM
+           && listLength(server.storetossdb_migrate_keys)) {
+        listNode *head = listIndex(server.storetossdb_migrate_keys, 0);
+        robj *keyobj = head->value;
+        if (prologOfEvictingToSSDB(keyobj, server.db) == C_OK) {
+            serverLog(LL_DEBUG, "migrate log: run storetossdb %s", (char *)keyobj->ptr);
+        } else {
+            /* Key is not in redis or link error. */
+        }
+
+        listDelNode(server.storetossdb_migrate_keys, head);
+        serverLog(LL_DEBUG, "migrate log: key: %s is deleted from server.storetossdb_migrate_keys",
+                  (char *)keyobj->ptr);
+    }
 }
 
 #define RESERVED_MEMORY_WHEN_LOAD (1024*1024*2)
@@ -2333,6 +2348,9 @@ void initServer(void) {
 
         server.hot_keys = dictCreate(&keyDictType,NULL);
         server.maybe_deleted_ssdb_keys = dictCreate(&keyDictType,NULL);
+
+        server.storetossdb_migrate_keys = listCreate();
+        listSetFreeMethod(server.storetossdb_migrate_keys, (void (*)(void*))decrRefCount);
     }
 
     evictionPoolAlloc(); /* Initialize the LRU keys pool. */

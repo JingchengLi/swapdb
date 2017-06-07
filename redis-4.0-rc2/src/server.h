@@ -1365,6 +1365,7 @@ struct redisServer {
     int cmdNotDone;
     client *delete_confirm_client;
     list *delayed_migrate_clients;
+    list *storetossdb_migrate_keys;
 
     /* for slave redis, we save ssdb write operations before receive responses from ssdb. */
     time_t last_send_writeop_time;

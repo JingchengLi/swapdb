@@ -4599,6 +4599,10 @@ void restoreCommand(client *c) {
              || !strcasecmp(c->cmd->name, "restore-asking"))
             && lookupKeyWrite(EVICTED_DATA_DB,c->argv[1]) != NULL)) {
         addReply(c,shared.busykeyerr);
+
+        /* Run storetossdb asynchronously. */
+        listAddNodeTail(server.storetossdb_migrate_keys, c->argv[1]);
+        incrRefCount(c->argv[1]);
         return;
     }
 
