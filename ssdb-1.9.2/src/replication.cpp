@@ -108,6 +108,10 @@ int ReplicationWorker::proc(ReplicationJob *job) {
 
         if (job->heartbeat) {
             if ((ts - lastHeartBeat) > 5000) {
+                if (!master_link->output->empty()) {
+                    log_debug("master_link->output not empty , redis may blocked ?");
+                }
+
                 RedisResponse r("rr_transfer_snapshot continue");
                 master_link->output->append(Bytes(r.toRedis()));
                 if (master_link->append_reply) {
@@ -210,9 +214,9 @@ int ReplicationWorker::proc(ReplicationJob *job) {
         }
 
         if (ssdb_slave_link->output->size() > MAX_PACKAGE_SIZE) {
-            uint s = uint(ssdb_slave_link->output->size() * 1.0 / (MIN_PACKAGE_SIZE * 1.0)) * 500;
-            log_info("delay for output buffer write slow~ ; usleep : %d", s);
-            usleep(s);
+//            uint s = uint(ssdb_slave_link->output->size() * 1.0 / (MIN_PACKAGE_SIZE * 1.0)) * 500;
+            log_info("delay for output buffer write slow~");
+            usleep(500);
             packageSize = MIN_PACKAGE_SIZE; //reset 512k
             continue;
         } else {
