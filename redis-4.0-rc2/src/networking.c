@@ -2775,7 +2775,7 @@ int processMultibulkBuffer(client *c) {
     return C_ERR;
 }
 
-#define SLAVE_MAX_PROCESSED_LIMIT 100
+#define SLAVE_MAX_PROCESSED_LIMIT 20
 void processInputBuffer(client *c) {
     int processed_count = 0;
     server.current_client = c;

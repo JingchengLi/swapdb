@@ -1494,7 +1494,7 @@ void startToLoadIfNeeded() {
     return;
 }
 
-#define MAX_SSDB_SWAP_COUNT_EVERY_TIME 20
+#define MAX_SSDB_SWAP_COUNT_EVERY_TIME 2
 void startToHandleCmdListInSlave(void) {
     dictEntry *de;
     dictIterator *di;
@@ -3279,7 +3279,7 @@ int processCommandReplicationConn(client* c, struct ssdb_write_op* slave_retry_w
 }
 
 // todo: use a suitable value and add config option
-#define MAX_LOAD_NUM_EVERY_TIME 20
+#define MAX_LOAD_NUM_EVERY_TIME 5
 void chooseHotKeysByLFUcounter(robj* keyobj) {
     if (!server.load_from_ssdb) return;
 
