@@ -3611,6 +3611,7 @@ int runCommandReplicationConn(client *c, listNode* writeop_ln) {
 
 int runCommand(client *c) {
     int ret;
+    robj *firstkey = NULL;
     if (c == server.master) {
         ret = runCommandReplicationConn(server.master, NULL);
         if (ret != C_BLOCKED) resetClient(server.master);
@@ -3619,14 +3620,15 @@ int runCommand(client *c) {
 
     /* Check the migrating keys. Don not move out from runCommand as async operations. */
     if (server.jdjr_mode) {
-        robj *firstkey = NULL;
         if (c->cmd->firstkey != 0)
             firstkey = c->argv[c->cmd->firstkey];
         else if (c->cmd->proc == migrateCommand)
             firstkey = c->argv[3];
-        else
+        else {
+            firstkey = c->argc > 1 ? c->argv[1] : NULL;
             /* TODO: check all the cmds. */
             serverLog(LL_DEBUG, "cmd->name: %s, c->argc: %d", c->cmd->name, c->argc);
+        }
 
         /* TODO: block the client and delay the operations ??? */
         if (firstkey && isMigratingSSDBKey(firstkey->ptr)) {
@@ -3642,7 +3644,7 @@ int runCommand(client *c) {
             /* Otherwise, return C_ERR to avoid calling resetClient,
                the resetClient is delayed to ssdbClientUnixHandler. */
             serverLog(LL_DEBUG, "processing %s, fd: %d in ssdb: %s",
-                      c->cmd->name, c->fd, c->argc > 1 ? (char *)c->argv[1]->ptr : "");
+                      c->cmd->name, c->fd, firstkey ? (char *)firstkey->ptr : "");
             return C_ERR;
         } else {
             if (ret == C_NOTSUPPORT_ERR) {
@@ -3667,7 +3669,7 @@ int runCommand(client *c) {
     }
 
     serverLog(LL_DEBUG, "processing %s, fd: %d in redis: %s, dbid: %d, argc: %d",
-              c->cmd->name, c->fd, c->argc > 1 ? (char *)c->argv[1]->ptr : "", c->db->id, c->argc);
+              c->cmd->name, c->fd, firstkey ? (char *)firstkey->ptr : "", c->db->id, c->argc);
 
     return C_OK;
 }

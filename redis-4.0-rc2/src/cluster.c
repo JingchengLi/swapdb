@@ -4593,6 +4593,15 @@ void restoreCommand(client *c) {
         return;
     }
 
+    if (server.jdjr_mode
+        && !replace
+        && ((!strcasecmp(c->cmd->name, "restoressdbkey")
+             || !strcasecmp(c->cmd->name, "restore-asking"))
+            && lookupKeyWrite(EVICTED_DATA_DB,c->argv[1]) != NULL)) {
+        addReply(c,shared.busykeyerr);
+        return;
+    }
+
     /* Check if the TTL value makes sense */
     if (getLongLongFromObjectOrReply(c,c->argv[2],&ttl,NULL) != C_OK) {
         return;
@@ -5224,7 +5233,6 @@ try_again:
 
     char buf1[1024]; /* Select reply. */
     char buf2[1024]; /* Restore reply. */
-    char buf3[3][1024]; /* Del reply. */
 
     /* Read the SELECT reply if needed. */
     if (select && syncReadLine(cs->fd, buf1, sizeof(buf1), timeout) <= 0)
@@ -5258,6 +5266,8 @@ try_again:
                     int k;
                     char *argv[2];
                     sds delcmd;
+                    redisReply *replies[2] = {0};
+
                     argv[0] = "del";
                     argv[1] = kv[j]->ptr;
                     delcmd = composeRedisCmd(2, (const char **) argv, NULL);
@@ -5267,22 +5277,17 @@ try_again:
                         break;
                     }
 
-                    for (k = 0; k < 3; k ++) {
-                        if (!c->context
-                            || ((syncReadLine(c->context->fd, buf3[k], sizeof(buf3[k]), timeout)) <= 0)
-                            || buf3[k][0] == '-') {
-                            error_from_ssdb = 1;
-                            break;
-                        }
-                    }
-
-                    if (!error_from_ssdb && !strcasecmp(buf3[0], ":0"))
+                    /*TODO: set a reasonable timeout. */
+                    if (syncReadReply(c->context,(void *) &replies[0], 5000) == REDIS_ERR
+                        || (replies[0]->type == REDIS_REPLY_INTEGER
+                            && replies[0]->integer == 0)
+                        || (syncReadReply(c->context, (void *)&replies[1], 5000) == REDIS_ERR))
                         error_from_ssdb = 1;
 
-                    if (error_from_ssdb) {
-                        addReplyError(c, "migrate del error in ssdb.");
-                        break;
-                    }
+                    freeReplyObject(replies[0]);
+                    freeReplyObject(replies[1]);
+
+                    if (error_from_ssdb) break;
                 }
 
                 dbDelete(c->db,kv[j]);

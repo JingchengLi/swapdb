@@ -1846,7 +1846,7 @@ void handleSSDBReply(client *c, int revert_len) {
             revertClientBufReply(c, revert_len);
             olddb = c->db;
             c->db = EVICTED_DATA_DB;
-            migrateCommand(c);
+            call(c, CMD_CALL_FULL);
             c->db = olddb;
             serverAssert(delMigratingSSDBKey(keyobj->ptr) == DICT_OK);
         }
@@ -1904,6 +1904,28 @@ void handleSSDBReply(client *c, int revert_len) {
     }
 }
 
+int syncReadReply(redisContext *c, void **reply, long long timeout) {
+    void *aux = NULL;
+    long long start = mstime();
+    long long elapsed;
+
+    /* Read until there is a reply */
+    do {
+        if (redisBufferRead(c) == REDIS_ERR)
+            return REDIS_ERR;
+        if (redisGetReplyFromReader(c,&aux,NULL) == REDIS_ERR)
+            return REDIS_ERR;
+
+        elapsed = mstime() - start;
+
+        if (elapsed >= timeout)
+            return REDIS_ERR;
+    } while (aux == NULL);
+
+    *reply = aux;
+
+    return REDIS_OK;
+}
 
 #define AE_BUFFER_HAVE_UNPROCESSED_DATA AE_WRITABLE
 void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {

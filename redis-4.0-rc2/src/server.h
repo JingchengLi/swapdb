@@ -1511,6 +1511,7 @@ void acceptHandler(aeEventLoop *el, int fd, void *privdata, int mask);
 void acceptTcpHandler(aeEventLoop *el, int fd, void *privdata, int mask);
 void acceptUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask);
 void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *private, int mask);
+int syncReadReply(redisContext *c, void **reply, long long timeout);
 int isSpecialConnection(client *c);
 client* createSpecialSSDBclient();
 void connectSepecialSSDBclients();
