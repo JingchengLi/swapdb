@@ -1807,6 +1807,14 @@ int isSpecialConnection(client *c) {
         return 0;
 }
 
+int isSpecialCommand(client *c) {
+    if (c && c->cmd
+        && c->cmd->proc == migrateCommand)
+        return 1;
+    else
+        return 0;
+}
+
 void handleSSDBReply(client *c, int revert_len) {
     redisReply *reply;
 
@@ -1842,7 +1850,6 @@ void handleSSDBReply(client *c, int revert_len) {
             serverLog(LL_WARNING, "Client btype should be 'BLOCKED_MIGRATING_DUMP'");
 
         if (reply && reply->type == REDIS_REPLY_STRING) {
-            revertClientBufReply(c, revert_len);
             olddb = c->db;
             c->db = EVICTED_DATA_DB;
             call(c, CMD_CALL_FULL);
@@ -2005,7 +2012,10 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
         if (!c->ssdb_replies[0]) {
             if (reply_len) {
                 reply_start = r->buf+r->pos-reply_len;
-                if (!isSpecialConnection(c)) addReplyString(c, reply_start, reply_len);
+                /* Forbid to reply to client when cmd is spacial,
+                   the intermedia will be handled. */
+                if (!isSpecialConnection(c) && !isSpecialCommand(c))
+                    addReplyString(c, reply_start, reply_len);
 #ifdef TEST_CLIENT_BUF
                 tmp = sdscatlen(tmp, reply_start, reply_len);
 #endif
