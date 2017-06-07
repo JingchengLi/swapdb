@@ -95,7 +95,7 @@ typedef long long mstime_t; /* millisecond time type. */
 
 #define SSDB_SLAVE_PORT_INCR 20000 /* SSDB port = redis port + PORT_INCR */
 
-//#define TEST_SLAVE_REPLICATION
+//#define TEST_TIME_CONSUMPTION
 
 /* is_allow_ssdb_write codes */
 #define ALLOW_SSDB_WRITE 1

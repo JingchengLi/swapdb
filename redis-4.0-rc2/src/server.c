@@ -1615,7 +1615,7 @@ void handleDeleteConfirmKeys(void) {
  * for ready file descriptors. */
 void beforeSleep(struct aeEventLoop *eventLoop) {
     UNUSED(eventLoop);
-#ifdef TEST_SLAVE_REPLICATION
+#ifdef TEST_TIME_CONSUMPTION
     long long enter_time = ustime();
     serverLog(LL_DEBUG, "enter beforeSleep: %lld", enter_time);
 #endif
@@ -1673,13 +1673,13 @@ void beforeSleep(struct aeEventLoop *eventLoop) {
 
     if (server.jdjr_mode) handleDeleteConfirmKeys();
 
-#ifdef TEST_SLAVE_REPLICATION
+#ifdef TEST_TIME_CONSUMPTION
     serverLog(LL_DEBUG, "beforeSleep 1:%lld us", ustime()-enter_time);
     enter_time = ustime();
 #endif
     /* Try to handle cmds(load/evict cmds) in an extra list in slave. */
     if (server.jdjr_mode && server.masterhost) startToHandleCmdListInSlave();
-#ifdef TEST_SLAVE_REPLICATION
+#ifdef TEST_TIME_CONSUMPTION
     serverLog(LL_DEBUG, "beforeSleep 2:%lld us", ustime()-enter_time);
     enter_time = ustime();
 #endif
@@ -1687,7 +1687,7 @@ void beforeSleep(struct aeEventLoop *eventLoop) {
     /* Call handleCustomizedBlockedClients in beforeSleep to
        avoid timeout when there's only 1 real client. */
     if (server.jdjr_mode) handleCustomizedBlockedClients();
-#ifdef TEST_SLAVE_REPLICATION
+#ifdef TEST_TIME_CONSUMPTION
     serverLog(LL_DEBUG, "beforeSleep 3:%lld us", ustime()-enter_time);
 #endif
 }
@@ -2722,6 +2722,10 @@ void call(client *c, int flags) {
     dirty = server.dirty-dirty;
     if (dirty < 0) dirty = 0;
 
+#ifdef TEST_TIME_CONSUMPTION
+    serverLog(LL_DEBUG, "process redis command: %lld us", duration);
+#endif
+
     /* When EVAL is called loading the AOF we don't want commands called
      * from Lua to go into the slowlog or to populate statistics. */
     if (server.loading && c->flags & CLIENT_LUA)
@@ -3308,7 +3312,6 @@ void chooseHotKeysByLFUcounter(robj* keyobj) {
     return;
 }
 
-// todo: refactor for server.master connection
 /* Process keys may be in SSDB, only handle the command jdjr_mode supported.
  The rest cases will be handled by processCommand. */
 int processCommandMaybeInSSDB(client *c) {
@@ -3573,17 +3576,8 @@ int runCommandReplicationConn(client *c, listNode* writeop_ln) {
     }
     int old_dirty = server.dirty;
 
-#ifdef TEST_SLAVE_REPLICATION
-    long long time = ustime();
-    serverLog(LL_DEBUG, "before process redis command: %lld", time);
-#endif
-
     call(c,CMD_CALL_FULL);
     c->woff = server.master_repl_offset;
-
-#ifdef TEST_SLAVE_REPLICATION
-    serverLog(LL_DEBUG, "process redis command: %lld us", ustime()-time);
-#endif
 
     if (server.verbosity == LL_DEBUG && (c->cmd->flags & CMD_WRITE) && old_dirty == server.dirty) {
         int j;
@@ -3668,16 +3662,7 @@ int runCommand(client *c) {
         queueMultiCommand(c);
         addReply(c,shared.queued);
     } else {
-#ifdef TEST_SLAVE_REPLICATION
-        long long time = ustime();
-        serverLog(LL_DEBUG, "before process redis command: %lld", time);
-#endif
         call(c,CMD_CALL_FULL);
-
- #ifdef TEST_SLAVE_REPLICATION
-        serverLog(LL_DEBUG, "process redis command: %lld us", ustime()-time);
-#endif
-
         c->woff = server.master_repl_offset;
     }
 
