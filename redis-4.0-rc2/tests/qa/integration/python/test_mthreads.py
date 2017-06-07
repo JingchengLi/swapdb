@@ -13,7 +13,7 @@ class RedisPool:
 R = RedisPool().Redis_Pool()
 
 def set(key="key"):
-    val = 'a'*1000000
+    val = 'a'*random.randint(100, 20000)
     return R.set(key, val)
 
 def get(key="key"):

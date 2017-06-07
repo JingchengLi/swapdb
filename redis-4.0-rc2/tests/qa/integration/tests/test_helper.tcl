@@ -30,6 +30,7 @@ set ::all_tests {
     ssdb/threads
     ssdb/flush
     ssdb/ssdbinfo
+    ssdb/python
 
     unit/dump
     unit/type/hash

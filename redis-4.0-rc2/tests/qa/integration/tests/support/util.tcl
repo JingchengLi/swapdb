@@ -186,7 +186,11 @@ proc createComplexDataset {r ops {opt {}}} {
         if {[lsearch -exact $opt samekey] != -1} {
             set k "key_8888888888"
         } else {
-            set k [randomKey]
+            randpath {
+                set k [randomKey]
+            } {
+                set k [lindex $keyslist [randomInt [llength $keyslist]]]
+            }
         }
         lappend keyslist $k
         set f [randomValue]
@@ -205,60 +209,52 @@ proc createComplexDataset {r ops {opt {}}} {
         }
 
         set d [randomSignedInt 100000000]
-        # randpath {
-            # set d [expr {rand()}]
-        # } {
-            # set d [expr {rand()}]
-        # } {
-            # set d [expr {rand()}]
-        # } {
-            # set d [expr {rand()}]
-        # } {
-            # set d [expr {rand()}]
-        # } {
-            # randpath {set d +inf} {set d -inf}
-        # }
         catch {
-        set t [{*}$r type $k]
+            set t [{*}$r type $k]
             if {$t eq {none}} {
                 randpath {
                     {*}$r set $k $v
-            } {
-                {*}$r lpush $k $v
-            } {
-                {*}$r sadd $k $v
-            } {
-                {*}$r zadd $k $d $v
-            } {
-                {*}$r hset $k $f $v
-            } {
-                {*}$r del $k
-            }
-            set t [{*}$r type $k]
+                } {
+                    {*}$r lpush $k $v
+                } {
+                    {*}$r sadd $k $v
+                } {
+                    {*}$r zadd $k $d $v
+                } {
+                    {*}$r hset $k $f $v
+                } {
+                    {*}$r del $k
+                }
+                set t [{*}$r type $k]
             }
         } err;# WRONGTYPE ERR
 
         catch {
             switch $t {
                 {string} {
-                    # Nothing to do
+                    randpath {{*}$r set $k $v} \
+                    {{*}$r set $k ${v}_diff}
                 }
                 {list} {
                     randpath {{*}$r lpush $k $v} \
                     {{*}$r rpush $k $v} \
+                    {{*}$r rpush $k ${v}_diff} \
                     {{*}$r rpop $k} \
                     {{*}$r lpop $k}
                 }
                 {set} {
                     randpath {{*}$r sadd $k $v} \
+                    {{*}$r sadd $k ${v}_diff} \
                     {{*}$r srem $k $v}
                 }
                 {zset} {
                     randpath {{*}$r zadd $k $d $v} \
+                    {{*}$r zadd $k $d ${v}_diff} \
                     {{*}$r zrem $k $v}
                 }
                 {hash} {
                     randpath {{*}$r hset $k $f $v} \
+                    {{*}$r hset $k $f ${v}_diff} \
                     {{*}$r hdel $k $f}
                 }
             }
