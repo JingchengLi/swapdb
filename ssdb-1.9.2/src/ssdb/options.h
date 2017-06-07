@@ -12,61 +12,60 @@ found in the LICENSE file.
 class Options
 {
 public:
-	Options();
-	~Options(){}
-	
-	void load(const Config &conf);
+    Options();
+    ~Options(){}
 
-	size_t cache_size;
-	size_t max_open_files;
-	size_t write_buffer_size;
-	size_t block_size;
-	int compaction_speed;
-	std::string compression;
-	bool binlog;
-	size_t binlog_capacity;
+    void load(const Config &conf);
+
+    size_t cache_size;
+    size_t max_open_files;
+    size_t write_buffer_size;
+    size_t block_size;
+    int compaction_speed;
+    std::string compression;
+    bool binlog;
+    size_t binlog_capacity;
 
 };
 #else
+
+#define UNIT_MB (1024 * 1024)
+#define UNIT_KB (1024)
+
 struct Options {
-    bool create_if_missing;
-    int write_buffer_size;
-    int max_open_files;
-    bool use_bloomfilter;
-    int write_threads;
+    bool create_if_missing = true;
+    bool create_missing_column_families = true;
+    int write_buffer_size = 4;
+    int max_open_files = 5000;
 
     // default target_file_size_base and multiplier is the save as rocksdb
-    int target_file_size_base;
-    int target_file_size_multiplier;
-    std::string compression;
-    int max_background_flushes;
-    int max_background_compactions;
+    int target_file_size_multiplier = 1;
+    std::string compression = "yes";
+    std::string level_compaction_dynamic_level_bytes = "yes";
 
-	size_t cache_size;
-	size_t block_size;
+    int max_background_cd_threads = 4;
+
+    size_t cache_size = 100;
+    size_t block_size = 4;
+    size_t compaction_readahead_size = 4;
+    size_t max_bytes_for_level_base = 256;
+    size_t max_bytes_for_level_multiplier = 10;
+
+    size_t target_file_size_base = 64;
+
+    int level0_file_num_compaction_trigger = 4; //start compaction
+    int level0_slowdown_writes_trigger = 20; //slow write
+    int level0_stop_writes_trigger = 36;  //block write
 
 
-	//=========begin
-    // for ssdb
     void load(const Config &conf);
-    bool binlog;
-    size_t binlog_capacity;
-    //=========end
 
-    Options() : create_if_missing(true),
-                write_buffer_size(4 * 1024 * 1024),
-                max_open_files(5000),
-                use_bloomfilter(true),
-                write_threads(71),
-                target_file_size_base(2 * 1024 * 1024),
-                target_file_size_multiplier(1),
-                compression("yes"),
-                max_background_flushes(1),
-                max_background_compactions(1) {
+    Options() {
         Config c;
         this->load(c);
     }
 };
+
 #endif
 
 

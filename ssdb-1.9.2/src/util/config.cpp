@@ -215,18 +215,26 @@ const char* Config::str() const{
 	return this->val.c_str();
 }
 
-int Config::get_num(const char *key) const{
+int Config::get_num(const char *key, int default_val) const{
 	const Config *c = this->get(key);
 	if(!c){
-		return 0;
+		return default_val;
 	}
-	return c->num();
+
+	int val = c->num();
+	if (default_val != 0) {
+		if (val <= 0) {
+			return default_val;
+		}
+	}
+
+	return val;
 }
 
-int64_t Config::get_int64(const char *key) const{
+int64_t Config::get_int64(const char *key, int64_t default_val) const{
 	const Config *c = this->get(key);
 	if(!c){
-		return 0;
+		return default_val;
 	}
 	return str_to_int64(c->val);
 }

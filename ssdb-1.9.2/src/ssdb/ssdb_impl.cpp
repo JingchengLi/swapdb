@@ -65,9 +65,11 @@ SSDBImpl::~SSDBImpl() {
 
 SSDB *SSDB::open(const Options &opt, const std::string &dir) {
     SSDBImpl *ssdb = new SSDBImpl();
-    ssdb->options.create_if_missing = true;
-    ssdb->options.create_missing_column_families = true;
+
+    ssdb->options.create_if_missing = opt.create_if_missing;
+    ssdb->options.create_missing_column_families = opt.create_missing_column_families;
     ssdb->options.max_open_files = opt.max_open_files;
+
 #ifdef USE_LEVELDB
     ssdb->options.filter_policy = leveldb::NewBloomFilterPolicy(10);
     ssdb->options.block_cache = leveldb::NewLRUCache(opt.cache_size * 1048576);
@@ -78,35 +80,28 @@ SSDB *SSDB::open(const Options &opt, const std::string &dir) {
     {
         //BlockBasedTableOptions
         leveldb::BlockBasedTableOptions op;
-
-//        op.cache_index_and_filter_blocks = true;
         op.filter_policy = std::shared_ptr<const leveldb::FilterPolicy>(leveldb::NewBloomFilterPolicy(10));
-        op.block_cache = leveldb::NewLRUCache(opt.cache_size * 1048576);
-        op.block_size = opt.block_size * 1024;
+        op.block_cache = leveldb::NewLRUCache(opt.cache_size * UNIT_MB);
+        op.block_size = opt.block_size * UNIT_KB;
         ssdb->options.table_factory = std::shared_ptr<leveldb::TableFactory>(rocksdb::NewBlockBasedTableFactory(op));
     }
 
 
-    //    ssdb->options.optimize_filters_for_hits = true;
-    ssdb->options.compaction_readahead_size = 4 * 1024 * 1024;
-//	ssdb->options.skip_stats_update_on_db_open = true;
-//	ssdb->options.level_compaction_dynamic_level_bytes = true;
-//	ssdb->options.new_table_reader_for_compaction_inputs = true;
-//
-//	ssdb->options.level0_file_num_compaction_trigger = 3; //start compaction
-//	ssdb->options.level0_slowdown_writes_trigger = 20; //slow write
-//	ssdb->options.level0_stop_writes_trigger = 24;  //block write
+    ssdb->options.compaction_readahead_size = opt.compaction_readahead_size * UNIT_MB;
+
+    ssdb->options.level0_file_num_compaction_trigger = opt.level0_file_num_compaction_trigger; //start compaction
+    ssdb->options.level0_slowdown_writes_trigger = opt.level0_slowdown_writes_trigger; //slow write
+    ssdb->options.level0_stop_writes_trigger = opt.level0_stop_writes_trigger;  //block write
     //========
-//	ssdb->options.target_file_size_base = 2 * 1024 * 1024; //sst file target size
+    ssdb->options.target_file_size_base = opt.target_file_size_base * UNIT_MB; //sst file target size
 
-    ssdb->options.IncreaseParallelism(4);
-
+    ssdb->options.IncreaseParallelism(opt.max_background_cd_threads);
 
     //level config
 
-    ssdb->options.level_compaction_dynamic_level_bytes = true;  //see : http://rocksdb.org/blog/2015/07/23/dynamic-level.html
-    ssdb->options.max_bytes_for_level_base = 256 * 1024 * 1024; //256M
-    ssdb->options.max_bytes_for_level_multiplier = 10; //10  // multiplier between levels
+    ssdb->options.level_compaction_dynamic_level_bytes = (opt.level_compaction_dynamic_level_bytes == "yes");  //see : http://rocksdb.org/blog/2015/07/23/dynamic-level.html
+    ssdb->options.max_bytes_for_level_base = opt.max_bytes_for_level_base * UNIT_MB; //256M
+    ssdb->options.max_bytes_for_level_multiplier = opt.max_bytes_for_level_multiplier; //10  // multiplier between levels
 
             //rate_limiter
 //    ssdb->options.rate_limiter = std::shared_ptr<leveldb::GenericRateLimiter>(new leveldb::GenericRateLimiter(1024 * 50, 1000, 10));
@@ -114,9 +109,8 @@ SSDB *SSDB::open(const Options &opt, const std::string &dir) {
 
    ssdb->options.listeners.push_back(std::shared_ptr<t_listener>(new t_listener()));
 
-
 #endif
-    ssdb->options.write_buffer_size = static_cast<size_t >(opt.write_buffer_size) * 1024 * 1024;
+    ssdb->options.write_buffer_size = static_cast<size_t >(opt.write_buffer_size) * UNIT_MB;
     if (opt.compression == "yes") {
         ssdb->options.compression = leveldb::kSnappyCompression;
     } else {
