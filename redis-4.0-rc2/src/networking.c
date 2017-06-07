@@ -2841,6 +2841,13 @@ void readQueryFromClient(aeEventLoop *el, int fd, void *privdata, int mask) {
     UNUSED(el);
     UNUSED(mask);
 
+    // todo: 根据c->querybuf的剩余长度动态决定是否要暂时禁止转存加载
+    if (server.jdjr_mode && server.masterhost &&
+        (PROTO_IOBUF_LEN + sdslen(c->querybuf) > server.client_max_querybuf_len)) {
+        processInputBuffer(c);
+        return;
+    }
+
     readlen = PROTO_IOBUF_LEN;
     /* If this is a multi bulk request, and we are processing a bulk reply
      * that is large enough, try to maximize the probability that the query
