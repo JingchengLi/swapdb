@@ -95,7 +95,17 @@ typedef long long mstime_t; /* millisecond time type. */
 
 #define SSDB_SLAVE_PORT_INCR 20000 /* SSDB port = redis port + PORT_INCR */
 
+/* Macros for jdjr test cases */
+//#define TEST_CLIENT_BUF
 //#define TEST_TIME_CONSUMPTION
+#define TEST_REPLICATION_STABLE
+
+#ifdef TEST_REPLICATION_STABLE
+int debugdictDelete(dict *ht, const void *key);
+int mockdictDelete(dict *ht, const void *key);
+
+#define dictDelete  debugdictDelete
+#endif
 
 /* is_allow_ssdb_write codes */
 #define ALLOW_SSDB_WRITE 1
@@ -1368,6 +1378,9 @@ struct redisServer {
     /* when ssdb is down, record the time */
     time_t ssdb_down_time;
     int slave_ssdb_critical_err_cnt;
+#ifdef TEST_REPLICATION_STABLE
+    dict* zadd_keys;
+#endif
 };
 
 #define SLAVE_SSDB_MAX_CRITICAL_ERR_LIMIT 5

@@ -453,6 +453,12 @@ int dictDelete(dict *ht, const void *key) {
     return dictGenericDelete(ht,key,0) ? DICT_OK : DICT_ERR;
 }
 
+#if 1
+int mockdictDelete(dict *ht, const void *key) {
+    return dictGenericDelete(ht,key,0) ? DICT_OK : DICT_ERR;
+}
+#endif
+
 /* Remove an element from the table, but without actually releasing
  * the key, value and dictionary entry. The dictionary entry is returned
  * if the element was found (and unlinked from the table), and the user

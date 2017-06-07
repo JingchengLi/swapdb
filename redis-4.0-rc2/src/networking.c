@@ -31,7 +31,6 @@
 #include <sys/uio.h>
 #include <math.h>
 #include <ctype.h>
-//#define TEST_CLIENT_BUF
 
 static void setProtocolError(const char *errstr, client *c, int pos);
 

@@ -2433,6 +2433,9 @@ void initServer(void) {
         server.ssdbargvlen = zmalloc(sizeof(size_t) * SSDB_CMD_DEFAULT_MAX_ARGC);
 
         server.loadAndEvictCmdDict = dictCreate(&keyDictType,NULL);
+#ifdef TEST_REPLICATION_STABLE
+        server.zadd_keys = dictCreate(&keyDictType,NULL);
+#endif
 
         server.delayed_migrate_clients = listCreate();
 
@@ -3580,16 +3583,18 @@ int runCommandReplicationConn(client *c, listNode* writeop_ln) {
     c->woff = server.master_repl_offset;
 
     if (server.verbosity == LL_DEBUG && (c->cmd->flags & CMD_WRITE) && old_dirty == server.dirty) {
-        int j;
-        sds tmp = sdsempty();
+        if (c->cmd->proc != delCommand) {
+            int j;
+            sds tmp = sdsempty();
 
-        serverLog(LL_DEBUG, "[!!]server.dirty not changed, this write command may excute failed.");
-        for (j = 0; j < c->argc; j++) {
-            tmp = sdscatsds(tmp, c->argv[j]->ptr);
-            tmp = sdscat(tmp, " ");
+            serverLog(LL_DEBUG, "[!!]server.dirty not changed, this write command may excute failed.");
+            for (j = 0; j < c->argc; j++) {
+                tmp = sdscatsds(tmp, c->argv[j]->ptr);
+                tmp = sdscat(tmp, " ");
+            }
+            serverLog(LL_DEBUG, "full command is:%s", tmp);
+            sdsfree(tmp);
         }
-        serverLog(LL_DEBUG, "full command is:%s", tmp);
-        sdsfree(tmp);
     }
 
     if (slave_retry_write) {
@@ -3608,6 +3613,21 @@ int runCommandReplicationConn(client *c, listNode* writeop_ln) {
     }
     return C_OK;
 }
+
+#ifdef TEST_REPLICATION_STABLE
+int debugdictDelete(dict *ht, const void *key) {
+    dictEntry* de;
+    robj* val;
+    if (server.masterhost && server.db->dict == ht && (de = dictFind(server.zadd_keys, key))) {
+        serverLog(LL_DEBUG, "dictDelete key: %s", (char*)key);
+        //val = dictGetVal(de);
+        //if (val->type != OBJ_ZSET)
+            debugBT();
+        dictDelete(server.zadd_keys, key);
+    }
+    return mockdictDelete(ht,key);
+}
+#endif
 
 int runCommand(client *c) {
     int ret;
