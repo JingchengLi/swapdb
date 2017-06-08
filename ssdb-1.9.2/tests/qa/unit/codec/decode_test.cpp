@@ -1,5 +1,4 @@
 #include "gtest/gtest.h"
-#include "ssdb/const.h"
 #include "util/error.h"
 #include "util/bytes.h"
 #include "codec/decode.h"

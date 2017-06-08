@@ -1,34 +1,39 @@
 cmake_minimum_required(VERSION 2.8)
 project(ssdb-test)
 
+option(ROCKSDB "enable rocksdb support" ON)
+
 SET(BUILD_PATH "${CMAKE_SOURCE_DIR}/../../..")
+SET(ROCKSDB_PATH=${BUILD_PATH}/deps/rocksdb-5.3.6)
 SET(LEVELDB_PATH=${BUILD_PATH}/deps/leveldb-1.18)
 SET(JEMALLOC_PATH=${BUILD_PATH}/deps/jemalloc-4.1.0)
 SET(SNAPPY_PATH=${BUILD_PATH}/deps/snappy-1.1.0)
 SET(EXECUTABLE_OUTPUT_PATH "${CMAKE_SOURCE_DIR}/build")
 
 INCLUDE_DIRECTORIES(
-    #${BUILD_PATH}/deps/leveldb-1.18/include
-    #${BUILD_PATH}/deps/leveldb-1.18/include/leveldb
-    ${BUILD_PATH}/deps/rocksdb-4.11.2/include
+    ${BUILD_PATH}/deps/rocksdb-5.3.6/include
+    ${BUILD_PATH}/deps/rocksdb-5.3.6
     ${BUILD_PATH}/deps/jemalloc-4.1.0/include
     ${BUILD_PATH}/src
     ${BUILD_PATH}/src/client
+    ${BUILD_PATH}/deps/bzip2-1.0.6
+    ${BUILD_PATH}/deps/gflags-2.2.0/include
+    ${BUILD_PATH}/deps/snappy-1.1.0
     ${BUILD_PATH}/tests/gtest_1.7.0/include
     include
     )
 
 LINK_DIRECTORIES(
-    #${BUILD_PATH}/deps/leveldb-1.18/
-    ${BUILD_PATH}/deps/rocksdb-4.11.2/
+    ${BUILD_PATH}/deps/rocksdb-5.3.6/
     ${BUILD_PATH}/deps/snappy-1.1.0/.libs
+    ${BUILD_PATH}/deps/bzip2-1.0.6
     ${BUILD_PATH}/deps/jemalloc-4.1.0/lib/
     ${BUILD_PATH}/src/ssdb
     ${BUILD_PATH}/src/client
     ${BUILD_PATH}/src/util
     ${BUILD_PATH}/src/net
     ${BUILD_PATH}/src/codec
-    ${BUILD_PATH}/../../gflags-master/lib
+    ${BUILD_PATH}/deps/gflags-2.2.0/lib
     )
 add_subdirectory(${BUILD_PATH}/tests/gtest_1.7.0 gtest)
 ADD_DEFINITIONS(-DGTESTING)
@@ -43,90 +48,25 @@ ELSE()
     SET(CMAKE_CXX_FLAGS "-DNDEBUG -D__STDC_FORMAT_MACROS -Wall -O2 -Wno-sign-compare -std=c++11")
 endif()
 
-
-ADD_LIBRARY(libjemalloc-static ${BUILD_PATH}/deps/jemalloc-4.1.0/lib)
-SET_TARGET_PROPERTIES(libjemalloc-static PROPERTIES 
-    LINKER_LANGUAGE C
-    OUTPUT_NAME "jemalloc")
-
-ADD_LIBRARY(libsnappy-static ${BUILD_PATH}/deps/snappy-1.1.0/.libs)
-SET_TARGET_PROPERTIES(libsnappy-static PROPERTIES
-    LINKER_LANGUAGE CXX
-    OUTPUT_NAME "snappy")
-
-#ADD_LIBRARY(libleveldb-static ${BUILD_PATH}/deps/leveldb-1.18)
-#SET_TARGET_PROPERTIES(libleveldb-static PROPERTIES 
-#    LINKER_LANGUAGE CXX
-#    OUTPUT_NAME "leveldb")
-
-ADD_LIBRARY(librocksdb-static ${BUILD_PATH}/deps/rocksdb-4.11.2)
-TARGET_LINK_LIBRARIES ( librocksdb-static snappy gtest gflags  )
-SET_TARGET_PROPERTIES(librocksdb-static PROPERTIES
-    LINKER_LANGUAGE CXX
-    OUTPUT_NAME "rocksdb")
-
-# src/ssdb
-# libssdb.a
 SET( SSDB_OBJS  
     ${BUILD_PATH}/src/ssdb/ssdb_impl.cpp
     ${BUILD_PATH}/src/ssdb/iterator.cpp
-    ${BUILD_PATH}/src/ssdb/options.cpp                                                                                                                                                      
+    ${BUILD_PATH}/src/ssdb/options.cpp
     ${BUILD_PATH}/src/ssdb/t_kv.cpp
+    ${BUILD_PATH}/src/ssdb/t_keys.cpp
     ${BUILD_PATH}/src/ssdb/t_hash.cpp
     ${BUILD_PATH}/src/ssdb/t_zset.cpp
     ${BUILD_PATH}/src/ssdb/ttl.cpp
     ${BUILD_PATH}/src/ssdb/t_list.cpp
     ${BUILD_PATH}/src/ssdb/t_set.cpp
     ${BUILD_PATH}/src/ssdb/t_eset.cpp
-    ${BUILD_PATH}/src/ssdb/internal_error.cpp
     ${BUILD_PATH}/src/ssdb/t_cursor.cpp
 )
-
-ADD_LIBRARY(libssdb-static STATIC ${SSDB_OBJS})                                                                                                                                                  
-#ADD_LIBRARY(libssdb-shared SHARED ${SSDB_OBJS})
-TARGET_LINK_LIBRARIES ( libssdb-static rocksdb snappy )
-#TARGET_LINK_LIBRARIES ( libssdb-shared leveldb )
-set_target_properties(libssdb-static PROPERTIES
-    LINKER_LANGUAGE CXX
-    OUTPUT_NAME "ssdb")
-#set_target_properties(libssdb-shared PROPERTIES
-#    LINKER_LANGUAGE CXX
-#    OUTPUT_NAME "ssdb")
-
-# src/client
-# libssdb-client.a
-
-SET( CLIENT_OBJS
-    ${BUILD_PATH}/src/client/SSDB_impl.cpp
-    ${BUILD_PATH}/src/client/../util/bytes.cpp
-    ${BUILD_PATH}/src/client/../net/link.cpp
-)
-
-ADD_LIBRARY(libssdb-client-static STATIC ${CLIENT_OBJS})                                                                                                                                                  
-ADD_LIBRARY(libssdb-client-shared SHARED ${CLIENT_OBJS})
-set_target_properties(libssdb-client-static PROPERTIES
-    LINKER_LANGUAGE CXX
-    OUTPUT_NAME "ssdb-client")
-set_target_properties(libssdb-client-shared PROPERTIES
-    LINKER_LANGUAGE CXX
-    OUTPUT_NAME "ssdb-client")
-
-# src/codec
-# libcodec.a
 SET( CODEC_OBJS
     ${BUILD_PATH}/src/codec/util.cpp
     ${BUILD_PATH}/src/codec/encode.cpp
     ${BUILD_PATH}/src/codec/decode.cpp
 )
-
-ADD_LIBRARY(libcodec-static STATIC ${CODEC_OBJS})
-ADD_LIBRARY(libcodec-shared SHARED ${CODEC_OBJS})
-set_target_properties(libcodec-static PROPERTIES
-    LINKER_LANGUAGE CXX
-    OUTPUT_NAME "codec")
-set_target_properties(libcodec-shared PROPERTIES
-    LINKER_LANGUAGE CXX
-    OUTPUT_NAME "codec")
 
 ADD_EXECUTABLE(ssdb-server 
     ${CODEC_OBJS}                                                                                                                                             
