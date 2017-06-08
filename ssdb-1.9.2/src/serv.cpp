@@ -12,6 +12,10 @@ found in the LICENSE file.
 #include "net/server.h"
 #include "replication.h"
 
+extern "C" {
+#include "redis/zmalloc.h"
+}
+
 DEF_PROC(type);
 DEF_PROC(get);
 DEF_PROC(set);
@@ -656,15 +660,11 @@ int proc_version(Context &ctx, Link *link, const Request &req, Response *resp) {
 int proc_info(Context &ctx, Link *link, const Request &req, Response *resp) {
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
     resp->push_back("ok");
-    resp->push_back("ssdb-server");
-    resp->push_back("version");
-    resp->push_back(SSDB_VERSION);
-    resp->push_back("engine");
-    resp->push_back(SSDB_ENGINE);
-    {
-        resp->push_back("links");
-        resp->add(ctx.net->link_count);
-    }
+    resp->push_back("#ssdb-server");
+    resp->push_back("version:" + str(SSDB_VERSION));
+    resp->push_back("engine:" + str(SSDB_ENGINE));
+    resp->push_back("links:" + str(ctx.net->link_count));
+
     {
         int64_t calls = 0;
         proc_map_t::iterator it;
@@ -672,26 +672,31 @@ int proc_info(Context &ctx, Link *link, const Request &req, Response *resp) {
             Command *cmd = it->second;
             calls += cmd->calls;
         }
-        resp->push_back("total_calls");
-        resp->add(calls);
+        resp->push_back("total_calls:" + str(calls));
     }
 
     {
         uint64_t size = serv->ssdb->size();
-        resp->push_back("dbsize");
-        resp->push_back(str(size));
+        resp->push_back("dbsize:" + str(size));
+    }
+
+
+    {
+        uint64_t size = zmalloc_get_rss();
+        resp->push_back("memory:" + str(size));
+        resp->push_back("memory_human:" + bytesToHuman((int64_t) size));
     }
 
 
     {
         uint64_t size = 0;
         serv->ssdb->filesize(ctx, &size);
-        resp->push_back("filesize");
-        resp->push_back(bytesToHuman((int64_t) size));
+        resp->push_back("filesize:" + str(size));
+        resp->push_back("filesize_human:" + bytesToHuman((int64_t) size));
     }
 
 
-    if (req.size() == 1 || req[1] == "leveldb" || req[1] == "rocksdb") {
+    if (req.size() > 1 && (req[1] == "leveldb" || req[1] == "rocksdb")) {
         std::vector<std::string> tmp = serv->ssdb->info();
         for (int i = 0; i < (int) tmp.size(); i++) {
             std::string block = tmp[i];
@@ -702,7 +707,7 @@ int proc_info(Context &ctx, Link *link, const Request &req, Response *resp) {
     if (req.size() > 1 && req[1] == "cmd") {
 
 
-        for_each(ctx.net->proc_map.begin() , ctx.net->proc_map.end(), [&](std::pair<const Bytes, Command*> it) {
+        for_each(ctx.net->proc_map.begin(), ctx.net->proc_map.end(), [&](std::pair<const Bytes, Command *> it) {
             Command *cmd = it.second;
             resp->push_back("cmd." + cmd->name);
             char buf[128];
@@ -711,9 +716,10 @@ int proc_info(Context &ctx, Link *link, const Request &req, Response *resp) {
             resp->push_back(buf);
         });
 
-        resp->push_back("\n");
-
     }
+
+    resp->push_back("");
+
 
     return 0;
 }
