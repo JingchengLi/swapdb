@@ -458,12 +458,12 @@ void SSDBImpl::stop() {
     log_info("del thread stopping");
 
     this->bgtask_quit = true;
-    for (int i = 0; i < 100; i++) {
+    for (int i = 0; i < 1000; i++) {
         if (!bgtask_quit) {
             break;
         }
         log_info("waiting for del thread stop");
-        usleep(100 * 1000);
+        usleep(1000 * 1000);
     }
 
     std::queue<std::string> tmp_tasks_;

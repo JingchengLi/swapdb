@@ -42,12 +42,12 @@ void ExpirationHandler::stop() {
     log_info("ExpirationHandler stopping");
 
     thread_quit = true;
-    for (int i = 0; i < 100; i++) {
+    for (int i = 0; i < 1000; i++) {
         if (!thread_quit) {
             break;
         }
         log_info("waiting for expiration stop");
-        usleep(100 * 1000);
+        usleep(1000 * 1000);
     }
 
     this->clear();
