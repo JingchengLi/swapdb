@@ -1841,6 +1841,7 @@ struct redisCommand *lookupCommandByCString(char *s);
 struct redisCommand *lookupCommandOrOriginal(sds name);
 void call(client *c, int flags);
 void propagate(struct redisCommand *cmd, int dbid, robj **argv, int argc, int flags);
+void propagateCmdHandledBySSDB(client *c);
 void alsoPropagate(struct redisCommand *cmd, int dbid, robj **argv, int argc, int target);
 void forceCommandPropagation(client *c, int flags);
 void preventCommandPropagation(client *c);

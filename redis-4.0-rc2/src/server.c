@@ -2627,6 +2627,61 @@ void propagate(struct redisCommand *cmd, int dbid, robj **argv, int argc,
         replicationFeedSlaves(server.slaves,dbid,argv,argc);
 }
 
+#define createObjFromSpopReply(reply) \
+    ((reply)->type == REDIS_REPLY_INTEGER) ? createStringObjectFromLongLong((reply)->integer) \
+    : (((reply)->type == REDIS_REPLY_STRING) ? createStringObject(reply->str, reply->len) : NULL); \
+
+void propagateCmdHandledBySSDB(client *c) {
+    robj *ele = NULL, *aux;
+    redisReply *reply = c->ssdb_replies[0];
+    redisReply *subreply;
+
+    if (!c || !c->cmd || !c->argv
+        || c->cmd->proc == migrateCommand
+        || c->argc == 0)
+        return;
+
+    /* Replicate this command as an SREM operation. */
+    if (c->cmd && c->cmd->proc == spopCommand) {
+        if (reply) {
+            aux = createStringObject("SREM", 4);
+            ele = createObjFromSpopReply(reply);
+            if (ele) {
+                rewriteClientCommandVector(c, 3, aux, c->argv[1], ele);
+                decrRefCount(aux);
+                decrRefCount(ele);
+            } else {
+                int count = reply->elements;
+                int index = 0;
+                robj *propargv[3];
+                propargv[0] = aux;
+                propargv[1] = c->argv[1];
+                serverAssert(reply->type == REDIS_REPLY_ARRAY);
+
+                /* TODO: optimize n srem to 1 srem. */
+                while (index < count) {
+                    subreply = reply->element[index];
+                    propargv[2] = createObjFromSpopReply(subreply);
+                    serverAssert(propargv[2]);
+
+                    propagate(server.sremCommand, 0, propargv, 3, PROPAGATE_REPL);
+                    serverLog(LL_DEBUG, "spop replication log, key: %s, member: %s", propargv[1]->ptr, propargv[2]->ptr);
+                    decrRefCount(propargv[2]);
+                    index ++;
+                };
+
+                decrRefCount(aux);
+                return;
+            }
+        }
+    }
+
+    if ((c->cmd
+         && (c->cmd->flags & CMD_WRITE)
+         && server.masterhost == NULL && reply->type != REDIS_REPLY_ERROR))
+        propagate(c->cmd, 0, c->argv, c->argc, PROPAGATE_REPL);
+}
+
 /* Used inside commands to schedule the propagation of additional commands
  * after the current command is propagated to AOF / Replication.
  *

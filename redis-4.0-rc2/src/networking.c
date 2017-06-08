@@ -1815,6 +1815,27 @@ int isSpecialCommand(client *c) {
         return 0;
 }
 
+int handleResponseOfMigrateDump(client *c) {
+    robj *keyobj = c->argv[3];
+    dictEntry *de = dictFind(EVICTED_DATA_DB->dict, keyobj->ptr);
+    redisDb *olddb;
+    redisReply *reply = c->ssdb_replies[0];
+    serverAssert(keyobj && de);
+
+    if (reply && reply->type == REDIS_REPLY_STRING
+        && (c->btype == BLOCKED_MIGRATING_DUMP)) {
+        olddb = c->db;
+        c->db = EVICTED_DATA_DB;
+        call(c, CMD_CALL_FULL);
+        c->db = olddb;
+        serverAssert(delMigratingSSDBKey(keyobj->ptr) == DICT_OK);
+        return C_OK;
+    }
+
+    serverLog(LL_DEBUG, "c->btype: %d, reply->type: %d", c->btype, reply->type);
+    return C_ERR;
+}
+
 void handleSSDBReply(client *c, int revert_len) {
     redisReply *reply;
 
@@ -1840,23 +1861,9 @@ void handleSSDBReply(client *c, int revert_len) {
         return;
     }
 
-    if (c->cmd && c->cmd->proc == migrateCommand) {
-        robj *keyobj = c->argv[3];
-        dictEntry *de = dictFind(EVICTED_DATA_DB->dict, keyobj->ptr);
-        redisDb *olddb;
-        serverAssert(keyobj && de);
-
-        if (c->btype != BLOCKED_MIGRATING_DUMP)
-            serverLog(LL_WARNING, "Client btype should be 'BLOCKED_MIGRATING_DUMP'");
-
-        if (reply && reply->type == REDIS_REPLY_STRING) {
-            olddb = c->db;
-            c->db = EVICTED_DATA_DB;
-            call(c, CMD_CALL_FULL);
-            c->db = olddb;
-            serverAssert(delMigratingSSDBKey(keyobj->ptr) == DICT_OK);
-        }
-    }
+    if (c->cmd && c->cmd->proc == migrateCommand
+        && handleResponseOfMigrateDump(c) != C_OK)
+        serverLog(LL_WARNING, "migrate log: failed to handle migrate dump.");
 
     if (reply && reply->type == REDIS_REPLY_STRING) {
         if (handleResponseOfFlushCheck(c, reply) == C_OK) {
@@ -1898,14 +1905,7 @@ void handleSSDBReply(client *c, int revert_len) {
     if (c->btype == BLOCKED_VISITING_SSDB
         || c->btype == BLOCKED_MIGRATING_DUMP) {
         unblockClient(c);
-
-        if ((c->cmd
-             && c->cmd->proc != migrateCommand
-             && (c->cmd->flags & CMD_WRITE)
-             && server.masterhost == NULL && reply->type != REDIS_REPLY_ERROR)) {
-            propagate(c->cmd, 0, c->argv, c->argc, PROPAGATE_REPL);
-        }
-
+        propagateCmdHandledBySSDB(c);
         resetClient(c);
     }
 }
