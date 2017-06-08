@@ -360,14 +360,29 @@ std::vector<std::string> SSDBImpl::info() {
     keys.push_back("leveldb.sstables");
 
 #else
-    for (int i = 0; i < 7; i++) {
-        char buf[128];
-        snprintf(buf, sizeof(buf), "rocksdb.num-files-at-level%d", i);
-        keys.push_back(std::string(buf));
+     for (int i = 0; i < 7; i++) {
+        keys.push_back(leveldb::DB::Properties::kNumFilesAtLevelPrefix + str(i));
+//        keys.push_back(leveldb::DB::Properties::kCompressionRatioAtLevelPrefix + str(i));
     }
 
-    keys.push_back("rocksdb.stats");
-    keys.push_back("rocksdb.sstables");
+    for (size_t i = 0; i < keys.size(); i++) {
+        std::string key = keys[i];
+        std::string val;
+        if (ldb->GetProperty(key, &val)) {
+            info.push_back(key + " : " + val);
+        }
+    }
+
+    keys.clear();
+
+    keys.push_back(leveldb::DB::Properties::kStats);
+
+    keys.push_back(leveldb::DB::Properties::kSSTables);
+    keys.push_back(leveldb::DB::Properties::kLevelStats);
+    keys.push_back(leveldb::DB::Properties::kNumSnapshots);
+    keys.push_back(leveldb::DB::Properties::kOldestSnapshotTime);
+    keys.push_back(leveldb::DB::Properties::kTotalSstFilesSize);
+    keys.push_back(leveldb::DB::Properties::kEstimateLiveDataSize);
 
 #endif
 
@@ -377,8 +392,12 @@ std::vector<std::string> SSDBImpl::info() {
         if (ldb->GetProperty(key, &val)) {
             info.push_back(key);
             info.push_back(val);
+
         }
     }
+
+    info.push_back("");
+
 
     return info;
 }

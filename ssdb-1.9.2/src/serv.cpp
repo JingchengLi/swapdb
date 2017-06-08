@@ -670,12 +670,8 @@ int proc_info(Context &ctx, Link *link, const Request &req, Response *resp) {
         resp->push_back(str(size));
     }
 
-    // todo check
-#ifdef USE_LEVELDB
-    if(req.size() == 1 || req[1] == "leveldb"){
-#else
+
     if (req.size() == 1 || req[1] == "leveldb" || req[1] == "rocksdb") {
-#endif
         std::vector<std::string> tmp = serv->ssdb->info();
         for (int i = 0; i < (int) tmp.size(); i++) {
             std::string block = tmp[i];
@@ -684,15 +680,19 @@ int proc_info(Context &ctx, Link *link, const Request &req, Response *resp) {
     }
 
     if (req.size() > 1 && req[1] == "cmd") {
-        proc_map_t::iterator it;
-        for (it = ctx.net->proc_map.begin(); it != ctx.net->proc_map.end(); it++) {
-            Command *cmd = it->second;
+
+
+        for_each(ctx.net->proc_map.begin() , ctx.net->proc_map.end(), [&](std::pair<const Bytes, Command*> it) {
+            Command *cmd = it.second;
             resp->push_back("cmd." + cmd->name);
             char buf[128];
             snprintf(buf, sizeof(buf), "calls: %" PRIu64 "\ttime_wait: %.0f\ttime_proc: %.0f",
                      cmd->calls, cmd->time_wait, cmd->time_proc);
             resp->push_back(buf);
-        }
+        });
+
+        resp->push_back("\n");
+
     }
 
     return 0;
