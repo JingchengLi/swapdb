@@ -354,14 +354,14 @@ int proc_exists(Context &ctx, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(2);
 
-    int count = 0;
-	for(Request::const_iterator it=req.begin()+1; it!=req.end(); it++){
-		const Bytes key = *it;
+    uint64_t count = 0;
+	for_each(req.begin()+1 , req.end(), [&](Bytes key) {
 		int ret = serv->ssdb->exists(ctx, key);
 		if(ret == 1){
 			count++;
 		}
-	}
+	});
+
     resp->reply_int(1, count);
 	return 0;
 }
@@ -375,7 +375,7 @@ int proc_multi_set(Context &ctx, Link *link, const Request &req, Response *resp)
 		if(ret < 0){
 			reply_err_return(ret);
 		} else {
-			resp->reply_int(ret, ret);
+			resp->reply_int(ret, (uint64_t)ret);
 		}
 	}
 	return 0;
@@ -701,7 +701,7 @@ int proc_countbit(Context &ctx, Link *link, const Request &req, Response *resp){
 			str = substr(val, start, val.size());
 		}
 		int count = bitcount(str.data(), str.size());
-		resp->reply_int(0, count);
+		resp->reply_int(0, (uint64_t)count);
 	}
 	return 0;
 }

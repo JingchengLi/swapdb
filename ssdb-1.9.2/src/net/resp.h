@@ -40,7 +40,9 @@ public:
 	void reply_errror(const std::string &errmsg);
 	void reply_status(int status);
 	void reply_bool(int status);
+	void reply_int(int status, uint64_t val);
 	void reply_int(int status, int64_t val);
+	void reply_int(int status, int val);
 	void reply_long_double(int status, long double val);
 	void reply_double(int status, double val);
 	void reply_not_found();

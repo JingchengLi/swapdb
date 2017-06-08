@@ -24,13 +24,13 @@ void Response::add(int s){
 void Response::add(int64_t s){
 	char buf[22] = {0};
 	sprintf(buf, "%" PRId64 "", s);
-	resp.push_back(buf);
+	resp.emplace_back(buf);
 }
 
 void Response::add(uint64_t s){
 	char buf[22] = {0};
 	sprintf(buf, "%" PRIu64 "", s);
-	resp.push_back(buf);
+	resp.emplace_back(buf);
 }
 
 void Response::add(double s){
@@ -83,6 +83,19 @@ void Response::reply_bool(int status){
 		resp.push_back("ok");
 		resp.push_back("1");
 	}
+}
+
+void Response::reply_int(int status, uint64_t val){
+	if(status == -1){
+		resp.push_back("error");
+	}else{
+		resp.push_back("ok");
+		this->add(val);
+	}
+}
+
+void Response::reply_int(int status, int val){
+	return reply_int(status, static_cast<int64_t >(val));
 }
 
 void Response::reply_int(int status, int64_t val){

@@ -3,6 +3,7 @@ Copyright (c) 2012-2014 The SSDB Authors. All rights reserved.
 Use of this source code is governed by a BSD-style license that can be
 found in the LICENSE file.
 */
+#include <util/file.h>
 #include "ssdb_impl.h"
 
 #ifdef USE_LEVELDB
@@ -65,6 +66,7 @@ SSDBImpl::~SSDBImpl() {
 SSDB *SSDB::open(const Options &opt, const std::string &dir) {
     SSDBImpl *ssdb = new SSDBImpl();
 
+    ssdb->path = dir;
     ssdb->options.create_if_missing = opt.create_if_missing;
     ssdb->options.create_missing_column_families = opt.create_missing_column_families;
     ssdb->options.max_open_files = opt.max_open_files;
@@ -129,9 +131,7 @@ SSDB *SSDB::open(const Options &opt, const std::string &dir) {
     status = leveldb::DB::Open(ssdb->options, dir, column_families, &ssdb->handles, &ssdb->ldb);
     if (!status.ok()) {
         log_error("open db failed: %s", status.ToString().c_str());
-        if (ssdb) {
-            delete ssdb;
-        }
+        delete ssdb;
         return nullptr;
     }
 
@@ -139,6 +139,35 @@ SSDB *SSDB::open(const Options &opt, const std::string &dir) {
     ssdb->start();
 
     return ssdb;
+}
+
+int SSDBImpl::filesize(Context &ctx, uint64_t *total_file_size) {
+    if (!is_dir(path)) {
+        return -1;
+    }
+
+    leveldb::Env *env = leveldb::Env::Default();
+    std::vector<std::string> result;
+    leveldb::Status s = env->GetChildren(path, &result);
+    if (!s.ok()){
+        //error
+        log_error("error: %s", s.ToString().c_str());
+        return STORAGE_ERR;
+    }
+
+    for_each(result.begin(), result.end() ,[&](std::string filename) {
+        uint64_t file_size = 0;
+        s = env->GetFileSize(path + "/" + filename, &file_size);
+        if (!s.ok()){
+            //error
+            log_error("error: %s", s.ToString().c_str());
+        } else {
+            log_debug("%s file size : %d", filename.c_str(), file_size);
+            (*total_file_size) += file_size;
+        }
+    });
+
+    return (int) result.size();
 }
 
 int SSDBImpl::flush(Context &ctx, bool wait) {
@@ -227,7 +256,6 @@ Iterator *SSDBImpl::iterator(const std::string &start, const std::string &end, u
     leveldb::Iterator *it;
     leveldb::ReadOptions iterate_options;
     iterate_options.fill_cache = false;
-    iterate_options.readahead_size = 4 * 1024 * 1024;
     if (snapshot) {
         iterate_options.snapshot = snapshot;
     }

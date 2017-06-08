@@ -109,6 +109,7 @@ DEF_PROC(qset);
 DEF_PROC(info);
 DEF_PROC(version);
 DEF_PROC(dbsize);
+DEF_PROC(filesize);
 DEF_PROC(compact);
 DEF_PROC(flush);
 DEF_PROC(flushdb);
@@ -272,6 +273,7 @@ void SSDBServer::reg_procs(NetworkServer *net) {
     REG_PROC(info, "r");
     REG_PROC(version, "r");
     REG_PROC(dbsize, "rt");
+    REG_PROC(filesize, "rt");
     // doing compaction in a reader thread, because we have only one
     // writer thread(for performance reason); we don't want to block writes
     REG_PROC(compact, "rt");
@@ -635,6 +637,16 @@ int proc_dbsize(Context &ctx, Link *link, const Request &req, Response *resp) {
     return 0;
 }
 
+int proc_filesize(Context &ctx, Link *link, const Request &req, Response *resp) {
+    SSDBServer *serv = (SSDBServer *) ctx.net->data;
+
+    uint64_t size = 0;
+    serv->ssdb->filesize(ctx, &size);
+    resp->reply_int(1, size);
+
+    return 0;
+}
+
 int proc_version(Context &ctx, Link *link, const Request &req, Response *resp) {
     resp->push_back("ok");
     resp->push_back(SSDB_VERSION);
@@ -668,6 +680,14 @@ int proc_info(Context &ctx, Link *link, const Request &req, Response *resp) {
         uint64_t size = serv->ssdb->size();
         resp->push_back("dbsize");
         resp->push_back(str(size));
+    }
+
+
+    {
+        uint64_t size = 0;
+        serv->ssdb->filesize(ctx, &size);
+        resp->push_back("filesize");
+        resp->push_back(bytesToHuman((int64_t) size));
     }
 
 

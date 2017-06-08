@@ -82,6 +82,8 @@ static RedisCommand_raw cmds_raw[] = {
 	{STRATEGY_AUTO, "flushdb",	 "flushdb",		REPLY_OK_STATUS},
 	{STRATEGY_AUTO, "flush",	 "flush",		REPLY_OK_STATUS},
 
+	{STRATEGY_AUTO, "filesize",	"filesize",		REPLY_INT},
+	{STRATEGY_AUTO, "dbsize",	"dbsize",		REPLY_INT},
 
 	{STRATEGY_AUTO, "scan",		"scan",			REPLY_SCAN},
 	{STRATEGY_AUTO, "type",		"type",			REPLY_CUSTOM_STATUS},

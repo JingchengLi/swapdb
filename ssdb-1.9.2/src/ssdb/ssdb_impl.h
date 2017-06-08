@@ -71,6 +71,7 @@ private:
 	friend class SSDB;
 	friend class ExpirationHandler;
 
+	std::string path;
 
 	leveldb::DB* ldb;
 	leveldb::Options options;
@@ -88,6 +89,7 @@ public:
 
 	virtual int flushdb(Context &ctx);
 	virtual int flush(Context &ctx, bool wait = false);
+	virtual int filesize(Context &ctx, uint64_t *total_file_size);
 
 	// return (start, end], not include start
 	virtual Iterator* iterator(const std::string &start, const std::string &end, uint64_t limit,
