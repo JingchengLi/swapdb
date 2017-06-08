@@ -10,9 +10,10 @@ static string encode_meta_val_internal(const char type, uint64_t length, uint16_
 string encode_meta_key(const Bytes& key){
     string buf(1, DataType::META);
 
-    uint16_t slot = (uint16_t)keyHashSlot(key.data(), key.size());
-    slot = htobe16(slot);
-    buf.append((char *)&slot, sizeof(uint16_t));
+//    uint16_t slot = (uint16_t)keyHashSlot(key.data(), key.size());
+//    slot = htobe16(slot);
+//    buf.append((char *)&slot, sizeof(uint16_t));
+
     buf.append(key.data(), key.size());
 
     return buf;
@@ -175,9 +176,9 @@ string encode_list_meta_val(uint64_t length, uint64_t left, uint64_t right, uint
 string encode_delete_key(const Bytes& key, uint16_t version){
     string buf(1, KEY_DELETE_MASK);
 
-    uint16_t slot = (uint16_t)keyHashSlot(key.data(), key.size());
-    slot = htobe16(slot);
-    buf.append((char *)&slot, sizeof(uint16_t));
+//    uint16_t slot = (uint16_t)keyHashSlot(key.data(), key.size());
+//    slot = htobe16(slot);
+//    buf.append((char *)&slot, sizeof(uint16_t));
 
     uint16_t len = htobe16((uint16_t)key.size());
     buf.append((char *)&len, sizeof(uint16_t));

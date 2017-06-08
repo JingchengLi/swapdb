@@ -12,7 +12,7 @@ class MetaKey{
 public:
     int DecodeMetaKey(const Bytes& str);
 public:
-    uint16_t slot;
+//    uint16_t slot;
     string   key;
 };
 
@@ -99,7 +99,7 @@ public:
 
 public:
     char        type;
-    uint16_t    slot;
+//    uint16_t    slot;
     uint16_t    version;
     string      key;
 };

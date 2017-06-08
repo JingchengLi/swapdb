@@ -14,11 +14,11 @@ int MetaKey::DecodeMetaKey(const Bytes &str) {
     if (str[POS_TYPE] != DataType::META){
         return -1;
     }
-    if (decoder.read_uint16(&slot) == -1){
-        return -1;
-    } else{
-        slot = be16toh(slot);
-    }
+//    if (decoder.read_uint16(&slot) == -1){
+//        return -1;
+//    } else{
+//        slot = be16toh(slot);
+//    }
     decoder.read_data(&key);
     return 0;
 }
@@ -245,11 +245,11 @@ int DeleteKey::DecodeDeleteKey(const Bytes &str) {
             return -1;
         }
     }
-    if (decoder.read_uint16(&slot) == -1){
-        return -1;
-    } else{
-        slot = be16toh(slot);
-    }
+//    if (decoder.read_uint16(&slot) == -1){
+//        return -1;
+//    } else{
+//        slot = be16toh(slot);
+//    }
     if (decoder.read_16_data(&key) == -1){
         return -1;
     }
