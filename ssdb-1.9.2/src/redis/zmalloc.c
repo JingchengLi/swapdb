@@ -7,8 +7,8 @@
 #include <zconf.h>
 #include <fcntl.h>
 #include <stdlib.h>
+#include <string.h>
 #include "zmalloc.h"
-#include "lzfP.h"
 
 void *zmalloc(size_t size) {
     void *ptr = malloc(size);
