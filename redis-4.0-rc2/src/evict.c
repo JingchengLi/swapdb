@@ -699,6 +699,8 @@ int prologOfEvictingToSSDB(robj *keyobj, redisDb *db) {
                                     sdslen(payload.io.buffer.ptr)));
     sdsfree(payload.io.buffer.ptr);
 
+    /* NOTE: we must use "REPLACE" option when restore a key to SSDB, because maybe there
+     * is a identical dirty key in SSDB. */
     serverAssert(rioWriteBulkString(&cmd, "REPLACE", strlen("REPLACE")));
 
     /* sendCommandToSSDB will free cmd.io.buffer.ptr. */
@@ -813,6 +815,7 @@ int freeMemoryIfNeeded(void) {
     int slaves = listLength(server.slaves);
     mstime_t latency, eviction_latency;
     long long delta;
+    long long start, duration;
 
     /* Check if we are over the memory usage limit. If we are not, no need
      * to subtract the slaves output buffers. We can just return ASAP. */
@@ -860,6 +863,10 @@ int freeMemoryIfNeeded(void) {
     if (server.maxmemory_policy == MAXMEMORY_NO_EVICTION)
         goto cant_free; /* We need to free memory, but policy forbids. */
 
+    if (server.jdjr_mode && server.verbosity == LL_DEBUG) {
+        serverLog(LL_DEBUG, "[!!!]will exceed the limit of maxmemory, now try evicting keys to free memory");
+        start = ustime();
+    }
     latencyStartMonitor(latency);
     while (mem_freed < mem_tofree) {
         int j, k, i, keys_freed = 0;
@@ -1014,6 +1021,11 @@ int freeMemoryIfNeeded(void) {
     }
     latencyEndMonitor(latency);
     latencyAddSampleIfNeeded("eviction-cycle",latency);
+    if (server.jdjr_mode && server.verbosity == LL_DEBUG) {
+        duration = ustime()-start;
+        /* 100ms */
+        if (duration > 100000)serverLog(LL_DEBUG, "freeMemoryIfNeeded: %lld us", duration);
+    }
     return C_OK;
 
 cant_free:
@@ -1024,6 +1036,11 @@ cant_free:
         if (((mem_reported - zmalloc_used_memory()) + mem_freed) >= mem_tofree)
             break;
         usleep(1000);
+    }
+    if (server.jdjr_mode && server.verbosity == LL_DEBUG) {
+        duration = ustime()-start;
+        /* 100ms */
+        if (duration > 100000)serverLog(LL_DEBUG, "freeMemoryIfNeeded: %lld us", duration);
     }
     return C_ERR;
 }

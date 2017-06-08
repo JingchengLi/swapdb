@@ -1511,17 +1511,22 @@ void startToLoadIfNeeded() {
 // todo: add a config option
 #define MAX_SSDB_SWAP_COUNT_EVERY_TIME 2
 void startToHandleCmdListInSlave(void) {
+    dictEntry* random_entries[MAX_SSDB_SWAP_COUNT_EVERY_TIME];
     dictEntry *de;
-    dictIterator *di;
     uint64_t type;
-    int processed_count = 0;
+    sds key;
+    int j;
 
     if (dictSize(server.loadAndEvictCmdDict) == 0
         || !server.slave_ssdb_load_evict_client) return;
 
-    di = dictGetSafeIterator(server.loadAndEvictCmdDict);
-    while((de = dictNext(di)) != NULL) {
-        sds key = dictGetKey(de);
+    /* for slave redis, limit the transfer/load operation count to MAX_SSDB_SWAP_COUNT_EVERY_TIME every time,
+     * avoid to cause a long time delay of data replication for server.master when do stress test. */
+    int returned = dictGetSomeKeys(server.loadAndEvictCmdDict, random_entries, MAX_SSDB_SWAP_COUNT_EVERY_TIME);
+
+    for (j = 0; j < returned; j++) {
+        de = random_entries[j];
+        key = dictGetKey(de);
         type = dictGetUnsignedIntegerVal(de);
 
         server.cmdNotDone = 0;
@@ -1550,12 +1555,7 @@ void startToHandleCmdListInSlave(void) {
             dictDelete(server.loadAndEvictCmdDict, key);
         }
         resetClient(server.slave_ssdb_load_evict_client);
-        processed_count++;
-        /* for slave redis, limit the transfer/load operation count to MAX_SSDB_SWAP_COUNT_EVERY_TIME every time,
-         * avoid to cause a long time delay of data replication for server.master when do stress test. */
-        if (processed_count >= MAX_SSDB_SWAP_COUNT_EVERY_TIME) break;
     }
-    dictReleaseIterator(di);
 }
 
 void handleDeleteConfirmKeys(void) {
@@ -1692,8 +1692,12 @@ void beforeSleep(struct aeEventLoop *eventLoop) {
     serverLog(LL_DEBUG, "beforeSleep 1:%lld us", ustime()-enter_time);
     enter_time = ustime();
 #endif
+
+#ifndef TEST_SLAVE_NO_TRANSFER
     /* Try to handle cmds(load/evict cmds) in an extra list in slave. */
     if (server.jdjr_mode && server.masterhost) startToHandleCmdListInSlave();
+#endif
+
 #ifdef TEST_TIME_CONSUMPTION
     serverLog(LL_DEBUG, "beforeSleep 2:%lld us", ustime()-enter_time);
     enter_time = ustime();
@@ -3964,7 +3968,7 @@ int processCommand(client *c) {
         && server.masterhost
         && (c->cmd->proc == storetossdbCommand
             || c->cmd->proc == dumpfromssdbCommand)) {
-
+#ifndef TEST_SLAVE_NO_TRANSFER
         dictEntry* entry = dictAddOrFind(server.loadAndEvictCmdDict, c->argv[1]->ptr);
         if (c->cmd->proc == storetossdbCommand)
             dictSetUnsignedIntegerVal(entry, TYPE_TRANSFER_TO_SSDB);
@@ -3973,6 +3977,7 @@ int processCommand(client *c) {
 
         serverLog(LL_DEBUG, "load_or_store cmd: %s, key: %s is added to loadAndEvictCmdList.",
                   c->cmd->name, (char *)c->argv[1]->ptr);
+#endif
 
         return C_OK;
     }

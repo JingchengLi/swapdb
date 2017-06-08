@@ -99,6 +99,7 @@ typedef long long mstime_t; /* millisecond time type. */
 //#define TEST_CLIENT_BUF
 //#define TEST_TIME_CONSUMPTION
 //#define TEST_REPLICATION_STABLE
+//#define TEST_SLAVE_NO_TRANSFER
 
 #ifdef TEST_REPLICATION_STABLE
 int debugdictDelete(dict *ht, const void *key);
