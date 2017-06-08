@@ -98,7 +98,7 @@ typedef long long mstime_t; /* millisecond time type. */
 /* Macros for jdjr test cases */
 //#define TEST_CLIENT_BUF
 //#define TEST_TIME_CONSUMPTION
-#define TEST_REPLICATION_STABLE
+//#define TEST_REPLICATION_STABLE
 
 #ifdef TEST_REPLICATION_STABLE
 int debugdictDelete(dict *ht, const void *key);
@@ -1327,9 +1327,6 @@ struct redisServer {
     int watchdog_period;  /* Software watchdog period in ms. 0 = off */
     /* System hardware info */
     size_t system_memory_size;  /* Total memory in system as reported by OS */
-
-    /* Record the number of keys in the process of evicting to SSDB. */
-    long long evicting_keys_num;
 
     int is_doing_flushall;
     client* current_flushall_client;

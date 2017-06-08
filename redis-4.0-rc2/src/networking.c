@@ -2829,6 +2829,8 @@ void processInputBuffer(client *c) {
         if (c->argc == 0) {
             resetClient(c);
         } else {
+            if (c == server.master)
+                serverLog(LL_DEBUG, "receive %s %s", (char*)c->argv[0]->ptr, c->argc > 1 ? (char*)c->argv[1]->ptr : "");
             /* Only reset the client when the command was executed. */
             if (processCommand(c) == C_OK)
                 resetClient(c);

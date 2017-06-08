@@ -623,8 +623,6 @@ int epilogOfEvictingToSSDB(robj *keyobj) {
      * transmission here inside the loop. */
     if (listLength(server.slaves)) flushSlavesOutputBuffers();
 
-    server.evicting_keys_num --;
-
     return C_OK;
 }
 
@@ -714,7 +712,6 @@ int prologOfEvictingToSSDB(robj *keyobj, redisDb *db) {
     serverLog(LL_DEBUG, "Evicting key: %s to SSDB, maxmemory: %lld, zmalloc_used_memory: %lu.",
               (char *)(keyobj->ptr), server.maxmemory, zmalloc_used_memory());
 
-    server.evicting_keys_num += 1;
     return C_OK;
 }
 

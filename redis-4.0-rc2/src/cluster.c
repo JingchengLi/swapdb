@@ -4789,7 +4789,6 @@ void ssdbRespNotfoundCommand(client *c) {
              * redis or ssdb, so we just use db 0 to make sure we can delete it. */
             propagate(lookupCommandByCString((char*)"del"),0,tmpargv,2,PROPAGATE_AOF|PROPAGATE_REPL);
             decrRefCount(tmpargv[0]);
-            server.evicting_keys_num --;
 
             if (dictDelete(EVICTED_DATA_DB->loading_hot_keys, keyobj->ptr) == DICT_OK) {
                 serverLog(LL_DEBUG, "key: %s is unblocked and deleted from loading_hot_keys.", (char *)keyobj->ptr);

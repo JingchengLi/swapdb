@@ -1154,8 +1154,6 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
                       listLength(server.clients)-listLength(server.slaves),
                 listLength(server.slaves),
                 zmalloc_used_memory());
-            if (server.jdjr_mode)
-                serverLog(LL_VERBOSE, "%lld keys are evicting to SSDB", server.evicting_keys_num);
         }
     }
 
@@ -1375,7 +1373,7 @@ void startToEvictIfNeeded() {
     transfer_lower_threshold = 1.0 * server.ssdb_transfer_lower_limit/100;
     mem_tofree = zmalloc_used_memory() - server.maxmemory * transfer_lower_threshold;
 
-    while (server.evicting_keys_num <= EVICTING_TO_SSDB_KEYS_MAX_NUM
+    while (dictSize(EVICTED_DATA_DB->transferring_keys) <= EVICTING_TO_SSDB_KEYS_MAX_NUM
            && mem_tofree > 0 && mem_tofree != old_mem_tofree) {
         old_mem_tofree = mem_tofree;
         if (C_ERR == tryEvictingKeysToSSDB(&mem_tofree)) {
@@ -1384,7 +1382,7 @@ void startToEvictIfNeeded() {
         }
     }
 
-    while (server.evicting_keys_num <= EVICTING_TO_SSDB_KEYS_MAX_NUM
+    while (dictSize(EVICTED_DATA_DB->transferring_keys) <= EVICTING_TO_SSDB_KEYS_MAX_NUM
            && listLength(server.storetossdb_migrate_keys)) {
         listNode *head = listIndex(server.storetossdb_migrate_keys, 0);
         robj *keyobj = head->value;
@@ -2263,9 +2261,6 @@ void resetServerStats(void) {
     server.stat_net_input_bytes = 0;
     server.stat_net_output_bytes = 0;
     server.aof_delayed_fsync = 0;
-
-    if (server.jdjr_mode)
-        server.evicting_keys_num = 0;
 }
 
 void initServer(void) {
@@ -3526,8 +3521,6 @@ void cleanAndSignalLoadingOrTransferringKeys() {
     cleanAndSignalImmediateKeys(server.db[EVICTED_DATA_DBID].transferring_keys);
     cleanAndSignalImmediateKeys(server.db[EVICTED_DATA_DBID].loading_hot_keys);
     cleanAndSignalImmediateKeys(server.hot_keys);
-
-    server.evicting_keys_num = 0;
 }
 
 void cleanSpecialClientsAndIntermediateKeys(int is_flushall) {
@@ -4032,6 +4025,7 @@ int processCommand(client *c) {
     if (server.jdjr_mode && c->argc > 1 && c == server.master && !(c->ssdb_conn_flags & CONN_SUCCESS)) {
         updateSlaveSSDBwriteIndex();
         saveSlaveSSDBwriteOp(c, server.last_send_writeop_time, server.last_send_writeop_index);
+        serverLog(LL_DEBUG, "save write op:%s %s to write op list", c->cmd->name, c->argc > 1 ? (char*)c->argv[1]->ptr : "");
         return C_OK;
     }
 
