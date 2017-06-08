@@ -57,8 +57,9 @@ set ::all_tests {
     integration/replication-A
     integration/replication-B
     integration/replication-C
-    integration/replication-stable
 }
+# Too slow without SSD, need to run manually.
+    # integration/replication-stable
 # next time support
     # unit/scan
 #need update
@@ -123,6 +124,7 @@ set ::traceleaks 0
 set ::valgrind 0
 set ::stack_logging 0
 set ::verbose 0
+set ::loglevel debug
 set ::quiet 0
 set ::denytags {}
 set ::allowtags {}
@@ -141,10 +143,10 @@ set curpath [pwd]
 cd $::cfgdir
 set ::cfgdir [pwd]
 cd $curpath
-set ::cfgfile [file join $cfgdir "redis_testreport.xml"]
+set ::cfgfile [file join $::cfgdir "redis_testreport.xml"]
 exec mkdir -p $::cfgdir
 exec rm -f $::cfgfile
-exec touch $::cfgfile
+# exec touch $::cfgfile
 
 #Generate redis instance test result report
 proc write_redis_test_result_report {descr} {
@@ -615,6 +617,11 @@ for {set j 0} {$j < [llength $argv]} {incr j} {
             puts "waiting........."
             after 100000000
         }
+    } elseif {$opt eq "--loglevel"} {
+        incr j
+        set ::loglevel $arg
+        set ::cfgfile  ${::cfgdir}/${::loglevel}_redis_testreport
+        exec rm -f $::cfgfile
     } else {
         puts "Wrong argument: $opt"
         exit 1

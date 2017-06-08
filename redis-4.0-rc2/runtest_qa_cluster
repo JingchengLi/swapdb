@@ -13,4 +13,8 @@ then
 fi
 mkdir -p ../jenkins/report/integration
 cd tests/qa/integration
-$TCLSH tests/cluster/run.tcl $*
+LOG_LEVEL="debug notice"
+for level in $LOG_LEVEL;do
+    $TCLSH tests/cluster/run.tcl --loglevel $level $*
+done
+# $TCLSH tests/cluster/run.tcl $*

@@ -153,7 +153,7 @@ proc start_server {options {code undefined}} {
             set srv {}
             dict set srv "host" $::host
             dict set srv "port" $::port
-            set ::port 6379 
+            set ::port 6379
             set client [redis $::host $::port]
             dict set srv "client" $client
             $client select 0
@@ -218,6 +218,7 @@ proc start_server {options {code undefined}} {
         puts -nonewline $fp "$directive "
         puts $fp [dict get $config $directive]
     }
+    puts $fp "loglevel $::loglevel"
     close $fp
 
     # write new configuration to temporary ssdb file

@@ -4,6 +4,7 @@
 
 set ::steps 0
 set ::class 0
+set ::loglevel debug
 cd tests/cluster
 source cluster.tcl
 source ../instances.tcl
@@ -22,7 +23,6 @@ proc main {} {
         "latency-monitor-threshold 10"
         "cluster-slave-validity-factor 10"
         "maxmemory-policy allkeys-lfu"
-        "loglevel debug"
         "cluster-require-full-coverage yes"
         "cluster-migration-barrier 1"
         "maxmemory 100M"

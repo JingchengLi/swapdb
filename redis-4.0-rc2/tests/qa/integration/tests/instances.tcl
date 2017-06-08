@@ -36,10 +36,11 @@ set curpath [pwd]
 cd $::cfgdir
 set ::cfgdir [pwd]
 cd $curpath
-set ::cfgfile [file join $cfgdir "cluster_testreport.xml"]
+# For different loglevel test report
+set ::cfgfile [file join $::cfgdir ${::loglevel}_"cluster_testreport.xml"]
 exec mkdir -p $::cfgdir
 exec rm -f $::cfgfile
-exec touch $::cfgfile
+# exec touch $::cfgfile
 
 if {[catch {cd tmp}]} {
     puts "tmp directory not found."
@@ -121,6 +122,7 @@ proc spawn_instance {type base_port count {conf {}}} {
         foreach directive $conf {
             puts $cfg $directive
         }
+        puts $cfg "loglevel $::loglevel"
         close $cfg
 
         # Finally exec it and remember the pid for later cleanup.
@@ -207,6 +209,11 @@ proc parse_options {} {
         } elseif {$opt eq "--nodepairs"} {
             incr j
             set ::nodePairs $val
+        } elseif {$opt eq "--loglevel"} {
+            incr j
+            set ::loglevel $val
+            set ::cfgfile  ${::cfgdir}/${::loglevel}_cluster_testreport
+            exec rm -f $::cfgfile
         } elseif {$opt eq "--help"} {
             puts "Hello, I'm sentinel.tcl and I run Sentinel unit tests."
             puts "\nOptions:"

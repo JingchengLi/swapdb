@@ -1,5 +1,13 @@
 start_server {tags {"dump"}} {
 
+    proc wait_key_exists_ssdb {key {level 0}} {
+        wait_for_condition 50 10 {
+            [sr $level exists $key] == 1
+        } else {
+            fail "$key not found in ssdb after some time."
+        }
+    }
+
     test {DUMP / RESTORE are able to serialize / unserialize a simple key} {
         r set foo bar
         set encoded [r dump foo]
@@ -90,7 +98,7 @@ start_server {tags {"dump"}} {
             assert {$ret eq {OK}}
             assert {[sr -1 exists key] == 0}
             assert {[$first exists key] == 0}
-            assert {[sr exists key] == 1}
+            wait_key_exists_ssdb key
             assert {[$second exists key] == 1}
             assert {[$second get key] eq {Some Value}}
             assert {[$second ttl key] == -1}
@@ -125,7 +133,7 @@ start_server {tags {"dump"}} {
             assert {$ret eq {OK}}
             assert {[sr -1 exists key] == 0}
             assert {[$first exists key] == 0}
-            assert {[sr exists key] == 1}
+            wait_key_exists_ssdb key
             assert {[$second exists key] == 1}
             assert {[$second get key] eq {Some Value}}
             assert {[$second ttl key] == -1}
@@ -148,7 +156,7 @@ start_server {tags {"dump"}} {
             assert {$ret eq {OK}}
             assert {[sr -1 exists list] == 1}
             assert {[$first exists list] == 1}
-            assert {[sr exists list] == 1}
+            wait_key_exists_ssdb list
             assert {[$second exists list] == 1}
             assert {[$first lrange list 0 -1] eq [$second lrange list 0 -1]}
         }
@@ -181,7 +189,7 @@ start_server {tags {"dump"}} {
             assert {$ret eq {OK}}
             assert {[sr -1 exists list] == 1}
             assert {[$first exists list] == 1}
-            assert {[sr exists list] == 1}
+            wait_key_exists_ssdb list
             assert {[$second exists list] == 1}
             assert {[$first lrange list 0 -1] eq [$second lrange list 0 -1]}
         }
@@ -203,7 +211,7 @@ start_server {tags {"dump"}} {
             assert {$ret eq {OK}}
             assert {[sr -1 exists key] == 0}
             assert {[$first exists key] == 0}
-            assert {[sr exists key] == 1}
+            wait_key_exists_ssdb key
             assert {[$second exists key] == 1}
             assert {[$second get key] eq {Some Value}}
             assert {[$second ttl key] >= 7 && [$second ttl key] <= 10}
@@ -236,7 +244,7 @@ start_server {tags {"dump"}} {
                 assert {$ret eq {OK}}
                 assert {[sr -1 exists key] == 0}
                 assert {[$first exists key] == 0}
-                assert {[sr exists key] == 1}
+                wait_key_exists_ssdb key
                 assert {[$second exists key] == 1}
                 assert {[$second ttl key] == -1}
                 assert {[$second llen key] == $loop*20}
