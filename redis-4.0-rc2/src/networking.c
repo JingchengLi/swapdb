@@ -2787,7 +2787,13 @@ void processInputBuffer(client *c) {
              * server.master connection for a long time, which may cause some
              * serious issue such as replication keepalive timeout, etc.. */
             processed_count++;
-            if (processed_count >= SLAVE_MAX_PROCESSED_LIMIT) break;
+            if (processed_count >= SLAVE_MAX_PROCESSED_LIMIT) {
+                /* there is unprocessed data in c->querybuf, need install read hander
+                 * to trigger read event. */
+                aeCreateFileEvent(server.el,c->fd,AE_BUFFER_HAVE_UNPROCESSED_DATA,
+                                  readQueryFromClient, c);
+                break;
+            }
         }
         /* Return if clients are paused. */
         if (!(c->flags & CLIENT_SLAVE) && clientsArePaused()) break;
@@ -2842,13 +2848,6 @@ void readQueryFromClient(aeEventLoop *el, int fd, void *privdata, int mask) {
     UNUSED(el);
     UNUSED(mask);
 
-    // todo: 根据c->querybuf的剩余长度动态决定是否要暂时禁止转存加载
-    if (server.jdjr_mode && server.masterhost &&
-        (PROTO_IOBUF_LEN + sdslen(c->querybuf) > server.client_max_querybuf_len)) {
-        processInputBuffer(c);
-        return;
-    }
-
     readlen = PROTO_IOBUF_LEN;
     /* If this is a multi bulk request, and we are processing a bulk reply
      * that is large enough, try to maximize the probability that the query
@@ -2871,6 +2870,10 @@ void readQueryFromClient(aeEventLoop *el, int fd, void *privdata, int mask) {
 
     if (nread == -1) {
         if (errno == EAGAIN) {
+            /* in jdjr mode, for slave redis, we may install read event handler
+             * when there is unprocess data in c->querybuf. */
+            if (server.jdjr_mode && server.masterhost)
+                processInputBuffer(c);
             return;
         } else {
             serverLog(LL_VERBOSE, "Reading from client: %s",strerror(errno));
