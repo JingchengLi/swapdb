@@ -1352,7 +1352,8 @@ int memoryReachLoadUpperLimit() {
     return 0;
 }
 
-#define EVICTING_TO_SSDB_KEYS_MAX_NUM 10
+// todo: add a config option
+#define EVICTING_TO_SSDB_KEYS_MAX_NUM 5
 void startToEvictIfNeeded() {
     int mem_tofree, old_mem_tofree = 0;
     float transfer_lower_threshold;
@@ -1509,6 +1510,7 @@ void startToLoadIfNeeded() {
     return;
 }
 
+// todo: add a config option
 #define MAX_SSDB_SWAP_COUNT_EVERY_TIME 2
 void startToHandleCmdListInSlave(void) {
     dictEntry *de;
@@ -3296,7 +3298,7 @@ int processCommandReplicationConn(client* c, struct ssdb_write_op* slave_retry_w
     return C_ERR;
 }
 
-// todo: use a suitable value and add config option
+// todo: add a config option
 #define MAX_LOAD_NUM_EVERY_TIME 5
 void chooseHotKeysByLFUcounter(robj* keyobj) {
     if (!server.load_from_ssdb) return;
@@ -3314,7 +3316,7 @@ void chooseHotKeysByLFUcounter(robj* keyobj) {
 
     unsigned char counter = lfu & 255;
 
-    // todo: add config option for LFU value
+    // todo: add a config option for LFU value
     if ((counter > LFU_INIT_VAL) && !memoryReachLoadUpperLimit()) {
         /* to ensure the key only exists in one dict of loading/transferring/
          * delete_confirming/hot_keys, if the key is already in intermediate state,
@@ -3634,13 +3636,9 @@ int runCommandReplicationConn(client *c, listNode* writeop_ln) {
 
 #ifdef TEST_REPLICATION_STABLE
 int debugdictDelete(dict *ht, const void *key) {
-    dictEntry* de;
-    robj* val;
-    if (server.masterhost && server.db->dict == ht && (de = dictFind(server.zadd_keys, key))) {
+    if (server.masterhost && server.db->dict == ht && dictFind(server.zadd_keys, key)) {
         serverLog(LL_DEBUG, "dictDelete key: %s", (char*)key);
-        //val = dictGetVal(de);
-        //if (val->type != OBJ_ZSET)
-            debugBT();
+        debugBT();
         dictDelete(server.zadd_keys, key);
     }
     return mockdictDelete(ht,key);

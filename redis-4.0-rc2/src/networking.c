@@ -2775,6 +2775,7 @@ int processMultibulkBuffer(client *c) {
     return C_ERR;
 }
 
+// todo: add a config option
 #define SLAVE_MAX_PROCESSED_LIMIT 20
 void processInputBuffer(client *c) {
     int processed_count = 0;
