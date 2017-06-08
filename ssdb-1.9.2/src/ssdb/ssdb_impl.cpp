@@ -647,6 +647,7 @@ void SSDBImpl::runBGTask() {
 
         if (!del_key.empty()) {
             delete_key_loop(del_key);
+            sched_yield();
         }
     }
 
