@@ -1509,9 +1509,10 @@ void startToLoadIfNeeded() {
 }
 
 // todo: add a config option
-#define MAX_SSDB_SWAP_COUNT_EVERY_TIME 2
+#define SLAVE_MAX_CONCURRENT_SWAP_COUNT 10
+#define SLAVE_MAX_SSDB_SWAP_COUNT_EVERYTIME 2
 void startToHandleCmdListInSlave(void) {
-    dictEntry* random_entries[MAX_SSDB_SWAP_COUNT_EVERY_TIME];
+    dictEntry* random_entries[SLAVE_MAX_SSDB_SWAP_COUNT_EVERYTIME];
     dictEntry *de;
     uint64_t type;
     sds key;
@@ -1520,9 +1521,14 @@ void startToHandleCmdListInSlave(void) {
     if (dictSize(server.loadAndEvictCmdDict) == 0
         || !server.slave_ssdb_load_evict_client) return;
 
+    /* limit concurrent transferring/loading keys, avoid to reduce preformance of replication. */
+    if (dictSize(EVICTED_DATA_DB->transferring_keys)+dictSize(EVICTED_DATA_DB->loading_hot_keys) >=
+        SLAVE_MAX_CONCURRENT_SWAP_COUNT)
+        return;
+
     /* for slave redis, limit the transfer/load operation count to MAX_SSDB_SWAP_COUNT_EVERY_TIME every time,
      * avoid to cause a long time delay of data replication for server.master when do stress test. */
-    int returned = dictGetSomeKeys(server.loadAndEvictCmdDict, random_entries, MAX_SSDB_SWAP_COUNT_EVERY_TIME);
+    int returned = dictGetSomeKeys(server.loadAndEvictCmdDict, random_entries, SLAVE_MAX_SSDB_SWAP_COUNT_EVERYTIME);
 
     for (j = 0; j < returned; j++) {
         de = random_entries[j];
