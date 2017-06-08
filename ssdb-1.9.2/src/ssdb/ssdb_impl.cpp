@@ -18,7 +18,6 @@ found in the LICENSE file.
 #include "rocksdb/table.h"
 #include "rocksdb/convenience.h"
 #include "rocksdb/slice_transform.h"
-#include "util/rate_limiter.h"
 
 #include "t_listener.h"
 
