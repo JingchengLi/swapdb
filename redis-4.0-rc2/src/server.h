@@ -2279,4 +2279,14 @@ void debugBT();
 #define redisDebugMark() \
     printf("-- MARK %s:%d --\n", __FILE__, __LINE__)
 
+
+// todo: add config options
+/* config options for jdjr mode */
+#define MASTER_MAX_CONCURRENT_LOADING_KEYS 5
+#define MASTER_MAX_CONCURRENT_TRANSFERRING_KEYS 5
+
+#define SLAVE_MAX_CONCURRENT_SSDB_SWAP_COUNT 10
+#define SLAVE_MAX_SSDB_SWAP_COUNT_EVERYTIME 2
+
+#define SLAVE_MAX_PROCESSED_CMD_NUM_EVERYTIME 20
 #endif

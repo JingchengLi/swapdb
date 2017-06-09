@@ -726,7 +726,6 @@ size_t estimateKeyMemoryUsage(dictEntry *de) {
     return usage;
 }
 
-
 int tryEvictingKeysToSSDB(int *mem_tofree) {
     mstime_t latency;
     int k, i;
@@ -754,7 +753,12 @@ int tryEvictingKeysToSSDB(int *mem_tofree) {
             total_keys += keys;
         }
     }
+
+    /* there are no keys in ColdKeyPool to evict. */
     if (!total_keys || !ColdKeyPool[0].key) return C_ERR; /* No keys to evict. */
+
+    /* limit concurrent number of transferring keys */
+    if ( dictSize(EVICTED_DATA_DB->transferring_keys) >= MASTER_MAX_CONCURRENT_TRANSFERRING_KEYS) return C_ERR;
 
     /* Go backward from best to worst element to evict. */
     for (k = EVPOOL_SIZE-1; k >= 0; k--) {

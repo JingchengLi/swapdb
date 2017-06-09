@@ -2775,8 +2775,6 @@ int processMultibulkBuffer(client *c) {
     return C_ERR;
 }
 
-// todo: add a config option
-#define SLAVE_MAX_PROCESSED_LIMIT 20
 void processInputBuffer(client *c) {
     int processed_count = 0;
     server.current_client = c;
@@ -2787,7 +2785,7 @@ void processInputBuffer(client *c) {
              * server.master connection for a long time, which may cause some
              * serious issue such as replication keepalive timeout, etc.. */
             processed_count++;
-            if (processed_count >= SLAVE_MAX_PROCESSED_LIMIT) {
+            if (processed_count >= SLAVE_MAX_PROCESSED_CMD_NUM_EVERYTIME) {
                 /* there is unprocessed data in c->querybuf, need install read hander
                  * to trigger read event. */
                 aeCreateFileEvent(server.el,c->fd,AE_BUFFER_HAVE_UNPROCESSED_DATA,

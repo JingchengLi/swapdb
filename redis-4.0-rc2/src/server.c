@@ -1350,8 +1350,6 @@ int memoryReachLoadUpperLimit() {
     return 0;
 }
 
-// todo: add a config option
-#define EVICTING_TO_SSDB_KEYS_MAX_NUM 5
 void startToEvictIfNeeded() {
     int mem_tofree, old_mem_tofree = 0;
     float transfer_lower_threshold;
@@ -1373,16 +1371,14 @@ void startToEvictIfNeeded() {
     transfer_lower_threshold = 1.0 * server.ssdb_transfer_lower_limit/100;
     mem_tofree = zmalloc_used_memory() - server.maxmemory * transfer_lower_threshold;
 
-    while (dictSize(EVICTED_DATA_DB->transferring_keys) <= EVICTING_TO_SSDB_KEYS_MAX_NUM
-           && mem_tofree > 0 && mem_tofree != old_mem_tofree) {
+    while ( mem_tofree > 0 && mem_tofree != old_mem_tofree) {
         old_mem_tofree = mem_tofree;
         if (C_ERR == tryEvictingKeysToSSDB(&mem_tofree)) {
-            /* there are no keys in ColdKeyPool to evict. */
             break;
         }
     }
 
-    while (dictSize(EVICTED_DATA_DB->transferring_keys) <= EVICTING_TO_SSDB_KEYS_MAX_NUM
+    while (dictSize(EVICTED_DATA_DB->transferring_keys) <= MASTER_MAX_CONCURRENT_TRANSFERRING_KEYS
            && listLength(server.storetossdb_migrate_keys)) {
         listNode *head = listIndex(server.storetossdb_migrate_keys, 0);
         robj *keyobj = head->value;
@@ -1516,9 +1512,6 @@ int cmpDictEntry(const void *a, const void *b) {
     return la-lb;
 }
 
-// todo: add a config option
-#define SLAVE_MAX_CONCURRENT_SWAP_COUNT 10
-#define SLAVE_MAX_SSDB_SWAP_COUNT_EVERYTIME 2
 void startToHandleCmdListInSlave(void) {
     dictEntry* random_entries[SLAVE_MAX_SSDB_SWAP_COUNT_EVERYTIME];
     dictEntry *de;
@@ -1531,7 +1524,7 @@ void startToHandleCmdListInSlave(void) {
 
     /* limit concurrent transferring/loading keys, avoid to reduce preformance of replication. */
     if (dictSize(EVICTED_DATA_DB->transferring_keys)+dictSize(EVICTED_DATA_DB->loading_hot_keys) >=
-        SLAVE_MAX_CONCURRENT_SWAP_COUNT)
+        SLAVE_MAX_CONCURRENT_SSDB_SWAP_COUNT)
         return;
 
     /* for slave redis, limit the transfer/load operation count to MAX_SSDB_SWAP_COUNT_EVERY_TIME every time,
@@ -3370,14 +3363,12 @@ int processCommandReplicationConn(client* c, struct ssdb_write_op* slave_retry_w
     return C_ERR;
 }
 
-// todo: add a config option
-#define MAX_LOAD_NUM_EVERY_TIME 5
 void chooseHotKeysByLFUcounter(robj* keyobj) {
     if (!server.load_from_ssdb) return;
 
     /* limit the max num of server.hot_keys to avoid to load too many keys
      * when startToLoadIfNeeded called, which may block redis. */
-    if (dictSize(server.hot_keys) > MAX_LOAD_NUM_EVERY_TIME) return;
+    if (dictSize(server.hot_keys)+dictSize(server.db->loading_hot_keys) > MASTER_MAX_CONCURRENT_LOADING_KEYS) return;
 
     serverAssert(server.maxmemory_policy & MAXMEMORY_FLAG_LFU);
 
