@@ -678,7 +678,7 @@ int SSDBImpl::save() {
     rocksdb::BackupEngine *backup_engine;
     s = rocksdb::BackupEngine::Open(rocksdb::Env::Default(), backup_option, &backup_engine);
     assert(s.ok());
-    s = backup_engine->CreateNewBackup(db, true);
+    s = backup_engine->CreateNewBackup(db, false);
     assert(s.ok());
 
     backup_engine->PurgeOldBackups(1);
