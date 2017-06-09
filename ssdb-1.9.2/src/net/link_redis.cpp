@@ -18,6 +18,7 @@ enum REPLY{
 	REPLY_SET_STATUS,
 	REPLY_SPOP_SRANDMEMBER,
 	REPLY_SCAN,
+	REPLY_INFO,
 };
 
 enum STRATEGY{
@@ -56,6 +57,7 @@ static RedisCommand_raw cmds_raw[] = {
 	{STRATEGY_PING, "ping",		 "ping",		REPLY_OK_STATUS},
 	{STRATEGY_PING, "checkpoint","ping",		REPLY_OK_STATUS},
 	{STRATEGY_PING, "dreply",	"dreply",		REPLY_OK_STATUS},
+	{STRATEGY_AUTO, "info",		"info",			REPLY_INFO},
 
 	{STRATEGY_AUTO, "dump",		"dump",			REPLY_BULK},
 	{STRATEGY_AUTO, "restore",	"restore",  	REPLY_OK_STATUS},
@@ -65,12 +67,13 @@ static RedisCommand_raw cmds_raw[] = {
 	{STRATEGY_AUTO, "redis_req_dump",		"redis_req_dump",		REPLY_OK_STATUS},
 	{STRATEGY_AUTO, "redis_req_restore",	"redis_req_restore",  	REPLY_OK_STATUS},
 
-    {STRATEGY_AUTO, "rr_flushall_check",	"rr_flushall_check",  	REPLY_BULK},
-    {STRATEGY_AUTO, "rr_do_flushall",	    "rr_do_flushall",  	    REPLY_BULK},
-    {STRATEGY_AUTO, "rr_check_write",	    "rr_check_write",  	    REPLY_BULK},
-    {STRATEGY_AUTO, "rr_make_snapshot",	    "rr_make_snapshot",  	REPLY_BULK},
-    {STRATEGY_AUTO, "rr_transfer_snapshot",	"rr_transfer_snapshot", REPLY_BULK},
-    {STRATEGY_AUTO, "rr_del_snapshot",	    "rr_del_snapshot",  	REPLY_BULK},
+	{STRATEGY_AUTO, "rr_flushall_check",	"rr_flushall_check",  	REPLY_BULK},
+	{STRATEGY_AUTO, "rr_do_flushall",	    "rr_do_flushall",  	    REPLY_BULK},
+	{STRATEGY_AUTO, "rr_check_write",	    "rr_check_write",  	    REPLY_BULK},
+	{STRATEGY_AUTO, "rr_make_snapshot",	    "rr_make_snapshot",  	REPLY_BULK},
+	{STRATEGY_AUTO, "rr_transfer_snapshot",	"rr_transfer_snapshot", REPLY_BULK},
+	{STRATEGY_AUTO, "rr_del_snapshot",	    "rr_del_snapshot",  	REPLY_BULK},
+	{STRATEGY_AUTO, "rr_info",	"info",			REPLY_INFO},
 
 
 	{STRATEGY_AUTO, "select",	"select",		REPLY_OK_STATUS},
@@ -615,7 +618,7 @@ int RedisLink::send_resp(Buffer *output, const std::vector<std::string> &resp){
 	}
 	
 	// not supported command
-	if(req_desc == NULL){
+	if(req_desc == NULL || req_desc->reply_type == REPLY_INFO){
 		{
 			char buf[32];
 			snprintf(buf, sizeof(buf), "*%d\r\n", (int)resp.size() - 1);

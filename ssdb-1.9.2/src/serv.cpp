@@ -695,7 +695,7 @@ int proc_save(Context &ctx, Link *link, const Request &req, Response *resp) {
 int proc_info(Context &ctx, Link *link, const Request &req, Response *resp) {
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
     resp->emplace_back("ok");
-    resp->emplace_back("\n# SSDB-server");
+    resp->emplace_back("\n# SSDB-Server");
     resp->emplace_back("version:" + str(SSDB_VERSION));
     resp->emplace_back("engine:" + str(SSDB_ENGINE));
     resp->emplace_back("links:" + str(ctx.net->link_count));
@@ -714,7 +714,6 @@ int proc_info(Context &ctx, Link *link, const Request &req, Response *resp) {
         uint64_t size = serv->ssdb->size();
         resp->emplace_back("dbsize:" + str(size));
     }
-
 
     {//memory
         resp->emplace_back("\n# Memory");
