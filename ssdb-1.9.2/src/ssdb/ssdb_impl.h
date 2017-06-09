@@ -24,6 +24,8 @@ found in the LICENSE file.
 #include <rocksdb/db.h>
 #include <rocksdb/slice.h>
 #include <rocksdb/table.h>
+#include <rocksdb/utilities/sim_cache.h>
+
 #define leveldb rocksdb
 #endif
 
@@ -82,6 +84,9 @@ private:
 
 	SSDBImpl();
 public:
+
+	rocksdb::SimCache* simCache = nullptr;
+
 	std::vector<leveldb::ColumnFamilyHandle*> handles;
 
 	rocksdb::DB *getLdb() const {

@@ -46,6 +46,7 @@ struct Options {
 
     int max_background_cd_threads = 4;
 
+    size_t sim_cache = 100;
     size_t cache_size = 100;
     size_t block_size = 4;
     size_t compaction_readahead_size = 4;

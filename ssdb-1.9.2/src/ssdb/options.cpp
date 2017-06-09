@@ -55,6 +55,7 @@ void Options::load(const Config &conf){
 	}
 #else
 	cache_size = (size_t)conf.get_num("rocksdb.cache_size", 16);
+	sim_cache = (size_t)conf.get_num("rocksdb.sim_cache", 0);
 	block_size = (size_t)conf.get_num("rocksdb.block_size", 16);
 
 	max_open_files = conf.get_num("rocksdb.max_open_files", 1000);

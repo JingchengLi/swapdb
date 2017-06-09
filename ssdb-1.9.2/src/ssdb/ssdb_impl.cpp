@@ -19,6 +19,7 @@ found in the LICENSE file.
 #include "rocksdb/table.h"
 #include "rocksdb/convenience.h"
 #include "rocksdb/slice_transform.h"
+#include <rocksdb/utilities/sim_cache.h>
 
 #include "t_listener.h"
 
@@ -81,9 +82,22 @@ SSDB *SSDB::open(const Options &opt, const std::string &dir) {
     {
         //BlockBasedTableOptions
         leveldb::BlockBasedTableOptions op;
+        std::shared_ptr<rocksdb::Cache> normal_block_cache = leveldb::NewLRUCache(opt.cache_size * UNIT_MB);
+
+        if (opt.sim_cache > 0) {
+            std::shared_ptr<rocksdb::Cache> sim_cache =
+                    leveldb::NewSimCache(normal_block_cache, opt.sim_cache * UNIT_MB, 10);
+            op.block_cache = sim_cache;
+            ssdb->simCache = (leveldb::SimCache*)((sim_cache).get());
+        } else {
+            op.block_cache = normal_block_cache;
+        }
+
+
+
         op.filter_policy = std::shared_ptr<const leveldb::FilterPolicy>(leveldb::NewBloomFilterPolicy(10));
-        op.block_cache = leveldb::NewLRUCache(opt.cache_size * UNIT_MB);
         op.block_size = opt.block_size * UNIT_KB;
+
         ssdb->options.table_factory = std::shared_ptr<leveldb::TableFactory>(rocksdb::NewBlockBasedTableFactory(op));
     }
 

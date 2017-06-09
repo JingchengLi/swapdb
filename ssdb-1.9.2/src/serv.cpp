@@ -671,6 +671,9 @@ int proc_save(Context &ctx, Link *link, const Request &req, Response *resp) {
 
 
 
+#define ReplyWtihSize(name_size) \
+    resp->emplace_back(#name_size":" + str(name_size));
+
 #define ReplyWtihHuman(name_size) \
     resp->emplace_back(#name_size":" + str(name_size));\
     resp->emplace_back(#name_size"_human:" + bytesToHuman((int64_t) name_size));
@@ -730,11 +733,23 @@ int proc_info(Context &ctx, Link *link, const Request &req, Response *resp) {
                 uint64_t block_cache_used = ((leveldb::BlockBasedTableOptions*)options)->block_cache->GetUsage();
                 ReplyWtihHuman(block_cache_used);
             }
+
         }
 
         std::string val;
         FastGetPropertyHuman(leveldb::DB::Properties::kCurSizeAllMemTables ,"current_memtables_size");
-        FastGetPropertyHuman(leveldb::DB::Properties::kEstimateTableReadersMem ,"indexes_filter_blocks");
+        FastGetPropertyHuman(leveldb::DB::Properties::kEstimateTableReadersMem, "indexes_filter_blocks");
+
+
+        uint64_t block_cache_miss = serv->ssdb->simCache->get_miss_counter();
+        uint64_t block_cache_hit = serv->ssdb->simCache->get_hit_counter();
+        ReplyWtihSize(block_cache_miss);
+        ReplyWtihSize(block_cache_hit);
+
+        double block_cache_hit_rate = (block_cache_hit * 1.0 / (block_cache_miss + block_cache_hit + 1) * 1.0) * 100;
+        ReplyWtihSize(block_cache_hit_rate);
+
+        serv->ssdb->simCache->reset_counter();
     }
 
 
