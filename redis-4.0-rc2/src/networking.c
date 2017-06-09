@@ -925,7 +925,6 @@ int sendCommandToSSDB(client *c, sds finalcmd) {
     if (!finalcmd) {
         cmd = lookupCommand(c->argv[0]->ptr);
         if (!cmd || !(cmd->flags & CMD_JDJR_MODE)
-            /* TODO: support multi. */
             || (c->flags & CLIENT_MULTI))
             return C_ERR;
 

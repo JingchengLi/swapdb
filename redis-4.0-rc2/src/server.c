@@ -960,7 +960,6 @@ void reconnectSSDB() {
     }
 
     run_with_period(2000) {
-        // todo: use a suitable timeout
         if (server.ssdb_down_time != -1 && server.ssdb_down_time - server.unixtime > 10)
             serverLog(LL_WARNING, "ssdb is down and last for %ld seconds", server.ssdb_down_time - server.unixtime);
     }

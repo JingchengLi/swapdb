@@ -218,12 +218,6 @@ void coldKeyPopulate(int dbid, dict *sampledict, dict *keydict, struct evictionP
             serverPanic("Unknown eviction policy in coldKeyPopulate()");
         }
 
-        /* TODO: comment the strategy for testing. optimize the strategy later. */
-        /* if ((server.maxmemory_policy & MAXMEMORY_FLAG_LFU) && */
-        /*         (idle < COLD_KEY_LFU_VAL)) { */
-        /*     continue; */
-        /* } */
-
         /* Insert the element inside the pool.
          * First, find the first empty bucket or the first populated
          * bucket that has an idle time smaller than our idle time. */
@@ -1136,7 +1130,6 @@ void handleClientsBlockedOnSSDB(void) {
     }
 }
 
-/* TODO: move all the jdjr-mode code to a separated file. */
 void handleClientsBlockedOnCustomizedPsync(void) {
     listIter li;
     listNode *ln;
