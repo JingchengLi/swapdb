@@ -1508,6 +1508,14 @@ void startToLoadIfNeeded() {
     return;
 }
 
+int cmpDictEntry(const void *a, const void *b) {
+    unsigned long la, lb;
+
+    la = (long) (*((dictEntry**)a));
+    lb = (long) (*((dictEntry**)b));
+    return la-lb;
+}
+
 // todo: add a config option
 #define SLAVE_MAX_CONCURRENT_SWAP_COUNT 10
 #define SLAVE_MAX_SSDB_SWAP_COUNT_EVERYTIME 2
@@ -1530,7 +1538,11 @@ void startToHandleCmdListInSlave(void) {
      * avoid to cause a long time delay of data replication for server.master when do stress test. */
     int returned = dictGetSomeKeys(server.loadAndEvictCmdDict, random_entries, SLAVE_MAX_SSDB_SWAP_COUNT_EVERYTIME);
 
+    qsort(random_entries,returned,sizeof(dictEntry*),cmpDictEntry);
     for (j = 0; j < returned; j++) {
+        /* skip duplicated dict entry, otherwise may cause crash after dictDelete. */
+        if (j < (returned-1) && random_entries[j] == random_entries[j+1]) continue;
+
         de = random_entries[j];
         key = dictGetKey(de);
         type = dictGetUnsignedIntegerVal(de);
