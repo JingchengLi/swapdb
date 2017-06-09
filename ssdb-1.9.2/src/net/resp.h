@@ -30,6 +30,7 @@ public:
 
 	int size() const;
 	void push_back(const std::string &s);
+	void emplace_back(std::string &&s);
 	void add(int s);
 	void add(int64_t s);
 	void add(uint64_t s);

@@ -17,6 +17,10 @@ void Response::push_back(const std::string &s){
 	resp.push_back(s);
 }
 
+void Response::emplace_back(std::string &&s){
+	resp.emplace_back(s);
+}
+
 void Response::add(int s){
 	add((int64_t)s);
 }

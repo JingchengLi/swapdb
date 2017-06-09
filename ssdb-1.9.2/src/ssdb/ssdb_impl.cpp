@@ -375,6 +375,7 @@ std::vector<std::string> SSDBImpl::info() {
     //     about the internal operation of the DB.
     //  "leveldb.sstables" - returns a multi-line string that describes all
     //     of the sstables that make up the db contents.
+
     std::vector<std::string> info;
     std::vector<std::string> keys;
 #ifdef USE_LEVELDB
@@ -411,6 +412,9 @@ std::vector<std::string> SSDBImpl::info() {
     keys.push_back(leveldb::DB::Properties::kOldestSnapshotTime);
     keys.push_back(leveldb::DB::Properties::kTotalSstFilesSize);
     keys.push_back(leveldb::DB::Properties::kEstimateLiveDataSize);
+
+    keys.push_back(leveldb::DB::Properties::kEstimateTableReadersMem);
+    keys.push_back(leveldb::DB::Properties::kCurSizeAllMemTables);
 
 #endif
 

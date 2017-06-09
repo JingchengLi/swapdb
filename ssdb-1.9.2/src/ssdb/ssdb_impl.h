@@ -21,8 +21,9 @@ found in the LICENSE file.
 #include <memory>
 #else
 #define SSDB_ENGINE "rocksdb"
-#include "rocksdb/db.h"
-#include "rocksdb/slice.h"
+#include <rocksdb/db.h>
+#include <rocksdb/slice.h>
+#include <rocksdb/table.h>
 #define leveldb rocksdb
 #endif
 
@@ -82,6 +83,10 @@ private:
 	SSDBImpl();
 public:
 	std::vector<leveldb::ColumnFamilyHandle*> handles;
+
+	rocksdb::DB *getLdb() const {
+		return ldb;
+	}
 
 	int save();
 

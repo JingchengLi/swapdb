@@ -669,56 +669,103 @@ int proc_save(Context &ctx, Link *link, const Request &req, Response *resp) {
     return 0;
 }
 
+
+
+#define ReplyWtihHuman(name_size) \
+    resp->emplace_back(#name_size":" + str(name_size));\
+    resp->emplace_back(#name_size"_human:" + bytesToHuman((int64_t) name_size));
+
+
+#define FastGetProperty(key, name) \
+    if (serv->ssdb->getLdb()->GetProperty(key, &val)) {\
+    uint64_t temp_size = Bytes(val).Uint64();\
+    resp->emplace_back(name":" + str(temp_size));\
+}
+
+#define FastGetPropertyHuman(key, name) \
+    if (serv->ssdb->getLdb()->GetProperty(key, &val)) {\
+    uint64_t temp_size = Bytes(val).Uint64();\
+    resp->emplace_back(name":" + str(temp_size));\
+    resp->emplace_back(name"_human:" + bytesToHuman((int64_t) temp_size));\
+}
+
 int proc_info(Context &ctx, Link *link, const Request &req, Response *resp) {
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
-    resp->push_back("ok");
-    resp->push_back("#ssdb-server");
-    resp->push_back("version:" + str(SSDB_VERSION));
-    resp->push_back("engine:" + str(SSDB_ENGINE));
-    resp->push_back("links:" + str(ctx.net->link_count));
+    resp->emplace_back("ok");
+    resp->emplace_back("\n# SSDB-server");
+    resp->emplace_back("version:" + str(SSDB_VERSION));
+    resp->emplace_back("engine:" + str(SSDB_ENGINE));
+    resp->emplace_back("links:" + str(ctx.net->link_count));
 
-    {
+    {//total_calls
         int64_t calls = 0;
         proc_map_t::iterator it;
         for (it = ctx.net->proc_map.begin(); it != ctx.net->proc_map.end(); it++) {
             Command *cmd = it->second;
             calls += cmd->calls;
         }
-        resp->push_back("total_calls:" + str(calls));
+        resp->emplace_back("total_calls:" + str(calls));
     }
 
-    {
+    {//dbsize
         uint64_t size = serv->ssdb->size();
-        resp->push_back("dbsize:" + str(size));
+        resp->emplace_back("dbsize:" + str(size));
     }
 
 
-    {
-        uint64_t size = zmalloc_get_rss();
-        resp->push_back("memory:" + str(size));
-        resp->push_back("memory_human:" + bytesToHuman((int64_t) size));
+    {//memory
+        resp->emplace_back("\n# Memory");
+
+        uint64_t memory = zmalloc_get_rss();
+        ReplyWtihHuman(memory);
+
+        auto options = serv->ssdb->getLdb()->GetOptions().table_factory->GetOptions();
+        if (options!= nullptr) {
+            {
+                uint64_t block_cache_size = ((leveldb::BlockBasedTableOptions*)options)->block_cache->GetCapacity();
+                ReplyWtihHuman(block_cache_size);
+            }
+
+            {
+                uint64_t block_cache_used = ((leveldb::BlockBasedTableOptions*)options)->block_cache->GetUsage();
+                ReplyWtihHuman(block_cache_used);
+            }
+        }
+
+        std::string val;
+        FastGetPropertyHuman(leveldb::DB::Properties::kCurSizeAllMemTables ,"current_memtables_size");
+        FastGetPropertyHuman(leveldb::DB::Properties::kEstimateTableReadersMem ,"indexes_filter_blocks");
     }
 
 
-    {
-        uint64_t size = 0;
-        serv->ssdb->filesize(ctx, &size);
-        resp->push_back("filesize:" + str(size));
-        resp->push_back("filesize_human:" + bytesToHuman((int64_t) size));
+    {//filesize
+        resp->push_back("\n# Persistence");
+        uint64_t filesize = 0;
+        serv->ssdb->filesize(ctx, &filesize);
+        ReplyWtihHuman(filesize);
+
+        std::string val;
+        FastGetPropertyHuman(leveldb::DB::Properties::kTotalSstFilesSize ,"sst_file_size");
+        FastGetPropertyHuman(leveldb::DB::Properties::kEstimateLiveDataSize ,"live_data_size");
+    }
+
+
+    {//snapshot
+        resp->push_back("\n# Snapshot");
+
+        std::string val;
+        FastGetProperty(leveldb::DB::Properties::kNumSnapshots, "live_snapshots");
+        FastGetProperty(leveldb::DB::Properties::kOldestSnapshotTime, "oldest_snapshot");
     }
 
 
     if (req.size() > 1 && (req[1] == "leveldb" || req[1] == "rocksdb")) {
-        std::vector<std::string> tmp = serv->ssdb->info();
-        for (int i = 0; i < (int) tmp.size(); i++) {
-            std::string block = tmp[i];
+        for(auto const &block : serv->ssdb->info()) {
             resp->push_back(block);
         }
     }
 
     if (req.size() > 1 && req[1] == "cmd") {
-
-
         for_each(ctx.net->proc_map.begin(), ctx.net->proc_map.end(), [&](std::pair<const Bytes, Command *> it) {
             Command *cmd = it.second;
             resp->push_back("cmd." + cmd->name);
@@ -727,12 +774,9 @@ int proc_info(Context &ctx, Link *link, const Request &req, Response *resp) {
                      cmd->calls, cmd->time_wait, cmd->time_proc);
             resp->push_back(buf);
         });
-
     }
 
     resp->push_back("");
-
-
     return 0;
 }
 
