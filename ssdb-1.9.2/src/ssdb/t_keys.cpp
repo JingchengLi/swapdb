@@ -341,7 +341,7 @@ int SSDBImpl::restore(Context &ctx, const Bytes &key, int64_t expire, const Byte
                 if (ret != 0) {
                     return -1;
                 }
-                t_res.push_back(std::move(r));
+                t_res.emplace_back(r);
             }
 
             uint64_t len_t;
@@ -362,7 +362,7 @@ int SSDBImpl::restore(Context &ctx, const Bytes &key, int64_t expire, const Byte
                     return -1;
                 }
 
-                tmp_set.insert(std::move(r));
+                tmp_set.emplace(r);
             }
 
             int64_t num = 0;
@@ -443,7 +443,7 @@ int SSDBImpl::restore(Context &ctx, const Bytes &key, int64_t expire, const Byte
 
                 std::string t_item;
                 while (getNextString(zl, &p, t_item)) {
-                    t_res.push_back(std::move(t_item));
+                    t_res.emplace_back(t_item);
                 }
             }
 
@@ -474,7 +474,7 @@ int SSDBImpl::restore(Context &ctx, const Bytes &key, int64_t expire, const Byte
             for (uint32_t j = 0; j < len; ++j) {
                 int64_t t_value;
                 if (intsetGet((intset *) set, j , &t_value) == 1) {
-                    tmp_set.insert(str(t_value));
+                    tmp_set.emplace(str(t_value));
                 } else {
                     return -1;
                 }
@@ -500,7 +500,7 @@ int SSDBImpl::restore(Context &ctx, const Bytes &key, int64_t expire, const Byte
 
             std::string r;
             while (getNextString(zl, &p, r)) {
-                t_res.push_back(std::move(r));
+                t_res.emplace_back(r);
             }
 
             uint64_t len_t;
