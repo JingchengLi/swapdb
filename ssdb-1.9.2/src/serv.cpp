@@ -825,8 +825,19 @@ int proc_replic(Context &ctx, Link *link, const Request &req, Response *resp) {
 
     {
         Locking<Mutex> l(&serv->replicState.rMutex);
-        serv->replicState.rSnapshot = serv->ssdb->GetSnapshot();
 
+        if (serv->replicState.inTransState()) {
+            log_fatal("i am in transferring state, cannot make a new snapshot!");
+            resp->reply_errror("an other transferring is on going");
+            return 0;
+        }
+
+        if (serv->replicState.rSnapshot != nullptr) {
+            serv->ssdb->ReleaseSnapshot(serv->replicState.rSnapshot);
+            serv->replicState.rSnapshot = nullptr;
+        }
+
+        serv->replicState.rSnapshot = serv->ssdb->GetSnapshot();
         serv->replicState.startReplic();
     }
 
