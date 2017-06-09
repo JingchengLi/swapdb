@@ -16,7 +16,7 @@ int main(int argc, char **argv){
 	opt.compression = "no";
 
 	SSDB *ssdb = NULL;
-	ssdb = SSDB::open(opt, work_dir);
+	ssdb = SSDB::open(opt, work_dir + "/data");
 	if(!ssdb){
 		log_fatal("could not open work_dir: %s", work_dir.c_str());
 		fprintf(stderr, "could not open work_dir: %s\n", work_dir.c_str());

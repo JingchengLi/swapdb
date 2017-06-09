@@ -71,7 +71,7 @@ private:
 	friend class SSDB;
 	friend class ExpirationHandler;
 
-	std::string path;
+	std::string data_path;
 
 	leveldb::DB* ldb;
 	leveldb::Options options;
@@ -82,6 +82,8 @@ private:
 	SSDBImpl();
 public:
 	std::vector<leveldb::ColumnFamilyHandle*> handles;
+
+	int save();
 
 	ExpirationHandler *expiration;
 

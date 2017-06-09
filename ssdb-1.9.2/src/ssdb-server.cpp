@@ -55,7 +55,7 @@ void MyApplication::run(){
 	Options option;
 	option.load(*conf);
 
-	std::string data_db_dir = app_args.work_dir + "/data";
+	std::string data_db_dir = app_args.work_dir;
 
 	log_info("ssdb-server %s", APP_VERSION);
 	log_info("build_version %s", APP_GIT_BUILD);
