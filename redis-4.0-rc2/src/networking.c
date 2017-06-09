@@ -1649,11 +1649,8 @@ int handleExtraSSDBReply(client *c) {
 
         serverAssert(2 == ret);
         if (2 != ret) {
-            serverLog(LL_WARNING, "slave ssdb response a wrong response about repopid:%s", reply->str);
-            if (server.slave_ssdb_critical_err_cnt >= SLAVE_SSDB_MAX_CRITICAL_ERR_LIMIT) {
-                serverLog(LL_WARNING, "too many critical errors for slave ssdb, redis will exit");
-                exit(1);
-            }
+            serverLog(LL_WARNING, "wrong format of repopid response :%s", reply->str);
+            server.slave_ssdb_critical_err_cnt++;
             closeAndReconnectSSDBconnection(c);
             return C_ERR;
         }
@@ -1687,10 +1684,6 @@ int handleExtraSSDBReply(client *c) {
         } else {
             serverLog(LL_WARNING, "repopid time/index don't match the first in server.ssdb_write_oplist");
             server.slave_ssdb_critical_err_cnt++;
-            if (server.slave_ssdb_critical_err_cnt >= SLAVE_SSDB_MAX_CRITICAL_ERR_LIMIT) {
-                serverLog(LL_WARNING, "too many critical errors for slave ssdb, redis will exit");
-                exit(1);
-            }
             closeAndReconnectSSDBconnection(c);
             return C_ERR;
         }
@@ -1715,11 +1708,7 @@ int handleResponseOfReplicationConn(client* c, redisReply* reply) {
             serverAssert(2 == ret);
             if (2 != ret) {
                 server.slave_ssdb_critical_err_cnt++;
-                serverLog(LL_WARNING, "slave ssdb response a wrong repopid:%s", reply->str);
-                if (server.slave_ssdb_critical_err_cnt >= SLAVE_SSDB_MAX_CRITICAL_ERR_LIMIT) {
-                    serverLog(LL_WARNING, "too many critical errors for slave ssdb, redis will exit");
-                    exit(1);
-                }
+                serverLog(LL_WARNING, "wrong format of repopid check response:%s", reply->str);
                 closeAndReconnectSSDBconnection(c);
             } else {
                 serverLog(LL_DEBUG, "[REPOPID CHECK] get ssdb last success write(op time:%ld, op id:%d)",
@@ -1747,10 +1736,6 @@ int handleResponseOfReplicationConn(client* c, redisReply* reply) {
     if (reply->type == REDIS_REPLY_ERROR) {
         server.slave_ssdb_critical_err_cnt++;
         serverLog(LL_WARNING, "slave ssdb write error:%s", reply->str);
-        if (server.slave_ssdb_critical_err_cnt >= SLAVE_SSDB_MAX_CRITICAL_ERR_LIMIT) {
-            serverLog(LL_WARNING, "too many critical errors for slave ssdb, redis will exit");
-            exit(1);
-        }
     }
     if (handleResponseOfSlaveSSDBflush(c, reply) == C_RETURN)
         return C_OK;

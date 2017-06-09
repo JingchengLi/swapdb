@@ -1384,8 +1384,6 @@ struct redisServer {
 #endif
 };
 
-#define SLAVE_SSDB_MAX_CRITICAL_ERR_LIMIT 5
-
 typedef struct pubsubPattern {
     client *client;
     robj *pattern;
