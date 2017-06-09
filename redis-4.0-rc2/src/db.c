@@ -527,11 +527,11 @@ void keysCommand(client *c) {
     int is_ssdbkeys_command = 0;
 
     if (server.jdjr_mode) {
-        if (0 == strncmp(c->argv[0]->ptr, "keys", strlen("keys")))
+        if (0 == strncasecmp(c->argv[0]->ptr, "keys", strlen("keys")))
             is_keys_command = 1;
-        else if (0 == strncmp(c->argv[0]->ptr, "rediskeys", strlen("rediskeys")))
+        else if (0 == strncasecmp(c->argv[0]->ptr, "rediskeys", strlen("rediskeys")))
             is_rediskeys_command = 1;
-        else if (0 == strncmp(c->argv[0]->ptr, "ssdbkeys", strlen("ssdbkeys")))
+        else if (0 == strncasecmp(c->argv[0]->ptr, "ssdbkeys", strlen("ssdbkeys")))
             is_ssdbkeys_command = 1;
     }
 
