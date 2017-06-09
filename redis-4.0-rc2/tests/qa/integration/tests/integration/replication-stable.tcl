@@ -23,7 +23,7 @@ config {real.conf}} {
             }
 
             test "master and slave are identical after long time" {
-                wait_for_condition 300 100 {
+                wait_for_condition 30 1000 {
                     [$master dbsize] == [[lindex $slaves 0] dbsize]
                 } else {
                     fail "Different number of keys between master and slave after too long time."
@@ -38,7 +38,7 @@ config {real.conf}} {
             }
 
             test {Expect only full sync once} {
-                assert {[s -2 sync_full] < 2}
+                assert {[s -2 sync_full] == 1}
             }
 
             test {Second Slave should be able to synchronize with the master} {
@@ -53,7 +53,7 @@ config {real.conf}} {
             }
 
             test "master and two slaves are identical after long time" {
-                wait_for_condition 300 100 {
+                wait_for_condition 30 1000 {
                     [$master dbsize] == [[lindex $slaves 0] dbsize] &&
                     [$master dbsize] == [[lindex $slaves 1] dbsize]
                 } else {

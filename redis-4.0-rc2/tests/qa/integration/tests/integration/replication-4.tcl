@@ -22,9 +22,7 @@ start_server {tags {"repl"}} {
                 # stop_bg_complex_data $load_handle2
                 fail "slave can not sync with master during writing"
             }
-            r -1 select 16
-            set keyslist [r -1 keys *]
-            r -1 select 0
+            set keyslist [r -1 ssdbkeys *]
 
             puts "wait [llength $keyslist] keys identical....."
             foreach key $keyslist {
@@ -181,14 +179,15 @@ start_server {tags {"repl"}} {
         test {Replication of SPOP command -- alsoPropagate() API} {
             for {set n 0} {$n < 5} {incr n} {
                 $master del myset
-                set size [expr [randomInt 100]]
+                set size [expr [randomInt 100]+1]
                 set content {}
                 for {set j 0} {$j < $size} {incr j} {
                     lappend content [randomValue]
                 }
                 $master sadd myset {*}$content
 
-                set count [expr [randomInt $size]]
+                # set count [expr [randomInt $size]]
+                set count [expr [randomInt 100]]
                 set result [$master spop myset $count]
                 r -1 config set maxmemory 0
                 r -1 exists myset

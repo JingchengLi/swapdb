@@ -740,11 +740,10 @@ proc wait_flushall {{level 0}} {
 
 proc wait_keys_processed {r {levels {0}}} {
     foreach level $levels {
-        wait_for_condition 100 100 {
+        wait_for_condition 100 200 {
             [s $level "keys_loading_from_ssdb"] == 0 &&
             [s $level "keys_transferring_to_ssdb"] == 0 &&
-            [s $level "keys_visiting_ssdb"] == 0 &&
-            [s $level "keys_delete_confirming"] == 0
+            [s $level "keys_visiting_ssdb"] == 0
         } else {
             fail "some keys not process done after 10s"
         }
@@ -768,8 +767,7 @@ proc check_keys_cleared {r {levels {0}}} {
             [s $level "keys_in_ssdb_count"] == 0 &&
             [s $level "keys_loading_from_ssdb"] == 0 &&
             [s $level "keys_transferring_to_ssdb"] == 0 &&
-            [s $level "keys_visiting_ssdb"] == 0 &&
-            [s $level "keys_delete_confirming"] == 0
+            [s $level "keys_visiting_ssdb"] == 0
         } else {
             fail "some keys not clear after 10s"
         }

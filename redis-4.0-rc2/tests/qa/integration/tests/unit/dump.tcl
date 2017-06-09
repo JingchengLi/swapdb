@@ -218,7 +218,7 @@ start_server {tags {"dump"}} {
         }
     }
 
-    foreach {loop time} {40 100 400 100 4000 1000 40000 10000} {
+    foreach {loop time} {40 100 400 100 4000 1000 20000 5000} {
         test "MIGRATE can correctly transfer large values($loop)" {
             set first [srv 0 client]
             r config set maxmemory 0
@@ -303,6 +303,7 @@ start_server {tags {"dump"}} {
             set second_port [srv 0 port]
 
             wait_for_dumpto_ssdb $first foo
+
             assert_error "ERR*connect*target*" {$first migrate abc $second_port foo 0 5000}
             assert_error "IOERR*timeout*client*" {$first migrate 111.111.111.111 8889 foo 0 5000}
             assert_error "IOERR*timeout*target*" {$first migrate $second_host abc foo 0 5000}
