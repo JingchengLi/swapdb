@@ -137,7 +137,7 @@ void Response::reply_get(int status, const std::string *val){
 	}else{
 		resp.push_back("ok");
 		if(val){
-			resp.push_back(*val);
+			resp.emplace_back(*val);
 		}
 		return;
 	}
