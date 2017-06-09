@@ -87,11 +87,15 @@ int SSDBImpl::sscan(Context &ctx, const Bytes &name, const Bytes &cursor, const 
 
 
 SIterator *SSDBImpl::sscan_internal(Context &ctx, const Bytes &name, uint16_t version, const leveldb::Snapshot *snapshot) {
+    leveldb::ReadOptions iterate_options(false, true);
+    if (snapshot) {
+        iterate_options.snapshot = snapshot;
+    }
 
     std::string key_start;
     key_start = encode_set_key(name, "", version);
 
-    return new SIterator(this->iterator(key_start, "", -1, snapshot), name, version);
+    return new SIterator(this->iterator(key_start, "", -1, iterate_options), name, version);
 }
 
 int SSDBImpl::sadd(Context &ctx, const Bytes &key, const std::set<Bytes> &mem_set, int64_t *num) {

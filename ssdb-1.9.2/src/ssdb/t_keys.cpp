@@ -207,8 +207,7 @@ int SSDBImpl::dump(Context &ctx, const Bytes &key, std::string *res, int64_t *pt
             rdbEncoder.rdbSaveLen(lv.length);
 
             //readOptions using snapshot
-            leveldb::ReadOptions readOptions = leveldb::ReadOptions();
-            readOptions.fill_cache = false;
+            leveldb::ReadOptions readOptions(false, true);
             readOptions.snapshot = snapshot;
 
             uint64_t rangelen = lv.length;

@@ -222,11 +222,15 @@ int SSDBImpl::hgetall(Context &ctx, const Bytes &name, std::map<std::string, std
 
 
 HIterator* SSDBImpl::hscan_internal(Context &ctx, const Bytes &name, uint16_t version, const leveldb::Snapshot *snapshot){
+	leveldb::ReadOptions iterate_options(false, true);
+	if (snapshot) {
+		iterate_options.snapshot = snapshot;
+	}
 
     std::string key_start;
     key_start = encode_hash_key(name, "", version);
 
-    return new HIterator(this->iterator(key_start, "", -1, snapshot), name, version);
+    return new HIterator(this->iterator(key_start, "", -1, iterate_options), name, version);
 }
 
 

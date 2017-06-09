@@ -191,6 +191,11 @@ int SSDBImpl::zget(Context &ctx, const Bytes &name, const Bytes &key, double *sc
 ZIterator *SSDBImpl::zscan_internal(Context &ctx, const Bytes &name, const Bytes &score_start, const Bytes &score_end,
                                     uint64_t limit, Iterator::Direction direction, uint16_t version,
                                     const leveldb::Snapshot *snapshot) {
+    leveldb::ReadOptions iterate_options(false, true);
+    if (snapshot) {
+        iterate_options.snapshot = snapshot;
+    }
+
     if (direction == Iterator::FORWARD) {
         std::string start, end;
         if (score_start.empty()) {
@@ -203,7 +208,7 @@ ZIterator *SSDBImpl::zscan_internal(Context &ctx, const Bytes &name, const Bytes
         } else {
             end = encode_zscore_key(name, "", score_end.Double(), version);
         }
-        return new ZIterator(this->iterator(start, end, limit, snapshot), name, version);
+        return new ZIterator(this->iterator(start, end, limit, iterate_options), name, version);
     } else {
         std::string start, end;
         if (score_start.empty()) {

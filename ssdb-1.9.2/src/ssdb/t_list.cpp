@@ -538,7 +538,7 @@ int SSDBImpl::lrange(Context &ctx, const Bytes &key, int64_t start, int64_t end,
     SnapshotPtr spl(ldb, snapshot); //auto release
 
     leveldb::ReadOptions readOptions = leveldb::ReadOptions();
-    readOptions.fill_cache = false;
+    readOptions.fill_cache = true;
     readOptions.snapshot = snapshot;
 
 

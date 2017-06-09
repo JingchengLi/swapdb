@@ -271,7 +271,7 @@ private:
     SIterator* sscan_internal(Context &ctx, const Bytes &name, uint16_t version, const leveldb::Snapshot *snapshot=nullptr);
     int incr_ssize(Context &ctx, const Bytes &key, leveldb::WriteBatch &batch, const SetMetaVal &sv, const std::string &meta_key,int64_t incr);
 
-    int GetListItemValInternal(const std::string &item_key, std::string *val, const leveldb::ReadOptions &options = leveldb::ReadOptions());
+	int GetListItemValInternal(const std::string &item_key, std::string *val, const leveldb::ReadOptions &options = leveldb::ReadOptions());
     int GetListMetaVal(const std::string &meta_key, ListMetaVal &lv);
     int doListPop(Context &ctx, const Bytes &key, leveldb::WriteBatch &batch, ListMetaVal &lv, std::string &meta_key, LIST_POSITION lp, std::pair<std::string, bool> &val);
 
