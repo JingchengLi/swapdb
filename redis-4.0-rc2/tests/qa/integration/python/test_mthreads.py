@@ -79,7 +79,8 @@ class TestMthreads(unittest.TestCase):
         self.p.close()
         self.p.join()
         print "At last key(%s)'s status is %s!" % (self.key, locatekey())
-        self.assertIn(locatekey(),["redis", "ssdb"])
+        self.assertTrue(locatekey() in ["redis", "ssdb"])
+        #  self.assertIn(locatekey(),["redis", "ssdb"])
         R.delete(self.key)
 
     #  @unittest.skip("skip test_01_leak")
@@ -95,12 +96,12 @@ class TestMthreads(unittest.TestCase):
         self.p.join()
         memory_after = self.waitMemoryStable()
 
-        self.assertIn(locatekey(),["redis", "ssdb"])
+        self.assertTrue(locatekey() in ["redis", "ssdb"])
         try:
-            self.assertLessEqual(memory_after-R.execute_command("memory usage "+self.key)-50000, memory_before)
+            self.assertTrue(memory_after-R.execute_command("memory usage "+self.key)-50000 <= memory_before)
             self.assertEqual(locatekey(),"redis")
         except TypeError:
-            self.assertLessEqual(memory_after-50000, memory_before)
+            self.assertTrue(memory_after-50000 <= memory_before)
             self.assertEqual(locatekey(),"ssdb")
         R.delete(self.key)
 

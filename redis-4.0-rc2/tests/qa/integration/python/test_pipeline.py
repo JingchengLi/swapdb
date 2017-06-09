@@ -159,9 +159,10 @@ class TestPipeline(unittest.TestCase):
             pipe.set('a', 1).set('b', 2).lpush('c', 3).set('d', 4).execute()
             self.dumpKeys()
             pipe.get('a').get('b').get('c').get('d')
-            with self.assertRaises(redis.ResponseError) as ex:
-                print pipe.execute()
+            #  with self.assertRaises(redis.ResponseError) as ex:
+                #  print pipe.execute()
 
+            self.assertRaises(redis.ResponseError, pipe.execute)
             # make sure the pipe was restored to a working state
             assert pipe.set('z', 'zzz').execute() == [True]
 

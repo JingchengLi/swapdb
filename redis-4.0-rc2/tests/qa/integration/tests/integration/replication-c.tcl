@@ -39,10 +39,10 @@ proc test_psync {descr duration backlog_size backlog_ttl delay cond reconnect} {
                         if {($j % 20) == 0} {
                             catch {
                                 if {$delay} {
-                                    $slave multi
+                                    # $slave multi
                                     $slave client kill $master_host:$master_port
                                     $slave debug sleep $delay
-                                    $slave exec
+                                    # $slave exec
                                 } else {
                                     $slave client kill $master_host:$master_port
                                 }

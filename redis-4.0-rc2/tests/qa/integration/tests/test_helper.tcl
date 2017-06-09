@@ -620,7 +620,7 @@ for {set j 0} {$j < [llength $argv]} {incr j} {
     } elseif {$opt eq "--loglevel"} {
         incr j
         set ::loglevel $arg
-        set ::cfgfile  ${::cfgdir}/${::loglevel}_redis_testreport
+        set ::cfgfile  ${::cfgdir}/${::loglevel}_redis_testreport.xml
         exec rm -f $::cfgfile
     } else {
         puts "Wrong argument: $opt"

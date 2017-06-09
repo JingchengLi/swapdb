@@ -16,6 +16,22 @@ R = RedisPool().Redis_Pool()
 '''20M val need about 100ms dump/restore'''
 vlen = 20000000
 
+def config_set_maxmemory():
+    attemps = 0
+    success = False
+    while attemps < 5 and not success:
+	success = True
+	try:
+	    R.config_set("maxmemory", "0")
+	except Exception, e:
+	    print 'repr(e): ', repr(e)
+	    attemps +=1
+	    success = False
+	    if attemps == 5:
+		print '10 secs time out and exit!!'
+		os._exit(0)
+	    time.sleep(2)
+
 def storetossdb(key="key"):
     return R.execute_command("storetossdb "+key)
 
@@ -61,7 +77,7 @@ def append(q, key="key"):
 
 def wait_status(status, key="key"):
     attemps = 0
-    while attemps < 10:
+    while attemps < 50:
         time.sleep(0.01)
         if status == R.execute_command("locatekey "+key):
             return True
@@ -71,20 +87,7 @@ def wait_status(status, key="key"):
 class TestMidState(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        attemps = 0
-        success = False
-        while attemps < 5 and not success:
-            success = True
-            try:
-                R.config_set("maxmemory", "0")
-            except Exception, e:
-                print 'repr(e): ', repr(e)
-                attemps +=1
-                success = False
-                if attemps == 5:
-                    print '10 secs time out and exit!!'
-                    os._exit(0)
-                time.sleep(2)
+        config_set_maxmemory()
 
     def __init__(self,*args, **kwargs):
         super(TestMidState, self).__init__(*args, **kwargs)
@@ -107,7 +110,7 @@ class TestMidState(unittest.TestCase):
         storetossdb()
         self.p.apply_async(append, args = (q,))
         time.sleep(0.01)
-        for i in range(100):
+        for i in range(150):
             time.sleep(0.001)
             result = self.p.apply_async(AllowReadBlockWrite, args = (q,))
             results.append(result)
@@ -153,6 +156,8 @@ class TestMidState(unittest.TestCase):
             flags |= result.get()
         self.assertEqual(0x6, flags, "%d : read shoule be blocked during loading status" % flags)
 
+# not support setup etc in below python 2.7.
+config_set_maxmemory()
 suite = unittest.TestLoader().loadTestsFromTestCase(TestMidState)
 unittest.TextTestRunner(verbosity=2).run(suite)
 #  if __name__=='__main__':
