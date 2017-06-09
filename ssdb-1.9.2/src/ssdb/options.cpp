@@ -61,6 +61,7 @@ void Options::load(const Config &conf){
 	write_buffer_size = conf.get_num("rocksdb.write_buffer_size", 16);
 	compression = conf.get_str("rocksdb.compression");
 	level_compaction_dynamic_level_bytes = conf.get_str("rocksdb.level_compaction_dynamic_level_bytes");
+	use_direct_reads = conf.get_str("rocksdb.use_direct_reads");
 
 	compaction_readahead_size = (size_t)conf.get_num("rocksdb.compaction_readahead_size", 4);
 	max_bytes_for_level_base = (size_t)conf.get_num("rocksdb.max_bytes_for_level_base", 256);
@@ -86,6 +87,11 @@ void Options::load(const Config &conf){
 	strtolower(&level_compaction_dynamic_level_bytes);
 	if(level_compaction_dynamic_level_bytes != "yes"){
 		level_compaction_dynamic_level_bytes = "no";
+	}
+
+	strtolower(&use_direct_reads);
+	if(use_direct_reads != "yes"){
+		use_direct_reads = "no";
 	}
 
 

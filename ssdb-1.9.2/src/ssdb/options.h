@@ -41,7 +41,8 @@ struct Options {
     // default target_file_size_base and multiplier is the save as rocksdb
     int target_file_size_multiplier = 1;
     std::string compression = "yes";
-    std::string level_compaction_dynamic_level_bytes = "yes";
+    std::string level_compaction_dynamic_level_bytes = "no";
+    std::string use_direct_reads = "no";
 
     int max_background_cd_threads = 4;
 

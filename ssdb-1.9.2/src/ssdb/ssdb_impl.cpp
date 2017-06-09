@@ -99,7 +99,7 @@ SSDB *SSDB::open(const Options &opt, const std::string &dir) {
     ssdb->options.IncreaseParallelism(opt.max_background_cd_threads);
 
     //level config
-
+    ssdb->options.use_direct_reads = (opt.use_direct_reads == "yes");  //see : http://rocksdb.org/blog/2015/07/23/dynamic-level.html
     ssdb->options.level_compaction_dynamic_level_bytes = (opt.level_compaction_dynamic_level_bytes == "yes");  //see : http://rocksdb.org/blog/2015/07/23/dynamic-level.html
     ssdb->options.max_bytes_for_level_base = opt.max_bytes_for_level_base * UNIT_MB; //256M
     ssdb->options.max_bytes_for_level_multiplier = opt.max_bytes_for_level_multiplier; //10  // multiplier between levels
