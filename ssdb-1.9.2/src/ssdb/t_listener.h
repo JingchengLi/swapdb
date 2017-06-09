@@ -31,9 +31,7 @@ public:
     // Note that the this function must be implemented in a way such that
     // it should not run for an extended period of time before the function
     // returns.  Otherwise, RocksDB may be blocked.
-    void OnFlushCompleted(rocksdb::DB *db,
-                          const rocksdb::FlushJobInfo &flush_job_info) {
-
+    void OnFlushCompleted(rocksdb::DB *db,const rocksdb::FlushJobInfo &flush_job_info) override {
 
         log_debug("[OnFlushCompleted] %s , slowdown?%d , stop?%d , size:%d",
                  flush_job_info.file_path.c_str(),
@@ -61,10 +59,9 @@ public:
     // Note that if applications would like to use the passed reference
     // outside this function call, they should make copies from the
     // returned value.
-    void OnTableFileDeleted(const rocksdb::TableFileDeletionInfo &info) {
+    void OnTableFileDeleted(const rocksdb::TableFileDeletionInfo &info) override {
 
 //        log_info("OnTableFileDeleted %s" , info.file_path.c_str() );
-
 
     }
 
@@ -81,18 +78,15 @@ public:
     // @param ci a reference to a CompactionJobInfo struct. 'ci' is released
     //  after this function is returned, and must be copied if it is needed
     //  outside of this function.
-    void OnCompactionCompleted(rocksdb::DB *db,
-                               const rocksdb::CompactionJobInfo &ci) {
-
+    void OnCompactionCompleted(rocksdb::DB *db, const rocksdb::CompactionJobInfo &ci) override {
+        int64_t spent = (int64_t) (ci.stats.elapsed_micros / 1000.0);
 
         log_info("[OnCompactionCompleted] costs %d ms , base_input_level %d, output_level %d , reason %s ",
-                 ci.stats.elapsed_micros,
+                 spent,
                  ci.base_input_level,
                  ci.output_level,
                  CompactionReasonString[(int)ci.compaction_reason]
         );
-
-
 
     }
 
@@ -111,9 +105,8 @@ public:
     // Note that if applications would like to use the passed reference
     // outside this function call, they should make copies from these
     // returned value.
-    void OnTableFileCreated(const rocksdb::TableFileCreationInfo &info) {
+    void OnTableFileCreated(const rocksdb::TableFileCreationInfo &info) override {
 //        log_info("OnTableFileCreated");
-
     }
 
     // A call-back function for RocksDB which will be called before
@@ -123,8 +116,7 @@ public:
     // Note that if applications would like to use the passed reference
     // outside this function call, they should make copies from these
     // returned value.
-    void OnTableFileCreationStarted(
-            const rocksdb::TableFileCreationBriefInfo &info) {
+    void OnTableFileCreationStarted(const rocksdb::TableFileCreationBriefInfo &info) override {
 //        log_info("OnTableFileCreationStarted");
 
     }
@@ -139,14 +131,11 @@ public:
     // Note that if applications would like to use the passed reference
     // outside this function call, they should make copies from these
     // returned value.
-    void OnMemTableSealed(
-            const rocksdb::MemTableInfo &info) {
-        log_info("[OnMemTableSealed] del:%d num:%d",
+    void OnMemTableSealed(const rocksdb::MemTableInfo &info) override {
+        log_debug("[OnMemTableSealed] del:%d num:%d",
                  info.num_deletes,
                  info.num_entries
         );
-
-
     }
 
 
