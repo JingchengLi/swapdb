@@ -3367,7 +3367,7 @@ void chooseHotKeysByLFUcounter(robj* keyobj) {
 
     /* limit the max num of server.hot_keys to avoid to load too many keys
      * when startToLoadIfNeeded called, which may block redis. */
-    if (dictSize(server.hot_keys)+dictSize(server.db->loading_hot_keys) > MASTER_MAX_CONCURRENT_LOADING_KEYS) return;
+    if (dictSize(server.hot_keys)+dictSize(EVICTED_DATA_DB->loading_hot_keys) > MASTER_MAX_CONCURRENT_LOADING_KEYS) return;
 
     serverAssert(server.maxmemory_policy & MAXMEMORY_FLAG_LFU);
 
