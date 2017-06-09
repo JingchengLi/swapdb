@@ -84,8 +84,8 @@ void Options::load(const Config &conf){
 	}
 
 	strtolower(&level_compaction_dynamic_level_bytes);
-	if(level_compaction_dynamic_level_bytes != "no"){
-		level_compaction_dynamic_level_bytes = "yes";
+	if(level_compaction_dynamic_level_bytes != "yes"){
+		level_compaction_dynamic_level_bytes = "no";
 	}
 
 
