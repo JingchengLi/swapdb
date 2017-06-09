@@ -20,12 +20,12 @@ class Bytes{
 			size_ = 0;
 		}
 
-		Bytes(void *data, int size){
+		explicit Bytes(void *data, int size){
 			data_ = (char *)data;
 			size_ = size;
 		}
 
-		Bytes(const char *data, int size){
+		explicit Bytes(const char *data, int size){
 			data_ = data;
 			size_ = size;
 		}
@@ -38,6 +38,11 @@ class Bytes{
 		Bytes(const char *str){
 			data_ = str;
 			size_ = (int)strlen(str);
+		}
+
+		Bytes(const Bytes &bytes){
+			data_ = bytes.data_;
+			size_ = bytes.size_;
 		}
 
         //be careful~
@@ -56,6 +61,11 @@ class Bytes{
 
 		int size() const{
 			return size_;
+		}
+
+		void assign(const char *data, int size) {
+			data_ = (char *)data;
+			size_ = size;
 		}
 
 		int compare(const Bytes &b) const{
@@ -249,9 +259,9 @@ public:
 		size_ -= sizeof(uint64_t);
 		return sizeof(uint64_t);
 	}
-	int read_data(std::string *ret){
+	int read_data(std::string *ret) {
 		int n = size_;
-		if(ret){
+		if (ret) {
 			ret->assign(data_, size_);
 		}
 		data_ += size_;
@@ -292,6 +302,16 @@ public:
 		data_ += len;
 		size_ -= len;
 		return 2 + len;
+	}
+
+	int read_data(Bytes &str){
+		int n = size_;
+
+        str.assign(data_, size_);
+
+		data_ += size_;
+		size_ = 0;
+		return n;
 	}
 };
 

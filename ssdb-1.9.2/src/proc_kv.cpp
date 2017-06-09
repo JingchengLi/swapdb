@@ -561,8 +561,8 @@ int proc_keys(Context &ctx, Link *link, const Request &req, Response *resp){
 	auto mit = std::unique_ptr<MIterator>(new MIterator(serv->ssdb->iterator(start, "", -1)));
 	resp->reply_list_ready();
     while(mit->next()){
-		if (fulliter || stringmatchlen(pattern.data(), pattern.length(), mit->key.data(), mit->key.length(), 0)) {
-			resp->push_back(mit->key);
+		if (fulliter || stringmatchlen(pattern.data(), pattern.size(), mit->key.data(), mit->key.size(), 0)) {
+			resp->emplace_back(mit->key.String());
 		} else {
 			//skip
 		}

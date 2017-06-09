@@ -213,7 +213,7 @@ int SSDBImpl::hgetall(Context &ctx, const Bytes &name, std::map<std::string, std
 	std::unique_ptr<HIterator> it(hscan_internal(ctx, name, hv.version, snapshot));
 
 	while(it->next()){
-		val[it->key] = it->val;
+		val[it->key.String()] = it->val.String();
  	}
 
 	return 1;

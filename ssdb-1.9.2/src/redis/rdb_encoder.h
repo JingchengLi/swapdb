@@ -7,6 +7,7 @@
 
 #include <string>
 #include "rdb.h"
+#include "util/bytes.h"
 
 class RdbEncoder {
 public:
@@ -25,6 +26,8 @@ public:
     int64_t rdbSaveLzfStringObject(const std::string &string);
 
     int64_t saveRawString(const std::string &string);
+
+    int saveRawString(const Bytes &string);
 
     int saveDoubleValue(double value);
 

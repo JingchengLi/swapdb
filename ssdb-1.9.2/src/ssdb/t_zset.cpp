@@ -372,7 +372,7 @@ int SSDBImpl::zrangeGeneric(Context &ctx, const Bytes &name, const Bytes &begin,
     if (it != NULL) {
         it->skip(start);
         while (it->next()) {
-            key_score.push_back(it->key);
+            key_score.emplace_back(it->key.String());
             key_score.push_back(str(it->score));
         }
         delete it;
@@ -502,7 +502,7 @@ int SSDBImpl::genericZrangebyscore(Context &ctx, const Bytes &name, const Bytes 
 
             if (!offset) {
                 if (limit--) {
-                    key_score.push_back(it->key);
+                    key_score.emplace_back(it->key.String());
                     if (withscores) {
                         key_score.push_back(str(it->score));
                     }
@@ -529,7 +529,7 @@ int SSDBImpl::genericZrangebyscore(Context &ctx, const Bytes &name, const Bytes 
 
             if (!offset) {
                 if (limit--) {
-                    key_score.push_back(it->key);
+                    key_score.emplace_back(it->key.String());
                     if (withscores) {
                         key_score.push_back(str(it->score));
                     }
@@ -890,9 +890,9 @@ int SSDBImpl::genericZrangebylex(Context &ctx, const Bytes &name, const Bytes &k
             this->zscanbylex_internal(ctx, name, range.min, range.max, -1, Iterator::FORWARD, zv.version, snapshot));
 
     while (it->next()) {
-        if (!zslLexValueGteMin(it->key, &range))
+        if (!zslLexValueGteMin(it->key.String(), &range))
             continue;
-        if (!zslLexValueLteMax(it->key, &range))
+        if (!zslLexValueLteMax(it->key.String(), &range))
             break;
 
         (*count)++;
@@ -900,7 +900,7 @@ int SSDBImpl::genericZrangebylex(Context &ctx, const Bytes &name, const Bytes &k
         if (save) {
             if (!offset) {
                 if (limit--) {
-                    keys.push_back(it->key);
+                    keys.emplace_back(it->key.String());
                 } else
                     break;
             } else {
@@ -951,8 +951,8 @@ int SSDBImpl::zremrangebylex(Context &ctx, const Bytes &name, const Bytes &key_s
             this->zscanbylex_internal(ctx, name, range.min, range.max, -1, Iterator::FORWARD, zv.version, snapshot));
 
     while (it->next()) {
-        if (zslLexValueGteMin(it->key, &range)) {
-            if (zslLexValueLteMax(it->key, &range)) {
+        if (zslLexValueGteMin(it->key.String(), &range)) {
+            if (zslLexValueLteMax(it->key.String(), &range)) {
                 (*count)++;
                 ret = zdel_one(batch, name, it->key, it->version);
                 if (ret < 0) {
@@ -1023,10 +1023,10 @@ int SSDBImpl::zrevrangebylex(Context &ctx, const Bytes &name, const Bytes &key_s
 
     std::stack<std::string> tmp_stack;
     while (it->next()) {
-        if (zslLexValueGteMin(it->key, &range)) {
-            if (zslLexValueLteMax(it->key, &range)) {
+        if (zslLexValueGteMin(it->key.String(), &range)) {
+            if (zslLexValueLteMax(it->key.String(), &range)) {
                 count++;
-                tmp_stack.push(it->key);
+                tmp_stack.push(it->key.String());
             } else
                 break;
         }

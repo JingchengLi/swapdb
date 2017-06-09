@@ -6,14 +6,14 @@
 #define SSDB_DECODE_H
 
 #include "util.h"
-class Bytes;
+#include "util/bytes.h"
 
 class MetaKey{
 public:
     int DecodeMetaKey(const Bytes& str);
 public:
 //    uint16_t slot;
-    string   key;
+    Bytes   key;
 };
 
 class ItemKey{
@@ -23,7 +23,7 @@ public:
 public:
     uint16_t    version;
     string      key;
-    string      field;
+    Bytes       field;
 };
 typedef ItemKey HashItemKey;
 typedef ItemKey SetItemKey;

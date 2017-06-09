@@ -215,7 +215,7 @@ int SSDBImpl::srandmember(Context &ctx, const Bytes &key, std::vector<std::strin
         for (int j = 0; j < full_repeat; ++j) {
             auto tmp = std::unique_ptr<SIterator>(sscan_internal(ctx, key, sv.version, snapshot));
             while (tmp->next()) {
-                members.emplace_back(tmp->key);
+                members.emplace_back(tmp->key.String());
             }
         }
 
@@ -246,7 +246,7 @@ int SSDBImpl::srandmember(Context &ctx, const Bytes &key, std::vector<std::strin
             continue;
         }
 
-        members.emplace_back(it->key);
+        members.emplace_back(it->key.String());
         found_cnt += 1;
     }
 
@@ -298,7 +298,7 @@ int SSDBImpl::spop(Context &ctx, const Bytes &key, std::vector<std::string> &mem
 
         std::string hkey = encode_set_key(key, it->key, sv.version);
         batch.Delete(hkey);
-        members.emplace_back(it->key);
+        members.emplace_back(it->key.String());
         delete_cnt += 1;
     }
 
@@ -341,7 +341,7 @@ int SSDBImpl::smembers(Context &ctx, const Bytes &key, std::vector<std::string> 
 
     auto it = std::unique_ptr<SIterator>(sscan_internal(ctx, key, sv.version, snapshot));
     while (it->next()) {
-        members.push_back(std::move(it->key));
+        members.emplace_back(it->key.String());
     }
 
     return 1;

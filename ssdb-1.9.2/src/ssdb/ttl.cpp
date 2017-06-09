@@ -194,7 +194,7 @@ void ExpirationHandler::load_expiration_keys_from_db(int num) {
     int n = 0;
     while (it->next()) {
         n++;
-        std::string &key = it->key;
+        std::string key = it->key.String();
 //		int64_t score = static_cast<int64_t>();
         int64_t score = it->score;
         fast_keys.add(key, score);

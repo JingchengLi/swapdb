@@ -134,8 +134,7 @@ bool HIterator::next(){
 	while(it->next()){
 		Bytes ks = it->key();
 		Bytes vs = it->val();
-		//dump(ks.data(), ks.size(), "z.next");
-		//dump(vs.data(), vs.size(), "z.next");
+
 		HashItemKey hk;
 		if(hk.DecodeItemKey(ks) == -1){
 			continue;
@@ -145,7 +144,7 @@ bool HIterator::next(){
 		}
 		this->key = hk.field;
 		if(return_val_){
-			this->val.assign(vs.data(), (unsigned long) vs.size());
+			this->val = vs;
 		}
 		return true;
 	}
@@ -174,7 +173,7 @@ bool SIterator::next() {
 		if(sk.key != this->name || sk.version != this->version){
 			return false;
 		}
-		this->key = std::move(sk.field);
+		this->key = sk.field;
 
 		return true;
 	}
@@ -207,8 +206,6 @@ bool ZIterator::next(){
 	while(it->next()){
 		Bytes ks = it->key();
 		//Bytes vs = it->val();
-//		dump(ks.data(), ks.size(), "z.next");
-//		dump(vs.data(), vs.size(), "z.next");
 
 		ZScoreItemKey zk;
 		if(zk.DecodeItemKey(ks) == -1){
@@ -221,7 +218,6 @@ bool ZIterator::next(){
 		this->key = zk.field;
 		this->score = zk.score;
 
-//		this->key = zk.field;
 		return true;
 
 	}

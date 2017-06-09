@@ -52,7 +52,7 @@ private:
 
 class MIterator{
 public:
-	std::string key;
+	Bytes key;
 
 	MIterator(Iterator *it);
 	~MIterator();
@@ -66,8 +66,8 @@ private:
 class HIterator{
 public:
 	std::string name;
-	std::string key;
-	std::string val;
+	Bytes 		key;
+	Bytes 		val;
 	uint16_t 	version;
 
 	HIterator(Iterator *it, const Bytes &name, uint16_t version = 0);
@@ -83,7 +83,7 @@ private:
 class SIterator{
 public:
 	std::string name;
-	std::string key;
+	Bytes 		key;
 	uint16_t 	version;
 
 	SIterator(Iterator *it, const Bytes &name, uint16_t version = 0);
@@ -99,7 +99,7 @@ private:
 class ZIterator{
 public:
 	std::string name;
-	std::string key;
+	Bytes		key;
 	double      score;
 
 	uint16_t 	version;
@@ -115,7 +115,7 @@ private:
 class ZIteratorByLex{
 public:
 	std::string name;
-	std::string key;
+	Bytes		key;
 	uint16_t 	version;
 
 	ZIteratorByLex(Iterator *it, const Bytes &name, uint16_t version);
@@ -144,7 +144,7 @@ private:
 
 class EIterator{
 public:
-	std::string key;
+	Bytes		 key;
 	int64_t      score;
 
 	EIterator(Iterator *it);
