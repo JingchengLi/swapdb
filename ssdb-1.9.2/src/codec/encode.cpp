@@ -97,7 +97,7 @@ string encode_escore_key(const Bytes& member, uint64_t score){
 }
 
 void update_list_key(std::string& old, uint64_t seq){
-    auto u64size = sizeof(uint64_t);
+    static const auto u64size = sizeof(uint64_t);
     seq = htobe64(seq);
     old.replace(old.size()- u64size, u64size, (char *)&seq, u64size);
 }
