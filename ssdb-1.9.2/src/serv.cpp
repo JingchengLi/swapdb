@@ -739,17 +739,21 @@ int proc_info(Context &ctx, Link *link, const Request &req, Response *resp) {
         FastGetPropertyHuman(leveldb::DB::Properties::kCurSizeAllMemTables ,"current_memtables_size");
         FastGetPropertyHuman(leveldb::DB::Properties::kEstimateTableReadersMem, "indexes_filter_blocks");
 
+        if (serv->ssdb->simCache != nullptr) {
 
-        uint64_t block_cache_miss = serv->ssdb->simCache->get_miss_counter();
-        uint64_t block_cache_hit = serv->ssdb->simCache->get_hit_counter();
-        uint64_t total = block_cache_miss + block_cache_hit;
-        ReplyWtihSize(block_cache_miss);
-        ReplyWtihSize(block_cache_hit);
+            uint64_t block_cache_miss = serv->ssdb->simCache->get_miss_counter();
+            uint64_t block_cache_hit = serv->ssdb->simCache->get_hit_counter();
+            uint64_t total = block_cache_miss + block_cache_hit;
+            ReplyWtihSize(block_cache_miss);
+            ReplyWtihSize(block_cache_hit);
 
-        double block_cache_hit_rate = (block_cache_hit * 1.0 / (total + (total > 0 ? 0 : 1)) * 1.0) * 100;
-        ReplyWtihSize(block_cache_hit_rate);
+            double block_cache_hit_rate = (block_cache_hit * 1.0 / (total + (total > 0 ? 0 : 1)) * 1.0) * 100;
+            ReplyWtihSize(block_cache_hit_rate);
 
-        serv->ssdb->simCache->reset_counter();
+            serv->ssdb->simCache->reset_counter();
+
+        }
+
     }
 
 
