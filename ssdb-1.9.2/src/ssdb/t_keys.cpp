@@ -177,7 +177,7 @@ int SSDBImpl::dump(Context &ctx, const Bytes &key, std::string *res, int64_t *pt
 
             }
 
-            rdbEncoder.rdbSaveType(RDB_TYPE_ZSET);
+            rdbEncoder.rdbSaveType(RDB_TYPE_ZSET_2);
             rdbEncoder.rdbSaveLen(zv.length);
 
             auto it = std::unique_ptr<ZIterator>(this->zscan_internal(ctx, key, "", "", -1, Iterator::FORWARD, zv.version, snapshot));
@@ -185,7 +185,8 @@ int SSDBImpl::dump(Context &ctx, const Bytes &key, std::string *res, int64_t *pt
             uint64_t cnt = 0;
             while (it->next()) {
                 rdbEncoder.saveRawString(it->key);
-                rdbEncoder.saveDoubleValue(it->score);
+//                rdbEncoder.saveDoubleValue(it->score);
+                rdbEncoder.rdbSaveBinaryDoubleValue(it->score);
                 cnt ++;
             }
 
