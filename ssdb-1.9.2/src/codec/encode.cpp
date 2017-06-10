@@ -96,6 +96,12 @@ string encode_escore_key(const Bytes& member, uint64_t score){
     return buf;
 }
 
+void update_list_key(std::string& old, uint64_t seq){
+    auto u64size = sizeof(uint64_t);
+    seq = htobe64(seq);
+    old.replace(old.size()- u64size, u64size, (char *)&seq, u64size);
+}
+
 string encode_list_key(const Bytes& key, uint64_t seq, uint16_t version){
     string buf(1, DataType::ITEM);
 

@@ -113,12 +113,12 @@ int64_t RdbEncoder::saveRawString(const std::string &string) {
 
 
 int64_t RdbEncoder::saveRawString(const Bytes &string) {
-    uint64_t size = (uint64_t) string.size();
+//    uint64_t size = (uint64_t) string.size();
 
-    rdbSaveLen(size);
-    rdbWriteRaw((void *) string.data(), size);
+    rdbSaveLen(string.size());
+    rdbWriteRaw((void *) string.data(), string.size());
 
-    return size;
+    return string.size();
 }
 
 

@@ -15,6 +15,7 @@ string encode_hash_key(const Bytes& key, const Bytes& field, uint16_t version);
 
 string encode_set_key(const Bytes& key, const Bytes& member, uint16_t version);
 
+void update_list_key(std::string& old, uint64_t seq);
 string encode_list_key(const Bytes& key, uint64_t seq, uint16_t version);
 
 string encode_zset_key(const Bytes& key, const Bytes& member, uint16_t version);

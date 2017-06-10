@@ -41,9 +41,9 @@ LINK_DIRECTORIES(
 IF(GCOV)
     ADD_DEFINITIONS("-fprofile-arcs -ftest-coverage")
     SET(CMAKE_EXE_LINKER_FLAGS "-fprofile-arcs -ftest-coverage")
-    SET(CMAKE_CXX_FLAGS " -D__STDC_FORMAT_MACROS -Wall -O0 -Wno-sign-compare -std=c++11")
+    SET(CMAKE_CXX_FLAGS " -D__STDC_FORMAT_MACROS -Wall -g -O0 -Wno-sign-compare -std=c++11")
 ELSE()
-    SET(CMAKE_CXX_FLAGS " -D__STDC_FORMAT_MACROS -Wall -O0 -Wno-sign-compare -std=c++11") #-DNDEBUG
+    SET(CMAKE_CXX_FLAGS " -D__STDC_FORMAT_MACROS -Wall -g -O2 -Wno-sign-compare -std=c++11") #-DNDEBUG
 ENDIF()
 
 
@@ -60,7 +60,6 @@ IF(ROCKSDB)
             ${CMAKE_CURRENT_SOURCE_DIR}/deps/rocksdb-5.3.6/third-party/gtest-1.7.0/fused-src/gtest
             ${CMAKE_CURRENT_SOURCE_DIR}/deps/rocksdb-5.3.6/
     )
-    SET(CMAKE_CXX_FLAGS " -D__STDC_FORMAT_MACROS -Wall -g -O0 -Wno-sign-compare -std=c++11")
     ADD_LIBRARY(librocksdb-static deps/rocksdb-5.3.6)
     TARGET_LINK_LIBRARIES ( librocksdb-static snappy gtest gflags )
     SET_TARGET_PROPERTIES(librocksdb-static PROPERTIES
@@ -75,7 +74,7 @@ ELSE()
     LINK_DIRECTORIES(
             ${CMAKE_CURRENT_SOURCE_DIR}/deps/leveldb-1.18/
     )
-    SET(CMAKE_CXX_FLAGS "-DNDEBUG -DUSE_LEVELDB -D__STDC_FORMAT_MACROS -g -Wall -O0 -Wno-sign-compare -std=c++11")
+    add_compile_options(-DUSE_LEVELDB)
     ADD_LIBRARY(libleveldb-static deps/leveldb-1.18)
     SET_TARGET_PROPERTIES(libleveldb-static PROPERTIES
             LINKER_LANGUAGE CXX

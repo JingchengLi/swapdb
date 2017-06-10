@@ -214,9 +214,12 @@ int SSDBImpl::dump(Context &ctx, const Bytes &key, std::string *res, int64_t *pt
             uint64_t begin_seq = getSeqByIndex(0, lv);
             uint64_t cur_seq = begin_seq;
 
+            std::string item_key = encode_list_key(key, cur_seq, lv.version);
+
             while (rangelen--) {
 
-                std::string item_key = encode_list_key(key, cur_seq, lv.version);
+                update_list_key(item_key, cur_seq); //do not use encode_list_key , just update the seq
+
                 std::string item_val;
                 ret = GetListItemValInternal(item_key, &item_val, readOptions);
                 if (1 != ret) {
