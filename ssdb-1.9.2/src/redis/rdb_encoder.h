@@ -12,6 +12,10 @@
 class RdbEncoder {
 public:
 
+    RdbEncoder() {
+        w.reserve(1024); //1k
+    }
+
     int rdbWriteRaw(void *p, size_t n) {
         w.append((const char *) p, n);
         return n;
@@ -27,7 +31,7 @@ public:
 
     int64_t saveRawString(const std::string &string);
 
-    int saveRawString(const Bytes &string);
+    int64_t saveRawString(const Bytes &string);
 
     int saveDoubleValue(double value);
 

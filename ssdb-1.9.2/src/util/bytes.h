@@ -51,20 +51,20 @@ class Bytes{
  			return *(data_ + e);
 		}
 
-		const char* data() const{
+		inline const char* data() const{
 			return data_;
 		}
 
-		bool empty() const{
+		inline bool empty() const{
 			return size_ == 0;
 		}
 
-		int size() const{
+		inline int size() const{
 			return size_;
 		}
 
-		void assign(const char *data, int size) {
-			data_ = (char *)data;
+		inline void assign(const char *data, int size) {
+			data_ = data;
 			size_ = size;
 		}
 
