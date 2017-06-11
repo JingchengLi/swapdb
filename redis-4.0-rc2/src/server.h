@@ -291,7 +291,8 @@ int mockdictDelete(dict *ht, const void *key);
 #define CLIENT_LUA_DEBUG (1<<25)  /* Run EVAL in debug mode. */
 #define CLIENT_LUA_DEBUG_SYNC (1<<26)  /* EVAL debugging without fork() */
 #define CLIENT_MODULE (1<<27) /* Non connected client used by some module. */
-
+/* for jdjr mode only */
+#define CLIENT_BUFFER_HAS_UNPRESSED_DATA (1<<28) /* we need process remained query data in the client buffer */
 
 /* Client block type (btype field in client structure)
  * if CLIENT_BLOCKED flag is set. */

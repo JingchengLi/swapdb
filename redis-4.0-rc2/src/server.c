@@ -1683,6 +1683,10 @@ void beforeSleep(struct aeEventLoop *eventLoop) {
     if (listLength(server.unblocked_clients))
         processUnblockedClients();
 
+    if (server.jdjr_mode && server.master
+        && (server.master->flags & CLIENT_BUFFER_HAS_UNPRESSED_DATA))
+        processInputBuffer(server.master);
+
     /* Write the AOF buffer on disk */
     flushAppendOnlyFile(0);
 

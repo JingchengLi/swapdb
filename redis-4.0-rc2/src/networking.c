@@ -2762,18 +2762,18 @@ int processMultibulkBuffer(client *c) {
 void processInputBuffer(client *c) {
     int processed_count = 0;
     server.current_client = c;
+    if (server.jdjr_mode && c == server.master)
+        server.master->flags &= ~CLIENT_BUFFER_HAS_UNPRESSED_DATA;
     /* Keep processing while there is something in the input buffer */
     while(sdslen(c->querybuf)) {
-        if (server.jdjr_mode && server.masterhost) {
+        if (server.jdjr_mode && c == server.master) {
             /* for slave redis, redis server may process write commands on
              * server.master connection for a long time, which may cause some
              * serious issue such as replication keepalive timeout, etc.. */
             processed_count++;
             if (processed_count >= SLAVE_MAX_PROCESSED_CMD_NUM_EVERYTIME) {
-                /* there is unprocessed data in c->querybuf, need install read hander
-                 * to trigger read event. */
-                aeCreateFileEvent(server.el,c->fd,AE_BUFFER_HAVE_UNPROCESSED_DATA,
-                                  readQueryFromClient, c);
+                server.master->flags |= CLIENT_BUFFER_HAS_UNPRESSED_DATA;
+                /* there is unprocessed data in c->querybuf */
                 break;
             }
         }
@@ -2854,10 +2854,6 @@ void readQueryFromClient(aeEventLoop *el, int fd, void *privdata, int mask) {
 
     if (nread == -1) {
         if (errno == EAGAIN) {
-            /* in jdjr mode, for slave redis, we may install read event handler
-             * when there is unprocess data in c->querybuf. */
-            if (server.jdjr_mode && server.masterhost)
-                processInputBuffer(c);
             return;
         } else {
             serverLog(LL_VERBOSE, "Reading from client: %s",strerror(errno));
