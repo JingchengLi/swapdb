@@ -52,6 +52,11 @@ static leveldb::Slice slice(const Bytes &b){
 	return leveldb::Slice(b.data(), b.size());
 }
 
+inline
+static leveldb::Slice slice(){
+	return leveldb::Slice();
+}
+
 const std::string REPOPID_CF = "repopid";
 
 enum LIST_POSITION{
@@ -297,6 +302,9 @@ private:
     int saddNoLock(Context &ctx, const Bytes &key,const std::set<T> &mem_set, int64_t *num);
 
 	template <typename T>
+	int quickSet(Context &ctx, const Bytes &key, typename vector<T>::const_iterator start, typename vector<T>::const_iterator end);
+
+		template <typename T>
 	int hmsetNoLock(Context &ctx, const Bytes &name,const std::map<T,T> &kvs, bool check_exists);
 
 	template <typename T>

@@ -7,7 +7,49 @@
 
 #include "ssdb_impl.h"
 
-template <typename T>
+template<typename T>
+int SSDBImpl::quickSet(Context &ctx, const Bytes &key, typename vector<T>::const_iterator start, typename vector<T>::const_iterator end) {
+
+    leveldb::WriteBatch batch;
+
+    int ret = 0;
+    SetMetaVal sv;
+    std::string meta_key = encode_meta_key(key);
+    ret = GetSetMetaVal(meta_key, sv);
+    if (ret < 0) {
+        return ret;
+    }
+
+    int64_t incr = 0;
+
+    auto it = start;
+    for (; it != end; ++it) {
+        const T &member = *it;
+
+        std::string item_key = encode_set_key(key, member, sv.version);
+        batch.Put(item_key, slice());
+        incr++;
+    }
+
+    int iret = incr_ssize(ctx, key, batch, sv, meta_key, incr);
+    if (iret < 0) {
+        return iret;
+    } else if (iret == 0) {
+        ret = 0;
+    } else {
+        ret = 1;
+    }
+
+    leveldb::Status s = CommitBatch(ctx, &(batch));
+    if (!s.ok()) {
+        log_error("saddNoLock error: %s", s.ToString().c_str());
+        return STORAGE_ERR;
+    }
+
+    return ret;
+}
+
+template<typename T>
 int SSDBImpl::saddNoLock(Context &ctx, const Bytes &key, const std::set<T> &mem_set, int64_t *num) {
     leveldb::WriteBatch batch;
 
@@ -27,7 +69,7 @@ int SSDBImpl::saddNoLock(Context &ctx, const Bytes &key, const std::set<T> &mem_
 
         std::string item_key = encode_set_key(key, member, sv.version);
         if (ret == 0) {
-            batch.Put(item_key, slice(""));
+            batch.Put(item_key, slice());
             change = 1;
         } else {
             int s = GetSetItemValInternal(item_key);
@@ -36,7 +78,7 @@ int SSDBImpl::saddNoLock(Context &ctx, const Bytes &key, const std::set<T> &mem_
             } else if (s == 1) {
                 change = 0;
             } else {
-                batch.Put(item_key, slice(""));
+                batch.Put(item_key, slice());
                 change = 1;
             }
         }
