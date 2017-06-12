@@ -387,24 +387,30 @@ int SSDBImpl::restore(Context &ctx, const Bytes &key, int64_t expire, const Byte
                 return -1;
             }
 
-            unsigned char *zl;
-            unsigned char *p;
+            unsigned char *zl = (unsigned char *) zipListStr.data();
+            unsigned char *p = ziplistIndex(zl, 0);
 
+            len --;
             auto next = [&](std::string &current) {
-                if (len > 0) {
-                    zl = (unsigned char *) zipListStr.data();
-                    p = ziplistIndex(zl, 0);
+                if (len >= 0) {
 
                     if (getNextString(zl, &p, current)) {
                         return 1;
                     } else {
-                        zipListStr = rdbDecoder.rdbGenericLoadStringObject(&t_ret);
-                        if (t_ret != 0) {
-                            return -1;
-                        }
+                        if (len > 0) {
+                            zipListStr = rdbDecoder.rdbGenericLoadStringObject(&t_ret);
+                            if (t_ret != 0) {
+                                return -1;
+                            }
 
-                        len--;
-                        return 2;//retry next block
+                            zl = (unsigned char *) zipListStr.data();
+                            p = ziplistIndex(zl, 0);
+
+                            len--;
+                            return 2;//retry next block
+                        } else {
+                            return 0;
+                        }
                     }
                 }
                 return 0;
