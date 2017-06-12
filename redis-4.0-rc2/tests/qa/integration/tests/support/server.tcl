@@ -259,12 +259,12 @@ proc start_server {options {code undefined}} {
         error "no redis-server found in src or build directory!!!"
     }
 
+    puts "start redis port: $::port"
     if {$::valgrind} {
         set pid [exec valgrind --track-origins=yes --suppressions=../../../src/valgrind.sup --show-reachable=no --show-possibly-lost=no --leak-check=full $program $config_file > $stdout 2> $stderr &]
     } elseif ($::stack_logging) {
         set pid [exec /usr/bin/env MallocStackLogging=1 MallocLogFile=/tmp/malloc_log.txt $program $config_file > $stdout 2> $stderr &]
     } else {
-        puts "start redis port: $::port"
         set pid [exec $program $config_file > $stdout 2> $stderr &]
     }
 

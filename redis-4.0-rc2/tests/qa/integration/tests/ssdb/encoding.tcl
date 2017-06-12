@@ -200,13 +200,18 @@ overrides {maxmemory 0}} {
     }
 
 #list type
-    foreach valtype {string-encoded integer-encoded mix-encoded} {
+    foreach valtype {string-encoded integer-encoded mix-encoded multi-ziplist} {
         if {$valtype == "string-encoded"} {
             set list [list a b c d e f g]
         } elseif {$valtype == "integer-encoded"} {
             set list [list 1 2 3 4 5 6 7]
         } elseif {$valtype == "mix-encoded"} {
             set list [list 1 2 3 4 5 6 7 a b c d e f g]
+        } elseif {$valtype == "multi-ziplist"} {
+            set list {}
+            for {set j 0} {$j < 10} {incr j} {
+                lappend list [list 1 2 3 4 5 6 7 a b c d e f g]
+            }
         }
         
         test "list (quicklist) $valtype creation" {

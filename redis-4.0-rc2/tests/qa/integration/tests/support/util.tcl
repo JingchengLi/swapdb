@@ -484,7 +484,7 @@ proc wait_memory_stable {{level 0}} {
         incr retry -1
         after 100
         if {$retry == 0} {
-            puts "assertion:wait memory stable 50s"
+            puts "assertion:wait memory stable 20s"
             break
         }
     }

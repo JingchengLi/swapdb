@@ -1,13 +1,5 @@
 start_server {tags {"ssdb"}
 overrides {maxmemory 0}} {
-    proc get_total_calls { s ssdb } {
-        set info [sr info]
-        set len [string length $s]
-        set start [string first $s $info]
-        set end [string first " " $info [expr $start+$len+1 ]]
-        string range $info [expr $start+$len+1 ] $end-1
-    }
-
     test "Ssdb is up" {
         sr ping
     } {PONG}
@@ -110,17 +102,17 @@ overrides {maxmemory 0}} {
         } {{} bar}
 
         test "GET key(Hot key) store in redis not operate ssdb with ttl($ttl)" {
-            set precalls [ get_total_calls "total_calls" sr]
+            set precalls [ status sr "total_commands_processed"]
             r get foo
-            set nowcalls [ get_total_calls "total_calls" sr]
+            set nowcalls [ status sr "total_commands_processed"]
             expr $nowcalls-$precalls
         } 1
 
         test "GET key(not exist) not operate ssdb with ttl($ttl)" {
-            set precalls [ get_total_calls "total_calls" sr]
+            set precalls [ status sr "total_commands_processed"]
             r del fooxxx
             r get fooxxx
-            set nowcalls [ get_total_calls "total_calls" sr]
+            set nowcalls [ status sr "total_commands_processed"]
             expr $nowcalls-$precalls
         } 1
 
