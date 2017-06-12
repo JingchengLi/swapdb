@@ -2763,7 +2763,7 @@ void processInputBuffer(client *c) {
     int processed_count = 0;
     server.current_client = c;
     if (server.jdjr_mode && c == server.master)
-        server.master->flags &= ~CLIENT_BUFFER_HAS_UNPRESSED_DATA;
+        server.master->flags &= ~CLIENT_BUFFER_HAS_UNPROESSED_DATA;
     /* Keep processing while there is something in the input buffer */
     while(sdslen(c->querybuf)) {
         if (server.jdjr_mode && c == server.master) {
@@ -2772,7 +2772,7 @@ void processInputBuffer(client *c) {
              * serious issue such as replication keepalive timeout, etc.. */
             processed_count++;
             if (processed_count >= SLAVE_MAX_PROCESSED_CMD_NUM_EVERYTIME) {
-                server.master->flags |= CLIENT_BUFFER_HAS_UNPRESSED_DATA;
+                server.master->flags |= CLIENT_BUFFER_HAS_UNPROESSED_DATA;
                 /* there is unprocessed data in c->querybuf */
                 break;
             }

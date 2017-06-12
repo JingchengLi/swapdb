@@ -1684,7 +1684,7 @@ void beforeSleep(struct aeEventLoop *eventLoop) {
         processUnblockedClients();
 
     if (server.jdjr_mode && server.master
-        && (server.master->flags & CLIENT_BUFFER_HAS_UNPRESSED_DATA))
+        && (server.master->flags & CLIENT_BUFFER_HAS_UNPROESSED_DATA))
         processInputBuffer(server.master);
 
     /* Write the AOF buffer on disk */
