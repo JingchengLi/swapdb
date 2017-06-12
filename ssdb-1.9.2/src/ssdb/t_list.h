@@ -35,6 +35,7 @@ int SSDBImpl::quickList(Context &ctx, const Bytes &name, const std::string &meta
 
 
     uint64_t item_seq = lv.right_seq;
+    std::string item_key = encode_list_key(name, item_seq, lv.version);
 
     std::string current;
     while (true) {
@@ -53,7 +54,7 @@ int SSDBImpl::quickList(Context &ctx, const Bytes &name, const std::string &meta
             item_seq = 0;
         }
 
-        std::string item_key = encode_list_key(name, item_seq, lv.version);
+        update_list_key(item_key, item_seq);
         batch.Put(item_key, current);
 
         lv.length++;
