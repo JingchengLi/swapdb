@@ -2,6 +2,7 @@
 // Created by zts on 17-6-6.
 //
 
+#include <net/server.h>
 #include "ssdb_impl.h"
 
 #include "redis/rdb_encoder.h"

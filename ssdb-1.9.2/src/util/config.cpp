@@ -215,6 +215,17 @@ const char* Config::str() const{
 	return this->val.c_str();
 }
 
+bool Config::get_bool(const char *key, bool default_val) const{
+	const Config *c = this->get(key);
+	if(!c){
+		return default_val;
+	}
+
+	std::string tmp = c->val;
+	strtolower(&tmp);
+	return tmp != "no";
+}
+
 int Config::get_num(const char *key, int default_val) const{
 	const Config *c = this->get(key);
 	if(!c){

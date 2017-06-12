@@ -58,6 +58,7 @@ class Config{
 		int64_t get_int64(const char *key, int64_t default_val = 0) const;
 		const char* str() const;
 		const char* get_str(const char *key) const;
+		bool get_bool(const char *key, bool default_val = true) const;
 
 		bool is_comment() const{
 			return key[0] == '#';

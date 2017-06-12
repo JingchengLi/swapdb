@@ -73,7 +73,9 @@ void MyApplication::run(){
 #endif
 	log_info("write_buffer     : %d MB", option.write_buffer_size);
 	log_info("max_open_files   : %d", option.max_open_files);
-	log_info("compression      : %s", option.compression.c_str());
+	log_info("compression      : %s", option.compression ? "enable" : "disable");
+	log_info("rdb_compression  : %s", option.rdb_compression ? "enable" : "disable");
+	log_info("trans_compression: %s", option.transfer_compression ? "enable" : "disable");
 	log_info("sync_speed       : %d MB/s", conf->get_num("replication.sync_speed"));
 
 #ifdef PTIMER

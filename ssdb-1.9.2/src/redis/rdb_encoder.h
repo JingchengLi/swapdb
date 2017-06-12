@@ -12,6 +12,10 @@
 class RdbEncoder {
 public:
 
+    RdbEncoder(bool rdb_compression) : rdb_compression(rdb_compression) {
+        w.reserve(1024); //1k
+    }
+
     RdbEncoder() {
         w.reserve(1024); //1k
     }
@@ -52,7 +56,7 @@ public:
 private:
     std::string w;
 
-
+    bool rdb_compression = false;
 };
 
 

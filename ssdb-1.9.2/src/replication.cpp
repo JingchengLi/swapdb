@@ -13,7 +13,6 @@ extern "C" {
 #include <redis/lzf.h>
 };
 
-
 void send_error_to_redis(Link *link);
 
 void moveBuffer(Buffer *dst, Buffer *src);
@@ -404,7 +403,7 @@ void saveStrToBuffer(Buffer *buffer, const Bytes &fit) {
 
 void moveBuffer(Buffer *dst, Buffer *src) {
 
-    size_t comprlen, outlen = (size_t) src->size();
+    size_t comprlen = 0, outlen = (size_t) src->size();
 
     /**
      * when src->size() is small , comprlen may longer than outlen , which cause lzf_compress failed
@@ -421,7 +420,11 @@ void moveBuffer(Buffer *dst, Buffer *src) {
 
 
 #ifndef REPLIC_NO_COMPRESS
-    comprlen = lzf_compress(src->data(), (unsigned int) src->size(), out.get(), outlen);
+    if (true) {
+        comprlen = lzf_compress(src->data(), (unsigned int) src->size(), out.get(), outlen);
+    } else {
+        comprlen = 0;
+    }
 #else
     comprlen = 0;
 #endif

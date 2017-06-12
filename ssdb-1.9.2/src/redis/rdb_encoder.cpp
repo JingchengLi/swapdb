@@ -18,7 +18,6 @@ extern "C" {
 #include "zmalloc.h"
 };
 
-
 void RdbEncoder::encodeFooter() {
 
     unsigned char buf[2];

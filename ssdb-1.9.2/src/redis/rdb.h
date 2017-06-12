@@ -89,8 +89,6 @@ const int zset_max_ziplist_value= 64;
 
  */
 
-const bool rdb_compression = false; //default true
-
 const double R_Zero = 0.0;
 const double R_PosInf = 1.0/R_Zero;
 const double R_NegInf = -1.0/R_Zero;
