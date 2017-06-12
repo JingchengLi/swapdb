@@ -361,23 +361,51 @@ int SSDBImpl::restore(Context &ctx, const Bytes &key, int64_t expire, const Byte
 
             if ((len = rdbDecoder.rdbLoadLen(NULL)) == RDB_LENERR) return -1;
 
-            std::set<std::string> tmp_set;
-
-            while (len--) {
-                std::string r = rdbDecoder.rdbGenericLoadStringObject(&ret);
-                if (ret != 0) {
-                    return -1;
+            auto next = [&] (std::string &current) {
+                if (len-- > 0) {
+                    int t_ret = 0;
+                    current = rdbDecoder.rdbGenericLoadStringObject(&t_ret);
+                    if (t_ret != 0) {
+                        return -1;
+                    }
+                    return 1;
                 }
+                return 0;
+            };
 
-                tmp_set.emplace(r);
-            }
-
-            int64_t num = 0;
-            ret = this->saddNoLock<std::string>(ctx, key, tmp_set, &num);
+            ret = this->quickSet<decltype(next)>(ctx, key, meta_key, meta_val, next);
 
             break;
         }
+        case RDB_TYPE_SET_INTSET:{
 
+            std::string insetStr = rdbDecoder.rdbGenericLoadStringObject(&ret);
+            if (ret != 0) {
+                return -1;
+            }
+
+            const intset *set = (const intset *)insetStr.data();
+            len = intsetLen(set);
+
+            uint32_t j = 0;
+            auto next = [&] (std::string &current) {
+                if (j < len) {
+                    int64_t t_value;
+                    if (intsetGet((intset *) set, j++ , &t_value) == 1) {
+                        current = str(t_value);
+                    } else {
+                        return -1;
+                    }
+                    return 1;
+                }
+                return 0;
+            };
+
+            ret = this->quickSet<decltype(next)>(ctx, key, meta_key, meta_val, next);
+
+            break;
+
+        }
         case RDB_TYPE_ZSET_2:
         case RDB_TYPE_ZSET: {
             if ((len = rdbDecoder.rdbLoadLen(NULL)) == RDB_LENERR) return -1;
@@ -465,33 +493,6 @@ int SSDBImpl::restore(Context &ctx, const Bytes &key, int64_t expire, const Byte
                  * when loading dumps created by Redis 2.4 gets deprecated. */
             return -1;
             break;
-        }
-        case RDB_TYPE_SET_INTSET:{
-
-            std::string insetStr = rdbDecoder.rdbGenericLoadStringObject(&ret);
-            if (ret != 0) {
-                return -1;
-            }
-
-            const intset *set = (const intset *)insetStr.data();
-            len = intsetLen(set);
-
-            std::set<std::string> tmp_set;
-
-            for (uint32_t j = 0; j < len; ++j) {
-                int64_t t_value;
-                if (intsetGet((intset *) set, j , &t_value) == 1) {
-                    tmp_set.emplace(str(t_value));
-                } else {
-                    return -1;
-                }
-            }
-
-            int64_t num = 0;
-            ret = this->saddNoLock<std::string>(ctx, key, tmp_set, &num);
-
-            break;
-
         }
         case RDB_TYPE_LIST_ZIPLIST: {
 

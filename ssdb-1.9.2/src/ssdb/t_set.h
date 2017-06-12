@@ -7,26 +7,49 @@
 
 #include "ssdb_impl.h"
 
+
+
 template<typename T>
-int SSDBImpl::quickSet(Context &ctx, const Bytes &key, typename vector<T>::const_iterator start, typename vector<T>::const_iterator end) {
+int SSDBImpl::quickSet(Context &ctx, const Bytes &key, const std::string &meta_key, const std::string &meta_val,
+                       T lambda) {
 
     leveldb::WriteBatch batch;
 
     int ret = 0;
     SetMetaVal sv;
-    std::string meta_key = encode_meta_key(key);
-    ret = GetSetMetaVal(meta_key, sv);
-    if (ret < 0) {
-        return ret;
+
+    if (meta_val.size() == 0) {
+        //not found
+        sv.type = DataType::HSIZE;
+    } else {
+        ret = sv.DecodeMetaVal(meta_val);
+        if (ret < 0) {
+            //error
+            return ret;
+        } else if (sv.del == KEY_DELETE_MASK) {
+            //deleted , reset hv
+            if (sv.version == UINT16_MAX) {
+                sv.version = 0;
+            } else {
+                sv.version = (uint16_t) (sv.version + 1);
+            }
+            sv.length = 0;
+            sv.del = KEY_ENABLED_MASK;
+        }
     }
 
     int64_t incr = 0;
 
-    auto it = start;
-    for (; it != end; ++it) {
-        const T &member = *it;
+    std::string current;
+    while (true) {
+        auto n = lambda(current);
+        if (n < 0) {
+            return n;
+        } else if (n == 0) {
+            break;
+        }
 
-        std::string item_key = encode_set_key(key, member, sv.version);
+        std::string item_key = encode_set_key(key, current, sv.version);
         batch.Put(item_key, slice());
         incr++;
     }

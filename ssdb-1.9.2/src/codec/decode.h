@@ -73,9 +73,9 @@ public:
 
 public:
     char        type;
-    char        del;
-    uint16_t    version;
-    uint64_t    length;
+    char        del = KEY_ENABLED_MASK;
+    uint16_t    version = 0;
+    uint64_t    length = 0;
 };
 typedef MetaVal HashMetaVal;
 typedef MetaVal SetMetaVal;
