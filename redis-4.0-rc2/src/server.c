@@ -1455,6 +1455,9 @@ void startToLoadIfNeeded() {
         return;
     }
 
+    // todo: 根据commandstats中读写命令调用的增加次数来判断是否添加server.hot_keys
+    addHotKeys();
+
     di = dictGetSafeIterator(server.hot_keys);
     while((de = dictNext(di)) != NULL) {
         sds key = dictGetKey(de);
@@ -3373,10 +3376,6 @@ int processCommandReplicationConn(client* c, struct ssdb_write_op* slave_retry_w
 void chooseHotKeysByLFUcounter(robj* keyobj) {
     if (!server.load_from_ssdb) return;
 
-    /* limit the max num of server.hot_keys to avoid to load too many keys
-     * when startToLoadIfNeeded called, which may block redis. */
-    if (dictSize(server.hot_keys)+dictSize(EVICTED_DATA_DB->loading_hot_keys) > MASTER_MAX_CONCURRENT_LOADING_KEYS) return;
-
     serverAssert(server.maxmemory_policy & MAXMEMORY_FLAG_LFU);
 
     dictEntry* de = dictFind(EVICTED_DATA_DB->dict, keyobj->ptr);
@@ -3387,21 +3386,8 @@ void chooseHotKeysByLFUcounter(robj* keyobj) {
     unsigned char counter = lfu & 255;
 
     // todo: add a config option for LFU value
-    if ((counter > LFU_INIT_VAL) && !memoryReachLoadUpperLimit()) {
-        /* to ensure the key only exists in one dict of loading/transferring/
-         * delete_confirming/hot_keys, if the key is already in intermediate state,
-         * we just give up to load the key and will try it the next time.
-         *
-         * NOTE: we don't care visiting_ssdb_keys, because we must ensure there is a
-         * chance for a very hot key to be loaded.
-         * */
-        if (NULL == dictFind(EVICTED_DATA_DB->loading_hot_keys, keyobj->ptr)
-            && NULL == dictFind(EVICTED_DATA_DB->transferring_keys, keyobj->ptr)
-            && NULL == dictFind(EVICTED_DATA_DB->delete_confirm_keys, keyobj->ptr))
-            dictAddOrFind(server.hot_keys, keyobj->ptr);
-
-        serverLog(LL_DEBUG, "key: %s is added to server.hot_keys", (char *)keyobj->ptr);
-    }
+    if ((counter > LFU_INIT_VAL) && !memoryReachLoadUpperLimit())
+        tryInsertHotPool(keyobj->ptr, EVICTED_DATA_DBID, 255-counter);
     return;
 }
 

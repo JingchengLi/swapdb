@@ -2250,6 +2250,9 @@ int handleResponseTimeoutOfTransferSnapshot(struct aeEventLoop *eventLoop, long 
 void doSSDBflushIfCheckDone();
 void makeSSDBsnapshotIfCheckOK();
 void loadThisKeyImmediately(sds key);
+void addHotKeys();
+void tryInsertHotPool(sds key, int dbid, int idle);
+void tryInsertColdPool(struct evictionPoolEntry *pool, sds key, int dbid, int idle);
 
 #if defined(__GNUC__)
 void *calloc(size_t count, size_t size) __attribute__ ((deprecated));

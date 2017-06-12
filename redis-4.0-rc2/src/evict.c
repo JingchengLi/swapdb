@@ -60,6 +60,7 @@ struct evictionPoolEntry {
 
 static struct evictionPoolEntry *EvictionPoolLRU;
 static struct evictionPoolEntry *ColdKeyPool;
+static struct evictionPoolEntry *HotKeyPool;
 
 unsigned long LFUDecrAndReturn(robj *o);
 
@@ -146,30 +147,104 @@ void evictionPoolAlloc(void) {
             ep[j].dbid = 0;
         }
         ColdKeyPool = ep;
+
+        ep = zmalloc(sizeof(*ep)*EVPOOL_SIZE);
+        for (j = 0; j < EVPOOL_SIZE; j++) {
+            ep[j].idle = 0;
+            ep[j].key = NULL;
+            ep[j].cached = sdsnewlen(NULL,EVPOOL_CACHED_SDS_SIZE);
+            ep[j].dbid = 0;
+        }
+        HotKeyPool = ep;
     }
 }
 
 void emptyEvictionPool() {
-    int j;
+    int i, j;
+    struct evictionPoolEntry* pools[3] = {EvictionPoolLRU, ColdKeyPool, HotKeyPool};
     struct evictionPoolEntry *ep;
-    ep = EvictionPoolLRU;
-    for (j = 0; j < EVPOOL_SIZE; j++) {
-        ep[j].idle = 0;
-        if (ep[j].key != NULL && ep[j].key != ep[j].cached) {
-            sdsfree(ep[j].key);
+    for (i = 0; i < 3; i++) {
+        ep = pools[i];
+        for (j = 0; j < EVPOOL_SIZE; j++) {
+            ep[j].idle = 0;
+            if (ep[j].key != NULL && ep[j].key != ep[j].cached) {
+                sdsfree(ep[j].key);
+            }
+            ep[j].key = NULL;
+            ep[j].dbid = 0;
         }
-        ep[j].key = NULL;
-        ep[j].dbid = 0;
     }
-    ep = ColdKeyPool;
-    for (j = 0; j < EVPOOL_SIZE; j++) {
-        ep[j].idle = 0;
-        if (ep[j].key != NULL && ep[j].key != ep[j].cached) {
-            sdsfree(ep[j].key);
+}
+
+#define COLD_TYPE 1
+#define HOT_TYPE 2
+void tryInsertHotOrColdPool(struct evictionPoolEntry *pool, sds key, int dbid, int idle, int pool_type) {
+    /* Insert the element inside the pool.
+    * First, find the first empty bucket or the first populated
+    * bucket that has an idle time smaller than our idle time. */
+    int k = 0;
+    if (pool_type == COLD_TYPE) {
+        while (k < EVPOOL_SIZE &&
+               pool[k].key &&
+               pool[k].idle < idle) k++;
+    } else if (pool_type == HOT_TYPE) {
+        while (k < EVPOOL_SIZE &&
+               pool[k].key &&
+               pool[k].idle > idle) k++;
+    }
+
+    if (k == 0 && pool[EVPOOL_SIZE-1].key != NULL) {
+        /* Can't insert if the element is < the worst element we have
+         * and there are no empty buckets. */
+        return;
+    } else if (k < EVPOOL_SIZE && pool[k].key == NULL) {
+        /* Inserting into empty position. No setup needed before insert. */
+    } else {
+        /* Inserting in the middle. Now k points to the first element
+         * greater than the element to insert.  */
+        if (pool[EVPOOL_SIZE-1].key == NULL) {
+            /* Free space on the right? Insert at k shifting
+             * all the elements from k to end to the right. */
+
+            /* Save SDS before overwriting. */
+            sds cached = pool[EVPOOL_SIZE-1].cached;
+            memmove(pool+k+1,pool+k,
+                    sizeof(pool[0])*(EVPOOL_SIZE-k-1));
+            pool[k].cached = cached;
+        } else {
+            /* No free space on right? Insert at k-1 */
+            k--;
+            /* Shift all elements on the left of k (included) to the
+             * left, so we discard the element with smaller idle time. */
+            sds cached = pool[0].cached; /* Save SDS before overwriting. */
+            if (pool[0].key != pool[0].cached) sdsfree(pool[0].key);
+            memmove(pool,pool+1,sizeof(pool[0])*k);
+            pool[k].cached = cached;
         }
-        ep[j].key = NULL;
-        ep[j].dbid = 0;
     }
+
+    /* Try to reuse the cached SDS string allocated in the pool entry,
+     * because allocating and deallocating this object is costly
+     * (according to the profiler, not my fantasy. Remember:
+     * premature optimizbla bla bla bla. */
+    int klen = sdslen(key);
+    if (klen > EVPOOL_CACHED_SDS_SIZE) {
+        pool[k].key = sdsdup(key);
+    } else {
+        memcpy(pool[k].cached,key,klen+1);
+        sdssetlen(pool[k].cached,klen);
+        pool[k].key = pool[k].cached;
+    }
+    pool[k].idle = idle;
+    pool[k].dbid = dbid;
+}
+
+void tryInsertHotPool(sds key, int dbid, int idle) {
+    tryInsertHotOrColdPool(HotKeyPool, key, dbid, idle, HOT_TYPE);
+}
+
+void tryInsertColdPool(struct evictionPoolEntry *pool, sds key, int dbid, int idle) {
+    tryInsertHotOrColdPool(pool, key, dbid, idle, COLD_TYPE);
 }
 
 //todo 添加配置参数
@@ -218,57 +293,7 @@ void coldKeyPopulate(int dbid, dict *sampledict, dict *keydict, struct evictionP
             serverPanic("Unknown eviction policy in coldKeyPopulate()");
         }
 
-        /* Insert the element inside the pool.
-         * First, find the first empty bucket or the first populated
-         * bucket that has an idle time smaller than our idle time. */
-        k = 0;
-        while (k < EVPOOL_SIZE &&
-               pool[k].key &&
-               pool[k].idle < idle) k++;
-        if (k == 0 && pool[EVPOOL_SIZE-1].key != NULL) {
-            /* Can't insert if the element is < the worst element we have
-             * and there are no empty buckets. */
-            continue;
-        } else if (k < EVPOOL_SIZE && pool[k].key == NULL) {
-            /* Inserting into empty position. No setup needed before insert. */
-        } else {
-            /* Inserting in the middle. Now k points to the first element
-             * greater than the element to insert.  */
-            if (pool[EVPOOL_SIZE-1].key == NULL) {
-                /* Free space on the right? Insert at k shifting
-                 * all the elements from k to end to the right. */
-
-                /* Save SDS before overwriting. */
-                sds cached = pool[EVPOOL_SIZE-1].cached;
-                memmove(pool+k+1,pool+k,
-                    sizeof(pool[0])*(EVPOOL_SIZE-k-1));
-                pool[k].cached = cached;
-            } else {
-                /* No free space on right? Insert at k-1 */
-                k--;
-                /* Shift all elements on the left of k (included) to the
-                 * left, so we discard the element with smaller idle time. */
-                sds cached = pool[0].cached; /* Save SDS before overwriting. */
-                if (pool[0].key != pool[0].cached) sdsfree(pool[0].key);
-                memmove(pool,pool+1,sizeof(pool[0])*k);
-                pool[k].cached = cached;
-            }
-        }
-
-        /* Try to reuse the cached SDS string allocated in the pool entry,
-         * because allocating and deallocating this object is costly
-         * (according to the profiler, not my fantasy. Remember:
-         * premature optimizbla bla bla bla. */
-        int klen = sdslen(key);
-        if (klen > EVPOOL_CACHED_SDS_SIZE) {
-            pool[k].key = sdsdup(key);
-        } else {
-            memcpy(pool[k].cached,key,klen+1);
-            sdssetlen(pool[k].cached,klen);
-            pool[k].key = pool[k].cached;
-        }
-        pool[k].idle = idle;
-        pool[k].dbid = dbid;
+        tryInsertColdPool(pool, key, dbid, idle);
     }
 }
 
@@ -331,57 +356,7 @@ void evictionPoolPopulate(int dbid, dict *sampledict, dict *keydict, struct evic
             serverPanic("Unknown eviction policy in evictionPoolPopulate()");
         }
 
-        /* Insert the element inside the pool.
-         * First, find the first empty bucket or the first populated
-         * bucket that has an idle time smaller than our idle time. */
-        k = 0;
-        while (k < EVPOOL_SIZE &&
-               pool[k].key &&
-               pool[k].idle < idle) k++;
-        if (k == 0 && pool[EVPOOL_SIZE-1].key != NULL) {
-            /* Can't insert if the element is < the worst element we have
-             * and there are no empty buckets. */
-            continue;
-        } else if (k < EVPOOL_SIZE && pool[k].key == NULL) {
-            /* Inserting into empty position. No setup needed before insert. */
-        } else {
-            /* Inserting in the middle. Now k points to the first element
-             * greater than the element to insert.  */
-            if (pool[EVPOOL_SIZE-1].key == NULL) {
-                /* Free space on the right? Insert at k shifting
-                 * all the elements from k to end to the right. */
-
-                /* Save SDS before overwriting. */
-                sds cached = pool[EVPOOL_SIZE-1].cached;
-                memmove(pool+k+1,pool+k,
-                    sizeof(pool[0])*(EVPOOL_SIZE-k-1));
-                pool[k].cached = cached;
-            } else {
-                /* No free space on right? Insert at k-1 */
-                k--;
-                /* Shift all elements on the left of k (included) to the
-                 * left, so we discard the element with smaller idle time. */
-                sds cached = pool[0].cached; /* Save SDS before overwriting. */
-                if (pool[0].key != pool[0].cached) sdsfree(pool[0].key);
-                memmove(pool,pool+1,sizeof(pool[0])*k);
-                pool[k].cached = cached;
-            }
-        }
-
-        /* Try to reuse the cached SDS string allocated in the pool entry,
-         * because allocating and deallocating this object is costly
-         * (according to the profiler, not my fantasy. Remember:
-         * premature optimizbla bla bla bla. */
-        int klen = sdslen(key);
-        if (klen > EVPOOL_CACHED_SDS_SIZE) {
-            pool[k].key = sdsdup(key);
-        } else {
-            memcpy(pool[k].cached,key,klen+1);
-            sdssetlen(pool[k].cached,klen);
-            pool[k].key = pool[k].cached;
-        }
-        pool[k].idle = idle;
-        pool[k].dbid = dbid;
+        tryInsertColdPool(pool, key, dbid, idle);
     }
 }
 
@@ -718,6 +693,54 @@ size_t estimateKeyMemoryUsage(dictEntry *de) {
     usage += sdsAllocSize(dictGetKey(de));
     usage += sizeof(dictEntry);
     return usage;
+}
+
+void addHotKeys() {
+    int k;
+    dictEntry* de;
+    struct evictionPoolEntry *pool = HotKeyPool;
+
+    /* limit the max num of concurrent loading keys, which may block redis and
+     * reduce performance. */
+    if (dictSize(server.hot_keys)+dictSize(EVICTED_DATA_DB->loading_hot_keys) >=
+        MASTER_MAX_CONCURRENT_LOADING_KEYS)
+        return;
+
+    /* Go backward from best to worst element to evict. */
+    for (k = EVPOOL_SIZE-1; k >= 0; k--) {
+        if (pool[k].key == NULL) continue;
+        de = dictFind(server.db[EVICTED_DATA_DBID].dict, pool[k].key);
+
+        /* to ensure the key only exists in one dict of loading/transferring/
+         * delete_confirming/hot_keys, if the key is already in intermediate state,
+         * we just give up to load the key and will try it the next time.
+         *
+         * NOTE: we don't care visiting_ssdb_keys, because we must ensure there is a
+         * chance for a very hot key to be loaded.
+         * */
+        if (!de || dictFind(EVICTED_DATA_DB->loading_hot_keys, dictGetKey(de))) {
+            /* don't need to load this key, just remove it from the pool. */
+        } else if (NULL == dictFind(EVICTED_DATA_DB->transferring_keys, dictGetKey(de))
+            && NULL == dictFind(EVICTED_DATA_DB->delete_confirm_keys, dictGetKey(de))) {
+            serverLog(LL_DEBUG, "key: %s is added to server.hot_keys", (sds)dictGetKey(de));
+            dictAddOrFind(server.hot_keys, dictGetKey(de));
+        } else
+            continue;
+
+        /* Remove the entry from the pool. */
+        if (pool[k].key != pool[k].cached)
+            sdsfree(pool[k].key);
+        pool[k].key = NULL;
+        pool[k].idle = 0;
+
+        /* move all keys in the right to left by one item. */
+        if (k != EVPOOL_SIZE-1 && pool[k+1].key != NULL)
+            memmove(pool+k, pool+k+1, sizeof(pool[0])*(EVPOOL_SIZE-k-1));
+
+        if (dictSize(server.hot_keys)+dictSize(EVICTED_DATA_DB->loading_hot_keys) >=
+            MASTER_MAX_CONCURRENT_LOADING_KEYS)
+            return;
+    }
 }
 
 int tryEvictingKeysToSSDB(int *mem_tofree) {
