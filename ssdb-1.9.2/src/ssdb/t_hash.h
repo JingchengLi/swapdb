@@ -7,6 +7,74 @@
 
 #include "ssdb_impl.h"
 
+template<typename T>
+int SSDBImpl::quickHash(Context &ctx, const Bytes &name, const std::string &meta_key, const std::string &meta_val,
+                       T lambda) {
+
+    leveldb::WriteBatch batch;
+
+    int ret = 0;
+    HashMetaVal hv;
+
+    ret = this->GetHashMetaVal(meta_key, hv);
+    if (meta_val.size() == 0) {
+        //not found
+        hv.type = DataType::HSIZE;
+    } else {
+        ret = hv.DecodeMetaVal(meta_val);
+        if (ret < 0) {
+            //error
+            return ret;
+        } else if (hv.del == KEY_DELETE_MASK) {
+            //deleted , reset hv
+            if (hv.version == UINT16_MAX) {
+                hv.version = 0;
+            } else {
+                hv.version = (uint16_t) (hv.version + 1);
+            }
+            hv.length = 0;
+            hv.del = KEY_ENABLED_MASK;
+        }
+    }
+
+
+    int sum = 0;
+
+    std::string key;
+    std::string val;
+
+    while (true) {
+        auto n = lambda(key, val);
+        if (n < 0) {
+            return n;
+        } else if (n == 0) {
+            break;
+        }
+
+        std::string item_key = encode_hash_key(name, key, hv.version);
+        batch.Put(item_key, val);
+        sum++;
+    }
+
+    int iret = incr_hsize(ctx, name, batch, meta_key, hv, sum);
+    if (iret < 0) {
+        return iret;
+    } else if (iret == 0) {
+        ret = 0;
+    } else {
+        ret = 1;
+    }
+
+    leveldb::Status s = CommitBatch(ctx, &(batch));
+    if(!s.ok()){
+        log_error("[hmsetNoLock] error: %s", s.ToString().c_str());
+        return STORAGE_ERR;
+    }
+
+    return ret;
+
+}
+
 
 template <typename T>
 int SSDBImpl::hmsetNoLock(Context &ctx, const Bytes &name, const std::map<T ,T> &kvs, bool check_exists) {
@@ -57,7 +125,6 @@ int SSDBImpl::hmsetNoLock(Context &ctx, const Bytes &name, const std::map<T ,T> 
     return ret;
 }
 
-#endif //SSDB_T_HASH_H
 
 
 
@@ -114,3 +181,4 @@ int SSDBImpl::hincrCommon(Context &ctx, const Bytes &name, const Bytes &key, L l
 
 }
 
+#endif //SSDB_T_HASH_H

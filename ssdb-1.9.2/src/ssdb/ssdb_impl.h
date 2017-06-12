@@ -296,16 +296,12 @@ private:
 	int zdel_one(leveldb::WriteBatch &batch, const Bytes &name, const Bytes &key, uint16_t version);
 	int incr_zsize(Context &ctx, const Bytes &name, leveldb::WriteBatch &batch, const ZSetMetaVal &zv,int64_t incr);
 
-	int setQuick(Context &ctx, const Bytes &key,const Bytes &val, const std::string &meta_key, const std::string &old_meta_val, const int64_t expire_ms);
 	int setNoLock(Context &ctx, const Bytes &key,const Bytes &val, int flags, const int64_t expire_ms, int *added);
 
     template <typename T>
     int saddNoLock(Context &ctx, const Bytes &key,const std::set<T> &mem_set, int64_t *num);
 
 	template <typename T>
-	int quickSet(Context &ctx, const Bytes &key, const std::string &meta_key, const std::string &meta_val, T lambda);
-
-		template <typename T>
 	int hmsetNoLock(Context &ctx, const Bytes &name,const std::map<T,T> &kvs, bool check_exists);
 
 	template <typename T>
@@ -326,6 +322,17 @@ private:
 	template <typename L>
 	int hincrCommon(Context &ctx, const Bytes &name, const Bytes &key, L lambda);
     int hsetCommon(Context &ctx, const Bytes &name, const Bytes &key, const Bytes &val, int *added, bool nx);
+
+
+	int quickKv(Context &ctx, const Bytes &key, const Bytes &val, const std::string &meta_key,
+				const std::string &old_meta_val, int64_t expire_ms);
+
+	template <typename T>
+	int quickSet(Context &ctx, const Bytes &key, const std::string &meta_key, const std::string &meta_val, T lambda);
+
+	template <typename T>
+	int quickHash(Context &ctx, const Bytes &key, const std::string &meta_key, const std::string &meta_val, T lambda);
+
 
 private:
 	//    pthread_mutex_t mutex_bgtask_;

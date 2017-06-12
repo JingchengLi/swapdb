@@ -174,8 +174,8 @@ int SSDBImpl::multi_del(Context &ctx, const std::set<std::string> &distinct_keys
 }
 
 
-int SSDBImpl::setQuick(Context &ctx, const Bytes &key, const Bytes &val, const std::string &meta_key, const std::string &meta_val, const int64_t expire_ms) {
-    PTST(setQuick, 0.01)
+int SSDBImpl::quickKv(Context &ctx, const Bytes &key, const Bytes &val, const std::string &meta_key,
+                      const std::string &meta_val, int64_t expire_ms) {
 
     leveldb::WriteBatch batch;
 
@@ -193,11 +193,9 @@ int SSDBImpl::setQuick(Context &ctx, const Bytes &key, const Bytes &val, const s
             }
         }
     }
-    PTE(setQuick, "decode")
 
     std::string new_meta_val = encode_kv_val(val, version);
     batch.Put(meta_key, new_meta_val);
-    PTE(setQuick, "encode_kv_val")
 
     if (expire_ms > 0) {
         //expire set
@@ -209,7 +207,6 @@ int SSDBImpl::setQuick(Context &ctx, const Bytes &key, const Bytes &val, const s
         log_error("error: %s", s.ToString().c_str());
         return STORAGE_ERR;
     }
-    PTE(setQuick, "CommitBatch")
 
     return 1;
 

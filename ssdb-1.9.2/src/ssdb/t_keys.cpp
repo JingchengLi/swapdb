@@ -331,7 +331,7 @@ int SSDBImpl::restore(Context &ctx, const Bytes &key, int64_t expire, const Byte
                 return -1;
             }
 
-            ret = this->setQuick(ctx, key, r, meta_key, meta_val, expire);
+            ret = this->quickKv(ctx, key, r, meta_key, meta_val, expire);
 
             break;
         }
@@ -349,6 +349,56 @@ int SSDBImpl::restore(Context &ctx, const Bytes &key, int64_t expire, const Byte
                     return -1;
                 }
                 t_res.emplace_back(r);
+            }
+
+            uint64_t len_t;
+            ret = this->rpushNoLock(ctx, key, t_res, 0, &len_t);
+
+            break;
+        }
+        case RDB_TYPE_LIST_ZIPLIST: {
+
+            std::string zipListStr = rdbDecoder.rdbGenericLoadStringObject(&ret);
+            if (ret != 0) {
+                return -1;
+            }
+
+            std::vector<std::string> t_res;
+
+            unsigned char *zl = (unsigned char *) zipListStr.data();
+            unsigned char *p = ziplistIndex(zl, 0);
+
+            std::string r;
+            while (getNextString(zl, &p, r)) {
+                t_res.emplace_back(r);
+            }
+
+            uint64_t len_t;
+            ret = this->rpushNoLock(ctx, key, t_res, 0, &len_t);
+
+            break;
+        }
+        case RDB_TYPE_LIST_QUICKLIST: {
+
+            if ((len = rdbDecoder.rdbLoadLen(NULL)) == RDB_LENERR) return -1;
+
+            std::vector<std::string> t_res;
+            t_res.reserve(len);
+
+            while (len--) {
+
+                std::string zipListStr = rdbDecoder.rdbGenericLoadStringObject(&ret);
+                if (ret != 0) {
+                    return -1;
+                }
+
+                unsigned char *zl = (unsigned char *) zipListStr.data();
+                unsigned char *p = ziplistIndex(zl, 0);
+
+                std::string t_item;
+                while (getNextString(zl, &p, t_item)) {
+                    t_res.emplace_back(t_item);
+                }
             }
 
             uint64_t len_t;
@@ -406,6 +456,7 @@ int SSDBImpl::restore(Context &ctx, const Bytes &key, int64_t expire, const Byte
             break;
 
         }
+
         case RDB_TYPE_ZSET_2:
         case RDB_TYPE_ZSET: {
             if ((len = rdbDecoder.rdbLoadLen(NULL)) == RDB_LENERR) return -1;
@@ -430,89 +481,6 @@ int SSDBImpl::restore(Context &ctx, const Bytes &key, int64_t expire, const Byte
 
             int64_t num = 0;
             ret = zsetNoLock(ctx, key, tmp_map, ZADD_NONE, &num);
-
-            break;
-        }
-
-        case RDB_TYPE_HASH: {
-
-            std::map<std::string,std::string> tmp_map;
-
-            if ((len = rdbDecoder.rdbLoadLen(NULL)) == RDB_LENERR) return -1;
-            while (len--) {
-
-                std::string field = rdbDecoder.rdbGenericLoadStringObject(&ret);
-                if (ret != 0) {
-                    return -1;
-                }
-
-                std::string value = rdbDecoder.rdbGenericLoadStringObject(&ret);
-                if (ret != 0) {
-                    return -1;
-                }
-
-                tmp_map[field] = value;
-            }
-
-            ret = this->hmsetNoLock<std::string>(ctx, key, tmp_map, false);
-
-            break;
-        }
-
-        case RDB_TYPE_LIST_QUICKLIST: {
-
-            if ((len = rdbDecoder.rdbLoadLen(NULL)) == RDB_LENERR) return -1;
-
-            std::vector<std::string> t_res;
-            t_res.reserve(len);
-
-            while (len--) {
-
-                std::string zipListStr = rdbDecoder.rdbGenericLoadStringObject(&ret);
-                if (ret != 0) {
-                    return -1;
-                }
-
-                unsigned char *zl = (unsigned char *) zipListStr.data();
-                unsigned char *p = ziplistIndex(zl, 0);
-
-                std::string t_item;
-                while (getNextString(zl, &p, t_item)) {
-                    t_res.emplace_back(t_item);
-                }
-            }
-
-            uint64_t len_t;
-            ret = this->rpushNoLock(ctx, key, t_res, 0, &len_t);
-
-            break;
-        }
-
-        case RDB_TYPE_HASH_ZIPMAP: {
-            /* Convert to ziplist encoded hash. This must be deprecated
-                 * when loading dumps created by Redis 2.4 gets deprecated. */
-            return -1;
-            break;
-        }
-        case RDB_TYPE_LIST_ZIPLIST: {
-
-            std::string zipListStr = rdbDecoder.rdbGenericLoadStringObject(&ret);
-            if (ret != 0) {
-                return -1;
-            }
-
-            std::vector<std::string> t_res;
-
-            unsigned char *zl = (unsigned char *) zipListStr.data();
-            unsigned char *p = ziplistIndex(zl, 0);
-
-            std::string r;
-            while (getNextString(zl, &p, r)) {
-                t_res.emplace_back(r);
-            }
-
-            uint64_t len_t;
-            ret = this->rpushNoLock(ctx, key, t_res, 0, &len_t);
 
             break;
         }
@@ -545,6 +513,32 @@ int SSDBImpl::restore(Context &ctx, const Bytes &key, int64_t expire, const Byte
             break;
         }
 
+        case RDB_TYPE_HASH: {
+
+            if ((len = rdbDecoder.rdbLoadLen(NULL)) == RDB_LENERR) return -1;
+
+            auto next = [&] (std::string &t_key, std::string &t_val) {
+                if (len-- > 0) {
+                    int t_ret = 0;
+                    t_key = rdbDecoder.rdbGenericLoadStringObject(&t_ret);
+                    if (t_ret != 0) {
+                        return -1;
+                    }
+
+                    t_val = rdbDecoder.rdbGenericLoadStringObject(&t_ret);
+                    if (t_ret != 0) {
+                        return -1;
+                    }
+
+                    return 1;
+                }
+                return 0;
+            };
+
+            ret = this->quickHash<decltype(next)>(ctx, key, meta_key, meta_val, next);
+
+            break;
+        }
         case RDB_TYPE_HASH_ZIPLIST: {
 
             std::map<std::string,std::string> tmp_map;
@@ -557,24 +551,30 @@ int SSDBImpl::restore(Context &ctx, const Bytes &key, int64_t expire, const Byte
             unsigned char *zl = (unsigned char *) zipListStr.data();
             unsigned char *p = ziplistIndex(zl, 0);
 
-            std::string field;
-            while (getNextString(zl, &p, field)) {
-                std::string value;
-
-                if(getNextString(zl, &p, value)) {
-                    tmp_map[field] = value;
-                } else {
-                    log_error("value not found ");
-                    return -1;
+            auto next = [&] (std::string &t_key, std::string &t_val) {
+                if (getNextString(zl, &p, t_key)) {
+                    if(getNextString(zl, &p, t_val)) {
+                        return 1;
+                    } else {
+                        log_error("value not found ");
+                        return -1;
+                    }
                 }
-            }
+                return 0;
+            };
 
-            ret = this->hmsetNoLock(ctx, key, tmp_map, false);
+            ret = this->quickHash<decltype(next)>(ctx, key, meta_key, meta_val, next);
 
             break;
         }
-//        case RDB_TYPE_MODULE: break;
 
+        case RDB_TYPE_HASH_ZIPMAP: {
+            /* Convert to ziplist encoded hash. This must be deprecated
+                 * when loading dumps created by Redis 2.4 gets deprecated. */
+            return -1;
+            break;
+        }
+//        case RDB_TYPE_MODULE: break;
         default:
             log_error("Unknown RDB encoding type %d %s:%s", rdbtype, hexmem(key.data(), key.size()).c_str(),(data.data(), data.size()));
             return -1;
