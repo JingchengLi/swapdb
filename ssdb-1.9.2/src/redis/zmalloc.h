@@ -12,5 +12,6 @@ void zfree(void *ptr);
 
 
 size_t zmalloc_get_rss(void);
+size_t zmalloc_get_memory_size(void);
 
 #endif //SSDB_ZMALLOC_H

@@ -619,19 +619,20 @@ int RedisLink::send_resp(Buffer *output, const std::vector<std::string> &resp){
 	
 	// not supported command
 	if(req_desc == NULL || req_desc->reply_type == REPLY_INFO){
-		{
-			char buf[32];
-			snprintf(buf, sizeof(buf), "*%d\r\n", (int)resp.size() - 1);
-			output->append(buf);
-		}
+
+		std::string tmp;
 		for(int i=1; i<resp.size(); i++){
 			const std::string &val = resp[i];
-			char buf[32];
-			snprintf(buf, sizeof(buf), "$%d\r\n", (int)val.size());
-			output->append(buf);
-			output->append(val.data(), val.size());
-			output->append("\r\n");
+			tmp.append(val);
+			tmp.append("\r\n");
 		}
+
+		char buf[32];
+		snprintf(buf, sizeof(buf), "$%d\r\n", (int)tmp.size());
+		output->append(buf);
+		output->append(tmp.data(), tmp.size());
+		output->append("\r\n");
+
 		return 0;
 	}
 	

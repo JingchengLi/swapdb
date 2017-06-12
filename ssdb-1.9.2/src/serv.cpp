@@ -11,6 +11,7 @@ found in the LICENSE file.
 #include "net/proc.h"
 #include "net/server.h"
 #include "replication.h"
+# include <sys/utsname.h>
 
 extern "C" {
 #include "redis/zmalloc.h"
@@ -694,32 +695,54 @@ int proc_save(Context &ctx, Link *link, const Request &req, Response *resp) {
 
 int proc_info(Context &ctx, Link *link, const Request &req, Response *resp) {
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
+
+
+    static struct utsname name;
+    static int call_uname = 1;
+    if (call_uname) {
+        /* Uname can be slow and is always the same output. Cache it. */
+        uname(&name);
+        call_uname = 0;
+    }
+
+
     resp->emplace_back("ok");
-    resp->emplace_back("\n# SSDB-Server");
-    resp->emplace_back("version:" + str(SSDB_VERSION));
-    resp->emplace_back("engine:" + str(SSDB_ENGINE));
-    resp->emplace_back("links:" + str(ctx.net->link_count));
 
-    {//total_calls
-        int64_t calls = 0;
-        proc_map_t::iterator it;
-        for (it = ctx.net->proc_map.begin(); it != ctx.net->proc_map.end(); it++) {
-            Command *cmd = it->second;
-            calls += cmd->calls;
-        }
-        resp->emplace_back("total_calls:" + str(calls));
-    }
+    {
+        //# Server
+        resp->emplace_back("# Server");
+        resp->emplace_back("ssdb_version:" + str(SSDB_VERSION));
+        resp->emplace_back("engine:" + str(SSDB_ENGINE));
+        resp->emplace_back("os:" + str(name.sysname) + " "+ str(name.release) + " "+ str(name.machine));
+        resp->emplace_back("arch_bits:" + str((sizeof(long) == 8) ? 64 : 32));
+#ifdef __GNUC__
+        resp->emplace_back("gcc_version:" + str(__GNUC__) + "."+ str(__GNUC_MINOR__) + "."+ str(__GNUC_PATCHLEVEL__));
+#else
+        resp->emplace_back("gcc_version: 0.0.0");
+#endif
+        resp->emplace_back("pid:" + str(getpid()));
+    };
 
-    {//dbsize
-        uint64_t size = serv->ssdb->size();
-        resp->emplace_back("dbsize:" + str(size));
-    }
+    {
+        //# Clients
+        resp->emplace_back("\n# Clients");
+        resp->emplace_back("connected_clients:" + str(ctx.net->link_count));
+        resp->emplace_back("blocked_clients: 0");
+
+    };
+
 
     {//memory
         resp->emplace_back("\n# Memory");
 
-        uint64_t memory = zmalloc_get_rss();
-        ReplyWtihHuman(memory);
+        uint64_t used_memory_rss = zmalloc_get_rss();
+        uint64_t used_memory = used_memory_rss;
+        ReplyWtihHuman(used_memory); //TODO Fake
+        ReplyWtihHuman(used_memory_rss);
+
+        uint64_t total_system_mem = zmalloc_get_memory_size();
+        ReplyWtihHuman(total_system_mem);
+
 
         auto options = serv->ssdb->getLdb()->GetOptions().table_factory->GetOptions();
         if (options!= nullptr) {
@@ -766,7 +789,14 @@ int proc_info(Context &ctx, Link *link, const Request &req, Response *resp) {
         std::string val;
         FastGetPropertyHuman(leveldb::DB::Properties::kTotalSstFilesSize ,"sst_file_size");
         FastGetPropertyHuman(leveldb::DB::Properties::kEstimateLiveDataSize ,"live_data_size");
+
+
+        resp->emplace_back("bgsave_in_progress:0"); //Todo Fake
+        resp->emplace_back("aof_rewrite_in_progress:0"); //Todo Fake
+        resp->emplace_back("loading:0"); //Todo Fake
+
     }
+
 
 
     {//snapshot
@@ -776,6 +806,32 @@ int proc_info(Context &ctx, Link *link, const Request &req, Response *resp) {
         FastGetProperty(leveldb::DB::Properties::kNumSnapshots, "live_snapshots");
         FastGetProperty(leveldb::DB::Properties::kOldestSnapshotTime, "oldest_snapshot");
     }
+
+
+    {//Stats
+        resp->push_back("\n# Stats");
+        resp->emplace_back("total_connections_received:0"); //Todo Fake
+
+        {//total_calls
+            int64_t calls = 0;
+            proc_map_t::iterator it;
+            for (it = ctx.net->proc_map.begin(); it != ctx.net->proc_map.end(); it++) {
+                Command *cmd = it->second;
+                calls += cmd->calls;
+            }
+            resp->emplace_back("total_commands_processed:" + str(calls));
+        }
+
+
+    }
+
+    {//Keyspace
+        resp->push_back("\n# Keyspace");
+
+        uint64_t size = serv->ssdb->size();
+        resp->emplace_back("db0:keys=" + str(size) + ",expires=0,avg_ttl=0");
+    }
+
 
 
     if (req.size() > 1 && (req[1] == "leveldb" || req[1] == "rocksdb")) {
