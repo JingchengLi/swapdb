@@ -50,7 +50,7 @@ uint64_t getSeqByIndex(int64_t index, const ListMetaVal &meta_val) {
     return seq;
 }
 
-int SSDBImpl::LIndex(Context &ctx, const Bytes &key, const int64_t index, std::pair<std::string, bool> &val) {
+int SSDBImpl::LIndex(Context &ctx, const Bytes &key, int64_t index, std::pair<std::string, bool> &val) {
     uint64_t sequence = 0;
     ListMetaVal lv;
     std::string meta_key = encode_meta_key(key);
@@ -368,25 +368,8 @@ int SSDBImpl::GetListMetaVal(const std::string &meta_key, ListMetaVal &lv) {
     return 1;
 }
 
-int SSDBImpl::rpushNoLock(Context &ctx, const Bytes &key, const std::vector<std::string> &val, int offset, uint64_t *llen) {
-    leveldb::WriteBatch batch;
 
-    *llen = 0;
-    ListMetaVal lv;
-    std::string meta_key = encode_meta_key(key);
-
-    int ret = GetListMetaVal(meta_key, lv);
-    if (ret < 0){
-        return ret;
-    }
-
-    ret = doListPush<std::string>(ctx, key, batch, val, offset, meta_key, lv, LIST_POSITION::TAIL);
-    *llen = lv.length;
-
-    return ret;
-}
-
-int SSDBImpl::LSet(Context &ctx, const Bytes &key, const int64_t index, const Bytes &val) {
+int SSDBImpl::LSet(Context &ctx, const Bytes &key, int64_t index, const Bytes &val) {
     RecordKeyLock l(&mutex_record_, key.String());
     leveldb::WriteBatch batch;
 

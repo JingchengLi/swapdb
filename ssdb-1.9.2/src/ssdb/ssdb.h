@@ -102,7 +102,7 @@ public:
 	virtual int hscan(Context &ctx, const Bytes &name,const Bytes& cursor, const std::string &pattern, uint64_t limit, std::vector<std::string> &resp) = 0;
 
 	/*  list  */
-	virtual int LIndex(Context &ctx, const Bytes &key,const int64_t index, std::pair<std::string, bool> &val) = 0;
+	virtual int LIndex(Context &ctx, const Bytes &key, int64_t index, std::pair<std::string, bool> &val) = 0;
 	virtual int LLen(Context &ctx, const Bytes &key,uint64_t *llen) = 0;
 	virtual int LPop(Context &ctx, const Bytes &key,std::pair<std::string, bool> &val) = 0;
 	virtual int LPush(Context &ctx, const Bytes &key,const std::vector<Bytes> &val, int offset, uint64_t *llen) = 0;
@@ -110,7 +110,7 @@ public:
 	virtual int RPop(Context &ctx, const Bytes &key,std::pair<std::string, bool> &val) = 0;
 	virtual int RPush(Context &ctx, const Bytes &key,const std::vector<Bytes> &val, int offset, uint64_t *llen) = 0;
 	virtual int RPushX(Context &ctx, const Bytes &key,const std::vector<Bytes> &val, int offset, uint64_t *llen) = 0;
-	virtual int LSet(Context &ctx, const Bytes &key,const int64_t index, const Bytes &val) = 0;
+	virtual int LSet(Context &ctx, const Bytes &key,int64_t index, const Bytes &val) = 0;
 	virtual int lrange(Context &ctx, const Bytes &key,int64_t start, int64_t end, std::vector<std::string> &list) = 0;
 	virtual int ltrim(Context &ctx, const Bytes &key,int64_t start, int64_t end) = 0;
 

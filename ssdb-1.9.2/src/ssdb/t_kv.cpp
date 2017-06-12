@@ -57,7 +57,7 @@ int SSDBImpl::GetKvMetaVal(const std::string &meta_key, KvMetaVal &kv) {
     }
 }
 
-int SSDBImpl::SetGeneric(Context &ctx, const Bytes &key, leveldb::WriteBatch &batch, const Bytes &val, int flags, const int64_t expire_ms, int *added){
+int SSDBImpl::SetGeneric(Context &ctx, const Bytes &key, leveldb::WriteBatch &batch, const Bytes &val, int flags, int64_t expire_ms, int *added){
     if (flags & OBJ_SET_EX || flags & OBJ_SET_PX) {
         if (expire_ms <= 0){
             return INVALID_EX_TIME; //NOT USED
@@ -211,7 +211,7 @@ int SSDBImpl::quickKv(Context &ctx, const Bytes &key, const Bytes &val, const st
 
 }
 
-int SSDBImpl::setNoLock(Context &ctx, const Bytes &key, const Bytes &val, int flags, const int64_t expire_ms, int *added) {
+int SSDBImpl::setNoLock(Context &ctx, const Bytes &key, const Bytes &val, int flags, int64_t expire_ms, int *added) {
     leveldb::WriteBatch batch;
 
     int ret = SetGeneric(ctx, key, batch, val, flags, expire_ms, added);

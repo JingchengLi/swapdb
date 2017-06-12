@@ -49,7 +49,7 @@ found in the LICENSE file.
 
 inline
 static leveldb::Slice slice(const Bytes &b){
-	return leveldb::Slice(b.data(), b.size());
+	return leveldb::Slice(b.data(), (size_t) b.size());
 }
 
 inline
@@ -57,7 +57,7 @@ static leveldb::Slice slice(){
 	return leveldb::Slice();
 }
 
-const std::string REPOPID_CF = "repopid";
+const static std::string REPOPID_CF = "repopid";
 
 enum LIST_POSITION{
 	HEAD,
@@ -118,7 +118,7 @@ public:
 	virtual Iterator* rev_iterator(const std::string &start, const std::string &end, uint64_t limit,
 								   const leveldb::Snapshot *snapshot=nullptr);
 	virtual const leveldb::Snapshot* GetSnapshot();
-	virtual void ReleaseSnapshot(const leveldb::Snapshot* snapshot=nullptr);
+	virtual void ReleaseSnapshot(const leveldb::Snapshot* snapshot);
 
 	//void flushdb();
 	virtual uint64_t size();
@@ -152,7 +152,7 @@ public:
 	// -1: error, 1: ok, 0: value is not an integer or out of range
 	virtual int incr(Context &ctx, const Bytes &key,int64_t by, int64_t *new_val);
 	virtual int incrbyfloat(Context &ctx, const Bytes &key,long double by, long double *new_val);
-	virtual int multi_set(Context &ctx, const std::vector<Bytes> &kvs, int offset=0);
+	virtual int multi_set(Context &ctx, const std::vector<Bytes> &kvs, int offset);
 	virtual int multi_del(Context &ctx, const std::set<std::string> &keys, int64_t *count);
 	virtual int setbit(Context &ctx, const Bytes &key,int64_t bitoffset, int on, int *res);
 	virtual int getbit(Context &ctx, const Bytes &key,int64_t bitoffset, int *res);
@@ -186,7 +186,7 @@ public:
 
 
     /*  list  */
-    virtual int LIndex(Context &ctx, const Bytes &key,const int64_t index, std::pair<std::string, bool> &val);
+    virtual int LIndex(Context &ctx, const Bytes &key, int64_t index, std::pair<std::string, bool> &val);
     virtual int LLen(Context &ctx, const Bytes &key,uint64_t *llen);
     virtual int LPop(Context &ctx, const Bytes &key,std::pair<std::string, bool> &val);
     virtual int LPush(Context &ctx, const Bytes &key,const std::vector<Bytes> &val, int offset, uint64_t *llen);
@@ -194,7 +194,7 @@ public:
 	virtual int RPop(Context &ctx, const Bytes &key,std::pair<std::string, bool> &val);
 	virtual int RPush(Context &ctx, const Bytes &key,const std::vector<Bytes> &val, int offset, uint64_t *llen);
 	virtual int RPushX(Context &ctx, const Bytes &key,const std::vector<Bytes> &val, int offset, uint64_t *llen);
-	virtual int LSet(Context &ctx, const Bytes &key,const int64_t index, const Bytes &val);
+	virtual int LSet(Context &ctx, const Bytes &key,int64_t index, const Bytes &val);
 	virtual int lrange(Context &ctx, const Bytes &key,int64_t start, int64_t end, std::vector<std::string> &list);
 	virtual int ltrim(Context &ctx, const Bytes &key,int64_t start, int64_t end);
 
@@ -258,7 +258,7 @@ public:
 
 private:
 
-	int SetGeneric(Context &ctx, const Bytes &key, leveldb::WriteBatch &batch, const Bytes &val, int flags, const int64_t expire_ms, int *added);
+	int SetGeneric(Context &ctx, const Bytes &key, leveldb::WriteBatch &batch, const Bytes &val, int flags, int64_t expire_ms, int *added);
     int GetKvMetaVal(const std::string &meta_key, KvMetaVal &kv);
 
     int del_key_internal(Context &ctx, const Bytes &key, leveldb::WriteBatch &batch);
@@ -296,7 +296,7 @@ private:
 	int zdel_one(leveldb::WriteBatch &batch, const Bytes &name, const Bytes &key, uint16_t version);
 	int incr_zsize(Context &ctx, const Bytes &name, leveldb::WriteBatch &batch, const ZSetMetaVal &zv,int64_t incr);
 
-	int setNoLock(Context &ctx, const Bytes &key,const Bytes &val, int flags, const int64_t expire_ms, int *added);
+	int setNoLock(Context &ctx, const Bytes &key,const Bytes &val, int flags, int64_t expire_ms, int *added);
 
     template <typename T>
     int saddNoLock(Context &ctx, const Bytes &key,const std::set<T> &mem_set, int64_t *num);
@@ -307,9 +307,9 @@ private:
 	template <typename T>
 	int zsetNoLock(Context &ctx, const Bytes &name,const std::map<T ,T> &sortedSet, int flags, int64_t *num);
 
-	int rpushNoLock(Context &ctx, const Bytes &key,const std::vector<std::string> &val, int offset, uint64_t *llen);
-
 	int zdelNoLock(Context &ctx, const Bytes &name,const std::set<Bytes> &keys, int64_t *count);
+
+
     int zrangeGeneric(Context &ctx, const Bytes &name,const Bytes &begin, const Bytes &limit, std::vector<string> &key_score, int reverse);
     int genericZrangebyscore(Context &ctx, const Bytes &name,const Bytes &start_score, const Bytes &end_score, std::vector<std::string> &key_score,
                              int withscores, long offset, long limit, int reverse);
@@ -362,20 +362,20 @@ public:
 uint64_t getSeqByIndex(int64_t index, const ListMetaVal &meta_val);
 
 
-class SnapshotPtr{
+class SnapshotPtr {
 private:
 
 public:
 	SnapshotPtr(leveldb::DB *ldb, const leveldb::Snapshot *snapshot) : ldb(ldb), snapshot(snapshot) {}
 
 	virtual ~SnapshotPtr() {
-		if (snapshot!=nullptr) {
+		if (snapshot != nullptr) {
 			ldb->ReleaseSnapshot(snapshot);
 		}
 	}
 
-	leveldb::DB* ldb;
-	const leveldb::Snapshot* snapshot;
+	leveldb::DB *ldb;
+	const leveldb::Snapshot *snapshot;
 
 };
 

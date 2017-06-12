@@ -316,7 +316,7 @@ const leveldb::Snapshot *SSDBImpl::GetSnapshot() {
     return nullptr;
 }
 
-void SSDBImpl::ReleaseSnapshot(const leveldb::Snapshot *snapshot) {
+void SSDBImpl::ReleaseSnapshot(const leveldb::Snapshot *snapshot = nullptr) {
     if (snapshot != nullptr) {
         ldb->ReleaseSnapshot(snapshot);
     }
