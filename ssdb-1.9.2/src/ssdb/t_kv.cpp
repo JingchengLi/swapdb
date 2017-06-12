@@ -181,7 +181,7 @@ int SSDBImpl::quickKv(Context &ctx, const Bytes &key, const Bytes &val, const st
     uint16_t version = 0;
     if (meta_val.size() > 0) {
         KvMetaVal kv;
-        int ret = kv.DecodeMetaVal(meta_val);
+        int ret = kv.DecodeMetaVal(meta_val, true);
         if (ret < 0) {
             return ret;
         } else if (kv.del == KEY_DELETE_MASK) {

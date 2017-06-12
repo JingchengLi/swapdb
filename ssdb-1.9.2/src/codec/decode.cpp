@@ -125,7 +125,7 @@ int EScoreItemKey::DecodeItemKey(const Bytes &str) {
 /*
  * decode meta value class
  */
-int KvMetaVal::DecodeMetaVal(const std::string &str) {
+int KvMetaVal::DecodeMetaVal(const std::string &str, bool skip_val) {
     Decoder decoder(str.data(), str.size());
     if(decoder.skip(1) == -1){
         return -1;
@@ -149,6 +149,10 @@ int KvMetaVal::DecodeMetaVal(const std::string &str) {
     }
     if (type != DataType::KV){
         return WRONG_TYPE_ERR;
+    }
+
+    if (skip_val) {
+        return 0;
     }
 
     decoder.read_data(&value);

@@ -58,7 +58,7 @@ public:
  */
 class KvMetaVal{
 public:
-    int DecodeMetaVal(const std::string &str);
+    int DecodeMetaVal(const std::string &str, bool skip_val = false);
 
 public:
     char        type;
