@@ -55,7 +55,7 @@ int SSDBImpl::quickZset(Context &ctx, const Bytes &name, const std::string &meta
         batch.Put(zkey, buf);
 
         string score_key = encode_zscore_key(name, key, score, zv.version);
-        batch.Put(score_key, "");
+        batch.Put(score_key, slice());
         sum++;
     }
 
