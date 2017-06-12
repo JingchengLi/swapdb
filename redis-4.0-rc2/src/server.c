@@ -1387,9 +1387,9 @@ void startToEvictIfNeeded() {
             /* Key is not in redis or link error. */
         }
 
-        listDelNode(server.storetossdb_migrate_keys, head);
         serverLog(LL_DEBUG, "migrate log: key: %s is deleted from server.storetossdb_migrate_keys",
                   (char *)keyobj->ptr);
+        listDelNode(server.storetossdb_migrate_keys, head);
     }
 }
 
@@ -1606,8 +1606,10 @@ void handleDeleteConfirmKeys(void) {
         }
 
         server.delete_confirm_client->argc = 2;
-        server.delete_confirm_client->argv = zmalloc(sizeof(robj *)
-                                                     * server.delete_confirm_client->argc);
+
+        if (!server.delete_confirm_client->argv)
+            server.delete_confirm_client->argv = zmalloc(sizeof(robj *)
+                                                         * server.delete_confirm_client->argc);
 
         server.delete_confirm_client->argv[0] = createObject(OBJ_STRING, sdsnew("exists"));
         server.delete_confirm_client->argv[1] = createObject(OBJ_STRING, sdsdup(de->key));

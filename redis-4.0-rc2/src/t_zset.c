@@ -1584,7 +1584,7 @@ void zaddGenericCommand(client *c, int flags) {
         if ((!incr || (incr && !zobj))
             && checkScoreRangeForZset(scores, elements) == C_ERR) {
             addReplyError(c, "value is out of range");
-            return;
+            goto cleanup;
         }
     }
 
