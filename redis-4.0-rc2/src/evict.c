@@ -1255,6 +1255,8 @@ void removeBlockedKeysFromTransferOrLoadingKeys(client* c) {
         removeClientFromListForBlockedKey(c, keyobj);
         serverAssert(dictDelete(c->bpop.loading_or_transfer_keys, keyobj) == DICT_OK);
     }
+
+    dictReleaseIterator(di);
 }
 
 void transferringOrLoadingBlockedClientTimeOut(client *c) {

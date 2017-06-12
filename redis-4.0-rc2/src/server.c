@@ -3129,9 +3129,10 @@ void freeSSDBwriteOp(struct ssdb_write_op* op) {
         }
     }
     if (op->argv) zfree(op->argv);
-    zfree(op);
 
     server.writeop_mem_size -= sizeof(robj*) * op->argc + sizeof(struct ssdb_write_op) + sizeof(listNode);
+
+    zfree(op);
 }
 
 void emptySlaveSSDBwriteOperations() {
