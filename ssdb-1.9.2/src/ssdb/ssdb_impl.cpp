@@ -176,8 +176,8 @@ int SSDBImpl::filesize(Context &ctx, uint64_t *total_file_size) {
             //error
             log_error("error: %s", s.ToString().c_str());
         } else {
-            log_debug("%s file size : %d", filename.c_str(), file_size);
-            (*total_file_size) += file_size;
+//            log_debug("%s file size : %d", filename.c_str(), file_size);
+//            (*total_file_size) += file_size;
         }
     });
 
