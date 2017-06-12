@@ -10,6 +10,7 @@
 #include "t_hash.h"
 #include "t_set.h"
 #include "t_zset.h"
+#include "t_list.h"
 
 extern "C" {
 #include "redis/ziplist.h"
@@ -340,19 +341,19 @@ int SSDBImpl::restore(Context &ctx, const Bytes &key, int64_t expire, const Byte
 
             if ((len = rdbDecoder.rdbLoadLen(NULL)) == RDB_LENERR) return -1;
 
-            std::vector<std::string> t_res;
-            t_res.reserve(len);
-
-            while (len--) {
-                std::string r = rdbDecoder.rdbGenericLoadStringObject(&ret);
-                if (ret != 0) {
-                    return -1;
+            auto next = [&] (std::string &current) {
+                if (len-- > 0) {
+                    int t_ret = 0;
+                    current = rdbDecoder.rdbGenericLoadStringObject(&t_ret);
+                    if (t_ret != 0) {
+                        return -1;
+                    }
+                    return 1;
                 }
-                t_res.emplace_back(r);
-            }
+                return 0;
+            };
 
-            uint64_t len_t;
-            ret = this->rpushNoLock(ctx, key, t_res, 0, &len_t);
+            ret = this->quickList<decltype(next)>(ctx, key, meta_key, meta_val, next);
 
             break;
         }
@@ -363,18 +364,16 @@ int SSDBImpl::restore(Context &ctx, const Bytes &key, int64_t expire, const Byte
                 return -1;
             }
 
-            std::vector<std::string> t_res;
-
             unsigned char *zl = (unsigned char *) zipListStr.data();
             unsigned char *p = ziplistIndex(zl, 0);
 
-            std::string r;
-            while (getNextString(zl, &p, r)) {
-                t_res.emplace_back(r);
-            }
+            auto next = [&] (std::string &t_key) {
+                if (getNextString(zl, &p, t_key)) {
+                }
+                return 0;
+            };
 
-            uint64_t len_t;
-            ret = this->rpushNoLock(ctx, key, t_res, 0, &len_t);
+            ret = this->quickList<decltype(next)>(ctx, key, meta_key, meta_val, next);
 
             break;
         }
@@ -382,27 +381,36 @@ int SSDBImpl::restore(Context &ctx, const Bytes &key, int64_t expire, const Byte
 
             if ((len = rdbDecoder.rdbLoadLen(NULL)) == RDB_LENERR) return -1;
 
-            std::vector<std::string> t_res;
-            t_res.reserve(len);
-
-            while (len--) {
-
-                std::string zipListStr = rdbDecoder.rdbGenericLoadStringObject(&ret);
-                if (ret != 0) {
-                    return -1;
-                }
-
-                unsigned char *zl = (unsigned char *) zipListStr.data();
-                unsigned char *p = ziplistIndex(zl, 0);
-
-                std::string t_item;
-                while (getNextString(zl, &p, t_item)) {
-                    t_res.emplace_back(t_item);
-                }
+            int t_ret = 0;
+            std::string zipListStr = rdbDecoder.rdbGenericLoadStringObject(&t_ret);
+            if (t_ret != 0) {
+                return -1;
             }
 
-            uint64_t len_t;
-            ret = this->rpushNoLock(ctx, key, t_res, 0, &len_t);
+            unsigned char *zl;
+            unsigned char *p;
+
+            auto next = [&](std::string &current) {
+                if (len > 0) {
+                    zl = (unsigned char *) zipListStr.data();
+                    p = ziplistIndex(zl, 0);
+
+                    if (getNextString(zl, &p, current)) {
+                        return 1;
+                    } else {
+                        zipListStr = rdbDecoder.rdbGenericLoadStringObject(&t_ret);
+                        if (t_ret != 0) {
+                            return -1;
+                        }
+
+                        len--;
+                        return 2;//retry next block
+                    }
+                }
+                return 0;
+            };
+
+            ret = this->quickList<decltype(next)>(ctx, key, meta_key, meta_val, next);
 
             break;
         }

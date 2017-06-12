@@ -17,10 +17,7 @@ int SSDBImpl::quickSet(Context &ctx, const Bytes &key, const std::string &meta_k
 
     int ret = 0;
     SetMetaVal sv;
-    if (meta_val.size() == 0) {
-        //not found
-        sv.type = DataType::HSIZE;
-    } else {
+    if (meta_val.size() > 0) {
         ret = sv.DecodeMetaVal(meta_val);
         if (ret < 0) {
             //error
@@ -36,6 +33,8 @@ int SSDBImpl::quickSet(Context &ctx, const Bytes &key, const std::string &meta_k
             sv.del = KEY_ENABLED_MASK;
         }
     }
+    sv.type = DataType::SSIZE;
+
 
     int64_t incr = 0;
 

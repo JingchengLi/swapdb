@@ -15,10 +15,7 @@ int SSDBImpl::quickHash(Context &ctx, const Bytes &name, const std::string &meta
 
     int ret = 0;
     HashMetaVal hv;
-    if (meta_val.size() == 0) {
-        //not found
-        hv.type = DataType::HSIZE;
-    } else {
+    if (meta_val.size() > 0) {
         ret = hv.DecodeMetaVal(meta_val);
         if (ret < 0) {
             //error
@@ -34,6 +31,7 @@ int SSDBImpl::quickHash(Context &ctx, const Bytes &name, const std::string &meta
             hv.del = KEY_ENABLED_MASK;
         }
     }
+    hv.type = DataType::HSIZE;
 
 
     int sum = 0;

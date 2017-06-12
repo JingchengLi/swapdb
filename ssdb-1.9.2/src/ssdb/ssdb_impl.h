@@ -336,6 +336,8 @@ private:
 	template <typename T>
 	int quickZset(Context &ctx, const Bytes &key, const std::string &meta_key, const std::string &meta_val, T lambda);
 
+	template <typename T>
+	int quickList(Context &ctx, const Bytes &key, const std::string &meta_key, const std::string &meta_val, T lambda);
 
 private:
 	//    pthread_mutex_t mutex_bgtask_;

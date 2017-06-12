@@ -8,7 +8,6 @@ found in the LICENSE file.
 #include "ssdb_impl.h"
 #include "t_kv.h"
 
-static bool getNextString(unsigned char *zl, unsigned char **p, std::string &ret_res);
 
 int SSDBImpl::GetKvMetaVal(const std::string &meta_key, KvMetaVal &kv) {
     std::string meta_val;

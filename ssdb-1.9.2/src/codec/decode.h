@@ -86,8 +86,8 @@ public:
     virtual int DecodeMetaVal(const Bytes& str);
 
 public:
-    uint64_t    left_seq;
-    uint64_t    right_seq;
+    uint64_t    left_seq = 0;
+    uint64_t    right_seq = UINT64_MAX;
 };
 
 /*

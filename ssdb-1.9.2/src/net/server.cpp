@@ -618,7 +618,7 @@ int NetworkServer::proc_client_event(const Fdevent *fde, ready_list_t *ready_lis
 		int len = link->read();
 		//log_debug("fd: %d read: %d", link->fd(), len);
 		if(len <= 0){
-			double serv_time = millitime() - link->create_time;
+//			double serv_time = millitime() - link->create_time;
 //			log_debug("fd: %d, read: %d, delete link, s:%.3f, e:%d, f:%d", link->fd(), len, serv_time, fde->events, fde->s_flags);
 			link->mark_error();
 			return 0;

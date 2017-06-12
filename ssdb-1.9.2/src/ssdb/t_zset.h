@@ -18,10 +18,7 @@ int SSDBImpl::quickZset(Context &ctx, const Bytes &name, const std::string &meta
 
     int ret = 0;
     ZSetMetaVal zv;
-    if (meta_val.size() == 0) {
-        //not found
-        zv.type = DataType::HSIZE;
-    } else {
+    if (meta_val.size() > 0) {
         ret = zv.DecodeMetaVal(meta_val);
         if (ret < 0) {
             //error
@@ -37,6 +34,7 @@ int SSDBImpl::quickZset(Context &ctx, const Bytes &name, const std::string &meta
             zv.del = KEY_ENABLED_MASK;
         }
     }
+    zv.type = DataType::ZSIZE;
 
 
     int sum = 0;
