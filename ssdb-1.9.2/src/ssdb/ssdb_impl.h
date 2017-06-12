@@ -296,6 +296,7 @@ private:
 	int zdel_one(leveldb::WriteBatch &batch, const Bytes &name, const Bytes &key, uint16_t version);
 	int incr_zsize(Context &ctx, const Bytes &name, leveldb::WriteBatch &batch, const ZSetMetaVal &zv,int64_t incr);
 
+	int setQuick(Context &ctx, const Bytes &key,const Bytes &val, const std::string &meta_key, const std::string &old_meta_val, const int64_t expire_ms);
 	int setNoLock(Context &ctx, const Bytes &key,const Bytes &val, int flags, const int64_t expire_ms, int *added);
 
     template <typename T>

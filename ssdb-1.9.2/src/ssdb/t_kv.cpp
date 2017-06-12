@@ -174,6 +174,47 @@ int SSDBImpl::multi_del(Context &ctx, const std::set<std::string> &distinct_keys
 }
 
 
+int SSDBImpl::setQuick(Context &ctx, const Bytes &key, const Bytes &val, const std::string &meta_key, const std::string &meta_val, const int64_t expire_ms) {
+    PTST(setQuick, 0.01)
+
+    leveldb::WriteBatch batch;
+
+    uint16_t version = 0;
+    if (meta_val.size() > 0) {
+        KvMetaVal kv;
+        int ret = kv.DecodeMetaVal(meta_val);
+        if (ret < 0) {
+            return ret;
+        } else if (kv.del == KEY_DELETE_MASK) {
+            if (kv.version == UINT16_MAX) {
+                version = 0;
+            } else {
+                version = (uint16_t) (kv.version + 1);
+            }
+        }
+    }
+    PTE(setQuick, "decode")
+
+    std::string new_meta_val = encode_kv_val(val, version);
+    batch.Put(meta_key, new_meta_val);
+    PTE(setQuick, "encode_kv_val")
+
+    if (expire_ms > 0) {
+        //expire set
+        expiration->expireAt(ctx, key, expire_ms + time_ms(), batch, false);
+    }
+
+    leveldb::Status s = CommitBatch(ctx, &(batch));
+    if (!s.ok()){
+        log_error("error: %s", s.ToString().c_str());
+        return STORAGE_ERR;
+    }
+    PTE(setQuick, "CommitBatch")
+
+    return 1;
+
+}
+
 int SSDBImpl::setNoLock(Context &ctx, const Bytes &key, const Bytes &val, int flags, const int64_t expire_ms, int *added) {
     leveldb::WriteBatch batch;
 

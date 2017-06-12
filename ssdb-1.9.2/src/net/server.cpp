@@ -449,7 +449,7 @@ void NetworkServer::serve(){
 			}
 			if(req->empty()){
 				fdes->set(link->fd(), FDEVENT_IN, 1, link);
-                log_debug("fd: %d, req is empty ", link->fd());
+                net_debug("fd: %d, req is empty ", link->fd());
 				continue;
 			}
 

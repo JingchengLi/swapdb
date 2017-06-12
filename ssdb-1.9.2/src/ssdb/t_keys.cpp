@@ -300,6 +300,7 @@ int SSDBImpl::restore(Context &ctx, const Bytes &key, int64_t expire, const Byte
                 return STORAGE_ERR;
             }
 
+            meta_val[POS_DEL] = KEY_DELETE_MASK;
         }
 
     }
@@ -310,6 +311,10 @@ int SSDBImpl::restore(Context &ctx, const Bytes &key, int64_t expire, const Byte
     if (!ok) {
         log_warn("checksum failed %s:%s", hexmem(key.data(), key.size()).c_str(),hexmem(data.data(), data.size()).c_str());
         return INVALID_DUMP_STR;
+    }
+
+    if (expire < 0){
+        return INVALID_EX_TIME;
     }
 
     uint64_t len = 0;
@@ -326,8 +331,7 @@ int SSDBImpl::restore(Context &ctx, const Bytes &key, int64_t expire, const Byte
                 return -1;
             }
 
-            int added = 0;
-            ret = this->setNoLock(ctx, key, r, ((expire > 0 ? OBJ_SET_PX : OBJ_SET_NO_FLAGS)), expire, &added);
+            ret = this->setQuick(ctx, key, r, meta_key, meta_val, expire);
 
             break;
         }
