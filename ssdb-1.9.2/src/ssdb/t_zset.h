@@ -8,6 +8,74 @@
 
 #include "ssdb_impl.h"
 
+
+template<typename T>
+int SSDBImpl::quickZset(Context &ctx, const Bytes &name, const std::string &meta_key, const std::string &meta_val,
+                        T lambda) {
+
+
+    leveldb::WriteBatch batch;
+
+    int ret = 0;
+    ZSetMetaVal zv;
+    if (meta_val.size() == 0) {
+        //not found
+        zv.type = DataType::HSIZE;
+    } else {
+        ret = zv.DecodeMetaVal(meta_val);
+        if (ret < 0) {
+            //error
+            return ret;
+        } else if (zv.del == KEY_DELETE_MASK) {
+            //deleted , reset hv
+            if (zv.version == UINT16_MAX) {
+                zv.version = 0;
+            } else {
+                zv.version = (uint16_t) (zv.version + 1);
+            }
+            zv.length = 0;
+            zv.del = KEY_ENABLED_MASK;
+        }
+    }
+
+
+    int sum = 0;
+
+    std::string key;
+    double score = 0;
+
+    while (true) {
+        auto n = lambda(key, &score);
+        if (n < 0) {
+            return n;
+        } else if (n == 0) {
+            break;
+        }
+
+        std::string zkey = encode_zset_key(name, key, zv.version);
+        std::string buf((char *) (&score), sizeof(double));
+        batch.Put(zkey, buf);
+
+        string score_key = encode_zscore_key(name, key, score, zv.version);
+        batch.Put(score_key, "");
+        sum++;
+    }
+
+    int iret = incr_zsize(ctx, name, batch, zv, sum);
+    if (iret < 0) {
+        log_error("incr_zsize error");
+        return iret;
+    }
+
+    leveldb::Status s = CommitBatch(ctx, &(batch));
+    if (!s.ok()) {
+        log_error("zset error: %s", s.ToString().c_str());
+        return STORAGE_ERR;
+    }
+
+    return 1;
+}
+
 template <typename T>
 int SSDBImpl::zsetNoLock(Context &ctx, const Bytes &name, const std::map<T, T> &sortedSet, int flags, int64_t *num) {
     int incr = (flags & ZADD_INCR) != 0;

@@ -17,7 +17,6 @@ int SSDBImpl::quickSet(Context &ctx, const Bytes &key, const std::string &meta_k
 
     int ret = 0;
     SetMetaVal sv;
-
     if (meta_val.size() == 0) {
         //not found
         sv.type = DataType::HSIZE;

@@ -15,8 +15,6 @@ int SSDBImpl::quickHash(Context &ctx, const Bytes &name, const std::string &meta
 
     int ret = 0;
     HashMetaVal hv;
-
-    ret = this->GetHashMetaVal(meta_key, hv);
     if (meta_val.size() == 0) {
         //not found
         hv.type = DataType::HSIZE;

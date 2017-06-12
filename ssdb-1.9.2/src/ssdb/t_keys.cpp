@@ -461,26 +461,26 @@ int SSDBImpl::restore(Context &ctx, const Bytes &key, int64_t expire, const Byte
         case RDB_TYPE_ZSET: {
             if ((len = rdbDecoder.rdbLoadLen(NULL)) == RDB_LENERR) return -1;
 
-            std::map<std::string,std::string> tmp_map;
+            auto next = [&] (std::string &t_key, double *score) {
+                if (len-- > 0) {
+                    int t_ret = 0;
+                    t_key = rdbDecoder.rdbGenericLoadStringObject(&t_ret);
+                    if (t_ret != 0) {
+                        return -1;
+                    }
 
-            while (len--) {
-                std::string r = rdbDecoder.rdbGenericLoadStringObject(&ret);
-                if (ret != 0) {
-                    return -1;
+                    if (rdbtype == RDB_TYPE_ZSET_2) {
+                        if (rdbDecoder.rdbLoadBinaryDoubleValue(score) == -1) return -1;
+                    } else {
+                        if (rdbDecoder.rdbLoadDoubleValue(score) == -1) return -1;
+                    }
+
+                    return 1;
                 }
+                return 0;
+            };
 
-                double score;
-                if (rdbtype == RDB_TYPE_ZSET_2) {
-                    if (rdbDecoder.rdbLoadBinaryDoubleValue(&score) == -1) return -1;
-                } else {
-                    if (rdbDecoder.rdbLoadDoubleValue(&score) == -1) return -1;
-                }
-
-                tmp_map[r] = str(score);
-            }
-
-            int64_t num = 0;
-            ret = zsetNoLock(ctx, key, tmp_map, ZADD_NONE, &num);
+            ret = this->quickZset<decltype(next)>(ctx, key, meta_key, meta_val, next);
 
             break;
         }
@@ -491,24 +491,31 @@ int SSDBImpl::restore(Context &ctx, const Bytes &key, int64_t expire, const Byte
                 return -1;
             }
 
-            std::map<std::string,std::string> tmp_map;
-
             unsigned char *zl = (unsigned char *) zipListStr.data();
             unsigned char *p = ziplistIndex(zl, 0);
 
-            std::string t_item;
-            while (getNextString(zl, &p, t_item)) {
-                std::string value;
-                if(getNextString(zl, &p, value)) {
-                    tmp_map[t_item] = value;
-                } else {
-                    log_error("value not found ");
-                    return -1;
-                }
-            }
+            std::string t_val;
+            auto next = [&] (std::string &t_key, double *score) {
+                if (getNextString(zl, &p, t_key)) {
+                    if(getNextString(zl, &p, t_val)) {
+                        *score = Bytes(t_val).Double();
+                        if (errno == EINVAL){
+                            return INVALID_DBL;
+                        }
 
-            int64_t num = 0;
-            ret = zsetNoLock(ctx, key, tmp_map, ZADD_NONE, &num);
+                        if (*score >= ZSET_SCORE_MAX || *score <= ZSET_SCORE_MIN) {
+                            return VALUE_OUT_OF_RANGE;
+                        }
+                        return 1;
+                    } else {
+                        log_error("value not found ");
+                        return -1;
+                    }
+                }
+                return 0;
+            };
+
+            ret = this->quickZset<decltype(next)>(ctx, key, meta_key, meta_val, next);
 
             break;
         }
