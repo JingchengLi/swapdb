@@ -1380,6 +1380,7 @@ struct redisServer {
     /* when ssdb is down, record the time */
     time_t ssdb_down_time;
     int slave_ssdb_critical_err_cnt;
+    long long stat_keyspace_ssdb_hits;   /* Number of successful lookups of keys in SSDB. */
 #ifdef TEST_REPLICATION_STABLE
     dict* zadd_keys;
 #endif

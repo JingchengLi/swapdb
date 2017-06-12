@@ -2263,6 +2263,7 @@ void resetServerStats(void) {
     server.stat_evictedkeys = 0;
     server.stat_keyspace_misses = 0;
     server.stat_keyspace_hits = 0;
+    server.stat_keyspace_ssdb_hits = 0;
     server.stat_fork_time = 0;
     server.stat_fork_rate = 0;
     server.stat_rejected_conn = 0;
@@ -3401,6 +3402,29 @@ void chooseHotKeysByLFUcounter(robj* keyobj) {
     return;
 }
 
+int processBeforeVisitingSSDB(client *c, robj *keyobj) {
+    if (c->cmd && c->cmd->proc == migrateCommand) {
+        char *argv[2];
+        sds dumpcmd;
+
+        argv[0] = "dump";
+        argv[1] = keyobj->ptr;
+        dumpcmd = composeRedisCmd(2, (const char **)argv, NULL);
+
+        if (!dumpcmd || sendCommandToSSDB(c, dumpcmd) != C_OK)
+            addReplyError(c, "migrate dump error in ssdb.");
+
+        /* TODO: use a suitable timeout. */
+        c->bpop.timeout = 900000 + mstime();
+        blockClient(c, BLOCKED_MIGRATING_DUMP);
+        addMigratingSSDBKey(keyobj->ptr);
+
+        return C_OK;
+    }
+
+    return C_ERR;
+}
+
 /* Process keys may be in SSDB, only handle the command jdjr_mode supported.
  The rest cases will be handled by processCommand. */
 int processCommandMaybeInSSDB(client *c) {
@@ -3458,29 +3482,16 @@ int processCommandMaybeInSSDB(client *c) {
         robj* val = lookupKey(EVICTED_DATA_DB, keyobj, LOOKUP_NONE);
         if (val) {
             int ret;
-            if (c->cmd->proc == migrateCommand) {
-                char *argv[2];
-                sds dumpcmd;
-
-                argv[0] = "dump";
-                argv[1] = keyobj->ptr;
-                dumpcmd = composeRedisCmd(2, (const char **)argv, NULL);
-
-                if (!dumpcmd || sendCommandToSSDB(c, dumpcmd) != C_OK) {
-                    addReplyError(c, "migrate dump error in ssdb.");
-                    return C_OK;
-                }
-
-                /* TODO: use a suitable timeout. */
-                c->bpop.timeout = 900000 + mstime();
-                blockClient(c, BLOCKED_MIGRATING_DUMP);
-                addMigratingSSDBKey(keyobj->ptr);
-
+            if (processBeforeVisitingSSDB(c, keyobj) == C_OK)
                 return C_OK;
-            }
 
             ret = sendCommandToSSDB(c, NULL);
             if (ret != C_OK) return ret;
+
+            /* Update server.stat_keyspace_ssdb_hits. */
+            if (c->cmd->flags & CMD_READONLY)
+                /* TODO: handle overflow ??? */
+                server.stat_keyspace_ssdb_hits ++;
 
             /* Record the keys visting SSDB. */
             recordVisitingSSDBkeys(c->cmd, c->argv, c->argc);
@@ -4693,6 +4704,7 @@ sds genRedisInfoString(char *section) {
             "expired_keys:%lld\r\n"
             "evicted_keys:%lld\r\n"
             "keyspace_hits:%lld\r\n"
+            "keyspace_hits_ssdb:%lld\r\n"
             "keyspace_misses:%lld\r\n"
             "pubsub_channels:%ld\r\n"
             "pubsub_patterns:%lu\r\n"
@@ -4713,6 +4725,7 @@ sds genRedisInfoString(char *section) {
             server.stat_expiredkeys,
             server.stat_evictedkeys,
             server.stat_keyspace_hits,
+            server.stat_keyspace_ssdb_hits,
             server.stat_keyspace_misses,
             dictSize(server.pubsub_channels),
             listLength(server.pubsub_patterns),
