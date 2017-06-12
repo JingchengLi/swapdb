@@ -34,7 +34,7 @@ int decodeMetaVal(T &mv, const std::string &val) {
 }
 
 
-int SSDBImpl::dump(Context &ctx, const Bytes &key, std::string *res, int64_t *pttl) {
+int SSDBImpl::dump(Context &ctx, const Bytes &key, std::string *res, int64_t *pttl, bool compress) {
     *res = "none";
 
     int ret = 0;
@@ -105,7 +105,7 @@ int SSDBImpl::dump(Context &ctx, const Bytes &key, std::string *res, int64_t *pt
 
     SnapshotPtr spl(ldb, snapshot); //auto release
 
-    RdbEncoder rdbEncoder;
+    RdbEncoder rdbEncoder(compress);
 
     switch (dtype) {
         case DataType::KV: {

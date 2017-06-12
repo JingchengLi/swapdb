@@ -28,12 +28,12 @@ void TransferWorker::init() {
 int TransferWorker::proc(TransferJob *job) {
 
     if (redisUpstream == nullptr) {
-        HostAndPort conf = ((SSDBServer* )(job->ctx.net->data))->redisConf;
-        if (conf.port == 0) {
+        auto serv = ((SSDBServer* )(job->ctx.net->data));
+        if (serv->opt.upstream_port == 0) {
             log_error("redis upstream conf is null");
             return -1;
         }
-        this->redisUpstream = new RedisUpstream(conf.ip.c_str(), conf.port);
+        this->redisUpstream = new RedisUpstream(serv->opt.upstream_ip, serv->opt.upstream_port);
         this->redisUpstream->reset();
     }
 

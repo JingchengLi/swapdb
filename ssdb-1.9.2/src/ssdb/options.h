@@ -15,7 +15,13 @@ public:
     Options();
     ~Options(){}
 
-    void load(const Config &conf);
+    void load(Config *conf);
+
+    Options() {
+        this->load(c);
+    }
+
+    Config* c = nullptr;
 
     size_t cache_size;
     size_t max_open_files;
@@ -39,7 +45,6 @@ struct Options {
     int max_open_files = 5000;
 
     // default target_file_size_base and multiplier is the save as rocksdb
-    int target_file_size_multiplier = 1;
     bool compression = true;
     bool rdb_compression = true;
     bool transfer_compression = true;
@@ -61,13 +66,16 @@ struct Options {
     int level0_slowdown_writes_trigger = 20; //slow write
     int level0_stop_writes_trigger = 36;  //block write
 
+    std::string upstream_ip;
+    int upstream_port = 0;
 
-    void load(const Config &conf);
+    void load(Config *conf);
 
     Options() {
-        Config c;
         this->load(c);
     }
+
+    Config* c = nullptr;
 };
 
 #endif

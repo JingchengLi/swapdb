@@ -138,7 +138,7 @@ public:
 
 	/* 	General	*/
 	virtual int type(Context &ctx, const Bytes &key,std::string *type);
-	virtual int dump(Context &ctx, const Bytes &key,std::string *res, int64_t *pttl);
+	virtual int dump(Context &ctx, const Bytes &key,std::string *res, int64_t *pttl, bool compress);
     virtual int restore(Context &ctx, const Bytes &key,int64_t expire, const Bytes &data, bool replace, std::string *res);
 	virtual int exists(Context &ctx, const Bytes &key);
 	virtual int parse_replic(Context &ctx, const std::vector<std::string> &kvs);

@@ -20,14 +20,19 @@ Options::Options(){
 #else
 #endif
 
-void Options::load(const Config &conf){
+void Options::load(Config *conf){
+	if (conf == nullptr) {
+		return;
+	}
+	c = conf;
+
 #ifdef USE_LEVELDB
-	cache_size = (size_t)conf.get_num("leveldb.cache_size");
-	block_size = (size_t)conf.get_num("leveldb.block_size");
-	compaction_speed = conf.get_num("leveldb.compaction_speed");
-	max_open_files = (size_t)conf.get_num("leveldb.max_open_files");
-	write_buffer_size = (size_t)conf.get_num("leveldb.write_buffer_size");
-	compression = conf.get_str("leveldb.compression");
+	cache_size = (size_t)conf->get_num("leveldb.cache_size");
+	block_size = (size_t)conf->get_num("leveldb.block_size");
+	compaction_speed = conf->get_num("leveldb.compaction_speed");
+	max_open_files = (size_t)conf->get_num("leveldb.max_open_files");
+	write_buffer_size = (size_t)conf->get_num("leveldb.write_buffer_size");
+	compression = conf->get_str("leveldb.compression");
 
 
 	if(cache_size <= 0){
@@ -54,30 +59,35 @@ void Options::load(const Config &conf){
 		max_bytes_for_level_multiplier = 10;
 	}
 #else
-	cache_size = (size_t)conf.get_num("rocksdb.cache_size", 16);
-	sim_cache = (size_t)conf.get_num("rocksdb.sim_cache", 0);
-	block_size = (size_t)conf.get_num("rocksdb.block_size", 16);
 
-	max_open_files = conf.get_num("rocksdb.max_open_files", 1000);
-	write_buffer_size = conf.get_num("rocksdb.write_buffer_size", 16);
+	cache_size = (size_t)conf->get_num("rocksdb.cache_size", 16);
+	sim_cache = (size_t)conf->get_num("rocksdb.sim_cache", 0);
+	block_size = (size_t)conf->get_num("rocksdb.block_size", 16);
 
-	compression = conf.get_bool("rocksdb.compression");
-    rdb_compression = conf.get_bool("rocksdb.rdb_compression", false);
-    transfer_compression = conf.get_bool("rocksdb.transfer_compression");
-	level_compaction_dynamic_level_bytes = conf.get_bool("rocksdb.level_compaction_dynamic_level_bytes");
-	use_direct_reads = conf.get_bool("rocksdb.use_direct_reads", false);
+	max_open_files = conf->get_num("rocksdb.max_open_files", 1000);
+	write_buffer_size = conf->get_num("rocksdb.write_buffer_size", 16);
 
-	compaction_readahead_size = (size_t)conf.get_num("rocksdb.compaction_readahead_size", 4);
-	max_bytes_for_level_base = (size_t)conf.get_num("rocksdb.max_bytes_for_level_base", 256);
-	max_bytes_for_level_multiplier = (size_t)conf.get_num("rocksdb.max_bytes_for_level_multiplier", 10);
+	compression = conf->get_bool("rocksdb.compression");
+    rdb_compression = conf->get_bool("rocksdb.rdb_compression", false);
+    transfer_compression = conf->get_bool("rocksdb.transfer_compression");
+	level_compaction_dynamic_level_bytes = conf->get_bool("rocksdb.level_compaction_dynamic_level_bytes");
+	use_direct_reads = conf->get_bool("rocksdb.use_direct_reads", false);
 
-	target_file_size_base = (size_t)conf.get_num("rocksdb.target_file_size_base", 64);
+	compaction_readahead_size = (size_t)conf->get_num("rocksdb.compaction_readahead_size", 4);
+	max_bytes_for_level_base = (size_t)conf->get_num("rocksdb.max_bytes_for_level_base", 256);
+	max_bytes_for_level_multiplier = (size_t)conf->get_num("rocksdb.max_bytes_for_level_multiplier", 10);
 
-	max_background_cd_threads = conf.get_num("rocksdb.max_background_cd_threads", 4);
+	target_file_size_base = (size_t)conf->get_num("rocksdb.target_file_size_base", 64);
 
-	level0_file_num_compaction_trigger = conf.get_num("rocksdb.level0_file_num_compaction_trigger", 4);
-	level0_slowdown_writes_trigger = conf.get_num("rocksdb.level0_slowdown_writes_trigger", 20);
-	level0_stop_writes_trigger = conf.get_num("rocksdb.level0_stop_writes_trigger", 36);
+	max_background_cd_threads = conf->get_num("rocksdb.max_background_cd_threads", 4);
+
+	level0_file_num_compaction_trigger = conf->get_num("rocksdb.level0_file_num_compaction_trigger", 4);
+	level0_slowdown_writes_trigger = conf->get_num("rocksdb.level0_slowdown_writes_trigger", 20);
+	level0_stop_writes_trigger = conf->get_num("rocksdb.level0_stop_writes_trigger", 36);
+
+
+	upstream_ip = conf->get_str("upstream.ip");
+	upstream_port = conf->get_num("upstream.port", 0);
 
 #endif
 

@@ -304,23 +304,12 @@ void SSDBServer::reg_procs(NetworkServer *net) {
 #define COMMAND_DATA_DUMP 2
 
 
-SSDBServer::SSDBServer(SSDB *ssdb, const Config &conf, NetworkServer *net) : conf(conf){
+SSDBServer::SSDBServer(SSDB *ssdb, const Options &opt, NetworkServer *net) : opt(opt){
     this->ssdb = (SSDBImpl *) ssdb;
 
     net->data = this;
     this->reg_procs(net);
 
-    {
-        const Config *upstream_conf = conf.get("upstream");
-        if (upstream_conf != NULL) {
-            std::string ip = conf.get_str("upstream.ip");
-            int port = conf.get_num("upstream.port");
-
-            log_info("upstream: %s:%d", ip.c_str(), port);
-
-            redisConf = HostAndPort(ip, port);
-        }
-    }
 }
 
 SSDBServer::~SSDBServer() {
@@ -556,7 +545,7 @@ int proc_dump(Context &ctx, Link *link, const Request &req, Response *resp) {
     std::string val;
 
     PTST(dump, 0.01)
-    int ret = serv->ssdb->dump(ctx, req[1], &val, nullptr);
+    int ret = serv->ssdb->dump(ctx, req[1], &val, nullptr, serv->opt.rdb_compression);
     PTE(dump, req[1].String())
 
     check_key(ret);
@@ -902,7 +891,7 @@ int proc_replic(Context &ctx, Link *link, const Request &req, Response *resp) {
         serv->replicState.startReplic();
     }
 
-    ReplicationJob *job = new ReplicationJob(ctx, HostAndPort{ip, port}, link);
+    ReplicationJob *job = new ReplicationJob(ctx, HostAndPort{ip, port}, link, serv->opt.transfer_compression, false);
 
     ctx.net->replication->push(job);
 
@@ -1003,7 +992,7 @@ int proc_rr_transfer_snapshot(Context &ctx, Link *link, const Request &req, Resp
 
     link->quick_send({"ok","rr_transfer_snapshot ok"});
 
-    ReplicationJob *job = new ReplicationJob(ctx, HostAndPort{ip, port}, link, true);
+    ReplicationJob *job = new ReplicationJob(ctx, HostAndPort{ip, port}, link, serv->opt.transfer_compression, true);
     ctx.net->replication->push(job);
 
     resp->resp.clear(); //prevent send resp
@@ -1116,7 +1105,7 @@ int proc_ssdb_sync(Context &ctx, Link *link, const Request &req, Response *resp)
 
     log_info("ssdb_sync , link address:%lld", link);
 
-    ReplicationJob *job = new ReplicationJob(ctx, HostAndPort{link->remote_ip, link->remote_port}, link, true);
+    ReplicationJob *job = new ReplicationJob(ctx, HostAndPort{link->remote_ip, link->remote_port}, link, true, true);
 //	net->replication->push(job);
 
     pthread_t tid;
@@ -1242,7 +1231,7 @@ int proc_migrate(Context &ctx, Link *link, const Request &req, Response *resp) {
         std::string payload;
         int64_t pttl = 0;
 
-        int ret = serv->ssdb->dump(ctx, kv[j], &payload, &pttl);
+        int ret = serv->ssdb->dump(ctx, kv[j], &payload, &pttl, serv->opt.rdb_compression);
          if (ret < 0) {
             reply_err_return(ret);
         } else if (ret == 0) {

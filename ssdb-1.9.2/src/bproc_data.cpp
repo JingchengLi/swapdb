@@ -57,7 +57,7 @@ int bproc_COMMAND_DATA_DUMP(Context &ctx, TransferWorker *worker, const std::str
     int64_t pttl = 0;
 
     PTST(dump, 0.03)
-    int ret = serv->ssdb->dump(ctx, data_key, &val, &pttl);
+    int ret = serv->ssdb->dump(ctx, data_key, &val, &pttl, serv->opt.rdb_compression);
     PTE(dump, hexstr(data_key))
 
 

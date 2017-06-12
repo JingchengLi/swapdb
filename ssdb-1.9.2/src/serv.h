@@ -75,15 +75,13 @@ public:
 class SSDBServer
 {
 public:
-	SSDBServer(SSDB *ssdb, const Config &conf, NetworkServer *net);
+	SSDBServer(SSDB *ssdb, const Options &opt, NetworkServer *net);
 	~SSDBServer();
 
 	SSDBImpl *ssdb;
     RecordMutex<Mutex> transfer_mutex_record_;
 
-    const Config &conf;
-    
-    HostAndPort redisConf;
+    const Options &opt;
 
     ReplicationState replicState;
 

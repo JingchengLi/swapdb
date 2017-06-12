@@ -53,7 +53,7 @@ void MyApplication::usage(int argc, char **argv){
 
 void MyApplication::run(){
 	Options option;
-	option.load(*conf);
+	option.load(conf);
 
 	std::string data_db_dir = app_args.work_dir;
 
@@ -104,7 +104,7 @@ void MyApplication::run(){
 	NetworkServer *net = NULL;	
 	SSDBServer *server;
 	net = NetworkServer::init(*conf);
-	server = new SSDBServer(data_db, *conf, net);
+	server = new SSDBServer(data_db, option, net);
 	
 	log_info("pidfile: %s, pid: %d", app_args.pidfile.c_str(), (int)getpid());
 	log_info("ssdb server ready.");

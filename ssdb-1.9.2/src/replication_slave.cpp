@@ -53,8 +53,10 @@ void *ssdb_sync(void *arg) {
     fdes->set(master_link->fd(), FDEVENT_IN, 1, master_link.get()); //open evin
     master_link->noblock(true);
 
+    std::string upstream_ip = serv->opt.upstream_ip;
+    int upstream_port = serv->opt.upstream_port;
 
-    RedisUpstream redisUpstream(serv->redisConf.ip, serv->redisConf.port, 500);
+    RedisUpstream redisUpstream(upstream_ip, upstream_port, 500);
 
     if (job->heartbeat) {
         redisUpstream.setMaxRetry(1);
@@ -88,7 +90,7 @@ void *ssdb_sync(void *arg) {
 
                 std::unique_ptr<RedisResponse> t_res(redisUpstream.sendCommand({"ssdb-notify-redis", "transfer", "continue"}));
                 if (!t_res) {
-                    log_warn("send transfer continue to redis<%s:%d> failed", serv->redisConf.ip.c_str(), serv->redisConf.port);
+                    log_warn("send transfer continue to redis<%s:%d> failed", upstream_ip.c_str(), upstream_port);
                 }
 
                 lastHeartBeat = time_ms();
@@ -316,7 +318,7 @@ void *ssdb_sync(void *arg) {
         if (job->heartbeat) {
             std::unique_ptr<RedisResponse> t_res(redisUpstream.sendCommand({"ssdb-notify-redis", "transfer", "unfinished"}));
             if (!t_res) {
-                log_warn("send transfer unfinished to redis<%s:%d> failed", serv->redisConf.ip.c_str(), serv->redisConf.port);
+                log_warn("send transfer unfinished to redis<%s:%d> failed", upstream_ip.c_str(), upstream_port);
             }
         }
     } else {
@@ -326,7 +328,7 @@ void *ssdb_sync(void *arg) {
         if (job->heartbeat) {
             std::unique_ptr<RedisResponse> t_res(redisUpstream.sendCommand({"ssdb-notify-redis", "transfer", "finished"}));
             if (!t_res) {
-                log_warn("send transfer finished to redis<%s:%d> failed", serv->redisConf.ip.c_str(), serv->redisConf.port);
+                log_warn("send transfer finished to redis<%s:%d> failed", upstream_ip.c_str(), upstream_port);
             }
         }
     }

@@ -39,11 +39,16 @@ public:
 
     volatile bool quit = false;
 
-    ReplicationJob(const Context& ctx, const HostAndPort& hnp, Link *link, bool heartbeat = false) :
-            ctx(ctx), hnp(hnp), upstream(link), heartbeat(heartbeat) {
+    ReplicationJob(const Context& ctx, const HostAndPort& hnp, Link *link, bool compress, bool heartbeat) :
+            ctx(ctx), hnp(hnp), upstream(link), heartbeat(heartbeat), compress(compress) {
         ts = time_ms();
     }
 
+    bool compress = true;
+
+    bool needCompress() const {
+        return compress;
+    }
 
 };
 

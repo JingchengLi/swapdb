@@ -15,7 +15,7 @@ extern "C" {
 
 void send_error_to_redis(Link *link);
 
-void moveBuffer(Buffer *dst, Buffer *src);
+void moveBuffer(Buffer *dst, Buffer *src, bool compress);
 
 void saveStrToBuffer(Buffer *buffer, const Bytes &fit);
 
@@ -244,7 +244,7 @@ int ReplicationWorker::proc(ReplicationJob *job) {
             if (buffer->size() > packageSize) {
                 saveStrToBuffer(ssdb_slave_link->output, "mset");
                 rawBytes += buffer->size();
-                moveBuffer(ssdb_slave_link->output, buffer.get());
+                moveBuffer(ssdb_slave_link->output, buffer.get(), job->needCompress());
                 int len = ssdb_slave_link->write();
                 if (len > 0) { sendBytes = sendBytes + len; }
 
@@ -260,7 +260,7 @@ int ReplicationWorker::proc(ReplicationJob *job) {
             if (!buffer->empty()) {
                 saveStrToBuffer(ssdb_slave_link->output, "mset");
                 rawBytes += buffer->size();
-                moveBuffer(ssdb_slave_link->output, buffer.get());
+                moveBuffer(ssdb_slave_link->output, buffer.get(), job->needCompress());
                 int len = ssdb_slave_link->write();
                 if (len > 0) { sendBytes = sendBytes + len; }
 
@@ -401,7 +401,7 @@ void saveStrToBuffer(Buffer *buffer, const Bytes &fit) {
     buffer->append(fit);
 }
 
-void moveBuffer(Buffer *dst, Buffer *src) {
+void moveBuffer(Buffer *dst, Buffer *src, bool compress) {
 
     size_t comprlen = 0, outlen = (size_t) src->size();
 
@@ -420,7 +420,7 @@ void moveBuffer(Buffer *dst, Buffer *src) {
 
 
 #ifndef REPLIC_NO_COMPRESS
-    if (true) {
+    if (compress) {
         comprlen = lzf_compress(src->data(), (unsigned int) src->size(), out.get(), outlen);
     } else {
         comprlen = 0;
