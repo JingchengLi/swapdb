@@ -3641,7 +3641,6 @@ int runCommandReplicationConn(client *c, listNode* writeop_ln) {
     }
 
     if (slave_retry_write) {
-        int j;
         /*NOTE: for some commands like set, setex, etc..., its c->argv[j]->ptr
         * may be modified when call tryObjectEncoding.
          *
@@ -3654,12 +3653,6 @@ int runCommandReplicationConn(client *c, listNode* writeop_ln) {
         c->argv = slave_retry_write->argv;
 
         slave_retry_write->argv = NULL;
-
-        for (j = 0; j < c->argc; j++) {
-            server.writeop_mem_size -= sizeof(robj);
-            if (c->argv[j]->type == OBJ_STRING)
-                server.writeop_mem_size -= SDS_MEM_SIZE((char*)(c->argv[j]->ptr));
-        }
     }
     int old_dirty = server.dirty;
 
@@ -3689,15 +3682,25 @@ int runCommandReplicationConn(client *c, listNode* writeop_ln) {
                   slave_retry_write->time,
                   slave_retry_write->index);
 
+
          /* the key is in redis and this op is processed, just remove it */
         listDelNode(server.ssdb_write_oplist, writeop_ln);
+
+        if (c->argv) {
+            int j;
+            for (j = 0; j < c->argc; j++) {
+                server.writeop_mem_size -= sizeof(robj);
+                if (c->argv[j]->type == OBJ_STRING)
+                    server.writeop_mem_size -= SDS_MEM_SIZE((char*)(c->argv[j]->ptr));
+                decrRefCount(c->argv[j]);
+            }
+            zfree(c->argv);
+            c->argv = NULL;
+        }
     } else {
         serverLog(LL_DEBUG, "processing %s, fd: %d in redis: %s, dbid: %d, argc: %d",
                   c->cmd->name, c->fd, c->argc > 1 ? (char *)c->argv[1]->ptr : "", c->db->id, c->argc);
     }
-
-    zfree(c->argv);
-    c->argv = NULL;
 
     return C_OK;
 }
