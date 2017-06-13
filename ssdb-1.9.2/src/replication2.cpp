@@ -20,8 +20,8 @@ static void moveBuffer(Buffer *dst, Buffer *src, bool compress);
 static void saveStrToBuffer(Buffer *buffer, const Bytes &fit);
 
 
-int ReplicationByIterator::process() {
-    log_info("ReplicationByIterator::process");
+int ReplicationByIterator2::process() {
+    log_info("ReplicationByIterator2::process");
 
 
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
@@ -334,54 +334,11 @@ int ReplicationByIterator::process() {
 }
 
 
-void ReplicationByIterator::reportError() {
-    send_error_to_redis(upstream);
-    SSDBServer *serv = (SSDBServer *) ctx.net->data;
-
-    {
-        Locking<Mutex> l(&serv->replicState.rMutex);
-        serv->replicState.finishReplic(false);
-    }
-    delete upstream;
-    upstream = nullptr; //reset
-}
-
 void send_error_to_redis(Link *link) {
     if (link != nullptr) {
         link->quick_send({"ok", "rr_transfer_snapshot unfinished"});
         log_error("send rr_transfer_snapshot error!!");
     }
-}
-
-std::string replic_save_len(uint64_t len) {
-    std::string res;
-
-    unsigned char buf[2];
-
-    if (len < (1 << 6)) {
-        /* Save a 6 bit len */
-        buf[0] = (len & 0xFF) | (RDB_6BITLEN << 6);
-        res.append(1, buf[0]);
-    } else if (len < (1 << 14)) {
-        /* Save a 14 bit len */
-        buf[0] = ((len >> 8) & 0xFF) | (RDB_14BITLEN << 6);
-        buf[1] = len & 0xFF;
-        res.append(1, buf[0]);
-        res.append(1, buf[1]);
-    } else if (len <= UINT32_MAX) {
-        /* Save a 32 bit len */
-        buf[0] = RDB_32BITLEN;
-        res.append(1, buf[0]);
-        uint32_t len32 = htobe32(len);
-        res.append((char *) &len32, sizeof(uint32_t));
-    } else {
-        /* Save a 64 bit len */
-        buf[0] = RDB_64BITLEN;
-        res.append(1, buf[0]);
-        len = htobe64(len);
-        res.append((char *) &len, sizeof(uint64_t));
-    }
-    return res;
 }
 
 

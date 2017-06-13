@@ -46,12 +46,21 @@ public:
     }
 
     ~ReplicationByIterator() override = default;
-
     void reportError();
-
     int process() override;
 };
 
+class ReplicationByIterator2 : public ReplicationByIterator {
+
+public:
+    ReplicationByIterator2(const Context &ctx, const HostAndPort &hnp, Link *link, bool compress,
+                                                   bool heartbeat) : ReplicationByIterator(ctx, hnp, link, compress,
+                                                                                           heartbeat) {}
+
+    ~ReplicationByIterator2() override = default;
+    int process() override;
+
+};
 
 
 

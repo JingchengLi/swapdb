@@ -258,6 +258,7 @@ SET( SRC_OBJS
         src/proc_queue.cpp
         src/serv.cpp
         src/replication.cpp
+        src/replication2.cpp
         src/replication_slave.cpp
         )
 
