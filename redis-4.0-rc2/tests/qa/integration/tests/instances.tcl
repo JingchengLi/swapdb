@@ -37,7 +37,7 @@ cd $::cfgdir
 set ::cfgdir [pwd]
 cd $curpath
 # For different loglevel test report
-set ::cfgfile [file join $::cfgdir ${::loglevel}_"cluster_testreport.xml"]
+set ::cfgfile [file join $::cfgdir ${::loglevel}_cluster_testreport.xml]
 exec mkdir -p $::cfgdir
 exec rm -f $::cfgfile
 # exec touch $::cfgfile

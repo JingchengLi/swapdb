@@ -33,6 +33,7 @@ set ::all_tests {
     ssdb/python
 
     unit/dump
+    unit/expire
     unit/type/hash
     unit/type/incr
     unit/type/string
@@ -143,7 +144,7 @@ set curpath [pwd]
 cd $::cfgdir
 set ::cfgdir [pwd]
 cd $curpath
-set ::cfgfile [file join $::cfgdir "redis_testreport.xml"]
+set ::cfgfile [file join $::cfgdir ${::loglevel}_redis_testreport.xml]
 exec mkdir -p $::cfgdir
 exec rm -f $::cfgfile
 # exec touch $::cfgfile

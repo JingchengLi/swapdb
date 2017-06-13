@@ -1,58 +1,65 @@
 start_server {tags {"expire"}} {
+    test {#issue SWAP-68 for load policy optimize update bring in 20170612} {
+        ssdbr set foo bar
+        ssdbr pexpire foo 500
+        after 1
+        ssdbr dbsize
+    } {0}
+
     test {EXPIRE - set timeouts multiple times} {
-        r set x foobar
-        set v1 [r expire x 5]
-        set v2 [r ttl x]
-        set v3 [r expire x 10]
-        set v4 [r ttl x]
-        r expire x 2
+        ssdbr set x foobar
+        set v1 [ssdbr expire x 5]
+        set v2 [ssdbr ttl x]
+        set v3 [ssdbr expire x 10]
+        set v4 [ssdbr ttl x]
+        ssdbr expire x 2
         list $v1 $v2 $v3 $v4
     } {1 [45] 1 10}
 
     test {EXPIRE - It should be still possible to read 'x'} {
-        r get x
+        ssdbr get x
     } {foobar}
 
     tags {"slow"} {
         test {EXPIRE - After 2.1 seconds the key should no longer be here} {
             after 2100
-            list [r get x] [r exists x]
+            list [ssdbr get x] [ssdbr exists x]
         } {{} 0}
     }
 
     test {EXPIRE - write on expire should work} {
-        r del x
-        r lpush x foo
-        r expire x 1000
-        r lpush x bar
-        r lrange x 0 -1
+        ssdbr del x
+        ssdbr lpush x foo
+        ssdbr expire x 1000
+        ssdbr lpush x bar
+        ssdbr lrange x 0 -1
     } {bar foo}
 
     test {EXPIREAT - Check for EXPIRE alike behavior} {
-        r del x
-        r set x foo
-        r expireat x [expr [clock seconds]+15]
-        r ttl x
+        ssdbr del x
+        ssdbr set x foo
+        ssdbr expireat x [expr [clock seconds]+15]
+        ssdbr ttl x
     } {1[345]}
 
     test {SETEX - Set + Expire combo operation. Check for TTL} {
-        r setex x 12 test
-        r ttl x
+        ssdbr setex x 12 test
+        ssdbr ttl x
     } {1[012]}
 
     test {SETEX - Check value} {
-        r get x
+        ssdbr get x
     } {test}
 
     test {SETEX - Overwrite old key} {
-        r setex y 1 foo
-        r get y
+        ssdbr setex y 1 foo
+        ssdbr get y
     } {foo}
 
     tags {"slow"} {
         test {SETEX - Wait for the key to expire} {
             after 1100
-            r get y
+            ssdbr get y
         } {}
     }
 
@@ -62,14 +69,14 @@ start_server {tags {"expire"}} {
     } {*invalid expire*}
 
     test {PERSIST can undo an EXPIRE} {
-        r set x foo
-        r expire x 50
-        list [r ttl x] [r persist x] [r ttl x] [r get x]
+        ssdbr set x foo
+        ssdbr expire x 50
+        list [ssdbr ttl x] [ssdbr persist x] [ssdbr ttl x] [ssdbr get x]
     } {50 1 -1 foo}
 
     test {PERSIST returns 0 against non existing or non volatile keys} {
-        r set x foo
-        list [r persist foo] [r persist nokeyatall]
+        ssdbr set x foo
+        list [ssdbr persist foo] [ssdbr persist nokeyatall]
     } {0 0}
 
     test {EXPIRE pricision is now the millisecond} {
@@ -77,12 +84,12 @@ start_server {tags {"expire"}} {
         # server is under pressure, so if it does not work give it a few more
         # chances.
         for {set j 0} {$j < 3} {incr j} {
-            r del x
-            r setex x 1 somevalue
+            ssdbr del x
+            ssdbr setex x 1 somevalue
             after 900
-            set a [r get x]
+            set a [ssdbr get x]
             after 1100
-            set b [r get x]
+            set b [ssdbr get x]
             if {$a eq {somevalue} && $b eq {}} break
         }
         list $a $b
@@ -93,26 +100,28 @@ start_server {tags {"expire"}} {
         # server is under pressure, so if it does not work give it a few more
         # chances.
         for {set j 0} {$j < 3} {incr j} {
-            r del x y z
-            r psetex x 100 somevalue
+            ssdbr del x
+            ssdbr del y
+            ssdbr del z
+            ssdbr psetex x 100 somevalue
             after 80
-            set a [r get x]
+            set a [ssdbr get x]
             after 120
-            set b [r get x]
+            set b [ssdbr get x]
 
-            r set x somevalue
-            r pexpire x 100
+            ssdbr set x somevalue
+            ssdbr pexpire x 100
             after 80
-            set c [r get x]
+            set c [ssdbr get x]
             after 120
-            set d [r get x]
+            set d [ssdbr get x]
 
-            r set x somevalue
-            r pexpireat x [expr ([clock seconds]*1000)+100]
+            ssdbr set x somevalue
+            ssdbr pexpireat x [expr ([clock seconds]*1000)+100]
             after 80
-            set e [r get x]
+            set e [ssdbr get x]
             after 120
-            set f [r get x]
+            set f [ssdbr get x]
 
             if {$a eq {somevalue} && $b eq {} &&
                 $c eq {somevalue} && $d eq {} &&
@@ -122,85 +131,90 @@ start_server {tags {"expire"}} {
     } {somevalue {}}
 
     test {TTL returns tiem to live in seconds} {
-        r del x
-        r setex x 10 somevalue
-        set ttl [r ttl x]
+        ssdbr del x
+        ssdbr setex x 10 somevalue
+        set ttl [ssdbr ttl x]
         assert {$ttl > 8 && $ttl <= 10}
     }
 
     test {PTTL returns time to live in milliseconds} {
-        r del x
-        r setex x 1 somevalue
-        set ttl [r pttl x]
+        ssdbr del x
+        ssdbr setex x 1 somevalue
+        set ttl [ssdbr pttl x]
         assert {$ttl > 900 && $ttl <= 1000}
     }
 
     test {TTL / PTTL return -1 if key has no expire} {
-        r del x
-        r set x hello
-        list [r ttl x] [r pttl x]
+        ssdbr del x
+        ssdbr set x hello
+        list [ssdbr ttl x] [ssdbr pttl x]
     } {-1 -1}
 
     test {TTL / PTTL return -2 if key does not exit} {
-        r del x
-        list [r ttl x] [r pttl x]
+        ssdbr del x
+        list [ssdbr ttl x] [ssdbr pttl x]
     } {-2 -2}
 
     test {Redis should actively expire keys incrementally} {
-        r flushdb
-        r psetex key1 500 a
-        r psetex key2 500 a
-        r psetex key3 500 a
-        set size1 [r dbsize]
+        ssdbr flushdb
+        ssdbr psetex key1 500 a
+        ssdbr psetex key2 500 a
+        ssdbr psetex key3 500 a
+        set size1 [ssdbr dbsize]
         # Redis expires random keys ten times every second so we are
         # fairly sure that all the three keys should be evicted after
         # one second.
         after 1000
-        set size2 [r dbsize]
+        set size2 [ssdbr dbsize]
         list $size1 $size2
     } {3 0}
 
     test {Redis should lazy expire keys} {
-        r flushdb
-        r debug set-active-expire 0
-        r psetex key1 500 a
-        r psetex key2 500 a
-        r psetex key3 500 a
-        set size1 [r dbsize]
+        ssdbr flushdb
+        ssdbr debug set-active-expire 0
+        ssdbr psetex key1 500 a
+        ssdbr psetex key2 500 a
+        ssdbr psetex key3 500 a
+        set size1 [ssdbr dbsize]
         # Redis expires random keys ten times every second so we are
         # fairly sure that all the three keys should be evicted after
         # one second.
         after 1000
-        set size2 [r dbsize]
-        r mget key1 key2 key3
-        set size3 [r dbsize]
-        r debug set-active-expire 1
+        set size2 [ssdbr dbsize]
+        ssdbr get key1
+        ssdbr get key2
+        ssdbr get key3
+        #TODO delete confirm
+        after 10
+        set size3 [ssdbr dbsize]
+        ssdbr debug set-active-expire 1
         list $size1 $size2 $size3
     } {3 3 0}
 
     test {EXPIRE should not resurrect keys (issue #1026)} {
-        r debug set-active-expire 0
-        r set foo bar
-        r pexpire foo 500
+        ssdbr debug set-active-expire 0
+        ssdbr set foo bar
+        ssdbr pexpire foo 500
         after 1000
-        r expire foo 10
-        r debug set-active-expire 1
-        r exists foo
+        ssdbr expire foo 10
+        ssdbr debug set-active-expire 1
+        ssdbr exists foo
     } {0}
 
     test {5 keys in, 5 keys out} {
-        r flushdb
-        r set a c
-        r expire a 5
-        r set t c
-        r set e c
-        r set s c
-        r set foo b
-        lsort [r keys *]
+        ssdbr flushdb
+        wait_ssdb_reconnect
+        ssdbr set a c
+        ssdbr expire a 5
+        ssdbr set t c
+        ssdbr set e c
+        ssdbr set s c
+        ssdbr set foo b
+        lsort [ssdbr keys *]
     } {a e foo s t}
 
     test {EXPIRE with empty string as TTL should report an error} {
-        r set foo bar
+        ssdbr set foo bar
         catch {r expire foo ""} e
         set e
     } {*not an integer*}
