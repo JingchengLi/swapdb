@@ -410,7 +410,11 @@ void moveBufferAsync(ReplicationByIterator2* job, Buffer *dst, Buffer *input, bo
     }
 
     if (job->bg.valid()) {
+
+        PTST(WAIT_CompressResult,0.1)
         CompressResult buf = job->bg.get();
+        PTE(WAIT_CompressResult, "")
+
         auto out = buf.out;
         auto in = buf.in;
         auto comprlen = buf.comprlen;

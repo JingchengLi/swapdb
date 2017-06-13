@@ -246,7 +246,10 @@ void *ssdb_sync2(void *arg) {
                             break;
                         }
                         decoder_item.skip(key_offset);
+
                         std::string key(decoder_item.data(), key_len);
+                        const char *key_p = decoder_item.data();
+
                         decoder_item.skip((int) key_len);
                         remian_length -= (key_offset + (int) key_len);
 
@@ -255,12 +258,20 @@ void *ssdb_sync2(void *arg) {
                             break;
                         }
                         decoder_item.skip(val_offset);
+
                         std::string value(decoder_item.data(), val_len);
+                        const char *value_p = decoder_item.data();
+
                         decoder_item.skip((int) val_len);
                         remian_length -= (val_offset + (int) val_len);
+//
+//                        kvs.emplace_back(key);
+//                        kvs.emplace_back(value);
 
-                        kvs.push_back(key);
-                        kvs.push_back(value);
+                        kvs.emplace_back(key_p, key_len);
+                        kvs.emplace_back(value_p, val_len);
+
+
                     }
 
                     decoder.skip(compressed_len);
@@ -270,13 +281,15 @@ void *ssdb_sync2(void *arg) {
                         log_debug("parse_replic count %d", kvs.size());
 
                         if (bg.valid()) {
+                            PTST(WAIT_parse_replic,0.5)
                             errorCode = bg.get();
+                            PTE(WAIT_parse_replic, "")
                         }
 
                         bg = std::async(std::launch::async, [&serv, &ctx](std::vector<std::string> arr) {
                             //serv is thread safe and ctx is readonly
                             return serv->ssdb->parse_replic(ctx, arr);
-                        }, kvs);
+                        }, std::move(kvs));
 
                         kvs.clear();
                     }
