@@ -27,7 +27,6 @@ public:
 	Context ctx;
 	Link *upstream;
 
-	virtual bool needCompress() const = 0;
 	virtual int process() = 0;
 
     virtual ~ReplicationJob() = default;

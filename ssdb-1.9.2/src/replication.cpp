@@ -21,6 +21,8 @@ void saveStrToBuffer(Buffer *buffer, const Bytes &fit);
 
 
 int ReplicationByIterator::process() {
+    log_info("ReplicationByIterator::process");
+
 
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
     Link *master_link = upstream;
@@ -232,7 +234,7 @@ int ReplicationByIterator::process() {
             if (buffer->size() > packageSize) {
                 saveStrToBuffer(ssdb_slave_link->output, "mset");
                 rawBytes += buffer->size();
-                moveBuffer(ssdb_slave_link->output, buffer.get(), needCompress());
+                moveBuffer(ssdb_slave_link->output, buffer.get(), compress);
                 int len = ssdb_slave_link->write();
                 if (len > 0) { sendBytes = sendBytes + len; }
 
@@ -248,7 +250,7 @@ int ReplicationByIterator::process() {
             if (!buffer->empty()) {
                 saveStrToBuffer(ssdb_slave_link->output, "mset");
                 rawBytes += buffer->size();
-                moveBuffer(ssdb_slave_link->output, buffer.get(), needCompress());
+                moveBuffer(ssdb_slave_link->output, buffer.get(), compress);
                 int len = ssdb_slave_link->write();
                 if (len > 0) { sendBytes = sendBytes + len; }
 

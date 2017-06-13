@@ -33,6 +33,8 @@ public:
     HostAndPort hnp;
 
     bool heartbeat = false;
+    bool compress = true;
+
     volatile bool quit = false;
 
     ReplicationByIterator(const Context &ctx, const HostAndPort &hnp, Link *link, bool compress, bool heartbeat) :
@@ -43,20 +45,14 @@ public:
         ReplicationJob::upstream = link;
     }
 
-    ~ReplicationByIterator() = default;
-
-    bool compress = true;
-
-    bool needCompress() const override {
-        return compress;
-    }
+    ~ReplicationByIterator() override = default;
 
     void reportError();
 
     int process() override;
-
-
 };
+
+
 
 
 
