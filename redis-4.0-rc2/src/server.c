@@ -3616,6 +3616,7 @@ void prepareSSDBflush(client* c) {
 /* for replication connection(server.master), after reconnect with SSDB success, we
  * use this to retry failed/timeout write commands.*/
 int runCommandReplicationConn(client *c, listNode* writeop_ln) {
+    int j;
     if (c != server.master) return C_ERR;
     struct ssdb_write_op* slave_retry_write = NULL;
 
@@ -3653,26 +3654,17 @@ int runCommandReplicationConn(client *c, listNode* writeop_ln) {
         c->argv = slave_retry_write->argv;
 
         slave_retry_write->argv = NULL;
-    }
-    int old_dirty = server.dirty;
 
-    call(c,CMD_CALL_FULL);
-    c->woff = server.master_repl_offset;
-
-    if (server.verbosity == LL_DEBUG && (c->cmd->flags & CMD_WRITE) && old_dirty == server.dirty) {
-        if (c->cmd->proc != delCommand) {
-            int j;
-            sds tmp = sdsempty();
-
-            serverLog(LL_DEBUG, "[!!]server.dirty not changed, this write command may excute failed.");
-            for (j = 0; j < c->argc; j++) {
-                tmp = sdscatsds(tmp, c->argv[j]->ptr);
-                tmp = sdscat(tmp, " ");
-            }
-            serverLog(LL_DEBUG, "full command is:%s", tmp);
-            sdsfree(tmp);
+        /* c->argv[j]->ptr may be modified after call c->cmd->proc, which will
+         * cause wrong memory size statistics, compute its size before this. */
+        for (j = 0; j < c->argc; j++) {
+            server.writeop_mem_size -= sizeof(robj);
+            if (c->argv[j]->type == OBJ_STRING)
+                server.writeop_mem_size -= SDS_MEM_SIZE((char*)(c->argv[j]->ptr));
         }
     }
+    call(c,CMD_CALL_FULL);
+    c->woff = server.master_repl_offset;
 
     if (slave_retry_write) {
          serverLog(LL_DEBUG, "[REPOPID]the key: %s is now in redis, remove write op from"
@@ -3686,17 +3678,11 @@ int runCommandReplicationConn(client *c, listNode* writeop_ln) {
          /* the key is in redis and this op is processed, just remove it */
         listDelNode(server.ssdb_write_oplist, writeop_ln);
 
-        if (c->argv) {
-            int j;
-            for (j = 0; j < c->argc; j++) {
-                server.writeop_mem_size -= sizeof(robj);
-                if (c->argv[j]->type == OBJ_STRING)
-                    server.writeop_mem_size -= SDS_MEM_SIZE((char*)(c->argv[j]->ptr));
-                decrRefCount(c->argv[j]);
-            }
-            zfree(c->argv);
-            c->argv = NULL;
+        for (j = 0; j < c->argc; j++) {
+            decrRefCount(c->argv[j]);
         }
+        zfree(c->argv);
+        c->argv = NULL;
     } else {
         serverLog(LL_DEBUG, "processing %s, fd: %d in redis: %s, dbid: %d, argc: %d",
                   c->cmd->name, c->fd, c->argc > 1 ? (char *)c->argv[1]->ptr : "", c->db->id, c->argc);
