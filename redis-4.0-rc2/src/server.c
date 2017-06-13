@@ -3695,6 +3695,10 @@ int runCommandReplicationConn(client *c, listNode* writeop_ln) {
         serverLog(LL_DEBUG, "processing %s, fd: %d in redis: %s, dbid: %d, argc: %d",
                   c->cmd->name, c->fd, c->argc > 1 ? (char *)c->argv[1]->ptr : "", c->db->id, c->argc);
     }
+
+    zfree(c->argv);
+    c->argv = NULL;
+
     return C_OK;
 }
 
