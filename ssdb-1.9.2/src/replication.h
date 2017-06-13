@@ -33,10 +33,12 @@ std::string replic_save_len(uint64_t len);
 class CompressResult {
 public:
     Buffer* in = nullptr;
-    Buffer* out = nullptr;
+    std::string out;
     size_t comprlen = 0;
 };
 
+
+#define USE_SNAPPY true
 
 
 class ReplicationByIterator : public ReplicationJob {

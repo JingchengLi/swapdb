@@ -3,6 +3,7 @@
 //
 
 
+#include <snappy.h>
 #include "replication.h"
 #include "serv.h"
 #include "util/cfree.h"
@@ -216,8 +217,8 @@ void *ssdb_sync2(void *arg) {
                         break;
                     }
 
-                    std::unique_ptr<char, cfree_delete<char>> t_val((char *) malloc(raw_len));
 
+                    std::string tmp;
 
                     if (compressed_len == 0) {
                         if (decoder.size() < (raw_len)) {
@@ -225,16 +226,33 @@ void *ssdb_sync2(void *arg) {
                             break;
                         }
 
-                        memcpy(t_val.get(), decoder.data(), raw_len);
+                        tmp = std::move(std::string(decoder.data(), raw_len));
                         compressed_len = raw_len;
                     } else {
-                        if (lzf_decompress(decoder.data(), compressed_len, t_val.get(), raw_len) == 0) {
-                            errorCode = -4;
-                            break;;
+
+                        if (USE_SNAPPY) {
+
+                            if (!snappy::Uncompress(decoder.data(), compressed_len, &tmp)) {
+                                errorCode = -4;
+                                break;;
+                            } else {
+                                raw_len = tmp.size();
+                            }
+
+                        } else {
+
+                            std::unique_ptr<char, cfree_delete<char>> t_val((char *) malloc(raw_len));
+
+                            if (lzf_decompress(decoder.data(), compressed_len, t_val.get(), raw_len) == 0) {
+                                errorCode = -4;
+                                break;;
+                            }
+                            tmp = std::move(std::string(t_val.get(), raw_len));
                         }
+
                     }
 
-                    Decoder decoder_item(t_val.get(), raw_len);
+                    Decoder decoder_item(tmp.data(), raw_len);
 
                     uint64_t remian_length = raw_len;
                     while (remian_length > 0) {

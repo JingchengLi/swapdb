@@ -6,6 +6,7 @@
 #include <net/link.h>
 #include <util/cfree.h>
 #include "serv.h"
+#include <snappy.h>
 
 extern "C" {
 #include <redis/rdb.h>
@@ -414,7 +415,6 @@ void moveBufferAsync(ReplicationByIterator2* job, Buffer *dst, Buffer *input, bo
         CompressResult buf = job->bg.get();
         PTE(WAIT_CompressResult, "")
 
-        auto out = buf.out;
         auto in = buf.in;
         auto comprlen = buf.comprlen;
 
@@ -425,10 +425,9 @@ void moveBufferAsync(ReplicationByIterator2* job, Buffer *dst, Buffer *input, bo
         if (comprlen == 0) {
             dst->append(in->data(), in->size());
         } else {
-            dst->append(out->data(), (int) comprlen);
+            dst->append(buf.out.data(), (int) comprlen);
         }
 
-        delete buf.out;
 //        delete buf.in;
         job->buffer2->reset();
     }
@@ -446,7 +445,6 @@ void moveBufferAsync(ReplicationByIterator2* job, Buffer *dst, Buffer *input, bo
         job->bg = std::async(std::launch::async, [](Buffer *b) {
             CompressResult compressResult;
             compressResult.in = b;
-            compressResult.out = new Buffer(4096);
 
             auto src = compressResult.in;
 
@@ -463,14 +461,17 @@ void moveBufferAsync(ReplicationByIterator2* job, Buffer *dst, Buffer *input, bo
                 outlen = 1024;
             }
 
-            std::unique_ptr<void, cfree_delete<void>> out(malloc(outlen + 1));
+            if (USE_SNAPPY) {
+                comprlen = snappy::Compress(src->data(), (size_t) src->size(), &compressResult.out);
+                if (comprlen > 0) {
 
-            comprlen = lzf_compress(src->data(), (unsigned int) src->size(), out.get(), outlen);
-
-            if (comprlen == 0) {
-                //nothing
+                }
             } else {
-                compressResult.out->append(out.get(), (int) comprlen);
+                std::unique_ptr<void, cfree_delete<void>> out(malloc(outlen + 1));
+                comprlen = lzf_compress(src->data(), (unsigned int) src->size(), out.get(), outlen);
+                if (comprlen > 0) {
+                    compressResult.out.append((char *)out.get(), (int) comprlen);
+                }
             }
 
             compressResult.comprlen = comprlen;
