@@ -1107,7 +1107,7 @@ int proc_ssdb_sync(Context &ctx, Link *link, const Request &req, Response *resp)
 
     log_info("ssdb_sync , link address:%lld", link);
 
-    ReplicationJob *job = new ReplicationByIterator(ctx, HostAndPort{link->remote_ip, link->remote_port}, link, true, true);
+    ReplicationJob *job = new ReplicationByIterator(ctx, HostAndPort{link->remote_ip, link->remote_port}, link, true, false);
 //	net->replication->push(job);
 
     pthread_t tid;
@@ -1125,7 +1125,7 @@ int proc_ssdb_sync2(Context &ctx, Link *link, const Request &req, Response *resp
 
     log_info("ssdb_sync2 , link address:%lld", link);
 
-    ReplicationJob *job = new ReplicationByIterator(ctx, HostAndPort{link->remote_ip, link->remote_port}, link, true, true);
+    ReplicationJob *job = new ReplicationByIterator(ctx, HostAndPort{link->remote_ip, link->remote_port}, link, true, false);
 //	net->replication->push(job);
 
     pthread_t tid;
