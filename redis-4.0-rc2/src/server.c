@@ -3404,7 +3404,7 @@ int processBeforeVisitingSSDB(client *c, robj *keyobj) {
             addReplyError(c, "migrate dump error in ssdb.");
 
         /* TODO: use a suitable timeout. */
-        c->bpop.timeout = 900000 + mstime();
+        c->bpop.timeout = server.client_blocked_by_migrate_dump_timeout + mstime();
         blockClient(c, BLOCKED_MIGRATING_DUMP);
         addMigratingSSDBKey(keyobj->ptr);
 

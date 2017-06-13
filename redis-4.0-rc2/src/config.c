@@ -398,6 +398,18 @@ void loadServerConfigFromString(char *config) {
                 err = "client-blocked-by-keys-timeout must be 1 or greater";
                 goto loaderr;
             }
+        } else if (!strcasecmp(argv[0],"client-blocked-by-flushall-timeout") && argc == 2) {
+            server.client_blocked_by_flushall_timeout = atoi(argv[1]);
+            if (server.client_blocked_by_flushall_timeout <= 0) {
+                err = "client-blocked-by-flushall-timeout must be 1 or greater";
+                goto loaderr;
+            }
+        } else if (!strcasecmp(argv[0],"client-blocked-by-migrate-dump-timeout") && argc == 2) {
+            server.client_blocked_by_migrate_dump_timeout = atoi(argv[1]);
+            if (server.client_blocked_by_migrate_dump_timeout <= 0) {
+                err = "client-blocked-by-migrate-dump-timeout must be 1 or greater";
+                goto loaderr;
+            }
         } else if (!strcasecmp(argv[0],"repl-timeout") && argc == 2) {
             server.repl_timeout = atoi(argv[1]);
             if (server.repl_timeout <= 0) {
@@ -1108,6 +1120,10 @@ void configSetCommand(client *c) {
     } config_set_numerical_field(
         "client-blocked-by-keys-timeout",server.client_blocked_by_keys_timeout,1,LLONG_MAX) {
     } config_set_numerical_field(
+        "client-blocked-by-flushall-timeout",server.client_blocked_by_flushall_timeout,1,LLONG_MAX) {
+    } config_set_numerical_field(
+        "client-blocked-by-migrate-dump-timeout",server.client_blocked_by_migrate_dump_timeout,1,LLONG_MAX) {
+    } config_set_numerical_field(
       "repl-backlog-ttl",server.repl_backlog_time_limit,0,LLONG_MAX) {
     } config_set_numerical_field(
       "repl-diskless-sync-delay",server.repl_diskless_sync_delay,0,LLONG_MAX) {
@@ -1283,6 +1299,8 @@ void configGetCommand(client *c) {
     config_get_numerical_field("repl-timeout",server.repl_timeout);
     config_get_numerical_field("visiting-ssdb-timeout",server.visiting_ssdb_timeout);
     config_get_numerical_field("client-blocked-by-keys-timeout",server.client_blocked_by_keys_timeout);
+    config_get_numerical_field("client-blocked-by-flushall-timeout",server.client_blocked_by_flushall_timeout);
+    config_get_numerical_field("client-blocked-by-migrate-dump-timeout",server.client_blocked_by_migrate_dump_timeout);
     config_get_numerical_field("repl-backlog-size",server.repl_backlog_size);
     config_get_numerical_field("repl-backlog-ttl",server.repl_backlog_time_limit);
     config_get_numerical_field("maxclients",server.maxclients);
@@ -2009,6 +2027,8 @@ int rewriteConfig(char *path) {
     rewriteConfigNumericalOption(state,"repl-timeout",server.repl_timeout,CONFIG_DEFAULT_REPL_TIMEOUT);
     rewriteConfigNumericalOption(state,"visiting-ssdb-timeout",server.visiting_ssdb_timeout,CONFIG_DEFAULT_VISITING_SSDB_TIMEOUT);
     rewriteConfigNumericalOption(state,"client-blocked-by-keys-timeout",server.client_blocked_by_keys_timeout,CONFIG_DEFAULT_VISITING_SSDB_TIMEOUT);
+    rewriteConfigNumericalOption(state,"client-blocked-by-flushall-timeout",server.client_blocked_by_flushall_timeout,CONFIG_DEFAULT_CLIENT_BLOCKED_BY_FLUSHALL_TIMEOUT);
+    rewriteConfigNumericalOption(state,"client-blocked-by-migrate-dump-timeout",server.client_blocked_by_migrate_dump_timeout,CONFIG_DEFAULT_CLIENT_BLOCKED_BY_MIGRATE_DUMP_TIMEOUT);
     rewriteConfigBytesOption(state,"repl-backlog-size",server.repl_backlog_size,CONFIG_DEFAULT_REPL_BACKLOG_SIZE);
     rewriteConfigBytesOption(state,"repl-backlog-ttl",server.repl_backlog_time_limit,CONFIG_DEFAULT_REPL_BACKLOG_TIME_LIMIT);
     rewriteConfigYesNoOption(state,"repl-disable-tcp-nodelay",server.repl_disable_tcp_nodelay,CONFIG_DEFAULT_REPL_DISABLE_TCP_NODELAY);
