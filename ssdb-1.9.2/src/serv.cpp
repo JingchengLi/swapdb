@@ -136,6 +136,7 @@ DEF_PROC(migrate);
 DEF_PROC(ssdb_scan);
 DEF_PROC(ssdb_dbsize);
 DEF_PROC(ssdb_sync);
+DEF_PROC(ssdb_sync2);
 
 DEF_PROC(redis_req_dump);
 DEF_PROC(redis_req_restore);
@@ -289,6 +290,7 @@ void SSDBServer::reg_procs(NetworkServer *net) {
     REG_PROC(ssdb_scan, "wt");
     REG_PROC(ssdb_dbsize, "wt");
     REG_PROC(ssdb_sync, "b");
+    REG_PROC(ssdb_sync2, "b");
 
     REG_PROC(rr_do_flushall, "wt");
     REG_PROC(rr_flushall_check, "wt");
@@ -1110,6 +1112,24 @@ int proc_ssdb_sync(Context &ctx, Link *link, const Request &req, Response *resp)
 
     pthread_t tid;
     int err = pthread_create(&tid, NULL, &ssdb_sync, job);
+    if (err != 0) {
+        log_fatal("can't create thread: %s", strerror(err));
+        exit(0);
+    }
+
+    resp->resp.clear(); //prevent send resp
+    return PROC_BACKEND;
+}
+
+int proc_ssdb_sync2(Context &ctx, Link *link, const Request &req, Response *resp){
+
+    log_info("ssdb_sync2 , link address:%lld", link);
+
+    ReplicationJob *job = new ReplicationByIterator(ctx, HostAndPort{link->remote_ip, link->remote_port}, link, true, true);
+//	net->replication->push(job);
+
+    pthread_t tid;
+    int err = pthread_create(&tid, NULL, &ssdb_sync2, job);
     if (err != 0) {
         log_fatal("can't create thread: %s", strerror(err));
         exit(0);

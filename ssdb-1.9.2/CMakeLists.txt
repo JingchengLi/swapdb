@@ -260,6 +260,7 @@ SET( SRC_OBJS
         src/replication.cpp
         src/replication2.cpp
         src/replication_slave.cpp
+        src/replication_slave2.cpp
         )
 
 ADD_EXECUTABLE(ssdb-server ${SRC_OBJS})

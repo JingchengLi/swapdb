@@ -23,6 +23,7 @@ const uint64_t MIN_PACKAGE_SIZE = 1024 * 1024;
 //#define REPLIC_NO_COMPRESS TRUE
 
 void *ssdb_sync(void *arg);
+void *ssdb_sync2(void *arg);
 
 int replic_decode_len(const char *data, int *offset, uint64_t *lenptr);
 std::string replic_save_len(uint64_t len);

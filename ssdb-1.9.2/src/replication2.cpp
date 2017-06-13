@@ -59,12 +59,12 @@ int ReplicationByIterator2::process() {
     }
 
     ssdb_slave_link->noblock(false);
-    ssdb_slave_link->send(std::vector<std::string>({"ssdb_sync"}));
+    ssdb_slave_link->send(std::vector<std::string>({"ssdb_sync2"}));
     ssdb_slave_link->write();
     ssdb_slave_link->response();
     ssdb_slave_link->noblock(true);
 
-    log_info("[ReplicationByIterator2] ssdb_sync done");
+    log_info("[ReplicationByIterator2] ssdb_sync2 done");
 
     log_debug("[ReplicationByIterator2] prepare for event loop");
     unique_ptr<Fdevents> fdes = unique_ptr<Fdevents>(new Fdevents());

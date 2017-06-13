@@ -13,13 +13,14 @@ extern "C" {
 }
 
 
-void *ssdb_sync(void *arg) {
+void *ssdb_sync2(void *arg) {
 
     ReplicationByIterator *job = (ReplicationByIterator *) arg;
     Context ctx = job->ctx;
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
     HostAndPort hnp = job->hnp;
     std::unique_ptr <Link>master_link(job->upstream); //job->upstream cannot be null !
+    std::future<int> bg;
 
     delete job;
 
@@ -267,7 +268,16 @@ void *ssdb_sync(void *arg) {
 
                     if (!kvs.empty()) {
                         log_debug("parse_replic count %d", kvs.size());
-                        errorCode = serv->ssdb->parse_replic(ctx, kvs);
+
+                        if (bg.valid()) {
+                            errorCode = bg.get();
+                        }
+
+                        bg = std::async(std::launch::async, [&serv, &ctx](std::vector<std::string> arr) {
+                            //serv is thread safe and ctx is readonly
+                            return serv->ssdb->parse_replic(ctx, arr);
+                        }, kvs);
+
                         kvs.clear();
                     }
 
@@ -291,6 +301,10 @@ void *ssdb_sync(void *arg) {
             break;
         }
 
+    }
+
+    if (bg.valid()) {
+        errorCode = bg.get();
     }
 
     if (!kvs.empty()) {
@@ -343,40 +357,3 @@ void *ssdb_sync(void *arg) {
     return (void *) NULL;
 }
 
-
-int replic_decode_len(const char *data, int *offset, uint64_t *lenptr) {
-    unsigned char buf[2];
-    buf[0] = (unsigned char) data[0];
-    buf[1] = (unsigned char) data[1];
-    int type;
-    type = (buf[0] & 0xC0) >> 6;
-    if (type == RDB_ENCVAL) {
-        /* Read a 6 bit encoding type. */
-        *lenptr = buf[0] & 0x3F;
-        *offset = 1;
-    } else if (type == RDB_6BITLEN) {
-        /* Read a 6 bit len. */
-        *lenptr = buf[0] & 0x3F;
-        *offset = 1;
-    } else if (type == RDB_14BITLEN) {
-        /* Read a 14 bit len. */
-        *lenptr = ((buf[0] & 0x3F) << 8) | buf[1];
-        *offset = 2;
-    } else if (buf[0] == RDB_32BITLEN) {
-        /* Read a 32 bit len. */
-        uint32_t len;
-        len = *(uint32_t *) (data + 1);
-        *lenptr = be32toh(len);
-        *offset = 1 + sizeof(uint32_t);
-    } else if (buf[0] == RDB_64BITLEN) {
-        /* Read a 64 bit len. */
-        uint64_t len;
-        len = *(uint64_t *) (data + 1);
-        *lenptr = be64toh(len);
-        *offset = 1 + sizeof(uint64_t);
-    } else {
-        printf("Unknown length encoding %d in rdbLoadLen()", type);
-        return -1; /* Never reached. */
-    }
-    return 0;
-}
