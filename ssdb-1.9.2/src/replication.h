@@ -93,7 +93,12 @@ public:
 
 
 class ReplicationByIterator3 : public ReplicationByIterator {
-    ReplicationByIterator3 () = default;
+public:
+    ReplicationByIterator3(const Context &ctx, const HostAndPort &hnp, Link *link, bool compress,
+                           bool heartbeat) : ReplicationByIterator(ctx, hnp, link, compress,
+                                                                   heartbeat) {
+    }
+
     ~ReplicationByIterator3 () = default;
 
     int process() override;

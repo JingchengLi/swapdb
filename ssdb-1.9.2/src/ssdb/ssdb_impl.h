@@ -98,6 +98,10 @@ public:
 		return ldb;
 	}
 
+	const string &getData_path() const {
+		return data_path;
+	}
+
 	int save();
 
 	ExpirationHandler *expiration;
