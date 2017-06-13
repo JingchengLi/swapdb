@@ -4004,7 +4004,7 @@ int processCommand(client *c) {
         if (ret == C_NOTSUPPORT_ERR) return C_OK;
         if (ret == C_ERR) {
             /* TODO: use a suitable timeout. */
-            c->bpop.timeout = 60000 + mstime();
+            c->bpop.timeout = server.client_blocked_by_migrate_timeout + mstime();
             blockClient(c, BLOCKED_MIGRATING_CLIENT);
             listAddNodeTail(server.delayed_migrate_clients, c);
             serverLog(LL_DEBUG, "client migrate list add: %ld", (long)c);

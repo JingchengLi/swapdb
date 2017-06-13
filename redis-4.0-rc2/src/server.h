@@ -199,6 +199,7 @@ typedef long long mstime_t; /* millisecond time type. */
 #define CONFIG_DEFAULT_CLIENT_BLOCKED_BY_KEYS_TIMEOUT 5000 /* Microseconds */
 #define CONFIG_DEFAULT_CLIENT_BLOCKED_BY_FLUSHALL_TIMEOUT 5000 /* Microseconds */
 #define CONFIG_DEFAULT_CLIENT_BLOCKED_BY_MIGRATE_DUMP_TIMEOUT 90000 /* Microseconds */
+#define CONFIG_DEFAULT_CLIENT_BLOCKED_BY_MIGRATE_TIMEOUT 5000 /* Microseconds */
 #define CONFIG_DEFAULT_SLAVE_BLOCKED_BY_FLUSHALL_TIMEOUT 8000 /* Microseconds */
 
 #define ACTIVE_EXPIRE_CYCLE_LOOKUPS_PER_LOOP 20 /* Loopkups per loop. */
@@ -1381,6 +1382,16 @@ struct redisServer {
     time_t ssdb_down_time;
     int slave_ssdb_critical_err_cnt;
     long long stat_keyspace_ssdb_hits;   /* Number of successful lookups of keys in SSDB. */
+#ifdef TEST_REPLICATION_STABLE
+    dict* zadd_keys;
+#endif
+
+    int visiting_ssdb_timeout;
+    int client_blocked_by_keys_timeout;
+    int client_blocked_by_flushall_timeout;
+    int client_blocked_by_migrate_dump_timeout;
+    int slave_blocked_by_flushall_timeout;
+    int client_blocked_by_migrate_timeout;
 };
 
 typedef struct pubsubPattern {
