@@ -20,6 +20,7 @@ void *ssdb_sync(void *arg) {
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
     HostAndPort hnp = job->hnp;
     std::unique_ptr <Link>master_link(job->upstream); //job->upstream cannot be null !
+    std::future<int> bg;
 
     delete job;
 
@@ -267,7 +268,16 @@ void *ssdb_sync(void *arg) {
 
                     if (!kvs.empty()) {
                         log_debug("parse_replic count %d", kvs.size());
-                        errorCode = serv->ssdb->parse_replic(ctx, kvs);
+
+                        if (bg.valid()) {
+                            errorCode = bg.get();
+                        }
+
+                        bg = std::async(std::launch::async, [&serv, &ctx](std::vector<std::string> arr) {
+                            //serv is thread safe and ctx is readonly
+                            return serv->ssdb->parse_replic(ctx, arr);
+                        }, kvs);
+
                         kvs.clear();
                     }
 
@@ -291,6 +301,10 @@ void *ssdb_sync(void *arg) {
             break;
         }
 
+    }
+
+    if (bg.valid()) {
+        errorCode = bg.get();
     }
 
     if (!kvs.empty()) {

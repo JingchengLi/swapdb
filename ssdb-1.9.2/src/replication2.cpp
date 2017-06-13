@@ -204,7 +204,7 @@ int ReplicationByIterator2::process() {
             }
         }
 
-        if (ssdb_slave_link->output->size() > 128 * 1024 * 1024) {
+        if (ssdb_slave_link->output->size() > MAX_PACKAGE_SIZE * 3) {
 //            uint s = uint(ssdb_slave_link->output->size() * 1.0 / (MIN_PACKAGE_SIZE * 1.0)) * 500;
             log_info("delay for output buffer write slow~");
             usleep(500);
