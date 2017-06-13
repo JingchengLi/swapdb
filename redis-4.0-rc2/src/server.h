@@ -203,6 +203,7 @@ int mockdictDelete(dict *ht, const void *key);
 
 /* jdjr-mode timeout configuration */
 #define CONFIG_DEFAULT_VISITING_SSDB_TIMEOUT 5000 /* Microseconds */
+#define CONFIG_DEFAULT_CLIENT_BLOCKED_BY_KEYS_TIMEOUT 5000 /* Microseconds */
 
 #define ACTIVE_EXPIRE_CYCLE_LOOKUPS_PER_LOOP 20 /* Loopkups per loop. */
 #define ACTIVE_EXPIRE_CYCLE_FAST_DURATION 1000 /* Microseconds */
@@ -1389,6 +1390,7 @@ struct redisServer {
 #endif
 
     int visiting_ssdb_timeout;
+    int client_blocked_by_keys_timeout;
 };
 
 typedef struct pubsubPattern {
