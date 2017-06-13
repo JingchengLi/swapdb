@@ -4,6 +4,7 @@ import unittest
 import redis
 import time
 import sys
+from random import randint
 
 class RedisPool:
     def Redis_Pool(self,ClientHost="localhost",ClientPort=sys.argv[1],ClientDb=0):
@@ -55,7 +56,6 @@ class TestPipeline(unittest.TestCase):
 
         #  bytesForSetRange = [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 ]
         #  self.R.setrange("setrangebytes".getBytes(), 0, bytesForSetRange);
-
         with r.pipeline(False) as pipe:
             pipe.get("stringkey")
             pipe.lpop("listkey")
@@ -166,6 +166,35 @@ class TestPipeline(unittest.TestCase):
             self.assertRaises(redis.ResponseError, pipe.execute)
             # make sure the pipe was restored to a working state
             assert pipe.set('z', 'zzz').execute() == [True]
+
+    def test_long_pipe(self, r=RedisPool().Redis_Pool()):
+        base=2000
+        with r.pipeline(False) as pipe:
+            for n in range(10*base):
+                pipe.set("key"+str(n), "foo"+str(n))
+                if(0 == n%10):
+                    pipe.delete("key"+str(n))
+                if(randint(1,10) < 5):
+                    pipe.execute_command("storetossdb "+"key"+str(n))
+            result = pipe.execute()
+
+        with r.pipeline(False) as pipe:
+            for n in range(10*base):
+                if(0 == n%8):
+                    pipe.set("key"+str(n), str(n)+"foo")
+                pipe.get("key"+str(n))
+            result = pipe.execute()
+
+        m=0
+        for n in range(10*base):
+            if(0 == n%8):
+                self.assertEqual(True, result[n+m])
+                m+=1
+                self.assertEqual(str(n)+"foo", result[n+m])
+            elif(0 == n%10):
+                self.assertEqual(None, result[n+m])
+            else:
+                self.assertEqual("foo"+str(n), result[n+m])
 
 suite = unittest.TestLoader().loadTestsFromTestCase(TestPipeline)
 unittest.TextTestRunner(verbosity=2).run(suite)

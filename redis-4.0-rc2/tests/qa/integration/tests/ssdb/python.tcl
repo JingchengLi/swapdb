@@ -16,7 +16,8 @@ start_server {tags {"ssdb"} } {
     } {PONG}
 }
 
-start_server {tags {"ssdb"} } {
+start_server {tags {"ssdb"}
+overrides {maxmemory 0}} {
     test "test_pipeline by python" {
         set port [srv port]
         set pipeline [regsub -all {stdout} [ srv 0 stdout ] pipeline]
