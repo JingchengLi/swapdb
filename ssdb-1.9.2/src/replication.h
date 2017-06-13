@@ -60,6 +60,8 @@ public:
         ReplicationJob::upstream = link;
     }
 
+    ReplicationByIterator();
+
     ~ReplicationByIterator() override = default;
     void reportError();
     int process() override;
@@ -89,5 +91,12 @@ public:
 
 };
 
+
+class ReplicationByIterator3 : public ReplicationByIterator {
+    ReplicationByIterator3 () = default;
+    ~ReplicationByIterator3 () = default;
+
+    int process() override;
+};
 
 #endif //SSDB_REPLICATION_H

@@ -346,6 +346,7 @@ void ReplicationByIterator::reportError() {
     upstream = nullptr; //reset
 }
 
+
 void send_error_to_redis(Link *link) {
     if (link != nullptr) {
         link->quick_send({"ok", "rr_transfer_snapshot unfinished"});
