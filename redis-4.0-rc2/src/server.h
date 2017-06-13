@@ -195,7 +195,7 @@ typedef long long mstime_t; /* millisecond time type. */
 #define CONFIG_DEFAULT_ALWAYS_SHOW_LOGO 0
 
 /* jdjr-mode timeout configuration */
-#define CONFIG_DEFAULT_VISITING_SSDB_TIMEOUT 5000 /* Microseconds */
+#define CONFIG_DEFAULT_CLIENT_VISITING_SSDB_TIMEOUT 5000 /* Microseconds */
 #define CONFIG_DEFAULT_CLIENT_BLOCKED_BY_KEYS_TIMEOUT 5000 /* Microseconds */
 #define CONFIG_DEFAULT_CLIENT_BLOCKED_BY_FLUSHALL_TIMEOUT 5000 /* Microseconds */
 #define CONFIG_DEFAULT_CLIENT_BLOCKED_BY_MIGRATE_DUMP_TIMEOUT 90000 /* Microseconds */
@@ -1387,7 +1387,7 @@ struct redisServer {
     dict* zadd_keys;
 #endif
 
-    int visiting_ssdb_timeout;
+    int client_visiting_ssdb_timeout;
     int client_blocked_by_keys_timeout;
     int client_blocked_by_flushall_timeout;
     int client_blocked_by_migrate_dump_timeout;
