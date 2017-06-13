@@ -75,6 +75,10 @@ public:
 
     std::future<CompressResult> bg;
 
+
+    std::unique_ptr<Buffer> buffer = std::unique_ptr<Buffer>(new Buffer(1024 * 1024));
+
+
 };
 
 

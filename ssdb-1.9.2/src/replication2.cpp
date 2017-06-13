@@ -77,7 +77,6 @@ int ReplicationByIterator2::process() {
     ready_list_t ready_list_2;
     ready_list_t::iterator it;
 
-    std::unique_ptr<Buffer> buffer = std::unique_ptr<Buffer>(new Buffer(1024 * 1024));
 
     int64_t start = time_ms();
 
