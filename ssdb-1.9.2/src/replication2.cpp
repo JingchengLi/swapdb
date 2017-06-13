@@ -15,7 +15,8 @@ extern "C" {
 
 static void send_error_to_redis(Link *link);
 
-static void moveBuffer(Buffer *dst, Buffer *src, bool compress);
+static void moveBufferSync(Buffer *dst, Buffer *src, bool compress);
+static void moveBufferAsync(ReplicationByIterator2* job, Buffer *dst, Buffer *src, bool compress);
 
 static void saveStrToBuffer(Buffer *buffer, const Bytes &fit);
 
@@ -28,7 +29,7 @@ int ReplicationByIterator2::process() {
     Link *master_link = upstream;
     const leveldb::Snapshot *snapshot = nullptr;
 
-    log_info("[ReplicationWorker] send snapshot to %s start!", hnp.String().c_str());
+    log_info("[ReplicationByIterator2] send snapshot to %s start!", hnp.String().c_str());
     {
         Locking<Mutex> l(&serv->replicState.rMutex);
         snapshot = serv->replicState.rSnapshot;
@@ -63,8 +64,9 @@ int ReplicationByIterator2::process() {
     ssdb_slave_link->response();
     ssdb_slave_link->noblock(true);
 
+    log_info("[ReplicationByIterator2] ssdb_sync done");
 
-    log_debug("[ReplicationWorker] prepare for event loop");
+    log_debug("[ReplicationByIterator2] prepare for event loop");
     unique_ptr<Fdevents> fdes = unique_ptr<Fdevents>(new Fdevents());
 
     fdes->set(master_link->fd(), FDEVENT_IN, 1, master_link); //open evin
@@ -202,7 +204,7 @@ int ReplicationByIterator2::process() {
             }
         }
 
-        if (ssdb_slave_link->output->size() > MAX_PACKAGE_SIZE) {
+        if (ssdb_slave_link->output->size() > 128 * 1024 * 1024) {
 //            uint s = uint(ssdb_slave_link->output->size() * 1.0 / (MIN_PACKAGE_SIZE * 1.0)) * 500;
             log_info("delay for output buffer write slow~");
             usleep(500);
@@ -232,27 +234,39 @@ int ReplicationByIterator2::process() {
 
 
             if (buffer->size() > packageSize) {
-                saveStrToBuffer(ssdb_slave_link->output, "mset");
                 rawBytes += buffer->size();
-                moveBuffer(ssdb_slave_link->output, buffer.get(), compress);
-                int len = ssdb_slave_link->write();
-                if (len > 0) { sendBytes = sendBytes + len; }
+
+                moveBufferAsync(this, ssdb_slave_link->output, buffer.get(), compress);
+//                moveBufferSync(ssdb_slave_link->output, buffer.get(), compress);
+
+
+                if (!ssdb_slave_link->output->empty()) {
+                    int len = ssdb_slave_link->write();
+                    if (len > 0) { sendBytes = sendBytes + len; }
+                }
 
                 if (!ssdb_slave_link->output->empty()) {
                     fdes->set(ssdb_slave_link->fd(), FDEVENT_OUT, 1, ssdb_slave_link);
                 }
+
+
                 finish = false;
                 break;
             }
         }
 
         if (finish) {
+            moveBufferAsync(this, ssdb_slave_link->output, nullptr, compress);
+
             if (!buffer->empty()) {
-                saveStrToBuffer(ssdb_slave_link->output, "mset");
                 rawBytes += buffer->size();
-                moveBuffer(ssdb_slave_link->output, buffer.get(), compress);
-                int len = ssdb_slave_link->write();
-                if (len > 0) { sendBytes = sendBytes + len; }
+
+                moveBufferSync(ssdb_slave_link->output, buffer.get(), compress);
+
+                if (!ssdb_slave_link->output->empty()) {
+                    int len = ssdb_slave_link->write();
+                    if (len > 0) { sendBytes = sendBytes + len; }
+                }
 
                 if (!ssdb_slave_link->output->empty()) {
                     fdes->set(ssdb_slave_link->fd(), FDEVENT_OUT, 1, ssdb_slave_link);
@@ -308,7 +322,7 @@ int ReplicationByIterator2::process() {
 
     if (transFailed) {
         reportError();
-        log_info("[ReplicationWorker] send snapshot to %s failed!!!!", hnp.String().c_str());
+        log_info("[ReplicationByIterator2] send snapshot to %s failed!!!!", hnp.String().c_str());
         log_debug("send rr_transfer_snapshot failed!!");
         delete ssdb_slave_link;
         return -1;
@@ -320,10 +334,10 @@ int ReplicationByIterator2::process() {
         serv->replicState.finishReplic(true);
     }
 
-    log_info("[ReplicationWorker] send snapshot to %s finished!", hnp.String().c_str());
+    log_info("[ReplicationByIterator2] send snapshot to %s finished!", hnp.String().c_str());
     log_debug("send rr_transfer_snapshot finished!!");
     log_info("replic procedure finish!");
-    log_info("[ReplicationWorker] task stats : dataSize %s, sendByes %s, elapsed %s",
+    log_info("[ReplicationByIterator2] task stats : dataSize %s, sendByes %s, elapsed %s",
              bytesToHuman(rawBytes).c_str(),
              bytesToHuman(sendBytes).c_str(),
              timestampToHuman((time_ms() - start)).c_str()
@@ -348,7 +362,7 @@ void saveStrToBuffer(Buffer *buffer, const Bytes &fit) {
     buffer->append(fit);
 }
 
-void moveBuffer(Buffer *dst, Buffer *src, bool compress) {
+void moveBufferSync(Buffer *dst, Buffer *src, bool compress) {
 
     size_t comprlen = 0, outlen = (size_t) src->size();
 
@@ -376,6 +390,7 @@ void moveBuffer(Buffer *dst, Buffer *src, bool compress) {
     comprlen = 0;
 #endif
 
+    saveStrToBuffer(dst, "mset");
     dst->append(replic_save_len((uint64_t) src->size()));
     dst->append(replic_save_len(comprlen));
 
@@ -387,4 +402,74 @@ void moveBuffer(Buffer *dst, Buffer *src, bool compress) {
 
     src->decr(src->size());
     src->nice();
+}
+
+void moveBufferAsync(ReplicationByIterator2* job, Buffer *dst, Buffer *input, bool compress) {
+    if (!compress) {
+        return moveBufferSync(dst, input, false);
+    }
+
+    if (job->bg.valid()) {
+        CompressResult buf = job->bg.get();
+        auto out = buf.out;
+        auto in = buf.in;
+        auto comprlen = buf.comprlen;
+
+        saveStrToBuffer(dst, "mset");
+        dst->append(replic_save_len((uint64_t) in->size()));
+        dst->append(replic_save_len(comprlen));
+
+        if (comprlen == 0) {
+            dst->append(in->data(), in->size());
+        } else {
+            dst->append(out->data(), (int) comprlen);
+        }
+
+        delete buf.out;
+        delete buf.in;
+    }
+
+
+    if (input != nullptr) {
+        auto copy = new Buffer(input->size());
+        copy->append(input->data(), input->size());
+        input->decr(input->size());
+        input->nice();
+
+        job->bg = std::async(std::launch::async, [](Buffer *b)  {
+            CompressResult compressResult;
+            compressResult.in = b;
+            compressResult.out = new Buffer(4096);
+
+            auto src = compressResult.in;
+
+            size_t comprlen = 0, outlen = (size_t) src->size();
+
+            /**
+             * when src->size() is small , comprlen may longer than outlen , which cause lzf_compress failed
+             * and lzf_compress return 0 , so :so
+             * 1. incr outlen too prevent compress failure
+             * 2. if comprlen is zero , we copy raw data and will not uncompress on salve
+             *
+             */
+            if (outlen < 100) {
+                outlen = 1024;
+            }
+
+            std::unique_ptr<void, cfree_delete<void>> out(malloc(outlen + 1));
+
+            comprlen = lzf_compress(src->data(), (unsigned int) src->size(), out.get(), outlen);
+
+            if (comprlen == 0) {
+//                compressResult.in->append(src->data(), src->size());
+            } else {
+                compressResult.out->append(out.get(), (int) comprlen);
+            }
+
+            compressResult.comprlen = comprlen;
+
+            return compressResult;
+        }, copy);
+    }
+
 }

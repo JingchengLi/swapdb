@@ -14,6 +14,7 @@ extern "C" {
 
 
 void *ssdb_sync(void *arg) {
+
     ReplicationByIterator *job = (ReplicationByIterator *) arg;
     Context ctx = job->ctx;
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
@@ -156,7 +157,7 @@ void *ssdb_sync(void *arg) {
             if (link->error()) {
                 log_warn("fd: %d, link broken, address:%lld", link->fd(), link);
                 //TODO
-                errorCode = -1;
+                errorCode = -2;
                 break;
             }
 
@@ -168,7 +169,7 @@ void *ssdb_sync(void *arg) {
 
                 if (replic_decode_len(decoder.data(), &oper_offset, &oper_len) == -1) {
                     log_error("replic_decode_len error :  oper_offset %d, oper_len %d", oper_offset, oper_len);
-                    errorCode = -1;
+                    errorCode = -3;
                     break;
                 }
 
@@ -194,7 +195,7 @@ void *ssdb_sync(void *arg) {
                         break;
                     }
                     if (replic_decode_len(decoder.data(), &raw_size_offset, &raw_len) == -1) {
-                        errorCode = -1;
+                        errorCode = -3;
                         break;
                     }
                     decoder.skip(raw_size_offset);
@@ -204,7 +205,7 @@ void *ssdb_sync(void *arg) {
                         break;
                     }
                     if (replic_decode_len(decoder.data(), &compressed_offset, &compressed_len) == -1) {
-                        errorCode = -1;
+                        errorCode = -3;
                         break;
                     }
                     decoder.skip(compressed_offset);
@@ -227,7 +228,7 @@ void *ssdb_sync(void *arg) {
                         compressed_len = raw_len;
                     } else {
                         if (lzf_decompress(decoder.data(), compressed_len, t_val.get(), raw_len) == 0) {
-                            errorCode = -1;
+                            errorCode = -4;
                             break;;
                         }
                     }
@@ -240,7 +241,7 @@ void *ssdb_sync(void *arg) {
                         uint64_t key_len = 0, val_len = 0;
 
                         if (replic_decode_len(decoder_item.data(), &key_offset, &key_len) == -1) {
-                            errorCode = -1;
+                            errorCode = -3;
                             break;
                         }
                         decoder_item.skip(key_offset);
@@ -249,7 +250,7 @@ void *ssdb_sync(void *arg) {
                         remian_length -= (key_offset + (int) key_len);
 
                         if (replic_decode_len(decoder_item.data(), &val_offset, &val_len) == -1) {
-                            errorCode = -1;
+                            errorCode = -3;
                             break;
                         }
                         decoder_item.skip(val_offset);
@@ -276,7 +277,7 @@ void *ssdb_sync(void *arg) {
                 } else {
                     //TODO 处理遇到的 oper_len == 0 ???
                     log_error("unknown oper code %s", hexstr(oper).c_str());
-                    errorCode = -1;
+                    errorCode = -5;
                     break;
                 }
             }

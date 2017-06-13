@@ -14,6 +14,8 @@
 #include <net/redis/redis_client.h>
 #include <common/context.hpp>
 #include <net/worker.h>
+#include <thread>
+#include <future>
 
 const uint64_t MAX_PACKAGE_SIZE = 8 * 1024 * 1024;
 const uint64_t MIN_PACKAGE_SIZE = 1024 * 1024;
@@ -24,6 +26,16 @@ void *ssdb_sync(void *arg);
 
 int replic_decode_len(const char *data, int *offset, uint64_t *lenptr);
 std::string replic_save_len(uint64_t len);
+
+
+
+class CompressResult {
+public:
+    Buffer* in = nullptr;
+    Buffer* out = nullptr;
+    size_t comprlen = 0;
+};
+
 
 
 class ReplicationByIterator : public ReplicationJob {
@@ -60,9 +72,9 @@ public:
     ~ReplicationByIterator2() override = default;
     int process() override;
 
+    std::future<CompressResult> bg;
+
 };
-
-
 
 
 #endif //SSDB_REPLICATION_H
