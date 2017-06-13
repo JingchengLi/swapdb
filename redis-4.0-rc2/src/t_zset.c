@@ -1628,11 +1628,6 @@ void zaddGenericCommand(client *c, int flags) {
         score = newscore;
     }
     server.dirty += (added+updated);
-#ifdef TEST_REPLICATION_STABLE
-    if (added+updated)
-        dictAddOrFind(server.zadd_keys, c->argv[1]->ptr);
-#endif
-
 reply_to_client:
     if (incr) { /* ZINCRBY or INCR option. */
         if (processed)

@@ -2472,9 +2472,6 @@ void initServer(void) {
         server.ssdbargvlen = zmalloc(sizeof(size_t) * SSDB_CMD_DEFAULT_MAX_ARGC);
 
         server.loadAndEvictCmdDict = dictCreate(&keyDictType,NULL);
-#ifdef TEST_REPLICATION_STABLE
-        server.zadd_keys = dictCreate(&keyDictType,NULL);
-#endif
 
         server.delayed_migrate_clients = listCreate();
 
@@ -3693,17 +3690,6 @@ int runCommandReplicationConn(client *c, listNode* writeop_ln) {
 
     return C_OK;
 }
-
-#ifdef TEST_REPLICATION_STABLE
-int debugdictDelete(dict *ht, const void *key) {
-    if (server.masterhost && server.db->dict == ht && dictFind(server.zadd_keys, key)) {
-        serverLog(LL_DEBUG, "dictDelete key: %s", (char*)key);
-        debugBT();
-        dictDelete(server.zadd_keys, key);
-    }
-    return mockdictDelete(ht,key);
-}
-#endif
 
 int runCommand(client *c) {
     int ret;

@@ -98,15 +98,8 @@ typedef long long mstime_t; /* millisecond time type. */
 /* Macros for jdjr test cases */
 //#define TEST_CLIENT_BUF
 //#define TEST_TIME_CONSUMPTION
-//#define TEST_REPLICATION_STABLE
 //#define TEST_SLAVE_NO_TRANSFER
 
-#ifdef TEST_REPLICATION_STABLE
-int debugdictDelete(dict *ht, const void *key);
-int mockdictDelete(dict *ht, const void *key);
-
-#define dictDelete  debugdictDelete
-#endif
 
 /* is_allow_ssdb_write codes */
 #define ALLOW_SSDB_WRITE 1
@@ -1388,15 +1381,6 @@ struct redisServer {
     time_t ssdb_down_time;
     int slave_ssdb_critical_err_cnt;
     long long stat_keyspace_ssdb_hits;   /* Number of successful lookups of keys in SSDB. */
-#ifdef TEST_REPLICATION_STABLE
-    dict* zadd_keys;
-#endif
-
-    int visiting_ssdb_timeout;
-    int client_blocked_by_keys_timeout;
-    int client_blocked_by_flushall_timeout;
-    int client_blocked_by_migrate_dump_timeout;
-    int slave_blocked_by_flushall_timeout;
 };
 
 typedef struct pubsubPattern {
