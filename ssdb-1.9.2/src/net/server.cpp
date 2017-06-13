@@ -399,7 +399,6 @@ void NetworkServer::serve(){
                     exit(0);
                 }
 
-				HostAndPort hnp = job->hnp;
 				Link *master_link = job->upstream;
                 if (master_link != nullptr){
 					log_debug("before send finish rr_link address:%lld", master_link);

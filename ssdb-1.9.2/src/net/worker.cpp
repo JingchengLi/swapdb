@@ -6,7 +6,6 @@ found in the LICENSE file.
 #include <net/redis/reponse_redis.h>
 #include "worker.h"
 #include "link.h"
-#include "proc.h"
 #include "../util/log.h"
 #include "../include.h"
 
@@ -77,4 +76,14 @@ int ProcWorker::proc(ProcJob *job){
 	}
 
 	return 0;
+}
+
+
+
+void ReplicationWorker::init(){
+	log_debug("%s %d init", this->name.c_str(), this->id);
+}
+
+int ReplicationWorker::proc(ReplicationJob *job) {
+	return job->process();
 }

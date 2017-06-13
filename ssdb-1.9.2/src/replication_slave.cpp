@@ -14,7 +14,7 @@ extern "C" {
 
 
 void *ssdb_sync(void *arg) {
-    ReplicationJob *job = (ReplicationJob *) arg;
+    ReplicationByIterator *job = (ReplicationByIterator *) arg;
     Context ctx = job->ctx;
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
     HostAndPort hnp = job->hnp;
@@ -313,7 +313,7 @@ void *ssdb_sync(void *arg) {
 
     if (errorCode != 0) {
         master_link->quick_send({"error", "recieve snapshot failed!"});
-        log_error("[ssdb_sync] recieve snapshot from %s:%d failed!, err: %d", hnp.ip.c_str(), hnp.port, errorCode);
+        log_error("[ssdb_sync] recieve snapshot from %s failed!, err: %d", hnp.String().c_str(), errorCode);
 
         if (job->heartbeat) {
             std::unique_ptr<RedisResponse> t_res(redisUpstream.sendCommand({"ssdb-notify-redis", "transfer", "unfinished"}));
@@ -323,7 +323,7 @@ void *ssdb_sync(void *arg) {
         }
     } else {
         master_link->quick_send({"ok", "recieve snapshot finished"});
-        log_info("[ssdb_sync] recieve snapshot from %s:%d finished!", hnp.ip.c_str(), hnp.port);
+        log_info("[ssdb_sync] recieve snapshot from %s finished!", hnp.String().c_str());
 
         if (job->heartbeat) {
             std::unique_ptr<RedisResponse> t_res(redisUpstream.sendCommand({"ssdb-notify-redis", "transfer", "finished"}));

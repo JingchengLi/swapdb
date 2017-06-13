@@ -618,7 +618,23 @@ int RedisLink::send_resp(Buffer *output, const std::vector<std::string> &resp){
 	}
 	
 	// not supported command
-	if(req_desc == NULL || req_desc->reply_type == REPLY_INFO){
+	if(req_desc == NULL){
+		{
+			char buf[32];
+			snprintf(buf, sizeof(buf), "*%d\r\n", (int)resp.size() - 1);
+			output->append(buf);
+		}
+		for(int i=1; i<resp.size(); i++){
+			const std::string &val = resp[i];
+			char buf[32];
+			snprintf(buf, sizeof(buf), "$%d\r\n", (int)val.size());
+			output->append(buf);
+			output->append(val.data(), val.size());
+			output->append("\r\n");
+		}
+		return 0;
+	}
+	if(req_desc->reply_type == REPLY_INFO){
 
 		std::string tmp;
 		for(int i=1; i<resp.size(); i++){
@@ -635,7 +651,6 @@ int RedisLink::send_resp(Buffer *output, const std::vector<std::string> &resp){
 
 		return 0;
 	}
-	
 	if(req_desc->strategy == STRATEGY_PING){
 		output->append("+PONG\r\n");
 		return 0;

@@ -42,6 +42,13 @@ public:
         port = 0;
         ip = "";
     }
+
+    std::string String() {
+        std::stringstream stream;
+        stream << ip << ":" << port;
+
+        return stream.str();
+    }
 };
 
 

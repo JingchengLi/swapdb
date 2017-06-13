@@ -15,7 +15,6 @@ found in the LICENSE file.
 #include "proc.h"
 #include "worker.h"
 #include "redis/transfer.h"
-#include "replication.h"
 
 class Link;
 class Config;

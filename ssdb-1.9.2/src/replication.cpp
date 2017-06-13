@@ -19,33 +19,21 @@ void moveBuffer(Buffer *dst, Buffer *src, bool compress);
 
 void saveStrToBuffer(Buffer *buffer, const Bytes &fit);
 
-ReplicationWorker::ReplicationWorker(const std::string &name) {
-    this->name = name;
-}
 
-ReplicationWorker::~ReplicationWorker() {
+int ReplicationByIterator::process() {
 
-}
-
-void ReplicationWorker::init() {
-    log_debug("%s %d init", this->name.c_str(), this->id);
-}
-
-int ReplicationWorker::proc(ReplicationJob *job) {
-
-    SSDBServer *serv = (SSDBServer *) job->ctx.net->data;
-    HostAndPort hnp = job->hnp;
-    Link *master_link = job->upstream;
+    SSDBServer *serv = (SSDBServer *) ctx.net->data;
+    Link *master_link = upstream;
     const leveldb::Snapshot *snapshot = nullptr;
 
-    log_info("[ReplicationWorker] send snapshot to %s:%d start!", hnp.ip.c_str(), hnp.port);
+    log_info("[ReplicationWorker] send snapshot to %s start!", hnp.String().c_str());
     {
         Locking<Mutex> l(&serv->replicState.rMutex);
         snapshot = serv->replicState.rSnapshot;
 
         if (snapshot == nullptr) {
             log_error("snapshot is null, maybe rr_make_snapshot not receive or error!");
-            reportError(job);
+            reportError();
             return -1;
         }
     }
@@ -59,10 +47,10 @@ int ReplicationWorker::proc(ReplicationJob *job) {
 
     Link *ssdb_slave_link = Link::connect((hnp.ip).c_str(), hnp.port);
     if (ssdb_slave_link == nullptr) {
-        log_error("fail to connect to slave ssdb! ip[%s] port[%d]", hnp.ip.c_str(), hnp.port);
+        log_error("fail to connect to slave ssdb %s!", hnp.String().c_str());
         log_debug("replic send snapshot failed!");
 
-        reportError(job);
+        reportError();
 
         return -1;
     }
@@ -99,13 +87,13 @@ int ReplicationWorker::proc(ReplicationJob *job) {
 
 
     int64_t lastHeartBeat = time_ms();
-    while (!job->quit) {
+    while (!quit) {
         ready_list.swap(ready_list_2);
         ready_list_2.clear();
 
         int64_t ts = time_ms();
 
-        if (job->heartbeat) {
+        if (heartbeat) {
             if ((ts - lastHeartBeat) > 5000) {
                 if (!master_link->output->empty()) {
                     log_debug("master_link->output not empty , redis may blocked ?");
@@ -133,7 +121,7 @@ int ReplicationWorker::proc(ReplicationJob *job) {
         if (events == nullptr) {
             log_fatal("events.wait error: %s", strerror(errno));
 
-            reportError(job);
+            reportError();
             delete ssdb_slave_link;
 
             return -1;
@@ -199,7 +187,7 @@ int ReplicationWorker::proc(ReplicationJob *job) {
 
                 delete ssdb_slave_link;
                 delete master_link;
-                job->upstream = nullptr;
+                upstream = nullptr;
 
                 {
                     //update replic stats
@@ -244,7 +232,7 @@ int ReplicationWorker::proc(ReplicationJob *job) {
             if (buffer->size() > packageSize) {
                 saveStrToBuffer(ssdb_slave_link->output, "mset");
                 rawBytes += buffer->size();
-                moveBuffer(ssdb_slave_link->output, buffer.get(), job->needCompress());
+                moveBuffer(ssdb_slave_link->output, buffer.get(), needCompress());
                 int len = ssdb_slave_link->write();
                 if (len > 0) { sendBytes = sendBytes + len; }
 
@@ -260,7 +248,7 @@ int ReplicationWorker::proc(ReplicationJob *job) {
             if (!buffer->empty()) {
                 saveStrToBuffer(ssdb_slave_link->output, "mset");
                 rawBytes += buffer->size();
-                moveBuffer(ssdb_slave_link->output, buffer.get(), job->needCompress());
+                moveBuffer(ssdb_slave_link->output, buffer.get(), needCompress());
                 int len = ssdb_slave_link->write();
                 if (len > 0) { sendBytes = sendBytes + len; }
 
@@ -302,11 +290,11 @@ int ReplicationWorker::proc(ReplicationJob *job) {
             }
 
             std::string ret;
-            for (int i = 0; i < res->size(); ++i) {
-                std::string h = hexmem((*res)[i].data(), (*res)[i].size());
+            for_each(res->begin(), res->end(), [&ret](const Bytes &h) {
                 ret.append(" ");
-                ret.append(h);
-            }
+                ret.append(hexstr(h));
+            });
+
             log_debug("%s~", ret.c_str());
 
         } else {
@@ -317,8 +305,8 @@ int ReplicationWorker::proc(ReplicationJob *job) {
 
 
     if (transFailed) {
-        reportError(job);
-        log_info("[ReplicationWorker] send snapshot to %s:%d failed!!!!", hnp.ip.c_str(), hnp.port);
+        reportError();
+        log_info("[ReplicationWorker] send snapshot to %s failed!!!!", hnp.String().c_str());
         log_debug("send rr_transfer_snapshot failed!!");
         delete ssdb_slave_link;
         return -1;
@@ -330,7 +318,7 @@ int ReplicationWorker::proc(ReplicationJob *job) {
         serv->replicState.finishReplic(true);
     }
 
-    log_info("[ReplicationWorker] send snapshot to %s:%d finished!", hnp.ip.c_str(), hnp.port);
+    log_info("[ReplicationWorker] send snapshot to %s finished!", hnp.String().c_str());
     log_debug("send rr_transfer_snapshot finished!!");
     log_info("replic procedure finish!");
     log_info("[ReplicationWorker] task stats : dataSize %s, sendByes %s, elapsed %s",
@@ -343,18 +331,18 @@ int ReplicationWorker::proc(ReplicationJob *job) {
 
 }
 
-void ReplicationWorker::reportError(ReplicationJob *job) {
-    send_error_to_redis(job->upstream);
-    SSDBServer *serv = (SSDBServer *) job->ctx.net->data;
+
+void ReplicationByIterator::reportError() {
+    send_error_to_redis(upstream);
+    SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
     {
         Locking<Mutex> l(&serv->replicState.rMutex);
         serv->replicState.finishReplic(false);
     }
-    delete job->upstream;
-    job->upstream = nullptr; //reset
+    delete upstream;
+    upstream = nullptr; //reset
 }
-
 
 void send_error_to_redis(Link *link) {
     if (link != nullptr) {

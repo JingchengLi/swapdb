@@ -11,7 +11,7 @@ found in the LICENSE file.
 #include "net/proc.h"
 #include "net/server.h"
 #include "replication.h"
-# include <sys/utsname.h>
+#include <sys/utsname.h>
 
 extern "C" {
 #include "redis/zmalloc.h"
@@ -891,7 +891,7 @@ int proc_replic(Context &ctx, Link *link, const Request &req, Response *resp) {
         serv->replicState.startReplic();
     }
 
-    ReplicationJob *job = new ReplicationJob(ctx, HostAndPort{ip, port}, link, serv->opt.transfer_compression, false);
+    ReplicationJob *job = new ReplicationByIterator(ctx, HostAndPort{ip, port}, link, serv->opt.transfer_compression, false);
 
     ctx.net->replication->push(job);
 
@@ -992,7 +992,7 @@ int proc_rr_transfer_snapshot(Context &ctx, Link *link, const Request &req, Resp
 
     link->quick_send({"ok","rr_transfer_snapshot ok"});
 
-    ReplicationJob *job = new ReplicationJob(ctx, HostAndPort{ip, port}, link, serv->opt.transfer_compression, true);
+    ReplicationJob *job = new ReplicationByIterator(ctx, HostAndPort{ip, port}, link, serv->opt.transfer_compression, true);
     ctx.net->replication->push(job);
 
     resp->resp.clear(); //prevent send resp
@@ -1105,7 +1105,7 @@ int proc_ssdb_sync(Context &ctx, Link *link, const Request &req, Response *resp)
 
     log_info("ssdb_sync , link address:%lld", link);
 
-    ReplicationJob *job = new ReplicationJob(ctx, HostAndPort{link->remote_ip, link->remote_port}, link, true, true);
+    ReplicationJob *job = new ReplicationByIterator(ctx, HostAndPort{link->remote_ip, link->remote_port}, link, true, true);
 //	net->replication->push(job);
 
     pthread_t tid;

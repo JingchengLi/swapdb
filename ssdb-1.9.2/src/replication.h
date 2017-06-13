@@ -13,6 +13,7 @@
 #include <util/thread.h>
 #include <net/redis/redis_client.h>
 #include <common/context.hpp>
+#include <net/worker.h>
 
 const uint64_t MAX_PACKAGE_SIZE = 8 * 1024 * 1024;
 const uint64_t MIN_PACKAGE_SIZE = 1024 * 1024;
@@ -25,49 +26,38 @@ int replic_decode_len(const char *data, int *offset, uint64_t *lenptr);
 std::string replic_save_len(uint64_t len);
 
 
-class SSDBServer;
-
-class ReplicationJob {
+class ReplicationByIterator : public ReplicationJob {
 public:
-    Context ctx;
-    HostAndPort hnp;
-    Link *upstream;
-
     int64_t ts;
 
-    bool heartbeat;
+    HostAndPort hnp;
 
+    bool heartbeat = false;
     volatile bool quit = false;
 
-    ReplicationJob(const Context& ctx, const HostAndPort& hnp, Link *link, bool compress, bool heartbeat) :
-            ctx(ctx), hnp(hnp), upstream(link), heartbeat(heartbeat), compress(compress) {
+    ReplicationByIterator(const Context &ctx, const HostAndPort &hnp, Link *link, bool compress, bool heartbeat) :
+            hnp(hnp), heartbeat(heartbeat), compress(compress) {
         ts = time_ms();
+
+        ReplicationJob::ctx = ctx;
+        ReplicationJob::upstream = link;
     }
+
+    ~ReplicationByIterator() = default;
 
     bool compress = true;
 
-    bool needCompress() const {
+    bool needCompress() const override {
         return compress;
     }
 
+    void reportError();
+
+    int process() override;
+
+
 };
 
-class ReplicationWorker : public WorkerPool<ReplicationWorker, ReplicationJob *>::Worker {
-public:
 
-    ReplicationWorker(const std::string &name);
-
-    void init();
-
-    int proc(ReplicationJob *job);
-
-    virtual ~ReplicationWorker();
-
-private:
-
-    void reportError(ReplicationJob *job);
-};
-
-typedef WorkerPool<ReplicationWorker, ReplicationJob *> ReplicationWorkerPool;
 
 #endif //SSDB_REPLICATION_H
