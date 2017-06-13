@@ -3000,6 +3000,9 @@ int blockAndFlushSlaveSSDB(client* c, struct ssdb_write_op* slave_retry_write) {
     if (ret != C_OK) return ret;
     serverLog(LL_DEBUG, "send rr_do_flushall ok");
 
+    /* we just wait flushall done. */
+    c->bpop.timeout = server.slave_blocked_by_flushall_timeout+mstime();
+    blockClient(c, BLOCKED_BY_FLUSHALL);
     return C_OK;
 }
 
@@ -3459,7 +3462,7 @@ int processCommandMaybeInSSDB(client *c) {
         && (c->cmd->flags & (CMD_WRITE | CMD_READONLY)) && (c->cmd->flags & CMD_JDJR_MODE)) {
         listAddNodeTail(server.ssdb_flushall_blocked_clients, c);
          /* TODO: use a suitable timeout. */
-        c->bpop.timeout = 5000 + mstime();
+        c->bpop.timeout = server.client_blocked_by_flushall_timeout + mstime();
         blockClient(c, BLOCKED_NO_READ_WRITE_TO_SSDB);
 
         return C_OK;

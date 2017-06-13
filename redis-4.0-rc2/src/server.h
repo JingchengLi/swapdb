@@ -204,8 +204,9 @@ int mockdictDelete(dict *ht, const void *key);
 /* jdjr-mode timeout configuration */
 #define CONFIG_DEFAULT_VISITING_SSDB_TIMEOUT 5000 /* Microseconds */
 #define CONFIG_DEFAULT_CLIENT_BLOCKED_BY_KEYS_TIMEOUT 5000 /* Microseconds */
-#define CONFIG_DEFAULT_CLIENT_BLOCKED_BY_FLUSHALL_TIMEOUT 8000 /* Microseconds */
+#define CONFIG_DEFAULT_CLIENT_BLOCKED_BY_FLUSHALL_TIMEOUT 5000 /* Microseconds */
 #define CONFIG_DEFAULT_CLIENT_BLOCKED_BY_MIGRATE_DUMP_TIMEOUT 90000 /* Microseconds */
+#define CONFIG_DEFAULT_SLAVE_BLOCKED_BY_FLUSHALL_TIMEOUT 8000 /* Microseconds */
 
 #define ACTIVE_EXPIRE_CYCLE_LOOKUPS_PER_LOOP 20 /* Loopkups per loop. */
 #define ACTIVE_EXPIRE_CYCLE_FAST_DURATION 1000 /* Microseconds */
@@ -1395,6 +1396,7 @@ struct redisServer {
     int client_blocked_by_keys_timeout;
     int client_blocked_by_flushall_timeout;
     int client_blocked_by_migrate_dump_timeout;
+    int slave_blocked_by_flushall_timeout;
 };
 
 typedef struct pubsubPattern {
