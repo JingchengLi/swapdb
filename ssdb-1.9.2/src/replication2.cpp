@@ -434,10 +434,13 @@ void moveBufferAsync(ReplicationByIterator2* job, Buffer *dst, Buffer *input, bo
 
 
     if (input != nullptr) {
-        auto copy = new Buffer(input->size());
-        copy->append(input->data(), input->size());
-        input->decr(input->size());
-        input->nice();
+//        auto copy = new Buffer(input->size());
+//        copy->append(input->data(), input->size());
+//        input->decr(input->size());
+//        input->nice();
+
+        auto copy = new Buffer(1024);
+        swap(copy, input);
 
         job->bg = std::async(std::launch::async, [](Buffer *b)  {
             CompressResult compressResult;

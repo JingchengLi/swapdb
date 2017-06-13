@@ -145,6 +145,14 @@ class Buffer{
 	public:
 		Buffer(int total);
 		~Buffer();
+ 
+		friend void swap(Buffer *first, Buffer *second) // nothrow
+		{
+			std::swap(first->buf, second->buf);
+			std::swap(first->data_, second->data_);
+			std::swap(first->size_, second->size_);
+			std::swap(first->total_, second->total_);
+		}
 
 		// 缓冲区大小
 		int total() const{
