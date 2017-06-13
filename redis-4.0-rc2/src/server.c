@@ -3448,7 +3448,7 @@ int processCommandMaybeInSSDB(client *c) {
         listAddNodeTail(server.no_writing_ssdb_blocked_clients, c);
         serverLog(LL_DEBUG, "client: %ld is added to server.no_writing_ssdb_blocked_clients", (long)c);
         /* TODO: use a suitable timeout. */
-        c->bpop.timeout = 5000 + mstime();
+        c->bpop.timeout = server.client_blocked_by_replication_nowrite_timeout + mstime();
         blockClient(c, BLOCKED_NO_WRITE_TO_SSDB);
 
         return C_OK;

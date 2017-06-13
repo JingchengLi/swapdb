@@ -410,6 +410,12 @@ void loadServerConfigFromString(char *config) {
                 err = "client-blocked-by-migrate-dump-timeout must be 1 or greater";
                 goto loaderr;
             }
+        } else if (!strcasecmp(argv[0],"client-blocked-by-replication-nowrite-timeout") && argc == 2) {
+            server.client_blocked_by_replication_nowrite_timeout = atoi(argv[1]);
+            if (server.client_blocked_by_replication_nowrite_timeout <= 0) {
+                err = "client-blocked-by-replication-nowrite-timeout must be 1 or greater";
+                goto loaderr;
+            }
         } else if (!strcasecmp(argv[0],"client-blocked-by-migrate-timeout") && argc == 2) {
             server.client_blocked_by_migrate_timeout = atoi(argv[1]);
             if (server.client_blocked_by_migrate_timeout <= 0) {
@@ -1134,6 +1140,8 @@ void configSetCommand(client *c) {
     } config_set_numerical_field(
         "client-blocked-by-flushall-timeout",server.client_blocked_by_flushall_timeout,1,LLONG_MAX) {
     } config_set_numerical_field(
+        "client-blocked-by-replication-nowrite-timeout",server.client_blocked_by_replication_nowrite_timeout,1,LLONG_MAX) {
+    } config_set_numerical_field(
         "client-blocked-by-migrate-dump-timeout",server.client_blocked_by_migrate_dump_timeout,1,LLONG_MAX) {
     } config_set_numerical_field(
         "client-blocked-by-migrate-timeout",server.client_blocked_by_migrate_timeout,1,LLONG_MAX) {
@@ -1316,6 +1324,7 @@ void configGetCommand(client *c) {
     config_get_numerical_field("visiting-ssdb-timeout",server.visiting_ssdb_timeout);
     config_get_numerical_field("client-blocked-by-keys-timeout",server.client_blocked_by_keys_timeout);
     config_get_numerical_field("client-blocked-by-flushall-timeout",server.client_blocked_by_flushall_timeout);
+    config_get_numerical_field("client-blocked-by-replication-nowrite-timeout",server.client_blocked_by_replication_nowrite_timeout);
     config_get_numerical_field("client-blocked-by-migrate-dump-timeout",server.client_blocked_by_migrate_dump_timeout);
     config_get_numerical_field("client-blocked-by-migrate-timeout",server.client_blocked_by_migrate_timeout);
     config_get_numerical_field("slave-blocked-by-flushall-timeout",server.slave_blocked_by_flushall_timeout);
@@ -2046,6 +2055,7 @@ int rewriteConfig(char *path) {
     rewriteConfigNumericalOption(state,"visiting-ssdb-timeout",server.visiting_ssdb_timeout,CONFIG_DEFAULT_VISITING_SSDB_TIMEOUT);
     rewriteConfigNumericalOption(state,"client-blocked-by-keys-timeout",server.client_blocked_by_keys_timeout,CONFIG_DEFAULT_VISITING_SSDB_TIMEOUT);
     rewriteConfigNumericalOption(state,"client-blocked-by-flushall-timeout",server.client_blocked_by_flushall_timeout,CONFIG_DEFAULT_CLIENT_BLOCKED_BY_FLUSHALL_TIMEOUT);
+    rewriteConfigNumericalOption(state,"client-blocked-by-replication-nowrite-timeout",server.client_blocked_by_replication_nowrite_timeout,CONFIG_DEFAULT_CLIENT_BLOCKED_BY_REPLICATION_NOWRITE_TIMEOUT);
     rewriteConfigNumericalOption(state,"client-blocked-by-migrate-dump-timeout",server.client_blocked_by_migrate_dump_timeout,CONFIG_DEFAULT_CLIENT_BLOCKED_BY_MIGRATE_DUMP_TIMEOUT);
     rewriteConfigNumericalOption(state,"client-blocked-by-migrate-timeout",server.client_blocked_by_migrate_timeout,CONFIG_DEFAULT_CLIENT_BLOCKED_BY_MIGRATE_TIMEOUT);
     rewriteConfigNumericalOption(state,"slave-blocked-by-flushall-timeout",server.slave_blocked_by_flushall_timeout,CONFIG_DEFAULT_SLAVE_BLOCKED_BY_FLUSHALL_TIMEOUT);
