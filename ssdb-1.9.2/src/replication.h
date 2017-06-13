@@ -17,7 +17,7 @@
 #include <thread>
 #include <future>
 
-const uint64_t MAX_PACKAGE_SIZE = 8 * 1024 * 1024;
+const uint64_t MAX_PACKAGE_SIZE = 16 * 1024 * 1024;
 const uint64_t MIN_PACKAGE_SIZE = 1024 * 1024;
 
 //#define REPLIC_NO_COMPRESS TRUE
@@ -68,15 +68,21 @@ class ReplicationByIterator2 : public ReplicationByIterator {
 public:
     ReplicationByIterator2(const Context &ctx, const HostAndPort &hnp, Link *link, bool compress,
                                                    bool heartbeat) : ReplicationByIterator(ctx, hnp, link, compress,
-                                                                                           heartbeat) {}
+                                                                                           heartbeat) {
+        buffer = new Buffer(MAX_PACKAGE_SIZE);
+        buffer2 = new Buffer(MAX_PACKAGE_SIZE);
+    }
 
-    ~ReplicationByIterator2() override = default;
+    ~ReplicationByIterator2() override {
+        delete buffer;
+        delete buffer2;
+    };
     int process() override;
 
     std::future<CompressResult> bg;
 
-
-    std::unique_ptr<Buffer> buffer = std::unique_ptr<Buffer>(new Buffer(1024 * 1024));
+    Buffer *buffer = nullptr;
+    Buffer *buffer2 = nullptr;
 
 
 };

@@ -221,8 +221,8 @@ int ReplicationByIterator2::process() {
 
         bool finish = true;
         while (fit->next()) {
-            saveStrToBuffer(buffer.get(), fit->key());
-            saveStrToBuffer(buffer.get(), fit->val());
+            saveStrToBuffer(buffer, fit->key());
+            saveStrToBuffer(buffer, fit->val());
             visitedKeys++;
 
             if (visitedKeys % 1000000 == 0) {
@@ -235,8 +235,8 @@ int ReplicationByIterator2::process() {
             if (buffer->size() > packageSize) {
                 rawBytes += buffer->size();
 
-                moveBufferAsync(this, ssdb_slave_link->output, buffer.get(), compress);
-//                moveBufferSync(ssdb_slave_link->output, buffer.get(), compress);
+                moveBufferAsync(this, ssdb_slave_link->output, buffer, compress);
+//                moveBufferSync(ssdb_slave_link->output, buffer, compress);
 
 
                 if (!ssdb_slave_link->output->empty()) {
@@ -260,7 +260,7 @@ int ReplicationByIterator2::process() {
             if (!buffer->empty()) {
                 rawBytes += buffer->size();
 
-                moveBufferSync(ssdb_slave_link->output, buffer.get(), compress);
+                moveBufferSync(ssdb_slave_link->output, buffer, compress);
 
                 if (!ssdb_slave_link->output->empty()) {
                     int len = ssdb_slave_link->write();
@@ -410,7 +410,7 @@ void moveBufferAsync(ReplicationByIterator2* job, Buffer *dst, Buffer *input, bo
 
     if (job->bg.valid()) {
 
-        PTST(WAIT_CompressResult,0.1)
+        PTST(WAIT_CompressResult,0.01)
         CompressResult buf = job->bg.get();
         PTE(WAIT_CompressResult, "")
 
@@ -429,7 +429,8 @@ void moveBufferAsync(ReplicationByIterator2* job, Buffer *dst, Buffer *input, bo
         }
 
         delete buf.out;
-        delete buf.in;
+//        delete buf.in;
+        job->buffer2->reset();
     }
 
 
@@ -439,10 +440,10 @@ void moveBufferAsync(ReplicationByIterator2* job, Buffer *dst, Buffer *input, bo
 //        input->decr(input->size());
 //        input->nice();
 
-        auto copy = new Buffer(1024);
-        swap(copy, input);
+//        auto copy = new Buffer(input->size());
+        swap(job->buffer2, input);
 
-        job->bg = std::async(std::launch::async, [](Buffer *b)  {
+        job->bg = std::async(std::launch::async, [](Buffer *b) {
             CompressResult compressResult;
             compressResult.in = b;
             compressResult.out = new Buffer(4096);
@@ -475,7 +476,7 @@ void moveBufferAsync(ReplicationByIterator2* job, Buffer *dst, Buffer *input, bo
             compressResult.comprlen = comprlen;
 
             return compressResult;
-        }, copy);
+        }, job->buffer2);
     }
 
 }

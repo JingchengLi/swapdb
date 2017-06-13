@@ -154,6 +154,14 @@ class Buffer{
 			std::swap(first->total_, second->total_);
 		}
 
+		// Clear data
+		int reset() {
+            memset(buf, 0, total_);
+            size_ = 0;
+            data_ = buf;
+			return total_;
+		}
+
 		// 缓冲区大小
 		int total() const{
 			return total_;
