@@ -467,7 +467,7 @@ void moveBufferAsync(ReplicationByIterator2* job, Buffer *dst, Buffer *input, bo
             comprlen = lzf_compress(src->data(), (unsigned int) src->size(), out.get(), outlen);
 
             if (comprlen == 0) {
-//                compressResult.in->append(src->data(), src->size());
+                //nothing
             } else {
                 compressResult.out->append(out.get(), (int) comprlen);
             }
