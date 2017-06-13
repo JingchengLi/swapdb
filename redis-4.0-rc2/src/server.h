@@ -201,6 +201,9 @@ int mockdictDelete(dict *ht, const void *key);
 #define CONFIG_DEFAULT_LAZYFREE_LAZY_SERVER_DEL 0
 #define CONFIG_DEFAULT_ALWAYS_SHOW_LOGO 0
 
+/* jdjr-mode timeout configuration */
+#define CONFIG_DEFAULT_VISITING_SSDB_TIMEOUT 5000 /* Microseconds */
+
 #define ACTIVE_EXPIRE_CYCLE_LOOKUPS_PER_LOOP 20 /* Loopkups per loop. */
 #define ACTIVE_EXPIRE_CYCLE_FAST_DURATION 1000 /* Microseconds */
 #define ACTIVE_EXPIRE_CYCLE_SLOW_TIME_PERC 25 /* CPU max % for keys collection */
@@ -1384,6 +1387,8 @@ struct redisServer {
 #ifdef TEST_REPLICATION_STABLE
     dict* zadd_keys;
 #endif
+
+    int visiting_ssdb_timeout;
 };
 
 typedef struct pubsubPattern {

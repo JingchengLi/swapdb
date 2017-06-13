@@ -3486,7 +3486,7 @@ int processCommandMaybeInSSDB(client *c) {
             recordVisitingSSDBkeys(c->cmd, c->argv, c->argc);
 
             /* TODO: use a suitable timeout. */
-            c->bpop.timeout = 5000 + mstime();
+            c->bpop.timeout = server.visiting_ssdb_timeout + mstime();
             blockClient(c, BLOCKED_VISITING_SSDB);
 
             /* Slaves do not load data from ssdb automatically. */
