@@ -67,7 +67,7 @@ SSDBImpl::~SSDBImpl() {
 SSDB *SSDB::open(const Options &opt, const std::string &dir) {
     SSDBImpl *ssdb = new SSDBImpl();
 
-    ssdb->data_path = dir  + "/data";
+    ssdb->path = dir;
     ssdb->options.create_if_missing = opt.create_if_missing;
     ssdb->options.create_missing_column_families = opt.create_missing_column_families;
     ssdb->options.max_open_files = opt.max_open_files;
@@ -142,7 +142,7 @@ SSDB *SSDB::open(const Options &opt, const std::string &dir) {
 
     column_families.emplace_back(leveldb::ColumnFamilyDescriptor(REPOPID_CF, leveldb::ColumnFamilyOptions()));
 
-    status = leveldb::DB::Open(ssdb->options, ssdb->data_path, column_families, &ssdb->handles, &ssdb->ldb);
+    status = leveldb::DB::Open(ssdb->options, ssdb->path  + "/data", column_families, &ssdb->handles, &ssdb->ldb);
     if (!status.ok()) {
         log_error("open db failed: %s", status.ToString().c_str());
         delete ssdb;
@@ -156,13 +156,13 @@ SSDB *SSDB::open(const Options &opt, const std::string &dir) {
 }
 
 int SSDBImpl::filesize(Context &ctx, uint64_t *total_file_size) {
-    if (!is_dir(data_path)) {
+    if (!is_dir(path)) {
         return -1;
     }
 
     leveldb::Env *env = leveldb::Env::Default();
     std::vector<std::string> result;
-    leveldb::Status s = env->GetChildren(data_path, &result);
+    leveldb::Status s = env->GetChildren(path, &result);
     if (!s.ok()){
         //error
         log_error("error: %s", s.ToString().c_str());
@@ -171,7 +171,7 @@ int SSDBImpl::filesize(Context &ctx, uint64_t *total_file_size) {
 
     for_each(result.begin(), result.end() ,[&](std::string filename) {
         uint64_t file_size = 0;
-        s = env->GetFileSize(data_path + "/" + filename, &file_size);
+        s = env->GetFileSize(path + "/" + filename, &file_size);
         if (!s.ok()){
             //error
             log_error("error: %s", s.ToString().c_str());
@@ -688,7 +688,7 @@ int SSDBImpl::save() {
     rocksdb::Status s;
     rocksdb::DB *db = ldb;
 
-    auto backup_option = rocksdb::BackupableDBOptions(data_path + "/../backup");
+    auto backup_option = rocksdb::BackupableDBOptions(path + "/../backup");
 //    backup_option.sync = true;
     backup_option.share_table_files = false;
     backup_option.share_files_with_checksum = false;

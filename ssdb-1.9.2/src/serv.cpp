@@ -893,7 +893,7 @@ int proc_replic(Context &ctx, Link *link, const Request &req, Response *resp) {
         serv->replicState.startReplic();
     }
 
-    ReplicationJob *job = new ReplicationByIterator3(ctx, HostAndPort{ip, port}, link, serv->opt.transfer_compression, false);
+    ReplicationJob *job = new ReplicationByIterator2(ctx, HostAndPort{ip, port}, link, serv->opt.transfer_compression, false);
 
     ctx.net->replication->push(job);
 

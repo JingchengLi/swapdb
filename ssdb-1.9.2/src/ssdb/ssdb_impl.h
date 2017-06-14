@@ -79,7 +79,7 @@ private:
 	friend class SSDB;
 	friend class ExpirationHandler;
 
-	std::string data_path;
+	std::string path;
 
 	leveldb::DB* ldb;
 	leveldb::Options options;
@@ -98,8 +98,8 @@ public:
 		return ldb;
 	}
 
-	const string &getData_path() const {
-		return data_path;
+	const string &getPath() const {
+		return path;
 	}
 
 	int save();

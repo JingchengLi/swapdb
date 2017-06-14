@@ -203,6 +203,7 @@ set_target_properties(libnet-static PROPERTIES
 # libutil.a
 
 SET( UTIL_OBJS
+        src/util/file2.cpp
         src/util/log.cpp
         src/util/config.cpp
         src/util/bytes.cpp
