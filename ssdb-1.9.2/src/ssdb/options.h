@@ -51,7 +51,7 @@ struct Options {
     bool level_compaction_dynamic_level_bytes = false;
     bool use_direct_reads = false;
 
-    int max_background_cd_threads = 4;
+    int max_background_cd_threads = 8;
 
     size_t sim_cache = 100;
     size_t cache_size = 100;

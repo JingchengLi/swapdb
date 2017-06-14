@@ -20,8 +20,11 @@ void *ssdb_sync(void *arg) {
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
     HostAndPort hnp = job->hnp;
     std::unique_ptr <Link>master_link(job->upstream); //job->upstream cannot be null !
+    bool heartbeat = job->heartbeat;
+    bool quit = job->quit;
 
     delete job;
+    job = nullptr;
 
     {
         Locking<Mutex> l(&serv->replicState.rMutex);
@@ -59,7 +62,7 @@ void *ssdb_sync(void *arg) {
 
     RedisUpstream redisUpstream(upstream_ip, upstream_port, 500);
 
-    if (job->heartbeat) {
+    if (heartbeat) {
         redisUpstream.setMaxRetry(1);
         redisUpstream.setRetryConnect(-1);
         redisUpstream.reset();
@@ -81,12 +84,12 @@ void *ssdb_sync(void *arg) {
 
 
     int64_t lastHeartBeat = time_ms();
-    while (!job->quit) {
+    while (!quit) {
         ready_list.swap(ready_list_2);
         ready_list_2.clear();
 
 
-        if (job->heartbeat) {
+        if (heartbeat) {
             if ((time_ms() - lastHeartBeat) > 3000) {
 
                 std::unique_ptr<RedisResponse> t_res(redisUpstream.sendCommand({"ssdb-notify-redis", "transfer", "continue"}));
@@ -273,7 +276,7 @@ void *ssdb_sync(void *arg) {
 
                 } else if (oper == "complete") {
                     link->input->decr(link->input->size() - decoder.size());
-                    job->quit = true;
+                    quit = true;
                 } else {
                     //TODO 处理遇到的 oper_len == 0 ???
                     log_error("unknown oper code %s", hexstr(oper).c_str());
@@ -316,7 +319,7 @@ void *ssdb_sync(void *arg) {
         master_link->quick_send({"error", "recieve snapshot failed!"});
         log_error("[ssdb_sync] recieve snapshot from %s failed!, err: %d", hnp.String().c_str(), errorCode);
 
-        if (job->heartbeat) {
+        if (heartbeat) {
             std::unique_ptr<RedisResponse> t_res(redisUpstream.sendCommand({"ssdb-notify-redis", "transfer", "unfinished"}));
             if (!t_res) {
                 log_warn("send transfer unfinished to redis<%s:%d> failed", upstream_ip.c_str(), upstream_port);
@@ -326,7 +329,7 @@ void *ssdb_sync(void *arg) {
         master_link->quick_send({"ok", "recieve snapshot finished"});
         log_info("[ssdb_sync] recieve snapshot from %s finished!", hnp.String().c_str());
 
-        if (job->heartbeat) {
+        if (heartbeat) {
             std::unique_ptr<RedisResponse> t_res(redisUpstream.sendCommand({"ssdb-notify-redis", "transfer", "finished"}));
             if (!t_res) {
                 log_warn("send transfer finished to redis<%s:%d> failed", upstream_ip.c_str(), upstream_port);

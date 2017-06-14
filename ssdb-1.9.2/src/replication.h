@@ -47,13 +47,13 @@ public:
 
     HostAndPort hnp;
 
-    bool heartbeat = false;
     bool compress = true;
+    bool heartbeat = false;
 
     volatile bool quit = false;
 
     ReplicationByIterator(const Context &ctx, const HostAndPort &hnp, Link *link, bool compress, bool heartbeat) :
-            hnp(hnp), heartbeat(heartbeat), compress(compress) {
+            hnp(hnp), compress(compress), heartbeat(heartbeat) {
         ts = time_ms();
 
         ReplicationJob::ctx = ctx;
@@ -78,6 +78,9 @@ public:
     }
 
     ~ReplicationByIterator2() override {
+        if (bg.valid()) {
+            bg.get(); //wait for end
+        }
         delete buffer;
         delete buffer2;
     };

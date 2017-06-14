@@ -112,6 +112,10 @@ SSDB *SSDB::open(const Options &opt, const std::string &dir) {
 
     ssdb->options.IncreaseParallelism(opt.max_background_cd_threads);
 
+    ssdb->options.max_write_buffer_number = 3;
+    ssdb->options.max_background_flushes  = 4;
+    ssdb->options.max_background_compactions = 4;
+
     //level config
     ssdb->options.use_direct_reads = opt.use_direct_reads;  //see : http://rocksdb.org/blog/2015/07/23/dynamic-level.html
     ssdb->options.level_compaction_dynamic_level_bytes = opt.level_compaction_dynamic_level_bytes;  //see : http://rocksdb.org/blog/2015/07/23/dynamic-level.html
