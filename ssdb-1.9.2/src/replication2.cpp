@@ -213,8 +213,8 @@ int ReplicationByIterator2::process() {
 
         bool finish = true;
         while (iterator_ptr->next()) {
-            saveStrToBuffer(buffer, iterator_ptr->key());
-            saveStrToBuffer(buffer, iterator_ptr->val());
+            saveStrToBufferQuick(buffer, iterator_ptr->key());
+            saveStrToBufferQuick(buffer, iterator_ptr->val());
             visitedKeys++;
 
             if (visitedKeys % 1000000 == 0) {
@@ -339,6 +339,17 @@ int ReplicationByIterator2::process() {
     delete ssdb_slave_link;
     return 0;
 
+}
+
+void ReplicationByIterator2::saveStrToBufferQuick(Buffer *buffer, const Bytes &fit) {
+
+    if (fit.size() < quickmap_size) {
+        buffer->append(quickmap[fit.size()]);
+    }   else {
+        string val_len = replic_save_len((uint64_t) (fit.size()));
+        buffer->append(val_len);
+    }
+    buffer->append(fit);
 }
 
 

@@ -75,6 +75,11 @@ public:
                                                                                            heartbeat) {
         buffer = new Buffer(MAX_PACKAGE_SIZE);
         buffer2 = new Buffer(MAX_PACKAGE_SIZE);
+
+        for (int i = 0; i < quickmap_size; ++i) {
+            quickmap.emplace_back(replic_save_len((uint64_t) i));
+        }
+
     }
 
     ~ReplicationByIterator2() override {
@@ -91,7 +96,10 @@ public:
     Buffer *buffer = nullptr;
     Buffer *buffer2 = nullptr;
 
+    void saveStrToBufferQuick(Buffer *buffer, const Bytes &fit);
 
+    int quickmap_size = 1024;
+    std::vector<std::string> quickmap;
 };
 
 
