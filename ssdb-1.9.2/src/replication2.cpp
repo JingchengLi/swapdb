@@ -142,7 +142,7 @@ int ReplicationByIterator2::process() {
                 }
                 int len = link->read();
                 if (len <= 0) {
-                    log_debug("fd: %d, read: %d, delete link, e:%d, f:%d", link->fd(), len, fde->events, fde->s_flags);
+                    net_debug("fd: %d, read: %d, delete link, e:%d, f:%d", link->fd(), len, fde->events, fde->s_flags);
                     link->mark_error();
                     continue;
                 }
@@ -159,8 +159,7 @@ int ReplicationByIterator2::process() {
                 }
                 int len = link->write();
                 if (len <= 0) {
-//                if (len < 0) {
-                    log_debug("fd: %d, write: %d, delete link, e:%d, f:%d", link->fd(), len, fde->events, fde->s_flags);
+                    net_debug("fd: %d, write: %d, delete link, e:%d, f:%d", link->fd(), len, fde->events, fde->s_flags);
                     link->mark_error();
                     continue;
                 } else if (link == ssdb_slave_link) {
@@ -207,7 +206,7 @@ int ReplicationByIterator2::process() {
         if (ssdb_slave_link->output->size() > MAX_PACKAGE_SIZE * 3) {
 //            uint s = uint(ssdb_slave_link->output->size() * 1.0 / (MIN_PACKAGE_SIZE * 1.0)) * 500;
             log_info("delay for output buffer write slow~");
-            usleep(500);
+            usleep(5000);
             packageSize = MIN_PACKAGE_SIZE; //reset 512k
             continue;
         } else {
@@ -246,6 +245,7 @@ int ReplicationByIterator2::process() {
                 }
 
                 if (!ssdb_slave_link->output->empty()) {
+                    log_warn("slave slowdown ?");
                     fdes->set(ssdb_slave_link->fd(), FDEVENT_OUT, 1, ssdb_slave_link);
                 }
 
@@ -269,6 +269,7 @@ int ReplicationByIterator2::process() {
                 }
 
                 if (!ssdb_slave_link->output->empty()) {
+                    log_warn("slave slowdown ?");
                     fdes->set(ssdb_slave_link->fd(), FDEVENT_OUT, 1, ssdb_slave_link);
                 }
             }
@@ -411,8 +412,7 @@ void moveBufferAsync(ReplicationByIterator2* job, Buffer *dst, Buffer *input, bo
 
     if (job->bg.valid()) {
 
-        PTST(WAIT_CompressResult,0.01)
-        CompressResult buf = job->bg.get();
+        PTST(WAIT_CompressResult,0.005)CompressResult buf = job->bg.get();
         PTE(WAIT_CompressResult, "")
 
         auto in = buf.in;
