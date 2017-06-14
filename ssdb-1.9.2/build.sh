@@ -124,7 +124,7 @@ DIR=`pwd`
 cd $ROCKSDB_PATH
 if [ -f Makefile ];then
     echo "##### building rocksdb... #####"
-    make  -DSNAPPY=1 -DJEMALLOC=1 -j8 static_lib
+    make  -j8 static_lib
     echo "##### building rocksdb finished #####"
 fi
 
