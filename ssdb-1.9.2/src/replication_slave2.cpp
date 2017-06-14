@@ -279,7 +279,7 @@ void *ssdb_sync2(void *arg) {
                         }
                         decoder_item.skip(key_offset);
 
-                        std::string key(decoder_item.data(), key_len);
+//                        std::string key(decoder_item.data(), key_len);
                         const char *key_p = decoder_item.data();
 
                         decoder_item.skip((int) key_len);
@@ -291,7 +291,7 @@ void *ssdb_sync2(void *arg) {
                         }
                         decoder_item.skip(val_offset);
 
-                        std::string value(decoder_item.data(), val_len);
+//                        std::string value(decoder_item.data(), val_len);
                         const char *value_p = decoder_item.data();
 
                         decoder_item.skip((int) val_len);
