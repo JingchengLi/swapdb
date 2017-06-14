@@ -56,7 +56,7 @@ start_server {tags {"other"}} {
     } {*index is out of range*}
 
     tags {consistency} {
-        if {![catch {package require sha1}]} {
+        # if {![catch {package require sha1}]} {
             if {$::accurate} {set numops 10000} else {set numops 1000}
             test {Check consistency of different data types after a reload} {
                 r flushdb
@@ -106,7 +106,7 @@ start_server {tags {"other"}} {
                     set _ 0
                 }
             } {1}
-        }
+        # }
     }
 
     test {EXPIRES after a reload (snapshot + append only file rewrite)} {

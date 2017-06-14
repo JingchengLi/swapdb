@@ -171,4 +171,43 @@ overrides {maxmemory 0}} {
         assert_error "*wrong number of arguments*" {r del a b}
         assert_error "*wrong number of arguments*" {r exists a b}
     }
+
+    test {verify volatile set timestamp} {
+        r set expirekey bar
+        r expire expirekey 100
+        r set pexpirekey bar
+        r pexpire pexpirekey 100000
+        r setex setexkey 100 bar
+        r psetex psetexkey 100000 bar
+        r set setkey bar EX 100
+
+        r set ssdbexpirekey bar
+        ssdbr expire ssdbexpirekey 100
+        r set ssdbpexpirekey bar
+        ssdbr pexpire ssdbpexpirekey 100000
+        set ssdbsetexkey bar
+        ssdbr setex ssdbsetexkey 100 bar
+        set ssdbpsetexkey bar
+        ssdbr psetex ssdbpsetexkey 100000 bar
+        set ssdbsetexkey bar
+        ssdbr set ssdbsetkey bar EX 100
+
+        after 3000
+        r debug loadaof
+
+        foreach key {expirekey pexpirekey setexkey psetexkey setkey ssdbexpirekey ssdbpexpirekey ssdbsetexkey ssdbpsetexkey ssdbsetkey} {
+            set ttl [r ttl $key]
+            assert {$ttl > 92 && $ttl <= 97} "key: $key with ttl $ttl"
+        }
+
+        after 3000
+        r bgrewriteaof
+        waitForBgrewriteaof r
+        r debug loadaof
+
+        foreach key {expirekey pexpirekey setexkey psetexkey setkey ssdbexpirekey ssdbpexpirekey ssdbsetexkey ssdbpsetexkey ssdbsetkey} {
+            set ttl [r ttl $key]
+            assert {$ttl > 89 && $ttl <= 94} "key: $key with ttl $ttl"
+        }
+    }
 }

@@ -262,7 +262,15 @@ proc createComplexDataset {r ops {opt {}}} {
 
         if {[lsearch -exact $opt useexpire] != -1} {
             if {rand() < 0.5} {
-                {*}$r expire $k [randomInt 2]
+               randpath {{*}$r pexpire $k [randomInt 10]} \
+                       {{*}$r expire $k [randomInt 5]} \
+                       {{*}$r expireat $k [expr [clock seconds] +[randomInt 10000]]} \
+                       {{*}$r pexpireat $k [expr [clock milliseconds] +[randomInt 1000]]} \
+                       {{*}$r expire $k [randomInt 10000]}
+                if {{string} eq $t} {
+                       randpath {{*}$r setex $k [randomInt 10000] ${v}_volatile} \
+                       {{*}$r set $k ${v}_volatile EX [randomInt 10000]}
+                    }
             }
         }
     }

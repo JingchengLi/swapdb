@@ -7,9 +7,9 @@ proc fail {msg} {
     error "assertion:$msg"
 }
 
-proc assert {condition} {
+proc assert {condition {detail ""}} {
     if {![uplevel 1 [list expr $condition]]} {
-        error "assertion:Expected condition '$condition' to be true ([uplevel 1 [list subst -nocommands $condition]])"
+        error "assertion:Expected condition '$condition' to be true ([uplevel 1 [list subst -nocommands $condition]]):$detail"
     }
 }
 
