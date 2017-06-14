@@ -83,7 +83,7 @@ int ReplicationByIterator2::process() {
 
     uint64_t rawBytes = 0;
     uint64_t sendBytes = 0;
-    uint64_t packageSize = MIN_PACKAGE_SIZE; //init 512k
+    uint64_t packageSize = MAX_PACKAGE_SIZE; //init 512k
     uint64_t totalKeys = serv->ssdb->size();
     uint64_t visitedKeys = 0;
 
@@ -207,16 +207,7 @@ int ReplicationByIterator2::process() {
 //            uint s = uint(ssdb_slave_link->output->size() * 1.0 / (MIN_PACKAGE_SIZE * 1.0)) * 500;
             log_info("delay for output buffer write slow~");
             usleep(5000);
-            packageSize = MIN_PACKAGE_SIZE; //reset 512k
             continue;
-        } else {
-            if (packageSize < (MAX_PACKAGE_SIZE / 2)) {
-                packageSize = packageSize * 2;
-            }
-            if (packageSize > (MAX_PACKAGE_SIZE)) {
-                packageSize = MAX_PACKAGE_SIZE;
-            }
-
         }
 
         bool finish = true;
