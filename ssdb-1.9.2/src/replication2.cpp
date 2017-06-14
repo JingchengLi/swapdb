@@ -48,6 +48,7 @@ int ReplicationByIterator2::process() {
     iterate_options.readahead_size = 4 * 1024 * 1024;
 
     std::unique_ptr<Iterator> fit = std::unique_ptr<Iterator>(serv->ssdb->iterator("", "", -1, iterate_options));
+    auto iterator_ptr = fit.get();
 
     Link *ssdb_slave_link = Link::connect((hnp.ip).c_str(), hnp.port);
     if (ssdb_slave_link == nullptr) {
@@ -211,15 +212,16 @@ int ReplicationByIterator2::process() {
         }
 
         bool finish = true;
-        while (fit->next()) {
-            saveStrToBuffer(buffer, fit->key());
-            saveStrToBuffer(buffer, fit->val());
+        while (iterator_ptr->next()) {
+            saveStrToBuffer(buffer, iterator_ptr->key());
+            saveStrToBuffer(buffer, iterator_ptr->val());
             visitedKeys++;
 
             if (visitedKeys % 1000000 == 0) {
-                log_info("[%05.2f%%] processed %llu keys so far",
+                log_info("[%05.2f%%] processed %llu keys so far , elapsed %s",
                          100 * ((double) visitedKeys * 1.0 / totalKeys * 1.0),
-                         visitedKeys);
+                         visitedKeys, timestampToHuman((time_ms() - start)).c_str()
+                );
             }
 
 
