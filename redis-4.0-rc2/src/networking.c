@@ -916,11 +916,13 @@ int sendCommandToSSDB(client *c, sds finalcmd) {
         !c->context || c->context->fd <= 0) {
         if (isSpecialConnection(c))
             freeClient(c);
-        if ((c->ssdb_conn_flags & CONN_CONNECTING) ||
-            (c == server.master && (c->ssdb_conn_flags & CONN_CHECK_REPOPID)))
-            serverLog(LL_DEBUG, "ssdb connection status is connecting");
-        else
-            serverLog(LL_DEBUG, "ssdb connection status is disconnected");
+        else {
+            if ((c->ssdb_conn_flags & CONN_CONNECTING) ||
+                (c == server.master && (c->ssdb_conn_flags & CONN_CHECK_REPOPID)))
+                serverLog(LL_DEBUG, "ssdb connection status is connecting");
+            else
+                serverLog(LL_DEBUG, "ssdb connection status is disconnected");
+        }
         sdsfree(finalcmd);
         return C_FD_ERR;
     }

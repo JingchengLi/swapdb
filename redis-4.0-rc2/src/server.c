@@ -3179,6 +3179,7 @@ int confirmAndRetrySlaveSSDBwriteOp(time_t time, int index) {
                 if (0 == server.slave_failed_retry_interrupted) {
                     /* this write op was successful commited on SSDB, we can remove it from the list. */
                     listDelNode(server.ssdb_write_oplist, ln);
+                    continue;
                 } else {
                     /* we have found the write op saved by server.blocked_write_op, server.master is
                      * unblocked now and we can go on. */
