@@ -1276,10 +1276,9 @@ void removeBlockedKeysFromTransferOrLoadingKeys(client* c) {
         /* remove myself(this client) from blocked client list of this key, so we can
          * safely unblock this client and continue to process immediately. */
         removeClientFromListForBlockedKey(c, keyobj);
-        serverAssert(dictDelete(c->bpop.loading_or_transfer_keys, keyobj) == DICT_OK);
     }
-
     dictReleaseIterator(di);
+    dictEmpty(c->bpop.loading_or_transfer_keys, NULL);
 }
 
 void transferringOrLoadingBlockedClientTimeOut(client *c) {
