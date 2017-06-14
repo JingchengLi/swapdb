@@ -9,14 +9,14 @@ start_server {tags {"other"}} {
     test {SAVE - make sure there are all the types as values} {
         # Wait for a background saving in progress to terminate
         waitForBgsave r
-        r lpush mysavelist hello
-        r lpush mysavelist world
-        r set myemptykey {}
-        r set mynormalkey {blablablba}
-        r zadd mytestzset 10 a
-        r zadd mytestzset 20 b
-        r zadd mytestzset 30 c
-        r save
+        ssdbr lpush mysavelist hello
+        ssdbr lpush mysavelist world
+        ssdbr set myemptykey {}
+        ssdbr set mynormalkey {blablablba}
+        ssdbr zadd mytestzset 10 a
+        ssdbr zadd mytestzset 20 b
+        ssdbr zadd mytestzset 30 c
+        ssdbr save
     } {OK}
 
     tags {slow} {
@@ -26,8 +26,8 @@ start_server {tags {"other"}} {
                 set err 0
                 for {set i 0} {$i < $iterations} {incr i} {
                     set fuzz [randstring 0 512 $fuzztype]
-                    r set foo $fuzz
-                    set got [r get foo]
+                    ssdbr set foo $fuzz
+                    set got [ssdbr get foo]
                     if {$got ne $fuzz} {
                         set err [list $fuzz $got]
                         break
@@ -40,13 +40,14 @@ start_server {tags {"other"}} {
 
     test {BGSAVE} {
         waitForBgsave r
-        r flushdb
-        r save
-        r set x 10
-        r bgsave
+        ssdbr flushdb
+        wait_ssdb_reconnect
+        ssdbr save
+        ssdbr set x 10
+        ssdbr bgsave
         waitForBgsave r
-        r debug reload
-        r get x
+        ssdbr debug reload
+        ssdbr get x
     } {10}
 
     test {SELECT an out of range DB} {
@@ -59,9 +60,10 @@ start_server {tags {"other"}} {
             if {$::accurate} {set numops 10000} else {set numops 1000}
             test {Check consistency of different data types after a reload} {
                 r flushdb
+                wait_ssdb_reconnect
                 createComplexDataset r $numops
                 set dump [csvdump r]
-                set sha1 [r debug digest]
+                set sha1 [ssdbr debug digest]
                 r debug reload
                 set sha1_after [r debug digest]
                 if {$sha1 eq $sha1_after} {
@@ -83,10 +85,10 @@ start_server {tags {"other"}} {
             } {1}
 
             test {Same dataset digest if saving/reloading as AOF?} {
-                r bgrewriteaof
+                ssdbr bgrewriteaof
                 waitForBgrewriteaof r
-                r debug loadaof
-                set sha1_after [r debug digest]
+                ssdbr debug loadaof
+                set sha1_after [ssdbr debug digest]
                 if {$sha1 eq $sha1_after} {
                     set _ 1
                 } else {
@@ -108,36 +110,38 @@ start_server {tags {"other"}} {
     }
 
     test {EXPIRES after a reload (snapshot + append only file rewrite)} {
-        r flushdb
-        r set x 10
-        r expire x 1000
-        r save
-        r debug reload
-        set ttl [r ttl x]
+        ssdbr flushdb
+        wait_ssdb_reconnect
+        ssdbr set x 10
+        ssdbr expire x 1000
+        ssdbr save
+        ssdbr debug reload
+        set ttl [ssdbr ttl x]
         set e1 [expr {$ttl > 900 && $ttl <= 1000}]
-        r bgrewriteaof
+        ssdbr bgrewriteaof
         waitForBgrewriteaof r
-        r debug loadaof
-        set ttl [r ttl x]
+        ssdbr debug loadaof
+        set ttl [ssdbr ttl x]
         set e2 [expr {$ttl > 900 && $ttl <= 1000}]
         list $e1 $e2
     } {1 1}
 
     test {EXPIRES after AOF reload (without rewrite)} {
-        r flushdb
-        r config set appendonly yes
-        r set x somevalue
-        r expire x 1000
-        r setex y 2000 somevalue
-        r set z somevalue
-        r expireat z [expr {[clock seconds]+3000}]
+        ssdbr flushdb
+        wait_ssdb_reconnect
+        ssdbr config set appendonly yes
+        ssdbr set x somevalue
+        ssdbr expire x 1000
+        ssdbr setex y 2000 somevalue
+        ssdbr set z somevalue
+        ssdbr expireat z [expr {[clock seconds]+3000}]
 
         # Milliseconds variants
-        r set px somevalue
-        r pexpire px 1000000
-        r psetex py 2000000 somevalue
-        r set pz somevalue
-        r pexpireat pz [expr {([clock seconds]+3000)*1000}]
+        ssdbr set px somevalue
+        ssdbr pexpire px 1000000
+        ssdbr psetex py 2000000 somevalue
+        ssdbr set pz somevalue
+        ssdbr pexpireat pz [expr {([clock seconds]+3000)*1000}]
 
         # Reload and check
         waitForBgrewriteaof r
@@ -146,20 +150,20 @@ start_server {tags {"other"}} {
         # Another solution would be to set the fsync policy to no, since this
         # prevents write() to be delayed by the completion of fsync().
         after 2000
-        r debug loadaof
-        set ttl [r ttl x]
+        ssdbr debug loadaof
+        set ttl [ssdbr ttl x]
         assert {$ttl > 900 && $ttl <= 1000}
-        set ttl [r ttl y]
+        set ttl [ssdbr ttl y]
         assert {$ttl > 1900 && $ttl <= 2000}
-        set ttl [r ttl z]
+        set ttl [ssdbr ttl z]
         assert {$ttl > 2900 && $ttl <= 3000}
-        set ttl [r ttl px]
+        set ttl [ssdbr ttl px]
         assert {$ttl > 900 && $ttl <= 1000}
-        set ttl [r ttl py]
+        set ttl [ssdbr ttl py]
         assert {$ttl > 1900 && $ttl <= 2000}
-        set ttl [r ttl pz]
+        set ttl [ssdbr ttl pz]
         assert {$ttl > 2900 && $ttl <= 3000}
-        r config set appendonly no
+        ssdbr config set appendonly no
     }
 
     tags {protocol} {
@@ -194,34 +198,34 @@ start_server {tags {"other"}} {
     }
 
     test {APPEND basics} {
-        r del foo
-        list [r append foo bar] [r get foo] \
-             [r append foo 100] [r get foo]
+        ssdbr del foo
+        list [ssdbr append foo bar] [ssdbr get foo] \
+             [ssdbr append foo 100] [ssdbr get foo]
     } {3 bar 6 bar100}
 
     test {APPEND basics, integer encoded values} {
         set res {}
-        r del foo
-        r append foo 1
-        r append foo 2
-        lappend res [r get foo]
-        r set foo 1
-        r append foo 2
-        lappend res [r get foo]
+        ssdbr del foo
+        ssdbr append foo 1
+        ssdbr append foo 2
+        lappend res [ssdbr get foo]
+        ssdbr set foo 1
+        ssdbr append foo 2
+        lappend res [ssdbr get foo]
     } {12 12}
 
     test {APPEND fuzzing} {
         set err {}
         foreach type {binary alpha compr} {
             set buf {}
-            r del x
+            ssdbr del x
             for {set i 0} {$i < 1000} {incr i} {
                 set bin [randstring 0 10 $type]
                 append buf $bin
-                r append x $bin
+                ssdbr append x $bin
             }
-            if {$buf != [r get x]} {
-                set err "Expected '$buf' found '[r get x]'"
+            if {$buf != [ssdbr get x]} {
+                set err "Expected '$buf' found '[ssdbr get x]'"
                 break
             }
         }
@@ -231,16 +235,16 @@ start_server {tags {"other"}} {
     # Leave the user with a clean DB before to exit
     test {FLUSHDB} {
         set aux {}
-        r select 9
-        r flushdb
-        lappend aux [r dbsize]
-        r select 10
-        r flushdb
-        lappend aux [r dbsize]
+        ssdbr select 9
+        ssdbr flushdb
+        lappend aux [ssdbr dbsize]
+        ssdbr select 10
+        ssdbr flushdb
+        lappend aux [ssdbr dbsize]
     } {0 0}
 
     test {Perform a final SAVE to leave a clean DB on disk} {
         waitForBgsave r
-        r save
+        ssdbr save
     } {OK}
 }

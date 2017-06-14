@@ -44,6 +44,12 @@ set ::all_tests {
     unit/type/list-2
     unit/type/list-3
 
+    unit/introspection
+    unit/introspection-2
+    unit/keyspace
+    unit/limits
+    unit/other
+
     integration/aof
     integration/replication-base
     integration/replication-2
