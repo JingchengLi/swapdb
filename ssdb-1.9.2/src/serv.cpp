@@ -994,7 +994,7 @@ int proc_rr_transfer_snapshot(Context &ctx, Link *link, const Request &req, Resp
 
     link->quick_send({"ok","rr_transfer_snapshot ok"});
 
-    ReplicationJob *job = new ReplicationByIterator(ctx, HostAndPort{ip, port}, link, serv->opt.transfer_compression, true);
+    ReplicationJob *job = new ReplicationByIterator2(ctx, HostAndPort{ip, port}, link, serv->opt.transfer_compression, true);
     ctx.net->replication->push(job);
 
     resp->resp.clear(); //prevent send resp
