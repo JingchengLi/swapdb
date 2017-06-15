@@ -1842,8 +1842,9 @@ void handleUnfinishedCmdInRedis(client *c) {
         setExpire(c, EVICTED_DATA_DB, key, milliseconds);
         argv[0] = createStringObject("PEXPIREAT", 9);
         argv[1] = key;
-        argv[2] = createStringObjectFromLongLong(milliseconds);
-        propagate(c->cmd, EVICTED_DATA_DBID, argv, 3, PROPAGATE_AOF);
+
+        argv[2] = createObject(OBJ_STRING, sdsfromlonglong(milliseconds));
+        propagate(lookupCommandByCString("pexpireat"), EVICTED_DATA_DBID, argv, 3, PROPAGATE_AOF);
         decrRefCount(argv[0]);
         decrRefCount(argv[2]);
     }
