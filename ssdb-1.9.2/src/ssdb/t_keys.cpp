@@ -696,15 +696,22 @@ int SSDBImpl::scan(const Bytes& cursor, const std::string &pattern, uint64_t lim
 
 }
 
+
+#ifdef USE_LEVELDB
+#else
+#include "util/crc32c.h"
+#endif
+
 int SSDBImpl::digest(std::string *val) {
 
     auto snapshot = GetSnapshot();
     SnapshotPtr spl(ldb, snapshot); //auto release
+    auto mit = std::unique_ptr<Iterator>((iterator("", "", -1)));
 
+#ifdef USE_LEVELDB
     unsigned char digest[20];
     memset(digest,0,20); /* Start with a clean result */
 
-    auto mit = std::unique_ptr<Iterator>((iterator("", "", -1)));
     while(mit->next()){
         mixDigest(digest, (void *) (mit->key().data()), (size_t) mit->key().size());
         mixDigest(digest, (void *) (mit->val().data()), (size_t) mit->val().size());
@@ -718,6 +725,18 @@ int SSDBImpl::digest(std::string *val) {
     }
 
     *val = tmp;
+
+#else
+    uint32_t crc = 0;
+    while (mit->next()) {
+        crc = leveldb::crc32c::Extend(crc, mit->key().data(), (size_t) mit->key().size());
+        crc = leveldb::crc32c::Extend(crc, mit->val().data(), (size_t) mit->val().size());
+    }
+
+#endif
+
+    *val = str((uint64_t)crc);
+
     return 0;
 }
 
