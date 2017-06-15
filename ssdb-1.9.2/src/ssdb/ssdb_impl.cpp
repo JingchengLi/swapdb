@@ -146,7 +146,7 @@ SSDB *SSDB::open(const Options &opt, const std::string &dir) {
 
     column_families.emplace_back(leveldb::ColumnFamilyDescriptor(REPOPID_CF, leveldb::ColumnFamilyOptions()));
 
-    status = leveldb::DB::Open(ssdb->options, ssdb->path  + "/data", column_families, &ssdb->handles, &ssdb->ldb);
+    status = leveldb::DB::Open(ssdb->options, ssdb->getDataPath(), column_families, &ssdb->handles, &ssdb->ldb);
     if (!status.ok()) {
         log_error("open db failed: %s", status.ToString().c_str());
         delete ssdb;
@@ -160,13 +160,13 @@ SSDB *SSDB::open(const Options &opt, const std::string &dir) {
 }
 
 int SSDBImpl::filesize(Context &ctx, uint64_t *total_file_size) {
-    if (!is_dir(path)) {
+    if (!is_dir(getDataPath())) {
         return -1;
     }
 
     leveldb::Env *env = leveldb::Env::Default();
     std::vector<std::string> result;
-    leveldb::Status s = env->GetChildren(path, &result);
+    leveldb::Status s = env->GetChildren(getDataPath(), &result);
     if (!s.ok()){
         //error
         log_error("error: %s", s.ToString().c_str());
@@ -174,14 +174,17 @@ int SSDBImpl::filesize(Context &ctx, uint64_t *total_file_size) {
     }
 
     for_each(result.begin(), result.end() ,[&](std::string filename) {
+        if (filename== "." || filename == "..") {
+            //ignore
+        }
         uint64_t file_size = 0;
-        s = env->GetFileSize(path + "/" + filename, &file_size);
+        s = env->GetFileSize(getDataPath() + filename, &file_size);
         if (!s.ok()){
             //error
             log_error("error: %s", s.ToString().c_str());
         } else {
 //            log_debug("%s file size : %d", filename.c_str(), file_size);
-//            (*total_file_size) += file_size;
+            (*total_file_size) += file_size;
         }
     });
 
@@ -688,20 +691,29 @@ void *SSDBImpl::thread_func(void *arg) {
 #include "rocksdb/utilities/backupable_db.h"
 
 int SSDBImpl::save() {
+    Locking<Mutex> l(&this->mutex_backup_);
 
     rocksdb::Status s;
     rocksdb::DB *db = ldb;
 
-    auto backup_option = rocksdb::BackupableDBOptions(path + "/../backup");
+    auto backup_option = rocksdb::BackupableDBOptions(path + "/backup");
 //    backup_option.sync = true;
     backup_option.share_table_files = false;
     backup_option.share_files_with_checksum = false;
+    backup_option.destroy_old_data = true;
 
-    rocksdb::BackupEngine *backup_engine;
+    rocksdb::BackupEngine *backup_engine = nullptr;
     s = rocksdb::BackupEngine::Open(rocksdb::Env::Default(), backup_option, &backup_engine);
-    assert(s.ok());
+    if (!s.ok()) {
+        log_error("%s", s.ToString().c_str());
+        if (backup_engine != nullptr) {
+            delete backup_engine;
+        }
+    }
     s = backup_engine->CreateNewBackup(db, false);
-    assert(s.ok());
+    if (!s.ok()) {
+        log_error("%s", s.ToString().c_str());
+    }
 
     backup_engine->PurgeOldBackups(1);
 
@@ -711,9 +723,10 @@ int SSDBImpl::save() {
     for (auto const &backup_info : backup_infos) {
         log_info("backup_info: ID:%d TS:%d Size:%d ", backup_info.backup_id , backup_info.timestamp, backup_info.size);
         s = backup_engine->VerifyBackup(backup_info.backup_id /* ID */);
-        assert(s.ok());
+        if (!s.ok()) {
+            log_error("%s", s.ToString().c_str());
+        }
     }
-
 
     delete backup_engine;
 

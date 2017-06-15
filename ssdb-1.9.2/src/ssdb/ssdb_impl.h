@@ -106,6 +106,10 @@ public:
 		return path;
 	}
 
+	string getDataPath() const {
+		return path + "/data/";
+	}
+
 	int save();
 
 	ExpirationHandler *expiration;
@@ -351,6 +355,7 @@ private:
 private:
 	//    pthread_mutex_t mutex_bgtask_;
 	Mutex mutex_bgtask_;
+	Mutex mutex_backup_;
 	std::atomic<bool> bgtask_quit;
 	pthread_t bg_tid_;
     std::queue<std::string> tasks_;
