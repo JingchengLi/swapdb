@@ -254,7 +254,7 @@ int ReplicationByIterator2::process() {
             if (!buffer->empty()) {
                 rawBytes += buffer->size();
 
-                moveBufferSync(ssdb_slave_link->output, buffer, compress);
+                moveBufferSync(ssdb_slave_link->output, buffer, false);
 
                 if (!ssdb_slave_link->output->empty()) {
                     int len = ssdb_slave_link->write();
@@ -410,7 +410,7 @@ void moveBufferSync(Buffer *dst, Buffer *src, bool compress) {
 }
 
 void moveBufferAsync(ReplicationByIterator2* job, Buffer *dst, Buffer *input, bool compress) {
-    if (!compress) {
+    if (!compress && input != nullptr) {
         return moveBufferSync(dst, input, false);
     }
 
