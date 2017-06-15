@@ -457,6 +457,7 @@ proc wait_for_dumpto_ssdb {r key} {
 
 proc wait_for_restoreto_redis {r key} {
     #wait key restore to redis
+    $r dumpfromssdb $key ;# TODO
     wait_for_condition 100 1 {
         [$r locatekey $key] eq {redis}
     } else {
@@ -614,6 +615,7 @@ proc debug_digest {r {level 0}} {
             set keyslist [$r $level ssdbkeys *]
             if {[llength $keyslist] == 0} {break}
             foreach key $keyslist {
+                $r $level dumpfromssdb $key ;# TODO
                 $r $level exists $key ;#load keys to redis
             }
             after 1000

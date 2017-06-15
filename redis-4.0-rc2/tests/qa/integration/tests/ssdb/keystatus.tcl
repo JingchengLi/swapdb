@@ -14,6 +14,7 @@ overrides {maxmemory 0}} {
 
     test "redis status key is not in ssdb" {
         r get foo
+        r dumpfromssdb foo ;# TODO
         wait_for_condition 100 1 {
             [ r locatekey foo ] eq {redis}
         } else {
@@ -34,6 +35,7 @@ overrides {maxmemory 0}} {
 
     test "status of key in redis is redis" {
         r get foo
+        r dumpfromssdb foo ;# TODO
         wait_for_condition 100 1 {
             [sr get foo] eq {}
         } else {

@@ -430,6 +430,13 @@ overrides {maxmemory 0}} {
         assert {$ttl <= 10 && $ttl > 5}
     }
 
+    test {SET persist volatile key} {
+        ssdbr set foo bar
+        assert_equal -1 [ssdbr ttl foo] "Set can persist volatile key."
+        r debug loadaof
+        assert_equal -1 [ssdbr ttl foo] "Key keep persist after loadaof"
+    }
+
     test {Extended SET PX option} {
         ssdbr del foo
         ssdbr set foo bar px 10000
@@ -442,6 +449,9 @@ overrides {maxmemory 0}} {
         assert {[ssdbr set foo bar xx px 10000] eq {OK}}
         set ttl [ssdbr ttl foo]
         assert {$ttl <= 10 && $ttl > 5}
+        r debug loadaof
+        set ttl [ssdbr ttl foo]
+        assert {$ttl <= 10 && $ttl > 5} "Key keep ttl after loadaof"
     }
 
     test {GETRANGE with huge ranges, Github issue #1844} {

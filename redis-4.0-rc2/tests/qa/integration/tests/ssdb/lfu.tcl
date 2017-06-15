@@ -64,6 +64,7 @@ overrides {maxmemory 0}} {
 
     test "lfu count 20 decay to 10 divide by two" {
         r config set maxmemory 0
+        r dumpfromssdb foo ;# TODO
         while {[r object freq foo] < 20} {
             r incr foo
         }
@@ -75,6 +76,7 @@ overrides {maxmemory 0}} {
 
     test "lfu count 12 decay to 10 by set to ten" {
         r config set maxmemory 0
+        r dumpfromssdb foo ;# TODO
         while {[r object freq foo] < 12} {
             r incr foo
         }
@@ -141,6 +143,7 @@ overrides {maxmemory 0}} {
         set freq [r object freq foo]
         assert {$freq > 5}
         assert_equal 1000 [r get foo]
+        r dumpfromssdb foo ;# TODO
         assert_equal {redis} [r locatekey foo]
         assert {[r object freq foo] >= $freq}
     }

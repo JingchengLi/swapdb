@@ -78,6 +78,7 @@ overrides {maxmemory 0}} {
                     break
                 }
             }
+            r dumpfromssdb myhash ;# TODO
             assert_equal [r locatekey myhash] {redis}
             assert_equal 0 [ sr exists myhash ]
             r del myhash
@@ -120,6 +121,7 @@ overrides {maxmemory 0}} {
 
         test "set ($encoding) $valtype Be Hot store in redis" {
             assert_equal [lsort $list] [lsort [r smembers myset]]
+            r dumpfromssdb myset ;# TODO
             assert_equal [r locatekey myset] {redis}
             assert_equal [ sr exists myset ] 0
         }
@@ -136,6 +138,7 @@ overrides {maxmemory 0}} {
             assert {$ttl >= 1 && $ttl <= 3}
 
             assert_equal [lsort $list] [lsort [r smembers myset]]
+            r dumpfromssdb myset ;# TODO
             assert_equal [r locatekey myset] {redis}
             assert {$ttl >= 1 && $ttl <= 3}
             r del myset
@@ -173,6 +176,7 @@ overrides {maxmemory 0}} {
 
         test "zset ($encoding) Be Hot store in redis" {
             assert_equal $list [r zrange myzset 0 -1 withscores]
+            r dumpfromssdb myzset ;# TODO
             assert_equal [r locatekey myzset] {redis}
             assert_equal 0 [ sr exists myzset ]
         }
@@ -191,6 +195,7 @@ overrides {maxmemory 0}} {
             assert {$pttl >= 2569591501-3000 && $pttl <= 2569591501}
 
             assert_equal $list [r zrange myzset 0 -1 withscores]
+            r dumpfromssdb myzset ;# TODO
             assert_equal [r locatekey myzset] {redis}
             set pttl [r pttl myzset]
             assert {$pttl >= 2569591501-3000 && $pttl <= 2569591501}
@@ -234,6 +239,7 @@ overrides {maxmemory 0}} {
         test "list (quicklist) $valtype Be Hot store in redis" {
             assert_equal [lsort $list] [lsort [r lrange mylist 0 -1]]
 
+            r dumpfromssdb mylist ;# TODO
             assert_equal [r locatekey mylist] {redis}
             assert_equal [ sr exists mylist ] 0
         }
