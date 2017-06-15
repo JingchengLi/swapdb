@@ -416,24 +416,26 @@ void moveBufferAsync(ReplicationByIterator2* job, Buffer *dst, Buffer *input, bo
 
     if (job->bg.valid()) {
 
-        PTST(WAIT_CompressResult,0.005)CompressResult buf = job->bg.get();
+        PTST(WAIT_CompressResult,0.005)
+        const CompressResult &buf = job->bg.get();
         PTE(WAIT_CompressResult, "")
 
         auto in = buf.in;
         auto comprlen = buf.comprlen;
+        auto rawlen = buf.rawlen;
 
         saveStrToBuffer(dst, "mset");
-        dst->append(replic_save_len((uint64_t) in->size()));
+        dst->append(replic_save_len((uint64_t) rawlen));
         dst->append(replic_save_len(comprlen));
 
         if (comprlen == 0) {
             dst->append(in->data(), in->size());
+            in->reset();
         } else {
             dst->append(buf.out.data(), (int) comprlen);
         }
 
 //        delete buf.in;
-        job->buffer2->reset();
     }
 
 
@@ -449,6 +451,7 @@ void moveBufferAsync(ReplicationByIterator2* job, Buffer *dst, Buffer *input, bo
         job->bg = std::async(std::launch::async, [](Buffer *b) {
             CompressResult compressResult;
             compressResult.in = b;
+            compressResult.rawlen = (size_t) b->size();
 
             auto src = compressResult.in;
 
@@ -479,6 +482,9 @@ void moveBufferAsync(ReplicationByIterator2* job, Buffer *dst, Buffer *input, bo
             }
 
             compressResult.comprlen = comprlen;
+            if (comprlen != 0) {
+                b->reset();
+            }
 
             return compressResult;
         }, job->buffer2);

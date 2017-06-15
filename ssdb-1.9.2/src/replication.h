@@ -35,6 +35,7 @@ public:
     Buffer* in = nullptr;
     std::string out;
     size_t comprlen = 0;
+    size_t rawlen = 0;
 };
 
 
