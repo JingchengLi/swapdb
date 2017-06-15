@@ -81,6 +81,7 @@ typedef long long mstime_t; /* millisecond time type. */
 #define C_ANOTHER_FLUSHALL_ERR  -4
 #define C_RETURN                -5
 #define C_BLOCKED               -6
+#define C_NO_EXPIRE             -7
 
 /* SSDB connection flags in jdjr_mode */
 #define CONN_CONNECT_FAILED         (1<<0)

@@ -3734,6 +3734,26 @@ long long getAbsoluteExpireTimeFromArgs(client *c) {
         }
     }
 
+    if (c->cmd->proc == setCommand) {
+        int i;
+        for (i = 0; i < c->argc; i ++) {
+            if (sdsEncodedObject(c->argv[i]) && !strcasecmp(c->argv[i]->ptr, "ex")) {
+                serverAssert(getLongLongFromObject(c->argv[i + 1], &milliseconds) == C_OK);
+                milliseconds *= 1000;
+                milliseconds += mstime();
+                return milliseconds;
+            }
+
+            if (sdsEncodedObject(c->argv[i]) && !strcasecmp(c->argv[i]->ptr, "px")) {
+                serverAssert(getLongLongFromObject(c->argv[i + 1], &milliseconds) == C_OK);
+                milliseconds += mstime();
+                return milliseconds;
+            }
+        }
+
+        return C_NO_EXPIRE;
+    }
+
     return C_ERR;
 }
 
