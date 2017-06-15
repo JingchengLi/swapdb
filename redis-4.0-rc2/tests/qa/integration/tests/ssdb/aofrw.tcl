@@ -29,7 +29,7 @@ start_server {tags {"ssdb"}} {
             set master [srv 0 client]
             set master_host [srv 0 host]
             set master_port [srv 0 port]
-            set clist [ start_bg_complex_data_list $master_host $master_port $num $clients 1k]
+            set clist [ start_bg_complex_data_list $master_host $master_port $num $clients {1k useexpire}]
 
             # Make sure the instance is really receiving data
             wait_for_condition 50 100 {

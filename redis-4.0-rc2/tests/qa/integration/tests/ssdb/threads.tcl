@@ -3,7 +3,12 @@ start_server {tags {"ssdb"} } {
         set host [srv host]
         set port [srv port]
         set num 100000
-        set clist [start_bg_complex_data_list $host $port $num 100 samekey]
+        set clist1 [start_bg_complex_data_list $host $port $num 100 {samekey useexpire}]
+        after 5000
+        stop_bg_client_list $clist1
+        kill_ssdb_server
+        restart_ssdb_server
+        set clist [start_bg_complex_data_list $host $port $num 100 {samekey useexpire}]
         after 5000
         stop_bg_client_list $clist
         # check redis still work
@@ -15,7 +20,12 @@ start_server {tags {"ssdb"} } {
         set host [srv host]
         set port [srv port]
         set num 100000
-        set clist [start_bg_complex_data_list $host $port $num 100]
+        set clist1 [start_bg_complex_data_list $host $port $num 50 useexpire]
+        after 5000
+        stop_bg_client_list $clist1
+        kill_ssdb_server
+        restart_ssdb_server
+        set clist [start_bg_complex_data_list $host $port $num 50 useexpire]
         after 5000
         stop_bg_client_list $clist
         # check redis still work
