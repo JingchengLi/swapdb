@@ -527,7 +527,7 @@ int proc_restore(Context &ctx, Link *link, const Request &req, Response *resp) {
 
     PTST(restore, 0.01)
     int ret = serv->ssdb->restore(ctx, req[1], ttl, req[3], replace, &val);
-    PTE(restore, req[1].String())
+    PTE(restore, hexstr(req[1]))
 
     if (ret < 0) {
         log_warn("%s, %s : %s", GetErrorInfo(ret).c_str(), hexmem(req[1].data(), req[1].size()).c_str(),
@@ -548,7 +548,7 @@ int proc_dump(Context &ctx, Link *link, const Request &req, Response *resp) {
 
     PTST(dump, 0.01)
     int ret = serv->ssdb->dump(ctx, req[1], &val, nullptr, serv->opt.rdb_compression);
-    PTE(dump, req[1].String())
+    PTE(dump, hexstr(req[1]))
 
     check_key(ret);
     resp->reply_get(ret, &val);
