@@ -535,6 +535,20 @@ void feedAppendOnlyFile(struct redisCommand *cmd, int dictid, robj **argv, int a
         buf = catAppendOnlyGenericCommand(buf,3,tmpargv);
         decrRefCount(tmpargv[0]);
         buf = catAppendOnlyExpireAtCommand(buf,cmd,argv[1],argv[2]);
+    } else if (cmd->proc == setCommand) {
+        int i;
+        /* Translate SET [EX seconds][PX milliseconds] to SET and PEXPIREAT */
+        buf = catAppendOnlyGenericCommand(buf,3,argv);
+        for (i = 0; i < argc; i ++) {
+            if (sdsEncodedObject(argv[i]) && !strcasecmp(argv[i]->ptr, "ex")) {
+                buf = catAppendOnlyExpireAtCommand(buf,lookupCommandByCString("expire"),argv[1],argv[i+1]);
+                break;
+            }
+            if (sdsEncodedObject(argv[i]) && !strcasecmp(argv[i]->ptr, "px")) {
+                buf = catAppendOnlyExpireAtCommand(buf,lookupCommandByCString("pexpire"),argv[1],argv[i+1]);
+                break;
+            }
+        }
     } else {
         /* All the other commands don't need translation or need the
          * same translation already operated in the command vector
