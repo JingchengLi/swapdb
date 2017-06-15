@@ -88,19 +88,21 @@ int proc_set(Context &ctx, Link *link, const Request &req, Response *resp){
 			std::string key = req[i].String();
 			strtolower(&key);
 
-			if (key=="nx") {
+			if (key == "nx" && !(flags & OBJ_SET_XX)) {
 				flags |= OBJ_SET_NX;
-			} else if (key=="xx") {
+			} else if (key == "xx" && !(flags & OBJ_SET_NX)) {
 				flags |= OBJ_SET_XX;
-			} else if (key=="ex") {
+			} else if (key == "ex" && !(flags & OBJ_SET_PX)) {
 				flags |= OBJ_SET_EX;
 				tu = TimeUnit::Second;
-			} else if (key=="px") {
+			} else if (key == "px" && !(flags & OBJ_SET_EX)) {
 				flags |= OBJ_SET_PX;
 				tu = TimeUnit::Millisecond;
+			} else {
+				reply_err_return(SYNTAX_ERR);
 			}
 
-			if (key=="nx" || key=="xx") {
+			if (key == "nx" || key == "xx") {
 				//nothing
 			} else if (key=="ex" || key=="px") {
 				i++;
