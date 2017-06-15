@@ -4,6 +4,23 @@ start_server {tags {"ssdb"}} {
     r config set auto-aof-rewrite-percentage 0 ; # Disable auto-rewrite.
     waitForBgrewriteaof r
 
+    test "#issue AOF reload recover the key index should be deleted" {
+        r set foo bar
+        dumpto_ssdb_and_wait r foo
+        r del foo
+        r debug loadaof
+
+        assert_equal 0 [r dbsize] "foo should be deleted after loadaof."
+
+        r bgrewriteaof
+        waitForBgrewriteaof r
+        r debug loadaof
+        assert_equal 0 [r dbsize] "foo should be deleted after aofrewrite and loadaof."
+    }
+
+    set num 100000
+    set clients 10
+    set clist {}
     foreach rdbpre {no yes} {
         r config set aof-use-rdb-preamble $rdbpre
         test "AOF rewrite during write load and transferring: RDB preamble=$rdbpre" {
@@ -12,11 +29,7 @@ start_server {tags {"ssdb"}} {
             set master [srv 0 client]
             set master_host [srv 0 host]
             set master_port [srv 0 port]
-            set load_handle0 [start_write_load $master_host $master_port 30]
-            set load_handle1 [start_write_load $master_host $master_port 30]
-            set load_handle2 [start_write_load $master_host $master_port 30]
-            set load_handle3 [start_write_load $master_host $master_port 30]
-            set load_handle4 [start_write_load $master_host $master_port 30]
+            set clist [ start_bg_complex_data_list $master_host $master_port $num $clients 1k]
 
             # Make sure the instance is really receiving data
             wait_for_condition 50 100 {
@@ -37,12 +50,7 @@ start_server {tags {"ssdb"}} {
             after 100
 
             # Stop the processes generating the load if they are still active
-            stop_write_load $load_handle0
-            stop_write_load $load_handle1
-            stop_write_load $load_handle2
-            stop_write_load $load_handle3
-            stop_write_load $load_handle4
-
+            stop_bg_client_list $clist
             # Make sure that no write before debug digest.
             wait_for_transfer_limit 0
             # Get the data set digest
