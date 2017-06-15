@@ -1961,6 +1961,15 @@ void initServerConfig(void) {
     server.lazyfree_lazy_server_del = CONFIG_DEFAULT_LAZYFREE_LAZY_SERVER_DEL;
     server.always_show_logo = CONFIG_DEFAULT_ALWAYS_SHOW_LOGO;
 
+    server.client_visiting_ssdb_timeout = CONFIG_DEFAULT_CLIENT_VISITING_SSDB_TIMEOUT;
+    server.client_blocked_by_keys_timeout = CONFIG_DEFAULT_CLIENT_BLOCKED_BY_KEYS_TIMEOUT;
+    server.client_blocked_by_flushall_timeout = CONFIG_DEFAULT_CLIENT_BLOCKED_BY_FLUSHALL_TIMEOUT;
+    server.client_blocked_by_replication_nowrite_timeout = CONFIG_DEFAULT_CLIENT_BLOCKED_BY_REPLICATION_NOWRITE_TIMEOUT;
+    server.client_blocked_by_migrate_dump_timeout = CONFIG_DEFAULT_CLIENT_BLOCKED_BY_MIGRATE_DUMP_TIMEOUT;
+    server.client_blocked_by_migrate_timeout = CONFIG_DEFAULT_CLIENT_BLOCKED_BY_MIGRATE_TIMEOUT;
+    server.slave_blocked_by_flushall_timeout = CONFIG_DEFAULT_SLAVE_BLOCKED_BY_FLUSHALL_TIMEOUT;
+
+
     server.lruclock = getLRUClock();
     resetServerSaveParams();
 
