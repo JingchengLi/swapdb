@@ -233,7 +233,7 @@ int ReplicationByIterator2::process() {
 
 
                 if (!ssdb_slave_link->output->empty()) {
-                    int len = ssdb_slave_link->write();
+                    int len = ssdb_slave_link->write(-1);
                     if (len > 0) { sendBytes = sendBytes + len; }
                 }
 
@@ -344,7 +344,7 @@ int ReplicationByIterator2::process() {
 void ReplicationByIterator2::saveStrToBufferQuick(Buffer *buffer, const Bytes &fit) {
 
     if (fit.size() < quickmap_size) {
-        buffer->append(quickmap[fit.size()]);
+        buffer->append(quickmap[fit.size()].data(), quickmap[fit.size()].size());
     }   else {
         string val_len = replic_save_len((uint64_t) (fit.size()));
         buffer->append(val_len);

@@ -339,7 +339,7 @@ int Link::read(int shrink) {
     return ret;
 }
 
-int Link::write() {
+int Link::write(int shrink) {
     int ret = 0;
     int want;
     while ((want = output->size()) > 0) {
@@ -353,7 +353,7 @@ int Link::write() {
                 break;
             } else {
                 net_debug("fd: %d, write: -1, error: %s", sock, strerror(errno));
-                 return -1;
+                return -1;
             }
         } else {
             net_debug("fd: %d, want: %d, write: %d ,data: %s", sock, want, len, hexmem(output->data(),len).c_str()); //
@@ -370,9 +370,15 @@ int Link::write() {
     }
     output->nice();
     if (output->size() == 0 && output->total() > BEST_BUFFER_SIZE) {
-        output->shrink(BEST_BUFFER_SIZE);
+        if (shrink > 0) {
+            output->shrink(shrink);
+        }
     }
     return ret;
+}
+
+int Link::write() {
+    return write(BEST_BUFFER_SIZE);
 }
 
 int Link::flush() {
