@@ -282,6 +282,18 @@ void loadServerConfigFromString(char *config) {
             } else if (argc == 2 && !strcasecmp(argv[1],"")) {
                 resetServerSaveParams();
             }
+        } else if (!strcasecmp(argv[0],"ssdb-load-rule")) {
+            if (argc == 3) {
+                int cycle_seconds = atoi(argv[1]);
+                long long hits_threshold = atoll(argv[2]);
+                if (cycle_seconds < 1 || hits_threshold < 0) {
+                    err = "Invalid ssdb-load-rule parameters";
+                    goto loaderr;
+                }
+                appendSSDBloadRule(cycle_seconds, hits_threshold);
+            } else if (argc == 2 && !strcasecmp(argv[1], "")) {
+                resetSSDBloadRule();
+            }
         } else if (!strcasecmp(argv[0],"dir") && argc == 2) {
             if (chdir(argv[1]) == -1) {
                 serverLog(LL_WARNING,"Can't chdir to '%s': %s",
@@ -978,6 +990,40 @@ void configSetCommand(client *c) {
             appendServerSaveParams(seconds, changes);
         }
         sdsfreesplitres(v,vlen);
+     } config_set_special_field("ssdb-load-rule") {
+        int vlen, j;
+        sds *v = sdssplitlen(o->ptr,sdslen(o->ptr)," ",1,&vlen);
+
+        /* Perform sanity check before setting the new config:
+         * - Even number of args
+         * - Seconds >= 1, changes >= 0 */
+        if (vlen & 1) {
+            sdsfreesplitres(v,vlen);
+            goto badfmt;
+        }
+        for (j = 0; j < vlen; j++) {
+            char *eptr;
+            long val;
+
+            val = strtoll(v[j], &eptr, 10);
+            if (eptr[0] != '\0' ||
+                ((j & 1) == 0 && val < 1) ||
+                ((j & 1) == 1 && val < 0)) {
+                sdsfreesplitres(v,vlen);
+                goto badfmt;
+            }
+        }
+        /* Finally set the new config */
+        resetSSDBloadRule();
+        for (j = 0; j < vlen; j += 2) {
+            int cycle_seconds;
+            long long hits_threshold;
+
+            cycle_seconds = strtoll(v[j],NULL,10);
+            hits_threshold = strtoll(v[j+1],NULL,10);
+            appendSSDBloadRule(cycle_seconds, hits_threshold);
+        }
+        sdsfreesplitres(v,vlen);
     } config_set_special_field("dir") {
         if (chdir((char*)o->ptr) == -1) {
             addReplyErrorFormat(c,"Changing directory: %s", strerror(errno));
@@ -1429,6 +1475,22 @@ void configGetCommand(client *c) {
         sdsfree(buf);
         matches++;
     }
+    if (stringmatch(pattern,"ssdb-load-rule",1)) {
+        sds buf = sdsempty();
+        int j;
+
+        for (j = 0; j < server.ssdb_load_rules_len; j++) {
+            buf = sdscatprintf(buf,"%jd %lld",
+                    (intmax_t)server.ssdb_load_rules[j].cycle_seconds,
+                    server.ssdb_load_rules[j].hits_threshold);
+            if (j != server.ssdb_load_rules_len-1)
+                buf = sdscatlen(buf," ",1);
+        }
+        addReplyBulkCString(c,"ssdb-load-rule");
+        addReplyBulkCString(c,buf);
+        sdsfree(buf);
+        matches++;
+    }
     if (stringmatch(pattern,"client-output-buffer-limit",1)) {
         sds buf = sdsempty();
         int j;
@@ -1772,6 +1834,19 @@ void rewriteConfigSyslogfacilityOption(struct rewriteConfigState *state) {
     rewriteConfigRewriteLine(state,option,line,force);
 }
 
+void rewriteConfigSSDBloadRuleOption(struct rewriteConfigState *state) {
+    int j;
+    sds line;
+
+    for (j = 0; j < server.ssdb_load_rules_len; j++) {
+        line = sdscatprintf(sdsempty(),"ssdb-load-rule %ld %lld",
+            (long) server.ssdb_load_rules[j].cycle_seconds, server.ssdb_load_rules[j].hits_threshold);
+        rewriteConfigRewriteLine(state,"ssdb-load-rule",line,1);
+    }
+    /* Mark "ssdb-load-rule" as processed in case server.ssdb_load_rules_len is zero. */
+    rewriteConfigMarkAsProcessed(state,"ssdb-load-rule");
+}
+
 /* Rewrite the save option. */
 void rewriteConfigSaveOption(struct rewriteConfigState *state) {
     int j;
@@ -2038,6 +2113,7 @@ int rewriteConfig(char *path) {
     rewriteConfigStringOption(state,"syslog-ident",server.syslog_ident,CONFIG_DEFAULT_SYSLOG_IDENT);
     rewriteConfigSyslogfacilityOption(state);
     rewriteConfigSaveOption(state);
+    rewriteConfigSSDBloadRuleOption(state);
     rewriteConfigNumericalOption(state,"databases", (server.jdjr_mode ? server.dbnum - 1 : server.dbnum),CONFIG_DEFAULT_DBNUM);
     rewriteConfigYesNoOption(state,"stop-writes-on-bgsave-error",server.stop_writes_on_bgsave_err,CONFIG_DEFAULT_STOP_WRITES_ON_BGSAVE_ERROR);
     rewriteConfigYesNoOption(state,"rdbcompression",server.rdb_compression,CONFIG_DEFAULT_RDB_COMPRESSION);

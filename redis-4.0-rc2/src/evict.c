@@ -249,7 +249,7 @@ void tryInsertColdPool(struct evictionPoolEntry *pool, sds key, int dbid, int id
 
 //todo 添加配置参数
 #define COLD_KEY_LFU_VAL (255-LFU_INIT_VAL+1)
-void coldKeyPopulate(int dbid, dict *sampledict, dict *keydict, struct evictionPoolEntry *pool) {
+void coldKeyPopulate(dict *sampledict, struct evictionPoolEntry *pool) {
     int j, k, count;
     dictEntry *samples[server.maxmemory_samples];
 
@@ -270,10 +270,6 @@ void coldKeyPopulate(int dbid, dict *sampledict, dict *keydict, struct evictionP
         if (dictFind(EVICTED_DATA_DB->transferring_keys, key) != NULL)
             continue;
 
-        /* If the dictionary we are sampling from is not the main
-         * dictionary (but the expires one) we need to lookup the key
-         * again in the key dictionary to obtain the value object. */
-        if (sampledict != keydict) de = dictFind(keydict, key);
         o = dictGetVal(de);
 
         if (server.maxmemory_policy & MAXMEMORY_FLAG_LFU) {
@@ -293,7 +289,7 @@ void coldKeyPopulate(int dbid, dict *sampledict, dict *keydict, struct evictionP
             serverPanic("Unknown eviction policy in coldKeyPopulate()");
         }
 
-        tryInsertColdPool(pool, key, dbid, idle);
+        tryInsertColdPool(pool, key, 0, idle);
     }
 }
 
@@ -757,18 +753,13 @@ int tryEvictingKeysToSSDB(int *mem_tofree) {
 
     unsigned long total_keys = 0, keys;
 
-    /* We don't want to make local-db choices when expiring keys,
-     * so to start populate the eviction pool sampling keys from
-     * every DB. */
-    for (i = 0; i < server.dbnum; i++) {
-        if (i == EVICTED_DATA_DBID) continue;
-
-        db = server.db+i;
-        dict = db->dict;
-        if ((keys = dictSize(dict)) != 0) {
-            coldKeyPopulate(i, dict, db->dict, pool);
-            total_keys += keys;
+    db = server.db;
+    dict = db->dict;
+    if ((keys = dictSize(dict)) != 0) {
+        for (i = 0; i < COLDKEY_FILTER_TIMES_EVERYTIME; i++) {
+            coldKeyPopulate(dict, pool);
         }
+        total_keys += keys;
     }
 
     /* there are no keys in ColdKeyPool to evict. */

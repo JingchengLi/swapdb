@@ -1404,10 +1404,7 @@ void startToEvictIfNeeded() {
 
 #define RESERVED_MEMORY_WHEN_LOAD (1024*1024*2)
 int isMeetLoadCondition() {
-    if (!server.hot_keys || !dictSize(server.hot_keys))
-        return 0;
-
-    if (server.is_allow_ssdb_write == DISALLOW_SSDB_WRITE ||
+   if (server.is_allow_ssdb_write == DISALLOW_SSDB_WRITE ||
         server.prohibit_ssdb_read_write == PROHIBIT_SSDB_READ_WRITE) {
         serverLog(LL_DEBUG, "replication write check write is going on.");
         return 0;
@@ -1456,7 +1453,54 @@ void loadThisKeyImmediately(sds key) {
     decrRefCount(o);
 }
 
+void resetSSDBloadRule() {
+    zfree(server.ssdb_load_rules);
+    server.ssdb_load_rules = NULL;
+    server.ssdb_load_rules_len = 0;
+}
+
+void appendSSDBloadRule(int cycle_seconds, long long hits_threshold) {
+    server.ssdb_load_rules = zrealloc(server.ssdb_load_rules,sizeof(struct loadSSDBkeyRule)*(server.ssdb_load_rules_len+1));
+    server.ssdb_load_rules[server.ssdb_load_rules_len].cycle_seconds = cycle_seconds;
+    server.ssdb_load_rules[server.ssdb_load_rules_len].hits_threshold = hits_threshold;
+    server.ssdb_load_rules[server.ssdb_load_rules_len].last_ssdb_hits_count = -1;
+    server.ssdb_load_rules[server.ssdb_load_rules_len].count_begin_time = -1;
+    server.ssdb_load_rules_len++;
+}
+
+void reinitSSDBhitsCounter(struct loadSSDBkeyRule* rule) {
+    rule->last_ssdb_hits_count = server.stat_keyspace_ssdb_hits;
+    rule->count_begin_time = server.unixtime;
+}
+
+int matchLoadRule() {
+    int i;
+    struct loadSSDBkeyRule rule;
+    for (i = 0; i < server.ssdb_load_rules_len; i++) {
+        rule = server.ssdb_load_rules[i];
+        if (rule.last_ssdb_hits_count == -1 && rule.count_begin_time == -1) {
+            reinitSSDBhitsCounter(&rule);
+            continue;
+        }
+
+        if (rule.cycle_seconds + rule.count_begin_time > server.unixtime) {
+            int divisor = (server.unixtime - rule.count_begin_time) / rule.cycle_seconds;
+            long long total_hits = server.stat_keyspace_ssdb_hits-rule.last_ssdb_hits_count;
+            if (total_hits / divisor > rule.hits_threshold) {
+                /* this rule is matched successfully. */
+                reinitSSDBhitsCounter(&rule);
+                return 1;
+            }
+            /* this time cycle elapsed, re-init it */
+            reinitSSDBhitsCounter(&rule);
+        }
+    }
+
+    return 0;
+}
+
 void startToLoadIfNeeded() {
+    static long long last_ssdb_hits = 0;
     dictIterator *di;
     dictEntry *de;
 
@@ -1464,8 +1508,11 @@ void startToLoadIfNeeded() {
         return;
     }
 
-    // todo: 根据commandstats中读写命令调用的增加次数来判断是否添加server.hot_keys
-    addHotKeys();
+    if (!server.test_mode && matchLoadRule())
+        addHotKeys();
+
+    if (!server.hot_keys || !dictSize(server.hot_keys))
+        return;
 
     di = dictGetSafeIterator(server.hot_keys);
     while((de = dictNext(di)) != NULL) {
@@ -1976,6 +2023,11 @@ void initServerConfig(void) {
     appendServerSaveParams(60*60,1);  /* save after 1 hour and 1 change */
     appendServerSaveParams(300,100);  /* save after 5 minutes and 100 changes */
     appendServerSaveParams(60,10000); /* save after 1 minute and 10000 changes */
+
+    resetSSDBloadRule();
+    appendSSDBloadRule(1, 100); /* 100 ssdb hits every second */
+    appendSSDBloadRule(10, 80*10); /* 800 ssdb hits every 10 seconds */
+    appendSSDBloadRule(60, 60*60); /* 3600 ssdb hits every 1 minute */
 
     /* Replication related */
     server.masterauth = NULL;
@@ -3404,9 +3456,25 @@ void chooseHotKeysByLFUcounter(robj* keyobj) {
 
     unsigned char counter = lfu & 255;
 
-    // todo: add a config option for LFU value
-    if ((counter > LFU_INIT_VAL) && !memoryReachLoadUpperLimit())
-        tryInsertHotPool(keyobj->ptr, EVICTED_DATA_DBID, 255-counter);
+    if ((counter > LFU_INIT_VAL) && !memoryReachLoadUpperLimit()) {
+        if (server.test_mode) {
+            /* for test purpose */
+
+            /* limit the max num of server.hot_keys to avoid to load too many keys
+             * when startToLoadIfNeeded called, which may block redis. */
+            if (dictSize(server.hot_keys)+dictSize(EVICTED_DATA_DB->loading_hot_keys) > MASTER_MAX_CONCURRENT_LOADING_KEYS)
+                return;
+
+            if (NULL == dictFind(EVICTED_DATA_DB->loading_hot_keys, dictGetKey(de)) &&
+                NULL == dictFind(EVICTED_DATA_DB->transferring_keys, dictGetKey(de))
+                && NULL == dictFind(EVICTED_DATA_DB->delete_confirm_keys, dictGetKey(de))) {
+                serverLog(LL_DEBUG, "key: %s is added to server.hot_keys", (sds)dictGetKey(de));
+                dictAddOrFind(server.hot_keys, dictGetKey(de));
+            }
+        } else {
+            tryInsertHotPool(keyobj->ptr, EVICTED_DATA_DBID, 255-counter);
+        }
+    }
     return;
 }
 
@@ -3496,10 +3564,7 @@ int processCommandMaybeInSSDB(client *c) {
             ret = sendCommandToSSDB(c, NULL);
             if (ret != C_OK) return ret;
 
-            /* Update server.stat_keyspace_ssdb_hits. */
-            if (c->cmd->flags & CMD_READONLY)
-                /* TODO: handle overflow ??? */
-                server.stat_keyspace_ssdb_hits ++;
+            server.stat_keyspace_ssdb_hits ++;
 
             /* Record the keys visting SSDB. */
             recordVisitingSSDBkeys(c->cmd, c->argv, c->argc);

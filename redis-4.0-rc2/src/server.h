@@ -153,7 +153,7 @@ typedef long long mstime_t; /* millisecond time type. */
 #define CONFIG_DEFAULT_UNIX_SOCKET_PERM 0
 #define CONFIG_DEFAULT_TCP_KEEPALIVE 300
 #define CONFIG_DEFAULT_PROTECTED_MODE 1
-#define CONFIG_DEFAULT_JDJR_MODE 0
+#define CONFIG_DEFAULT_JDJR_MODE 1
 #define CONFIG_DEFAULT_BEHAVE_AS_SSDB 1
 #define CONFIG_DEFAULT_LOAD_FROM_SSDB 1
 #define CONFIG_DEFAULT_USE_CUSTOMIZED_REPLICATION 1
@@ -1003,6 +1003,14 @@ struct ssdb_write_op {
     robj** argv;
 };
 
+struct loadSSDBkeyRule {
+    int cycle_seconds; /* time cycle */
+    long long hits_threshold; /* the lowest hits threshold to load keys */
+
+    long long last_ssdb_hits_count;  /* save the ssdb hit count of last time */
+    time_t count_begin_time; /* begin time of this cycle */
+};
+
 struct redisServer {
     /* General */
     pid_t pid;                  /* Main process pid. */
@@ -1370,6 +1378,11 @@ struct redisServer {
     client *delete_confirm_client;
     list *delayed_migrate_clients;
     list *storetossdb_migrate_keys;
+
+    /* rules for loading hot keys in ssdb */
+    int test_mode;
+    struct loadSSDBkeyRule* ssdb_load_rules;
+    int ssdb_load_rules_len;
 
     /* for slave redis, we save ssdb write operations before receive responses from ssdb. */
     time_t last_send_writeop_time;
@@ -2301,6 +2314,8 @@ void debugBT();
 #define redisDebugMark() \
     printf("-- MARK %s:%d --\n", __FILE__, __LINE__)
 
+void resetSSDBloadRule();
+void appendSSDBloadRule(int cycle_seconds, long long hits_threshold);
 
 // todo: add config options
 /* config options for jdjr mode */
@@ -2311,4 +2326,6 @@ void debugBT();
 #define SLAVE_MAX_SSDB_SWAP_COUNT_EVERYTIME 2
 
 #define SLAVE_MAX_PROCESSED_CMD_NUM_EVERYTIME 20
+
+#define COLDKEY_FILTER_TIMES_EVERYTIME 5
 #endif
