@@ -48,6 +48,10 @@ found in the LICENSE file.
 
 
 inline
+static leveldb::Slice slice(const std::string &b){
+	return leveldb::Slice(b.data(), (size_t) b.size());
+}
+inline
 static leveldb::Slice slice(const Bytes &b){
 	return leveldb::Slice(b.data(), (size_t) b.size());
 }
@@ -145,6 +149,7 @@ public:
 	virtual int dump(Context &ctx, const Bytes &key,std::string *res, int64_t *pttl, bool compress);
     virtual int restore(Context &ctx, const Bytes &key,int64_t expire, const Bytes &data, bool replace, std::string *res);
 	virtual int exists(Context &ctx, const Bytes &key);
+	virtual int parse_replic(Context &ctx, const std::vector<Bytes> &kvs);
 	virtual int parse_replic(Context &ctx, const std::vector<std::string> &kvs);
 
 	/* key value */

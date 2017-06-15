@@ -93,7 +93,6 @@ void *ssdb_sync2(void *arg) {
 
     int errorCode = 0;
 
-    std::vector<std::string> kvs;
 
 
     int64_t lastHeartBeat = time_ms();
@@ -233,6 +232,7 @@ void *ssdb_sync2(void *arg) {
 
 
                     std::string tmp;
+                    std::vector<Bytes> kvs;
 
                     if (compressed_len == 0) {
                         if (decoder.size() < (raw_len)) {
@@ -310,21 +310,27 @@ void *ssdb_sync2(void *arg) {
                     link->input->decr(link->input->size() - decoder.size());
 
                     if (!kvs.empty()) {
-                        log_debug("parse_replic count %d", kvs.size());
 
                         int tid = get_thread_id();
                         if (bgs[tid].valid()) {
-                            PTST(WAIT_parse_replic, 0.05)
+
+                             PTST(WAIT_parse_replic, 0.05)
                             errorCode = bgs[tid].get();
                             PTE(WAIT_parse_replic, str(tid))
                         }
 
-                        bgs[tid] = std::async(std::launch::async, [&serv, &ctx](std::vector<std::string> arr) {
-                            //serv is thread safe and ctx is readonly
-                            return serv->ssdb->parse_replic(ctx, arr);
-                        }, std::move(kvs));
+                        /*
+                         * attention here
+                         * we use vector<Bytes> instead of vector<string> using data_hold to prevent memory area
+                         * */
 
-                        kvs.clear();
+                        bgs[tid] = std::async(std::launch::async, [&serv, &ctx](std::vector<Bytes> arr, std::string data_hold) {
+                            //serv is thread safe and ctx is readonly
+                            log_debug("parse_replic count %d , data size %d", arr.size(), data_hold.size());
+
+                            return serv->ssdb->parse_replic(ctx, arr);
+                        }, std::move(kvs), std::move(tmp));
+
                     }
 
                 } else if (oper == "complete") {
@@ -355,11 +361,12 @@ void *ssdb_sync2(void *arg) {
         }
     }
 
-    if (!kvs.empty()) {
-        log_debug("parse_replic count %d", kvs.size());
-        errorCode = serv->ssdb->parse_replic(ctx, kvs);
-        kvs.clear();
-    }
+//    if (!kvs.empty()) {
+//        log_error("??????????????????????????????????????????");
+//        log_debug("parse_replic count %d", kvs.size());
+//        errorCode = serv->ssdb->parse_replic(ctx, kvs);
+//        kvs.clear();
+//    }
 
     log_info("[ssdb_sync] flush memtable");
     serv->ssdb->flush(ctx, true);
