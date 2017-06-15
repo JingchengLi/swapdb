@@ -79,7 +79,9 @@ void Options::load(Config *conf){
 
 	target_file_size_base = (size_t)conf->get_num("rocksdb.target_file_size_base", 64);
 
-	max_background_cd_threads = conf->get_num("rocksdb.max_background_cd_threads", 4);
+	max_write_buffer_number = conf->get_num("rocksdb.max_write_buffer_number", 3);
+	max_background_flushes = conf->get_num("rocksdb.max_background_flushes", 4);
+	max_background_compactions = conf->get_num("rocksdb.max_background_compactions", 4);
 
 	level0_file_num_compaction_trigger = conf->get_num("rocksdb.level0_file_num_compaction_trigger", 4);
 	level0_slowdown_writes_trigger = conf->get_num("rocksdb.level0_slowdown_writes_trigger", 20);

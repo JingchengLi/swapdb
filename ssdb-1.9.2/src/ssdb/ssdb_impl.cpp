@@ -110,11 +110,18 @@ SSDB *SSDB::open(const Options &opt, const std::string &dir) {
     //========
     ssdb->options.target_file_size_base = opt.target_file_size_base * UNIT_MB; //sst file target size
 
-    ssdb->options.IncreaseParallelism(opt.max_background_cd_threads);
+//    ssdb->options.IncreaseParallelism(opt.max_background_cd_threads);
 
-    ssdb->options.max_write_buffer_number = 3;
-    ssdb->options.max_background_flushes  = 4;
-    ssdb->options.max_background_compactions = 4;
+    ssdb->options.max_write_buffer_number = opt.max_write_buffer_number;
+
+
+    auto env = rocksdb::Env::Default();
+
+    ssdb->options.max_background_flushes = opt.max_background_flushes;
+    env->SetBackgroundThreads(opt.max_background_flushes, rocksdb::Env::HIGH);
+
+    ssdb->options.max_background_compactions = opt.max_background_compactions;
+    env->SetBackgroundThreads(opt.max_background_compactions, rocksdb::Env::LOW);
 
     //level config
     ssdb->options.use_direct_reads = opt.use_direct_reads;  //see : http://rocksdb.org/blog/2015/07/23/dynamic-level.html
