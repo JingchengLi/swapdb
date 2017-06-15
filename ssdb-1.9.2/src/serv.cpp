@@ -1122,10 +1122,16 @@ int proc_ssdb_sync(Context &ctx, Link *link, const Request &req, Response *resp)
 }
 
 int proc_ssdb_sync2(Context &ctx, Link *link, const Request &req, Response *resp){
-
     log_info("ssdb_sync2 , link address:%lld", link);
+    bool heartbeat = false;
 
-    ReplicationJob *job = new ReplicationByIterator(ctx, HostAndPort{link->remote_ip, link->remote_port}, link, true, false);
+    if (req.size() > 2) {
+        if (req[1].String() == "heartbeat") {
+            heartbeat = (req[2].String() == "1");
+        }
+    }
+
+    ReplicationJob *job = new ReplicationByIterator(ctx, HostAndPort{link->remote_ip, link->remote_port}, link, true, heartbeat);
 //	net->replication->push(job);
 
     pthread_t tid;

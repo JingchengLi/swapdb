@@ -62,7 +62,13 @@ int ReplicationByIterator2::process() {
     }
 
     ssdb_slave_link->noblock(false);
-    ssdb_slave_link->send(std::vector<std::string>({"ssdb_sync2"}));
+    std::vector<std::string> ssdb_sync_cmd({"ssdb_sync2"});
+    if (heartbeat) {
+        ssdb_sync_cmd.emplace_back("heartbeat");
+        ssdb_sync_cmd.emplace_back("1");
+    }
+
+    ssdb_slave_link->send(ssdb_sync_cmd);
     ssdb_slave_link->write();
     ssdb_slave_link->response();
     ssdb_slave_link->noblock(true);
