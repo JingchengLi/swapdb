@@ -17,7 +17,8 @@ extern "C" {
 static void send_error_to_redis(Link *link);
 
 static void moveBufferSync(Buffer *dst, Buffer *src, bool compress);
-static void moveBufferAsync(ReplicationByIterator2* job, Buffer *dst, Buffer *src, bool compress);
+
+static void moveBufferAsync(ReplicationByIterator2 *job, Buffer *dst, Buffer *src, bool compress);
 
 static void saveStrToBuffer(Buffer *buffer, const Bytes &fit);
 
@@ -84,7 +85,7 @@ int ReplicationByIterator2::process() {
 
     uint64_t rawBytes = 0;
     uint64_t sendBytes = 0;
-    uint64_t packageSize = MAX_PACKAGE_SIZE; //init 512k
+    uint64_t packageSize = compress ? MAX_PACKAGE_SIZE : MIN_PACKAGE_SIZE; //init 512k
     uint64_t totalKeys = serv->ssdb->size();
     uint64_t visitedKeys = 0;
 
@@ -254,7 +255,7 @@ int ReplicationByIterator2::process() {
             if (!buffer->empty()) {
                 rawBytes += buffer->size();
 
-                moveBufferSync(ssdb_slave_link->output, buffer, false);
+                moveBufferSync(ssdb_slave_link->output, buffer, compress);
 
                 if (!ssdb_slave_link->output->empty()) {
                     int len = ssdb_slave_link->write();
@@ -345,7 +346,7 @@ void ReplicationByIterator2::saveStrToBufferQuick(Buffer *buffer, const Bytes &f
 
     if (fit.size() < quickmap_size) {
         buffer->append(quickmap[fit.size()].data(), quickmap[fit.size()].size());
-    }   else {
+    } else {
         string val_len = replic_save_len((uint64_t) (fit.size()));
         buffer->append(val_len);
     }
@@ -368,6 +369,8 @@ void saveStrToBuffer(Buffer *buffer, const Bytes &fit) {
 }
 
 void moveBufferSync(Buffer *dst, Buffer *src, bool compress) {
+    saveStrToBuffer(dst, "mset");
+    dst->append(replic_save_len((uint64_t) src->size()));
 
     size_t comprlen = 0, outlen = (size_t) src->size();
 
@@ -382,12 +385,27 @@ void moveBufferSync(Buffer *dst, Buffer *src, bool compress) {
         outlen = 1024;
     }
 
-    std::unique_ptr<void, cfree_delete<void>> out(malloc(outlen + 1));
-
 
 #ifndef REPLIC_NO_COMPRESS
     if (compress) {
-        comprlen = lzf_compress(src->data(), (unsigned int) src->size(), out.get(), outlen);
+
+        if (USE_SNAPPY) {
+            std::string snappy_out;
+            comprlen = snappy::Compress(src->data(), (size_t) src->size(), &snappy_out);
+            if (comprlen > 0) {
+                dst->append(replic_save_len(comprlen));
+                dst->append(snappy_out.data(), (int) comprlen);
+            }
+        } else {
+            std::unique_ptr<void, cfree_delete<void>> out(malloc(outlen + 1));
+            comprlen = lzf_compress(src->data(), (unsigned int) src->size(), out.get(), outlen);
+            if (comprlen > 0) {
+                dst->append(replic_save_len(comprlen));
+                dst->append(out.get(), (int) comprlen);
+            }
+        }
+
+
     } else {
         comprlen = 0;
     }
@@ -395,28 +413,24 @@ void moveBufferSync(Buffer *dst, Buffer *src, bool compress) {
     comprlen = 0;
 #endif
 
-    saveStrToBuffer(dst, "mset");
-    dst->append(replic_save_len((uint64_t) src->size()));
-    dst->append(replic_save_len(comprlen));
 
     if (comprlen == 0) {
+        dst->append(replic_save_len(comprlen));
         dst->append(src->data(), src->size());
-    } else {
-        dst->append(out.get(), (int) comprlen);
     }
 
     src->decr(src->size());
     src->nice();
 }
 
-void moveBufferAsync(ReplicationByIterator2* job, Buffer *dst, Buffer *input, bool compress) {
+void moveBufferAsync(ReplicationByIterator2 *job, Buffer *dst, Buffer *input, bool compress) {
     if (!compress && input != nullptr) {
         return moveBufferSync(dst, input, false);
     }
 
     if (job->bg.valid()) {
 
-        PTST(WAIT_CompressResult,0.005)
+        PTST(WAIT_CompressResult, 0.005)
         const CompressResult &buf = job->bg.get();
         PTE(WAIT_CompressResult, "")
 
@@ -477,7 +491,7 @@ void moveBufferAsync(ReplicationByIterator2* job, Buffer *dst, Buffer *input, bo
                 std::unique_ptr<void, cfree_delete<void>> out(malloc(outlen + 1));
                 comprlen = lzf_compress(src->data(), (unsigned int) src->size(), out.get(), outlen);
                 if (comprlen > 0) {
-                    compressResult.out.append((char *)out.get(), (int) comprlen);
+                    compressResult.out.append((char *) out.get(), (int) comprlen);
                 }
             }
 
