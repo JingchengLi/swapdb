@@ -1419,6 +1419,13 @@ struct redisCommand {
     long long microseconds, calls;
 };
 
+struct expiretimeInfo {
+    redisCommandProc *proc;
+    int unit;
+    int base;
+    int time_arg_index;
+};
+
 struct redisFunctionSym {
     char *name;
     unsigned long pointer;
@@ -1835,6 +1842,7 @@ size_t objectComputeSize(robj *o, size_t sample_size);
 size_t estimateKeyMemoryUsage(dictEntry *de);
 int processCommand(client *c);
 int runCommandReplicationConn(client *c, listNode* writeop_ln);
+long long getAbsoluteExpireTimeFromArgs(client *c);
 int runCommand(client *c);
 int checkValidCommand(client* c);
 int checkKeysInMediateState(client* c);

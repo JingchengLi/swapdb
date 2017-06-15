@@ -343,6 +343,15 @@ struct redisCommand redisCommandTable[] = {
     {"restoressdbkey",restoreCommand,-4,"wmj",0,NULL,1,1,1,0,0},
 };
 
+struct expiretimeInfo expiretimeInfoTable[] = {
+    {setexCommand, UNIT_SECONDS, 1, 2},
+    {psetexCommand, UNIT_MILLISECONDS, 1, 2},
+    {expireCommand, UNIT_SECONDS, 1, 2},
+    {pexpireCommand, UNIT_MILLISECONDS, 1, 2},
+    {expireatCommand, UNIT_SECONDS, 0, 2},
+    {pexpireatCommand, UNIT_MILLISECONDS, 0, 2},
+};
+
 /*============================ Utility functions ============================ */
 
 /* Low level logging. To use only for very big messages, otherwise
@@ -3690,6 +3699,33 @@ int runCommandReplicationConn(client *c, listNode* writeop_ln) {
     }
 
     return C_OK;
+}
+
+long long getAbsoluteExpireTimeFromArgs(client *c) {
+    int unit;
+    robj *expireobj = NULL;
+    int num = sizeof(expiretimeInfoTable)/sizeof(struct expiretimeInfo);
+    int i;
+    long long milliseconds = 0;
+    struct expiretimeInfo ei;
+
+    if (!c || !c->cmd) return C_ERR;
+
+    for (i = 0; i < num; i ++) {
+        ei = expiretimeInfoTable[i];
+        if (c->cmd->proc == ei.proc && c->argc > 0) {
+            expireobj = c->argv[ei.time_arg_index];
+
+            if (!expireobj || getLongLongFromObject(expireobj, &milliseconds) != C_OK)
+                return C_ERR;
+
+            if (ei.unit == UNIT_SECONDS) milliseconds *= 1000;
+            if (ei.base) milliseconds += mstime();
+            return milliseconds;
+        }
+    }
+
+    return C_ERR;
 }
 
 int runCommand(client *c) {
