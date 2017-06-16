@@ -2328,4 +2328,7 @@ void appendSSDBloadRule(int cycle_seconds, long long hits_threshold);
 #define SLAVE_MAX_PROCESSED_CMD_NUM_EVERYTIME 20
 
 #define COLDKEY_FILTER_TIMES_EVERYTIME 5
+
+#define LOWEST_IDLE_VAL_OF_COLD_KEY (255-LFU_INIT_VAL+1)
+
 #endif

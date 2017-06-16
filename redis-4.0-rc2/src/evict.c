@@ -248,8 +248,6 @@ void tryInsertColdPool(struct evictionPoolEntry *pool, sds key, int dbid, int id
     tryInsertHotOrColdPool(pool, key, dbid, idle, COLD_TYPE);
 }
 
-//todo 添加配置参数
-#define COLD_KEY_LFU_VAL (255-LFU_INIT_VAL+1)
 void coldKeyPopulate(dict *sampledict, struct evictionPoolEntry *pool) {
     int j, k, count;
     dictEntry *samples[server.maxmemory_samples];
@@ -262,7 +260,6 @@ void coldKeyPopulate(dict *sampledict, struct evictionPoolEntry *pool) {
     for (j = 0; j < count; j++) {
         unsigned long long idle;
         sds key;
-        robj *o;
         dictEntry *de;
 
         de = samples[j];
@@ -270,8 +267,6 @@ void coldKeyPopulate(dict *sampledict, struct evictionPoolEntry *pool) {
 
         if (dictFind(EVICTED_DATA_DB->transferring_keys, key) != NULL)
             continue;
-
-        o = dictGetVal(de);
 
         if (server.maxmemory_policy & MAXMEMORY_FLAG_LFU) {
             /* When we use an LRU policy, we sort the keys by idle time
@@ -284,13 +279,15 @@ void coldKeyPopulate(dict *sampledict, struct evictionPoolEntry *pool) {
             if (server.jdjr_mode) {
                 idle = 255-KeyLFUDecrAndReturn(key);
             } else {
+                robj* o = dictGetVal(de);
                 idle = 255-LFUDecrAndReturn(o);
             }
         } else {
             serverPanic("Unknown eviction policy in coldKeyPopulate()");
         }
 
-        tryInsertColdPool(pool, key, 0, idle);
+        if (idle >= LOWEST_IDLE_VAL_OF_COLD_KEY)
+            tryInsertColdPool(pool, key, 0, idle);
     }
 }
 
