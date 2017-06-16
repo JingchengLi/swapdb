@@ -5562,6 +5562,7 @@ int main(int argc, char **argv) {
 
     if (argc == 1) {
         serverLog(LL_WARNING, "Warning: no config file specified, using the default config. In order to specify a config file use %s /path/to/%s.conf", argv[0], server.sentinel_mode ? "sentinel" : "redis");
+        if (server.jdjr_mode) server.dbnum += 1;
     } else {
         serverLog(LL_WARNING, "Configuration loaded");
     }

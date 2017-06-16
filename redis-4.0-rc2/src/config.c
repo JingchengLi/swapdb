@@ -1109,8 +1109,6 @@ void configSetCommand(client *c) {
     } config_set_bool_field(
       "protected-mode",server.protected_mode) {
     } config_set_bool_field(
-      "jdjr-mode",server.jdjr_mode) {
-    } config_set_bool_field(
       "behave-as-ssdb",server.behave_as_ssdb) {
     } config_set_bool_field(
       "load-from-ssdb",server.load_from_ssdb) {
