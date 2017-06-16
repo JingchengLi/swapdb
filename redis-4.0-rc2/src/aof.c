@@ -547,9 +547,9 @@ void feedAppendOnlyFile(struct redisCommand *cmd, int dictid, robj **argv, int a
                 pxarg = argv[i+1];
         }
         if (exarg)
-            buf = catAppendOnlyExpireAtCommand(buf,lookupCommandByCString("expire"),argv[1],exarg);
+            buf = catAppendOnlyExpireAtCommand(buf,server.expireCommand,argv[1],exarg);
         if (pxarg)
-            buf = catAppendOnlyExpireAtCommand(buf,lookupCommandByCString("pexpire"),argv[1],pxarg);
+            buf = catAppendOnlyExpireAtCommand(buf,server.pexpireCommand,argv[1],pxarg);
     } else {
         /* All the other commands don't need translation or need the
          * same translation already operated in the command vector
