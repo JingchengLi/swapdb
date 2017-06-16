@@ -341,13 +341,16 @@ int ReplicationByIterator2::process() {
         serv->replicState.finishReplic(true);
     }
 
+    double elapsed = (time_ms() - start) * 1.0 / 1000.0 + 0.0000001;
+    int64_t speed = (int64_t) (sendBytes / elapsed);
     log_info("[ReplicationByIterator2] send snapshot to %s finished!", hnp.String().c_str());
     log_debug("send rr_transfer_snapshot finished!!");
     log_info("replic procedure finish!");
-    log_info("[ReplicationByIterator2] task stats : dataSize %s, sendByes %s, elapsed %s",
+    log_info("[ReplicationByIterator2] task stats : dataSize %s, sendByes %s, elapsed %s, speed %s/s",
              bytesToHuman(rawBytes).c_str(),
              bytesToHuman(sendBytes).c_str(),
-             timestampToHuman((time_ms() - start)).c_str()
+             timestampToHuman((time_ms() - start)).c_str(),
+             bytesToHuman(speed).c_str()
     );
     delete ssdb_slave_link;
     return 0;
