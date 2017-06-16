@@ -3,14 +3,17 @@
 //
 
 
-#include <snappy.h>
 #include "replication.h"
 #include "serv.h"
-#include "util/cfree.h"
+#ifdef USE_SNAPPY
 
+#include <snappy.h>
+#else
+#include "util/cfree.h"
 extern "C" {
 #include <redis/lzf.h>
 }
+#endif
 
 
 void *ssdb_sync2(void *arg) {
@@ -19,7 +22,7 @@ void *ssdb_sync2(void *arg) {
     Context ctx = job->ctx;
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
     HostAndPort hnp = job->hnp;
-    std::unique_ptr <Link>master_link(job->upstream); //upstream cannot be null !
+    std::unique_ptr<Link> master_link(job->upstream); //upstream cannot be null !
     bool heartbeat = job->heartbeat;
     bool quit = job->quit;
 
@@ -42,7 +45,7 @@ void *ssdb_sync2(void *arg) {
     {
         Locking<Mutex> l(&serv->replicState.rMutex);
 
-        if(serv->replicState.inTransState()) {
+        if (serv->replicState.inTransState()) {
             log_fatal("i am in transferring state, should not into this step!!!!!!");
         }
 
@@ -94,7 +97,6 @@ void *ssdb_sync2(void *arg) {
     int errorCode = 0;
 
 
-
     int64_t lastHeartBeat = time_ms();
     while (!quit) {
         ready_list.swap(ready_list_2);
@@ -104,7 +106,8 @@ void *ssdb_sync2(void *arg) {
         if (heartbeat) {
             if ((time_ms() - lastHeartBeat) > 3000) {
 
-                std::unique_ptr<RedisResponse> t_res(redisUpstream.sendCommand({"ssdb-notify-redis", "transfer", "continue"}));
+                std::unique_ptr<RedisResponse> t_res(
+                        redisUpstream.sendCommand({"ssdb-notify-redis", "transfer", "continue"}));
                 if (!t_res) {
                     log_warn("send transfer continue to redis<%s:%d> failed", upstream_ip.c_str(), upstream_port);
                 }
@@ -244,26 +247,24 @@ void *ssdb_sync2(void *arg) {
                         compressed_len = raw_len;
                     } else {
 
-                        if (USE_SNAPPY) {
-
-                            if (!snappy::Uncompress(decoder.data(), compressed_len, &tmp)) {
-                                errorCode = -4;
-                                break;;
-                            } else {
-                                raw_len = tmp.size();
-                            }
-
+#ifdef USE_SNAPPY
+                        if (!snappy::Uncompress(decoder.data(), compressed_len, &tmp)) {
+                            errorCode = -4;
+                            break;;
                         } else {
-
-                            std::unique_ptr<char, cfree_delete<char>> t_val((char *) malloc(raw_len));
-
-                            if (lzf_decompress(decoder.data(), compressed_len, t_val.get(), raw_len) == 0) {
-                                errorCode = -4;
-                                break;;
-                            }
-                            tmp = std::move(std::string(t_val.get(), raw_len));
+                            raw_len = tmp.size();
                         }
 
+#else
+
+                        std::unique_ptr<char, cfree_delete<char>> t_val((char *) malloc(raw_len));
+
+                        if (lzf_decompress(decoder.data(), compressed_len, t_val.get(), raw_len) == 0) {
+                            errorCode = -4;
+                            break;;
+                        }
+                        tmp = std::move(std::string(t_val.get(), raw_len));
+#endif
                     }
 
                     Decoder decoder_item(tmp.data(), raw_len);
@@ -314,7 +315,7 @@ void *ssdb_sync2(void *arg) {
                         int tid = get_thread_id();
                         if (bgs[tid].valid()) {
 
-                             PTST(WAIT_parse_replic, 0.05)
+                            PTST(WAIT_parse_replic, 0.05)
                             errorCode = bgs[tid].get();
                             PTE(WAIT_parse_replic, str(tid))
                         }
@@ -324,12 +325,14 @@ void *ssdb_sync2(void *arg) {
                          * we use vector<Bytes> instead of vector<string> using data_hold to prevent memory area
                          * */
 
-                        bgs[tid] = std::async(std::launch::async, [&serv, &ctx](std::vector<Bytes> arr, std::string data_hold) {
-                            //serv is thread safe and ctx is readonly
-                            log_debug("parse_replic count %d , data size %d", arr.size(), data_hold.size());
+                        bgs[tid] = std::async(std::launch::async,
+                                              [&serv, &ctx](std::vector<Bytes> arr, std::string data_hold) {
+                                                  //serv is thread safe and ctx is readonly
+                                                  log_debug("parse_replic count %d , data size %d", arr.size(),
+                                                            data_hold.size());
 
-                            return serv->ssdb->parse_replic(ctx, arr);
-                        }, std::move(kvs), std::move(tmp));
+                                                  return serv->ssdb->parse_replic(ctx, arr);
+                                              }, std::move(kvs), std::move(tmp));
 
                     }
 
@@ -386,7 +389,8 @@ void *ssdb_sync2(void *arg) {
         log_error("[ssdb_sync] recieve snapshot from %s failed!, err: %d", hnp.String().c_str(), errorCode);
 
         if (heartbeat) {
-            std::unique_ptr<RedisResponse> t_res(redisUpstream.sendCommand({"ssdb-notify-redis", "transfer", "unfinished"}));
+            std::unique_ptr<RedisResponse> t_res(
+                    redisUpstream.sendCommand({"ssdb-notify-redis", "transfer", "unfinished"}));
             if (!t_res) {
                 log_warn("send transfer unfinished to redis<%s:%d> failed", upstream_ip.c_str(), upstream_port);
             }
@@ -396,7 +400,8 @@ void *ssdb_sync2(void *arg) {
         log_info("[ssdb_sync] recieve snapshot from %s finished!", hnp.String().c_str());
 
         if (heartbeat) {
-            std::unique_ptr<RedisResponse> t_res(redisUpstream.sendCommand({"ssdb-notify-redis", "transfer", "finished"}));
+            std::unique_ptr<RedisResponse> t_res(
+                    redisUpstream.sendCommand({"ssdb-notify-redis", "transfer", "finished"}));
             if (!t_res) {
                 log_warn("send transfer finished to redis<%s:%d> failed", upstream_ip.c_str(), upstream_port);
             }

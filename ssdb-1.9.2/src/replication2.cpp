@@ -2,17 +2,16 @@
 // Created by zts on 17-4-27.
 //
 #include "replication.h"
-#include <util/thread.h>
-#include <net/link.h>
-#include <util/cfree.h>
 #include "serv.h"
-#include <snappy.h>
 
+#ifdef USE_SNAPPY
+#include <snappy.h>
+#else
+#include <util/cfree.h>
 extern "C" {
-#include <redis/rdb.h>
-#include <redis/zmalloc.h>
 #include <redis/lzf.h>
 };
+#endif
 
 static void send_error_to_redis(Link *link);
 
@@ -48,7 +47,7 @@ int ReplicationByIterator2::process() {
     iterate_options.snapshot = snapshot;
     iterate_options.readahead_size = 4 * 1024 * 1024;
 
-    auto iterator_ptr =  serv->ssdb->getLdb()->NewIterator(iterate_options);
+    auto iterator_ptr = serv->ssdb->getLdb()->NewIterator(iterate_options);
     iterator_ptr->SeekToFirst();
     std::unique_ptr<leveldb::Iterator> fit(iterator_ptr);
 
@@ -222,7 +221,7 @@ int ReplicationByIterator2::process() {
         bool finish = true;
         do {
             iterator_ptr->Next();
-            if (!iterator_ptr->Valid()){
+            if (!iterator_ptr->Valid()) {
                 break;
             }
 
@@ -398,38 +397,39 @@ void moveBufferSync(Buffer *dst, Buffer *src, bool compress) {
     saveStrToBuffer(dst, "mset");
     dst->append(replic_save_len((uint64_t) src->size()));
 
-    size_t comprlen = 0, outlen = (size_t) src->size();
-
-    /**
-     * when src->size() is small , comprlen may longer than outlen , which cause lzf_compress failed
-     * and lzf_compress return 0 , so :so
-     * 1. incr outlen too prevent compress failure
-     * 2. if comprlen is zero , we copy raw data and will not uncompress on salve
-     *
-     */
-    if (outlen < 100) {
-        outlen = 1024;
-    }
+    size_t comprlen = 0;
 
 
     if (compress) {
+#ifdef USE_SNAPPY
+        std::string snappy_out;
+        comprlen = snappy::Compress(src->data(), (size_t) src->size(), &snappy_out);
+        if (comprlen > 0) {
+            dst->append(replic_save_len(comprlen));
+            dst->append(snappy_out.data(), (int) comprlen);
+        }
+#else
+        /**
+         * when src->size() is small , comprlen may longer than outlen , which cause lzf_compress failed
+         * and lzf_compress return 0 , so :so
+         * 1. incr outlen too prevent compress failure
+         * 2. if comprlen is zero , we copy raw data and will not uncompress on salve
+         *
+         */
 
-        if (USE_SNAPPY) {
-            std::string snappy_out;
-            comprlen = snappy::Compress(src->data(), (size_t) src->size(), &snappy_out);
-            if (comprlen > 0) {
-                dst->append(replic_save_len(comprlen));
-                dst->append(snappy_out.data(), (int) comprlen);
-            }
-        } else {
-            std::unique_ptr<void, cfree_delete<void>> out(malloc(outlen + 1));
+        size_t outlen = (size_t) src->size();
+
+        if (outlen < 100) {
+            outlen = 1024;
+        }
+
+        std::unique_ptr<void, cfree_delete<void>> out(malloc(outlen + 1));
             comprlen = lzf_compress(src->data(), (unsigned int) src->size(), out.get(), outlen);
             if (comprlen > 0) {
                 dst->append(replic_save_len(comprlen));
                 dst->append(out.get(), (int) comprlen);
             }
-        }
-
+#endif
     } else {
         comprlen = 0;
     }
@@ -490,7 +490,15 @@ void moveBufferAsync(ReplicationByIterator2 *job, Buffer *dst, Buffer *input, bo
 
             auto src = compressResult.in;
 
-            size_t comprlen = 0, outlen = (size_t) src->size();
+            size_t comprlen = 0;
+
+
+#ifdef USE_SNAPPY
+            comprlen = snappy::Compress(src->data(), (size_t) src->size(), &compressResult.out);
+            if (comprlen > 0) {
+
+            }
+#else
 
             /**
              * when src->size() is small , comprlen may longer than outlen , which cause lzf_compress failed
@@ -499,22 +507,18 @@ void moveBufferAsync(ReplicationByIterator2 *job, Buffer *dst, Buffer *input, bo
              * 2. if comprlen is zero , we copy raw data and will not uncompress on salve
              *
              */
+
+            size_t outlen = (size_t) src->size();
             if (outlen < 100) {
                 outlen = 1024;
             }
 
-            if (USE_SNAPPY) {
-                comprlen = snappy::Compress(src->data(), (size_t) src->size(), &compressResult.out);
-                if (comprlen > 0) {
-
-                }
-            } else {
-                std::unique_ptr<void, cfree_delete<void>> out(malloc(outlen + 1));
-                comprlen = lzf_compress(src->data(), (unsigned int) src->size(), out.get(), outlen);
-                if (comprlen > 0) {
-                    compressResult.out.append((char *) out.get(), (int) comprlen);
-                }
+            std::unique_ptr<void, cfree_delete<void>> out(malloc(outlen + 1));
+            comprlen = lzf_compress(src->data(), (unsigned int) src->size(), out.get(), outlen);
+            if (comprlen > 0) {
+                compressResult.out.append((char *) out.get(), (int) comprlen);
             }
+#endif
 
             compressResult.comprlen = comprlen;
             if (comprlen != 0) {
