@@ -1495,9 +1495,10 @@ int matchLoadRule() {
         //          "cycle seconds:%d, count_begin_time:%ld, server.unixtime:%ld",
         //          rule.cycle_seconds, rule.hits_threshold ,
         //          rule.cycle_seconds, rule.count_begin_time, server.unixtime);
-        if (rule.cycle_seconds > 0 && rule.cycle_seconds < server.unixtime - rule.count_begin_time) {
+        if (rule.cycle_seconds > 0 && server.unixtime - rule.count_begin_time >= rule.cycle_seconds) {
             int divisor = (server.unixtime - rule.count_begin_time) / rule.cycle_seconds;
             long long total_hits = server.stat_keyspace_ssdb_hits-rule.last_ssdb_hits_count;
+
             if (total_hits / divisor > rule.hits_threshold) {
                 serverLog(LL_DEBUG, "match load rule [ssdb-load-rule %d %lld]", rule.cycle_seconds, rule.hits_threshold);
                 /* this rule is matched successfully. reset all counters */
@@ -1506,6 +1507,13 @@ int matchLoadRule() {
             }
             /* this time cycle elapsed, re-init it */
             reinitSSDBhitsCounter(&server.ssdb_load_rules[i]);
+        } else if (rule.cycle_seconds > 0 && server.unixtime - rule.count_begin_time < rule.cycle_seconds) {
+            if (server.stat_keyspace_ssdb_hits - rule.last_ssdb_hits_count > rule.hits_threshold) {
+                serverLog(LL_DEBUG, "match load rule [ssdb-load-rule %d %lld]", rule.cycle_seconds, rule.hits_threshold);
+                /* this rule is matched successfully. reset all counters */
+                resetSSDBhitsCounters();
+                return 1;
+            }
         }
     }
 
