@@ -2,7 +2,7 @@ start_server {tags {"expire"}} {
     test {#issue SWAP-68 for load policy optimize update bring in 20170612} {
         ssdbr set foo bar
         ssdbr pexpire foo 500
-        after 1
+        after 1000
         ssdbr dbsize
     } {0}
 
@@ -181,9 +181,9 @@ start_server {tags {"expire"}} {
         # one second.
         after 1000
         set size2 [ssdbr dbsize]
-        ssdbr get key1
-        ssdbr get key2
-        ssdbr get key3
+        r get key1
+        r get key2
+        r get key3
         #TODO delete confirm
         after 10
         set size3 [ssdbr dbsize]
