@@ -368,7 +368,6 @@ void test_hotpool_equal(int* id, struct evictionPoolEntry ep[], int size) {
 }
 
 typedef struct evictionPoolEntry POOL_RESULTS[10] ;
-#define VAR(ID) var##id
 #define TEST_RESULTS(id,arr,size)  test_hotpool_equal(&id, arr, size)
 void test_replaceKeyInPool() {
     int j, id = 0;
