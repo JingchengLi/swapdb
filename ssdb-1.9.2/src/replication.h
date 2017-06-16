@@ -17,6 +17,17 @@
 #include <thread>
 #include <future>
 
+
+#ifdef USE_LEVELDB
+namespace leveldb{
+#else
+#define leveldb rocksdb
+namespace rocksdb {
+#endif
+    class Slice;
+
+}
+
 const uint64_t MAX_PACKAGE_SIZE = 16 * 1024 * 1024;
 const uint64_t MIN_PACKAGE_SIZE = 1024 * 1024;
 
@@ -98,6 +109,7 @@ public:
     Buffer *buffer2 = nullptr;
 
     inline void saveStrToBufferQuick(Buffer *buffer, const Bytes &fit);
+    inline void saveStrToBufferQuick(Buffer *buffer, const leveldb::Slice &fit);
 
     int quickmap_size = 1024;
     std::vector<std::string> quickmap;

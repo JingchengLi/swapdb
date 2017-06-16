@@ -48,8 +48,9 @@ int ReplicationByIterator2::process() {
     iterate_options.snapshot = snapshot;
     iterate_options.readahead_size = 4 * 1024 * 1024;
 
-    std::unique_ptr<Iterator> fit = std::unique_ptr<Iterator>(serv->ssdb->iterator("", "", -1, iterate_options));
-    auto iterator_ptr = fit.get();
+    auto iterator_ptr =  serv->ssdb->getLdb()->NewIterator(iterate_options);
+    iterator_ptr->SeekToFirst();
+    std::unique_ptr<leveldb::Iterator> fit(iterator_ptr);
 
     Link *ssdb_slave_link = Link::connect((hnp.ip).c_str(), hnp.port);
     if (ssdb_slave_link == nullptr) {
@@ -219,9 +220,14 @@ int ReplicationByIterator2::process() {
         }
 
         bool finish = true;
-        while (iterator_ptr->next()) {
+        do {
+            iterator_ptr->Next();
+            if (!iterator_ptr->Valid()){
+                break;
+            }
+
             saveStrToBufferQuick(buffer, iterator_ptr->key());
-            saveStrToBufferQuick(buffer, iterator_ptr->val());
+            saveStrToBufferQuick(buffer, iterator_ptr->value());
             visitedKeys++;
 
             if (visitedKeys % 1000000 == 0) {
@@ -253,7 +259,7 @@ int ReplicationByIterator2::process() {
                 finish = false;
                 break;
             }
-        }
+        } while (true);
 
         if (finish) {
             moveBufferAsync(this, ssdb_slave_link->output, nullptr, compress);
@@ -357,6 +363,17 @@ void ReplicationByIterator2::saveStrToBufferQuick(Buffer *buffer, const Bytes &f
         buffer->append(val_len);
     }
     buffer->append(fit.data(), fit_size);
+}
+
+void ReplicationByIterator2::saveStrToBufferQuick(Buffer *buffer, const leveldb::Slice &fit) {
+    auto fit_size = fit.size();
+    if (fit_size < quickmap_size) {
+        buffer->append(quickmap[fit_size].data(), (int) quickmap[fit_size].size());
+    } else {
+        string val_len = replic_save_len((uint64_t) (fit_size));
+        buffer->append(val_len);
+    }
+    buffer->append(fit.data(), (int) fit_size);
 }
 
 
