@@ -412,7 +412,6 @@ void moveBufferSync(Buffer *dst, Buffer *src, bool compress) {
     }
 
 
-#ifndef REPLIC_NO_COMPRESS
     if (compress) {
 
         if (USE_SNAPPY) {
@@ -431,13 +430,9 @@ void moveBufferSync(Buffer *dst, Buffer *src, bool compress) {
             }
         }
 
-
     } else {
         comprlen = 0;
     }
-#else
-    comprlen = 0;
-#endif
 
 
     if (comprlen == 0) {
