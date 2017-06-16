@@ -1508,7 +1508,7 @@ void startToLoadIfNeeded() {
         return;
     }
 
-    if (!server.test_mode && matchLoadRule())
+    if (!server.load_test_mode && matchLoadRule())
         addHotKeys();
 
     if (!server.hot_keys || !dictSize(server.hot_keys))
@@ -3457,7 +3457,7 @@ void chooseHotKeysByLFUcounter(robj* keyobj) {
     unsigned char counter = lfu & 255;
 
     if ((counter > LFU_INIT_VAL) && !memoryReachLoadUpperLimit()) {
-        if (server.test_mode) {
+        if (server.load_test_mode) {
             /* for test purpose */
 
             /* limit the max num of server.hot_keys to avoid to load too many keys

@@ -1380,7 +1380,7 @@ struct redisServer {
     list *storetossdb_migrate_keys;
 
     /* rules for loading hot keys in ssdb */
-    int test_mode;
+    int load_test_mode;
     struct loadSSDBkeyRule* ssdb_load_rules;
     int ssdb_load_rules_len;
 
