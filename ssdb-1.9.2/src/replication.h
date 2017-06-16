@@ -97,7 +97,7 @@ public:
     Buffer *buffer = nullptr;
     Buffer *buffer2 = nullptr;
 
-    void saveStrToBufferQuick(Buffer *buffer, const Bytes &fit);
+    inline void saveStrToBufferQuick(Buffer *buffer, const Bytes &fit);
 
     int quickmap_size = 1024;
     std::vector<std::string> quickmap;

@@ -349,14 +349,14 @@ int ReplicationByIterator2::process() {
 }
 
 void ReplicationByIterator2::saveStrToBufferQuick(Buffer *buffer, const Bytes &fit) {
-
-    if (fit.size() < quickmap_size) {
-        buffer->append(quickmap[fit.size()].data(), quickmap[fit.size()].size());
+    auto fit_size = fit.size();
+    if (fit_size < quickmap_size) {
+        buffer->append(quickmap[fit_size].data(), (int) quickmap[fit_size].size());
     } else {
-        string val_len = replic_save_len((uint64_t) (fit.size()));
+        string val_len = replic_save_len((uint64_t) (fit_size));
         buffer->append(val_len);
     }
-    buffer->append(fit);
+    buffer->append(fit.data(), fit_size);
 }
 
 
