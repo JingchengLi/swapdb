@@ -176,18 +176,16 @@ void emptyEvictionPool() {
     }
 }
 
-#define COLD_TYPE 1
-#define HOT_TYPE 2
 void tryInsertHotOrColdPool(struct evictionPoolEntry *pool, sds key, int dbid, int idle, int pool_type) {
     /* Insert the element inside the pool.
     * First, find the first empty bucket or the first populated
     * bucket that has an idle time smaller than our idle time. */
     int k = 0;
-    if (pool_type == COLD_TYPE) {
+    if (pool_type == COLD_POOL_TYPE) {
         while (k < EVPOOL_SIZE &&
                pool[k].key &&
                pool[k].idle < idle) k++;
-    } else if (pool_type == HOT_TYPE) {
+    } else if (pool_type == HOT_POOL_TYPE) {
         while (k < EVPOOL_SIZE &&
                pool[k].key &&
                pool[k].idle > idle) k++;
@@ -222,7 +220,7 @@ void tryInsertHotOrColdPool(struct evictionPoolEntry *pool, sds key, int dbid, i
             pool[k].cached = cached;
         }
     }
-    serverLog(LL_DEBUG, "key: %s is insert into %s pool", key, pool_type == HOT_TYPE ? "hot" : "cold");
+    serverLog(LL_DEBUG, "key: %s is insert into %s pool", key, pool_type == HOT_POOL_TYPE ? "hot" : "cold");
 
     /* Try to reuse the cached SDS string allocated in the pool entry,
      * because allocating and deallocating this object is costly
@@ -240,12 +238,116 @@ void tryInsertHotOrColdPool(struct evictionPoolEntry *pool, sds key, int dbid, i
     pool[k].dbid = dbid;
 }
 
-void tryInsertHotPool(sds key, int dbid, int idle) {
-    tryInsertHotOrColdPool(HotKeyPool, key, dbid, idle, HOT_TYPE);
+// todo: add unit tests
+void replaceKeyInPool(struct evictionPoolEntry *pool, sds key, int dbid, int idle, int pool_type) {
+    /* Insert the element inside the pool.
+    * First, find the first empty bucket or the first populated
+    * bucket that has an idle time smaller than our idle time. */
+    int k = 0, i = 0, old_index = -1;
+    while (i < EVPOOL_SIZE && pool[i].key) {
+        if (0 == sdscmp(key, pool[i].key)) {
+            /* the key should be unique in this pool before adding it. */
+            serverAssert(old_index == -1);
+            /* the key already exists in the pool. */
+            old_index = i;
+        }
+        if ((pool_type == COLD_POOL_TYPE && pool[i].idle < idle) ||
+            (pool_type == HOT_POOL_TYPE && pool[i].idle > idle))
+            k++;
+        i++;
+    }
+
+    if (k == 0 && pool[EVPOOL_SIZE-1].key != NULL) {
+        /* Can't insert if the element is < the worst element we have
+         * and there are no empty buckets. */
+        return;
+    } else {
+        if (old_index != -1) {
+            /* if the key is already in the pool, we just update the idle time, and
+             * move the keys between the 'old_index' item and the 'k' item in the pool
+             * to keep the order(by idle time of keys). */
+            if (old_index == k) {
+                /* update idle time */
+                pool[old_index].idle = idle;
+            } else if (old_index < k) {
+                if (old_index+1 == k) {
+                    k--;
+                } else {
+                    sds key = pool[old_index].key;
+                    sds cached = pool[old_index].cached;
+                    /* move keys backwards*/
+                    memmove(pool+old_index, pool+old_index+1, (k-old_index-1)*sizeof(pool[0]));
+                    /* re-use the buffer */
+                    pool[k].cached = cached;
+                    pool[k].key = key;
+                }
+            } else if (old_index > k) {
+                sds key = pool[old_index].key;
+                sds cached = pool[old_index].cached;
+                /* move keys forwards*/
+                memmove(pool+k+1, pool+k, (old_index-k)*sizeof(pool[0]));
+                /* re-use the buffer */
+                pool[k].cached = cached;
+                pool[k].key = key;
+            }
+            /* update idle time */
+            pool[k].idle = idle;
+
+            serverLog(LL_DEBUG, "key: %s is already in %s pool, update its idle value",
+                      key, pool_type == HOT_POOL_TYPE ? "hot" : "cold");
+        } else {
+            if (k < EVPOOL_SIZE && pool[k].key == NULL) {
+                /* Inserting into empty position. No setup needed before insert. */
+            } else {
+                /* Inserting in the middle. Now k points to the first element
+                 * greater than the element to insert.  */
+                if (pool[EVPOOL_SIZE-1].key == NULL) {
+                    /* Free space on the right? Insert at k shifting
+                     * all the elements from k to end to the right. */
+
+                    /* Save SDS before overwriting. */
+                    sds cached = pool[EVPOOL_SIZE-1].cached;
+                    memmove(pool+k+1,pool+k,
+                            sizeof(pool[0])*(EVPOOL_SIZE-k-1));
+                    pool[k].cached = cached;
+                } else {
+                    /* No free space on right? Insert at k-1 */
+                    k--;
+                    /* Shift all elements on the left of k (included) to the
+                     * left, so we discard the element with smaller idle time. */
+                    sds cached = pool[0].cached; /* Save SDS before overwriting. */
+                    if (pool[0].key != pool[0].cached) sdsfree(pool[0].key);
+                    memmove(pool,pool+1,sizeof(pool[0])*k);
+                    pool[k].cached = cached;
+                }
+            }
+
+            serverLog(LL_DEBUG, "key: %s is insert into %s pool", key, pool_type == HOT_POOL_TYPE ? "hot" : "cold");
+
+            /* Try to reuse the cached SDS string allocated in the pool entry,
+             * because allocating and deallocating this object is costly
+             * (according to the profiler, not my fantasy. Remember:
+             * premature optimizbla bla bla bla. */
+            int klen = sdslen(key);
+            if (klen > EVPOOL_CACHED_SDS_SIZE) {
+                pool[k].key = sdsdup(key);
+            } else {
+                memcpy(pool[k].cached,key,klen+1);
+                sdssetlen(pool[k].cached,klen);
+                pool[k].key = pool[k].cached;
+            }
+            pool[k].idle = idle;
+            pool[k].dbid = dbid;
+        }
+    }
+}
+
+void replaceKeyInHotPool(sds key, int dbid, int idle) {
+    replaceKeyInPool(HotKeyPool, key, dbid, idle, HOT_POOL_TYPE);
 }
 
 void tryInsertColdPool(struct evictionPoolEntry *pool, sds key, int dbid, int idle) {
-    tryInsertHotOrColdPool(pool, key, dbid, idle, COLD_TYPE);
+    tryInsertHotOrColdPool(pool, key, dbid, idle, COLD_POOL_TYPE);
 }
 
 void coldKeyPopulate(dict *sampledict, struct evictionPoolEntry *pool) {

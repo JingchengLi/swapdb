@@ -2284,8 +2284,12 @@ void doSSDBflushIfCheckDone();
 void makeSSDBsnapshotIfCheckOK();
 void loadThisKeyImmediately(sds key);
 void addHotKeys();
-void tryInsertHotPool(sds key, int dbid, int idle);
+
+void replaceKeyInHotPool(sds key, int dbid, int idle);
 void tryInsertColdPool(struct evictionPoolEntry *pool, sds key, int dbid, int idle);
+
+#define COLD_POOL_TYPE 1
+#define HOT_POOL_TYPE 2
 
 #if defined(__GNUC__)
 void *calloc(size_t count, size_t size) __attribute__ ((deprecated));
