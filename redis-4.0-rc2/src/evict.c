@@ -222,6 +222,7 @@ void tryInsertHotOrColdPool(struct evictionPoolEntry *pool, sds key, int dbid, i
             pool[k].cached = cached;
         }
     }
+    serverLog(LL_DEBUG, "key: %s is insert into %s pool", key, pool_type == HOT_TYPE ? "hot" : "cold");
 
     /* Try to reuse the cached SDS string allocated in the pool entry,
      * because allocating and deallocating this object is costly

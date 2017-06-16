@@ -1487,20 +1487,25 @@ int matchLoadRule() {
     for (i = 0; i < server.ssdb_load_rules_len; i++) {
         rule = server.ssdb_load_rules[i];
         if (rule.last_ssdb_hits_count == -1 && rule.count_begin_time == -1) {
-            reinitSSDBhitsCounter(&rule);
+            reinitSSDBhitsCounter(&server.ssdb_load_rules[i]);
             continue;
         }
 
-        if (rule.cycle_seconds + rule.count_begin_time > server.unixtime) {
+        //serverLog(LL_DEBUG, "try to match load rule [ssdb-load-rule %d %lld], "
+        //          "cycle seconds:%d, count_begin_time:%ld, server.unixtime:%ld",
+        //          rule.cycle_seconds, rule.hits_threshold ,
+        //          rule.cycle_seconds, rule.count_begin_time, server.unixtime);
+        if (rule.cycle_seconds > 0 && rule.cycle_seconds < server.unixtime - rule.count_begin_time) {
             int divisor = (server.unixtime - rule.count_begin_time) / rule.cycle_seconds;
             long long total_hits = server.stat_keyspace_ssdb_hits-rule.last_ssdb_hits_count;
             if (total_hits / divisor > rule.hits_threshold) {
+                serverLog(LL_DEBUG, "match load rule [ssdb-load-rule %d %lld]", rule.cycle_seconds, rule.hits_threshold);
                 /* this rule is matched successfully. reset all counters */
                 resetSSDBhitsCounters();
                 return 1;
             }
             /* this time cycle elapsed, re-init it */
-            reinitSSDBhitsCounter(&rule);
+            reinitSSDBhitsCounter(&server.ssdb_load_rules[i]);
         }
     }
 
@@ -1508,14 +1513,12 @@ int matchLoadRule() {
 }
 
 void startToLoadIfNeeded() {
-    static long long last_ssdb_hits = 0;
     dictIterator *di;
     dictEntry *de;
 
     if (0 == isMeetLoadCondition()) {
         return;
     }
-
     if (!server.load_test_mode && matchLoadRule())
         addHotKeys();
 
@@ -3480,7 +3483,8 @@ void chooseHotKeysByLFUcounter(robj* keyobj) {
                 dictAddOrFind(server.hot_keys, dictGetKey(de));
             }
         } else {
-            tryInsertHotPool(keyobj->ptr, EVICTED_DATA_DBID, 255-counter);
+            unsigned char idle = 255-counter;
+            tryInsertHotPool(keyobj->ptr, EVICTED_DATA_DBID, idle);
         }
     }
     return;
