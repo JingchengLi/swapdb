@@ -454,28 +454,21 @@ void pexpireatCommand(client *c) {
 /* Implements TTL and PTTL */
 void ttlGenericCommand(client *c, int output_ms) {
     long long expire, ttl = -1;
+    redisDb *db;
 
+    db = c->db;
     if (server.jdjr_mode
-        && (lookupKeyReadWithFlags(EVICTED_DATA_DB,c->argv[1],LOOKUP_NOTOUCH) != NULL)) {
-        expire = getExpire(EVICTED_DATA_DB,c->argv[1]);
-        if (expire != -1) {
-            ttl = expire-mstime();
-            if (ttl < 0) ttl = 0;
-        }
-        if (ttl != -1) {
-            addReplyLongLong(c,output_ms ? ttl : ((ttl+500)/1000));
-            return;
-        }
-    }
+        && (lookupKeyReadWithFlags(EVICTED_DATA_DB,c->argv[1],LOOKUP_NOTOUCH) != NULL))
+        db = EVICTED_DATA_DB;
 
     /* If the key does not exist at all, return -2 */
-    if (lookupKeyReadWithFlags(c->db,c->argv[1],LOOKUP_NOTOUCH) == NULL) {
+    if (lookupKeyReadWithFlags(db,c->argv[1],LOOKUP_NOTOUCH) == NULL) {
         addReplyLongLong(c,-2);
         return;
     }
     /* The key exists. Return -1 if it has no expire, or the actual
      * TTL value otherwise. */
-    expire = getExpire(c->db,c->argv[1]);
+    expire = getExpire(db,c->argv[1]);
     if (expire != -1) {
         ttl = expire-mstime();
         if (ttl < 0) ttl = 0;

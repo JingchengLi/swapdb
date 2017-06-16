@@ -1833,6 +1833,11 @@ void handleUnfinishedCmdInRedis(client *c, redisReply *reply) {
         && handleResponseOfMigrateDump(c) != C_OK)
         serverLog(LL_WARNING, "migrate log: failed to handle migrate dump.");
 
+    if (c->cmd && c->cmd->proc == persistCommand
+        && (reply->type = REDIS_REPLY_INTEGER)
+        && (reply->integer == 1))
+        removeExpire(EVICTED_DATA_DB, c->argv[1]);
+
     /* Update expire time in redis and update AOF. */
     if (((reply->type == REDIS_REPLY_STATUS && !strcasecmp(reply->str, "ok"))
          || (reply->type == REDIS_REPLY_INTEGER && reply->integer == 1))
