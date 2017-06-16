@@ -455,6 +455,19 @@ void pexpireatCommand(client *c) {
 void ttlGenericCommand(client *c, int output_ms) {
     long long expire, ttl = -1;
 
+    if (server.jdjr_mode
+        && (lookupKeyReadWithFlags(EVICTED_DATA_DB,c->argv[1],LOOKUP_NOTOUCH) != NULL)) {
+        expire = getExpire(EVICTED_DATA_DB,c->argv[1]);
+        if (expire != -1) {
+            ttl = expire-mstime();
+            if (ttl < 0) ttl = 0;
+        }
+        if (ttl != -1) {
+            addReplyLongLong(c,output_ms ? ttl : ((ttl+500)/1000));
+            return;
+        }
+    }
+
     /* If the key does not exist at all, return -2 */
     if (lookupKeyReadWithFlags(c->db,c->argv[1],LOOKUP_NOTOUCH) == NULL) {
         addReplyLongLong(c,-2);
