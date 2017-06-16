@@ -1473,6 +1473,14 @@ void reinitSSDBhitsCounter(struct loadSSDBkeyRule* rule) {
     rule->count_begin_time = server.unixtime;
 }
 
+void resetSSDBhitsCounters() {
+    int i;
+    for (i = 0; i < server.ssdb_load_rules_len; i++) {
+        server.ssdb_load_rules[i].last_ssdb_hits_count = server.stat_keyspace_ssdb_hits;
+        server.ssdb_load_rules[i].count_begin_time = server.unixtime;
+    }
+}
+
 int matchLoadRule() {
     int i;
     struct loadSSDBkeyRule rule;
@@ -1487,8 +1495,8 @@ int matchLoadRule() {
             int divisor = (server.unixtime - rule.count_begin_time) / rule.cycle_seconds;
             long long total_hits = server.stat_keyspace_ssdb_hits-rule.last_ssdb_hits_count;
             if (total_hits / divisor > rule.hits_threshold) {
-                /* this rule is matched successfully. */
-                reinitSSDBhitsCounter(&rule);
+                /* this rule is matched successfully. reset all counters */
+                resetSSDBhitsCounters();
                 return 1;
             }
             /* this time cycle elapsed, re-init it */
