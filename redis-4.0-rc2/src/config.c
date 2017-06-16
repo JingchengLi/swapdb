@@ -225,10 +225,6 @@ void loadServerConfigFromString(char *config) {
             if ((server.jdjr_mode = yesnotoi(argv[1])) == -1) {
                 err = "argument must be 'yes' or 'no'"; goto loaderr;
             }
-        } else if (!strcasecmp(argv[0],"load-test-mode") && argc == 2) {
-            if ((server.load_test_mode = yesnotoi(argv[1])) == -1) {
-                err = "argument must be 'yes' or 'no'"; goto loaderr;
-            }
         } else if (!strcasecmp(argv[0], "behave-as-ssdb") && argc == 2) {
             if ((server.behave_as_ssdb = yesnotoi(argv[1])) == -1) {
                 err = "argument must be 'yes' or 'no'"; goto loaderr;
