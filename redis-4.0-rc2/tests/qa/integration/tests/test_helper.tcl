@@ -31,6 +31,7 @@ set ::all_tests {
     ssdb/flush
     ssdb/ssdbinfo
     ssdb/python
+    ssdb/lfu-policy2
 
     unit/dump
     unit/expire
