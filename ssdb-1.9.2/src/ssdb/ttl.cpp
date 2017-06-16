@@ -195,9 +195,11 @@ void ExpirationHandler::load_expiration_keys_from_db(int num) {
     while (it->next()) {
         n++;
         std::string key = it->key.String();
-//		int64_t score = static_cast<int64_t>();
         int64_t score = it->score;
-        fast_keys.add(key, score);
+        {
+            Locking<Mutex> exl(&this->mutex);
+            fast_keys.add(key, score);
+        }
     }
 
     log_debug("load %d keys into fast_keys", n);
