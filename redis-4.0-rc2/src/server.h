@@ -102,6 +102,9 @@ typedef long long mstime_t; /* millisecond time type. */
 //#define TEST_SLAVE_NO_TRANSFER
 #define TEST_HOTKEY_POOL
 
+#ifdef TEST_HOTKEY_POOL
+void test_replaceKeyInPool();
+#endif
 
 /* is_allow_ssdb_write codes */
 #define ALLOW_SSDB_WRITE 1
