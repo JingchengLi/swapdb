@@ -100,6 +100,7 @@ typedef long long mstime_t; /* millisecond time type. */
 //#define TEST_CLIENT_BUF
 //#define TEST_TIME_CONSUMPTION
 //#define TEST_SLAVE_NO_TRANSFER
+//#define TEST_HOTKEY_POOL
 
 
 /* is_allow_ssdb_write codes */

@@ -62,6 +62,10 @@ static struct evictionPoolEntry *EvictionPoolLRU;
 static struct evictionPoolEntry *ColdKeyPool;
 static struct evictionPoolEntry *HotKeyPool;
 
+#ifdef TEST_HOTKEY_POOL
+static struct evictionPoolEntry *TestHotKeyPool;
+#endif
+
 unsigned long LFUDecrAndReturn(robj *o);
 
 /* ----------------------------------------------------------------------------
@@ -341,6 +345,74 @@ void replaceKeyInPool(struct evictionPoolEntry *pool, sds key, int dbid, int idl
         }
     }
 }
+
+#ifdef TEST_HOTKEY_POOL
+void test_hotpool_equal(int* id, struct evictionPoolEntry ep[], int size) {
+    int i;
+    int failed = 0;
+    for (i = 0; i<size; i++) {
+        if (0 == strcmp(ep[i].key, TestHotKeyPool[i].key) && ep[i].idle == TestHotKeyPool[i].idle) {
+            serverLog(LL_DEBUG, "[failed]TEST[%d][item %d] expect (key:%s,idle:%lld), result (key:%s, idle:%lld)",
+                      *id, i, ep[i].key, ep[i].idle, TestHotKeyPool[i].key, TestHotKeyPool[i].idle);
+        } else {
+            serverLog(LL_DEBUG, "[  ok  ]TEST[%d][item %d] expect (key:%s,idle:%lld), result (key:%s, idle:%lld)",
+                      *id, i, ep[i].key, ep[i].idle, TestHotKeyPool[i].key, TestHotKeyPool[i].idle);
+            failed = 1;
+        }
+    }
+    if (failed)
+        serverLog(LL_DEBUG, "TEST[%d] FAILED!\n", *id);
+    else
+        serverLog(LL_DEBUG, "TEST[%d] PASS\n", *id);
+    *id++;
+}
+
+typedef struct evictionPoolEntry POOL_RESULTS[10] ;
+#define VAR(ID) var##id
+#define TEST_RESULTS(id,arr,size)  test_hotpool_equal(&id, arr, size)
+void test_replaceKeyInPool() {
+    int j, id = 0;
+    struct evictionPoolEntry *ep = zmalloc(sizeof(*ep)*10);
+    for (j = 0; j < 10; j++) {
+        ep[j].idle = 0;
+        ep[j].key = NULL;
+        ep[j].cached = sdsnewlen(NULL,EVPOOL_CACHED_SDS_SIZE);
+        ep[j].dbid = 0;
+    }
+    TestHotKeyPool = ep;
+
+    replaceKeyInPool(TestHotKeyPool, sdsnew("abc"), 0, 1, HOT_POOL_TYPE);
+    { POOL_RESULTS tmp = {{1, "abc"}};
+        TEST_RESULTS(id, tmp, 10); }
+
+    replaceKeyInPool(TestHotKeyPool, sdsnew("abc"), 0, 2, HOT_POOL_TYPE);
+    { POOL_RESULTS tmp = {{2,"abc"}};
+    TEST_RESULTS(id,tmp,10); }
+
+    replaceKeyInPool(TestHotKeyPool, sdsnew("abc"), 0, 5, HOT_POOL_TYPE);
+    { POOL_RESULTS tmp = {{5,"abc"}};
+    TEST_RESULTS(id,tmp,10); }
+
+    replaceKeyInPool(TestHotKeyPool, sdsnew("abc"), 0, 4, HOT_POOL_TYPE);
+    { POOL_RESULTS tmp = {{4,"abc"}};
+    TEST_RESULTS(id,tmp,10); }
+
+    replaceKeyInPool(TestHotKeyPool, sdsnew("111"), 0, 3, HOT_POOL_TYPE);
+    { POOL_RESULTS tmp = {{4,"abc"},{3,"111"}};
+    TEST_RESULTS(id,tmp,10); }
+
+    replaceKeyInPool(TestHotKeyPool, sdsnew("222"), 0, 3, HOT_POOL_TYPE);
+    replaceKeyInPool(TestHotKeyPool, sdsnew("333"), 0, 3, HOT_POOL_TYPE);
+
+    for (j = 0; j < 10; j++) {
+        if (ep[j].key != NULL && ep[j].key != ep[j].cached) {
+            sdsfree(ep[j].key);
+        }
+        sdsfree(ep[j].cached);
+    }
+    zfree(ep);
+}
+#endif
 
 void replaceKeyInHotPool(sds key, int dbid, int idle) {
     replaceKeyInPool(HotKeyPool, key, dbid, idle, HOT_POOL_TYPE);
