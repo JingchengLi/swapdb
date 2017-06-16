@@ -28,18 +28,25 @@ overrides {maxmemory 0}} {
             r get foo
         } {bar}
 
-        test "Key(become cold) with ttl($ttl) check with jdjr-mode" {
+        test "Key(become cold) with ttl($ttl) check" {
             r storetossdb foo
             r set fooxxx barxxx
 
             wait_for_dumpto_ssdb r foo
-            r config set jdjr-mode no
-
+            # r config set jdjr-mode no
+            sr del foo
             list [r get fooxxx] [ r get foo ]
         } {barxxx {}}
 
         test "Redis can read key stored in ssdb with ttl($ttl)" {
-            r config set jdjr-mode yes
+            # r config set jdjr-mode yes
+            if {$ttl > 0} {
+                r setex foo $ttl bar
+            } else {
+                r set foo bar
+            }
+
+            dumpto_ssdb_and_wait r foo
             r get foo
         } {bar}
 

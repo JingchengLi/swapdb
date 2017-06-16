@@ -26,7 +26,6 @@ proc main {} {
         "cluster-require-full-coverage yes"
         "cluster-migration-barrier 1"
         "maxmemory 100M"
-        "jdjr-mode yes"
         "ssdb_server_unixsocket ssdb.sock"
     }
 
