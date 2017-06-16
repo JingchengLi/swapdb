@@ -10,8 +10,16 @@ SET(JEMALLOC_PATH ${CMAKE_CURRENT_SOURCE_DIR}/deps/jemalloc-4.1.0)
 SET(SNAPPY_PATH ${CMAKE_CURRENT_SOURCE_DIR}/deps/snappy-1.1.0)
 SET(GFLAGS_PATH ${CMAKE_CURRENT_SOURCE_DIR}/deps/gflags-2.2.0)
 SET(BZIP2_PATH ${CMAKE_CURRENT_SOURCE_DIR}/deps/bzip2-1.0.6)
-SET(CMAKE_C_FLAGS "--std=gnu99 ${CMAKE_C_FLAGS}")
 
+# Set a default build type if none was specified
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+    message(STATUS "Setting build type to 'Release' as none was specified.")
+    set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
+    # Set the possible values of build type for cmake-gui
+    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Release" "Debug" "MinSizeRel" "RelWithDebInfo")
+endif()
+
+message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 
 execute_process(COMMAND
         "./build.sh"
@@ -40,15 +48,17 @@ LINK_DIRECTORIES(
         ${CMAKE_CURRENT_SOURCE_DIR}/src/net
 )
 
+# BUILD FLAGS
+
+SET(CMAKE_C_FLAGS "--std=gnu99 ${CMAKE_C_FLAGS}")
 
 IF(GCOV)
     ADD_DEFINITIONS("-fprofile-arcs -ftest-coverage")
     SET(CMAKE_EXE_LINKER_FLAGS "-fprofile-arcs -ftest-coverage")
     SET(CMAKE_CXX_FLAGS " -D__STDC_FORMAT_MACROS -Wall -g -O0 -Wno-sign-compare -std=c++11")
 ELSE()
-    SET(CMAKE_CXX_FLAGS " -D__STDC_FORMAT_MACROS -Wall -g -O0 -Wno-sign-compare -std=c++11") #-DNDEBUG
+    SET(CMAKE_CXX_FLAGS " -D__STDC_FORMAT_MACROS -Wall -g -Wno-sign-compare -std=c++11") #-DNDEBUG
 ENDIF()
-
 
 
 IF(ROCKSDB)

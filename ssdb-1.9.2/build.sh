@@ -85,7 +85,7 @@ fi
 cd "$DIR"
 DIR=`pwd`
 cd $BZ2_PATH
-make
+make bzip2
 	
 
 cd "$DIR"

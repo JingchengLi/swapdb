@@ -161,4 +161,5 @@ SSDB is licensed under [New BSD License](http://opensource.org/licenses/BSD-3-Cl
 
 
 ## ROCKSDB
-using -D ROCKSDB=ON 
+using -D ROCKSDB=ON
+using -DCMAKE_BUILD_TYPE=DEBUG
