@@ -4,11 +4,14 @@ project(ssdb)
 option(ROCKSDB "enable rocksdb support" ON)
 option(PTIMER "performance monitor" ON)
 
-SET(LEVELDB_PATH=${CMAKE_CURRENT_SOURCE_DIR}/deps/leveldb-1.18)
-SET(ROCKSDB_PATH=${CMAKE_CURRENT_SOURCE_DIR}/deps/rocksdb-5.3.6)
-SET(JEMALLOC_PATH=${CMAKE_CURRENT_SOURCE_DIR}/deps/jemalloc-4.1.0)
-SET(SNAPPY_PATH=${CMAKE_CURRENT_SOURCE_DIR}/deps/snappy-1.1.0)
+SET(LEVELDB_PATH ${CMAKE_CURRENT_SOURCE_DIR}/deps/leveldb-1.18)
+SET(ROCKSDB_PATH ${CMAKE_CURRENT_SOURCE_DIR}/deps/rocksdb-5.3.6)
+SET(JEMALLOC_PATH ${CMAKE_CURRENT_SOURCE_DIR}/deps/jemalloc-4.1.0)
+SET(SNAPPY_PATH ${CMAKE_CURRENT_SOURCE_DIR}/deps/snappy-1.1.0)
+SET(GFLAGS_PATH ${CMAKE_CURRENT_SOURCE_DIR}/deps/gflags-2.2.0)
+SET(BZIP2_PATH ${CMAKE_CURRENT_SOURCE_DIR}/deps/bzip2-1.0.6)
 SET(CMAKE_C_FLAGS "--std=gnu99 ${CMAKE_C_FLAGS}")
+
 
 execute_process(COMMAND
         "./build.sh"
@@ -16,25 +19,25 @@ execute_process(COMMAND
         )
 
 INCLUDE_DIRECTORIES(
-        ${CMAKE_CURRENT_SOURCE_DIR}/deps/jemalloc-4.1.0/include
+        ${GFLAGS_PATH}/include
+        ${SNAPPY_PATH}
+        ${JEMALLOC_PATH}/include
+        ${BZIP2_PATH}
         ${CMAKE_CURRENT_SOURCE_DIR}/src
         ${CMAKE_CURRENT_SOURCE_DIR}/src/client
-        ${CMAKE_CURRENT_SOURCE_DIR}/deps/bzip2-1.0.6
-        ${CMAKE_CURRENT_SOURCE_DIR}/deps/gflags-2.2.0/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/deps/snappy-1.1.0
+
 )
 
 
 LINK_DIRECTORIES(
-        ${CMAKE_CURRENT_SOURCE_DIR}/deps/snappy-1.1.0/.libs
-        ${CMAKE_CURRENT_SOURCE_DIR}/deps/jemalloc-4.1.0/lib/
+        ${BZIP2_PATH}
+        ${GFLAGS_PATH}/lib
+        ${SNAPPY_PATH}/.libs
+        ${JEMALLOC_PATH}/lib/
         ${CMAKE_CURRENT_SOURCE_DIR}/src/ssdb
         ${CMAKE_CURRENT_SOURCE_DIR}/src/client
         ${CMAKE_CURRENT_SOURCE_DIR}/src/util
         ${CMAKE_CURRENT_SOURCE_DIR}/src/net
-        ${CMAKE_CURRENT_SOURCE_DIR}/deps/bzip2-1.0.6
-        ${CMAKE_CURRENT_SOURCE_DIR}/deps/gflags-2.2.0/lib
-        ${CMAKE_CURRENT_SOURCE_DIR}/deps/snappy-1.1.0/.libs
 )
 
 
@@ -53,14 +56,14 @@ IF(ROCKSDB)
     add_compile_options("-DROCKSDB_PLATFORM_POSIX")
 
     INCLUDE_DIRECTORIES(
-            ${CMAKE_CURRENT_SOURCE_DIR}/deps/rocksdb-5.3.6/include
-            ${CMAKE_CURRENT_SOURCE_DIR}/deps/rocksdb-5.3.6
+            ${ROCKSDB_PATH}/include
+            ${ROCKSDB_PATH}
     )
     LINK_DIRECTORIES(
-            ${CMAKE_CURRENT_SOURCE_DIR}/deps/rocksdb-5.3.6/third-party/gtest-1.7.0/fused-src/gtest
-            ${CMAKE_CURRENT_SOURCE_DIR}/deps/rocksdb-5.3.6/
+            ${ROCKSDB_PATH}/third-party/gtest-1.7.0/fused-src/gtest
+            ${ROCKSDB_PATH}/
     )
-    ADD_LIBRARY(librocksdb-static deps/rocksdb-5.3.6)
+    ADD_LIBRARY(librocksdb-static ${ROCKSDB_PATH})
     TARGET_LINK_LIBRARIES ( librocksdb-static snappy gtest gflags )
     SET_TARGET_PROPERTIES(librocksdb-static PROPERTIES
             LINKER_LANGUAGE CXX
@@ -68,14 +71,13 @@ IF(ROCKSDB)
 ELSE()
     message("==================use leveldb===================")
     INCLUDE_DIRECTORIES(
-            ${CMAKE_CURRENT_SOURCE_DIR}/deps/leveldb-1.18/include
-            ${CMAKE_CURRENT_SOURCE_DIR}/deps/leveldb-1.18/include/leveldb
+            ${LEVELDB_PATH}/include
     )
     LINK_DIRECTORIES(
-            ${CMAKE_CURRENT_SOURCE_DIR}/deps/leveldb-1.18/
+            ${LEVELDB_PATH}/
     )
     add_compile_options(-DUSE_LEVELDB)
-    ADD_LIBRARY(libleveldb-static deps/leveldb-1.18)
+    ADD_LIBRARY(libleveldb-static ${LEVELDB_PATH})
     SET_TARGET_PROPERTIES(libleveldb-static PROPERTIES
             LINKER_LANGUAGE CXX
             OUTPUT_NAME "leveldb")
@@ -92,12 +94,12 @@ IF(DREPLY)
 ENDIF()
 
 
-ADD_LIBRARY(libjemalloc-static deps/jemalloc-4.1.0/lib)
+ADD_LIBRARY(libjemalloc-static ${JEMALLOC_PATH}/lib)
 SET_TARGET_PROPERTIES(libjemalloc-static PROPERTIES
         LINKER_LANGUAGE C
         OUTPUT_NAME "jemalloc")
 
-ADD_LIBRARY(libsnappy-static deps/snappy-1.1.0/.libs)
+ADD_LIBRARY(libsnappy-static ${SNAPPY_PATH}/.libs)
 SET_TARGET_PROPERTIES(libsnappy-static PROPERTIES
         LINKER_LANGUAGE CXX
         OUTPUT_NAME "snappy")
