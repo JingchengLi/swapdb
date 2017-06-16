@@ -1834,9 +1834,9 @@ void handleUnfinishedCmdInRedis(client *c, redisReply *reply) {
         serverLog(LL_WARNING, "migrate log: failed to handle migrate dump.");
 
     /* Update expire time in redis and update AOF. */
-    if ((milliseconds = getAbsoluteExpireTimeFromArgs(c)) != C_ERR
-        && ((reply->type == REDIS_REPLY_STATUS && !strcasecmp(reply->str, "ok"))
-            || (reply->type == REDIS_REPLY_INTEGER && reply->integer == 1))) {
+    if (((reply->type == REDIS_REPLY_STATUS && !strcasecmp(reply->str, "ok"))
+         || (reply->type == REDIS_REPLY_INTEGER && reply->integer == 1))
+        && ((milliseconds = getAbsoluteExpireTimeFromArgs(c)) != C_ERR)) {
         robj *argv[3];
         robj *key = c->argv[1];
 
