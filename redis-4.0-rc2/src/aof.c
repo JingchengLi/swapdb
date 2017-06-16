@@ -539,7 +539,7 @@ void feedAppendOnlyFile(struct redisCommand *cmd, int dictid, robj **argv, int a
         int i;
         /* Translate SET [EX seconds][PX milliseconds] to SET and PEXPIREAT */
         buf = catAppendOnlyGenericCommand(buf,3,argv);
-        for (i = 0; i < argc; i ++) {
+        for (i = 3; i < argc; i ++) {
             if (sdsEncodedObject(argv[i]) && !strcasecmp(argv[i]->ptr, "ex")) {
                 buf = catAppendOnlyExpireAtCommand(buf,lookupCommandByCString("expire"),argv[1],argv[i+1]);
                 break;
