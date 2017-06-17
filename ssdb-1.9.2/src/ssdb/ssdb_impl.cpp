@@ -27,6 +27,11 @@ found in the LICENSE file.
 #endif
 
 
+extern "C" {
+#include "redis/rdb_encoder.h"
+};
+
+
 SSDBImpl::SSDBImpl()  {
     ldb = NULL;
     this->bgtask_quit = false;
@@ -703,39 +708,30 @@ int SSDBImpl::save() {
     rocksdb::Status s;
     rocksdb::DB *db = ldb;
 
-    auto backup_option = rocksdb::BackupableDBOptions(path + "/backup");
-//    backup_option.sync = true;
-    backup_option.share_table_files = false;
-    backup_option.share_files_with_checksum = false;
-    backup_option.destroy_old_data = true;
+    int64_t now = time_ms();
 
-    rocksdb::BackupEngine *backup_engine = nullptr;
-    s = rocksdb::BackupEngine::Open(rocksdb::Env::Default(), backup_option, &backup_engine);
-    if (!s.ok()) {
+    leveldb::EnvOptions options;
+    unique_ptr<leveldb::WritableFile> saved;
+    leveldb::Env *env = leveldb::Env::Default();
+    s = env->NewWritableFile(path + "/tmp/rdb.dump", &saved, options);
+
+    if (s!= rocksdb::Status::OK()) {
         log_error("%s", s.ToString().c_str());
-        if (backup_engine != nullptr) {
-            delete backup_engine;
-        }
-    }
-    s = backup_engine->CreateNewBackup(db, false);
-    if (!s.ok()) {
-        log_error("%s", s.ToString().c_str());
+        return -1;
     }
 
-    backup_engine->PurgeOldBackups(1);
-
-    std::vector<rocksdb::BackupInfo> backup_infos;
-    backup_engine->GetBackupInfo(&backup_infos);
-
-    for (auto const &backup_info : backup_infos) {
-        log_info("backup_info: ID:%d TS:%d Size:%d ", backup_info.backup_id , backup_info.timestamp, backup_info.size);
-        s = backup_engine->VerifyBackup(backup_info.backup_id /* ID */);
-        if (!s.ok()) {
-            log_error("%s", s.ToString().c_str());
-        }
+    if(!saved) {
+        return -1;
     }
 
-    delete backup_engine;
+
+    char magic[10];
+    snprintf(magic,sizeof(magic),"REDIS%04d",RDB_VERSION);
+    saved->Append(leveldb::Slice(magic, 9));
+
+
+
+
 
     return 0;
 }
