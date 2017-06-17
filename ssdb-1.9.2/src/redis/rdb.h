@@ -5,6 +5,8 @@
 #ifndef SSDB_RDB_H
 #define SSDB_RDB_H
 
+#define FAKE_REDIS_VERSION "3.0.8"
+#define FAKE_RDB_VERSION 8
 
 /* The current RDB version. When the format changes in a way that is no longer
  * backward compatible this number gets incremented. */

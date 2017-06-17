@@ -107,6 +107,7 @@ bool MIterator::next(){
 			continue;
 		}
 		key = mk.key;
+		val = it->val();
 
 		return true;
 	}

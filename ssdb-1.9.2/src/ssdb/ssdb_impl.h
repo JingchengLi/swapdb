@@ -25,6 +25,7 @@ found in the LICENSE file.
 #include <rocksdb/slice.h>
 #include <rocksdb/table.h>
 #include <rocksdb/utilities/sim_cache.h>
+#include <redis/dump_encode.h>
 
 #define leveldb rocksdb
 #endif
@@ -110,7 +111,7 @@ public:
 		return path + "/data/";
 	}
 
-	int save();
+	int save(Context &ctx);
 
 	ExpirationHandler *expiration;
 
@@ -151,7 +152,9 @@ public:
 	/* 	General	*/
 	virtual int type(Context &ctx, const Bytes &key,std::string *type);
 	virtual int dump(Context &ctx, const Bytes &key,std::string *res, int64_t *pttl, bool compress);
-    virtual int restore(Context &ctx, const Bytes &key,int64_t expire, const Bytes &data, bool replace, std::string *res);
+	virtual int rdbSaveObject(Context &ctx, const Bytes &key, char dtype, const std::string &meta_val,
+							  RedisEncoder &encoder, const leveldb::Snapshot *snapshot);
+	virtual int restore(Context &ctx, const Bytes &key,int64_t expire, const Bytes &data, bool replace, std::string *res);
 	virtual int exists(Context &ctx, const Bytes &key);
 	virtual int parse_replic(Context &ctx, const std::vector<Bytes> &kvs);
 	virtual int parse_replic(Context &ctx, const std::vector<std::string> &kvs);

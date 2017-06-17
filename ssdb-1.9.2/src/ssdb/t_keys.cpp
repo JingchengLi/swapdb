@@ -107,6 +107,25 @@ int SSDBImpl::dump(Context &ctx, const Bytes &key, std::string *res, int64_t *pt
 
     DumpEncoder rdbEncoder(compress);
 
+    ret = rdbEncoder.rdbSaveObjectType(dtype);
+    if (ret < 0) {
+        return ret;
+    }
+
+    rdbSaveObject(ctx, key, dtype, meta_val, rdbEncoder, snapshot);
+
+    rdbEncoder.encodeFooter();
+    *res = rdbEncoder.toString();
+
+    return 1;
+}
+
+
+int SSDBImpl::rdbSaveObject(Context &ctx, const Bytes &key, char dtype, const std::string &meta_val,
+                            RedisEncoder &encoder, const leveldb::Snapshot *snapshot) {
+
+    int ret = 0;
+
     switch (dtype) {
         case DataType::KV: {
             KvMetaVal kv;
@@ -115,8 +134,7 @@ int SSDBImpl::dump(Context &ctx, const Bytes &key, std::string *res, int64_t *pt
                 return ret;
             }
 
-            rdbEncoder.rdbSaveType(RDB_TYPE_STRING);
-            rdbEncoder.rdbSaveRawString(kv.value);
+            if (encoder.rdbSaveRawString(kv.value) == -1) return -1;
             break;
         }
         case DataType::HSIZE: {
@@ -125,22 +143,21 @@ int SSDBImpl::dump(Context &ctx, const Bytes &key, std::string *res, int64_t *pt
             if (ret != 1) {
                 return ret;
             }
-
-            rdbEncoder.rdbSaveType(RDB_TYPE_HASH);
-            rdbEncoder.rdbSaveLen(hv.length);
+            if (encoder.rdbSaveLen(hv.length) == -1) return -1;
 
             auto it = std::unique_ptr<HIterator>(this->hscan_internal(ctx, key, hv.version, snapshot));
 
 
             uint64_t cnt = 0;
             while (it->next()) {
-                rdbEncoder.saveRawString(it->key);
-                rdbEncoder.saveRawString(it->val);
-                cnt ++;
+                if (encoder.saveRawString(it->key) == -1) return -1;
+                if (encoder.saveRawString(it->val) == -1) return -1;
+                cnt++;
             }
 
             if (cnt != hv.length) {
-                log_error("hash metakey length dismatch !!!!! found %d, length %d, key %s", cnt, hv.length, hexstr(key).c_str());
+                log_error("hash metakey length dismatch !!!!! found %d, length %d, key %s", cnt, hv.length,
+                          hexstr(key).c_str());
                 return MKEY_DECODEC_ERR;
             }
 
@@ -153,19 +170,19 @@ int SSDBImpl::dump(Context &ctx, const Bytes &key, std::string *res, int64_t *pt
                 return ret;
             }
 
-            rdbEncoder.rdbSaveType(RDB_TYPE_SET);
-            rdbEncoder.rdbSaveLen(sv.length);
+            if (encoder.rdbSaveLen(sv.length) == -1) return -1;
 
             auto it = std::unique_ptr<SIterator>(this->sscan_internal(ctx, key, sv.version, snapshot));
 
             uint64_t cnt = 0;
             while (it->next()) {
-                rdbEncoder.saveRawString(it->key);
-                cnt ++;
+                if (encoder.saveRawString(it->key) == -1) return -1;
+                cnt++;
             }
 
             if (cnt != sv.length) {
-                log_error("set metakey length dismatch !!!!! found %d, length %d, key %s", cnt, sv.length, hexstr(key).c_str());
+                log_error("set metakey length dismatch !!!!! found %d, length %d, key %s", cnt, sv.length,
+                          hexstr(key).c_str());
                 return MKEY_DECODEC_ERR;
             }
 
@@ -179,21 +196,22 @@ int SSDBImpl::dump(Context &ctx, const Bytes &key, std::string *res, int64_t *pt
 
             }
 
-            rdbEncoder.rdbSaveType(RDB_TYPE_ZSET_2);
-            rdbEncoder.rdbSaveLen(zv.length);
+            if (encoder.rdbSaveLen(zv.length) == -1) return -1;
 
-            auto it = std::unique_ptr<ZIterator>(this->zscan_internal(ctx, key, "", "", -1, Iterator::FORWARD, zv.version, snapshot));
+            auto it = std::unique_ptr<ZIterator>(
+                    this->zscan_internal(ctx, key, "", "", -1, Iterator::FORWARD, zv.version, snapshot));
 
             uint64_t cnt = 0;
             while (it->next()) {
-                rdbEncoder.saveRawString(it->key);
+                if (encoder.saveRawString(it->key) == -1) return -1;
 //                rdbEncoder.saveDoubleValue(it->score);
-                rdbEncoder.rdbSaveBinaryDoubleValue(it->score);
-                cnt ++;
+                if (encoder.rdbSaveBinaryDoubleValue(it->score) == -1) return -1;
+                cnt++;
             }
 
             if (cnt != zv.length) {
-                log_error("zset metakey length dismatch !!!!! found %d, length %d, key %s", cnt, zv.length, hexstr(key).c_str());
+                log_error("zset metakey length dismatch !!!!! found %d, length %d, key %s", cnt, zv.length,
+                          hexstr(key).c_str());
                 return MKEY_DECODEC_ERR;
             }
 
@@ -206,8 +224,7 @@ int SSDBImpl::dump(Context &ctx, const Bytes &key, std::string *res, int64_t *pt
                 return ret;
             }
 
-            rdbEncoder.rdbSaveType(RDB_TYPE_LIST);
-            rdbEncoder.rdbSaveLen(lv.length);
+            if (encoder.rdbSaveLen(lv.length) == -1) return -1;
 
             //readOptions using snapshot
             leveldb::ReadOptions readOptions(false, true);
@@ -228,7 +245,7 @@ int SSDBImpl::dump(Context &ctx, const Bytes &key, std::string *res, int64_t *pt
                 if (1 != ret) {
                     return -1;
                 }
-                rdbEncoder.rdbSaveRawString(item_val);
+                if (encoder.rdbSaveRawString(item_val) == -1) return -1;
 
                 if (UINT64_MAX == cur_seq) {
                     cur_seq = 0;
@@ -243,10 +260,7 @@ int SSDBImpl::dump(Context &ctx, const Bytes &key, std::string *res, int64_t *pt
             return INVALID_METAVAL;
     }
 
-    rdbEncoder.encodeFooter();
-    *res = rdbEncoder.toString();
-
-    return 1;
+    return ret;
 }
 
 

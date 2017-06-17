@@ -654,9 +654,12 @@ int proc_version(Context &ctx, Link *link, const Request &req, Response *resp) {
 int proc_save(Context &ctx, Link *link, const Request &req, Response *resp) {
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
-    serv->ssdb->save();
-
-    resp->push_back("ok");
+   int ret = serv->ssdb->save(ctx);
+    if(ret < 0){
+        resp->push_back("error");
+    }else{
+        resp->push_back("ok");
+     }
 
     return 0;
 }

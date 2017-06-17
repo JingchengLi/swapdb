@@ -20,6 +20,16 @@ public:
 
     int rdbSaveType(unsigned char type);
 
+    int rdbSaveMillisecondTime(long long t);
+
+    int rdbSaveAuxField(const std::string &key, const std::string &val);
+
+    int rdbSaveAuxFieldStrStr(const std::string &key, const std::string &val);
+
+    int rdbSaveAuxFieldStrInt(const std::string &key, long long val);
+
+    int rdbSaveObjectType(char dtype);
+
     int64_t rdbSaveRawString(const std::__cxx11::string &string);
 
     int64_t saveRawString(const std::__cxx11::string &string);

@@ -22,6 +22,11 @@ found in the LICENSE file.
 #include <rocksdb/utilities/sim_cache.h>
 #include <redis/crc/crc64speed.h>
 
+extern "C" {
+#include <redis/zmalloc.h>
+};
+
+
 #include "t_listener.h"
 
 #define leveldb rocksdb
@@ -710,6 +715,7 @@ public:
 
     uint64_t cksum;
 
+    bool update_cksum = false;
 
     void genericUpdateChecksum(void *p, size_t n) {
         cksum = crc64(cksum, p, n);
@@ -718,6 +724,9 @@ public:
     int rdbWriteRaw(void *p, size_t n) override {
         if (handle != nullptr) {
             s = handle->Append(leveldb::Slice((const char *) p, n));
+            if (update_cksum) {
+                genericUpdateChecksum(p , n);
+            }
             if (!s.ok()) {
                 return -1;
             }
@@ -726,7 +735,7 @@ public:
     }
 };
 
-int SSDBImpl::save() {
+int SSDBImpl::save(Context &ctx) {
     Locking<Mutex> l(&this->mutex_backup_);
 
     rocksdb::Status s;
@@ -737,9 +746,9 @@ int SSDBImpl::save() {
     leveldb::EnvOptions options;
     unique_ptr<leveldb::WritableFile> saved;
     leveldb::Env *env = leveldb::Env::Default();
-    s = env->NewWritableFile(path + "/tmp/rdb.dump", &saved, options);
+    s = env->NewWritableFile(path + "/rdb.dump", &saved, options);
 
-    if (s!= rocksdb::Status::OK()) {
+    if (!s.ok()) {
         log_error("%s", s.ToString().c_str());
         return -1;
     }
@@ -749,11 +758,21 @@ int SSDBImpl::save() {
     }
 
     RocksdbWritableFileEncoder encoder(saved.get());
+    encoder.update_cksum = true;
 
     char magic[10];
-    snprintf(magic, sizeof(magic), "REDIS%04d", RDB_VERSION);
+    snprintf(magic, sizeof(magic), "REDIS%04d", FAKE_RDB_VERSION);
+    if (encoder.rdbWriteRaw(magic, 9) == -1) return -1;
 
-    if (encoder.saveRawString(Bytes(magic, 9)) == -1) return -1;
+    /* Add a few fields about the state when the RDB was created. */
+    int redis_bits = (sizeof(void *) == 8) ? 64 : 32;
+
+    if (encoder.rdbSaveAuxFieldStrStr("redis-ver", FAKE_REDIS_VERSION) == -1) return -1;
+    if (encoder.rdbSaveAuxFieldStrInt("redis-bits", redis_bits) == -1) return -1;
+    if (encoder.rdbSaveAuxFieldStrInt("ctime", time(NULL)) == -1) return -1;
+    if (encoder.rdbSaveAuxFieldStrInt("used-mem", (long long int) zmalloc_get_rss()) == -1) return -1;
+
+
     if (encoder.rdbSaveType(RDB_OPCODE_SELECTDB) == -1) return -1;
     if (encoder.rdbSaveLen(0) == -1) return -1;
 
@@ -762,15 +781,56 @@ int SSDBImpl::save() {
     if (encoder.rdbSaveLen(UINT32_MAX) == -1) return -1;
 
 
+    std::string start;
+    start.append(1, DataType::META);
+
+    char dtype;
+
+    const leveldb::Snapshot *snapshot = GetSnapshot();
+    SnapshotPtr spl(ldb, snapshot); //auto release
 
 
+    auto it = std::unique_ptr<MIterator>(new MIterator(iterator(start, "", -1, snapshot)));
+    while(it->next()){
+        const Bytes& key = it->key;
+        const std::string& meta_val = it->val.String();
 
+        //decodeMetaVal
+        if(meta_val.size()<4) {
+            //invalid
+            log_error("invalid MetaVal: %s", s.ToString().c_str());
+            continue;
+        }
 
+        char del = meta_val[POS_DEL];
+        if (del != KEY_ENABLED_MASK){
+            //deleted
+            continue;
+        }
+
+        int64_t expire = expiration->pttl(ctx, key, TimeUnit::Millisecond);
+        if (expire == -2) continue;
+
+        if (expire != -1) {
+            /* If this key is already expired skip it */
+            if (encoder.rdbSaveType(RDB_OPCODE_EXPIRETIME_MS) == -1) return -1;
+            if (encoder.rdbSaveMillisecondTime(expire) == -1) return -1;
+        }
+
+        //save type
+        dtype = meta_val[0];
+        if (encoder.rdbSaveObjectType(dtype) == -1) return -1;
+        if (encoder.rdbSaveRawString(key.String()) == -1) return -1;
+        if (rdbSaveObject(ctx, key, dtype, meta_val, encoder, snapshot) < 0) return -1;
+
+    }
 
 
     if (encoder.rdbSaveType(RDB_OPCODE_EOF) == -1) return -1;
 
-
+    uint64_t cksum = encoder.cksum;
+    memrev64ifbe(&cksum);
+    if (encoder.saveRawString(Bytes(&cksum,8)) == -1) return -1;
 
     return 0;
 }

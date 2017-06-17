@@ -7,6 +7,7 @@
 #include <netinet/in.h>
 #include <cstring>
 #include <cfloat>
+#include <codec/util.h>
 #include "redis_encoder.h"
 #include "rdb.h"
 #include "util/cfree.h"
@@ -56,7 +57,54 @@ int RedisEncoder::rdbSaveType(unsigned char type) {
     return rdbWriteRaw(&type, 1);
 }
 
-int64_t RedisEncoder::rdbSaveRawString(const std::__cxx11::string &string) {
+int RedisEncoder::rdbSaveMillisecondTime(long long t) {
+    int64_t t64 = (int64_t) t;
+    return rdbWriteRaw(&t64,8);
+}
+
+/* Save an AUX field. */
+int RedisEncoder::rdbSaveAuxField(const std::string &key, const std::string &val) {
+    if (rdbSaveType(RDB_OPCODE_AUX) == -1) return -1;
+    if (rdbSaveRawString(key) == -1) return -1;
+    if (rdbSaveRawString(val) == -1) return -1;
+    return 1;
+}
+
+/* Wrapper for rdbSaveAuxField() used when key/val length can be obtained
+ * with strlen(). */
+int RedisEncoder::rdbSaveAuxFieldStrStr(const std::string &key, const std::string &val) {
+    return rdbSaveAuxField(key, val);
+}
+
+/* Wrapper for strlen(key) + integer type (up to long long range). */
+int RedisEncoder::rdbSaveAuxFieldStrInt(const std::string &key, long long val) {
+    return rdbSaveAuxField(key, str((int64_t)val));
+}
+
+int RedisEncoder::rdbSaveObjectType(char dtype) {
+    
+    switch (dtype) {
+        case DataType::KV: {
+            return rdbSaveType(RDB_TYPE_STRING);
+        }
+        case DataType::HSIZE: {
+            return rdbSaveType(RDB_TYPE_HASH);
+        }
+        case DataType::SSIZE: {
+            return rdbSaveType(RDB_TYPE_SET);
+        }
+        case DataType::ZSIZE: {
+            return rdbSaveType(RDB_TYPE_ZSET_2);
+        }
+        case DataType::LSIZE: {
+            return rdbSaveType(RDB_TYPE_LIST);
+        }
+        default:
+            return -1;
+    }
+}
+
+int64_t RedisEncoder::rdbSaveRawString(const std::string &string) {
     size_t len = string.length();
     if (len <= 11) {
         int enclen;

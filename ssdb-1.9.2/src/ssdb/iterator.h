@@ -53,6 +53,7 @@ private:
 class MIterator{
 public:
 	Bytes key;
+	Bytes val;
 
 	MIterator(Iterator *it);
 	~MIterator();
