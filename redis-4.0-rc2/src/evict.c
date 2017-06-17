@@ -439,21 +439,21 @@ void test_replaceKeyInPool() {
     { POOL_RESULTS tmp = {{60,"abc"},{50, "555"}, {30, "333"},{20,"111"}, {9, "222"}};
         TEST_RESULTS(id,tmp,EVPOOL_SIZE); }
 
-    replaceKeyInPool(TestHotKeyPool, (s=sdsnew("666")), 0, 70, HOT_POOL_TYPE);
+    replaceKeyInPool(TestHotKeyPool, (s=sdsnew("666")), 0, 70, HOT_POOL_TYPE);sdsfree(s);
     replaceKeyInPool(TestHotKeyPool, (s=sdsnew("888")), 0, 80, HOT_POOL_TYPE);
     { POOL_RESULTS tmp = {{80,"888"},{70, "666"},{60,"abc"},{50, "555"}, {30, "333"},{20,"111"}, {9, "222"}};
         TEST_RESULTS(id,tmp,EVPOOL_SIZE); }
 
-    replaceKeyInPool(TestHotKeyPool, (s=sdsnew("999")), 0, 90, HOT_POOL_TYPE);
-    replaceKeyInPool(TestHotKeyPool, (s=sdsnew("xxx")), 0, 100, HOT_POOL_TYPE);
-    replaceKeyInPool(TestHotKeyPool, (s=sdsnew("yyy")), 0, 110, HOT_POOL_TYPE);
+    replaceKeyInPool(TestHotKeyPool, (s=sdsnew("999")), 0, 90, HOT_POOL_TYPE);sdsfree(s);
+    replaceKeyInPool(TestHotKeyPool, (s=sdsnew("xxx")), 0, 100, HOT_POOL_TYPE);sdsfree(s);
+    replaceKeyInPool(TestHotKeyPool, (s=sdsnew("yyy")), 0, 110, HOT_POOL_TYPE);sdsfree(s);
 
-    replaceKeyInPool(TestHotKeyPool, (s=sdsnew("zzz")), 0, 110, HOT_POOL_TYPE);
-    replaceKeyInPool(TestHotKeyPool, (s=sdsnew("uuu")), 0, 120, HOT_POOL_TYPE);
-    replaceKeyInPool(TestHotKeyPool, (s=sdsnew("vvv")), 0, 130, HOT_POOL_TYPE);
-    replaceKeyInPool(TestHotKeyPool, (s=sdsnew("www")), 0, 140, HOT_POOL_TYPE);
-    replaceKeyInPool(TestHotKeyPool, (s=sdsnew("ooo")), 0, 150, HOT_POOL_TYPE);
-    replaceKeyInPool(TestHotKeyPool, (s=sdsnew("ppp")), 0, 160, HOT_POOL_TYPE);
+    replaceKeyInPool(TestHotKeyPool, (s=sdsnew("zzz")), 0, 110, HOT_POOL_TYPE);sdsfree(s);
+    replaceKeyInPool(TestHotKeyPool, (s=sdsnew("uuu")), 0, 120, HOT_POOL_TYPE);sdsfree(s);
+    replaceKeyInPool(TestHotKeyPool, (s=sdsnew("vvv")), 0, 130, HOT_POOL_TYPE);sdsfree(s);
+    replaceKeyInPool(TestHotKeyPool, (s=sdsnew("www")), 0, 140, HOT_POOL_TYPE);sdsfree(s);
+    replaceKeyInPool(TestHotKeyPool, (s=sdsnew("ooo")), 0, 150, HOT_POOL_TYPE);sdsfree(s);
+    replaceKeyInPool(TestHotKeyPool, (s=sdsnew("ppp")), 0, 160, HOT_POOL_TYPE);sdsfree(s);
 
     replaceKeyInPool(TestHotKeyPool, (s=sdsnew("fff")), 0, 220, HOT_POOL_TYPE);
     { POOL_RESULTS tmp = {{160,"ppp"},
