@@ -1621,6 +1621,14 @@ void startToHandleCmdListInSlave(void) {
         server.cmdNotDone = 0;
 
         if (TYPE_LOAD_KEY_FORM_SSDB == type) {
+            /* prohibit to load keys from SSDB if the SSDB connection status of server.master
+             * is not CONN_SUCCESS. because if a SSDB write command of a key is in server.write_op_list,
+             * and we move the key from ssdb to redis, after the ssdb connection of server.master reconnect
+             * successfully, the SSDB write command in server.write_op_list will fail to execute(because
+             * the key is not exist in SSDB already). */
+            if (!server.master || !(server.master->ssdb_conn_flags & CONN_SUCCESS))
+                continue;
+
             server.load_evict_argv[0] = shared.dumpcmdobj;
             server.slave_ssdb_load_evict_client->cmd = lookupCommandByCString("dumpfromssdb");
         } else if (TYPE_TRANSFER_TO_SSDB == type) {
@@ -3122,6 +3130,8 @@ int processCommandMaybeFlushdb(client *c) {
 
             /* before flushall, clean all visiting keys and all writes in ssdb write op list. */
             emptySlaveSSDBwriteOperations();
+            /* clean all keys need to transfer/load */
+            dictEmpty(server.loadAndEvictCmdDict, NULL);
 
             ret = updateSendRepopidToSSDB(c);
             if (ret != C_OK) return ret;
@@ -3265,6 +3275,11 @@ int confirmAndRetrySlaveSSDBwriteOp(time_t time, int index) {
             // for assert
             impossible = 0;
 
+            if (time == op->time && index == op->index && 1 == server.slave_failed_retry_interrupted) {
+                server.slave_failed_retry_interrupted = 0;
+                server.blocked_write_op = NULL;
+            }
+
             /* if last successful SSDB write command is 'flushall' but redis don't receive its response,
              * we just redo it to empty redis. */
             if (time == op->time && index == op->index && op->cmd->proc != flushallCommand) {
@@ -3277,11 +3292,9 @@ int confirmAndRetrySlaveSSDBwriteOp(time_t time, int index) {
                      * unblocked now and we can go on. */
                     ret = runCommandReplicationConn(server.master, ln);
                     if (ret != C_BLOCKED) resetClient(server.master);
-                    /* reset */
-                    server.slave_failed_retry_interrupted = 0;
-                    server.blocked_write_op = NULL;
                 }
             } else {
+
                 /* this is a failed write, retry it. */
                 if (op->cmd->proc == flushallCommand) {
                     ret = sendRepopidToSSDB(server.master, op->time, op->index, 1);
@@ -3362,6 +3375,8 @@ int updateSendRepopidToSSDB(client* c) {
     /* for the replication connection of slave redis, we record write commands
      * in server.ssdb_write_oplist, we just return and process next write command. */
     saveSlaveSSDBwriteOp(c, server.last_send_writeop_time, server.last_send_writeop_index);
+
+    if(!(c->ssdb_conn_flags & CONN_SUCCESS)) return C_FD_ERR;
 
     ret = sendRepopidToSSDB(c, server.last_send_writeop_time, server.last_send_writeop_index, 0);
     if (ret == C_OK)
@@ -3752,7 +3767,9 @@ int runCommandReplicationConn(client *c, listNode* writeop_ln) {
         return ret;
     }
 
+    serverAssert(C_ERR == ret);
     if (slave_retry_write) {
+        serverAssert(NULL);
         /*NOTE: for some commands like set, setex, etc..., its c->argv[j]->ptr
         * may be modified when call tryObjectEncoding.
          *
@@ -4168,22 +4185,6 @@ int processCommand(client *c) {
             serverLog(LL_DEBUG, "client migrate list add: %ld", (long)c);
             return C_ERR;
         }
-    }
-
-    /* to ensure data consistency of this slave with my master, if connnection status of
-    * server.master is CONN_RECEIVE_INCREMENT_UPDATES/CONN_CHECK_REPOPID/CONN_CONNECT_FAILED,
-    * we can do nothing but save this write operation to the tail of server.ssdb_write_oplist
-    * and wait to re-send it.
-    *
-    * NOTE: even if the key of c->argv is in redis now, and also the key is not in transferring/
-    * loading/delete_confirm status, we can't process the command directly, because maybe there are
-    * write operations on the same key in server.ssdb_write_oplist.
-    * */
-    if (server.jdjr_mode && c->argc > 1 && c == server.master && !(c->ssdb_conn_flags & CONN_SUCCESS)) {
-        updateSlaveSSDBwriteIndex();
-        saveSlaveSSDBwriteOp(c, server.last_send_writeop_time, server.last_send_writeop_index);
-        serverLog(LL_DEBUG, "save write op:%s %s to write op list", c->cmd->name, c->argc > 1 ? (char*)c->argv[1]->ptr : "");
-        return C_OK;
     }
 
     /* Check if current cmd contains blocked keys. */
