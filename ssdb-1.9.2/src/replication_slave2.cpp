@@ -322,7 +322,8 @@ void *ssdb_sync2(void *arg) {
 
                         /*
                          * attention here
-                         * we use vector<Bytes> instead of vector<string> using data_hold to prevent memory area
+                         * we use vector<Bytes> instead of vector<string>
+                         * using data_hold to keep the memory area reserved
                          * */
 
                         bgs[tid] = std::async(std::launch::async,

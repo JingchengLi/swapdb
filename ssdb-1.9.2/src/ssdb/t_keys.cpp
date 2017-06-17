@@ -632,7 +632,7 @@ bool getNextString(unsigned char *zl, unsigned char **p, std::string &ret_res) {
             //TODO check str with ll2string in redis
             ret_res = str((int64_t) longval);
         } else {
-            ret_res = std::string((char *)value, sz);
+            ret_res.assign((char *)value, sz);
         }
 
         *p = ziplistNext(zl, *p);
