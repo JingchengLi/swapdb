@@ -20,16 +20,14 @@ found in the LICENSE file.
 #include "rocksdb/convenience.h"
 #include "rocksdb/slice_transform.h"
 #include <rocksdb/utilities/sim_cache.h>
+#include <redis/crc/crc64speed.h>
 
 #include "t_listener.h"
 
 #define leveldb rocksdb
 #endif
 
-
-extern "C" {
-#include "redis/dump_encoder.h"
-};
+#include "redis/dump_encode.h"
 
 
 SSDBImpl::SSDBImpl()  {
@@ -702,6 +700,32 @@ void *SSDBImpl::thread_func(void *arg) {
 
 #include "rocksdb/utilities/backupable_db.h"
 
+
+class RocksdbWritableFileEncoder : public RedisEncoder {
+public:
+    explicit RocksdbWritableFileEncoder(rocksdb::WritableFile *handle) : handle(handle) {}
+
+    leveldb::WritableFile *handle;
+    leveldb::Status s;
+
+    uint64_t cksum;
+
+
+    void genericUpdateChecksum(void *p, size_t n) {
+        cksum = crc64(cksum, p, n);
+    }
+
+    int rdbWriteRaw(void *p, size_t n) override {
+        if (handle != nullptr) {
+            s = handle->Append(leveldb::Slice((const char *) p, n));
+            if (!s.ok()) {
+                return -1;
+            }
+        }
+        return 0;
+    }
+};
+
 int SSDBImpl::save() {
     Locking<Mutex> l(&this->mutex_backup_);
 
@@ -720,16 +744,31 @@ int SSDBImpl::save() {
         return -1;
     }
 
-    if(!saved) {
+    if (!saved) {
         return -1;
     }
 
+    RocksdbWritableFileEncoder encoder(saved.get());
 
     char magic[10];
-    snprintf(magic,sizeof(magic),"REDIS%04d",RDB_VERSION);
-    saved->Append(leveldb::Slice(magic, 9));
+    snprintf(magic, sizeof(magic), "REDIS%04d", RDB_VERSION);
+
+    if (encoder.saveRawString(Bytes(magic, 9)) == -1) return -1;
+    if (encoder.rdbSaveType(RDB_OPCODE_SELECTDB) == -1) return -1;
+    if (encoder.rdbSaveLen(0) == -1) return -1;
+
+    if (encoder.rdbSaveType(RDB_OPCODE_RESIZEDB) == -1)return -1;
+    if (encoder.rdbSaveLen(UINT32_MAX) == -1) return -1;
+    if (encoder.rdbSaveLen(UINT32_MAX) == -1) return -1;
 
 
+
+
+
+
+
+
+    if (encoder.rdbSaveType(RDB_OPCODE_EOF) == -1) return -1;
 
 
 

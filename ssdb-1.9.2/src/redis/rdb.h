@@ -62,7 +62,6 @@
 /* Test if a type is an object type. */
 #define rdbIsObjectType(t) ((t >= 0 && t <= 6) || (t >= 9 && t <= 14))
 
-/*
 #define RDB_OPCODE_AUX        250
 #define RDB_OPCODE_RESIZEDB   251
 #define RDB_OPCODE_EXPIRETIME_MS 252
@@ -71,6 +70,7 @@
 #define RDB_OPCODE_EOF        255
 
 
+/*
 #define RDB_LOAD_NONE   0
 #define RDB_LOAD_ENC    (1<<0)
 #define RDB_LOAD_PLAIN  (1<<1)

@@ -13,18 +13,12 @@ class RedisEncoder {
 protected:
     bool rdb_compression = false;
 public:
-    void encodeFooter();
 
     virtual int rdbWriteRaw(void *p, size_t n) = 0;
 
-    virtual char *data() = 0;
-
-    virtual size_t size() = 0;
-
-
     int rdbSaveLen(uint64_t len);
 
-    void rdbSaveType(unsigned char type);
+    int rdbSaveType(unsigned char type);
 
     int64_t rdbSaveRawString(const std::__cxx11::string &string);
 

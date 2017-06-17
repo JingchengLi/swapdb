@@ -5,7 +5,7 @@
 #include <net/server.h>
 #include "ssdb_impl.h"
 
-#include "redis/dump_encoder.h"
+#include "redis/dump_encode.h"
 #include "redis/rdb_decoder.h"
 
 #include "t_hash.h"
@@ -105,7 +105,7 @@ int SSDBImpl::dump(Context &ctx, const Bytes &key, std::string *res, int64_t *pt
 
     SnapshotPtr spl(ldb, snapshot); //auto release
 
-    dump_encoder rdbEncoder(compress);
+    DumpEncoder rdbEncoder(compress);
 
     switch (dtype) {
         case DataType::KV: {

@@ -12,26 +12,11 @@
 #include "util/cfree.h"
 
 extern "C" {
-#include "zmalloc.h"
 #include "lzf.h"
-#include "crc64.h"
 #include "endianconv.h"
 };
 
 
-void RedisEncoder::encodeFooter() {
-
-    unsigned char buf[2];
-    buf[0] = RDB_VERSION & 0xff;
-    buf[1] = (RDB_VERSION >> 8) & 0xff;
-    rdbWriteRaw(&buf, 2);
-
-    uint64_t crc;
-    crc = crc64_fast(0, data(), size());
-    memrev64ifbe(&crc);
-    rdbWriteRaw(&crc, 8);
-
-}
 
 int RedisEncoder::rdbSaveLen(uint64_t len) {
     unsigned char buf[2];
@@ -67,8 +52,8 @@ int RedisEncoder::rdbSaveLen(uint64_t len) {
     return nwritten;
 }
 
-void RedisEncoder::rdbSaveType(unsigned char type) {
-    rdbWriteRaw(&type, 1);
+int RedisEncoder::rdbSaveType(unsigned char type) {
+    return rdbWriteRaw(&type, 1);
 }
 
 int64_t RedisEncoder::rdbSaveRawString(const std::__cxx11::string &string) {

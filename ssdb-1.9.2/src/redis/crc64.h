@@ -1,9 +1,7 @@
 #ifndef CRC64_H
 #define CRC64_H
 
-namespace crcspeed {
 #include "redis/crc/crc64speed.h"
-};
 
 /* Run the init() function exactly once.  If pthread.h is not included, then
    this macro will use a simple static state variable for the purpose, which is
@@ -31,12 +29,12 @@ namespace crcspeed {
 #endif
 
 inline void init_crc64speed_table(){
-    crcspeed::crc64speed_init_native();
+    crc64speed_init_native();
 }
 
 inline uint64_t crc64_fast(uint64_t crc, const void *s, const uint64_t l) {
     ONCE(init_crc64speed_table);
-    return crcspeed::crc64speed_native(crc, s, l);
+    return crc64speed_native(crc, s, l);
 }
 
 

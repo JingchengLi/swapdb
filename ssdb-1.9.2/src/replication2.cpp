@@ -220,10 +220,11 @@ int ReplicationByIterator2::process() {
 
         bool finish = true;
         do {
-            iterator_ptr->Next();
             if (!iterator_ptr->Valid()) {
                 break;
             }
+
+            iterator_ptr->Next();
 
             saveStrToBufferQuick(buffer, iterator_ptr->key());
             saveStrToBufferQuick(buffer, iterator_ptr->value());
