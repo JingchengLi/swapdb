@@ -739,14 +739,13 @@ int SSDBImpl::save(Context &ctx) {
     Locking<Mutex> l(&this->mutex_backup_);
 
     rocksdb::Status s;
-    rocksdb::DB *db = ldb;
 
     int64_t now = time_ms();
 
     leveldb::EnvOptions options;
     unique_ptr<leveldb::WritableFile> saved;
     leveldb::Env *env = leveldb::Env::Default();
-    s = env->NewWritableFile(path + "/rdb.dump", &saved, options);
+    s = env->NewWritableFile(path + "/dump.rdb", &saved, options);
 
     if (!s.ok()) {
         log_error("%s", s.ToString().c_str());
@@ -758,7 +757,7 @@ int SSDBImpl::save(Context &ctx) {
     }
 
     RocksdbWritableFileEncoder encoder(saved.get());
-    encoder.update_cksum = true;
+    encoder.update_cksum = false;
 
     char magic[10];
     snprintf(magic, sizeof(magic), "REDIS%04d", FAKE_RDB_VERSION);
@@ -814,7 +813,7 @@ int SSDBImpl::save(Context &ctx) {
         if (expire != -1) {
             /* If this key is already expired skip it */
             if (encoder.rdbSaveType(RDB_OPCODE_EXPIRETIME_MS) == -1) return -1;
-            if (encoder.rdbSaveMillisecondTime(expire) == -1) return -1;
+            if (encoder.rdbSaveMillisecondTime(expire + now) == -1) return -1;
         }
 
         //save type
@@ -830,7 +829,7 @@ int SSDBImpl::save(Context &ctx) {
 
     uint64_t cksum = encoder.cksum;
     memrev64ifbe(&cksum);
-    if (encoder.saveRawString(Bytes(&cksum,8)) == -1) return -1;
+    if (encoder.rdbWriteRaw(&cksum,8) == -1) return -1;
 
     return 0;
 }
