@@ -371,9 +371,10 @@ void test_hotpool_equal(int* id, struct evictionPoolEntry ep[], int size) {
 }
 
 typedef struct evictionPoolEntry POOL_RESULTS[EVPOOL_SIZE] ;
-#define TEST_RESULTS(id,arr,size)  test_hotpool_equal(&id, arr, size)
+#define TEST_RESULTS(id,arr,size)  {test_hotpool_equal(&id, arr, size);sdsfree(s);}
 void test_replaceKeyInPool() {
     int j, id = 0;
+    sds s;
     struct evictionPoolEntry *ep = zmalloc(sizeof(*ep)*EVPOOL_SIZE);
     for (j = 0; j < EVPOOL_SIZE; j++) {
         ep[j].idle = 0;
@@ -383,98 +384,98 @@ void test_replaceKeyInPool() {
     }
     TestHotKeyPool = ep;
 
-    replaceKeyInPool(TestHotKeyPool, sdsnew("abc"), 0, 10, HOT_POOL_TYPE);
+    replaceKeyInPool(TestHotKeyPool, (s=sdsnew("abc")), 0, 10, HOT_POOL_TYPE);
     { POOL_RESULTS tmp = {{10, "abc"}};
         TEST_RESULTS(id, tmp, EVPOOL_SIZE); }
 
-    replaceKeyInPool(TestHotKeyPool, sdsnew("abc"), 0, 50, HOT_POOL_TYPE);
+    replaceKeyInPool(TestHotKeyPool, (s=sdsnew("abc")), 0, 50, HOT_POOL_TYPE);
     { POOL_RESULTS tmp = {{50,"abc"}};
         TEST_RESULTS(id,tmp,EVPOOL_SIZE); }
 
-    replaceKeyInPool(TestHotKeyPool, sdsnew("abc"), 0, 40, HOT_POOL_TYPE);
+    replaceKeyInPool(TestHotKeyPool, (s=sdsnew("abc")), 0, 40, HOT_POOL_TYPE);
     { POOL_RESULTS tmp = {{40,"abc"}};
         TEST_RESULTS(id,tmp,EVPOOL_SIZE); }
 
-    replaceKeyInPool(TestHotKeyPool, sdsnew("111"), 0, 30, HOT_POOL_TYPE);
+    replaceKeyInPool(TestHotKeyPool, (s=sdsnew("111")), 0, 30, HOT_POOL_TYPE);
     { POOL_RESULTS tmp = {{40,"abc"},{30,"111"}};
         TEST_RESULTS(id,tmp,EVPOOL_SIZE); }
 
-    replaceKeyInPool(TestHotKeyPool, sdsnew("222"), 0, 30, HOT_POOL_TYPE);
+    replaceKeyInPool(TestHotKeyPool, (s=sdsnew("222")), 0, 30, HOT_POOL_TYPE);
     { POOL_RESULTS tmp = {{40,"abc"},{30,"222"}, {30,"111"}};
         TEST_RESULTS(id,tmp,EVPOOL_SIZE); }
 
-    replaceKeyInPool(TestHotKeyPool, sdsnew("333"), 0, 30, HOT_POOL_TYPE);
+    replaceKeyInPool(TestHotKeyPool, (s=sdsnew("333")), 0, 30, HOT_POOL_TYPE);
     { POOL_RESULTS tmp = {{40,"abc"},{30, "333"},{30,"222"}, {30,"111"}};
         TEST_RESULTS(id,tmp,EVPOOL_SIZE); }
-    replaceKeyInPool(TestHotKeyPool, sdsnew("abc"), 0, 50, HOT_POOL_TYPE);
+    replaceKeyInPool(TestHotKeyPool, (s=sdsnew("abc")), 0, 50, HOT_POOL_TYPE);
     { POOL_RESULTS tmp = {{50,"abc"},{30, "333"},{30,"222"}, {30,"111"}};
         TEST_RESULTS(id,tmp,EVPOOL_SIZE); }
 
-    replaceKeyInPool(TestHotKeyPool, sdsnew("abc"), 0, 10, HOT_POOL_TYPE);
+    replaceKeyInPool(TestHotKeyPool, (s=sdsnew("abc")), 0, 10, HOT_POOL_TYPE);
     { POOL_RESULTS tmp = {{30, "333"},{30,"222"}, {30,"111"}, {10,"abc"}};
         TEST_RESULTS(id,tmp,EVPOOL_SIZE); }
 
-    replaceKeyInPool(TestHotKeyPool, sdsnew("222"), 0, 9, HOT_POOL_TYPE);
+    replaceKeyInPool(TestHotKeyPool, (s=sdsnew("222")), 0, 9, HOT_POOL_TYPE);
     { POOL_RESULTS tmp = {{30, "333"},{30,"111"}, {10,"abc"}, {9, "222"}};
         TEST_RESULTS(id,tmp,EVPOOL_SIZE); }
 
-    replaceKeyInPool(TestHotKeyPool, sdsnew("abc"), 0, 13, HOT_POOL_TYPE);
+    replaceKeyInPool(TestHotKeyPool, (s=sdsnew("abc")), 0, 13, HOT_POOL_TYPE);
     { POOL_RESULTS tmp = {{30, "333"},{30,"111"}, {13,"abc"}, {9, "222"}};
         TEST_RESULTS(id,tmp,EVPOOL_SIZE); }
 
-    replaceKeyInPool(TestHotKeyPool, sdsnew("abc"), 0, 60, HOT_POOL_TYPE);
+    replaceKeyInPool(TestHotKeyPool, (s=sdsnew("abc")), 0, 60, HOT_POOL_TYPE);
     { POOL_RESULTS tmp = {{60,"abc"}, {30, "333"},{30,"111"}, {9, "222"}};
         TEST_RESULTS(id,tmp,EVPOOL_SIZE); }
 
-    replaceKeyInPool(TestHotKeyPool, sdsnew("555"), 0, 50, HOT_POOL_TYPE);
+    replaceKeyInPool(TestHotKeyPool, (s=sdsnew("555")), 0, 50, HOT_POOL_TYPE);
     { POOL_RESULTS tmp = {{60,"abc"}, {50, "555"},{30, "333"},{30,"111"}, {9, "222"}};
         TEST_RESULTS(id,tmp,EVPOOL_SIZE); }
 
-    replaceKeyInPool(TestHotKeyPool, sdsnew("111"), 0, 55, HOT_POOL_TYPE);
+    replaceKeyInPool(TestHotKeyPool, (s=sdsnew("111")), 0, 55, HOT_POOL_TYPE);
     { POOL_RESULTS tmp = {{60,"abc"},{55,"111"}, {50, "555"}, {30, "333"},{9, "222"}};
         TEST_RESULTS(id,tmp,EVPOOL_SIZE); }
 
-    replaceKeyInPool(TestHotKeyPool, sdsnew("111"), 0, 20, HOT_POOL_TYPE);
+    replaceKeyInPool(TestHotKeyPool, (s=sdsnew("111")), 0, 20, HOT_POOL_TYPE);
     { POOL_RESULTS tmp = {{60,"abc"},{50, "555"}, {30, "333"},{20,"111"}, {9, "222"}};
         TEST_RESULTS(id,tmp,EVPOOL_SIZE); }
 
-    replaceKeyInPool(TestHotKeyPool, sdsnew("666"), 0, 70, HOT_POOL_TYPE);
-    replaceKeyInPool(TestHotKeyPool, sdsnew("888"), 0, 80, HOT_POOL_TYPE);
+    replaceKeyInPool(TestHotKeyPool, (s=sdsnew("666")), 0, 70, HOT_POOL_TYPE);
+    replaceKeyInPool(TestHotKeyPool, (s=sdsnew("888")), 0, 80, HOT_POOL_TYPE);
     { POOL_RESULTS tmp = {{80,"888"},{70, "666"},{60,"abc"},{50, "555"}, {30, "333"},{20,"111"}, {9, "222"}};
         TEST_RESULTS(id,tmp,EVPOOL_SIZE); }
 
-    replaceKeyInPool(TestHotKeyPool, sdsnew("999"), 0, 90, HOT_POOL_TYPE);
-    replaceKeyInPool(TestHotKeyPool, sdsnew("xxx"), 0, 100, HOT_POOL_TYPE);
-    replaceKeyInPool(TestHotKeyPool, sdsnew("yyy"), 0, 110, HOT_POOL_TYPE);
+    replaceKeyInPool(TestHotKeyPool, (s=sdsnew("999")), 0, 90, HOT_POOL_TYPE);
+    replaceKeyInPool(TestHotKeyPool, (s=sdsnew("xxx")), 0, 100, HOT_POOL_TYPE);
+    replaceKeyInPool(TestHotKeyPool, (s=sdsnew("yyy")), 0, 110, HOT_POOL_TYPE);
 
-    replaceKeyInPool(TestHotKeyPool, sdsnew("zzz"), 0, 110, HOT_POOL_TYPE);
-    replaceKeyInPool(TestHotKeyPool, sdsnew("uuu"), 0, 120, HOT_POOL_TYPE);
-    replaceKeyInPool(TestHotKeyPool, sdsnew("vvv"), 0, 130, HOT_POOL_TYPE);
-    replaceKeyInPool(TestHotKeyPool, sdsnew("www"), 0, 140, HOT_POOL_TYPE);
-    replaceKeyInPool(TestHotKeyPool, sdsnew("ooo"), 0, 150, HOT_POOL_TYPE);
-    replaceKeyInPool(TestHotKeyPool, sdsnew("ppp"), 0, 160, HOT_POOL_TYPE);
+    replaceKeyInPool(TestHotKeyPool, (s=sdsnew("zzz")), 0, 110, HOT_POOL_TYPE);
+    replaceKeyInPool(TestHotKeyPool, (s=sdsnew("uuu")), 0, 120, HOT_POOL_TYPE);
+    replaceKeyInPool(TestHotKeyPool, (s=sdsnew("vvv")), 0, 130, HOT_POOL_TYPE);
+    replaceKeyInPool(TestHotKeyPool, (s=sdsnew("www")), 0, 140, HOT_POOL_TYPE);
+    replaceKeyInPool(TestHotKeyPool, (s=sdsnew("ooo")), 0, 150, HOT_POOL_TYPE);
+    replaceKeyInPool(TestHotKeyPool, (s=sdsnew("ppp")), 0, 160, HOT_POOL_TYPE);
 
-    replaceKeyInPool(TestHotKeyPool, sdsnew("fff"), 0, 220, HOT_POOL_TYPE);
+    replaceKeyInPool(TestHotKeyPool, (s=sdsnew("fff")), 0, 220, HOT_POOL_TYPE);
     { POOL_RESULTS tmp = {{160,"ppp"},
                           {150,"ooo"}, {140,"www"}, {130,"vvv"},{120,"uuu"},{110,"zzz"},
                           {110,"yyy"},{100,"xxx"},{90,"999"}, {80,"888"}, {70, "666"},{60,"abc"},
                           {50, "555"}, {30, "333"},{20,"111"}, {9, "222"}};
         TEST_RESULTS(id,tmp,EVPOOL_SIZE); }
 
-    replaceKeyInPool(TestHotKeyPool, sdsnew("fff"), 0, 8, HOT_POOL_TYPE);
+    replaceKeyInPool(TestHotKeyPool, (s=sdsnew("fff")), 0, 8, HOT_POOL_TYPE);
     { POOL_RESULTS tmp = {{150,"ooo"}, {140,"www"},{130,"vvv"}, {120,"uuu"},{110,"zzz"},
                           {110,"yyy"}, {100,"xxx"},{90,"999"}, {80,"888"},{70, "666"}, {60,"abc"},
                           {50, "555"}, {30, "333"},{20,"111"}, {9, "222"},
                           {8,"fff"}};
         TEST_RESULTS(id,tmp,EVPOOL_SIZE); }
 
-    replaceKeyInPool(TestHotKeyPool, sdsnew("bbb"), 0, 111, HOT_POOL_TYPE);
+    replaceKeyInPool(TestHotKeyPool, (s=sdsnew("bbb")), 0, 111, HOT_POOL_TYPE);
     { POOL_RESULTS tmp = {{140,"www"},{130,"vvv"},{120,"uuu"}, {111,"bbb"},{110,"zzz"},
                           {110,"yyy"},{100,"xxx"},{90,"999"}, {80,"888"},{70, "666"}, {60,"abc"},
                           {50, "555"}, {30, "333"},{20,"111"}, {9, "222"},
                           {8,"fff"}};
         TEST_RESULTS(id,tmp,EVPOOL_SIZE);
-        replaceKeyInPool(TestHotKeyPool, sdsnew("fff"), 0, 8, HOT_POOL_TYPE);
+        replaceKeyInPool(TestHotKeyPool, (s=sdsnew("fff")), 0, 8, HOT_POOL_TYPE);
         TEST_RESULTS(id,tmp,EVPOOL_SIZE); }
 
     for (j = 0; j < EVPOOL_SIZE; j++) {
