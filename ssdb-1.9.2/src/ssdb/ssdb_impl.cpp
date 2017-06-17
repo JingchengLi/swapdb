@@ -610,13 +610,13 @@ void SSDBImpl::delete_key_loop(const std::string &del_key) {
         }
 
         ItemKey ik;
-        std::string item_key = it->key().String();
+        Bytes item_key = it->key();
         if (ik.DecodeItemKey(item_key) == -1) {
-            log_fatal("decode delete key error! %s", hexmem(item_key.data(), item_key.size()).c_str());
+            log_fatal("decode delete key error! %s", hexstr(item_key).c_str());
             break;
         }
         if (ik.key == dk.key && ik.version == dk.version) {
-            batch.Delete(item_key);
+            batch.Delete(slice(item_key));
         } else {
             break;
         }
@@ -630,13 +630,13 @@ void SSDBImpl::delete_key_loop(const std::string &del_key) {
         }
 
         ZScoreItemKey zk;
-        std::string item_key = zit->key().String();
+        Bytes item_key = zit->key();
         if (zk.DecodeItemKey(item_key) == -1) {
-            log_fatal("decode delete key error! %s", hexmem(item_key.data(), item_key.size()).c_str());
+            log_fatal("decode delete key error! %s", hexstr(item_key).c_str());
             break;
         }
         if (zk.key == dk.key && zk.version == dk.version) {
-            batch.Delete(item_key);
+            batch.Delete(slice(item_key));
         } else {
             break;
         }
