@@ -897,7 +897,8 @@ int clientsCronResizeQueryBuffer(client *c) {
     return 0;
 }
 
-#define IS_NOT_CONNECTED(c) (!(c) || (!((c)->ssdb_conn_flags & CONN_CHECK_REPOPID) && !((c)->ssdb_conn_flags & CONN_SUCCESS)))
+#define IS_NOT_CONNECTED(c) (!(c) || (!((c)->ssdb_conn_flags & CONN_CHECK_REPOPID) \
+    && !((c)->ssdb_conn_flags & CONN_SUCCESS) && !((c)->ssdb_conn_flags & CONN_RECEIVE_INCREMENT_UPDATES)))
 void reconnectSSDB() {
     listNode* ln;
     listIter li;
@@ -3321,7 +3322,11 @@ int confirmAndRetrySlaveSSDBwriteOp(time_t time, int index) {
         }
     }
 
-    if (C_OK == ret) server.master->ssdb_conn_flags |= CONN_SUCCESS;
+    if (C_OK == ret) {
+        server.master->ssdb_conn_flags &= ~CONN_RECEIVE_INCREMENT_UPDATES;
+        server.master->ssdb_conn_flags &= ~CONN_CHECK_REPOPID;
+        server.master->ssdb_conn_flags |= CONN_SUCCESS;
+    }
     if (C_OK == ret)
         serverLog(LL_DEBUG, "server.master status is CONN_SUCCESS now");
     else
@@ -4166,9 +4171,9 @@ int processCommand(client *c) {
     }
 
     /* to ensure data consistency of this slave with my master, if connnection status of
-    * server.master is CONN_CHECK_REPOPID/CONN_CONNECT_FAILED, we can do nothing but
-    * save this write operation to the tail of server.ssdb_write_oplist and wait to re-send
-    * it.
+    * server.master is CONN_RECEIVE_INCREMENT_UPDATES/CONN_CHECK_REPOPID/CONN_CONNECT_FAILED,
+    * we can do nothing but save this write operation to the tail of server.ssdb_write_oplist
+    * and wait to re-send it.
     *
     * NOTE: even if the key of c->argv is in redis now, and also the key is not in transferring/
     * loading/delete_confirm status, we can't process the command directly, because maybe there are

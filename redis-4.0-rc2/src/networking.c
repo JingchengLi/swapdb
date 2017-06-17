@@ -618,23 +618,32 @@ void handleConnectSSDBok(client* c) {
         server.ssdb_is_down = 0;
     }
     c->revert_len = 0;
-    if (server.master == c && listLength(server.ssdb_write_oplist) > 0) {
-        /* NOTE: to ensure data consistency between the slave myself and our master,
-         * for server.master connection, if there are unconfirmed write operations in
-         * server.ssdb_write_oplist, which had been send to SSDB successfully but
-         * we don't know whether they are executed actually, we must confirm with
-         * SSDB and re-send all failed writes to SSDB at first, then we change
-         * server.master->ssdb_conn_flags to CONN_SUCCESS, after that, SSDB write
-         * commands can be send and processed normally by 'processCommandMaybeInSSDB'. */
-        serverLog(LL_DEBUG, "connect master success, check repopid..."
-                  "server.master:%p, context:%p, context->fd:%d, ssdb conn flags:%d",
-                  (void*)server.master,
-                  (void*)server.master->context,
-                  server.master->context? server.master->context->fd : -1,
-                  server.master->ssdb_conn_flags);
+    if (server.master == c &&
+        ((server.repl_state == REPL_STATE_TRANSFER_END && server.ssdb_repl_state != REPL_STATE_TRANSFER_SSDB_SNAPSHOT_END) ||
+         (server.repl_state == REPL_STATE_CONNECTED && listLength(server.ssdb_write_oplist) > 0) )) {
+        if (server.repl_state == REPL_STATE_CONNECTED && listLength(server.ssdb_write_oplist) > 0) {
+            /* NOTE: to ensure data consistency between the slave myself and our master,
+            * for server.master connection, if there are unconfirmed write operations in
+            * server.ssdb_write_oplist, which had been send to SSDB successfully but
+            * we don't know whether they are executed actually, we must confirm with
+            * SSDB and re-send all failed writes to SSDB at first, then we change
+            * server.master->ssdb_conn_flags to CONN_SUCCESS, after that, SSDB write
+            * commands can be send and processed normally by 'processCommandMaybeInSSDB'. */
+            serverLog(LL_DEBUG, "connect master success, check repopid..."
+                              "server.master:%p, context:%p, context->fd:%d, ssdb conn flags:%d",
+                      (void*)server.master,
+                      (void*)server.master->context,
+                      server.master->context? server.master->context->fd : -1,
+                      server.master->ssdb_conn_flags);
 
-        if (sendRepopidCheckToSSDB(server.master) == C_OK)
-            server.master->ssdb_conn_flags |= CONN_CHECK_REPOPID;
+            if (sendRepopidCheckToSSDB(server.master) == C_OK)
+                server.master->ssdb_conn_flags |= CONN_CHECK_REPOPID;
+        } else if (server.repl_state == REPL_STATE_TRANSFER_END && server.ssdb_repl_state != REPL_STATE_TRANSFER_SSDB_SNAPSHOT_END) {
+            /* when RDB file transfer is done but SSDB snapshot has not, allow receiving increment updates to avoid
+             * accumulating too much data in my query_buf(server.master->query_buf) or output buffer of my master,
+             * which may overflow these buffers and break replication, then cause full sync again. */
+            server.master->ssdb_conn_flags |= CONN_RECEIVE_INCREMENT_UPDATES;
+        }
     } else {
         c->ssdb_conn_flags |= CONN_SUCCESS;
     }
@@ -795,6 +804,7 @@ void handleSSDBconnectionDisconnect(client* c) {
     c->ssdb_conn_flags &= ~CONN_SUCCESS;
     /* for server.master only */
     c->ssdb_conn_flags &= ~CONN_CHECK_REPOPID;
+    c->ssdb_conn_flags &= ~CONN_RECEIVE_INCREMENT_UPDATES;
     c->ssdb_conn_flags |= CONN_CONNECT_FAILED;
 
     if (c->context) {
@@ -918,7 +928,8 @@ int sendCommandToSSDB(client *c, sds finalcmd) {
             freeClient(c);
         else {
             if ((c->ssdb_conn_flags & CONN_CONNECTING) ||
-                (c == server.master && (c->ssdb_conn_flags & CONN_CHECK_REPOPID)))
+                (c == server.master && (c->ssdb_conn_flags & CONN_CHECK_REPOPID ||
+                                        c->ssdb_conn_flags & CONN_RECEIVE_INCREMENT_UPDATES)))
                 serverLog(LL_DEBUG, "ssdb connection status is connecting");
             else
                 serverLog(LL_DEBUG, "ssdb connection status is disconnected");

@@ -86,8 +86,12 @@ typedef long long mstime_t; /* millisecond time type. */
 /* SSDB connection flags in jdjr_mode */
 #define CONN_CONNECT_FAILED         (1<<0)
 #define CONN_CONNECTING             (1<<1)
-#define CONN_CHECK_REPOPID          (1<<2) /* for server.master only */
-#define CONN_SUCCESS                (1<<3) /* now we can send command to SSDB. */
+#define CONN_RECEIVE_INCREMENT_UPDATES (1<<2) /* for server.master only, when RDB file transfer
+ * is done but SSDB snapshot file has not, we save increment updates about SSDB data in
+ * server.write_op_list. after SSDB snapshot transfer is done, we apply these increment updates
+ * to SSDB. */
+#define CONN_CHECK_REPOPID          (1<<3) /* for server.master only */
+#define CONN_SUCCESS                (1<<4) /* now we can send command to SSDB. */
 #define CONN_WAIT_WRITE_CHECK_REPLY (1<<9) /* for check write in replication process */
 #define CONN_WAIT_FLUSH_CHECK_REPLY (1<<10) /* for flush check when process 'flushall' */
 

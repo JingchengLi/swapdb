@@ -981,11 +981,18 @@ void putSlaveOnline(client *slave) {
     slave->replstate = SLAVE_STATE_ONLINE;
     slave->repl_put_online_on_ack = 0;
     slave->repl_ack_time = server.unixtime; /* Prevent false timeout. */
-    if (aeCreateFileEvent(server.el, slave->fd, AE_WRITABLE,
-        sendReplyToClient, slave) == AE_ERR) {
-        serverLog(LL_WARNING,"Unable to register writable event for slave bulk transfer: %s", strerror(errno));
-        freeClient(slave);
-        return;
+    if (server.jdjr_mode) {
+        /* for jdjr mode, we install write event handler when RDB transfer
+         * is done(may SSDB snapshot transfer is going on), and our slave will
+         * receive increment updates and buffer them in server.write_op_list.
+         * avoid to overflow output buffer. */
+    } else {
+        if (aeCreateFileEvent(server.el, slave->fd, AE_WRITABLE,
+                              sendReplyToClient, slave) == AE_ERR) {
+            serverLog(LL_WARNING,"Unable to register writable event for slave bulk transfer: %s", strerror(errno));
+            freeClient(slave);
+            return;
+        }
     }
     refreshGoodSlavesCount();
     serverLog(LL_NOTICE,"Synchronization with slave %s succeeded",
@@ -1045,9 +1052,19 @@ void sendBulkToSlave(aeEventLoop *el, int fd, void *privdata, int mask) {
         slave->repldbfd = -1;
         aeDeleteFileEvent(server.el,slave->fd,AE_WRITABLE);
 
-        if (server.jdjr_mode && server.use_customized_replication)
+        if (server.jdjr_mode && server.use_customized_replication) {
             slave->replstate = SLAVE_STATE_SEND_BULK_FINISHED;
-        else
+            /* for jdjr mode, we install write event handler when RDB transfer
+             * is done(may SSDB snapshot transfer is going on), and our slave will
+             * receive increment updates and buffer them in server.write_op_list.
+             * avoid to overflow output buffer. */
+            if (aeCreateFileEvent(server.el, slave->fd, AE_WRITABLE,
+                                  sendReplyToClient, slave) == AE_ERR) {
+                serverLog(LL_WARNING,"Unable to register writable event for slave bulk transfer: %s", strerror(errno));
+                freeClient(slave);
+                return;
+            }
+        } else
             putSlaveOnline(slave);
     }
 }
@@ -1284,18 +1301,10 @@ void ssdbNotifyCommand(client* c) {
 }
 
 void completeReplicationHandshake() {
-    /* Final setup of the connected slave <- master link */
-    replicationCreateMasterClient(server.repl_transfer_s,server.tmp_repl_stream_dbid);
-    server.tmp_repl_stream_dbid = -1;
-    if (server.jdjr_mode) {
-        if (C_OK != nonBlockConnectToSsdbServer(server.master)) {
-            serverLog(LL_WARNING, "Failed to connect SSDB when sync");
-            cancelReplicationHandshake();
-            return;
-        }
-    }
-    zfree(server.repl_transfer_tmpfile);
-    close(server.repl_transfer_fd);
+    /* now we can apply increment updates received from my master
+     * during SSDB snapshot transferring. */
+    if (listLength(server.ssdb_write_oplist) > 0)
+        confirmAndRetrySlaveSSDBwriteOp(-1, -1);
 
     if (server.jdjr_mode) {
         server.ssdb_repl_state = REPL_STATE_NONE;
@@ -1501,6 +1510,25 @@ void readSyncBulkPayload(aeEventLoop *el, int fd, void *privdata, int mask) {
             * will trigger an AOF rewrite, and when done will start appending
             * to the new file. */
             if (aof_is_enabled) restartAOF();
+
+            /* setup of the connected slave <- master link */
+
+            /* At here, RDB file transfer is done but SSDB snapshot maybe has not, so we
+             * create server.master connection in advance, allow receiving increment updates
+             * to avoid accumulating too much data in my query_buf (server.master->query_buf)
+             * or output buffer of my master, which may overflow these buffers and break
+             * replication, then cause full sync again. */
+            replicationCreateMasterClient(server.repl_transfer_s,server.tmp_repl_stream_dbid);
+            server.tmp_repl_stream_dbid = -1;
+            if (server.jdjr_mode) {
+                if (C_OK != nonBlockConnectToSsdbServer(server.master)) {
+                    serverLog(LL_WARNING, "Failed to connect SSDB when sync");
+                    cancelReplicationHandshake();
+                    return;
+                }
+            }
+            zfree(server.repl_transfer_tmpfile);
+            close(server.repl_transfer_fd);
 
             /* SSDB snapshot transfer have not completed. must wait and return, will check
              * server.ssdb_repl_state in replicationCron, and do the rest work of replication */
@@ -2809,21 +2837,22 @@ void replicationCron(void) {
      * or we don't receive notify message from SSDB for a long time. */
     if (server.jdjr_mode && server.masterhost && server.repl_state == REPL_STATE_TRANSFER_END) {
         if (server.ssdb_repl_state == REPL_STATE_TRANSFER_SSDB_SNAPSHOT_END) {
-            /* RDB and SSDB snapshot transferred done, now it's time to complete replication handshake. */
+            /* RDB and SSDB snapshot transfer is done, now it's time to complete replication handshake. */
             serverLog(LL_DEBUG, "SSDB snapshot receiving complete, establish replication handshake success.");
             completeReplicationHandshake();
-        } else if ((server.ssdb_repl_state == REPL_STATE_NONE || server.ssdb_repl_state == REPL_STATE_TRANSFER_SSDB_SNAPSHOT)
-                   && (server.unixtime - server.slave_ssdb_transfer_keepalive_time) > SLAVE_SSDB_TRANSFER_KEEPALIVE_TIMEOUT) {
-            /* we don't receive snapshot transfer message from SSDB for a long time */
-            serverAssert(server.slave_ssdb_transfer_keepalive_time != -1);
-            serverLog(LL_DEBUG, "don't receive SSDB snapshot transfer message for a long "
-                    "time, cancel replication handshake");
-            cancelReplicationHandshake();
+        } else if (server.ssdb_repl_state == REPL_STATE_NONE || server.ssdb_repl_state == REPL_STATE_TRANSFER_SSDB_SNAPSHOT) {
+            if ((server.unixtime - server.slave_ssdb_transfer_keepalive_time) > SLAVE_SSDB_TRANSFER_KEEPALIVE_TIMEOUT) {
+                /* we don't receive snapshot transfer message from SSDB for a long time */
+                serverAssert(server.slave_ssdb_transfer_keepalive_time != -1);
+                serverLog(LL_DEBUG, "don't receive SSDB snapshot transfer message for a long "
+                        "time, cancel replication handshake");
+                cancelReplicationHandshake();
+            } else {
+                /* in jdjr mode, when redis RDB transfer is done but SSDB snapshot not, we need send
+                * keep-alive message, avoid the master to detect the slave is timing out. */
+                replicationSendNewlineToMaster();
+            }
         }
-
-        /* in jdjr mode, when redis RDB transfer done but SSDB snapshot have not, we need send
-         * keep-alive message, avoid the master to detect the slave is timing out. */
-        replicationSendNewlineToMaster();
     }
 
     /* Timed out master when we are an already connected slave? */
