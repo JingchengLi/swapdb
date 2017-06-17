@@ -245,7 +245,7 @@ SET( RDB_OBJS
         src/redis/lzf_d.c
         src/redis/endianconv.c
         src/redis/zmalloc.c
-        src/redis/rdb_encoder.cpp
+        src/redis/redis_encoder.cpp
         src/redis/rdb_decoder.cpp
         src/redis/sha1.c
         )

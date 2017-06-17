@@ -28,7 +28,7 @@ found in the LICENSE file.
 
 
 extern "C" {
-#include "redis/rdb_encoder.h"
+#include "redis/dump_encoder.h"
 };
 
 

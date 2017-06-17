@@ -1,24 +1,25 @@
 //
-// Created by zts on 16-12-20.
+// Created by zts on 17-6-17.
 //
 
-#include <cstring>
-#include <netinet/in.h>
-#include <sstream>
 #include <memory>
-
-#include "rdb_encoder.h"
-#include "util/strings.h"
+#include <sstream>
+#include <netinet/in.h>
+#include <cstring>
+#include <cfloat>
+#include "redis_encoder.h"
+#include "rdb.h"
 #include "util/cfree.h"
 
 extern "C" {
+#include "zmalloc.h"
 #include "lzf.h"
 #include "crc64.h"
 #include "endianconv.h"
-#include "zmalloc.h"
 };
 
-void RdbEncoder::encodeFooter() {
+
+void RedisEncoder::encodeFooter() {
 
     unsigned char buf[2];
     buf[0] = RDB_VERSION & 0xff;
@@ -26,13 +27,13 @@ void RdbEncoder::encodeFooter() {
     rdbWriteRaw(&buf, 2);
 
     uint64_t crc;
-    crc = crc64_fast(0, (unsigned char *) w.data(), w.size());
+    crc = crc64_fast(0, data(), size());
     memrev64ifbe(&crc);
     rdbWriteRaw(&crc, 8);
 
 }
 
-int RdbEncoder::rdbSaveLen(uint64_t len) {
+int RedisEncoder::rdbSaveLen(uint64_t len) {
     unsigned char buf[2];
     size_t nwritten;
 
@@ -66,15 +67,11 @@ int RdbEncoder::rdbSaveLen(uint64_t len) {
     return nwritten;
 }
 
-void RdbEncoder::rdbSaveType(unsigned char type) {
+void RedisEncoder::rdbSaveType(unsigned char type) {
     rdbWriteRaw(&type, 1);
 }
 
-std::string RdbEncoder::toString() const {
-    return w;
-}
-
-int64_t RdbEncoder::rdbSaveRawString(const std::string &string) {
+int64_t RedisEncoder::rdbSaveRawString(const std::__cxx11::string &string) {
     size_t len = string.length();
     if (len <= 11) {
         int enclen;
@@ -100,8 +97,7 @@ int64_t RdbEncoder::rdbSaveRawString(const std::string &string) {
     return string.length();
 }
 
-
-int64_t RdbEncoder::saveRawString(const std::string &string) {
+int64_t RedisEncoder::saveRawString(const std::__cxx11::string &string) {
 
     rdbSaveLen(string.size());
     rdbWriteRaw((void *) string.data(), string.size());
@@ -109,9 +105,7 @@ int64_t RdbEncoder::saveRawString(const std::string &string) {
     return string.size();
 }
 
-
-
-int64_t RdbEncoder::saveRawString(const Bytes &string) {
+int64_t RedisEncoder::saveRawString(const Bytes &string) {
 //    uint64_t size = (uint64_t) string.size();
 
     rdbSaveLen(string.size());
@@ -120,8 +114,7 @@ int64_t RdbEncoder::saveRawString(const Bytes &string) {
     return string.size();
 }
 
-
-int RdbEncoder::saveDoubleValue(double val) {
+int RedisEncoder::saveDoubleValue(double val) {
 
     unsigned char buf[128];
     int len;
@@ -150,7 +143,7 @@ int RdbEncoder::saveDoubleValue(double val) {
         else
 #endif
         snprintf((char *) buf + 1, sizeof(buf) - 1, "%.17g", val);
-        buf[0] = std::strlen((char *) buf + 1);
+        buf[0] = strlen((char *) buf + 1);
         len = buf[0] + 1;
     }
 
@@ -159,17 +152,17 @@ int RdbEncoder::saveDoubleValue(double val) {
     return 1;
 }
 
-int RdbEncoder::rdbSaveBinaryDoubleValue(double val) {
+int RedisEncoder::rdbSaveBinaryDoubleValue(double val) {
     memrev64ifbe(&val);
     return rdbWriteRaw(&val, sizeof(val));
 }
 
-int RdbEncoder::rdbSaveBinaryFloatValue(float val) {
+int RedisEncoder::rdbSaveBinaryFloatValue(float val) {
     memrev32ifbe(&val);
     return rdbWriteRaw(&val, sizeof(val));
 }
 
-int RdbEncoder::rdbEncodeInteger(long long value, unsigned char *enc) {
+int RedisEncoder::rdbEncodeInteger(long long value, unsigned char *enc) {
     if (value >= -(1 << 7) && value <= (1 << 7) - 1) {
         enc[0] = (RDB_ENCVAL << 6) | RDB_ENC_INT8;
         enc[1] = value & 0xFF;
@@ -191,20 +184,20 @@ int RdbEncoder::rdbEncodeInteger(long long value, unsigned char *enc) {
     }
 }
 
-int RdbEncoder::rdbTryIntegerEncoding(const std::string &string, unsigned char *enc) {
+int RedisEncoder::rdbTryIntegerEncoding(const std::__cxx11::string &string, unsigned char *enc) {
     int64_t value = str_to_int64(string);
     if (errno != 0) {
         return 0;
     }
 
-    std::string newValue = str(value);
+    std::__cxx11::string newValue = str(value);
 
     if (newValue.length() != string.length() || newValue != string) return 0;
 
     return rdbEncodeInteger(value, enc);
 }
 
-int64_t RdbEncoder::rdbSaveLzfStringObject(const std::string &string) {
+int64_t RedisEncoder::rdbSaveLzfStringObject(const std::__cxx11::string &string) {
     size_t len = string.length();
     size_t comprlen, outlen;
     void *out;
@@ -215,7 +208,7 @@ int64_t RdbEncoder::rdbSaveLzfStringObject(const std::string &string) {
 
 //    if ((out = zmalloc(outlen + 1)) == NULL) return 0;
 
-    std::unique_ptr<void, cfree_delete<void>> out_m(malloc(outlen + 1));
+    std::unique_ptr<void, cfree_delete <void>> out_m(malloc(outlen + 1));
     out = out_m.get();
 
     comprlen = lzf_compress(string.data(), len, out, outlen);
@@ -227,7 +220,7 @@ int64_t RdbEncoder::rdbSaveLzfStringObject(const std::string &string) {
     return nwritten;
 }
 
-int64_t RdbEncoder::rdbSaveLzfBlob(void *data, size_t compress_len, size_t original_len) {
+int64_t RedisEncoder::rdbSaveLzfBlob(void *data, size_t compress_len, size_t original_len) {
     unsigned char byte;
     int64_t n, nwritten = 0;
 
