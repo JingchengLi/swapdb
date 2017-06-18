@@ -75,6 +75,8 @@ int ReplicationByIterator2::process() {
 
     log_info("[ReplicationByIterator2] ssdb_sync2 done");
 
+    bool iterator_done = false;
+
     log_debug("[ReplicationByIterator2] prepare for event loop");
     unique_ptr<Fdevents> fdes = unique_ptr<Fdevents>(new Fdevents());
 
@@ -220,11 +222,17 @@ int ReplicationByIterator2::process() {
 
         bool finish = true;
         do {
-            if (!iterator_ptr->Valid()) {
+            if (iterator_done) {
                 break;
             }
 
             iterator_ptr->Next();
+
+            if (!iterator_ptr->Valid()) {
+                iterator_done = true;
+                log_info("[ReplicationByIterator2] iterator done");
+                break;
+            }
 
             saveStrToBufferQuick(buffer, iterator_ptr->key());
             saveStrToBufferQuick(buffer, iterator_ptr->value());
