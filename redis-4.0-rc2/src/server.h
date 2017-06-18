@@ -381,7 +381,7 @@ void test_replaceKeyInPool();
 #define SLAVE_STATE_WAIT_BGSAVE_END 7 /* Waiting RDB file creation to finish. */
 #define SLAVE_STATE_SEND_BULK 8 /* Sending RDB file to slave. but for jdjr_mode, this
  * indicates RDB file is ready and we can send RDB. */
-#define SLAVE_STATE_SEND_BULK_FINISHED 9 /* Finish sending RDB file to slave in jdjr_mode. */
+#define SLAVE_STATE_SEND_BULK_FINISHED 9 /* for jdjr mode only, Finish sending RDB file to slave. */
 #define SLAVE_STATE_ONLINE 10 /* RDB file transmitted, sending just updates. */
 
 /* Use by server.ssdb_status(master) and client.ssdb_status(slave). */
