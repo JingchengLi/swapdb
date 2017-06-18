@@ -898,7 +898,7 @@ int clientsCronResizeQueryBuffer(client *c) {
 }
 
 #define IS_NOT_CONNECTED(c) (!(c) || (!((c)->ssdb_conn_flags & CONN_CHECK_REPOPID) \
-    && !((c)->ssdb_conn_flags & CONN_SUCCESS) && !((c)->ssdb_conn_flags & CONN_RECEIVE_INCREMENT_UPDATES)))
+    && !((c)->ssdb_conn_flags & CONN_SUCCESS)))
 void reconnectSSDB() {
     listNode* ln;
     listIter li;
@@ -3126,7 +3126,7 @@ int processCommandMaybeFlushdb(client *c) {
              * to the list, so that we don't need to re-send previous failed writes after connection status
              * turn into CONN_SUCCESS. */
             if (!(c->ssdb_conn_flags & CONN_SUCCESS))
-                serverLog(LL_DEBUG, "sdb connection status of server,master is not CONN_SUCCESS");
+                serverLog(LL_DEBUG, "ssdb connection status of server.master is not CONN_SUCCESS");
 
             /* before flushall, clean all visiting keys and all writes in ssdb write op list. */
             emptySlaveSSDBwriteOperations();
@@ -3260,7 +3260,7 @@ int confirmAndRetrySlaveSSDBwriteOp(time_t time, int index) {
     int ret = C_OK;
 
     if (time == -1 && index == -1)
-        serverLog(LL_DEBUG, "flushall success, check and re-send the rest write operations.");
+        serverLog(LL_DEBUG, "check and re-send all the rest write operations.");
 
     listRewind(server.ssdb_write_oplist, &li);
     while((ln = listNext(&li))) {
@@ -3334,12 +3334,9 @@ int confirmAndRetrySlaveSSDBwriteOp(time_t time, int index) {
                       op->cmd->name, op->time, op->index);
         }
     }
-
-    if (C_OK == ret) {
-        server.master->ssdb_conn_flags &= ~CONN_RECEIVE_INCREMENT_UPDATES;
-        server.master->ssdb_conn_flags &= ~CONN_CHECK_REPOPID;
+    if (C_OK == ret)
         server.master->ssdb_conn_flags |= CONN_SUCCESS;
-    }
+
     if (C_OK == ret)
         serverLog(LL_DEBUG, "server.master status is CONN_SUCCESS now");
     else
@@ -3376,7 +3373,12 @@ int updateSendRepopidToSSDB(client* c) {
      * in server.ssdb_write_oplist, we just return and process next write command. */
     saveSlaveSSDBwriteOp(c, server.last_send_writeop_time, server.last_send_writeop_index);
 
-    if(!(c->ssdb_conn_flags & CONN_SUCCESS)) return C_FD_ERR;
+    /* if ssdb connection flag of this client is not CONN_SUCCESS, just return. but for
+     * flushall command, we can do it also when the flag is CONN_CHECK_REPOPID or
+     * CONN_RECEIVE_INCREMENT_UPDATES */
+    if(!(c->ssdb_conn_flags & CONN_SUCCESS) &&
+       c->cmd && c->cmd->proc != flushallCommand && c->cmd->proc != flushdbCommand)
+        return C_FD_ERR;
 
     ret = sendRepopidToSSDB(c, server.last_send_writeop_time, server.last_send_writeop_index, 0);
     if (ret == C_OK)

@@ -1301,10 +1301,16 @@ void ssdbNotifyCommand(client* c) {
 }
 
 void completeReplicationHandshake() {
-    /* now we can apply increment updates received from my master
-     * during SSDB snapshot transferring. */
-    if (listLength(server.ssdb_write_oplist) > 0)
+    if (server.master->ssdb_conn_flags & CONN_RECEIVE_INCREMENT_UPDATES) {
+        server.master->ssdb_conn_flags &= ~CONN_RECEIVE_INCREMENT_UPDATES;
+        /* now we can apply increment updates received from my master
+        * during SSDB snapshot transferring.
+         *
+         * confirmAndRetrySlaveSSDBwriteOp also will update ssdb connection status of
+         * server.master to CONN_SUCCESS.  */
         confirmAndRetrySlaveSSDBwriteOp(-1, -1);
+        serverLog(LL_DEBUG, "apply increment updates on SSDB");
+    }
 
     if (server.jdjr_mode) {
         server.ssdb_repl_state = REPL_STATE_NONE;
@@ -1519,6 +1525,13 @@ void readSyncBulkPayload(aeEventLoop *el, int fd, void *privdata, int mask) {
              * or output buffer of my master, which may overflow these buffers and break
              * replication, then cause full sync again. */
             replicationCreateMasterClient(server.repl_transfer_s,server.tmp_repl_stream_dbid);
+
+            /* when RDB file transfer is done but SSDB snapshot has not, allow receiving increment updates to avoid
+             * accumulating too much data in my query_buf(server.master->query_buf) or output buffer of my master,
+             * which may overflow these buffers and break replication, then cause full sync again. */
+            if (server.ssdb_repl_state != REPL_STATE_TRANSFER_SSDB_SNAPSHOT_END)
+                server.master->ssdb_conn_flags |= CONN_RECEIVE_INCREMENT_UPDATES;
+
             server.tmp_repl_stream_dbid = -1;
             if (server.jdjr_mode) {
                 if (C_OK != nonBlockConnectToSsdbServer(server.master)) {

@@ -372,11 +372,6 @@ void test_replaceKeyInPool();
 #define REPL_STATE_TRANSFER_SSDB_SNAPSHOT 17
 #define REPL_STATE_TRANSFER_SSDB_SNAPSHOT_END 18
 
-/* for slave redis, after we complete RDB receiving, we wait
- * for my SSDB to send ssdb transfer message to me. if timeout,
- * cancel replication handshake this time. */
-#define SLAVE_SSDB_TRANSFER_KEEPALIVE_TIMEOUT 10
-
 
 /* State of slaves from the POV of the master. Used in client->replstate.
  * In SEND_BULK and ONLINE state the slave receives new updates
@@ -841,10 +836,6 @@ typedef struct client {
     int revert_len; /* save the length we have feed to c->buf or c->reply, we may need
                      * to revert it from client buffer. */
 } client;
-
-/* SSDB send "rr_transfer_snapshot continue" every 5 seconds, we use a larger timeout
- * as the timeout interval.*/
-#define TRANSFER_SSDB_SNAPSHOT_KEEPALIVE_TIMEOUT 30
 
 #define TYPE_TRANSFER_TO_SSDB 999
 #define TYPE_LOAD_KEY_FORM_SSDB 888
@@ -2331,6 +2322,15 @@ void resetSSDBloadRule();
 void appendSSDBloadRule(int cycle_seconds, long long hits_threshold);
 
 // todo: add config options
+/* for slave redis, after we complete RDB receiving, we wait
+ * for my SSDB to send ssdb transfer message to me. if timeout,
+ * cancel replication handshake this time. */
+#define SLAVE_SSDB_TRANSFER_KEEPALIVE_TIMEOUT 10
+
+/* SSDB send "rr_transfer_snapshot continue" every 5 seconds,
+ * we use a larger timeout as the timeout interval.*/
+#define TRANSFER_SSDB_SNAPSHOT_KEEPALIVE_TIMEOUT 30
+
 /* config options for jdjr mode */
 #define MASTER_MAX_CONCURRENT_LOADING_KEYS 5
 #define MASTER_MAX_CONCURRENT_TRANSFERRING_KEYS 5
