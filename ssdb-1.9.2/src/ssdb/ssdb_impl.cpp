@@ -20,7 +20,6 @@ found in the LICENSE file.
 #include "rocksdb/convenience.h"
 #include "rocksdb/slice_transform.h"
 #include <rocksdb/utilities/sim_cache.h>
-#include <redis/crc/crc64speed.h>
 
 extern "C" {
 #include <redis/zmalloc.h>
@@ -713,12 +712,12 @@ public:
     leveldb::WritableFile *handle;
     leveldb::Status s;
 
-    uint64_t cksum;
+    uint64_t cksum = 0;
 
     bool update_cksum = false;
 
     void genericUpdateChecksum(void *p, size_t n) {
-        cksum = crc64(cksum, p, n);
+        cksum = crc64_fast(cksum, p, n);
     }
 
     int rdbWriteRaw(void *p, size_t n) override {
@@ -757,7 +756,7 @@ int SSDBImpl::save(Context &ctx) {
     }
 
     RocksdbWritableFileEncoder encoder(saved.get());
-    encoder.update_cksum = false;
+    encoder.update_cksum = true;
 
     char magic[10];
     snprintf(magic, sizeof(magic), "REDIS%04d", FAKE_RDB_VERSION);
@@ -831,5 +830,9 @@ int SSDBImpl::save(Context &ctx) {
     memrev64ifbe(&cksum);
     if (encoder.rdbWriteRaw(&cksum,8) == -1) return -1;
 
+    saved->Flush();
+    saved->Sync();
+
+    saved->Close();
     return 0;
 }
