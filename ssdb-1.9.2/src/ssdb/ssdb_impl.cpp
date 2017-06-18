@@ -31,8 +31,6 @@ extern "C" {
 #define leveldb rocksdb
 #endif
 
-#include "redis/dump_encode.h"
-
 
 SSDBImpl::SSDBImpl()  {
     ldb = NULL;
@@ -702,8 +700,11 @@ void *SSDBImpl::thread_func(void *arg) {
 }
 
 
-#include "rocksdb/utilities/backupable_db.h"
-
+#include "redis/rdb.h"
+extern "C" {
+#include "redis/crc64.h"
+#include "redis/endianconv.h"
+};
 
 class RocksdbWritableFileEncoder : public RedisEncoder {
 public:

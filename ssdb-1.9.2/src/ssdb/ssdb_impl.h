@@ -25,7 +25,7 @@ found in the LICENSE file.
 #include <rocksdb/slice.h>
 #include <rocksdb/table.h>
 #include <rocksdb/utilities/sim_cache.h>
-#include <redis/dump_encode.h>
+#include <redis/redis_encoder.h>
 
 #define leveldb rocksdb
 #endif
