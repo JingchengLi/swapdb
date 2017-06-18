@@ -48,7 +48,7 @@ int ReplicationByIterator2::process() {
     iterate_options.readahead_size = 4 * 1024 * 1024;
 
     auto iterator_ptr = serv->ssdb->getLdb()->NewIterator(iterate_options);
-    iterator_ptr->SeekToFirst();
+    iterator_ptr->Seek("");
     std::unique_ptr<leveldb::Iterator> fit(iterator_ptr);
 
     Link *ssdb_slave_link = Link::connect((hnp.ip).c_str(), hnp.port);
@@ -221,12 +221,8 @@ int ReplicationByIterator2::process() {
         }
 
         bool finish = true;
-        do {
-            if (iterator_done) {
-                break;
-            }
+        while (!iterator_done) {
 
-            iterator_ptr->Next();
 
             if (!iterator_ptr->Valid()) {
                 iterator_done = true;
@@ -245,6 +241,7 @@ int ReplicationByIterator2::process() {
                 );
             }
 
+            iterator_ptr->Next();
 
             if (buffer->size() > packageSize) {
                 rawBytes += buffer->size();
@@ -267,7 +264,7 @@ int ReplicationByIterator2::process() {
                 finish = false;
                 break;
             }
-        } while (true);
+        }
 
         if (finish) {
             moveBufferAsync(this, ssdb_slave_link->output, nullptr, compress);
