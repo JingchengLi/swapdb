@@ -478,6 +478,8 @@ proc dumpto_ssdb_and_wait {r key} {
 proc ssdbr {args} {
     if {"object" eq [lindex $args 0] && "encoding" eq [lindex $args 1]} {
         wait_for_restoreto_redis r [lindex $args 2]
+    } elseif {"object" eq [lindex $args 0] && "refcount" eq [lindex $args 1]} {
+        wait_for_restoreto_redis r [lindex $args 2]
     } elseif {"debug" eq [lindex $args 0] && "object" eq [lindex $args 1]} {
         wait_for_restoreto_redis r [lindex $args 2]
     } elseif {"redis" eq [ r locatekey [lindex $args 1] ]} {

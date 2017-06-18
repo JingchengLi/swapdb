@@ -37,7 +37,7 @@ start_server {tags {"keyspace"}} {
         ssdbr debug set-active-expire 0
         ssdbr setex keyExpire 1 valExpire
         after 1100
-        assert_equal 0 [ssdbr del keyExpire]
+        assert_equal 0 [r del keyExpire]
         ssdbr debug set-active-expire 1
     }
 
