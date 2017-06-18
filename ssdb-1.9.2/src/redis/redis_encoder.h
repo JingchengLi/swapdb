@@ -30,9 +30,9 @@ public:
 
     int rdbSaveObjectType(char dtype);
 
-    int64_t rdbSaveRawString(const std::__cxx11::string &string);
+    int64_t rdbSaveRawString(const std::string &string);
 
-    int64_t saveRawString(const std::__cxx11::string &string);
+    int64_t saveRawString(const std::string &string);
 
     int64_t saveRawString(const Bytes &string);
 
@@ -44,9 +44,9 @@ public:
 
     int rdbEncodeInteger(long long value, unsigned char *enc);
 
-    int rdbTryIntegerEncoding(const std::__cxx11::string &string, unsigned char *enc);
+    int rdbTryIntegerEncoding(const std::string &string, unsigned char *enc);
 
-    int64_t rdbSaveLzfStringObject(const std::__cxx11::string &string);
+    int64_t rdbSaveLzfStringObject(const std::string &string);
 
     int64_t rdbSaveLzfBlob(void *data, size_t compress_len, size_t original_len);
 };
