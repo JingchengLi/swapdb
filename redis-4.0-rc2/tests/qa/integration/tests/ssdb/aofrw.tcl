@@ -8,6 +8,7 @@ start_server {tags {"ssdb"}} {
         r set foo bar
         dumpto_ssdb_and_wait r foo
         r del foo
+        after 100
         r debug loadaof
 
         assert_equal 0 [r dbsize] "foo should be deleted after loadaof."
@@ -29,7 +30,7 @@ start_server {tags {"ssdb"}} {
             set master [srv 0 client]
             set master_host [srv 0 host]
             set master_port [srv 0 port]
-            set clist [ start_bg_complex_data_list $master_host $master_port $num $clients {1k useexpire}]
+            set clist [ start_bg_complex_data_list $master_host $master_port $num $clients {1k useexpire noexpired}]
 
             # Make sure the instance is really receiving data
             wait_for_condition 50 100 {

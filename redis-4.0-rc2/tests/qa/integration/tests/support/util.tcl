@@ -262,17 +262,23 @@ proc createComplexDataset {r ops {opt {}}} {
 
         if {[lsearch -exact $opt useexpire] != -1} {
             if {rand() < 0.5} {
-               randpath {{*}$r pexpire $k [randomInt 10]} \
-                       {{*}$r expire $k [randomInt 5]} \
-                       {{*}$r expireat $k [expr [clock seconds] +[randomInt 10000]]} \
-                       {{*}$r pexpireat $k [expr [clock milliseconds] +[randomInt 1000]]} \
-                       {{*}$r expire $k [expr 1000+[randomInt 10000]]}
+                if {[lsearch -exact $opt noexpired] != -1} {
+                    set delaytime 1000
+                } else {
+                    set delaytime 0
+                }
+               randpath {{*}$r pexpire $k [expr 1000*$delaytime+[randomInt 10]]} \
+                       {{*}$r expire $k [expr $delaytime+[randomInt 5] ]} \
+                       {{*}$r expireat $k [expr $delaytime+[clock seconds] +[randomInt 10000]]} \
+                       {{*}$r pexpireat $k [expr 1000*$delaytime+[clock milliseconds] +[randomInt 1000]]} \
+                       {{*}$r expire $k [expr $delaytime+1000+[randomInt 10000]]}
                 if {{string} eq $t} {
                     catch {
-                        randpath {{*}$r setex $k [expr 1000+[randomInt 10000]] ${v}_volatile} \
-                        {{*}$r set $k ${v}_volatile EX [expr 1000+[randomInt 10000]]}
-                       } err;
-                    }
+                        randpath {{*}$r setex $k [expr $delaytime+1000+[randomInt 10000]] ${v}_volatile} \
+                        {{*}$r set $k ${v}_volatile EX [expr $delaytime+1000+[randomInt 10000]]}
+                        {{*}$r set $k ${v}_volatile PX [expr $delaytime+[randomInt 1000]]}
+                   } err;
+                }
             }
         }
     }
@@ -808,4 +814,30 @@ proc check_real_diff_keys {master slaves} {
             }
         }
     }
+}
+
+proc access_key_tps_time {key tps time {wait true} {level 0}} {
+    set begin [clock milliseconds]
+    set n 0
+    while {[expr ([clock milliseconds] - $begin)/1000 < $time]} {
+        if {[expr ([clock milliseconds] - $begin)/1000 >= $n]} {
+            for {set i 0} {$i < $tps} {incr i} {
+                r $level exists $key
+            }
+            incr n
+            # break out when reach tps if wait == true
+            if {false == $wait && $n == $time} {
+                break
+            }
+        }
+        after 1
+    }
+}
+
+proc hit_ssdb_load_key {{level 0}} {
+    r $level set keynull 0
+    r $level storetossdb keynull
+    set rule [lindex [r $level config get ssdb-load-rule] 1]
+    lassing $rule time tps
+    access_key_tps_time keynull [expr $tps/$time*1.1] $time true $level
 }
