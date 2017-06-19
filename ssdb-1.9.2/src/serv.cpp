@@ -898,7 +898,7 @@ int proc_replic(Context &ctx, Link *link, const Request &req, Response *resp) {
 
     BackgroundThreadJob *job = new ReplicationByIterator2(ctx, HostAndPort{ip, port}, link, serv->opt.transfer_compression, false);
 
-    ctx.net->replication->push(job);
+    ctx.net->background->push(job);
 
 
     resp->resp.clear();
@@ -998,7 +998,7 @@ int proc_rr_transfer_snapshot(Context &ctx, Link *link, const Request &req, Resp
     link->quick_send({"ok","rr_transfer_snapshot ok"});
 
     BackgroundThreadJob *job = new ReplicationByIterator2(ctx, HostAndPort{ip, port}, link, serv->opt.transfer_compression, true);
-    ctx.net->replication->push(job);
+    ctx.net->background->push(job);
 
     resp->resp.clear(); //prevent send resp
     return PROC_BACKEND;

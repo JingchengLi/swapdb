@@ -42,7 +42,8 @@ private:
 
 	int num_readers;
 	int num_writers;
-	int num_transfers;
+	int num_transfers = 5;
+	int num_background = 3;
 
 	ProcWorkerPool *writer;
 	ProcWorkerPool *reader;
@@ -56,7 +57,7 @@ protected:
 
 public:
 	TransferWorkerPool *redis;
-	BackgroundThreadPool *replication;
+	BackgroundThreadPool *background;
 
 	IpFilter *ip_filter;
 	void *data;

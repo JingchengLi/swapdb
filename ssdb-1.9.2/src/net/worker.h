@@ -10,6 +10,8 @@ found in the LICENSE file.
 #include "../util/thread.h"
 #include "proc.h"
 
+class Fdevents;
+
 // WARN: pipe latency is about 20 us, it is really slow!
 class ProcWorker : public WorkerPool<ProcWorker, ProcJob *>::Worker{
 public:
@@ -24,10 +26,13 @@ typedef WorkerPool<ProcWorker, ProcJob *> ProcWorkerPool;
 
 class BackgroundThreadJob {
 public:
+
 	Context ctx;
 	Link *client_link = nullptr;
 
 	virtual int process() = 0;
+
+	virtual int callback(NetworkServer *nets, Fdevents *fdes) = 0;
 
     virtual ~BackgroundThreadJob() = default;
 };

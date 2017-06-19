@@ -346,6 +346,29 @@ void ReplicationByIterator::reportError() {
     client_link = nullptr; //reset
 }
 
+int ReplicationByIterator::callback(NetworkServer *nets, Fdevents *fdes) {
+
+    Link *master_link = client_link;
+    if (master_link != nullptr){
+        log_debug("before send finish rr_link address:%lld", master_link);
+
+        if (master_link->quick_send({"ok" , "rr_transfer_snapshot finished"}) <= 0){
+            log_error("The link write error, delete link! fd:%d", master_link->fd());
+            fdes->del(master_link->fd());
+            delete master_link;
+        } else{
+            nets->link_count++;
+
+            master_link->noblock(true);
+            fdes->set(master_link->fd(), FDEVENT_IN, 1, master_link);
+        }
+    } else{
+        log_error("The link from redis is off!");
+    }
+
+    return 0;
+}
+
 
 void send_error_to_redis(Link *link) {
     if (link != nullptr) {

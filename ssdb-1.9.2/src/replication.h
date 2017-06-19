@@ -17,6 +17,7 @@
 #include <thread>
 #include <future>
 
+class Fdevents;
 
 #ifdef USE_LEVELDB
 namespace leveldb{
@@ -77,6 +78,10 @@ public:
     ~ReplicationByIterator() override = default;
     void reportError();
     int process() override;
+
+
+    int callback(NetworkServer *nets, Fdevents *fdes);
+
 };
 
 class ReplicationByIterator2 : public ReplicationByIterator {
@@ -126,6 +131,10 @@ public:
     ~ReplicationByIterator3 () = default;
 
     int process() override;
+
+    int callback(NetworkServer *nets, Fdevents *fdes) {
+        return 0;
+    };
 };
 
 #endif //SSDB_REPLICATION_H

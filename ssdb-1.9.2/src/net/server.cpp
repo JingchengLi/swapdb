@@ -139,8 +139,8 @@ NetworkServer::~NetworkServer(){
 	redis->stop();
 	delete redis;
 
-    replication->stop();
-	delete replication;
+    background->stop();
+	delete background;
 
 	log_info("NetworkServer finalized");
 }
@@ -195,6 +195,10 @@ NetworkServer* NetworkServer::init(const Config &conf, int num_readers, int num_
 
         if(conf.get_num("server.transfers") > 0){
 			serv->num_transfers = conf.get_num("server.transfers");
+		}
+
+        if(conf.get_num("server.num_background") > 0){
+			serv->num_background = conf.get_num("server.num_background");
 		}
 	}
 
@@ -283,8 +287,8 @@ void NetworkServer::serve(){
 	redis = new TransferWorkerPool("transfer");
 	redis->start(num_transfers);
 
-    replication = new BackgroundThreadPool("replication");
-    replication->start(2);
+    background = new BackgroundThreadPool("background");
+    background->start(num_background);
 
 	ready_list_t ready_list;
 	ready_list_t ready_list_2;
@@ -298,7 +302,7 @@ void NetworkServer::serve(){
 	fdes->set(this->reader->fd(), FDEVENT_IN, 0, this->reader);
 	fdes->set(this->writer->fd(), FDEVENT_IN, 0, this->writer);
 	fdes->set(this->redis->fd(), FDEVENT_IN, 0, this->redis);
-	fdes->set(this->replication->fd(), FDEVENT_IN, 0, this->replication);
+	fdes->set(this->background->fd(), FDEVENT_IN, 0, this->background);
 
 	uint32_t status_ticks = g_ticks;
 	uint32_t cursor_ticks = g_ticks;
@@ -391,7 +395,7 @@ void NetworkServer::serve(){
 					delete job;
 				}
 
-			} else if(fde->data.ptr == this->replication){
+			} else if(fde->data.ptr == this->background){
                 BackgroundThreadPool *worker = (BackgroundThreadPool *)fde->data.ptr;
                 BackgroundThreadJob *job = nullptr;
                 if(worker->pop(&job) == 0){
@@ -399,23 +403,7 @@ void NetworkServer::serve(){
                     exit(0);
                 }
 
-				Link *master_link = job->client_link;
-                if (master_link != nullptr){
-					log_debug("before send finish rr_link address:%lld", master_link);
-
-                    if (master_link->quick_send({"ok" , "rr_transfer_snapshot finished"}) <= 0){
-                        log_error("The link write error, delete link! fd:%d", master_link->fd());
-                        fdes->del(master_link->fd());
-                        delete master_link;
-                    } else{
-						this->link_count++;
-
-						master_link->noblock(true);
-                        fdes->set(master_link->fd(), FDEVENT_IN, 1, master_link);
-                    }
-                } else{
-					log_error("The link from redis is off!");
-                }
+				job->callback(this, fdes);
                 
                 if (job != nullptr) {
                     delete job;
