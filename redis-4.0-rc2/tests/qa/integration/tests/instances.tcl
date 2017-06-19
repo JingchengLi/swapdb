@@ -214,6 +214,15 @@ proc parse_options {} {
             set ::loglevel $val
             set ::cfgfile  ${::cfgdir}/${::loglevel}_cluster_testreport.xml
             exec rm -f $::cfgfile
+        } elseif {$opt eq {--debug}} {
+            proc error {errMsg {errInfo 0}} {
+                puts "$errMsg"
+                if {$errInfo} {
+                    puts "error info: $errInfo"
+                }
+                puts "waiting........."
+                after 100000000
+            }
         } elseif {$opt eq "--help"} {
             puts "Hello, I'm sentinel.tcl and I run Sentinel unit tests."
             puts "\nOptions:"

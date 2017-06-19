@@ -161,11 +161,18 @@ test "Verify $numkeys keys for consistency with logical content after reshard" {
 set current_epoch [CI 1 cluster_current_epoch]
 
 test "Wait for failover" {
-    R [expr [randomInt 5]+5] cluster failover
+    set id [randomInt 5]
+    set sid [expr $id + 5]
+    wait_for_condition 100 100 {
+        [R $id debug digest] eq [R $sid debug digest]
+    } else {
+        fail "Master and slave data digest are different:master($id) and slave($sid)"
+    }
+    R $sid cluster failover
     wait_for_condition 1000 50 {
         [CI 1 cluster_current_epoch] > $current_epoch
     } else {
-        fail "No failover detected"
+        fail "No failover detected after #$sid failover manual."
     }
 }
 

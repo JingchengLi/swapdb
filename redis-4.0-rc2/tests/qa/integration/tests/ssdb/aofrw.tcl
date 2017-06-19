@@ -203,11 +203,7 @@ overrides { save ""
 
                 assert {[r scard ssdbkey] eq $len}
                 #wait key restore to redis
-                wait_for_condition 100 1 {
-                    [ r locatekey ssdbkey ] eq {redis}
-                } else {
-                    fail "key ssdbkey restored failed"
-                }
+                wait_for_restoreto_redis r ssdbkey
                 set d4 [r debug digest]
                 assert {$d1 ne $d3}
                 if {$d3 ne $d4} {
@@ -268,11 +264,7 @@ overrides { save ""
                 }
                 assert {[r hlen ssdbkey] eq $len}
                 #wait key restore to redis
-                wait_for_condition 100 1 {
-                    [ r locatekey ssdbkey ] eq {redis}
-                } else {
-                    fail "key ssdbkey restored failed"
-                }
+                wait_for_restoreto_redis r ssdbkey
                 set d4 [r debug digest]
                 assert {$d1 ne $d3}
                 if {$d3 ne $d4} {
