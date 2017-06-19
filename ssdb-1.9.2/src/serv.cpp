@@ -469,24 +469,39 @@ int proc_debug(Context &ctx, Link *link, const Request &req, Response *resp) {
     } else if (action == "populate") {
         CHECK_NUM_PARAMS(3);
 
-        int64_t count = req[2].Int64();
+        uint64_t count = req[2].Uint64();
 
         PTimer timer("DEBUG_POPULATE");
         timer.begin();
+        leveldb::WriteBatch batch;
+        leveldb::WriteOptions writeOptions;
+        writeOptions.disableWAL = true;
 
-        for (long i = 0; i < count; ++i) {
+        for (uint64_t i = 0; i < count; ++i) {
             char kbuf[128] = {0};
             snprintf(kbuf, sizeof(kbuf), "%s:%lu", "key", i);
 
             char vbuf[128] = {0};
             snprintf(vbuf, sizeof(vbuf), "%s:%lu", "value", i);
 
-            int added = 0;
-            int ret = serv->ssdb->set(ctx, Bytes(kbuf), Bytes(vbuf), OBJ_SET_NO_FLAGS, 0, &added);
-            if (ret < 0) {
-                reply_err_return(ret);
+            batch.Put(encode_meta_key(Bytes(kbuf)), encode_kv_val(Bytes(vbuf), 0));
+
+            if ((count % 10000) == 0) {
+                leveldb::Status s = serv->ssdb->CommitBatch(ctx, writeOptions, &(batch));
+                if (!s.ok()) {
+                    log_error("error: %s", s.ToString().c_str());
+                    return STORAGE_ERR;
+                }
+
+                batch.Clear();
             }
 
+        }
+
+        leveldb::Status s = serv->ssdb->CommitBatch(ctx, writeOptions, &(batch));
+        if (!s.ok()){
+            log_error("error: %s", s.ToString().c_str());
+            return STORAGE_ERR;
         }
 
         timer.end(str(count) + " keys");
