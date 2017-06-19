@@ -2944,10 +2944,7 @@ void replicationCron(void) {
             (slave->replstate == SLAVE_STATE_WAIT_BGSAVE_END &&
              server.rdb_child_type != RDB_CHILD_TYPE_SOCKET));
 
-        /* in jdjr_mode, when redis RDB file transfer is done, ssdb snapshot may have not, so we need
-         * send keep-alive message to these slaves. */
-        if (is_presync || (server.jdjr_mode && slave->replstate == SLAVE_STATE_SEND_BULK_FINISHED &&
-                           slave->ssdb_status == SLAVE_SSDB_SNAPSHOT_TRANSFER_START)) {
+        if (is_presync) {
             if (write(slave->fd, "\n", 1) == -1) {
                 /* Don't worry about socket errors, it's just a ping. */
             }
