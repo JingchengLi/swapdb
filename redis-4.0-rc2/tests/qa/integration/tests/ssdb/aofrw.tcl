@@ -14,7 +14,7 @@ start_server {tags {"ssdb"}} {
 
         r bgrewriteaof
         waitForBgrewriteaof r
-        r debug loadaof
+        catch {r debug loadaof} ;# load null aof file will return err
         assert_equal 0 [r dbsize] "foo should be deleted after aofrewrite and loadaof."
     }
 
