@@ -117,6 +117,8 @@ public:
 
 	virtual ~SSDBImpl();
 
+	virtual int resetRepopid(Context &ctx);
+
 	virtual int flushdb(Context &ctx);
 	virtual int flush(Context &ctx, bool wait = false);
 	virtual int filesize(Context &ctx, uint64_t *total_file_size);

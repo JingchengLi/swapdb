@@ -60,6 +60,7 @@ void *ssdb_sync2(void *arg) {
 
     log_warn("[ssdb_sync] do flushdb");
     serv->ssdb->flushdb(ctx);
+    serv->ssdb->resetRepopid(ctx);
 
 
     log_warn("[ssdb_sync] ready to revieve");

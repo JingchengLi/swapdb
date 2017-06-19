@@ -203,6 +203,21 @@ int SSDBImpl::filesize(Context &ctx, uint64_t *total_file_size) {
     return (int) result.size();
 }
 
+int SSDBImpl::resetRepopid(Context &ctx) {
+
+    leveldb::WriteBatch updates;
+    updates.Put(handles[1], encode_repo_key(),
+                 encode_repo_item(ctx.currentSeqCnx.timestamp, ctx.currentSeqCnx.id));
+    leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(updates));
+    if (!s.ok()){
+        //error
+        log_error("error: %s", s.ToString().c_str());
+        return -1;
+    }
+
+    return 0;
+}
+
 int SSDBImpl::flush(Context &ctx, bool wait) {
 
     leveldb::FlushOptions flushOptions;

@@ -1111,6 +1111,19 @@ int proc_repopid(Context &ctx, Link *link, const Request &req, Response *resp) {
             resp->redisResponse = new RedisResponse("repopid setok");
         }
 
+    } else if (action == "reset") {
+
+        ctx.currentSeqCnx.reset();
+        ctx.lastSeqCnx.reset();
+
+        serv->ssdb->resetRepopid(ctx);
+
+        resp->reply_ok();
+
+        {
+            resp->redisResponse = new RedisResponse("repopid resetok");
+        }
+
     } else {
         reply_err_return(INVALID_ARGS);
     }
