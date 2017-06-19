@@ -1618,8 +1618,7 @@ void checkSSDBkeyIsDeleted(char* check_reply, struct redisCommand* cmd, int argc
     int numkeys = 0;
     sds key;
 
-    if (check_reply && !strcmp(check_reply, "check 1")
-        && cmd != server.delCommand) {
+    if (check_reply && !strcmp(check_reply, "check 1")) {
         indexs = getKeysFromCommand(cmd, argv, argc, &numkeys);
 
         key = argv[indexs[0]]->ptr;
@@ -1849,20 +1848,6 @@ void handleUnfinishedCmdInRedis(client *c, redisReply *reply) {
         && (reply->type == REDIS_REPLY_INTEGER)
         && (reply->integer == 1))
         removeExpire(EVICTED_DATA_DB, c->argv[1]);
-
-    /* Maintain the EVICTED_DATA_DB before return 1 to client. */
-    if (c->cmd && (c->cmd->proc == delCommand)
-        && (reply->type == REDIS_REPLY_INTEGER)
-        && (reply->integer == 1)) {
-        serverAssert(c->argc == 2);
-        argv[0] = shared.del;
-        argv[1] = key;
-        propagate(server.delCommand, EVICTED_DATA_DBID, argv, 2, PROPAGATE_AOF);
-        if (server.lazyfree_lazy_eviction)
-            dbAsyncDelete(EVICTED_DATA_DB, key);
-        else
-            dbSyncDelete(EVICTED_DATA_DB, key);
-    }
 
     /* Update expire time in redis and update AOF. */
     if (((reply->type == REDIS_REPLY_STATUS && !strcasecmp(reply->str, "ok"))
