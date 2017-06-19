@@ -187,3 +187,7 @@ SET(redis-server_files
         )
 ADD_EXECUTABLE(redis-server ${redis-server_files})
 TARGET_LINK_LIBRARIES(redis-server hiredis-static jemalloc lua-static m pthread)
+
+
+ADD_EXECUTABLE(redis-check-rdb ${redis-server_files})
+TARGET_LINK_LIBRARIES(redis-check-rdb hiredis-static jemalloc lua-static m pthread)
