@@ -1837,7 +1837,6 @@ int handleResponseOfMigrateDump(client *c) {
 void handleUnfinishedCmdInRedis(client *c, redisReply *reply) {
     long long milliseconds = 0;
     robj *argv[3];
-    robj *key = c->argv[1];
 
     /* Handle the rest of migrating. */
     if (c->cmd && c->cmd->proc == migrateCommand
@@ -1853,6 +1852,8 @@ void handleUnfinishedCmdInRedis(client *c, redisReply *reply) {
     if (((reply->type == REDIS_REPLY_STATUS && !strcasecmp(reply->str, "ok"))
          || (reply->type == REDIS_REPLY_INTEGER && reply->integer == 1))
         && ((milliseconds = getAbsoluteExpireTimeFromArgs(c)) != C_ERR)) {
+        robj *key = c->argv[1];
+
         if (milliseconds == C_NO_EXPIRE) {
             removeExpire(EVICTED_DATA_DB, key);
 
