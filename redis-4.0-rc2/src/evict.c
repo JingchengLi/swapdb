@@ -918,7 +918,7 @@ int prologOfEvictingToSSDB(robj *keyobj, redisDb *db) {
     /* Using the same connection with propagate method. */
     if (sendCommandToSSDB(server.ssdb_client, cmd.io.buffer.ptr) != C_OK) {
         serverLog(LL_DEBUG, "Failed to send the restore cmd to SSDB.");
-        return C_ERR;
+        return C_FD_ERR;
     }
 
     setTransferringDB(db, keyobj);

@@ -4845,6 +4845,7 @@ void ssdbRespFailCommand(client *c) {
 void storetossdbCommand(client *c) {
     robj *keyobj;
     dictEntry *de;
+    int ret;
 
     preventCommandPropagation(c);
 
@@ -4887,9 +4888,11 @@ void storetossdbCommand(client *c) {
     }
 
     /* Try restoring the redis dumped data to SSDB. */
-    if (prologOfEvictingToSSDB(keyobj, c->db) != C_OK) {
-        addReplyErrorFormat(c,"ssdb connection for key transfer/load is disconnected");
-        serverLog(LL_DEBUG, "ssdb connection for key transfer/load is disconnected");
+    if ((ret = prologOfEvictingToSSDB(keyobj, c->db)) != C_OK) {
+        if (ret == C_FD_ERR)
+            addReplyError(c,"ssdb connection for key transfer/load is disconnected");
+        else if (ret == C_ERR)
+            addReplyError(c,"key is expired or not exist");
         return;
     }
 
