@@ -340,6 +340,7 @@ struct redisCommand redisCommandTable[] = {
     {"storetossdb",storetossdbCommand,2,"wj",0,NULL,1,1,1,0,0},
     {"dumpfromssdb",dumpfromssdbCommand,2,"wj",0,NULL,1,1,1,0,0},
     {"locatekey",locatekeyCommand,2,"rj",0,NULL,1,1,1,0,0},
+    {"setlfu",setlfuCommand,3,"j",0,NULL,1,1,1,0,0},
     {"restoressdbkey",restoreCommand,-4,"wmj",0,NULL,1,1,1,0,0},
 };
 
@@ -351,6 +352,61 @@ struct expiretimeInfo expiretimeInfoTable[] = {
     {expireatCommand, UNIT_SECONDS, 0, 2},
     {pexpireatCommand, UNIT_MILLISECONDS, 0, 2},
 };
+
+/* for test purpose only */
+void setlfuCommand(client *c) {
+    dictEntry *de, *ede;
+
+    if (c->argc != 3) {
+        addReply(c, shared.syntaxerr);
+        return;
+    }
+    ede = dictFind(EVICTED_DATA_DB->dict, c->argv[1]->ptr);
+    if (ede)
+        de = ede;
+    else
+        de = dictFind(server.db[0].dict, c->argv[1]->ptr);
+    if (de) {
+        long arg2;
+        unsigned char counter;
+
+        if (1 == string2l(c->argv[2]->ptr, sdslen(c->argv[2]->ptr), &arg2) && arg2 >= 0 && arg2 <= 255)
+            counter = (unsigned char)arg2;
+        else {
+            addReplyErrorFormat(c, "the second argment(%s) should be an integer between [0-255]",
+                                (char*)c->argv[2]->ptr);
+            return;
+        }
+        sds db_key = dictGetKey(de);
+        unsigned int lfu = sdsgetlfu(db_key);
+        unsigned short ldt = lfu >> 8;
+        sdssetlfu(db_key, ((ldt << 8) | counter));
+        addReply(c,shared.ok);
+        return;
+    }
+    addReply(c,shared.nullbulk);
+}
+
+void locatekeyCommand(client *c) {
+    char *replyString;
+    robj *replyObj;
+
+    if (!server.jdjr_mode) {
+        addReplyErrorFormat(c,"Command only supported in jdjr-mode '%s'",
+                            (char*)c->argv[0]->ptr);
+        return;
+    }
+
+    serverAssert(c->argc == 2);
+
+    replyString = lookupKey(EVICTED_DATA_DB, c->argv[1], LOOKUP_NOTOUCH)
+        ? "ssdb" : (lookupKey(c->db, c->argv[1], LOOKUP_NOTOUCH)
+                    ? "redis" : "none");
+
+    replyObj = createStringObject(replyString, strlen(replyString));
+    addReplyBulk(c, replyObj);
+    decrRefCount(replyObj);
+}
 
 /*============================ Utility functions ============================ */
 

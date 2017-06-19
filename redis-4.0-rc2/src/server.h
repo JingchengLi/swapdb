@@ -2270,6 +2270,8 @@ void ssdbRespNotfoundCommand(client *c);
 void ssdbNotifyCommand(client* c);
 void storetossdbCommand(client *c);
 void locatekeyCommand(client *c);
+/* for test purpose only */
+void setlfuCommand(client *c);
 void slaveDelCommand(client *c);
 void dumpfromssdbCommand(client *c);
 int prologOfEvictingToSSDB(robj *keyobj, redisDb *db);

@@ -1533,12 +1533,10 @@ void readSyncBulkPayload(aeEventLoop *el, int fd, void *privdata, int mask) {
                 server.master->ssdb_conn_flags |= CONN_RECEIVE_INCREMENT_UPDATES;
 
             server.tmp_repl_stream_dbid = -1;
-            if (server.jdjr_mode) {
-                if (C_OK != nonBlockConnectToSsdbServer(server.master)) {
-                    serverLog(LL_WARNING, "Failed to connect SSDB when sync");
-                    cancelReplicationHandshake();
-                    return;
-                }
+            if (C_OK != nonBlockConnectToSsdbServer(server.master)) {
+                serverLog(LL_WARNING, "Failed to connect SSDB when sync");
+                cancelReplicationHandshake();
+                return;
             }
             zfree(server.repl_transfer_tmpfile);
             close(server.repl_transfer_fd);

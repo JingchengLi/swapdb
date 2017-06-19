@@ -4896,27 +4896,6 @@ void storetossdbCommand(client *c) {
     addReply(c,shared.ok);
 }
 
-void locatekeyCommand(client *c) {
-    char *replyString;
-    robj *replyObj;
-
-    if (!server.jdjr_mode) {
-        addReplyErrorFormat(c,"Command only supported in jdjr-mode '%s'",
-                            (char*)c->argv[0]->ptr);
-        return;
-    }
-
-    serverAssert(c->argc == 2);
-
-    replyString = lookupKey(EVICTED_DATA_DB, c->argv[1], LOOKUP_NOTOUCH)
-        ? "ssdb" : (lookupKey(c->db, c->argv[1], LOOKUP_NOTOUCH)
-                    ? "redis" : "none");
-
-    replyObj = createStringObject(replyString, strlen(replyString));
-    addReplyBulk(c, replyObj);
-    decrRefCount(replyObj);
-}
-
 void dumpfromssdbCommand(client *c) {
     robj *keyobj = c->argv[1];
     dictEntry *de;
