@@ -984,7 +984,7 @@ void putSlaveOnline(client *slave) {
     if (server.jdjr_mode) {
         /* for jdjr mode, we install write event handler when RDB transfer
          * is done(may SSDB snapshot transfer is going on), and our slave will
-         * receive increment updates and buffer them in server.write_op_list.
+         * receive increment updates and buffer them in server.ssdb_write_oplist.
          * avoid to overflow output buffer. */
     } else {
         if (aeCreateFileEvent(server.el, slave->fd, AE_WRITABLE,
@@ -1056,7 +1056,7 @@ void sendBulkToSlave(aeEventLoop *el, int fd, void *privdata, int mask) {
             slave->replstate = SLAVE_STATE_SEND_BULK_FINISHED;
             /* for jdjr mode, we install write event handler when RDB transfer
              * is done(may SSDB snapshot transfer is going on), and our slave will
-             * receive increment updates and buffer them in server.write_op_list.
+             * receive increment updates and buffer them in server.ssdb_write_oplist.
              * avoid to overflow output buffer. */
             if (aeCreateFileEvent(server.el, slave->fd, AE_WRITABLE,
                                   sendReplyToClient, slave) == AE_ERR) {

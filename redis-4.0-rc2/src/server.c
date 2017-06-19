@@ -1678,9 +1678,9 @@ void startToHandleCmdListInSlave(void) {
 
         if (TYPE_LOAD_KEY_FORM_SSDB == type) {
             /* prohibit to load keys from SSDB if the SSDB connection status of server.master
-             * is not CONN_SUCCESS. because if a SSDB write command of a key is in server.write_op_list,
+             * is not CONN_SUCCESS. because if a SSDB write command of a key is in server.ssdb_write_oplist,
              * and we move the key from ssdb to redis, after the ssdb connection of server.master reconnect
-             * successfully, the SSDB write command in server.write_op_list will fail to execute(because
+             * successfully, the SSDB write command in server.ssdb_write_oplist will fail to execute(because
              * the key is not exist in SSDB already). */
             if (!server.master || !(server.master->ssdb_conn_flags & CONN_SUCCESS))
                 continue;
@@ -4216,7 +4216,7 @@ int processCommand(client *c) {
                 /* we are blocked by flushall, return C_ERR to keep client info and handle it later. */
                 return C_ERR;
             } else {
-                /* when ssdb connection is disconnected, just save 'flushall' in server.write_op_list
+                /* when ssdb connection is disconnected, just save 'flushall' in server.ssdb_write_oplist
                  * and go on. */
                 return C_OK;
             }

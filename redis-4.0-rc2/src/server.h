@@ -88,7 +88,7 @@ typedef long long mstime_t; /* millisecond time type. */
 #define CONN_CONNECTING             (1<<1)
 #define CONN_RECEIVE_INCREMENT_UPDATES (1<<2) /* for server.master only, when RDB file transfer
  * is done but SSDB snapshot file has not, we save increment updates about SSDB data in
- * server.write_op_list. after SSDB snapshot transfer is done, we apply these increment updates
+ * server.ssdb_write_oplist. after SSDB snapshot transfer is done, we apply these increment updates
  * to SSDB. */
 #define CONN_CHECK_REPOPID          (1<<3) /* for server.master only */
 #define CONN_SUCCESS                (1<<4) /* now we can send command to SSDB. */
