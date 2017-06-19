@@ -24,7 +24,6 @@ int ReplicationByIterator3::process() {
 
 
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
-    Link *master_link = upstream;
 
     rocksdb::Status s;
     rocksdb::DB *db = serv->ssdb->getLdb();
@@ -71,11 +70,6 @@ int ReplicationByIterator3::process() {
 
     std::string full_path;
     env->GetAbsolutePath(serv->ssdb->getPath() + "/backup", &full_path);
-//
-    env->GetChildrenFileAttributes(full_path, &files);
-    for (auto const &item : files) {
-//        log_info("file: %s : %d ", item.name.c_str(), item.size_bytes);
-    }
 
 
     R2mFile::DirAttributes di;

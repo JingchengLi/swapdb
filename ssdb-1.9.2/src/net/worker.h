@@ -22,27 +22,27 @@ public:
 typedef WorkerPool<ProcWorker, ProcJob *> ProcWorkerPool;
 
 
-class ReplicationJob {
+class BackgroundThreadJob {
 public:
 	Context ctx;
-	Link *upstream;
+	Link *client_link = nullptr;
 
 	virtual int process() = 0;
 
-    virtual ~ReplicationJob() = default;
+    virtual ~BackgroundThreadJob() = default;
 };
 
 
-class ReplicationWorker : public WorkerPool<ReplicationWorker, ReplicationJob *>::Worker {
+class BackgroundThreadWorker : public WorkerPool<BackgroundThreadWorker, BackgroundThreadJob *>::Worker {
 public:
-	explicit ReplicationWorker(const std::string &name){
+	explicit BackgroundThreadWorker(const std::string &name){
 		this->name = name;
 	}
-	~ReplicationWorker() = default;
+	~BackgroundThreadWorker() = default;
 	void init();
-	int proc(ReplicationJob *job);
+	int proc(BackgroundThreadJob *job);
 };
 
-typedef WorkerPool<ReplicationWorker, ReplicationJob *> ReplicationWorkerPool;
+typedef WorkerPool<BackgroundThreadWorker, BackgroundThreadJob *> BackgroundThreadPool;
 
 #endif

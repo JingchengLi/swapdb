@@ -283,7 +283,7 @@ void NetworkServer::serve(){
 	redis = new TransferWorkerPool("transfer");
 	redis->start(num_transfers);
 
-    replication = new ReplicationWorkerPool("replication");
+    replication = new BackgroundThreadPool("replication");
     replication->start(2);
 
 	ready_list_t ready_list;
@@ -392,14 +392,14 @@ void NetworkServer::serve(){
 				}
 
 			} else if(fde->data.ptr == this->replication){
-                ReplicationWorkerPool *worker = (ReplicationWorkerPool *)fde->data.ptr;
-                ReplicationJob *job = nullptr;
+                BackgroundThreadPool *worker = (BackgroundThreadPool *)fde->data.ptr;
+                BackgroundThreadJob *job = nullptr;
                 if(worker->pop(&job) == 0){
                     log_fatal("reading result from workers error!");
                     exit(0);
                 }
 
-				Link *master_link = job->upstream;
+				Link *master_link = job->client_link;
                 if (master_link != nullptr){
 					log_debug("before send finish rr_link address:%lld", master_link);
 

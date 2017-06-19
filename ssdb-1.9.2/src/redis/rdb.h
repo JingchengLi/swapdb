@@ -91,9 +91,4 @@ const int zset_max_ziplist_value= 64;
 
  */
 
-const double R_Zero = 0.0;
-const double R_PosInf = 1.0/R_Zero;
-const double R_NegInf = -1.0/R_Zero;
-const double R_Nan = R_Zero/R_Zero;
-
 #endif //SSDB_RDB_H

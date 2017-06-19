@@ -25,7 +25,7 @@ int ReplicationByIterator::process() {
 
 
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
-    Link *master_link = upstream;
+    Link *master_link = client_link;
     const leveldb::Snapshot *snapshot = nullptr;
 
     log_info("[ReplicationWorker] send snapshot to %s start!", hnp.String().c_str());
@@ -189,7 +189,7 @@ int ReplicationByIterator::process() {
 
                 delete ssdb_slave_link;
                 delete master_link;
-                upstream = nullptr;
+                client_link = nullptr;
 
                 {
                     //update replic stats
@@ -335,15 +335,15 @@ int ReplicationByIterator::process() {
 
 
 void ReplicationByIterator::reportError() {
-    send_error_to_redis(upstream);
+    send_error_to_redis(client_link);
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
     {
         Locking<Mutex> l(&serv->replicState.rMutex);
         serv->replicState.finishReplic(false);
     }
-    delete upstream;
-    upstream = nullptr; //reset
+    delete client_link;
+    client_link = nullptr; //reset
 }
 
 

@@ -27,7 +27,7 @@ int ReplicationByIterator2::process() {
 
 
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
-    Link *master_link = upstream;
+    Link *master_link = client_link;
     const leveldb::Snapshot *snapshot = nullptr;
 
     log_info("[ReplicationByIterator2] send snapshot to %s start!", hnp.String().c_str());
@@ -200,7 +200,7 @@ int ReplicationByIterator2::process() {
 
                 delete ssdb_slave_link;
                 delete master_link;
-                upstream = nullptr;
+                client_link = nullptr;
 
                 {
                     //update replic stats

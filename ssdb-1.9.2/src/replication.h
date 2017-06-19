@@ -53,7 +53,7 @@ public:
 #define USE_SNAPPY true
 
 
-class ReplicationByIterator : public ReplicationJob {
+class ReplicationByIterator : public BackgroundThreadJob {
 public:
     int64_t ts;
 
@@ -68,8 +68,8 @@ public:
             hnp(hnp), compress(compress), heartbeat(heartbeat) {
         ts = time_ms();
 
-        ReplicationJob::ctx = ctx;
-        ReplicationJob::upstream = link;
+        BackgroundThreadJob::ctx = ctx;
+        BackgroundThreadJob::client_link = link;
     }
 
     ReplicationByIterator();

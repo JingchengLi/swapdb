@@ -19,7 +19,7 @@ void *ssdb_sync(void *arg) {
     Context ctx = job->ctx;
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
     HostAndPort hnp = job->hnp;
-    std::unique_ptr <Link>master_link(job->upstream); //job->upstream cannot be null !
+    std::unique_ptr <Link>master_link(job->client_link); //job->upstream cannot be null !
     bool heartbeat = job->heartbeat;
     bool quit = job->quit;
 

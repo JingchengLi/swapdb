@@ -56,7 +56,7 @@ protected:
 
 public:
 	TransferWorkerPool *redis;
-	ReplicationWorkerPool *replication;
+	BackgroundThreadPool *replication;
 
 	IpFilter *ip_filter;
 	void *data;

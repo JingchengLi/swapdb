@@ -628,7 +628,7 @@ int proc_decr(Context &ctx, Link *link, const Request &req, Response *resp){
 int proc_getbit(Context &ctx, Link *link, const Request &req, Response *resp){
 	SSDBServer *serv = (SSDBServer *) ctx.net->data;
 	CHECK_NUM_PARAMS(3);
-	long long offset;
+	long long offset = 0;
 	string2ll(req[2].data(), (size_t)req[2].size(), &offset);
     if(offset < 0 || ((uint64_t)offset >> 3) >= Link::MAX_PACKET_SIZE * 4){
         std::string msg = "ERR offset is is not an integer or out of range";
@@ -652,7 +652,7 @@ int proc_setbit(Context &ctx, Link *link, const Request &req, Response *resp){
 	CHECK_NUM_PARAMS(4);
 
 	const Bytes &name = req[1];
-	long long offset;
+	long long offset = 0;
 	string2ll(req[2].data(), (size_t)req[2].size(), &offset);
 
 	int on = req[3].Int();

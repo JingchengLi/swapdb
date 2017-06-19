@@ -896,7 +896,7 @@ int proc_replic(Context &ctx, Link *link, const Request &req, Response *resp) {
         serv->replicState.startReplic();
     }
 
-    ReplicationJob *job = new ReplicationByIterator2(ctx, HostAndPort{ip, port}, link, serv->opt.transfer_compression, false);
+    BackgroundThreadJob *job = new ReplicationByIterator2(ctx, HostAndPort{ip, port}, link, serv->opt.transfer_compression, false);
 
     ctx.net->replication->push(job);
 
@@ -997,7 +997,7 @@ int proc_rr_transfer_snapshot(Context &ctx, Link *link, const Request &req, Resp
 
     link->quick_send({"ok","rr_transfer_snapshot ok"});
 
-    ReplicationJob *job = new ReplicationByIterator2(ctx, HostAndPort{ip, port}, link, serv->opt.transfer_compression, true);
+    BackgroundThreadJob *job = new ReplicationByIterator2(ctx, HostAndPort{ip, port}, link, serv->opt.transfer_compression, true);
     ctx.net->replication->push(job);
 
     resp->resp.clear(); //prevent send resp
@@ -1110,7 +1110,7 @@ int proc_ssdb_sync(Context &ctx, Link *link, const Request &req, Response *resp)
 
     log_info("ssdb_sync , link address:%lld", link);
 
-    ReplicationJob *job = new ReplicationByIterator(ctx, HostAndPort{link->remote_ip, link->remote_port}, link, true, false);
+    BackgroundThreadJob *job = new ReplicationByIterator(ctx, HostAndPort{link->remote_ip, link->remote_port}, link, true, false);
 //	net->replication->push(job);
 
     pthread_t tid;
@@ -1134,7 +1134,7 @@ int proc_ssdb_sync2(Context &ctx, Link *link, const Request &req, Response *resp
         }
     }
 
-    ReplicationJob *job = new ReplicationByIterator(ctx, HostAndPort{link->remote_ip, link->remote_port}, link, true, heartbeat);
+    BackgroundThreadJob *job = new ReplicationByIterator(ctx, HostAndPort{link->remote_ip, link->remote_port}, link, true, heartbeat);
 //	net->replication->push(job);
 
     pthread_t tid;

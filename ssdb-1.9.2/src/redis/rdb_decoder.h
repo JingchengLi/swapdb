@@ -12,19 +12,23 @@ extern "C" {
 #include "crc64.h"
 };
 
+
+const double R_Zero = 0.0;
+const double R_PosInf = 1.0/R_Zero;
+const double R_NegInf = -1.0/R_Zero;
+const double R_Nan = R_Zero/R_Zero;
+
+
 class RdbDecoder {
 private:
 
-    const char *p;  //pointer to current first char
-    size_t remain_size;       // string remain len
+    const char *p = nullptr;  //pointer to current first char
+    size_t remain_size = 0;       // string remain len
 
-    char type;
-
-    RdbDecoder() {};
+    RdbDecoder() = default;
 
 public:
-    virtual ~RdbDecoder() {
-    }
+    virtual ~RdbDecoder() = default;
 
     RdbDecoder(const char *str, size_t size) {
         p = str;

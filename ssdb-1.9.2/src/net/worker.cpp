@@ -80,10 +80,10 @@ int ProcWorker::proc(ProcJob *job){
 
 
 
-void ReplicationWorker::init(){
+void BackgroundThreadWorker::init(){
 	log_debug("%s %d init", this->name.c_str(), this->id);
 }
 
-int ReplicationWorker::proc(ReplicationJob *job) {
+int BackgroundThreadWorker::proc(BackgroundThreadJob *job) {
 	return job->process();
 }
