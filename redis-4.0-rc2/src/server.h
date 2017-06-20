@@ -2285,6 +2285,9 @@ void doSSDBflushIfCheckDone();
 void makeSSDBsnapshotIfCheckOK();
 void loadThisKeyImmediately(sds key);
 void addHotKeys();
+void updateSlaveSSDBwriteIndex();
+int updateSendRepopidToSSDB(client* c);
+void saveSlaveSSDBwriteOp(client *c, time_t time, int index);
 
 void replaceKeyInHotPool(sds key, int dbid, int idle);
 void tryInsertColdPool(struct evictionPoolEntry *pool, sds key, int dbid, int idle);

@@ -3451,7 +3451,7 @@ int updateSendRepopidToSSDB(client* c) {
      * flushall command, we can do it also when the flag is before CONN_SUCCESS. */
     if (c->cmd && (c->cmd->proc == flushallCommand || c->cmd->proc == flushdbCommand)) {
         /* do nothing */
-    } else if(!(c->ssdb_conn_flags & CONN_SUCCESS) &&
+    } else if (!(c->ssdb_conn_flags & CONN_SUCCESS))
         return C_FD_ERR;
 
     ret = sendRepopidToSSDB(c, server.last_send_writeop_time, server.last_send_writeop_index, 0);
