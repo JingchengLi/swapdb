@@ -1653,6 +1653,9 @@ void startToHandleCmdListInSlave(void) {
     sds key;
     int j;
 
+    if (server.repl_state != REPL_STATE_CONNECTED)
+        return;
+
     if (dictSize(server.loadAndEvictCmdDict) == 0
         || !server.slave_ssdb_load_evict_client) return;
 
@@ -3172,37 +3175,44 @@ int processCommandMaybeFlushdb(client *c) {
         }
     } else {
         if (server.master == c) {
-            struct ssdb_write_op* op;
-            listNode *ln;
+            if (server.repl_state == REPL_STATE_CONNECTED) {
+                struct ssdb_write_op* op;
+                listNode *ln;
 
-            /* it's safe to do flushall even if ssdb connection status of server.master is CONN_CHECK_REPOPID
-             * or CONN_CONNECT_FAILED.
-             * Reason:
-             * although sendCommandToSSDB will fail, we can empty server.ssdb_write_list and save 'flushall'
-             * to the list, so that we don't need to re-send previous failed writes after connection status
-             * turn into CONN_SUCCESS. */
-            if (!(c->ssdb_conn_flags & CONN_SUCCESS))
-                serverLog(LL_DEBUG, "ssdb connection status of server.master is not CONN_SUCCESS");
+                /* it's safe to do flushall even if ssdb connection status of server.master is CONN_CHECK_REPOPID
+                 * or CONN_CONNECT_FAILED.
+                 * Reason:
+                 * although sendCommandToSSDB will fail, we can empty server.ssdb_write_list and save 'flushall'
+                 * to the list, so that we don't need to re-send previous failed writes after connection status
+                 * turn into CONN_SUCCESS. */
+                if (!(c->ssdb_conn_flags & CONN_SUCCESS))
+                    serverLog(LL_DEBUG, "ssdb connection status of server.master is not CONN_SUCCESS");
 
-            /* before flushall, clean all visiting keys and all writes in ssdb write op list. */
-            emptySlaveSSDBwriteOperations();
-            /* clean all keys need to transfer/load */
-            dictEmpty(server.loadAndEvictCmdDict, NULL);
+                /* before flushall, clean all visiting keys and all writes in ssdb write op list. */
+                emptySlaveSSDBwriteOperations();
+                /* clean all keys need to transfer/load */
+                dictEmpty(server.loadAndEvictCmdDict, NULL);
 
-            ret = updateSendRepopidToSSDB(c);
-            if (ret != C_OK) return ret;
+                ret = updateSendRepopidToSSDB(c);
+                if (ret != C_OK) return ret;
 
-            ret = blockAndFlushSlaveSSDB(c, NULL);
-            if (ret != C_OK) return ret;
+                ret = blockAndFlushSlaveSSDB(c, NULL);
+                if (ret != C_OK) return ret;
 
-            serverLog(LL_DEBUG, "send ssdb flushall success, server.master client is blocked");
+                serverLog(LL_DEBUG, "send ssdb flushall success, server.master client is blocked");
 
-            ln = listFirst(server.ssdb_write_oplist);
-            op = ln->value;
-            serverLog(LL_DEBUG, "[REPOPID]redis send %s(op time:%ld, op id:%d) to ssdb success",
-                      op->cmd->name, op->time, op->index);
+                ln = listFirst(server.ssdb_write_oplist);
+                op = ln->value;
+                serverLog(LL_DEBUG, "[REPOPID]redis send %s(op time:%ld, op id:%d) to ssdb success",
+                          op->cmd->name, op->time, op->index);
 
-            return C_OK;
+                return C_OK;
+            } else {
+                /* when RDB transfer is done but SSDB snapshot not. */
+                updateSlaveSSDBwriteIndex();
+                saveSlaveSSDBwriteOp(c, server.last_send_writeop_time, server.last_send_writeop_index);
+                return C_ERR;
+            }
         }
     }
     return C_ERR;
@@ -3347,7 +3357,12 @@ int confirmAndRetrySlaveSSDBwriteOp(time_t time, int index) {
                     /* we have found the write op saved by server.blocked_write_op, server.master is
                      * unblocked now and we can go on. */
                     ret = runCommandReplicationConn(server.master, ln);
-                    if (ret != C_BLOCKED) resetClient(server.master);
+                    if (ret == C_BLOCKED) {
+                         /* server.master is blocked, return and handle it later. */
+                        server.slave_failed_retry_interrupted = 1;
+                        server.blocked_write_op = op;
+                        return ret;
+                    }
                 }
             } else {
 
@@ -3365,8 +3380,6 @@ int confirmAndRetrySlaveSSDBwriteOp(time_t time, int index) {
                     /* server.master is blocked, return and handle the rest after unblock.*/
                     if (ret == C_OK)
                         return C_OK;
-                    else
-                        resetClient(server.master);
                 } else {
                     copyArgsFromWriteOp(server.master, op);
 
@@ -3379,7 +3392,12 @@ int confirmAndRetrySlaveSSDBwriteOp(time_t time, int index) {
                     }
 
                     ret = runCommandReplicationConn(server.master, ln);
-                    if (ret != C_BLOCKED) resetClient(server.master);
+                    if (ret == C_BLOCKED) {
+                         /* server.master is blocked, return and handle it later. */
+                        server.slave_failed_retry_interrupted = 1;
+                        server.blocked_write_op = op;
+                        return ret;
+                    }
                 }
             }
             /* we need reconnect SSDB for server.master, just break and will do these on
@@ -3430,10 +3448,10 @@ int updateSendRepopidToSSDB(client* c) {
     saveSlaveSSDBwriteOp(c, server.last_send_writeop_time, server.last_send_writeop_index);
 
     /* if ssdb connection flag of this client is not CONN_SUCCESS, just return. but for
-     * flushall command, we can do it also when the flag is CONN_CHECK_REPOPID or
-     * CONN_RECEIVE_INCREMENT_UPDATES */
-    if(!(c->ssdb_conn_flags & CONN_SUCCESS) &&
-       c->cmd && c->cmd->proc != flushallCommand && c->cmd->proc != flushdbCommand)
+     * flushall command, we can do it also when the flag is before CONN_SUCCESS. */
+    if (c->cmd && (c->cmd->proc == flushallCommand || c->cmd->proc == flushdbCommand)) {
+        /* do nothing */
+    } else if(!(c->ssdb_conn_flags & CONN_SUCCESS) &&
         return C_FD_ERR;
 
     ret = sendRepopidToSSDB(c, server.last_send_writeop_time, server.last_send_writeop_index, 0);
