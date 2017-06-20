@@ -1437,21 +1437,21 @@ void signalBlockingKeyAsReady(redisDb *db, robj *key) {
     serverLog(LL_DEBUG, "singal key: %s, dbid: %d", (char *)key->ptr, db->id);
 }
 
-int blockForLoadingkeys(client *c, robj **keys, int numkeys, mstime_t timeout) {
+int blockForLoadingkeys(client *c, struct redisCommand* cmd, robj **keys, int numkeys, mstime_t timeout) {
     dictEntry *de;
     list *l;
     int j, blockednum = 0;
 
     c->bpop.timeout = timeout;
     for (j = 0; j < numkeys; j++) {
-        if (((c->cmd->flags & CMD_WRITE)
+        if (((cmd->flags & CMD_WRITE)
              && (dictFind(EVICTED_DATA_DB->transferring_keys, keys[j]->ptr)
                  || dictFind(EVICTED_DATA_DB->loading_hot_keys, keys[j]->ptr)
                  || dictFind(server.hot_keys, keys[j]->ptr)
                  || dictFind(EVICTED_DATA_DB->delete_confirm_keys, keys[j]->ptr))
             )
             ||
-            ( (c->cmd->flags & CMD_READONLY)
+            ( (cmd->flags & CMD_READONLY)
               && (dictFind(EVICTED_DATA_DB->loading_hot_keys, keys[j]->ptr)
                   || dictFind(server.hot_keys, keys[j]->ptr)
                   || dictFind(EVICTED_DATA_DB->delete_confirm_keys, keys[j]->ptr))
@@ -1474,11 +1474,11 @@ int blockForLoadingkeys(client *c, robj **keys, int numkeys, mstime_t timeout) {
                 incrRefCount(keys[j]);
                 serverAssertWithInfo(c, keys[j], retval == DICT_OK);
                 serverLog(LL_DEBUG, "client fd: %d, cmd: %s, key: %s is blocked.",
-                          c->fd, c->cmd->name, (char *)keys[j]->ptr);
+                          c->fd, cmd->name, (char *)keys[j]->ptr);
             } else {
                 l = dictGetVal(de);
                 serverLog(LL_DEBUG, "client fd: %d, cmd: %s, key: %s is already blocked.",
-                                             c->fd, c->cmd->name, (char *)keys[j]->ptr);
+                                             c->fd, cmd->name, (char *)keys[j]->ptr);
             }
 
             listAddNodeTail(l, c);

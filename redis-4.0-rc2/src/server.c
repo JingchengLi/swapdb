@@ -3080,6 +3080,27 @@ void call(client *c, int flags) {
     server.stat_numcommands++;
 }
 
+int blockInMediateKey(client* c, struct redisCommand* cmd, robj** argv, int argc) {
+    robj **keyobjs = NULL;
+    int *keys = NULL, blockednum = 0, numkeys = 0, j;
+    keys = getKeysFromCommand(cmd, argv, argc, &numkeys);
+
+    if (numkeys)
+        keyobjs = zmalloc(sizeof(robj *) * numkeys);
+
+    for (j = 0; j < numkeys; j ++)
+        keyobjs[j] = argv[keys[j]];
+
+    /* TODO: use a suitable timeout */
+    blockednum = blockForLoadingkeys(c, cmd, keyobjs, numkeys, server.client_blocked_by_keys_timeout + mstime());
+
+    if (numkeys && keyobjs) zfree(keyobjs);
+    if (keys) getKeysFreeResult(keys);
+
+    if (blockednum) return C_ERR;
+    return C_OK;
+}
+
 /* Return C_ERR if the key is in loading or transferring state. */
 int checkKeysInMediateState(client* c) {
     robj **keyobjs = NULL;
@@ -3097,23 +3118,7 @@ int checkKeysInMediateState(client* c) {
         || c->cmd->proc == ssdbRespNotfoundCommand)
         return C_OK;
 
-    keys = getKeysFromCommand(c->cmd, c->argv, c->argc, &numkeys);
-
-    if (numkeys)
-        keyobjs = zmalloc(sizeof(robj *) * numkeys);
-
-    for (j = 0; j < numkeys; j ++)
-        keyobjs[j] = c->argv[keys[j]];
-
-    /* TODO: use a suitable timeout */
-    blockednum = blockForLoadingkeys(c, keyobjs, numkeys, server.client_blocked_by_keys_timeout + mstime());
-
-    if (numkeys && keyobjs) zfree(keyobjs);
-    if (keys) getKeysFreeResult(keys);
-
-    if (blockednum) return C_ERR;
-
-    return C_OK;
+    return blockInMediateKey(c, c->cmd, c->argv, c->argc);
 }
 
 int checkKeysForMigrate(client *c) {
@@ -3376,15 +3381,14 @@ int confirmAndRetrySlaveSSDBwriteOp(time_t time, int index) {
                     server.master->argv = zmalloc(sizeof(robj *) * 1);
                     server.master->argv[0] = createObject(OBJ_STRING, sdsnew("flushall"));
 
+                    // todo: fix swap-71
                     ret = blockAndFlushSlaveSSDB(server.master, op);
                     /* server.master is blocked, return and handle the rest after unblock.*/
                     if (ret == C_OK)
                         return C_OK;
                 } else {
-                    copyArgsFromWriteOp(server.master, op);
-
                     /* Check if current cmd contains blocked keys. */
-                    if (op->argc > 1 && checkKeysInMediateState(server.master) == C_ERR) {
+                    if (op->argc > 1 && blockInMediateKey(server.master, op->cmd, op->argv, op->argc) == C_ERR) {
                         /* server.master is blocked, return and handle it later. */
                         server.slave_failed_retry_interrupted = 1;
                         server.blocked_write_op = op;

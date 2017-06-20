@@ -1844,7 +1844,7 @@ void cleanAndSignalDeleteConfirmKeys();
 void cleanAndSignalLoadingOrTransferringKeys();
 void emptyEvictionPool();
 void signalBlockingKeyAsReady(redisDb *db, robj* key);
-int blockForLoadingkeys(client *c, robj **keys, int numkeys, mstime_t timeout);
+int blockForLoadingkeys(client *c, struct redisCommand* cmd, robj **keys, int numkeys, mstime_t timeout);
 void handleClientsBlockedOnSSDB(void);
 void handleClientsBlockedOnCustomizedPsync(void);
 void handleClientsBlockedOnFlushall(void);
