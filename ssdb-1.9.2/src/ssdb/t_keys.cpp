@@ -280,18 +280,7 @@ int SSDBImpl::restore(Context &ctx, const Bytes &key, int64_t expire, const Byte
 
     bool found = true;
 
-#ifdef USE_LEVELDB
     s = ldb->Get(commonRdOpt, meta_key, &meta_val);
-#else
-    if (ldb->KeyMayExist(commonRdOpt, meta_key, &meta_val, &found)) {
-        if (!found) {
-            s = ldb->Get(commonRdOpt, meta_key, &meta_val);
-        }
-    } else {
-        s = s.NotFound();
-    }
-#endif
-
     if (!s.ok() && !s.IsNotFound()) {
         return STORAGE_ERR;
     }
@@ -629,7 +618,7 @@ int SSDBImpl::restore(Context &ctx, const Bytes &key, int64_t expire, const Byte
     }
 
     *res = "OK";
-    return 1;
+    return ret;
 }
 
 
