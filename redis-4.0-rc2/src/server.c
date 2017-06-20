@@ -4006,6 +4006,32 @@ void handleCustomizedBlockedClients() {
         handleClientsBlockedOnMigrate();
 }
 
+int tryBlockingClient(client *c) {
+    int ret;
+
+    if (server.jdjr_mode
+        && c->cmd->proc == migrateCommand) {
+        ret = checkKeysForMigrate(c);
+        if (ret == C_NOTSUPPORT_ERR) return C_NOTSUPPORT_ERR;
+        if (ret == C_ERR) {
+            /* TODO: use a suitable timeout. */
+            c->bpop.timeout = server.client_blocked_by_migrate_timeout + mstime();
+            blockClient(c, BLOCKED_MIGRATING_CLIENT);
+            listAddNodeTail(server.delayed_migrate_clients, c);
+            serverLog(LL_DEBUG, "client migrate list add: %ld", (long)c);
+            return C_ERR;
+        }
+    }
+
+    /* Check if current cmd contains blocked keys. */
+    if (server.jdjr_mode && c->argc > 1 && checkKeysInMediateState(c) == C_ERR) {
+        /* Return C_ERR to keep client info and handle it later. */
+        return C_ERR;
+    }
+
+    return C_OK;
+}
+
 /* If this function gets called we already read a whole
  * command, arguments are in the client argv/argc fields.
  * processCommand() execute the command or prepare the
@@ -4231,25 +4257,9 @@ int processCommand(client *c) {
         }
     }
 
-    if (server.jdjr_mode
-        && c->cmd->proc == migrateCommand) {
-        ret = checkKeysForMigrate(c);
-        if (ret == C_NOTSUPPORT_ERR) return C_OK;
-        if (ret == C_ERR) {
-            /* TODO: use a suitable timeout. */
-            c->bpop.timeout = server.client_blocked_by_migrate_timeout + mstime();
-            blockClient(c, BLOCKED_MIGRATING_CLIENT);
-            listAddNodeTail(server.delayed_migrate_clients, c);
-            serverLog(LL_DEBUG, "client migrate list add: %ld", (long)c);
-            return C_ERR;
-        }
-    }
-
-    /* Check if current cmd contains blocked keys. */
-    if (server.jdjr_mode && c->argc > 1 && checkKeysInMediateState(c) == C_ERR) {
-        /* Return C_ERR to keep client info and handle it later. */
-        return C_ERR;
-    }
+    ret = tryBlockingClient(c);
+    if (ret == C_ERR) return C_ERR;
+    if (ret == C_NOTSUPPORT_ERR) return C_OK;
 
     ret = runCommand(c);
 

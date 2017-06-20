@@ -1393,13 +1393,20 @@ void handleClientsBlockedOnSSDB(void) {
 void handleClientsBlockedOnCustomizedPsync(void) {
     listIter li;
     listNode *ln;
+    int ret;
 
     listRewind(server.no_writing_ssdb_blocked_clients, &li);
     while((ln = listNext(&li))) {
         client *c = listNodeValue(ln);
         listDelNode(server.no_writing_ssdb_blocked_clients, ln);
-
         unblockClient(c);
+
+        /* Convert block type. */
+        if ((ret = tryBlockingClient(c)) != C_OK) {
+            /* C_NOTSUPPORT_ERR should be handled before. */
+            serverAssert(ret != C_NOTSUPPORT_ERR);
+            continue;
+        }
 
         if (runCommand(c) == C_OK)
             resetClient(c);

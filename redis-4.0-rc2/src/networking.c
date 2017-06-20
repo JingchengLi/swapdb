@@ -1129,6 +1129,7 @@ void acceptUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
 void handleClientsBlockedOnFlushall(void) {
     listIter li;
     listNode *ln;
+    int ret;
 
     listRewind(server.ssdb_flushall_blocked_clients, &li);
     while((ln = listNext(&li))) {
@@ -1137,6 +1138,13 @@ void handleClientsBlockedOnFlushall(void) {
 
         serverLog(LOG_DEBUG, "[!!!!]unblocked by handleClientsBlockedOnFlushall:%p", (void*)c);
         unblockClient(c);
+
+        /* Convert block type. */
+        if ((ret = tryBlockingClient(c)) != C_OK) {
+            /* C_NOTSUPPORT_ERR should be handled before. */
+            serverAssert(ret != C_NOTSUPPORT_ERR);
+            continue;
+        }
 
         if (runCommand(c) == C_OK)
             resetClient(c);
