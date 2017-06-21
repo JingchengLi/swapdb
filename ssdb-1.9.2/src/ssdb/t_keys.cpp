@@ -112,7 +112,7 @@ int SSDBImpl::dump(Context &ctx, const Bytes &key, std::string *res, int64_t *pt
         return ret;
     }
 
-    rdbSaveObject(ctx, key, dtype, meta_val, rdbEncoder, snapshot);
+    if (rdbSaveObject(ctx, key, dtype, meta_val, rdbEncoder, snapshot) < 0) return -1;
 
     rdbEncoder.encodeFooter();
     *res = rdbEncoder.toString();
