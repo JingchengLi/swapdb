@@ -912,7 +912,6 @@ int sendRepopidToSSDB(client* c, time_t op_time, int op_id, int is_slave_retry) 
 
 /* Querying SSDB server if querying redis fails, Compose the finalcmd if finalcmd is NULL. */
 int sendCommandToSSDB(client *c, sds finalcmd) {
-    int nwritten;
     struct redisCommand *cmd = NULL;
 
     if (!c) {

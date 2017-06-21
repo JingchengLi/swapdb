@@ -2280,6 +2280,8 @@ int prologOfEvictingToSSDB(robj *keyobj, redisDb *db);
 int prologOfLoadingFromSSDB(client* c, robj *keyobj);
 int removeVisitingSSDBKey(struct redisCommand *cmd, int argc, robj** argv);
 void handleCustomizedBlockedClients();
+int tryBlockingClient(client *c);
+int handleResponseOfMigrateDump(client *c);
 void removeClientFromListForBlockedKey(client* c, robj* key);
 void sendDelSSDBsnapshot();
 int handleResponseTimeoutOfTransferSnapshot(struct aeEventLoop *eventLoop, long long id, void *clientData);

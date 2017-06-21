@@ -2843,7 +2843,7 @@ void propagateCmdHandledBySSDB(client *c) {
                     serverAssert(propargv[2]);
 
                     propagate(server.sremCommand, 0, propargv, 3, PROPAGATE_REPL);
-                    serverLog(LL_DEBUG, "spop replication log, key: %s, member: %s", propargv[1]->ptr, propargv[2]->ptr);
+                    serverLog(LL_DEBUG, "spop replication log, key: %s, member: %s", (char *)propargv[1]->ptr, (char *)propargv[2]->ptr);
                     decrRefCount(propargv[2]);
                     index ++;
                 };
@@ -3159,8 +3159,6 @@ int blockInMediateKey(client* c, struct redisCommand* cmd, robj** argv, int argc
 
 /* Return C_ERR if the key is in loading or transferring state. */
 int checkKeysInMediateState(client* c) {
-    robj **keyobjs = NULL;
-    int *keys = NULL, blockednum = 0, numkeys = 0, j;
     c->cmd = c->lastcmd = lookupCommand(c->argv[0]->ptr);
 
     /* processCommand will handle this case. */
@@ -3990,7 +3988,6 @@ int runCommandReplicationConn(client *c, listNode* writeop_ln) {
 }
 
 long long getAbsoluteExpireTimeFromArgs(client *c) {
-    int unit;
     robj *expireobj = NULL;
     int num = sizeof(expiretimeInfoTable)/sizeof(struct expiretimeInfo);
     int i;

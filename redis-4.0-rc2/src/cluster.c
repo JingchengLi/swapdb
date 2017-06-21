@@ -5248,7 +5248,6 @@ try_again:
             if (!copy) {
                 /* No COPY option: remove the local key, signal the change. */
                 if (server.jdjr_mode && (c->flags & BLOCKED_MIGRATING_DUMP)) {
-                    int k;
                     char *argv[2];
                     sds delcmd;
                     redisReply *replies[2] = {0};
