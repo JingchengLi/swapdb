@@ -785,25 +785,19 @@ int epilogOfEvictingToSSDB(robj *keyobj) {
 
     /* Record the expire info. */
     if (expiretime > 0) {
-        char llbuf[LONG_STR_SIZE];
-
         setExpire(NULL, evicteddb, keyobj, expiretime);
-        ll2string(llbuf, sizeof(llbuf), expiretime);
         notifyKeyspaceEvent(NOTIFY_GENERIC,
                             "expire", keyobj, evicteddb->id);
 
-        robj *llbufobj = createObject(OBJ_STRING, (void *)(sdsnew(llbuf)));
-        sds cmdname = sdsnew("expire");
-        robj *expirecmd = createObject(OBJ_STRING, (void *)cmdname);
-        tmpargv[0] = expirecmd;
+        tmpargv[0] = createStringObject("PEXPIREAT", 9);
         tmpargv[1] = keyobj;
-        tmpargv[2] = llbufobj;
+        tmpargv[2] = createObject(OBJ_STRING, sdsfromlonglong(expiretime));
 
         /* propage aof to set expire info in evict db. */
-        propagate(lookupCommand(cmdname), EVICTED_DATA_DBID, tmpargv, 3, PROPAGATE_AOF);
+        propagate(server.pexpireatCommand, EVICTED_DATA_DBID, tmpargv, 3, PROPAGATE_AOF);
 
-        decrRefCount(expirecmd);
-        decrRefCount(llbufobj);
+        decrRefCount(tmpargv[0]);
+        decrRefCount(tmpargv[2]);
     }
 
     cleanupEpilogOfEvicting(db, keyobj);
