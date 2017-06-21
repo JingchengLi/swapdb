@@ -670,7 +670,7 @@ void SSDBImpl::delete_key_loop(const std::string &del_key) {
     }
 
     leveldb::WriteOptions write_opts;
-    write_opts.disableWAL = true;
+//    write_opts.disableWAL = true;
     leveldb::Status s = ldb->Write(write_opts, &batch);
     if (!s.ok()) {
         log_fatal("SSDBImpl::delKey Backend Task error! %s", hexstr(del_key).c_str());
