@@ -14,27 +14,31 @@
 ## 在主从复制的任一阶段，将redis或ssdb搞挂，恢复后是否还能重新发起主从复制。
 set all {
     slaveredis "SLAVE OF.*enabled"
-    masterssdb "receive.*rr_check_write"
-    masterssdb "result.*rr_check_write"
-    masterredis "rr_make_snapshot ok"
-    masterredis "Sending rr_make_snapshot to SSDB"
     masterredis "Slave.*asks for synchronization"
     slaveredis "MASTER <-> SLAVE sync started"
-    masterssdb "result.*rr_make_snapshot"
     masterredis "Starting BGSAVE for SYNC with target"
     slaveredis "Full resync from master"
     masterredis "DB saved on disk"
     masterredis "Background saving terminated"
     masterssdb "transfer_snapshot start"
-    masterredis "Sending rr_transfer_snapshot to SSDB"
     slaveredis "MASTER <-> SLAVE sync: Finished with success"
     slaveredis "MASTER <-> SLAVE sync: Flushing old data"
-    slavessdb "reply replic finish ok"
-    masterssdb "send rr_transfer_snapshot finished"
-    masterredis "snapshot transfer finished"
     masterredis "Synchronization with slave.*succeeded"
-    masterssdb "result.*rr_del_snapshot"
-    masterredis "rr_del_snapshot ok"
+}
+
+if {$::loglevel == "debug"} {
+    lappend all {*}{
+        masterssdb "receive.*rr_check_write"
+        masterssdb "result.*rr_check_write"
+        masterredis "rr_make_snapshot ok"
+        masterredis "Sending rr_make_snapshot to SSDB"
+        masterssdb "result.*rr_make_snapshot"
+        masterredis "Sending rr_transfer_snapshot to SSDB"
+        masterssdb "send rr_transfer_snapshot finished"
+        masterredis "snapshot transfer finished"
+        masterssdb "result.*rr_del_snapshot"
+        masterredis "rr_del_snapshot ok"
+    }
 }
 
 if {$::accurate} {
@@ -42,7 +46,6 @@ if {$::accurate} {
 } else {
     set l [expr [llength $all]/2]
     set index [expr [randomInt $l]*2]
-    set index 24
     set pairs [lrange $all $index [expr $index+1]]
 }
 

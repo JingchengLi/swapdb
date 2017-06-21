@@ -689,13 +689,31 @@ proc kill_ssdb_server {{level 0}} {
 
 proc wait_log_pattern {pattern log} {
     set retry 10000
-    while {$retry} {
-        catch {[exec grep $pattern $log | wc -l]} err
-        if {![string match "*child process*" $err]} {
-            break
+    set debuglog {
+        "receive.*rr_check_write"
+        "result.*rr_check_write"
+        "rr_make_snapshot ok"
+        "Sending rr_make_snapshot to SSDB"
+        "result.*rr_make_snapshot"
+        "Sending rr_transfer_snapshot to SSDB"
+        "send rr_transfer_snapshot finished"
+        "snapshot transfer finished"
+        "result.*rr_del_snapshot"
+        "rr_del_snapshot ok"
+    }
+    if {$::loglevel != "debug" && [lsearch $debuglog $pattern] != -1 } {
+        set delay [randomInt 100]
+        after $delay
+        set retry [expr $retry-$delay]
+    } else {
+        while {$retry} {
+            catch {[exec grep $pattern $log | wc -l]} err
+            if {![string match "*child process*" $err]} {
+                break
+            }
+            incr retry -1
+            after 1
         }
-        incr retry -1
-        after 1
     }
     if {$retry == 0} {
         error "assertion:expected log \"$pattern\" not found on log file"

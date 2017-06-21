@@ -99,8 +99,10 @@ start_server {tags {"repl"}} {
             r config set maxmemory 0
             r -1 config set maxmemory 0
 
-            assert_equal [r -1 get mykey] {foo}
-            assert_equal [r 0 get mykey2] {bar}
+            # assert_equal [r -1 get mykey] {foo}
+            # assert_equal [r 0 get mykey2] {bar}
+            access_key_tps_time mykey 200 1 true -1
+            access_key_tps_time mykey2 200 1 true 0
             wait_for_condition 100 10 {
                 [r 0 locatekey mykey] eq {redis} &&
                 [r 0 locatekey mykey2] eq {ssdb}
