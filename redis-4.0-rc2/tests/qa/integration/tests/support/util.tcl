@@ -405,6 +405,11 @@ proc start_write_load {host port seconds {interval 0}} {
     exec $tclsh tests/helpers/gen_write_load.tcl $host $port $seconds $interval &
 }
 
+proc start_hit_ssdb_tps {host port seconds {interval 0}} {
+    set tclsh [info nameofexecutable]
+    exec $tclsh tests/helpers/start_hit_ssdb_tps.tcl $host $port $seconds &
+}
+
 # Stop a process generating write load executed with start_write_load.
 proc stop_write_load {handle} {
     catch {exec /bin/kill -9 $handle}
@@ -847,6 +852,9 @@ proc access_key_tps_time {key tps time {wait true} {level 0}} {
             if {false == $wait && $n == $time} {
                 break
             }
+            if {$key == "keynull"} {
+                r $level setlfu $key 0
+            }
         }
         after 1
     }
@@ -856,6 +864,6 @@ proc hit_ssdb_load_key {{level 0}} {
     r $level set keynull 0
     r $level storetossdb keynull
     set rule [lindex [r $level config get ssdb-load-rule] 1]
-    lassing $rule time tps
+    lassign $rule time tps
     access_key_tps_time keynull [expr $tps/$time*1.1] $time true $level
 }

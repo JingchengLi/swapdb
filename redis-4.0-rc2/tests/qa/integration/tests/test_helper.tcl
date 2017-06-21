@@ -25,13 +25,13 @@ set ::all_tests {
     ssdb/aofrw
     ssdb/keystatus
     ssdb/basecommands
-    ssdb/lfu
-    ssdb/lfu-policy
     ssdb/threads
     ssdb/flush
     ssdb/ssdbinfo
     ssdb/python
+    ssdb/lfu
     ssdb/lfu-policy2
+    ssdb/lfu-policy3
 
     unit/dump
     unit/expire
@@ -66,6 +66,8 @@ set ::all_tests {
     integration/replication-B
     integration/replication-C
 }
+# lfu-policy update
+    # ssdb/lfu-policy
 # Too slow without SSD, need to run manually.
     # integration/replication-stable
 # next time support
