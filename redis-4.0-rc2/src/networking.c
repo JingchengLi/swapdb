@@ -1706,7 +1706,7 @@ int handleExtraSSDBReply(client *c) {
                 checkSSDBkeyIsDeleted(element0->str, op->cmd, op->argc, op->argv);
             listDelNode(server.ssdb_write_oplist, ln);
         } else {
-            serverLog(LL_DEBUG, "repopid time/index don't match the first in server.ssdb_write_oplist, caused by flushall?");
+            serverLog(LL_DEBUG, "repopid time/index don't match the first in server.ssdb_write_oplist");
             closeAndReconnectSSDBconnection(c);
             return C_ERR;
         }
@@ -1741,11 +1741,20 @@ int handleResponseOfReplicationConn(client* c, redisReply* reply) {
                 server.slave_failed_retry_interrupted = 0;
                 server.blocked_write_op = NULL;
 
-                /* may be blocked by transfer/loading/replication */
+                /* may be blocked by transfer/loading/replication, fix swap-71 relication_4-2 issue */
                 if (c->flags & CLIENT_BLOCKED) {
-                    removeSuccessWriteop(last_successful_write_time, last_successful_write_index);
-                    /* we will re-send failed writes to ssdb after server.master is unblocked. */
-                    server.send_failed_write_after_unblock = 1;
+                    if (c->btype == BLOCKED_BY_FLUSHALL) {
+                        struct ssdb_write_op* op;
+                        listNode *ln;
+                        ln = listFirst(server.ssdb_write_oplist);
+                        op = ln->value;
+
+                        serverAssert(op->cmd->proc == flushallCommand && 1 == listLength(server.ssdb_write_oplist));
+                    } else {
+                        removeSuccessWriteop(last_successful_write_time, last_successful_write_index);
+                        /* we will re-send failed writes to ssdb after server.master is unblocked. */
+                        server.send_failed_write_after_unblock = 1;
+                    }
                 } else
                     confirmAndRetrySlaveSSDBwriteOp(last_successful_write_time, last_successful_write_index);
             }
