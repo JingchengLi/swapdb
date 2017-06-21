@@ -106,6 +106,8 @@ int RedisEncoder::rdbSaveObjectType(char dtype) {
 
 int64_t RedisEncoder::rdbSaveRawString(const std::string &string) {
     size_t len = string.length();
+    ssize_t n, nwritten = 0;
+
     if (len <= 11) {
         int enclen;
         unsigned char buf[5];
@@ -124,10 +126,15 @@ int64_t RedisEncoder::rdbSaveRawString(const std::string &string) {
         /* Return value of 0 means data can't be compressed, save the old way */
     }
 
-    rdbSaveLen(string.length());
-    rdbWriteRaw((void *) string.data(), string.length());
+    /* Store verbatim */
+    if ((n = rdbSaveLen(string.length())) == -1) return -1;
+    nwritten += n;
+    if (len > 0) {
+        if (rdbWriteRaw((void *) string.data(), string.length()) == -1) return -1;
+        nwritten += len;
+    }
+    return nwritten;
 
-    return string.length();
 }
 
 int64_t RedisEncoder::saveRawString(const std::string &string) {
