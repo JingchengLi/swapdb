@@ -1390,6 +1390,7 @@ struct redisServer {
     list* ssdb_write_oplist;
     long long writeop_mem_size;
     int slave_failed_retry_interrupted;
+    int send_failed_write_after_unblock;
     struct ssdb_write_op* blocked_write_op;
 
     int ssdb_is_down;
@@ -1834,6 +1835,7 @@ int zslLexValueLteMax(sds value, zlexrangespec *spec);
 
 /* Core functions */
 int freeMemoryIfNeeded(void);
+void removeSuccessWriteop(time_t last_success_time, int last_success_index);
 int confirmAndRetrySlaveSSDBwriteOp(time_t time, int index);
 void emptySlaveSSDBwriteOperations();
 void freeSSDBwriteOp(struct ssdb_write_op* op);

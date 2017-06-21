@@ -1370,6 +1370,11 @@ void handleClientsBlockedOnSSDB(void) {
                         } else {
                             if (runCommand(c) == C_OK)
                                 resetClient(c);
+                            if (server.master == c && server.send_failed_write_after_unblock) {
+                                serverAssert(!(server.master->ssdb_conn_flags & CONN_SUCCESS));
+                                confirmAndRetrySlaveSSDBwriteOp(-1,-1);
+                                server.send_failed_write_after_unblock = 0;
+                            }
                         }
                     }
                 }
@@ -1401,9 +1406,13 @@ void handleClientsBlockedOnCustomizedPsync(void) {
             serverAssert(ret != C_NOTSUPPORT_ERR);
             continue;
         }
-
         if (runCommand(c) == C_OK)
             resetClient(c);
+        if (server.master == c && server.send_failed_write_after_unblock) {
+            serverAssert(!(server.master->ssdb_conn_flags & CONN_SUCCESS));
+            confirmAndRetrySlaveSSDBwriteOp(-1,-1);
+            server.send_failed_write_after_unblock = 0;
+        }
     }
 }
 

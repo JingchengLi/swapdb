@@ -2654,6 +2654,7 @@ void initServer(void) {
         server.ssdb_ready_keys = listCreate();
 
         server.slave_failed_retry_interrupted = 0;
+        server.send_failed_write_after_unblock = 0;
         server.blocked_write_op = NULL;
         server.ssdb_write_oplist = listCreate();
         listSetFreeMethod(server.ssdb_write_oplist, (void (*)(void*)) freeSSDBwriteOp);
@@ -3322,6 +3323,22 @@ void emptySlaveSSDBwriteOperations() {
         listDelNode(server.ssdb_write_oplist, ln);
     }
     server.writeop_mem_size = 0;
+}
+
+void removeSuccessWriteop(time_t last_success_time, int last_success_index) {
+    struct ssdb_write_op* op;
+    listIter li;
+    listNode *ln;
+    listRewind(server.ssdb_write_oplist, &li);
+    while((ln = listNext(&li))) {
+        op = ln->value;
+        /* remove the successful write operations from buffer. */
+        if (last_success_time > op->time || (last_success_time == op->time && last_success_index > op->index)) {
+            listDelNode(server.ssdb_write_oplist, ln);
+        } else if (last_success_index == op->index && last_success_time == op->time && op->cmd->proc != flushallCommand) {
+            listDelNode(server.ssdb_write_oplist, ln);
+        }
+    }
 }
 
 int confirmAndRetrySlaveSSDBwriteOp(time_t time, int index) {

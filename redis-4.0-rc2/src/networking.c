@@ -801,8 +801,6 @@ void handleSSDBconnectionDisconnect(client* c) {
     }
 
     c->ssdb_conn_flags &= ~CONN_SUCCESS;
-    /* for server.master only */
-    c->ssdb_conn_flags &= ~CONN_CHECK_REPOPID;
     c->ssdb_conn_flags |= CONN_CONNECT_FAILED;
 
     if (c->context) {
@@ -811,10 +809,15 @@ void handleSSDBconnectionDisconnect(client* c) {
             aeDeleteFileEvent(server.el, c->context->fd, AE_READABLE|AE_WRITABLE);
         redisFree(c->context);
         c->context = NULL;
+    }
+
+    /* for server.master only */
+    if (server.master == c) {
+        c->ssdb_conn_flags &= ~CONN_CHECK_REPOPID;
+        server.send_failed_write_after_unblock = 0;
         /* if the replication connection(server.master) disconnect, we must clean visiting_ssdb_keys to
-         * avoid wrong visiting count. */
-        if (server.master == c)
-            dictEmpty(EVICTED_DATA_DB->visiting_ssdb_keys, NULL);
+        * avoid wrong visiting count. */
+        dictEmpty(EVICTED_DATA_DB->visiting_ssdb_keys, NULL);
     }
 }
 
@@ -1735,10 +1738,17 @@ int handleResponseOfReplicationConn(client* c, redisReply* reply) {
                 serverLog(LL_DEBUG, "[REPOPID CHECK] get ssdb last success write(op time:%ld, op id:%d)",
                           last_successful_write_time, last_successful_write_index);
 
-                /* reset this flag*/
+                 /* reset this flag*/
                 server.slave_failed_retry_interrupted = 0;
                 server.blocked_write_op = NULL;
-                confirmAndRetrySlaveSSDBwriteOp(last_successful_write_time, last_successful_write_index);
+
+                /* may be blocked by transfer/loading/replication */
+                if (c->flags & CLIENT_BLOCKED) {
+                    removeSuccessWriteop(last_successful_write_time, last_successful_write_index);
+                    /* we will re-send failed writes to ssdb after server.master is unblocked. */
+                    server.send_failed_write_after_unblock = 1;
+                } else
+                    confirmAndRetrySlaveSSDBwriteOp(last_successful_write_time, last_successful_write_index);
             }
         } else {
             serverLog(LL_WARNING, "failed to get repopid of slave ssdb, reply type:%d", reply->type);
