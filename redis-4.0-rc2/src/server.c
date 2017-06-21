@@ -3682,7 +3682,7 @@ void chooseHotKeysByLFUcounter(robj* keyobj) {
             }
         } else {
             unsigned char idle = 255-counter;
-            replaceKeyInHotPool(keyobj->ptr, EVICTED_DATA_DBID, idle);
+            replaceKeyInHotPool(keyobj->ptr, EVICTED_DATA_DBID, (unsigned long long)idle);
         }
     }
     return;

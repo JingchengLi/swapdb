@@ -180,7 +180,7 @@ void emptyEvictionPool() {
     }
 }
 
-void tryInsertHotOrColdPool(struct evictionPoolEntry *pool, sds key, int dbid, int idle, int pool_type) {
+void tryInsertHotOrColdPool(struct evictionPoolEntry *pool, sds key, int dbid, unsigned long long idle, int pool_type) {
     /* Insert the element inside the pool.
     * First, find the first empty bucket or the first populated
     * bucket that has an idle time smaller than our idle time. */
@@ -242,7 +242,7 @@ void tryInsertHotOrColdPool(struct evictionPoolEntry *pool, sds key, int dbid, i
     pool[k].dbid = dbid;
 }
 
-void replaceKeyInPool(struct evictionPoolEntry *pool, sds key, int dbid, int idle, int pool_type) {
+void replaceKeyInPool(struct evictionPoolEntry *pool, sds key, int dbid, unsigned long long idle, int pool_type) {
     /* Insert the element inside the pool.
     * First, find the first empty bucket or the first populated
     * bucket that has an idle time smaller than our idle time. */
@@ -488,16 +488,16 @@ void test_replaceKeyInPool() {
 }
 #endif
 
-void replaceKeyInHotPool(sds key, int dbid, int idle) {
+void replaceKeyInHotPool(sds key, int dbid, unsigned long long idle) {
     replaceKeyInPool(HotKeyPool, key, dbid, idle, HOT_POOL_TYPE);
 }
 
-void tryInsertColdPool(struct evictionPoolEntry *pool, sds key, int dbid, int idle) {
+void tryInsertColdPool(struct evictionPoolEntry *pool, sds key, int dbid, unsigned long long idle) {
     tryInsertHotOrColdPool(pool, key, dbid, idle, COLD_POOL_TYPE);
 }
 
 void coldKeyPopulate(dict *sampledict, struct evictionPoolEntry *pool) {
-    int j, k, count;
+    int j, count;
     dictEntry *samples[server.maxmemory_samples];
 
     /* we support cold key transfer to ssdb only if evict algorithm is LFU */
@@ -548,7 +548,7 @@ void coldKeyPopulate(dict *sampledict, struct evictionPoolEntry *pool) {
  * idle time are on the left, and keys with the higher idle time on the
  * right. */
 void evictionPoolPopulate(int dbid, dict *sampledict, dict *keydict, struct evictionPoolEntry *pool) {
-    int j, k, count;
+    int j, count;
     dictEntry *samples[server.maxmemory_samples];
 
     count = dictGetSomeKeys(sampledict,samples,server.maxmemory_samples);

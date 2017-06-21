@@ -2293,8 +2293,8 @@ void updateSlaveSSDBwriteIndex();
 int updateSendRepopidToSSDB(client* c);
 void saveSlaveSSDBwriteOp(client *c, time_t time, int index);
 
-void replaceKeyInHotPool(sds key, int dbid, int idle);
-void tryInsertColdPool(struct evictionPoolEntry *pool, sds key, int dbid, int idle);
+void replaceKeyInHotPool(sds key, int dbid, unsigned long long idle);
+void tryInsertColdPool(struct evictionPoolEntry *pool, sds key, int dbid, unsigned long long idle);
 
 #define COLD_POOL_TYPE 1
 #define HOT_POOL_TYPE 2
