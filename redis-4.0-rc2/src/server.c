@@ -3399,11 +3399,12 @@ int confirmAndRetrySlaveSSDBwriteOp(time_t time, int index) {
                     server.master->argv = zmalloc(sizeof(robj *) * 1);
                     server.master->argv[0] = createObject(OBJ_STRING, sdsnew("flushall"));
 
-                    // todo: fix swap-71
                     ret = blockAndFlushSlaveSSDB(server.master, op);
                     /* server.master is blocked, return and handle the rest after unblock.*/
                     if (ret == C_OK)
                         return C_OK;
+                    else
+                        resetClient(server.master);
                 } else {
                     /* Check if current cmd contains blocked keys. */
                     if (op->argc > 1 && blockInMediateKey(server.master, op->cmd, op->argv, op->argc) == C_ERR) {

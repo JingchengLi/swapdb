@@ -1706,8 +1706,7 @@ int handleExtraSSDBReply(client *c) {
                 checkSSDBkeyIsDeleted(element0->str, op->cmd, op->argc, op->argv);
             listDelNode(server.ssdb_write_oplist, ln);
         } else {
-            serverLog(LL_WARNING, "repopid time/index don't match the first in server.ssdb_write_oplist");
-            server.slave_ssdb_critical_err_cnt++;
+            serverLog(LL_DEBUG, "repopid time/index don't match the first in server.ssdb_write_oplist, caused by flushall?");
             closeAndReconnectSSDBconnection(c);
             return C_ERR;
         }
