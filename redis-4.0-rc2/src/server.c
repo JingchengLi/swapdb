@@ -2812,14 +2812,15 @@ void propagateCmdHandledBySSDB(client *c) {
     robj *ele = NULL, *aux;
     redisReply *reply = c->ssdb_replies[0];
     redisReply *subreply;
+    long long milliseconds = 0;
+    robj *argv[3];
 
     if (!c || !c->cmd || !c->argv
-        || c->cmd->proc == migrateCommand
         || c->argc == 0)
         return;
 
     /* Replicate this command as an SREM operation. */
-    if (c->cmd && c->cmd->proc == spopCommand) {
+    if (c->cmd->proc == spopCommand) {
         if (reply) {
             aux = createStringObject("SREM", 4);
             ele = createObjFromSpopReply(reply);
@@ -2853,8 +2854,61 @@ void propagateCmdHandledBySSDB(client *c) {
         }
     }
 
-    if ((c->cmd
-         && (c->cmd->flags & CMD_WRITE)
+    /* Handle the rest of migrating. */
+    if (c->cmd->proc == migrateCommand
+        && handleResponseOfMigrateDump(c) != C_OK) {
+        serverLog(LL_WARNING, "migrate log: failed to handle migrate dump.");
+        return;
+    }
+
+    /* Update expire time in redis and update AOF. */
+    if (((reply->type == REDIS_REPLY_STATUS && !strcasecmp(reply->str, "ok"))
+         || (reply->type == REDIS_REPLY_INTEGER && reply->integer == 1))
+        && ((milliseconds = getAbsoluteExpireTimeFromArgs(c)) != C_ERR)) {
+        robj *key = c->argv[1];
+
+        /* setCommand or persist. */
+        if (milliseconds == C_NO_EXPIRE) {
+            serverAssert(c->cmd->proc == setCommand || c->cmd->proc == persistCommand);
+            removeExpire(EVICTED_DATA_DB, key);
+
+            /* Update aof. */
+            argv[0] = createStringObject("PERSIST", 7);
+            argv[1] = key;
+            propagate(lookupCommandByCString("persist"), EVICTED_DATA_DBID, argv, 2, PROPAGATE_AOF);
+            decrRefCount(argv[0]);
+
+            /* Propagate command. */
+            if (c->cmd->proc == setCommand)
+                propagate(lookupCommandByCString("set"), 0, c->argv, 3, PROPAGATE_REPL);
+            propagate(lookupCommandByCString("persist"), 0, argv, 2, PROPAGATE_REPL);
+        } else {
+            setExpire(c, EVICTED_DATA_DB, key, milliseconds);
+
+            /* Update aof. */
+            argv[0] = createStringObject("PEXPIREAT", 9);
+            argv[1] = key;
+            argv[2] = createObject(OBJ_STRING, sdsfromlonglong(milliseconds));
+            propagate(server.pexpireatCommand, EVICTED_DATA_DBID, argv, 3, PROPAGATE_AOF);
+
+            /* Propagate command. */
+            if (c->cmd->proc == setexCommand || c->cmd->proc == psetexCommand) {
+                robj *replargv[3];
+                replargv[0] = createStringObject("SET", 3);
+                replargv[1] = key;
+                replargv[2] = c->argv[3];
+                propagate(lookupCommandByCString("set"), 0, replargv, 3, PROPAGATE_REPL);
+                decrRefCount(replargv[0]);
+            }
+
+            propagate(server.pexpireatCommand, 0, argv, 3, PROPAGATE_REPL);
+            decrRefCount(argv[0]);
+            decrRefCount(argv[2]);
+        }
+        return;
+    }
+
+    if (((c->cmd->flags & CMD_WRITE)
          && server.masterhost == NULL && reply->type != REDIS_REPLY_ERROR))
         propagate(c->cmd, 0, c->argv, c->argc, PROPAGATE_REPL);
 }
@@ -3550,6 +3604,23 @@ int processCommandReplicationConn(client* c, struct ssdb_write_op* slave_retry_w
         return C_BLOCKED;
     }
 
+    if (cmd->proc == persistCommand || cmd->proc == pexpireatCommand) {
+        redisDb *db = c->db;
+        c->db = EVICTED_DATA_DB;
+        if (slave_retry_write) {
+            c->argc = argc;
+            c->argv = argv;
+            c->cmd = cmd;
+        }
+        call(c, CMD_CALL_FULL);
+        if (slave_retry_write) {
+            c->argc = 0;
+            c->argv = NULL;
+            c->cmd = NULL;
+        }
+        c->db = db;
+    }
+
     /* Calling lookupKey to update lru or lfu counter. */
     robj* val = lookupKey(EVICTED_DATA_DB, keyobj, LOOKUP_NONE);
     if (val) {
@@ -3961,6 +4032,9 @@ long long getAbsoluteExpireTimeFromArgs(client *c) {
 
         return C_NO_EXPIRE;
     }
+
+    if (c->cmd->proc == persistCommand)
+        return C_NO_EXPIRE;
 
     return C_ERR;
 }

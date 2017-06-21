@@ -1860,49 +1860,6 @@ int handleResponseOfMigrateDump(client *c) {
     return C_ERR;
 }
 
-void handleUnfinishedCmdInRedis(client *c, redisReply *reply) {
-    long long milliseconds = 0;
-    robj *argv[3];
-
-    /* Handle the rest of migrating. */
-    if (c->cmd && c->cmd->proc == migrateCommand
-        && handleResponseOfMigrateDump(c) != C_OK)
-        serverLog(LL_WARNING, "migrate log: failed to handle migrate dump.");
-
-    if (c->cmd && c->cmd->proc == persistCommand
-        && (reply->type == REDIS_REPLY_INTEGER)
-        && (reply->integer == 1))
-        removeExpire(EVICTED_DATA_DB, c->argv[1]);
-
-    /* Update expire time in redis and update AOF. */
-    if (((reply->type == REDIS_REPLY_STATUS && !strcasecmp(reply->str, "ok"))
-         || (reply->type == REDIS_REPLY_INTEGER && reply->integer == 1))
-        && ((milliseconds = getAbsoluteExpireTimeFromArgs(c)) != C_ERR)) {
-        robj *key = c->argv[1];
-
-        if (milliseconds == C_NO_EXPIRE) {
-            removeExpire(EVICTED_DATA_DB, key);
-
-            argv[0] = createStringObject("SET", 3);
-            argv[1] = key;
-            argv[2] = shared.space;
-
-            propagate(lookupCommandByCString("set"), EVICTED_DATA_DBID, argv, 3, PROPAGATE_AOF);
-            decrRefCount(argv[0]);
-        } else {
-            setExpire(c, EVICTED_DATA_DB, key, milliseconds);
-
-            argv[0] = createStringObject("PEXPIREAT", 9);
-            argv[1] = key;
-            argv[2] = createObject(OBJ_STRING, sdsfromlonglong(milliseconds));
-
-            propagate(lookupCommandByCString("pexpireat"), EVICTED_DATA_DBID, argv, 3, PROPAGATE_AOF);
-            decrRefCount(argv[0]);
-            decrRefCount(argv[2]);
-        }
-    }
-}
-
 void handleSSDBReply(client *c, int revert_len) {
     redisReply *reply;
 
@@ -1927,8 +1884,6 @@ void handleSSDBReply(client *c, int revert_len) {
         }
         return;
     }
-
-    handleUnfinishedCmdInRedis(c, reply);
 
     if (reply && reply->type == REDIS_REPLY_STRING) {
         if (handleResponseOfFlushCheck(c, reply) == C_OK) {
