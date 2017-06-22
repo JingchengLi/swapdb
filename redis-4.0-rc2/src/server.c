@@ -235,10 +235,10 @@ struct redisCommand redisCommandTable[] = {
     {"move",moveCommand,3,"wF",0,NULL,1,1,1,0,0},
     {"rename",renameCommand,3,"w",0,NULL,1,2,1,0,0},
     {"renamenx",renamenxCommand,3,"wF",0,NULL,1,2,1,0,0},
-    {"expire",expireCommand,3,"wFJ",0,NULL,1,1,1,0,0},
-    {"expireat",expireatCommand,3,"wFJ",0,NULL,1,1,1,0,0},
-    {"pexpire",pexpireCommand,3,"wFJ",0,NULL,1,1,1,0,0},
-    {"pexpireat",pexpireatCommand,3,"wFJ",0,NULL,1,1,1,0,0},
+    {"expire",expireCommand,3,"wFj",0,NULL,1,1,1,0,0},
+    {"expireat",expireatCommand,3,"wFj",0,NULL,1,1,1,0,0},
+    {"pexpire",pexpireCommand,3,"wFj",0,NULL,1,1,1,0,0},
+    {"pexpireat",pexpireatCommand,3,"wFj",0,NULL,1,1,1,0,0},
     {"keys",keysCommand,2,"rSj",0,NULL,0,0,0,0,0},
     {"rediskeys",keysCommand,2,"rSj",0,NULL,0,0,0,0,0},
     {"ssdbkeys",keysCommand,2,"rSj",0,NULL,0,0,0,0,0},
@@ -2529,6 +2529,10 @@ void initServer(void) {
         server.db[j].ready_keys = dictCreate(&objectKeyPointerValueDictType,NULL);
         server.db[j].watched_keys = dictCreate(&keylistDictType,NULL);
 
+        // todo: 优化字典类型,避免较多的内存分配
+        if (server.jdjr_mode)
+            server.db[j].delete_expired_keys = dictCreate(&keyDictType,NULL);
+
         server.db[j].id = j;
         server.db[j].avg_ttl = 0;
     }
@@ -2831,8 +2835,7 @@ void propagateCmdHandledBySSDB(client *c) {
     long long milliseconds = 0;
     robj *argv[3];
 
-    if (!c || !c->cmd || !c->argv
-        || c->argc == 0)
+    if (!c || !c->cmd || !c->argv || c->argc == 0)
         return;
 
     /* Replicate this command as an SREM operation. */
@@ -2877,6 +2880,7 @@ void propagateCmdHandledBySSDB(client *c) {
         return;
     }
 
+    // todo: process for slaves on server.master connection
     /* Update expire time in redis and update AOF. */
     if (((reply->type == REDIS_REPLY_STATUS && !strcasecmp(reply->str, "ok"))
          || (reply->type == REDIS_REPLY_INTEGER && reply->integer == 1))
@@ -3618,23 +3622,6 @@ int processCommandReplicationConn(client* c, struct ssdb_write_op* slave_retry_w
         blockClient(server.master, BLOCKED_NO_WRITE_TO_SSDB);
 
         return C_BLOCKED;
-    }
-
-    if (cmd->proc == persistCommand || cmd->proc == pexpireatCommand) {
-        redisDb *db = c->db;
-        c->db = EVICTED_DATA_DB;
-        if (slave_retry_write) {
-            c->argc = argc;
-            c->argv = argv;
-            c->cmd = cmd;
-        }
-        call(c, CMD_CALL_FULL);
-        if (slave_retry_write) {
-            c->argc = 0;
-            c->argv = NULL;
-            c->cmd = NULL;
-        }
-        c->db = db;
     }
 
     /* Calling lookupKey to update lru or lfu counter. */

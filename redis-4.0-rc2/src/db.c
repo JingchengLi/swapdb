@@ -1201,6 +1201,13 @@ long long getExpire(redisDb *db, robj *key) {
 void propagateExpire(redisDb *db, robj *key, int lazy) {
     robj *argv[2];
 
+    // todo: delete keys async in delete_expired_keys dict
+    if (server.jdjr_mode) {
+        /* add this expired key to dict, we will tell ssdb to
+         * delete it. */
+        dictAddOrFind(db->delete_expired_keys, key->ptr);
+    }
+
     argv[0] = lazy ? shared.unlink : shared.del;
     argv[1] = key;
     incrRefCount(argv[0]);
@@ -1217,7 +1224,6 @@ void propagateExpire(redisDb *db, robj *key, int lazy) {
 int expireIfNeeded(redisDb *db, robj *key) {
     mstime_t when = getExpire(db,key);
     mstime_t now;
-    redisDb* propagete_db = db;
 
     if (when < 0) return 0; /* No expire for this key */
 
@@ -1247,20 +1253,9 @@ int expireIfNeeded(redisDb *db, robj *key) {
     server.stat_expiredkeys++;
 
     serverLog(LL_DEBUG, "expireIfNeeded: %s, now: %lld, when: %lld", (char *)key->ptr, now, when);
-    if (server.jdjr_mode) {
-        if (dictFind(EVICTED_DATA_DB->dict, key->ptr)) {
-            if (NULL == dictFind(EVICTED_DATA_DB->delete_confirm_keys, key->ptr))
-                dictAddOrFind(server.maybe_deleted_ssdb_keys, key->ptr);
-            return 1;
-        } else {
-            if (db->id == EVICTED_DATA_DBID)
-                propagete_db = server.db + 0;
-        }
-    }
 
     if (server.jdjr_mode) {
-        serverLog(LL_DEBUG, "db->id:%d,propagete_db->id:%d", db->id, propagete_db->id);
-        propagateExpire(propagete_db,key,server.lazyfree_lazy_expire);
+        propagateExpire(server.db+0,key,server.lazyfree_lazy_expire);
     } else {
         propagateExpire(db,key,server.lazyfree_lazy_expire);
     }

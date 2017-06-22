@@ -882,6 +882,13 @@ int prologOfEvictingToSSDB(robj *keyobj, redisDb *db) {
         return C_ERR;
     }
 
+    /* when the key was expired before but had not been deleted. but now we are sure
+     * it's a new key, so remove it from delete_expired_keys to avoid deleting a key
+     * by mistake. */
+    if (dictFind(db->delete_expired_keys, keyobj->ptr)) {
+        dictDelete(db->delete_expired_keys, keyobj->ptr);
+    }
+
     if (expiretime != -1) {
         /* todo: to optimize for keys with very little ttl time, we
          * don't transfer but let redis expire them. */

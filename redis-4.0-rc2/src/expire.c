@@ -54,10 +54,10 @@
 int activeExpireCycleTryExpire(redisDb *db, dictEntry *de, long long now) {
     long long t = dictGetSignedIntegerVal(de);
     if (now > t) {
-        if (server.jdjr_mode
-            && (db->id == EVICTED_DATA_DBID)
-            && dictFind(EVICTED_DATA_DB->visiting_ssdb_keys, de->key))
-            return 0;
+        //if (server.jdjr_mode
+        //    && (db->id == EVICTED_DATA_DBID)
+        //    && dictFind(EVICTED_DATA_DB->visiting_ssdb_keys, de->key))
+        //    return 0;
 
         sds key = dictGetKey(de);
         robj *keyobj = createStringObject(key,sdslen(key));
@@ -460,9 +460,8 @@ void ttlGenericCommand(client *c, int output_ms) {
     if (server.jdjr_mode
         && (lookupKeyReadWithFlags(EVICTED_DATA_DB,c->argv[1],LOOKUP_NOTOUCH) != NULL))
         db = EVICTED_DATA_DB;
-
-    /* If the key does not exist at all, return -2 */
-    if (lookupKeyReadWithFlags(db,c->argv[1],LOOKUP_NOTOUCH) == NULL) {
+    else if (lookupKeyReadWithFlags(db,c->argv[1],LOOKUP_NOTOUCH) == NULL) {
+        /* If the key does not exist at all, return -2 */
         addReplyLongLong(c,-2);
         return;
     }
