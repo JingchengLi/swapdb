@@ -775,7 +775,7 @@ int epilogOfEvictingToSSDB(robj *keyobj) {
     robj* delCmdObj = createStringObject("del",3);
     tmpargv[0] = delCmdObj;
     tmpargv[1] = keyobj;
-    propagate(lookupCommandByCString((char*)"del"),db->id, tmpargv, 2, PROPAGATE_AOF);
+    propagate(server.delCommand,db->id, tmpargv, 2, PROPAGATE_AOF);
     decrRefCount(delCmdObj);
 
     /* propage aof to set key in evict db. */
@@ -783,7 +783,7 @@ int epilogOfEvictingToSSDB(robj *keyobj) {
     tmpargv[0] = setCmdObj;
     tmpargv[1] = keyobj;
     tmpargv[2] = shared.space;
-    propagate(lookupCommandByCString((char*)"set"),EVICTED_DATA_DBID, tmpargv, 3, PROPAGATE_AOF);
+    propagate(server.setCommand,EVICTED_DATA_DBID, tmpargv, 3, PROPAGATE_AOF);
     decrRefCount(setCmdObj);
 
     /* Record the expire info. */

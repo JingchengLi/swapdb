@@ -1689,10 +1689,10 @@ void startToHandleCmdListInSlave(void) {
                 continue;
 
             server.load_evict_argv[0] = shared.dumpcmdobj;
-            server.slave_ssdb_load_evict_client->cmd = lookupCommandByCString("dumpfromssdb");
+            server.slave_ssdb_load_evict_client->cmd = server.dumpfromssdbCommand;
         } else if (TYPE_TRANSFER_TO_SSDB == type) {
             server.load_evict_argv[0] = shared.storecmdobj;
-            server.slave_ssdb_load_evict_client->cmd = lookupCommandByCString("storetossdb");
+            server.slave_ssdb_load_evict_client->cmd = server.storetossdbCommand;
         }
         server.load_evict_argv[1] = server.load_evict_key_arg;
         server.load_evict_argv[1]->ptr = key;
@@ -2176,6 +2176,12 @@ void initServerConfig(void) {
     server.expireCommand = lookupCommandByCString("expire");
     server.pexpireCommand = lookupCommandByCString("pexpire");
     server.pexpireatCommand = lookupCommandByCString("pexpireat");
+    server.persistCommand = lookupCommandByCString("persist");
+    server.setCommand = lookupCommandByCString("set");
+    server.restoreCommand = lookupCommandByCString("restore");
+    server.flushallCommand = lookupCommandByCString("flushall");
+    server.dumpfromssdbCommand = lookupCommandByCString("dumpfromssdb");
+    server.storetossdbCommand = lookupCommandByCString("storetossdb");
 
     /* Slow log */
     server.slowlog_log_slower_than = CONFIG_DEFAULT_SLOWLOG_LOG_SLOWER_THAN;
@@ -2875,12 +2881,12 @@ void propagateCmdHandledBySSDB(client *c) {
             /* Update aof. */
             argv[0] = createStringObject("PERSIST", 7);
             argv[1] = key;
-            propagate(lookupCommandByCString("persist"), EVICTED_DATA_DBID, argv, 2, PROPAGATE_AOF);
+            propagate(server.persistCommand, EVICTED_DATA_DBID, argv, 2, PROPAGATE_AOF);
 
             /* Propagate command. */
             if (c->cmd->proc == setCommand)
-                propagate(lookupCommandByCString("set"), 0, c->argv, 3, PROPAGATE_REPL);
-            propagate(lookupCommandByCString("persist"), 0, argv, 2, PROPAGATE_REPL);
+                propagate(server.setCommand, 0, c->argv, 3, PROPAGATE_REPL);
+            propagate(server.persistCommand, 0, argv, 2, PROPAGATE_REPL);
             decrRefCount(argv[0]);
         } else {
             setExpire(c, EVICTED_DATA_DB, key, milliseconds);
@@ -2892,12 +2898,13 @@ void propagateCmdHandledBySSDB(client *c) {
             propagate(server.pexpireatCommand, EVICTED_DATA_DBID, argv, 3, PROPAGATE_AOF);
 
             /* Propagate command. */
-            if (c->cmd->proc == setexCommand || c->cmd->proc == psetexCommand) {
+            if (c->cmd->proc == setexCommand || c->cmd->proc == psetexCommand
+                || c->cmd->proc == setCommand) {
                 robj *replargv[3];
                 replargv[0] = createStringObject("SET", 3);
                 replargv[1] = key;
-                replargv[2] = c->argv[3];
-                propagate(lookupCommandByCString("set"), 0, replargv, 3, PROPAGATE_REPL);
+                replargv[2] = (c->cmd->proc == setCommand) ? c->argv[2] : c->argv[3];
+                propagate(server.setCommand, 0, replargv, 3, PROPAGATE_REPL);
                 decrRefCount(replargv[0]);
             }
 
@@ -3446,7 +3453,7 @@ int confirmAndRetrySlaveSSDBwriteOp(time_t time, int index) {
                     ret = sendRepopidToSSDB(server.master, op->time, op->index, 1);
                     if (ret != C_OK) break;
 
-                    server.master->cmd = lookupCommandByCString("flushall");
+                    server.master->cmd = server.flushallCommand;
                     server.master->argc = 1;
                     server.master->argv = zmalloc(sizeof(robj *) * 1);
                     server.master->argv[0] = createObject(OBJ_STRING, sdsnew("flushall"));

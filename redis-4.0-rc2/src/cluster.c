@@ -4726,14 +4726,14 @@ void ssdbRespRestoreCommand(client *c) {
             restore_argv[0] = createStringObject("restore", strlen("restore"));
             memcpy(restore_argv+1,c->argv+1,(c->argc-1) * sizeof(robj*));
 
-            propagate(lookupCommandByCString((char*)"restore"),c->db->id,restore_argv,c->argc,PROPAGATE_AOF);
+            propagate(server.restoreCommand,c->db->id,restore_argv,c->argc,PROPAGATE_AOF);
             decrRefCount(restore_argv[0]);
             zfree(restore_argv);
 
             robj* delCmdObj = createStringObject("del",3);
             tmpargv[0] = delCmdObj;
             tmpargv[1] = key;
-            propagate(lookupCommandByCString((char*)"del"),EVICTED_DATA_DBID,tmpargv,2,PROPAGATE_AOF);
+            propagate(server.delCommand,EVICTED_DATA_DBID,tmpargv,2,PROPAGATE_AOF);
             decrRefCount(delCmdObj);
 
             // progate dumpfromssdb to slaves
@@ -4787,7 +4787,7 @@ void ssdbRespNotfoundCommand(client *c) {
 
             /* propagate to delete key in evict db and in slave redis, at slave side, the key is maybe in
              * redis or ssdb, so we just use db 0 to make sure we can delete it. */
-            propagate(lookupCommandByCString((char*)"del"),0,tmpargv,2,PROPAGATE_AOF|PROPAGATE_REPL);
+            propagate(server.delCommand,0,tmpargv,2,PROPAGATE_AOF|PROPAGATE_REPL);
             decrRefCount(tmpargv[0]);
 
             if (dictDelete(EVICTED_DATA_DB->loading_hot_keys, keyobj->ptr) == DICT_OK) {
