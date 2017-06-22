@@ -1657,6 +1657,7 @@ int handleExtraSSDBReply(client *c) {
     serverAssert(reply->type == REDIS_REPLY_ARRAY);
     element0 = reply->element[0];
     serverAssert(element0->type == REDIS_REPLY_STRING);
+    serverLog(LL_DEBUG, "check reply:%s", element0->str);
 
     if (server.master == c) {
         /* process "repopid" response for slave redis. */
