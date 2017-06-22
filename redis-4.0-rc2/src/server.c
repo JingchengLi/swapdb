@@ -2876,12 +2876,12 @@ void propagateCmdHandledBySSDB(client *c) {
             argv[0] = createStringObject("PERSIST", 7);
             argv[1] = key;
             propagate(lookupCommandByCString("persist"), EVICTED_DATA_DBID, argv, 2, PROPAGATE_AOF);
-            decrRefCount(argv[0]);
 
             /* Propagate command. */
             if (c->cmd->proc == setCommand)
                 propagate(lookupCommandByCString("set"), 0, c->argv, 3, PROPAGATE_REPL);
             propagate(lookupCommandByCString("persist"), 0, argv, 2, PROPAGATE_REPL);
+            decrRefCount(argv[0]);
         } else {
             setExpire(c, EVICTED_DATA_DB, key, milliseconds);
 
