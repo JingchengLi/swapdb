@@ -178,6 +178,9 @@ void emptyEvictionPool() {
             ep[j].dbid = 0;
         }
     }
+    serverAssert(EvictionPoolLRU[0].key == NULL && EvictionPoolLRU[0].idle == 0);
+    serverAssert(ColdKeyPool[0].key == NULL && ColdKeyPool[0].idle == 0);
+    serverAssert(HotKeyPool[0].key == NULL && HotKeyPool[0].idle == 0);
 }
 
 void tryInsertHotOrColdPool(struct evictionPoolEntry *pool, sds key, int dbid, unsigned long long idle, int pool_type) {
@@ -280,7 +283,7 @@ void replaceKeyInPool(struct evictionPoolEntry *pool, sds key, int dbid, unsigne
                     sds cached = pool[old_index].cached;
 
                     k--;
-                    /* move keys backwards*/
+                    /* move keys forwards*/
                     memmove(pool+old_index, pool+old_index+1, (k-old_index)*sizeof(pool[0]));
                     /* re-use the buffer */
                     pool[k].cached = cached;
@@ -289,7 +292,7 @@ void replaceKeyInPool(struct evictionPoolEntry *pool, sds key, int dbid, unsigne
             } else if (old_index > k) {
                 sds save = pool[old_index].key;
                 sds cached = pool[old_index].cached;
-                /* move keys forwards*/
+                /* move keys backwards*/
                 memmove(pool+k+1, pool+k, (old_index-k)*sizeof(pool[0]));
                 /* re-use the buffer */
                 pool[k].cached = cached;
@@ -970,8 +973,13 @@ void addHotKeys() {
         pool[k].idle = 0;
 
         /* move all keys in the right to left by one item. */
-        if (k != EVPOOL_SIZE-1 && pool[k+1].key != NULL)
+        if (k != EVPOOL_SIZE-1 && pool[k+1].key != NULL) {
+            sds save = pool[k].cached;
             memmove(pool+k, pool+k+1, sizeof(pool[0])*(EVPOOL_SIZE-k-1));
+            pool[EVPOOL_SIZE-1].cached = save;
+            pool[EVPOOL_SIZE-1].key = NULL;
+            pool[EVPOOL_SIZE-1].idle = 0;
+        }
 
         if (dictSize(server.hot_keys)+dictSize(EVICTED_DATA_DB->loading_hot_keys) >=
             MASTER_MAX_CONCURRENT_LOADING_KEYS)
