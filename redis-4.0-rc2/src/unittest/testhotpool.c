@@ -22,9 +22,9 @@ struct evictionPoolEntry {
 };
 
 const char* keys[] = {
-    "xxx","yyy","zzz","rrr","sss","ttt","uuu","vvv","www",
-    "000","aaa","bbb","ccc","ddd","eee","fff","ggg","hhh",
-    "iii","jjj","kkk","lll","mmm","nnn","ooo","ppp","qqq"
+    "xxx","yyy","zzz","rrr","sss","ttt",
+    "uuu","vvv","www", "000","aaa","bbb","ccc","ddd","eee","fff","ggg","hhh",
+    //"iii","jjj","kkk","lll", "mmm","nnn","ooo","ppp","qqq"
 };
 
 struct evictionPoolEntry *TestHotKeyPool ;
@@ -175,6 +175,8 @@ void replaceKeyInHotPool(sds key, int dbid, unsigned long long idle) {
     replaceKeyInPool(TestHotKeyPool, key, dbid, idle, HOT_POOL_TYPE);
 }
 
+
+
 void test_hotpool_equal(int* id, struct evictionPoolEntry ep[], int size) {
     int i;
     int failed = 0;
@@ -196,6 +198,37 @@ void test_hotpool_equal(int* id, struct evictionPoolEntry ep[], int size) {
         printf("TEST[%d] PASS\n", *id);
     (*id)++;
 }
+
+void removeHotKeys() {
+    int k;
+    int i = 0;
+    struct evictionPoolEntry *pool = TestHotKeyPool;
+
+    /* Go backward from best to worst element to evict. */
+    for (k = EVPOOL_SIZE-1; k >= 0; k--) {
+        if (pool[k].key == NULL) continue;
+        if (i == 5) break;
+
+        if (random()%10 == 0) continue;
+
+        /* Remove the entry from the pool. */
+        if (pool[k].key != pool[k].cached)
+            sdsfree(pool[k].key);
+        pool[k].key = NULL;
+        pool[k].idle = 0;
+
+        /* move all keys in the right to left by one item. */
+        if (k != EVPOOL_SIZE-1 && pool[k+1].key != NULL) {
+            sds save = pool[k].cached;
+            memmove(pool+k, pool+k+1, sizeof(pool[0])*(EVPOOL_SIZE-k-1));
+            pool[EVPOOL_SIZE-1].cached = save;
+            pool[EVPOOL_SIZE-1].key = NULL;
+            pool[EVPOOL_SIZE-1].idle = 0;
+        }
+        i++;
+    }
+}
+
 
 typedef struct evictionPoolEntry POOL_RESULTS[EVPOOL_SIZE] ;
 #define TEST_RESULTS(id,arr,size)  {test_hotpool_equal(&id, arr, size);sdsfree(s);}
@@ -319,8 +352,10 @@ void random_test_hotkeypool() {
     int j = 0;
     while(1) {
         unsigned long long idle = random()%16;
-        if (j == 0 || (j%5 != 0))
+        if (j == 0 || (j%5 != 0)) {
+            removeHotKeys();
             key = keys[random()%(sizeof(keys)/sizeof(char*))];
+        }
         sds s=sdsnew(key);
 
         printf("try insert key: %s, idle: %llu\n", s, idle);
