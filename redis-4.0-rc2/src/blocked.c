@@ -223,6 +223,8 @@ int replyToBlockedClientTimedOut(client *c) {
                    || c->btype == BLOCKED_BY_DELETE_CONFIRM
                    || c->btype == BLOCKED_MIGRATING_CLIENT
                    || c->btype == BLOCKED_MIGRATING_DUMP)) {
+        /* must unblock for BLOCKED_VISITING_SSDB and BLOCKED_MIGRATING_DUMP types. */
+        unblockClient(c);
         addReplyError(c, "timeout");
         serverLog(LOG_DEBUG, "[!!!!]block timeout(client:%p,btype:%d), will free client", (void*)c, c->btype);
         /* free client to avoid unexpected issues.*/
