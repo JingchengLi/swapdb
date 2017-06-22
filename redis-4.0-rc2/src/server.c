@@ -3542,6 +3542,7 @@ int updateSendRepopidToSSDB(client* c) {
 
 void recordVisitingSSDBkeys(struct redisCommand* cmd, robj** argv, int argc) {
     int *keys = NULL, numkeys = 0, j;
+
     keys = getKeysFromCommand(cmd, argv, argc, &numkeys);
     for (j = 0; j < numkeys; j ++)
         /* TODO: only support single key command. */
@@ -3777,7 +3778,8 @@ int processCommandMaybeInSSDB(client *c) {
             server.stat_keyspace_ssdb_hits ++;
 
             /* Record the keys visting SSDB. */
-            recordVisitingSSDBkeys(c->cmd, c->argv, c->argc);
+            if (server.masterhost == NULL)
+                recordVisitingSSDBkeys(c->cmd, c->argv, c->argc);
 
             /* TODO: use a suitable timeout. */
             c->bpop.timeout = server.client_visiting_ssdb_timeout + mstime();
