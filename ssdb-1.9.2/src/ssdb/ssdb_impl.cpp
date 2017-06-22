@@ -504,24 +504,6 @@ SSDBImpl::CommitBatch(Context &ctx, const leveldb::WriteOptions &options, leveld
             assert(0);
         }
 
-//        if ((ctx.currentSeqCnx.timestamp == ctx.lastSeqCnx.timestamp)) {
-//            if (ctx.currentSeqCnx != 0) {
-//
-//                int64_t res = ctx.currentSeqCnx.id - ctx.lastSeqCnx.id;
-//
-//                if (res != 1) {
-//                    log_error("ctx.currentSeqCnx.id(%d) - ctx.lastSeqCnx.id(%d) != 1", ctx.currentSeqCnx.id,
-//                              ctx.lastSeqCnx.id);
-//                }
-//            }
-//
-//        } else {
-//            if (ctx.currentSeqCnx != 1) {
-//                log_error("ctx.currentSeqCnx.id(%d) != 1", ctx.currentSeqCnx.id);
-//            }
-//
-//        }
-
         updates->Put(handles[1], encode_repo_key(),
                      encode_repo_item(ctx.currentSeqCnx.timestamp, ctx.currentSeqCnx.id));
 
@@ -529,7 +511,6 @@ SSDBImpl::CommitBatch(Context &ctx, const leveldb::WriteOptions &options, leveld
     leveldb::Status s = ldb->Write(options, updates);
 
     if (ctx.replLink) {
-        ctx.lastSeqCnx = ctx.currentSeqCnx;
         ctx.setFirstbatch(false);
     }
 

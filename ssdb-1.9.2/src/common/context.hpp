@@ -86,7 +86,12 @@ public:
             vec.emplace_back("check 0");
         }
 
-        vec.emplace_back(lastSeqCnx.toString());
+
+        if (replLink) {
+            lastSeqCnx = currentSeqCnx;
+        }
+
+        vec.emplace_back(std::move(lastSeqCnx.toString()));
 
         return vec;
     }
