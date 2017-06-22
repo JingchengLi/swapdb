@@ -155,8 +155,9 @@ void unblockClient(client *c) {
                    || c->btype == BLOCKED_BY_DELETE_CONFIRM
                    || c->btype == BLOCKED_MIGRATING_CLIENT)) {
         /* Doing nothing. */
-    } else if (server.jdjr_mode && server.masterhost == NULL && c->btype == BLOCKED_VISITING_SSDB) {
-        removeVisitingSSDBKey(c->cmd, c->argc, c->argv);
+    } else if (server.jdjr_mode && c->btype == BLOCKED_VISITING_SSDB) {
+        if (server.masterhost == NULL)
+            removeVisitingSSDBKey(c->cmd, c->argc, c->argv);
     } else if (server.jdjr_mode && c->btype == BLOCKED_MIGRATING_DUMP) {
         /* Migrate will translated to del after migrateCommand(). */
         serverAssert(c->cmd->proc == migrateCommand
