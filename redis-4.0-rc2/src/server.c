@@ -3776,6 +3776,9 @@ int processCommandMaybeInSSDB(client *c) {
         robj* val = lookupKey(EVICTED_DATA_DB, keyobj, LOOKUP_NONE);
         if (val) {
             int ret;
+            if (expireIfNeeded(EVICTED_DATA_DB, keyobj) == 1)
+                return C_ERR;
+
             if (processBeforeVisitingSSDB(c, keyobj) == C_OK)
                 return C_OK;
 
