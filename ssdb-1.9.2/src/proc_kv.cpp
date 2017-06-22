@@ -364,7 +364,14 @@ int proc_exists(Context &ctx, Link *link, const Request &req, Response *resp){
 		}
 	});
 
-    resp->reply_int(1, count);
+    if (count < (req.size()-1)) {
+        check_key(0);
+    } else {
+        check_key(1);
+    }
+
+    resp->reply_int(1,count);
+
 	return 0;
 }
 
