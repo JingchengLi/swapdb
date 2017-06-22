@@ -22,7 +22,7 @@ class ExpirationHandler {
 public:
     Mutex mutex;
 
-    explicit ExpirationHandler(SSDBImpl *ssdb);
+    explicit ExpirationHandler(SSDBImpl *ssdb, bool ex_enable);
 
     ~ExpirationHandler();
 
@@ -43,11 +43,13 @@ public:
 
     int expireAt(Context &ctx, const Bytes &key, int64_t pexpireat_ms, leveldb::WriteBatch &batch, bool lock = true);
 
-    void start();
+    int contrlExpiration(bool if_enable);
 
-    void stop();
+    int start();
 
-    void clear();
+    int stop();
+
+    int clear();
 
 
     int cancelExpiration(Context &ctx, const Bytes &key, leveldb::WriteBatch &batch);
@@ -55,17 +57,19 @@ public:
 private:
     SSDBImpl *ssdb;
 
+    volatile bool expire_enable;
+
     volatile bool thread_quit;
     std::atomic<int64_t> first_timeout;
     SortedSet<int64_t> fast_keys;
 
-    void expire_loop();
+    void _expire_loop();
 
-    static void *thread_func(void *arg);
+    static void *_thread_func(void *arg);
 
-    void load_expiration_keys_from_db(int num);
+    void _load_expiration_keys_from_db(int num);
 
-    void insertFastKey(const std::string &key, int64_t pexpireat_ms);
+    void _insertFastKey(const std::string &key, int64_t pexpireat_ms);
 };
 
 

@@ -59,6 +59,7 @@ void Options::load(Config *conf){
 		max_bytes_for_level_multiplier = 10;
 	}
 #else
+	expire_enable = conf->get_bool("server.expire_enable", false);
 
 	cache_size = (size_t)conf->get_num("rocksdb.cache_size", 16);
 	sim_cache = (size_t)conf->get_num("rocksdb.sim_cache", 0);

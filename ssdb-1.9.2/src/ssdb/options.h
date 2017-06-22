@@ -50,6 +50,7 @@ struct Options {
     bool transfer_compression = true;
     bool level_compaction_dynamic_level_bytes = false;
     bool use_direct_reads = false;
+    bool expire_enable = false;
 
     int max_write_buffer_number = 3;
     int max_background_flushes = 4;

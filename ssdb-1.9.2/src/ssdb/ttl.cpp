@@ -9,10 +9,13 @@ found in the LICENSE file.
 
 const int BATCH_SIZE = 1000;
 
-ExpirationHandler::ExpirationHandler(SSDBImpl *ssdb) {
+#define CHECK_DISABLD_EXPIRE  if (!expire_enable) {return 1;}
+
+ExpirationHandler::ExpirationHandler(SSDBImpl *ssdb, bool expire_enable) {
     this->ssdb = ssdb;
     this->thread_quit = false;
 //	this->list_name = EXPIRATION_LIST_KEY;
+    this->expire_enable = expire_enable;
     this->first_timeout = 0;
     this->start();
 }
@@ -23,21 +26,36 @@ ExpirationHandler::~ExpirationHandler() {
     ssdb = nullptr;
 }
 
-void ExpirationHandler::start() {
+int ExpirationHandler::start() {
+
+    {
+//        Locking<Mutex> exl(&this->mutex);
+        CHECK_DISABLD_EXPIRE
+    }
+
+
     thread_quit = false;
 
     this->clear();
 
     first_timeout = 0;
     pthread_t tid;
-    int err = pthread_create(&tid, nullptr, &ExpirationHandler::thread_func, this);
+    int err = pthread_create(&tid, nullptr, &ExpirationHandler::_thread_func, this);
     if (err != 0) {
         log_fatal("can't create thread: %s", strerror(err));
         exit(0);
     }
+
+    return 0;
 }
 
-void ExpirationHandler::stop() {
+int ExpirationHandler::stop() {
+
+    {
+//        Locking<Mutex> exl(&this->mutex);
+        CHECK_DISABLD_EXPIRE
+    }
+
 
     log_info("ExpirationHandler stopping");
 
@@ -52,6 +70,8 @@ void ExpirationHandler::stop() {
 
     this->clear();
     first_timeout = 0;
+
+    return 0;
 }
 
 int ExpirationHandler::convert2ms(int64_t *ttl, TimeUnit tu) {
@@ -85,6 +105,8 @@ int ExpirationHandler::expireAt(Context &ctx, const Bytes &key, int64_t pexpirea
 
     RecordKeyLock l(&ssdb->mutex_record_, key.String(), lock);
 
+    CHECK_DISABLD_EXPIRE
+
     int ret = 0;
 
     if (pexpireat_ms <= time_ms()) {
@@ -105,7 +127,7 @@ int ExpirationHandler::expireAt(Context &ctx, const Bytes &key, int64_t pexpirea
             return ret;
         }
 
-        insertFastKey(key.String(), pexpireat_ms);
+        _insertFastKey(key.String(), pexpireat_ms);
 
     }
 
@@ -124,7 +146,7 @@ int ExpirationHandler::expireAt(Context &ctx, const Bytes &key, int64_t pexpirea
 
 }
 
-void ExpirationHandler::insertFastKey(const std::string &s_key, int64_t pexpireat_ms) {
+void ExpirationHandler::_insertFastKey(const std::string &s_key, int64_t pexpireat_ms) {
     Locking<Mutex> exl(&mutex);
     if (pexpireat_ms < first_timeout) {
         first_timeout = pexpireat_ms;
@@ -142,6 +164,13 @@ void ExpirationHandler::insertFastKey(const std::string &s_key, int64_t pexpirea
 
 
 int ExpirationHandler::persist(Context &ctx, const Bytes &key) {
+
+    {
+        Locking<Mutex> exl(&this->mutex);
+        CHECK_DISABLD_EXPIRE
+    }
+
+
     int ret = 0;
     if (first_timeout != INT64_MAX) {
         RecordKeyLock l(&ssdb->mutex_record_, key.String());
@@ -161,6 +190,13 @@ int ExpirationHandler::persist(Context &ctx, const Bytes &key) {
 }
 
 int64_t ExpirationHandler::pttl(Context &ctx, const Bytes &key, TimeUnit tu) {
+
+    {
+        Locking<Mutex> exl(&this->mutex);
+        CHECK_DISABLD_EXPIRE
+    }
+
+
     int64_t ex = 0;
     int64_t ttl = 0;
     int ret = ssdb->check_meta_key(ctx, key);
@@ -185,7 +221,7 @@ int64_t ExpirationHandler::pttl(Context &ctx, const Bytes &key, TimeUnit tu) {
     return -1;
 }
 
-void ExpirationHandler::load_expiration_keys_from_db(int num) {
+void ExpirationHandler::_load_expiration_keys_from_db(int num) {
 
     std::string start;
     start.append(1, DataType::ESCORE);
@@ -205,7 +241,7 @@ void ExpirationHandler::load_expiration_keys_from_db(int num) {
     log_debug("load %d keys into fast_keys", n);
 }
 
-void ExpirationHandler::expire_loop() {
+void ExpirationHandler::_expire_loop() {
 
     bool needLoad = false;
     {
@@ -221,7 +257,7 @@ void ExpirationHandler::expire_loop() {
     }
 
     if (needLoad) {
-        this->load_expiration_keys_from_db(BATCH_SIZE);
+        this->_load_expiration_keys_from_db(BATCH_SIZE);
 
         {
             Locking<Mutex> exl(&this->mutex);
@@ -267,7 +303,7 @@ void ExpirationHandler::expire_loop() {
 
 }
 
-void *ExpirationHandler::thread_func(void *arg) {
+void *ExpirationHandler::_thread_func(void *arg) {
     ExpirationHandler *handler = (ExpirationHandler *) arg;
 
     while (!handler->thread_quit) {
@@ -276,7 +312,7 @@ void *ExpirationHandler::thread_func(void *arg) {
             continue;
         }
 
-        handler->expire_loop();
+        handler->_expire_loop();
     }
 
     log_info("ExpirationHandler thread quit");
@@ -285,15 +321,40 @@ void *ExpirationHandler::thread_func(void *arg) {
 }
 
 int ExpirationHandler::cancelExpiration(Context &ctx, const Bytes &key, leveldb::WriteBatch &batch) {
-
     Locking<Mutex> exl(&this->mutex);
+
+    CHECK_DISABLD_EXPIRE
+
     this->fast_keys.del(key.String());
 
     return ssdb->edel_one(ctx, key, batch);
 }
 
-void ExpirationHandler::clear() {
+int ExpirationHandler::clear() {
     Locking<Mutex> exl(&this->mutex);
+
+    CHECK_DISABLD_EXPIRE
+
     fast_keys.clear();
+}
+
+int ExpirationHandler::contrlExpiration(bool if_enable) {
+    Locking<Mutex> exl(&this->mutex);
+
+    if (if_enable) {
+        if (!expire_enable) {
+            expire_enable= true;
+            start();
+        }
+
+    } else {
+
+        if (expire_enable) {
+            expire_enable= false;
+            stop();
+        }
+
+    }
+    return 0;
 }
 
