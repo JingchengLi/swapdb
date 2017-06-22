@@ -230,7 +230,7 @@ int proc_pttl(Context &ctx, Link *link, const Request &req, Response *resp){
 
 	int64_t ttl = serv->ssdb->expiration->pttl(ctx, req[1], TimeUnit::Millisecond);
 	if (ttl == -2) {
-		check_key(0);
+		force_check_key();
 	}
 	resp->reply_int(1, ttl);
 
@@ -243,7 +243,7 @@ int proc_ttl(Context &ctx, Link *link, const Request &req, Response *resp){
 
 	int64_t ttl = serv->ssdb->expiration->pttl(ctx, req[1], TimeUnit::Second);
 	if (ttl == -2) {
-		check_key(0);
+		force_check_key();
 	}
 	resp->reply_int(1, ttl);
 
@@ -264,7 +264,7 @@ int proc_pexpire(Context &ctx, Link *link, const Request &req, Response *resp){
     if (ret < 0) {
 		reply_err_return(ret);
 	} else if (ret < 2) {
-		check_key(0);
+		force_check_key();
 	}
 
 	resp->reply_bool(ret);
@@ -285,7 +285,7 @@ int proc_expire(Context &ctx, Link *link, const Request &req, Response *resp){
     if (ret < 0) {
 		reply_err_return(ret);
 	} else if (ret < 2) {
-		check_key(0);
+		force_check_key();
 	}
 
 	resp->reply_bool(ret);
@@ -307,7 +307,7 @@ int proc_expireat(Context &ctx, Link *link, const Request &req, Response *resp){
     if (ret < 0) {
 		reply_err_return(ret);
 	} else if (ret < 2) {
-		check_key(0);
+		force_check_key();
 	}
 
 	resp->reply_bool(ret);
@@ -344,7 +344,7 @@ int proc_pexpireat(Context &ctx, Link *link, const Request &req, Response *resp)
 	if(ret < 0){
 		reply_err_return(ret);
 	} else if (ret < 2) {
-		check_key(0);
+		force_check_key();
 	}
 
 	resp->reply_bool(ret);
@@ -365,9 +365,7 @@ int proc_exists(Context &ctx, Link *link, const Request &req, Response *resp){
 	});
 
     if (count < (req.size()-1)) {
-        check_key(0);
-    } else {
-        check_key(1);
+        force_check_key();
     }
 
     resp->reply_int(1,count);
@@ -405,7 +403,7 @@ int proc_multi_del(Context &ctx, Link *link, const Request &req, Response *resp)
 	if(ret < 0){
 		reply_err_return(ret);
 	} else{
-		check_key(0);
+		force_check_key();
 		resp->reply_int(0, num);
 	}
 

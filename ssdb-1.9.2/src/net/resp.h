@@ -19,6 +19,7 @@ found in the LICENSE file.
 #define reply_errinfo_return(c) resp->reply_errror((c)); return 0
 
 #define check_key(ret) if ((ret) == 0) ctx.mark_check()
+#define force_check_key() ctx.mark_check()
 
 
 class Response
