@@ -3,14 +3,14 @@ source tests/support/redis.tcl
 proc start_hit_ssdb_tps {host port seconds} {
     set start_time [clock seconds]
     set r [redis $host $port 0]
-    $r set keynull 0
-    $r storetossdb keynull
+    $r set keynull nullkey
+    catch { $r storetossdb keynull }
     set rule [lindex [$r config get ssdb-load-rule] 1]
     lassign $rule time tps
     while 1 {
         for {set i 0} {$i < [expr $tps/$time*1.1]} {incr i} {
-            $r setlfu keynull 0
-            $r expire keynull 2
+            catch { $r setlfu keynull 0 }
+            catch { $r setex keynull 2 nullkey }
         }
         after 1
         if {[clock seconds]-$start_time > $seconds} {

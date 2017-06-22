@@ -190,7 +190,7 @@ start_server {tags {"repl"}} {
                 set count [expr [randomInt 100]]
                 set result [$master spop myset $count]
                 r -1 config set maxmemory 0
-                r -1 exists myset
+                r -1 dumpfromssdb myset
                 wait_for_condition 10 50 {
                     [r -1 debug digest] == [r debug digest]
                 } else {

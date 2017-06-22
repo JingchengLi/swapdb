@@ -29,7 +29,7 @@ overrides {maxmemory 0}} {
         test "load key when satisfy rule $time $tps" {
             r storetossdb foo
             r storetossdb foo_1
-            r storetossdb foo_2
+            dumpto_ssdb_and_wait r foo_2
             r setlfu foo_2 10;# make its lfu > 5
             r get foo_2
             access_key_tps_time foo [expr $tps/$time*0.9] $time

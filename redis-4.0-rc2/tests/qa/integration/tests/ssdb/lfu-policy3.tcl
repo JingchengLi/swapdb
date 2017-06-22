@@ -331,10 +331,16 @@ start_server {tags {"lfu"}} {
 
         test "keys with more frequently access less possible storetossdb" {
             #Now lower-limit is 100, upper-limit is 60
-            set_lfu_keys key_a 1000 4
-            set_lfu_keys key_b 1000 3
-            set_lfu_keys key_c $numkey_c 2
+            r flushall
+            create_lfu_keys key_a 3000 1
+            create_lfu_keys key_b 3000 1
+            create_lfu_keys key_c 3000 1
+            create_lfu_keys key_d 3000 1
+            set_lfu_keys key_a 3000 4
+            set_lfu_keys key_b 3000 3
+            set_lfu_keys key_c 3000 2
             set_lfu_keys key_d 3000 1
+            wait_memory_stable
             set used [s used_memory]
             set limit [expr 2*$used]
             set ssdb_transfer_limit 30
@@ -344,13 +350,13 @@ start_server {tags {"lfu"}} {
             assert {[s used_memory] < $limit*($ssdb_transfer_limit/100.0)*1}
             # memory usage near to the limit.
             assert {[s used_memory] > $limit*($ssdb_transfer_limit/100.0)*0.7}
-            set key_a_ssdb [sum_keystatus key_a 1000 ssdb]
-            set key_b_ssdb [sum_keystatus key_b 1000 ssdb]
-            set key_c_ssdb [sum_keystatus key_c $numkey_c ssdb]
+            set key_a_ssdb [sum_keystatus key_a 3000 ssdb]
+            set key_b_ssdb [sum_keystatus key_b 3000 ssdb]
+            set key_c_ssdb [sum_keystatus key_c 3000 ssdb]
             set key_d_ssdb [sum_keystatus key_d 3000 ssdb]
-            assert {[expr double($key_a_ssdb)/1000] <= [expr double($key_b_ssdb)/1000]}
-            assert {[expr double($key_b_ssdb)/1000] <= [expr double($key_c_ssdb)/$numkey_c]}
-            assert {[expr double($key_c_ssdb)/$numkey_c] <= [expr double($key_d_ssdb)/3000]}
+            assert {[expr double($key_a_ssdb)/3000] <= [expr double($key_b_ssdb)/3000]}
+            assert {[expr double($key_b_ssdb)/3000] <= [expr double($key_c_ssdb)/3000]}
+            assert {[expr double($key_c_ssdb)/3000] <= [expr double($key_d_ssdb)/3000]}
         }
     }
 }

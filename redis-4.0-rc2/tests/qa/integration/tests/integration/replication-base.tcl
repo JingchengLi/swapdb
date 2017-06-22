@@ -56,7 +56,6 @@ start_server {tags {"repl"}} {
     }
 }
 
-
 start_server {tags {"repl"}} {
     r set mykey foo
 
@@ -275,13 +274,7 @@ foreach dl {no} {
 
                 # Check digests when all keys be hot
                 r -1 config set maxmemory 0
-                set digest [debug_digest r -1]
-                set digest2 [debug_digest r 0]
-                wait_for_condition 500 100 {
-                    $digest == [r debug digest]
-                } else {
-                    fail "Different digest between master and single slave after too long time."
-                }
+                compare_debug_digest {-1 0}
             }
        }
     }
@@ -367,7 +360,7 @@ foreach dl {no} {
                             fail "Different digest between master and slave after too long time."
                         }
                     }
-               }
+                }
             }
         }
     }
