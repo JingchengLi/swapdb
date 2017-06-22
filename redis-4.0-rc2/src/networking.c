@@ -1846,12 +1846,11 @@ int handleResponseOfMigrateDump(client *c) {
     serverAssert(keyobj && de);
 
     if (reply && reply->type == REDIS_REPLY_STRING
-        && (c->btype == BLOCKED_MIGRATING_DUMP)) {
+        && c->btype == BLOCKED_MIGRATING_DUMP) {
         olddb = c->db;
         c->db = EVICTED_DATA_DB;
         call(c, CMD_CALL_FULL);
         c->db = olddb;
-        serverAssert(delMigratingSSDBKey(keyobj->ptr) == DICT_OK);
         return C_OK;
     }
 
@@ -1923,8 +1922,8 @@ void handleSSDBReply(client *c, int revert_len) {
     /* Unblock the client is reading/writing SSDB. */
     if (c->btype == BLOCKED_VISITING_SSDB
         || c->btype == BLOCKED_MIGRATING_DUMP) {
-        unblockClient(c);
         propagateCmdHandledBySSDB(c);
+        unblockClient(c);
         resetClient(c);
     }
 }
