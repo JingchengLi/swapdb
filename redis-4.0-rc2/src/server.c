@@ -1667,11 +1667,13 @@ void startToHandleCmdListInSlave(void) {
 
     total_returned = 0;
     while (max_retry--) {
-        if (total_returned > SLAVE_MAX_SSDB_SWAP_COUNT_EVERYTIME) break;
+        if (total_returned >= SLAVE_MAX_SSDB_SWAP_COUNT_EVERYTIME) break;
         /* for slave redis, limit the transfer/load operation count to MAX_SSDB_SWAP_COUNT_EVERY_TIME every time,
         * avoid to cause a long time delay of data replication for server.master when do stress test. */
         returned = dictGetSomeKeys(server.loadAndEvictCmdDict, random_entries, SLAVE_MAX_SSDB_SWAP_COUNT_EVERYTIME);
         if (returned == 0) continue;
+
+        total_returned += returned;
 
         qsort(random_entries, returned, sizeof(dictEntry *), cmpDictEntry);
         for (j = 0; j < returned; j++) {
