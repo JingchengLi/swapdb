@@ -4,8 +4,8 @@
 
 #include <vector>
 #include <dirent.h>
-#include <rocksdb/status.h>
 #include <sys/stat.h>
+#include <sys/errno.h>
 #include "file2.h"
 
 namespace R2mFile {
