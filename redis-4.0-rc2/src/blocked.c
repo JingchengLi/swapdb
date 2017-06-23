@@ -171,6 +171,8 @@ void unblockClient(client *c) {
                     blocked = removeFirstClientFromListForBlockedKey(server.db[0].blocking_keys_write_same_ssdbkey, keyobj);
                     serverAssert(blocked->btype == BLOCKED_WRITE_SAME_SSDB_KEY);
                     unblockClient(blocked);
+                    serverLog(LL_DEBUG, "client fd:%d, cmd: %s, key: %s is unblocked",
+                              blocked->fd, blocked->cmd->name, (char*)keyobj->ptr);
                     if (C_OK == runCommand(blocked))
                         resetClient(blocked);
                 }
@@ -224,7 +226,8 @@ int replyToBlockedClientTimedOut(client *c) {
                    || c->btype == BLOCKED_BY_DELETE_CONFIRM
                    || c->btype == BLOCKED_MIGRATING_CLIENT
                    || c->btype == BLOCKED_MIGRATING_DUMP)) {
-        serverLog(LOG_DEBUG, "[!!!!]block timeout(client:%p,btype:%d), will free client", (void*)c, c->btype);
+        serverLog(LOG_DEBUG, "[!!!!]block timeout(client:%p,fd:%d,btype:%d), will free client",
+                  (void*)c, c->fd, c->btype);
         /* must unblock for BLOCKED_VISITING_SSDB and BLOCKED_MIGRATING_DUMP types. */
         unblockClient(c);
         addReplyError(c, "timeout");
@@ -234,6 +237,7 @@ int replyToBlockedClientTimedOut(client *c) {
     } else if (server.jdjr_mode && (c->btype == BLOCKED_WRITE_SAME_SSDB_KEY ||
                                     c->btype == BLOCKED_NO_READ_WRITE_TO_SSDB ||
                                     c->btype == BLOCKED_NO_WRITE_TO_SSDB)) {
+        serverLog(LOG_DEBUG, "[!!!!]block timeout(client:%p,fd:%d,btype:%d), reset it", (void*)c, c->fd, c->btype);
         unblockClient(c);
         if (c->btype == BLOCKED_WRITE_SAME_SSDB_KEY)
             removeClientFromListForBlockedKey(c, server.db[0].blocking_keys_write_same_ssdbkey, c->argv[1]);
@@ -244,7 +248,6 @@ int replyToBlockedClientTimedOut(client *c) {
 
         addReplyError(c, "timeout");
         resetClient(c);
-        serverLog(LOG_DEBUG, "[!!!!]block timeout(client:%p,btype:%d), reset it", (void*)c, c->btype);
         return C_ERR;
     } else {
         serverPanic("Unknown btype in replyToBlockedClientTimedOut().");

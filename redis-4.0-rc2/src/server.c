@@ -3332,9 +3332,11 @@ void addVisitingSSDBKey(struct redisCommand* cmd, sds keysds) {
         if (cmd->flags & CMD_WRITE) {
             visiting_write_num = 1;
             dictSetVisitingSSDBwriteCount(entry, 1);
+            dictSetVisitingSSDBreadCount(entry, 0);
         } else if (cmd->flags & CMD_READONLY) {
             visiting_read_num = 1;
             dictSetVisitingSSDBreadCount(entry, 1);
+            dictSetVisitingSSDBwriteCount(entry, 0);
         }
     }
     serverLog(LL_DEBUG, "key: %s is added to visiting_ssdb_keys, counter(w/r): %u/%u",
@@ -3791,7 +3793,8 @@ int processCommandMaybeInSSDB(client *c) {
             if (isThisKeyVisitingWriteSSDB(keyobj->ptr)) {
                 addClientToListForBlockedKey(c, c->cmd, server.db[0].blocking_keys_write_same_ssdbkey, keyobj);
                 c->bpop.timeout = server.client_visiting_ssdb_timeout + mstime();
-                serverLog(LL_DEBUG, "key: %s is blocked by another write on the same key", (char*)keyobj->ptr);
+                serverLog(LL_DEBUG, "client fd:%d, cmd: %s, key: %s is blocked by another write on the same key",
+                          c->fd, c->cmd->name, (char*)keyobj->ptr);
                 blockClient(c, BLOCKED_WRITE_SAME_SSDB_KEY);
                 return C_OK;
             }
