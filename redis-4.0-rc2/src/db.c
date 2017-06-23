@@ -1249,9 +1249,10 @@ int expireIfNeeded(redisDb *db, robj *key) {
     /* Return when this key has not expired */
     if (now <= when) return 0;
 
-    // todo: 优化
+    /* when there is a write SSDB operation on this key, we can't expire
+     * it now.*/
     if (server.jdjr_mode && (db->id == EVICTED_DATA_DBID)
-        && dictFind(EVICTED_DATA_DB->visiting_ssdb_keys, key->ptr))
+        && isThisKeyVisitingWriteSSDB(key->ptr))
         return 0;
 
     /* Delete the key */

@@ -2332,6 +2332,7 @@ void debugBT();
 void resetSSDBloadRule();
 void appendSSDBloadRule(int cycle_seconds, long long hits_threshold);
 
+int isThisKeyVisitingWriteSSDB(sds key);
 
 #define dictGetVisitingSSDBwriteCount(he) ((he)->v.visiting_ssdb.wcnt)
 #define dictGetVisitingSSDBreadCount(he) ((he)->v.visiting_ssdb.rcnt)

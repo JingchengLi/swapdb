@@ -54,9 +54,10 @@
 int activeExpireCycleTryExpire(redisDb *db, dictEntry *de, long long now) {
     long long t = dictGetSignedIntegerVal(de);
     if (now > t) {
-        // todo: 优化
+        /* when there is a write SSDB operation on this key, we can't expire
+         * it now.*/
         if (server.jdjr_mode && (db->id == EVICTED_DATA_DBID)
-            && dictFind(EVICTED_DATA_DB->visiting_ssdb_keys, de->key))
+            && isThisKeyVisitingWriteSSDB(de->key))
             return 0;
 
         sds key = dictGetKey(de);
