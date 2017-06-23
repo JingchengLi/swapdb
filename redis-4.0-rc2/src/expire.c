@@ -54,10 +54,10 @@
 int activeExpireCycleTryExpire(redisDb *db, dictEntry *de, long long now) {
     long long t = dictGetSignedIntegerVal(de);
     if (now > t) {
-        //if (server.jdjr_mode
-        //    && (db->id == EVICTED_DATA_DBID)
-        //    && dictFind(EVICTED_DATA_DB->visiting_ssdb_keys, de->key))
-        //    return 0;
+        // todo: 优化
+        if (server.jdjr_mode && (db->id == EVICTED_DATA_DBID)
+            && dictFind(EVICTED_DATA_DB->visiting_ssdb_keys, de->key))
+            return 0;
 
         sds key = dictGetKey(de);
         robj *keyobj = createStringObject(key,sdslen(key));

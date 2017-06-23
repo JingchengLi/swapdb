@@ -1249,6 +1249,11 @@ int expireIfNeeded(redisDb *db, robj *key) {
     /* Return when this key has not expired */
     if (now <= when) return 0;
 
+    // todo: 优化
+    if (server.jdjr_mode && (db->id == EVICTED_DATA_DBID)
+        && dictFind(EVICTED_DATA_DB->visiting_ssdb_keys, key->ptr))
+        return 0;
+
     /* Delete the key */
     server.stat_expiredkeys++;
 
