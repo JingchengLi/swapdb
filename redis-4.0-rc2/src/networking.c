@@ -1786,6 +1786,8 @@ int handleResponseOfReplicationConn(client* c, redisReply* reply) {
 int isThisKeyVisitingWriteSSDB(sds key)
 {
     dictEntry *entry = dictFind(EVICTED_DATA_DB->visiting_ssdb_keys, key);
+    if (!entry) return 0;
+
     uint32_t visiting_write_num = dictGetVisitingSSDBwriteCount(entry);
     if (visiting_write_num > 0)
         return 1;
