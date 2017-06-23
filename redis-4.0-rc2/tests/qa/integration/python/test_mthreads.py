@@ -71,7 +71,7 @@ class TestMthreads(unittest.TestCase):
     #  @unittest.skip("skip test_01")
     def test_01(self):
         '''set/storetossdb/get concurrency'''
-        for i in range(100):
+        for i in range(500):
             self.p.apply_async(set)
             self.p.apply_async(storetossdb)
             self.p.apply_async(get)
@@ -87,7 +87,7 @@ class TestMthreads(unittest.TestCase):
     def test_01_leak(self):
         '''set/storetossdb/get concurrency memory leak'''
         memory_before = R.info("memory")["used_memory"]
-        for i in range(100):
+        for i in range(500):
             self.p.apply_async(set)
             self.p.apply_async(storetossdb)
             self.p.apply_async(get)
@@ -101,6 +101,7 @@ class TestMthreads(unittest.TestCase):
             self.assertTrue(memory_after-R.execute_command("memory usage "+self.key)-50000 <= memory_before)
             self.assertEqual(locatekey(),"redis")
         except TypeError:
+            print("memory_after:%d, memory_before:%d" % (memory_after, memory_before))
             self.assertTrue(memory_after-50000 <= memory_before)
             self.assertEqual(locatekey(),"ssdb")
         R.delete(self.key)
@@ -170,7 +171,7 @@ class TestMthreads(unittest.TestCase):
         for i in range(keysNum):
             self.p.apply_async(delete, args=(self.key+str(i),))
             self.p.apply_async(set, args=(self.key+str(i),))
-            print "process key %d" % i
+            #  print "process key %d" % i
 
         self.p.close()
         self.p.join()
@@ -183,7 +184,7 @@ class TestMthreads(unittest.TestCase):
                 ssdbnum+=1
             if locatekey(self.key+str(i)) == "none":
                 nonenum+=1
-                print "check key none %d" % i
+                #  print "check key none %d" % i
 
         print "ssdbnum is %d" % ssdbnum
         print "totalnum is %d" % R.dbsize()

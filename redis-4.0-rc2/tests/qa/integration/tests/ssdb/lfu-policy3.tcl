@@ -158,10 +158,7 @@ start_server {tags {"lfu"}} {
             check_keystatus key_c $numkey_c redis
         }
 
-        test "different key prefix with different access" {
-            incr_lfu_count_keys key_a 1000 100
-            incr_lfu_count_keys key_b 1000 50
-            incr_lfu_count_keys key_c $numkey_c 10
+        test "different key prefix with different lfu" {
             set_lfu_keys key_a 1000 200
             set_lfu_keys key_b 1000 100
             set_lfu_keys key_c $numkey_c 10
@@ -223,13 +220,12 @@ start_server {tags {"lfu"}} {
         }
 
         # reach load tps access ssdb
-        set handle [ start_hit_ssdb_tps [srv host] [srv port] 100 ]
+        set handle [ start_hit_ssdb_tps [srv host] [srv port] 200 ]
         test "no load from ssdb when maxmemory usage higer than ssdb-load-upper-limit" {
             set ssdb_load_upper_limit 10
             assert {[s used_memory] > $limit*($ssdb_load_upper_limit/100.0)*1}
             r config set ssdb-load-upper-limit $ssdb_load_upper_limit
            
-            set handle [ start_hit_ssdb_tps [srv host] [srv port] 10 ]
             set ssdbnums [expr [ sum_keystatus key_a 1000 ssdb ]+\
             [ sum_keystatus key_b 1000 ssdb ]+\
             [ sum_keystatus key_c $numkey_c ssdb ]+\
@@ -240,7 +236,6 @@ start_server {tags {"lfu"}} {
             check_keys_load_when_access key_b 1000 0
             check_keys_load_when_access key_c $numkey_c 0
             check_keys_load_when_access key_d 3000 0
-            stop_write_load $handle
         }
 
         test "load keys from ssdb when maxmemory is 0" {
