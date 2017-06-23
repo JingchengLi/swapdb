@@ -1449,15 +1449,17 @@ void addClientToListForBlockedKey(client *c, struct redisCommand* cmd, dict* blo
 
         l = listCreate();
         retval = dictAdd(blocked_dict, keyobj, l);
-        serverLog(LL_DEBUG, "key: %s is added to ssdb_blocking_keys.",
-                  (char *)keyobj->ptr);
+        serverLog(LL_DEBUG, "key: %s is added to %s.", (char *)keyobj->ptr,
+                  blocked_dict == server.db[0].ssdb_blocking_keys ?
+                  "ssdb_blocking_keys" : "blocking_keys_write_same_ssdbkey");
         incrRefCount(keyobj);
         serverAssertWithInfo(c, keyobj, retval == DICT_OK);
         serverLog(LL_DEBUG, "client fd: %d, cmd: %s, key: %s is blocked.",
                   c->fd, cmd->name, (char *)keyobj->ptr);
     } else {
         l = dictGetVal(de);
-        serverLog(LL_DEBUG, "client fd: %d, cmd: %s, key: %s is already blocked.",
+        serverLog(LL_DEBUG, "client fd: %d, cmd: %s, key: %s is already blocked by"
+                          "another write on the same key.",
                   c->fd, cmd->name, (char *)keyobj->ptr);
     }
 
@@ -1473,7 +1475,9 @@ void removeClientFromListForBlockedKey(client* c, dict* blocked_dict, robj* key)
         listDelNode(l, node);
         /* If the list is empty we need to remove it to avoid wasting memory */
         if (listLength(l) == 0) {
-            serverLog(LL_DEBUG, "key: %s  is deleted from ssdb_blocking_keys.", (char *)key->ptr);
+            serverLog(LL_DEBUG, "key: %s  is deleted from %s.", (char *)key->ptr,
+                      blocked_dict == server.db[0].ssdb_blocking_keys ?
+                      "ssdb_blocking_keys" : "blocking_keys_write_same_ssdbkey");
             serverAssert(dictDelete(blocked_dict, key) == DICT_OK);
         }
     }
@@ -1489,7 +1493,9 @@ client* removeFirstClientFromListForBlockedKey(dict* blocked_dict, robj* key) {
         listDelNode(l, node);
         /* If the list is empty we need to remove it to avoid wasting memory */
         if (listLength(l) == 0) {
-            serverLog(LL_DEBUG, "key: %s  is deleted from ssdb_blocking_keys.", (char *)key->ptr);
+            serverLog(LL_DEBUG, "key: %s  is deleted from %s.", (char *)key->ptr,
+                      blocked_dict == server.db[0].ssdb_blocking_keys ?
+                      "ssdb_blocking_keys" : "blocking_keys_write_same_ssdbkey");
             serverAssert(dictDelete(blocked_dict, key) == DICT_OK);
         }
         return c;

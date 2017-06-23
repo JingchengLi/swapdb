@@ -1818,10 +1818,15 @@ int removeVisitingSSDBKey(struct redisCommand *cmd, int argc, robj** argv) {
                 /* only this client is visiting the specified key, remove the key
                  * from visiting keys. */
                 dictDelete(EVICTED_DATA_DB->visiting_ssdb_keys, key->ptr);
-                /* if this key is in server.hot_keys, load it to redis immediately. for master only. */
-                if (dictFind(server.hot_keys, key->ptr))
-                    loadThisKeyImmediately(key->ptr);
                 serverLog(LL_DEBUG, "key: %s is deleted from visiting_ssdb_keys.", (char *) key->ptr);
+
+                /* if this key is in server.hot_keys, load it to redis immediately. for master only. */
+
+                /* NOTE: if there are some clients blocked by writing on the same key,
+                 * we can't load this key before process them. */
+                if (dictFind(server.hot_keys, key->ptr) &&
+                    NULL == dictFind(server.db[0].blocking_keys_write_same_ssdbkey, key))
+                    loadThisKeyImmediately(key->ptr);
                 removed = 1;
             } else {
                 /* there are other clients visiting the specified key, just reduce the visiting

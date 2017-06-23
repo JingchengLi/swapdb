@@ -173,8 +173,10 @@ void unblockClient(client *c) {
                     unblockClient(blocked);
                     serverLog(LL_DEBUG, "client fd:%d, cmd: %s, key: %s is unblocked",
                               blocked->fd, blocked->cmd->name, (char*)keyobj->ptr);
-                    if (C_OK == runCommand(blocked))
-                        resetClient(blocked);
+                    if (tryBlockingClient(blocked) == C_OK) {
+                        if (C_OK == runCommand(blocked))
+                            resetClient(blocked);
+                    }
                 }
             }
         }
