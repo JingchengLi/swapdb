@@ -7,6 +7,7 @@ found in the LICENSE file.
 #define UTIL_BYTES_H_
 
 #include "strings.h"
+#include "util/endian.h"
 
 // readonly
 // to replace std::string

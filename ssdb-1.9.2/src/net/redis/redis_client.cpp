@@ -38,11 +38,11 @@ RedisResponse *RedisClient::redisResponse() {
 int RedisClient::redisRequestSend(const std::vector<std::string> &args) {
     std::string tmp;
     tmp.append("*");
-    tmp.append(str(args.size()));
+    tmp.append(str((int64_t)args.size()));
     tmp.append("\r\n");
     for (const std::string &s: args) {
         tmp.append("$");
-        tmp.append(str(s.size()));
+        tmp.append(str((int64_t)s.size()));
         tmp.append("\r\n");
         tmp.append(s);
         tmp.append("\r\n");
@@ -89,11 +89,11 @@ RedisClient::~RedisClient() {
 
 void appendRedisRequest(std::string &cmd, const std::vector<std::string> &args) {
     cmd.append("*");
-    cmd.append(str(args.size()));
+    cmd.append(str((int64_t)args.size()));
     cmd.append("\r\n");
     for (const std::string &s: args) {
         cmd.append("$");
-        cmd.append(str(s.size()));
+        cmd.append(str((int64_t)s.size()));
         cmd.append("\r\n");
         cmd.append(s);
         cmd.append("\r\n");

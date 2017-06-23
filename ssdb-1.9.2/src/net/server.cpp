@@ -34,6 +34,13 @@ volatile uint32_t g_ticks = 0;
 
 //void sig_signal_handler(int sig){
 void sig_signal_handler(int sig, siginfo_t * info, void * ucontext) {
+
+#ifndef __APPLE__
+	int fd = log_fd()->_fileno;
+#else
+	int fd = STDOUT_FILENO;
+#endif
+
 //    ucontext_t *uc = (ucontext_t*) ucontext;
     log_error("SSDB %s crashed by signal: %d", SSDB_VERSION, sig);
 
@@ -47,10 +54,16 @@ void sig_signal_handler(int sig, siginfo_t * info, void * ucontext) {
     // print out all the frames to stderr
     fprintf(stderr, "Error: signal %d (%s)\n", sig, strsignal(sig));
     backtrace_symbols_fd(array, size, STDERR_FILENO);
-    backtrace_symbols_fd(array, size, log_fd()->_fileno);
+    backtrace_symbols_fd(array, size, fd);
 //	abort();
 //	exit(sig);
-	close(log_fd()->_fileno);
+
+
+#ifndef __APPLE__
+	close(fd);
+#else
+#endif
+
 }
 
 void signal_handler(int sig){

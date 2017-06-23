@@ -6,6 +6,7 @@
 #define SSDB_ENCODE_H
 
 #include "util.h"
+#include "util/endian.h"
 
 class Bytes;
 

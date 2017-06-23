@@ -93,15 +93,15 @@ void Link::noblock(bool enable) {
 
 int Link::readtimeout(long timeout_ms) {
     struct timeval tv;
-    tv.tv_sec = (__time_t)(timeout_ms / 1000.0);
-    tv.tv_usec = (__suseconds_t)(timeout_ms % 1000) * 1000;
+    tv.tv_sec = (time_t)(timeout_ms / 1000.0);
+    tv.tv_usec = (suseconds_t)(timeout_ms % 1000) * 1000;
     return ::setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv,sizeof(struct timeval));
 }
 
 int Link::sendtimeout(long timeout_ms) {
     struct timeval tv;
-    tv.tv_sec = (__time_t)(timeout_ms / 1000.0);
-    tv.tv_usec = (__suseconds_t)(timeout_ms % 1000) * 1000;
+    tv.tv_sec = (time_t)(timeout_ms / 1000.0);
+    tv.tv_usec = (suseconds_t)(timeout_ms % 1000) * 1000;
     return ::setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, (const char*)&tv,sizeof(struct timeval));
 }
 
@@ -162,8 +162,8 @@ Link *Link::connect(const char *host, int port, long timeout_ms) {
 
     if (timeout_ms > 0) {
         struct timeval timeout;
-        timeout.tv_sec = (__time_t)(timeout_ms / 1000.0);
-        timeout.tv_usec = (__suseconds_t)(timeout_ms % 1000) * 1000;
+        timeout.tv_sec = (time_t)(timeout_ms / 1000.0);
+        timeout.tv_usec = (suseconds_t)(timeout_ms % 1000) * 1000;
         socklen_t len = sizeof(timeout);
 
         if (setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &timeout, len) == -1) {

@@ -814,7 +814,7 @@ int proc_strlen(Context &ctx, Link *link, const Request &req, Response *resp){
 	if(ret < 0) {
 		reply_err_return(ret);
 	} else {
-		resp->reply_int(ret, val.size());
+		resp->reply_int(ret, (int64_t)val.size());
 	}
 	return 0;
 }

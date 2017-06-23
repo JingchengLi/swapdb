@@ -5,7 +5,12 @@
 #ifndef SSDB_CFREE_H
 #define SSDB_CFREE_H
 
+#ifndef __APPLE__
 #include <malloc.h>
+#else
+#include <sys/malloc.h>
+#endif
+
 
 template <typename T>
 struct cfree_delete

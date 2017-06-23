@@ -3,7 +3,14 @@
 //
 
 #include <stddef.h>
+
+#ifndef __APPLE__
 #include <malloc.h>
+#else
+#include <sys/malloc.h>
+#endif
+
+
 #include <zconf.h>
 #include <fcntl.h>
 #include <stdlib.h>
