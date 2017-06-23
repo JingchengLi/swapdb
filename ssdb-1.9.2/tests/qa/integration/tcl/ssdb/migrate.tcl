@@ -12,7 +12,9 @@ start_server {tags {"ssdb"}} {
         assert {[r exists key] == 0}
         assert {[$ssdb_8889 exists key] == 1}
         assert {[$ssdb_8889 get key] eq {Some Value}}
-        assert {[$ssdb_8889 ttl key] == -1}
+        if {$::expire} {
+            assert {[$ssdb_8889 ttl key] == -1}
+        }
     }
 
     test {MIGRATE is able to copy a key between two instances} {
@@ -52,19 +54,21 @@ start_server {tags {"ssdb"}} {
         assert {[r lrange list 0 -1] eq [$ssdb_8889 lrange list 0 -1]}
     }
 
-    test {MIGRATE propagates TTL correctly} {
-        r set key "Some Value"
-        $ssdb_8889 flushdb
+    if {$::expire} {
+        test {MIGRATE propagates TTL correctly} {
+            r set key "Some Value"
+            $ssdb_8889 flushdb
 
-        assert {[r exists key] == 1}
-        assert {[$ssdb_8889 exists key] == 0}
-        r expire key 10
-        set ret [r migrate $::host 8889 key 0 5000]
-        assert {$ret eq {OK}}
-        assert {[r exists key] == 0}
-        assert {[$ssdb_8889 exists key] == 1}
-        assert {[$ssdb_8889 get key] eq {Some Value}}
-        assert {[$ssdb_8889 ttl key] >= 7 && [$ssdb_8889 ttl key] <= 10}
+            assert {[r exists key] == 1}
+            assert {[$ssdb_8889 exists key] == 0}
+            r expire key 10
+            set ret [r migrate $::host 8889 key 0 5000]
+            assert {$ret eq {OK}}
+            assert {[r exists key] == 0}
+            assert {[$ssdb_8889 exists key] == 1}
+            assert {[$ssdb_8889 get key] eq {Some Value}}
+            assert {[$ssdb_8889 ttl key] >= 7 && [$ssdb_8889 ttl key] <= 10}
+        }
     }
 
     test {MIGRATE can correctly transfer large values} {
@@ -83,7 +87,9 @@ start_server {tags {"ssdb"}} {
         assert {$ret eq {OK}}
         assert {[r exists key] == 0}
         assert {[$ssdb_8889 exists key] == 1}
-        assert {[$ssdb_8889 ttl key] == -1}
+        if {$::expire} {
+            assert {[$ssdb_8889 ttl key] == -1}
+        }
         assert {[$ssdb_8889 llen key] == 40000*20}
     }
 
@@ -98,7 +104,9 @@ start_server {tags {"ssdb"}} {
         assert {$ret eq {OK}}
         assert {[r exists key] == 0}
         assert {[$ssdb_8889 exists key] == 1}
-        assert {[$ssdb_8889 ttl key] == -1}
+        if {$::expire} {
+            assert {[$ssdb_8889 ttl key] == -1}
+        }
     }
 
     test {MIGRATE timeout actually works} {

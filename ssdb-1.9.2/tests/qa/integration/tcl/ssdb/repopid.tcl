@@ -21,13 +21,14 @@ start_server {tags {"ssdb"}} {
     set time [clock seconds]
     set mstime [clock milliseconds]
     foreach timestamp [list 0 $time $mstime] {
-        test "crash ssdb at first" {
+        test "no crash ssdb at first" {
             r repopid set 0 0
-            assert_error "I/O error reading reply" {r set foo bar}
+            assert_equal "OK" [r set foo bar]
+            # assert_error "I/O error reading reply" {r set foo bar}
         }
 
         test "Repopid basics" {
-            restart_ssdb
+            # restart_ssdb
 
             r repopid set [expr $timestamp+1] 1
             r set foo bar
@@ -66,11 +67,12 @@ start_server {tags {"ssdb"}} {
 
         test "Repopid receive timestamp earlier" {
             r repopid set [expr $timestamp+2] 5 ;#receive timestamp earlier
-            assert_error "I/O error reading reply" {r set foo bar25}
+            assert_equal "OK" [r set foo bar25]
+            # assert_error "I/O error reading reply" {r set foo bar25}
         }
 
         test "Repopid receive id smaller" {
-            restart_ssdb
+            # restart_ssdb
             r repopid set [expr $timestamp+1] 1
             r set foo bar
             r repopid set [expr $timestamp+1] 2
@@ -79,7 +81,8 @@ start_server {tags {"ssdb"}} {
             r set foo bar13
             assert_equal "repopid [expr $timestamp+1] 3" [r repopid get] ;#repopid 1 3
             r repopid set [expr $timestamp+1] 1 ;#receive id smaller
-            assert_error "I/O error reading reply" {r set foo bar}
+            assert_equal "OK" [r set foo bar]
+            # assert_error "I/O error reading reply" {r set foo bar}
         }
 
         test "Repopid receive id skip from 2->4" {
@@ -188,24 +191,28 @@ start_server {tags {"ssdb"}} {
             assert_equal "repopid [expr $timestamp+6] 2" [r repopid get] "r get foo"
             r exists foo
             assert_equal "repopid [expr $timestamp+6] 2" [r repopid get] "r exists foo"
-            r expire foo 10
-            assert_equal "repopid [expr $timestamp+6] 3" [r repopid get] "r expire foo 10"
+            if {$::expire} {
+                r expire foo 10
+                assert_equal "repopid [expr $timestamp+6] 3" [r repopid get] "r expire foo 10"
+            }
 
-            r repopid set [expr $timestamp+6] 4
-            r persist foo
-            assert_equal "repopid [expr $timestamp+6] 4" [r repopid get] "r persist foo"
+            if {$::expire} {
+                r repopid set [expr $timestamp+6] 4
+                r persist foo
+                assert_equal "repopid [expr $timestamp+6] 4" [r repopid get] "r persist foo"
 
-            r repopid set [expr $timestamp+6] 5
-            r pexpire foo 10
-            assert_equal "repopid [expr $timestamp+6] 5" [r repopid get] "r pexpire foo 10"
+                r repopid set [expr $timestamp+6] 5
+                r pexpire foo 10
+                assert_equal "repopid [expr $timestamp+6] 5" [r repopid get] "r pexpire foo 10"
 
-            r repopid set [expr $timestamp+6] 6
-            r expireat foo [expr [clock seconds]+15]
-            assert_equal "repopid [expr $timestamp+6] 6" [r repopid get] "r expireat foo [expr [clock seconds]+15]"
+                r repopid set [expr $timestamp+6] 6
+                r expireat foo [expr [clock seconds]+15]
+                assert_equal "repopid [expr $timestamp+6] 6" [r repopid get] "r expireat foo [expr [clock seconds]+15]"
 
-            r repopid set [expr $timestamp+6] 7
-            r pexpireat foo [expr ([clock seconds]*1000)+100]
-            assert_equal "repopid [expr $timestamp+6] 7" [r repopid get] "r pexpireat foo [expr ([clock seconds]*1000)+100]"
+                r repopid set [expr $timestamp+6] 7
+                r pexpireat foo [expr ([clock seconds]*1000)+100]
+                assert_equal "repopid [expr $timestamp+6] 7" [r repopid get] "r pexpireat foo [expr ([clock seconds]*1000)+100]"
+            }
 
             r repopid set [expr $timestamp+6] 8
             r del foo
@@ -215,27 +222,33 @@ start_server {tags {"ssdb"}} {
             r setnx foo barnx
             assert_equal "repopid [expr $timestamp+6] 9" [r repopid get] "r setnx foo barnx"
 
-            r repopid set [expr $timestamp+6] 10
-            r setex foo 100 barex
-            assert_equal "repopid [expr $timestamp+6] 10" [r repopid get] "r setex foo 100 barex"
+            if {$::expire} {
+                r repopid set [expr $timestamp+6] 10
+                r setex foo 100 barex
+                assert_equal "repopid [expr $timestamp+6] 10" [r repopid get] "r setex foo 100 barex"
 
-            r repopid set [expr $timestamp+6] 11
-            r psetex foo 1000000 bar
-            assert_equal "repopid [expr $timestamp+6] 11" [r repopid get] "r psetex foo 1000000 bar"
+                r repopid set [expr $timestamp+6] 11
+                r psetex foo 1000000 bar
+                assert_equal "repopid [expr $timestamp+6] 11" [r repopid get] "r psetex foo 1000000 bar"
+            }
 
             r repopid set [expr $timestamp+6] 12
-            r type foo
-            assert_equal "repopid [expr $timestamp+6] 11" [r repopid get] "r type foo"
-            r ttl foo
-            assert_equal "repopid [expr $timestamp+6] 11" [r repopid get] "r ttl foo"
-            r pttl foo
-            assert_equal "repopid [expr $timestamp+6] 11" [r repopid get] "r pttl foo"
-            r strlen foo
-            assert_equal "repopid [expr $timestamp+6] 11" [r repopid get] "r strlen foo"
+            if {$::expire} {
+                r ttl foo
+                assert_equal "repopid [expr $timestamp+6] 11" [r repopid get] "r ttl foo"
+                r pttl foo
+                assert_equal "repopid [expr $timestamp+6] 11" [r repopid get] "r pttl foo"
+            }
+
             r getset foo 1
             assert_equal "repopid [expr $timestamp+6] 12" [r repopid get] "r getset foo 1"
 
             r repopid set [expr $timestamp+6] 13
+            r strlen foo
+            assert_equal "repopid [expr $timestamp+6] 12" [r repopid get] "r strlen foo"
+            r type foo
+            assert_equal "repopid [expr $timestamp+6] 12" [r repopid get] "r type foo"
+
             r decr foo
             assert_equal "repopid [expr $timestamp+6] 13" [r repopid get] "r decr foo"
 

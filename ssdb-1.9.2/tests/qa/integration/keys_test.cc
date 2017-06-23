@@ -45,6 +45,7 @@ class KeysTest : public SSDBTest
 #define NEAR_TTL(n) s = client->ttl(key, &ret);\
     ASSERT_NEAR(n, ret, 1)<<"ttl should near key expire time!";
 
+#ifdef EXPIRE
 TEST_F(KeysTest, Test_keys_expire) {
 
     key = GetRandomKey_(); 
@@ -175,7 +176,9 @@ TEST_F(KeysTest, Test_keys_expire) {
         client->del(key);
     }
 }
+#endif
 
+#ifdef EXPIRE
 TEST_F(KeysTest, Test_keys_ttl) {
     key = GetRandomKey_(); 
     field = GetRandomField_();
@@ -246,6 +249,7 @@ TEST_F(KeysTest, Test_keys_ttl) {
         TTL(-2)
     }
 }
+#endif
 
 #define OKPexpire s = client->pexpire(key, pttl, &ret);\
     ASSERT_TRUE(s.ok())<<"fail to pexpire key!"<<endl;\
@@ -267,6 +271,7 @@ TEST_F(KeysTest, Test_keys_ttl) {
 #define NEAR_PTTL(n) s = client->pttl(key, &ret);\
     ASSERT_TRUE((ret > n-2000) && ret <= n)<<"pttl should near key expire time!";
 
+#ifdef EXPIRE
 TEST_F(KeysTest, Test_keys_pexpire) {
 
     key = GetRandomKey_();
@@ -308,7 +313,9 @@ TEST_F(KeysTest, Test_keys_pexpire) {
     EXPECT_EQ("val", getVal)<<"pexpire 64bit INT_MAX(9223372036854775807) ttl should not del key after 1 sec"<<endl;;
     client->del(key);
 }
+#endif
 
+#ifdef EXPIRE
 TEST_F(KeysTest, Test_keys_pttl) {
     key = GetRandomKey_();
     field = GetRandomField_();
@@ -343,6 +350,7 @@ TEST_F(KeysTest, Test_keys_pttl) {
         ASSERT_TRUE(s.not_found())<<"this key should be not found!"<<s.code()<<endl;
         PTTL(-2)
 }
+#endif
 
 TEST_F(KeysTest, Test_keys_exists) {
     field = GetRandomField_();
@@ -391,16 +399,18 @@ TEST_F(KeysTest, Test_keys_exists) {
         EXPECT_EQ(n+6, ret)<<"exists retrun no of accumulate duplicate keys!";
     }
 
-    for(int n = 0; n < 5; n++){
-        client->pexpire(keys[n], pttl, &ret);
-        s = client->exists(keys, &ret);
-        EXPECT_TRUE(s.ok());
-        EXPECT_EQ(5-n, ret)<<"exists return no of exists no volatile keys and still not expire keys!";
-        sleep(1);
-        s = client->exists(keys, &ret);
-        EXPECT_TRUE(s.ok());
-        EXPECT_EQ(4-n, ret)<<"exists return no of exists no volatile keys and exclude expired keys!";
-    }
+#ifdef EXPIRE
+        for(int n = 0; n < 5; n++){
+            client->pexpire(keys[n], pttl, &ret);
+            s = client->exists(keys, &ret);
+            EXPECT_TRUE(s.ok());
+            EXPECT_EQ(5-n, ret)<<"exists return no of exists no volatile keys and still not expire keys!";
+            sleep(1);
+            s = client->exists(keys, &ret);
+            EXPECT_TRUE(s.ok());
+            EXPECT_EQ(4-n, ret)<<"exists return no of exists no volatile keys and exclude expired keys!";
+        }
+#endif
 
     for(int n = 0; n < 5; n++){
         switch(n){
@@ -421,8 +431,8 @@ TEST_F(KeysTest, Test_keys_exists) {
                 break;
         }
         client->del(keys[n]);
-        s = client->exists(keys, &ret);
-        EXPECT_TRUE(s.ok());
-        EXPECT_EQ(0, ret)<<"exists return 0 after key is deleted!";
     }
+    s = client->exists(keys, &ret);
+    EXPECT_TRUE(s.ok());
+    EXPECT_EQ(0, ret)<<"exists return 0 after key is deleted!";
 }

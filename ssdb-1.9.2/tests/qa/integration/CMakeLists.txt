@@ -26,6 +26,10 @@ IF(ROBUST)
     ADD_DEFINITIONS(-DROBUST)
 ENDIF()
 
+IF(EXPIRE)
+    ADD_DEFINITIONS(-DEXPIRE)
+ENDIF()
+
 # src/client
 # libssdb-client.a
 

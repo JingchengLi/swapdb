@@ -1,3 +1,4 @@
+#ifdef EXPIRE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string>
@@ -100,3 +101,4 @@ TEST_F(RobustTest_Expire, Test_setex_set_del_3) {
     ASSERT_EQ(-1, ret)<<"ttl should be -1(forever) when set!"<<endl;
     client->del(key);
 }
+#endif

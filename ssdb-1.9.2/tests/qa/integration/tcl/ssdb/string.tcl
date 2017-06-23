@@ -68,35 +68,37 @@ start_server {tags {"ssdb"}} {
         assert_equal "foobared" [r get novar]
     }
 
-    test "SETNX against not-expired volatile key" {
-        r set x 10
-        r expire x 10000
-        assert_equal 0 [r setnx x 20]
-        assert_equal 10 [r get x]
-    }
-
-    test "SETNX against expired volatile key" {
-        # Make it very unlikely for the key this test uses to be expired by the
-        # active expiry cycle. This is tightly coupled to the implementation of
-        # active expiry and dbAdd() but currently the only way to test that
-        # SETNX expires a key when it should have been.
-        for {set x 0} {$x < 9999} {incr x} {
-            r setex key-$x 3600 value
+    if {$::expire} {
+        test "SETNX against not-expired volatile key" {
+            r set x 10
+            r expire x 10000
+            assert_equal 0 [r setnx x 20]
+            assert_equal 10 [r get x]
         }
 
-        # This will be one of 10000 expiring keys. A cycle is executed every
-        # 100ms, sampling 10 keys for being expired or not.  This key will be
-        # expired for at most 1s when we wait 2s, resulting in a total sample
-        # of 100 keys. The probability of the success of this test being a
-        # false positive is therefore approx. 1%.
-        r set x 10
-        r expire x 1
+        test "SETNX against expired volatile key" {
+            # Make it very unlikely for the key this test uses to be expired by the
+            # active expiry cycle. This is tightly coupled to the implementation of
+            # active expiry and dbAdd() but currently the only way to test that
+            # SETNX expires a key when it should have been.
+            for {set x 0} {$x < 9999} {incr x} {
+                r setex key-$x 3600 value
+            }
 
-        # Wait for the key to expire
-        after 2000
+            # This will be one of 10000 expiring keys. A cycle is executed every
+            # 100ms, sampling 10 keys for being expired or not.  This key will be
+            # expired for at most 1s when we wait 2s, resulting in a total sample
+            # of 100 keys. The probability of the success of this test being a
+            # false positive is therefore approx. 1%.
+            r set x 10
+            r expire x 1
 
-        assert_equal 1 [r setnx x 20]
-        assert_equal 20 [r get x]
+            # Wait for the key to expire
+            after 2000
+
+            assert_equal 1 [r setnx x 20]
+            assert_equal 20 [r get x]
+        }
     }
 
     test {MGET} {
@@ -404,25 +406,27 @@ start_server {tags {"ssdb"}} {
         list $v1 $v2 [r get foo]
     } {{} OK 2}
 
-    test {Extended SET EX option} {
-        r del foo
-        r set foo bar ex 10
-        set ttl [r ttl foo]
-        assert {$ttl <= 10 && $ttl > 5}
-    }
+    if {$::expire} {
+        test {Extended SET EX option} {
+            r del foo
+            r set foo bar ex 10
+            set ttl [r ttl foo]
+            assert {$ttl <= 10 && $ttl > 5}
+        }
 
-    test {Extended SET PX option} {
-        r del foo
-        r set foo bar px 10000
-        set ttl [r ttl foo]
-        assert {$ttl <= 10 && $ttl > 5}
-    }
+        test {Extended SET PX option} {
+            r del foo
+            r set foo bar px 10000
+            set ttl [r ttl foo]
+            assert {$ttl <= 10 && $ttl > 5}
+        }
 
-    test {Extended SET using multiple options at once} {
-        r set foo val
-        assert {[r set foo bar xx px 10000] eq {OK}}
-        set ttl [r ttl foo]
-        assert {$ttl <= 10 && $ttl > 5}
+        test {Extended SET using multiple options at once} {
+            r set foo val
+            assert {[r set foo bar xx px 10000] eq {OK}}
+            set ttl [r ttl foo]
+            assert {$ttl <= 10 && $ttl > 5}
+        }
     }
 
     test {GETRANGE with huge ranges, Github issue #1844} {

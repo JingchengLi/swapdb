@@ -203,6 +203,7 @@ TEST_F(RDBTest, Test_rdb_replace_dump_restore) {
     client->del(key);
 }
 
+#ifdef EXPIRE
 TEST_F(RDBTest, Test_rdb_ttl_dump_restore) {
 
     key = "key";//GetRandomKey_(); 
@@ -244,6 +245,7 @@ TEST_F(RDBTest, Test_rdb_ttl_dump_restore) {
 
     client->del(key);
 }
+#endif
 
 TEST_F(RDBTest, Test_rdb_syntax_dump_restore) {
 

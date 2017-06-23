@@ -79,6 +79,7 @@ set ::all_tests {
 # Index to the next test to run in the ::all_tests list.
 set ::next_test 0
 
+set ::expire 0
 set ::host 127.0.0.1
 set ::port 21111
 set ::traceleaks 0
@@ -543,6 +544,8 @@ for {set j 0} {$j < [llength $argv]} {incr j} {
     } elseif {$opt eq {--timeout}} {
         set ::timeout $arg
         incr j
+    } elseif {$opt eq {--expire}} {
+        set ::expire 1
     } elseif {$opt eq {--help}} {
         print_help_screen
         exit 0

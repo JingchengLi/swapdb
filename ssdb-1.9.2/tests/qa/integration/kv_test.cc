@@ -83,6 +83,7 @@ TEST_F(KVTest, Test_kv_set) {
     FalseSet */
 }
 
+#ifdef EXPIRE
 TEST_F(KVTest, Test_kv_setex) {
     int64_t ttl;
 #define OKSetx s = client->setx(key, val, ttl);\
@@ -145,7 +146,9 @@ TEST_F(KVTest, Test_kv_setex) {
     EXPECT_TRUE(s.not_found())<<"this key should be not found!"<<s.code()<<endl;
     client->multi_del(key);
 }
+#endif
 
+#ifdef EXPIRE
 TEST_F(KVTest, Test_kv_psetex) {
     int64_t pttl;
 #define OKSetx s = client->psetx(key, val, pttl);\
@@ -208,6 +211,7 @@ TEST_F(KVTest, Test_kv_psetex) {
     EXPECT_TRUE(s.not_found())<<"this key should be not found!"<<s.code()<<endl;
     client->multi_del(key);
 }
+#endif
 
 TEST_F(KVTest, Test_kv_get) {
 #define NotFoundGet s = client->get(key, &getVal);\

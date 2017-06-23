@@ -265,6 +265,7 @@ TEST_F(ReplicTest, Test_replic_lens) {
     client->multi_del(key);
 }
 
+#ifdef EXPIRE
 TEST_F(ReplicTest, Test_replic_expire_keys) {
     keysNum = 10;
     fillMasterData();
@@ -294,8 +295,10 @@ TEST_F(ReplicTest, Test_replic_expire_keys) {
     checkSlaveDataNotFound();
     delete sclient;
 }
+#endif
 
 //For a replic twice issue
+#ifdef EXPIRE
 TEST_F(ReplicTest, Test_replic_expire_keys_override) {
     int64_t etime = 3;
     client->setx("key", "val", etime);
@@ -315,6 +318,7 @@ TEST_F(ReplicTest, Test_replic_expire_keys_override) {
     ASSERT_EQ(-2, ret)<<"key should be deleted."<<endl;
     delete sclient;
 }
+#endif
 
 TEST_F(ReplicTest, Test_replic_multi_slaves) {
     fillMasterData();
