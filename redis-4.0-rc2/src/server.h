@@ -318,15 +318,16 @@ void test_replaceKeyInPool();
                                     * or transferring a key becomes cold to SSDB. */
 #define BLOCKED_NO_WRITE_TO_SSDB 11 /* Client is blocked as during the process of psync. */
 #define BLOCKED_NO_READ_WRITE_TO_SSDB 12 /* Client is blocked by ssdb flushall. */
+#define BLOCKED_WRITE_SAME_SSDB_KEY 13 /* client is blocked by another write on the same ssdb key*/
 /* ================================================= */
 /* the following types are blocked by the client itself. if block timeout, we must
  * disconnect this client to avoid receiving an unexpected response later, which may
  * cause strange issues such as crash(eg, SWAP-44), etc. */
-#define BLOCKED_VISITING_SSDB 13   /* Client is visiting SSDB. */
-#define BLOCKED_BY_FLUSHALL 14
-#define BLOCKED_BY_DELETE_CONFIRM  15 /* Client is blocked by delete key confirm. */
-#define BLOCKED_MIGRATING_CLIENT 16
-#define BLOCKED_MIGRATING_DUMP 17 /* Client is migrating in SSDB. */
+#define BLOCKED_VISITING_SSDB 20   /* Client is visiting SSDB. */
+#define BLOCKED_BY_FLUSHALL  21
+#define BLOCKED_BY_DELETE_CONFIRM  22 /* Client is blocked by delete key confirm. */
+#define BLOCKED_MIGRATING_CLIENT  23
+#define BLOCKED_MIGRATING_DUMP  24 /* Client is migrating in SSDB. */
 /* ================================================= */
 
 
@@ -702,6 +703,8 @@ typedef struct redisDb {
     dict *ssdb_blocking_keys;   /* For jdjr_mode: Keys in loading/tranferring/delete_confirm state
                                    from/to SSDB. */
     dict *ssdb_ready_keys;      /* For jdjr_mode: Blocked keys that ssdb load/transfer ok. */
+    dict *blocking_keys_write_same_ssdbkey; /* For jdjr_mode: Blocked keys that some clients are
+                                             * blocked by another write on the same ssdb key */
     dict *transferring_keys;    /* Keys are in the process of transferring keys to SSDB. */
     dict *loading_hot_keys;     /* keys become hot and in loading state from SSDB. */
     dict *visiting_ssdb_keys;   /* Keys are visiting SSDB, including reading and writing. */
@@ -1644,6 +1647,7 @@ void unblockClientWaitingData(client *c);
 void handleClientsBlockedOnLists(void);
 void popGenericCommand(client *c, int where);
 void signalListAsReady(redisDb *db, robj *key);
+client* removeFirstClientFromListForBlockedKey(dict* blocked_dict, robj* key);
 void removeBlockedKeysFromTransferOrLoadingKeys(client *c);
 void transferringOrLoadingBlockedClientTimeOut(client *c);
 
@@ -2284,7 +2288,8 @@ int removeVisitingSSDBKey(struct redisCommand *cmd, int argc, robj** argv);
 void handleCustomizedBlockedClients();
 int tryBlockingClient(client *c);
 int handleResponseOfMigrateDump(client *c);
-void removeClientFromListForBlockedKey(client* c, robj* key);
+void addClientToListForBlockedKey(client *c, struct redisCommand* cmd, dict* blocked_dict, robj* keyobj);
+void removeClientFromListForBlockedKey(client* c, dict* blocked_dict, robj* key);
 void sendDelSSDBsnapshot();
 int handleResponseTimeoutOfTransferSnapshot(struct aeEventLoop *eventLoop, long long id, void *clientData);
 void doSSDBflushIfCheckDone();

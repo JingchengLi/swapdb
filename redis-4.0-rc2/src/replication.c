@@ -1264,7 +1264,6 @@ void ssdbNotifyCommand(client* c) {
         c->flags |= CLIENT_CLOSE_AFTER_REPLY;
         return;
     }
-    int aof_is_enabled = server.aof_state != AOF_OFF;
     if (!strcasecmp(c->argv[1]->ptr, "transfer")) {
         if (server.repl_state >= REPL_STATE_SEND_PSYNC) {
             if (!strcasecmp(c->argv[2]->ptr, "finished")) {
@@ -1275,7 +1274,6 @@ void ssdbNotifyCommand(client* c) {
             } else if (!strcasecmp(c->argv[2]->ptr, "unfinished")) {
                 serverLog(LL_DEBUG, "receive 'ssdb-notify transfer unfinished'");
                 cancelReplicationHandshake();
-                if (aof_is_enabled) restartAOF();
                 addReply(c, shared.ok);
                 c->flags |= CLIENT_CLOSE_AFTER_REPLY;
             } else if (!strcasecmp(c->argv[2]->ptr, "continue")) {

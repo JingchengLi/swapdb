@@ -332,7 +332,7 @@ struct redisCommand redisCommandTable[] = {
     {"ssdb-resp-fail",ssdbRespFailCommand,3,"wj",0,NULL,1,1,1,0,0},
     {"ssdb-resp-notfound",ssdbRespNotfoundCommand,3,"wj",0,NULL,1,1,1,0,0},
 
-    /* used by slave ssdb to notify slave redis when transfer snapshot. */
+    /* used by slave ssdb to notify slave redis when transfer ssdb snapshot. */
     {"ssdb-notify-redis",ssdbNotifyCommand,-3,"lj",0,NULL,0,0,0,0,0},
 
     {"listloadingkeys",listLoadingKeysCommand,1,"j",0,NULL,0,0,0,0,0},
@@ -2539,6 +2539,7 @@ void initServer(void) {
 
     if (server.jdjr_mode) {
         server.db[0].ssdb_blocking_keys = dictCreate(&keylistDictType,NULL);
+        server.db[0].blocking_keys_write_same_ssdbkey = dictCreate(&keylistDictType,NULL);
         server.db[0].ssdb_ready_keys = dictCreate(&objectKeyPointerValueDictType,NULL);
         server.db[0].migrating_ssdb_keys = dictCreate(&keyDictType,NULL);
 
@@ -3330,10 +3331,10 @@ void addVisitingSSDBKey(struct redisCommand* cmd, sds keysds) {
         /* no other clients are visiting this key, set client visiting num to 1. */
         if (cmd->flags & CMD_WRITE) {
             visiting_write_num = 1;
-            dictSetVisitingSSDBwriteCount(existing, 1);
+            dictSetVisitingSSDBwriteCount(entry, 1);
         } else if (cmd->flags & CMD_READONLY) {
             visiting_read_num = 1;
-            dictSetVisitingSSDBreadCount(existing, 1);
+            dictSetVisitingSSDBreadCount(entry, 1);
         }
     }
     serverLog(LL_DEBUG, "key: %s is added to visiting_ssdb_keys, counter(w/r): %u/%u",
@@ -3759,7 +3760,6 @@ int processCommandMaybeInSSDB(client *c) {
         && (c->cmd->flags & CMD_WRITE) && (c->cmd->flags & CMD_JDJR_MODE)) {
         listAddNodeTail(server.no_writing_ssdb_blocked_clients, c);
         serverLog(LL_DEBUG, "client: %ld is added to server.no_writing_ssdb_blocked_clients", (long)c);
-        /* TODO: use a suitable timeout. */
         c->bpop.timeout = server.client_blocked_by_replication_nowrite_timeout + mstime();
         blockClient(c, BLOCKED_NO_WRITE_TO_SSDB);
 
@@ -3770,7 +3770,6 @@ int processCommandMaybeInSSDB(client *c) {
     if (server.masterhost == NULL && (server.prohibit_ssdb_read_write == PROHIBIT_SSDB_READ_WRITE)
         && (c->cmd->flags & (CMD_WRITE | CMD_READONLY)) && (c->cmd->flags & CMD_JDJR_MODE)) {
         listAddNodeTail(server.ssdb_flushall_blocked_clients, c);
-         /* TODO: use a suitable timeout. */
         c->bpop.timeout = server.client_blocked_by_flushall_timeout + mstime();
         blockClient(c, BLOCKED_NO_READ_WRITE_TO_SSDB);
 
@@ -3789,6 +3788,14 @@ int processCommandMaybeInSSDB(client *c) {
             if (processBeforeVisitingSSDB(c, keyobj) == C_OK)
                 return C_OK;
 
+            if (isThisKeyVisitingWriteSSDB(keyobj->ptr)) {
+                addClientToListForBlockedKey(c, c->cmd, server.db[0].blocking_keys_write_same_ssdbkey, keyobj);
+                c->bpop.timeout = server.client_visiting_ssdb_timeout + mstime();
+                serverLog(LL_DEBUG, "key: %s is blocked by another write on the same key", (char*)keyobj->ptr);
+                blockClient(c, BLOCKED_WRITE_SAME_SSDB_KEY);
+                return C_OK;
+            }
+
             ret = sendCommandToSSDB(c, NULL);
             if (ret != C_OK) return ret;
 
@@ -3798,7 +3805,6 @@ int processCommandMaybeInSSDB(client *c) {
             if (server.masterhost == NULL)
                 recordVisitingSSDBkeys(c->cmd, c->argv, c->argc);
 
-            /* TODO: use a suitable timeout. */
             c->bpop.timeout = server.client_visiting_ssdb_timeout + mstime();
             blockClient(c, BLOCKED_VISITING_SSDB);
 

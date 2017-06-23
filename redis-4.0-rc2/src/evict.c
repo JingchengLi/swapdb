@@ -737,7 +737,6 @@ int epilogOfEvictingToSSDB(robj *keyobj) {
     /* Only transfer effective data. */
     if (expiretime > 0 && now > expiretime) {
         expireIfNeeded(db, keyobj);
-        /* TODO: del expire keys. */
         serverLog(LL_DEBUG, "The key: %s has expired.", (char *)keyobj->ptr);
         cleanupEpilogOfEvicting(db, keyobj);
         return C_ERR;
@@ -1312,21 +1311,6 @@ cant_free:
     return C_ERR;
 }
 
-void removeClientFromListForBlockedKey(client* c, robj* key) {
-    /* Remove this client from the list of clients blocking on this key. */
-    list *l = dictFetchValue(server.db[0].ssdb_blocking_keys, key);
-    serverAssert(l != NULL);
-    listNode* node = listSearchKey(l,c);
-    if (node) {
-        listDelNode(l, node);
-        /* If the list is empty we need to remove it to avoid wasting memory */
-        if (listLength(l) == 0) {
-            serverLog(LL_DEBUG, "key: %s  is deleted from ssdb_blocking_keys.", (char *)key->ptr);
-            serverAssert(dictDelete(server.db[0].ssdb_blocking_keys,key) == DICT_OK);
-        }
-    }
-}
-
 void handleClientsBlockedOnSSDB(void) {
     while(listLength(server.ssdb_ready_keys) != 0) {
         list *l;
@@ -1359,7 +1343,7 @@ void handleClientsBlockedOnSSDB(void) {
                     client *c = clientnode->value;
                     int retval;
 
-                    removeClientFromListForBlockedKey(c, rl->key);
+                    removeClientFromListForBlockedKey(c, server.db->ssdb_blocking_keys, rl->key);
 
                     /* Remove this key from the blocked keys dict of this client */
                     serverLog(LL_DEBUG, "key :%s is deleted from loading_or_transfer_keys.",
@@ -1455,6 +1439,64 @@ void signalBlockingKeyAsReady(redisDb *db, robj *key) {
     serverLog(LL_DEBUG, "singal key: %s, dbid: %d", (char *)key->ptr, db->id);
 }
 
+void addClientToListForBlockedKey(client *c, struct redisCommand* cmd, dict* blocked_dict, robj* keyobj) {
+    dictEntry* de;
+    list *l;
+
+    de = dictFind(blocked_dict, keyobj);
+    if (de == NULL) {
+        int retval;
+
+        l = listCreate();
+        retval = dictAdd(blocked_dict, keyobj, l);
+        serverLog(LL_DEBUG, "key: %s is added to ssdb_blocking_keys.",
+                  (char *)keyobj->ptr);
+        incrRefCount(keyobj);
+        serverAssertWithInfo(c, keyobj, retval == DICT_OK);
+        serverLog(LL_DEBUG, "client fd: %d, cmd: %s, key: %s is blocked.",
+                  c->fd, cmd->name, (char *)keyobj->ptr);
+    } else {
+        l = dictGetVal(de);
+        serverLog(LL_DEBUG, "client fd: %d, cmd: %s, key: %s is already blocked.",
+                  c->fd, cmd->name, (char *)keyobj->ptr);
+    }
+
+    listAddNodeTail(l, c);
+}
+
+void removeClientFromListForBlockedKey(client* c, dict* blocked_dict, robj* key) {
+    /* Remove this client from the list of clients blocking on this key. */
+    list *l = dictFetchValue(blocked_dict, key);
+    serverAssert(l != NULL);
+    listNode* node = listSearchKey(l,c);
+    if (node) {
+        listDelNode(l, node);
+        /* If the list is empty we need to remove it to avoid wasting memory */
+        if (listLength(l) == 0) {
+            serverLog(LL_DEBUG, "key: %s  is deleted from ssdb_blocking_keys.", (char *)key->ptr);
+            serverAssert(dictDelete(blocked_dict, key) == DICT_OK);
+        }
+    }
+}
+
+client* removeFirstClientFromListForBlockedKey(dict* blocked_dict, robj* key) {
+    /* Remove the first client from the list of clients blocking on this key. */
+    list *l = dictFetchValue(blocked_dict, key);
+    serverAssert(l != NULL);
+    listNode* node = listFirst(l);
+    if (node) {
+        client* c = listNodeValue(node);
+        listDelNode(l, node);
+        /* If the list is empty we need to remove it to avoid wasting memory */
+        if (listLength(l) == 0) {
+            serverLog(LL_DEBUG, "key: %s  is deleted from ssdb_blocking_keys.", (char *)key->ptr);
+            serverAssert(dictDelete(blocked_dict, key) == DICT_OK);
+        }
+        return c;
+    }
+    return NULL;
+}
+
 int blockForLoadingkeys(client *c, struct redisCommand* cmd, robj **keys, int numkeys, mstime_t timeout) {
     dictEntry *de;
     list *l;
@@ -1537,7 +1579,7 @@ void removeBlockedKeysFromTransferOrLoadingKeys(client* c) {
         }
         /* remove myself(this client) from blocked client list of this key, so we can
          * safely unblock this client and continue to process immediately. */
-        removeClientFromListForBlockedKey(c, keyobj);
+        removeClientFromListForBlockedKey(c, server.db->ssdb_blocking_keys, keyobj);
     }
     dictReleaseIterator(di);
     dictEmpty(c->bpop.loading_or_transfer_keys, NULL);

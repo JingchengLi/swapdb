@@ -1835,8 +1835,9 @@ int removeVisitingSSDBKey(struct redisCommand *cmd, int argc, robj** argv) {
         }
 
         if (keys) getKeysFreeResult(keys);
+        return removed;
     }
-    return removed;
+    return -1;
 }
 
 int isSpecialConnection(client *c) {
@@ -2242,7 +2243,15 @@ void unlinkClient(client *c) {
             while((de = dictNext(di))) {
                 keyobj = dictGetKey(de);
 
-                removeClientFromListForBlockedKey(c, keyobj);
+                removeClientFromListForBlockedKey(c, server.db->ssdb_blocking_keys, keyobj);
+            }
+            dictReleaseIterator(di);
+
+            di = dictGetSafeIterator(server.db->blocking_keys_write_same_ssdbkey);
+            while((de = dictNext(di))) {
+                keyobj = dictGetKey(de);
+
+                removeClientFromListForBlockedKey(c, server.db->blocking_keys_write_same_ssdbkey, keyobj);
             }
             dictReleaseIterator(di);
         }

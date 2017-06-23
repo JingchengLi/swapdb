@@ -4685,14 +4685,6 @@ void ssdbRespRestoreCommand(client *c) {
 
     preventCommandPropagation(c);
 
-    if (expireIfNeeded(EVICTED_DATA_DB, key)) {
-        serverLog(LL_DEBUG, "key: %s is expired in redis.", (char *)key->ptr);
-        if (dictDelete(EVICTED_DATA_DB->loading_hot_keys, key->ptr) == DICT_OK)
-            signalBlockingKeyAsReady(c->db, key);
-        addReplyError(c, "key expired");
-        return;
-    }
-
     if (!dictFind(EVICTED_DATA_DB->loading_hot_keys, key->ptr)) {
         addReplyError(c, "key is already unblocked");
         return;
@@ -4702,6 +4694,14 @@ void ssdbRespRestoreCommand(client *c) {
         addReplyError(c, "flushall is going");
         return;
     } else {
+        if (expireIfNeeded(EVICTED_DATA_DB, key)) {
+            serverLog(LL_DEBUG, "key: %s is expired in redis.", (char *)key->ptr);
+            if (dictDelete(EVICTED_DATA_DB->loading_hot_keys, key->ptr) == DICT_OK)
+                signalBlockingKeyAsReady(c->db, key);
+            addReplyError(c, "key expired");
+            return;
+        }
+
         restoreCommand(c);
 
        /* Delete key from EVICTED_DATA_DB if restoreCommand is OK. */

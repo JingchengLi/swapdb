@@ -128,11 +128,15 @@ void processUnblockedClients(void) {
     }
 }
 
+/* remove this client from server.ssdb_flushall_blocked_clients to avoid
+* it processed by handleClientsBlockedOnFlushall again.*/
 void removeClientWaitingSSDBflushall(client* c) {
     listNode* ln = listSearchKey(server.ssdb_flushall_blocked_clients, c);
     if (ln) listDelNode(server.ssdb_flushall_blocked_clients, ln);
 }
 
+/* remove this client from server.no_writing_ssdb_blocked_clients to avoid
+* it processed by handleClientsBlockedOnCustomizedPsync again.*/
 void removeClientWaitingSSDBcheckWrite(client* c) {
     listNode* ln = listSearchKey(server.no_writing_ssdb_blocked_clients, c);
     if (ln) listDelNode(server.no_writing_ssdb_blocked_clients, ln);
@@ -152,12 +156,26 @@ void unblockClient(client *c) {
                    || c->btype == BLOCKED_BY_FLUSHALL
                    || c->btype == BLOCKED_NO_READ_WRITE_TO_SSDB
                    || c->btype == BLOCKED_NO_WRITE_TO_SSDB
+                   || c->btype == BLOCKED_WRITE_SAME_SSDB_KEY
                    || c->btype == BLOCKED_BY_DELETE_CONFIRM
                    || c->btype == BLOCKED_MIGRATING_CLIENT)) {
         /* Doing nothing. */
     } else if (server.jdjr_mode && c->btype == BLOCKED_VISITING_SSDB) {
-        if (server.masterhost == NULL)
+        if (server.masterhost == NULL) {
             removeVisitingSSDBKey(c->cmd, c->argc, c->argv);
+            if (c->cmd->flags & CMD_WRITE) {
+                client *blocked;
+                robj* keyobj = c->argv[1];
+                if (dictFind(server.db[0].blocking_keys_write_same_ssdbkey, keyobj) &&
+                        0 == isThisKeyVisitingWriteSSDB(keyobj->ptr)) {
+                    blocked = removeFirstClientFromListForBlockedKey(server.db[0].blocking_keys_write_same_ssdbkey, keyobj);
+                    serverAssert(blocked->btype == BLOCKED_WRITE_SAME_SSDB_KEY);
+                    unblockClient(blocked);
+                    if (C_OK == runCommand(blocked))
+                        resetClient(blocked);
+                }
+            }
+        }
     } else if (server.jdjr_mode && c->btype == BLOCKED_MIGRATING_DUMP) {
         /* Migrate will translated to del after migrateCommand(). */
         serverAssert(c->cmd->proc == migrateCommand
@@ -200,36 +218,33 @@ int replyToBlockedClientTimedOut(client *c) {
     } else if (server.jdjr_mode && c->btype == BLOCKED_SSDB_LOADING_OR_TRANSFER) {
         transferringOrLoadingBlockedClientTimeOut(c);
         return C_ERR;
-    } else if (server.jdjr_mode && c->btype == BLOCKED_NO_WRITE_TO_SSDB) {
-        unblockClient(c);
-        /* remove this client from server.no_writing_ssdb_blocked_clients to avoid
-         * it processed by handleClientsBlockedOnCustomizedPsync again.*/
-        removeClientWaitingSSDBcheckWrite(c);
-        addReplyError(c, "timeout");
-        resetClient(c);
-        serverLog(LOG_DEBUG, "[!!!!]reset by replyToBlockedClientTimedOut:%p", (void *) c);
-        return C_ERR;
-    } else if (server.jdjr_mode && c->btype == BLOCKED_NO_READ_WRITE_TO_SSDB) {
-        unblockClient(c);
-        /* remove this client from server.ssdb_flushall_blocked_clients to avoid
-         * it processed by handleClientsBlockedOnFlushall again.*/
-        removeClientWaitingSSDBflushall(c);
-        addReplyError(c, "timeout");
-        resetClient(c);
-        serverLog(LOG_DEBUG, "[!!!!]reset by replyToBlockedClientTimedOut:%p", (void*)c);
-        return C_ERR;
     } else if (server.jdjr_mode
                && (c->btype == BLOCKED_VISITING_SSDB
                    || c->btype == BLOCKED_BY_FLUSHALL
                    || c->btype == BLOCKED_BY_DELETE_CONFIRM
                    || c->btype == BLOCKED_MIGRATING_CLIENT
                    || c->btype == BLOCKED_MIGRATING_DUMP)) {
+        serverLog(LOG_DEBUG, "[!!!!]block timeout(client:%p,btype:%d), will free client", (void*)c, c->btype);
         /* must unblock for BLOCKED_VISITING_SSDB and BLOCKED_MIGRATING_DUMP types. */
         unblockClient(c);
         addReplyError(c, "timeout");
-        serverLog(LOG_DEBUG, "[!!!!]block timeout(client:%p,btype:%d), will free client", (void*)c, c->btype);
         /* free client to avoid unexpected issues.*/
         freeClient(c);
+        return C_ERR;
+    } else if (server.jdjr_mode && (c->btype == BLOCKED_WRITE_SAME_SSDB_KEY ||
+                                    c->btype == BLOCKED_NO_READ_WRITE_TO_SSDB ||
+                                    c->btype == BLOCKED_NO_WRITE_TO_SSDB)) {
+        unblockClient(c);
+        if (c->btype == BLOCKED_WRITE_SAME_SSDB_KEY)
+            removeClientFromListForBlockedKey(c, server.db[0].blocking_keys_write_same_ssdbkey, c->argv[1]);
+        else if (c->btype == BLOCKED_NO_READ_WRITE_TO_SSDB)
+            removeClientWaitingSSDBflushall(c);
+        else if (c->btype == BLOCKED_NO_WRITE_TO_SSDB)
+            removeClientWaitingSSDBcheckWrite(c);
+
+        addReplyError(c, "timeout");
+        resetClient(c);
+        serverLog(LOG_DEBUG, "[!!!!]block timeout(client:%p,btype:%d), reset it", (void*)c, c->btype);
         return C_ERR;
     } else {
         serverPanic("Unknown btype in replyToBlockedClientTimedOut().");
