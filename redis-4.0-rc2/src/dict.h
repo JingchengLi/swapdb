@@ -50,6 +50,10 @@ typedef struct dictEntry {
         void *val;
         uint64_t u64;
         int64_t s64;
+        struct {
+            uint32_t wcnt;
+            uint32_t rcnt;
+        } visiting_ssdb;
         double d;
     } v;
     struct dictEntry *next;

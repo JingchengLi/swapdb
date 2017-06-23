@@ -1783,6 +1783,16 @@ int handleResponseOfReplicationConn(client* c, redisReply* reply) {
     return C_OK;
 }
 
+int isThisKeyVisitingWriteSSDB(sds key)
+{
+    dictEntry *entry = dictFind(EVICTED_DATA_DB->visiting_ssdb_keys, key);
+    uint32_t visiting_write_num = dictGetVisitingSSDBwriteCount(entry);
+    if (visiting_write_num > 0)
+        return 1;
+    else
+        return 0;
+}
+
 int removeVisitingSSDBKey(struct redisCommand *cmd, int argc, robj** argv) {
     int *keys = NULL, numkeys = 0, j;
     int removed = 0;
@@ -1796,9 +1806,13 @@ int removeVisitingSSDBKey(struct redisCommand *cmd, int argc, robj** argv) {
         for (j = 0; j < numkeys; j ++) {
             robj* key = argv[keys[j]];
             dictEntry *entry = dictFind(EVICTED_DATA_DB->visiting_ssdb_keys, key->ptr);
-            uint64_t clients_visiting_num = dictGetUnsignedIntegerVal(entry);
-            serverAssert(entry && (clients_visiting_num >= 1));
-            if (1 == clients_visiting_num) {
+            uint32_t visiting_write_num = dictGetVisitingSSDBwriteCount(entry);
+            uint32_t visiting_read_num = dictGetVisitingSSDBreadCount(entry);
+
+            serverAssert(entry && ((visiting_read_num >= 1 && cmd->flags & CMD_READONLY) ||
+                         (visiting_write_num >= 1 && cmd->flags & CMD_WRITE)));
+
+            if (1 == (visiting_read_num+visiting_write_num)) {
                 /* only this client is visiting the specified key, remove the key
                  * from visiting keys. */
                 dictDelete(EVICTED_DATA_DB->visiting_ssdb_keys, key->ptr);
@@ -1810,8 +1824,10 @@ int removeVisitingSSDBKey(struct redisCommand *cmd, int argc, robj** argv) {
             } else {
                 /* there are other clients visiting the specified key, just reduce the visiting
                  * clients num by 1. */
-                clients_visiting_num--;
-                dictSetUnsignedIntegerVal(entry, clients_visiting_num);
+                if (cmd->flags & CMD_WRITE)
+                    dictSetVisitingSSDBwriteCount(entry, visiting_write_num-1);
+                else if (cmd->flags & CMD_READONLY)
+                    dictSetVisitingSSDBreadCount(entry, visiting_read_num-1);
                 removed = 0;
             }
         }

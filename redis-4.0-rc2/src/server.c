@@ -3313,21 +3313,31 @@ int delMigratingSSDBKey(sds keysds) {
     return dictDelete(server.db->migrating_ssdb_keys, keysds);
 }
 
-void addVisitingSSDBKey(sds keysds) {
+void addVisitingSSDBKey(struct redisCommand* cmd, sds keysds) {
     dictEntry *entry, *existing;
-    uint64_t clients_visiting_num = 0;
+    uint32_t visiting_write_num = 0, visiting_read_num = 0;
     entry = dictAddRaw(EVICTED_DATA_DB->visiting_ssdb_keys, keysds, &existing);
     if (NULL == entry) {
+        visiting_write_num = dictGetVisitingSSDBwriteCount(existing);
+        visiting_read_num = dictGetVisitingSSDBreadCount(existing);
+
         /* there are already some clients visiting this key. just increase client visiting count. */
-        clients_visiting_num = dictGetUnsignedIntegerVal(existing);
-        clients_visiting_num++;
-        dictSetUnsignedIntegerVal(existing, clients_visiting_num);
+        if (cmd->flags & CMD_WRITE)
+            dictSetVisitingSSDBwriteCount(existing, visiting_write_num+1);
+        else if (cmd->flags & CMD_READONLY)
+            dictSetVisitingSSDBreadCount(existing, visiting_read_num+1);
     } else {
         /* no other clients are visiting this key, set client visiting num to 1. */
-        dictSetUnsignedIntegerVal(entry, 1);
+        if (cmd->flags & CMD_WRITE) {
+            visiting_write_num = 1;
+            dictSetVisitingSSDBwriteCount(existing, 1);
+        } else if (cmd->flags & CMD_READONLY) {
+            visiting_read_num = 1;
+            dictSetVisitingSSDBreadCount(existing, 1);
+        }
     }
-    serverLog(LL_DEBUG, "key: %s is added to visiting_ssdb_keys, counter: %ld",
-              (char *)keysds, clients_visiting_num ? clients_visiting_num : 1);
+    serverLog(LL_DEBUG, "key: %s is added to visiting_ssdb_keys, counter(w/r): %u/%u",
+              (char *)keysds, visiting_write_num, visiting_read_num);
 }
 
 void copyArgsFromWriteOp(client* c, struct ssdb_write_op* op) {
@@ -3570,7 +3580,7 @@ void recordVisitingSSDBkeys(struct redisCommand* cmd, robj** argv, int argc) {
         if (cmd->proc == migrateCommand)
             addMigratingSSDBKey(argv[keys[j]]->ptr);
         else
-            addVisitingSSDBKey(argv[keys[j]]->ptr);
+            addVisitingSSDBKey(cmd, argv[keys[j]]->ptr);
 
     if (keys) getKeysFreeResult(keys);
 }

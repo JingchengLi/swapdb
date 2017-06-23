@@ -2332,6 +2332,15 @@ void debugBT();
 void resetSSDBloadRule();
 void appendSSDBloadRule(int cycle_seconds, long long hits_threshold);
 
+
+#define dictGetVisitingSSDBwriteCount(he) ((he)->v.visiting_ssdb.wcnt)
+#define dictGetVisitingSSDBreadCount(he) ((he)->v.visiting_ssdb.rcnt)
+#define dictSetVisitingSSDBwriteCount(entry, _val_) \
+    do { (entry)->v.visiting_ssdb.wcnt = _val_; } while(0)
+#define dictSetVisitingSSDBreadCount(entry, _val_) \
+    do { (entry)->v.visiting_ssdb.rcnt = _val_; } while(0)
+
+
 // todo: add config options
 /* for slave redis, after we complete RDB receiving, we wait
  * for my SSDB to send ssdb transfer message to me. if timeout,
