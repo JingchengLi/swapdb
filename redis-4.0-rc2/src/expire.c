@@ -436,10 +436,10 @@ void expireCustomizedCommand(client *c, long long basetime, int unit) {
     redisDb *db = c->db;
     if (server.jdjr_mode && lookupKey(EVICTED_DATA_DB, c->argv[1], LOOKUP_NOTOUCH)) {
         c->db = EVICTED_DATA_DB;
-        expireGenericCommand(c, mstime(), unit);
+        expireGenericCommand(c, basetime, unit);
         c->db = db;
     } else {
-        expireGenericCommand(c, mstime(), unit);
+        expireGenericCommand(c, basetime, unit);
     }
 }
 
