@@ -242,7 +242,6 @@ int replyToBlockedClientTimedOut(client *c) {
                                     c->btype == BLOCKED_NO_READ_WRITE_TO_SSDB ||
                                     c->btype == BLOCKED_NO_WRITE_TO_SSDB)) {
         serverLog(LOG_DEBUG, "[!!!!]block timeout(client:%p,fd:%d,btype:%d), reset it", (void*)c, c->fd, c->btype);
-        unblockClient(c);
         if (c->btype == BLOCKED_WRITE_SAME_SSDB_KEY)
             removeClientFromListForBlockedKey(c, server.db[0].blocking_keys_write_same_ssdbkey, c->argv[1]);
         else if (c->btype == BLOCKED_NO_READ_WRITE_TO_SSDB)
@@ -250,6 +249,7 @@ int replyToBlockedClientTimedOut(client *c) {
         else if (c->btype == BLOCKED_NO_WRITE_TO_SSDB)
             removeClientWaitingSSDBcheckWrite(c);
 
+        unblockClient(c);
         addReplyError(c, "timeout");
         resetClient(c);
         return C_ERR;
