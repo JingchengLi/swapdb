@@ -127,6 +127,7 @@ set ::all_tests {
 # Index to the next test to run in the ::all_tests list.
 set ::next_test 0
 
+set ::expire 0
 set ::host 127.0.0.1
 set ::port 21111
 set ::ssdbport 20000
@@ -219,7 +220,12 @@ proc sr {args} {
         set args [lrange $args 1 end]
     }
     after 1
-    [srv $level "ssdbclient"] {*}$args
+    # ssdb not support volatile default.
+    if {"ttl" eq [lindex $args 1] || "pttl" eq [lindex $args 1]} {
+        [srv $level "client"] {*}$args
+    } else {
+        [srv $level "ssdbclient"] {*}$args
+    }
     # set ssdbport [expr [srv $level port]+$::ssdbport]
     # [redis $::host $ssdbport] {*}$args
 }
@@ -627,11 +633,13 @@ for {set j 0} {$j < [llength $argv]} {incr j} {
             puts "waiting........."
             after 100000000
         }
-    } elseif {$opt eq "--loglevel"} {
+    } elseif {$opt eq {--loglevel}} {
         incr j
         set ::loglevel $arg
         set ::cfgfile  ${::cfgdir}/${::loglevel}_redis_testreport.xml
         exec rm -f $::cfgfile
+    } elseif {$opt eq {--expire}} {
+        set ::expire 1
     } else {
         puts "Wrong argument: $opt"
         exit 1

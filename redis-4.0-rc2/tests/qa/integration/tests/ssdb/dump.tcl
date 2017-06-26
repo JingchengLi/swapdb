@@ -135,11 +135,13 @@ overrides {maxmemory 0}} {
             r del myset
         }
 
-        test {RESTORE (SSDB) can set an arbitrary expire to the materialized key} {
-            sr del foottl
-            sr restore foottl 5000 $redisEncoded
-            set ttl [sr pttl foottl]
-            assert {$ttl >= 3000 && $ttl <= 5000}
+        if {$::expire} {
+            test {RESTORE (SSDB) can set an arbitrary expire to the materialized key} {
+                sr del foottl
+                sr restore foottl 5000 $redisEncoded
+                set ttl [sr pttl foottl]
+                assert {$ttl >= 3000 && $ttl <= 5000}
+            }
         }
         r del foottl
     }
@@ -181,11 +183,13 @@ overrides {maxmemory 0}} {
             r del myzset
         }
 
-        test {RESTORE (SSDB) can set an expire that overflows a 32 bit integer} {
-            sr del foottl
-            sr restore foottl 2569591501 $redisEncoded
-            set ttl [sr pttl foottl]
-            assert {$ttl >= 2569591501-3000 && $ttl <= 2569591501}
+        if {$::expire} {
+            test {RESTORE (SSDB) can set an expire that overflows a 32 bit integer} {
+                sr del foottl
+                sr restore foottl 2569591501 $redisEncoded
+                set ttl [sr pttl foottl]
+                assert {$ttl >= 2569591501-3000 && $ttl <= 2569591501}
+            }
         }
         r del foottl
     }

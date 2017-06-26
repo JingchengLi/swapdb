@@ -27,6 +27,7 @@ proc main {} {
         "cluster-migration-barrier 1"
         "maxmemory 100M"
         "ssdb_server_unixsocket ssdb.sock"
+        "lfu-decay-time 0"
     }
 
     run_tests

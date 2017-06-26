@@ -24,13 +24,17 @@ start_server {tags {"lfu"}} {
     }
 }
 
-start_server {tags {"lfu"}} {
-    set maxhit 10001
-    for {set i 1} {$i < $maxhit} {incr i} {
-        r incr foo
-        if {100 == $i || 1000 == $i || 10000 == $i || 100000 == $i || 1000000 == $i} {
-            puts "$i hits:[r object freq foo]"
+start_server {tags {"lfu"}
+overrides {maxmemory 0}} {
+    test "100K hits with lfu-log-factor 10 default" {
+        set maxhit 100001
+        for {set i 1} {$i < $maxhit} {incr i} {
+            r incr foo
+            if {100 == $i || 1000 == $i || 10000 == $i || 100000 == $i || 1000000 == $i} {
+                puts "$i hits:[r object freq foo]"
+            }
         }
+        assert { 255 > [r object freq foo] }
     }
 }
 
