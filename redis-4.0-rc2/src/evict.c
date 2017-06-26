@@ -743,7 +743,7 @@ int prologOfEvictingToSSDB(robj *keyobj, redisDb *db) {
     /* when the key was expired before but had not been deleted. but now we are sure
      * it's a new key, so remove it from delete_expired_keys to avoid deleting a key
      * by mistake. */
-    if (dictFind(db->delete_expired_keys, keyobj->ptr)) {
+    if (db->id == EVICTED_DATA_DBID && dictFind(db->delete_expired_keys, keyobj->ptr)) {
         dictDelete(db->delete_expired_keys, keyobj->ptr);
     }
 

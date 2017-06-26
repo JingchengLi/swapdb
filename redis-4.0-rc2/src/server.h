@@ -321,8 +321,9 @@ typedef long long mstime_t; /* millisecond time type. */
 #define BLOCKED_VISITING_SSDB 20   /* Client is visiting SSDB. */
 #define BLOCKED_BY_FLUSHALL  21
 #define BLOCKED_BY_DELETE_CONFIRM  22 /* Client is blocked by delete key confirm. */
-#define BLOCKED_MIGRATING_CLIENT  23
-#define BLOCKED_MIGRATING_DUMP  24 /* Client is migrating in SSDB. */
+#define BLOCKED_BY_EXPIRED_DELETE 23 /* Client is blocked by delete expired ssdb keys. */
+#define BLOCKED_MIGRATING_CLIENT  24
+#define BLOCKED_MIGRATING_DUMP  25 /* Client is migrating in SSDB. */
 /* ================================================= */
 
 
@@ -1051,6 +1052,7 @@ struct redisServer {
     client *ssdb_replication_client;   /* client for interaction with SSDB in
                                  * replication state. */
     client *slave_ssdb_load_evict_client;
+    client *expired_delete_client; /* use this client to delete expired ssdb keys */
     int cfd[CONFIG_BINDADDR_MAX];/* Cluster bus listening socket */
     int cfd_count;              /* Used slots in cfd[] */
     list *clients;              /* List of active clients */

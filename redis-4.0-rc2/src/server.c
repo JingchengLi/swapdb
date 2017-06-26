@@ -955,6 +955,18 @@ int clientsCronResizeQueryBuffer(client *c) {
 
 #define IS_NOT_CONNECTED(c) (!(c) || (!((c)->ssdb_conn_flags & CONN_CHECK_REPOPID) \
     && !((c)->ssdb_conn_flags & CONN_SUCCESS)))
+
+#define RECONNECT_SPECIAL_CLIENT(sp_client) {\
+    if (!sp_client)\
+        sp_client = createSpecialSSDBclient();\
+    else if (sp_client->ssdb_conn_flags & CONN_CONNECT_FAILED) {\
+        nonBlockConnectToSsdbServer(sp_client);\
+    }\
+    total_ssdb_conn++;\
+    if (IS_NOT_CONNECTED(sp_client))\
+        total_ssdb_disconnected++;\
+}
+
 void reconnectSSDB() {
     listNode* ln;
     listIter li;
@@ -968,45 +980,17 @@ void reconnectSSDB() {
     }
     int total_ssdb_conn = 0;
     int total_ssdb_disconnected = 0;
-    if (!server.ssdb_client)
-        server.ssdb_client = createSpecialSSDBclient();
-    else if (server.ssdb_client->ssdb_conn_flags & CONN_CONNECT_FAILED) {
-        nonBlockConnectToSsdbServer(server.ssdb_client);
-    }
-    total_ssdb_conn++;
-    if (IS_NOT_CONNECTED(server.ssdb_client))
-        total_ssdb_disconnected++;
 
-    if (!server.delete_confirm_client)
-        server.delete_confirm_client = createSpecialSSDBclient();
-    else if (server.delete_confirm_client->ssdb_conn_flags & CONN_CONNECT_FAILED) {
-        nonBlockConnectToSsdbServer(server.delete_confirm_client);
-    }
-    total_ssdb_conn++;
-    if (IS_NOT_CONNECTED(server.delete_confirm_client))
-        total_ssdb_disconnected++;
+    RECONNECT_SPECIAL_CLIENT(server.ssdb_client);
+    RECONNECT_SPECIAL_CLIENT(server.delete_confirm_client);
 
     /* if ssdb is down before this, we just try two connections. avoid too many
      * reconnect retries. */
     if (server.ssdb_is_down) return;
 
-    if (!server.slave_ssdb_load_evict_client)
-        server.slave_ssdb_load_evict_client = createSpecialSSDBclient();
-    else if (server.slave_ssdb_load_evict_client->ssdb_conn_flags & CONN_CONNECT_FAILED) {
-        nonBlockConnectToSsdbServer(server.slave_ssdb_load_evict_client);
-    }
-    total_ssdb_conn++;
-    if (IS_NOT_CONNECTED(server.slave_ssdb_load_evict_client))
-        total_ssdb_disconnected++;
-
-    if (!server.ssdb_replication_client)
-        server.ssdb_replication_client = createSpecialSSDBclient();
-    else if (server.ssdb_replication_client->ssdb_conn_flags & CONN_CONNECT_FAILED) {
-        nonBlockConnectToSsdbServer(server.ssdb_replication_client);
-    }
-    total_ssdb_conn++;
-    if (IS_NOT_CONNECTED(server.ssdb_replication_client))
-        total_ssdb_disconnected++;
+    RECONNECT_SPECIAL_CLIENT(server.slave_ssdb_load_evict_client);
+    RECONNECT_SPECIAL_CLIENT(server.ssdb_replication_client);
+    RECONNECT_SPECIAL_CLIENT(server.expired_delete_client);
 
     listRewind(server.clients, &li);
     while ((ln = listNext(&li))) {
@@ -1724,6 +1708,50 @@ void startToHandleCmdListInSlave(void) {
               dictSize(server.loadAndEvictCmdDict), total_returned);
 }
 
+#define MAX_NUM_EXPIRED_DELETE_EVERY_TIME 10
+void handleExpiredDeleteKeys(void) {
+    dictIterator *di;
+    dictEntry *de;
+    int arg_pos;
+    unsigned int size = dictSize(EVICTED_DATA_DB->delete_expired_keys);
+
+    if (0 == size)
+        return;
+
+    if (!server.expired_delete_client ||
+        !(server.expired_delete_client->ssdb_conn_flags & CONN_SUCCESS))
+        return;
+
+    if (server.expired_delete_client->flags & CLIENT_BLOCKED)
+        return;
+
+    /* we delete 10 expired ssdb keys at most every time. */
+    server.expired_delete_client->argc = 1 + (size > MAX_NUM_EXPIRED_DELETE_EVERY_TIME ?
+                                              MAX_NUM_EXPIRED_DELETE_EVERY_TIME : size);
+    server.expired_delete_client->cmd = lookupCommandByCString("del");
+    if (!server.expired_delete_client->argv)
+        server.expired_delete_client->argv = zmalloc(sizeof(robj *) * (MAX_NUM_EXPIRED_DELETE_EVERY_TIME+1));
+    server.expired_delete_client->argv[0] = createObject(OBJ_STRING, sdsnew("del"));
+
+    arg_pos = 1;
+    di = dictGetSafeIterator(EVICTED_DATA_DB->delete_expired_keys);
+    while((de = dictNext(di))) {
+        if (arg_pos > MAX_NUM_EXPIRED_DELETE_EVERY_TIME)
+            break;
+        server.expired_delete_client->argv[arg_pos] = createObject(OBJ_STRING, sdsdup(de->key));
+        arg_pos++;
+    }
+    dictReleaseIterator(di);
+
+    serverAssert(arg_pos == server.expired_delete_client->argc);
+    if (C_OK != sendCommandToSSDB(server.expired_delete_client, NULL))
+        return;
+    /* TODO: use a suitable timeout. */
+    server.expired_delete_client->bpop.timeout = 5000 + mstime();
+    /* we are blocked to wait ssdb's response. */
+    blockClient(server.expired_delete_client, BLOCKED_BY_EXPIRED_DELETE);
+}
+
 void handleDeleteConfirmKeys(void) {
     dictIterator *di;
     dictEntry *de;
@@ -1740,6 +1768,12 @@ void handleDeleteConfirmKeys(void) {
 
     if (server.masterhost && server.repl_state != REPL_STATE_CONNECTED)
         return;
+
+    server.delete_confirm_client->argc = 2;
+    server.delete_confirm_client->cmd = lookupCommandByCString("exists");
+    if (!server.delete_confirm_client->argv)
+        server.delete_confirm_client->argv = zmalloc(sizeof(robj *)
+                                                     * server.delete_confirm_client->argc);
 
     di = dictGetSafeIterator(server.maybe_deleted_ssdb_keys);
     while((de = dictNext(di))) {
@@ -1761,15 +1795,8 @@ void handleDeleteConfirmKeys(void) {
             continue;
         }
 
-        server.delete_confirm_client->argc = 2;
-
-        if (!server.delete_confirm_client->argv)
-            server.delete_confirm_client->argv = zmalloc(sizeof(robj *)
-                                                         * server.delete_confirm_client->argc);
-
         server.delete_confirm_client->argv[0] = createObject(OBJ_STRING, sdsnew("exists"));
         server.delete_confirm_client->argv[1] = createObject(OBJ_STRING, sdsdup(de->key));
-        server.delete_confirm_client->cmd = lookupCommandByCString("exists");
 
         if (C_OK != sendCommandToSSDB(server.delete_confirm_client, NULL)) {
             /* server.delete_confirm_client->argv will be freed in freeClient */
@@ -1857,6 +1884,8 @@ void beforeSleep(struct aeEventLoop *eventLoop) {
 
     /* Try to load keys from SSDB to redis. */
     if (server.jdjr_mode && server.masterhost == NULL) startToLoadIfNeeded();
+
+    if (server.jdjr_mode && server.masterhost == NULL) handleExpiredDeleteKeys();
 
     if (server.jdjr_mode) handleDeleteConfirmKeys();
 
@@ -2529,10 +2558,6 @@ void initServer(void) {
         server.db[j].ready_keys = dictCreate(&objectKeyPointerValueDictType,NULL);
         server.db[j].watched_keys = dictCreate(&keylistDictType,NULL);
 
-        // todo: 优化字典类型,避免较多的内存分配
-        if (server.jdjr_mode)
-            server.db[j].delete_expired_keys = dictCreate(&keyDictType,NULL);
-
         server.db[j].id = j;
         server.db[j].avg_ttl = 0;
     }
@@ -2547,6 +2572,8 @@ void initServer(void) {
         server.db[EVICTED_DATA_DBID].loading_hot_keys = dictCreate(&keyDictType,NULL);
         server.db[EVICTED_DATA_DBID].visiting_ssdb_keys = dictCreate(&keyDictType,NULL);
         server.db[EVICTED_DATA_DBID].delete_confirm_keys = dictCreate(&keyDictType,NULL);
+        // todo: 优化字典类型,避免较多的内存分配
+        server.db[EVICTED_DATA_DBID].delete_expired_keys = dictCreate(&keyDictType,NULL);
 
         server.hot_keys = dictCreate(&keyDictType,NULL);
         server.maybe_deleted_ssdb_keys = dictCreate(&keyDictType,NULL);
@@ -3867,6 +3894,7 @@ void cleanSpecialClientsAndIntermediateKeys(int is_flushall) {
     if (server.slave_ssdb_load_evict_client) freeClient(server.slave_ssdb_load_evict_client);
     if (is_flushall && server.delete_confirm_client) freeClient(server.delete_confirm_client);
 
+    dictEmpty(EVICTED_DATA_DB->delete_expired_keys, NULL);
     if (server.masterhost) dictEmpty(server.loadAndEvictCmdDict, NULL);
 
     emptyEvictionPool();

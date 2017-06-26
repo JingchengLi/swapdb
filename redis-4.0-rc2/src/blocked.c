@@ -158,6 +158,7 @@ void unblockClient(client *c) {
                    || c->btype == BLOCKED_NO_WRITE_TO_SSDB
                    || c->btype == BLOCKED_WRITE_SAME_SSDB_KEY
                    || c->btype == BLOCKED_BY_DELETE_CONFIRM
+                   || c->btype == BLOCKED_BY_EXPIRED_DELETE
                    || c->btype == BLOCKED_MIGRATING_CLIENT)) {
         /* Doing nothing. */
     } else if (server.jdjr_mode && c->btype == BLOCKED_VISITING_SSDB) {
@@ -226,6 +227,7 @@ int replyToBlockedClientTimedOut(client *c) {
                && (c->btype == BLOCKED_VISITING_SSDB
                    || c->btype == BLOCKED_BY_FLUSHALL
                    || c->btype == BLOCKED_BY_DELETE_CONFIRM
+                   || c->btype == BLOCKED_BY_EXPIRED_DELETE
                    || c->btype == BLOCKED_MIGRATING_CLIENT
                    || c->btype == BLOCKED_MIGRATING_DUMP)) {
         serverLog(LOG_DEBUG, "[!!!!]block timeout(client:%p,fd:%d,btype:%d), will free client",

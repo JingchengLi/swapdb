@@ -1201,8 +1201,7 @@ long long getExpire(redisDb *db, robj *key) {
 void propagateExpire(redisDb *db, robj *key, int lazy) {
     robj *argv[2];
 
-    // todo: delete keys async in delete_expired_keys dict
-    if (server.jdjr_mode) {
+    if (server.jdjr_mode && db->id == EVICTED_DATA_DBID) {
         /* add this expired key to dict, we will tell ssdb to
          * delete it. */
         dictAddOrFind(db->delete_expired_keys, key->ptr);
@@ -1260,11 +1259,7 @@ int expireIfNeeded(redisDb *db, robj *key) {
 
     serverLog(LL_DEBUG, "expireIfNeeded: %s, now: %lld, when: %lld", (char *)key->ptr, now, when);
 
-    if (server.jdjr_mode) {
-        propagateExpire(server.db+0,key,server.lazyfree_lazy_expire);
-    } else {
-        propagateExpire(db,key,server.lazyfree_lazy_expire);
-    }
+    propagateExpire(db,key,server.lazyfree_lazy_expire);
 
     notifyKeyspaceEvent(NOTIFY_EXPIRED,
         "expired",key,db->id);

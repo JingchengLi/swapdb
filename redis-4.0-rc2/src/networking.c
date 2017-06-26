@@ -1590,6 +1590,19 @@ int handleResponseOfTransferSnapshot(client *c, redisReply* reply) {
     return process_status;
 }
 
+int handleResponseOfExpiredDelete(client *c) {
+    redisReply *reply = c->ssdb_replies[0];
+    if (reply->type == REDIS_REPLY_INTEGER) {
+        int j;
+        serverAssert(c->cmd->proc == delCommand);
+        for (j=1; j < c->argc; j++) {
+            serverLog(LL_DEBUG, "expired key: %s is deleted in ssdb");
+            dictDelete(EVICTED_DATA_DB->delete_expired_keys, c->argv[j]->ptr);
+        }
+    }
+    return C_OK;
+}
+
 int handleResponseOfDeleteCheckConfirm(client *c) {
     redisReply *reply = c->ssdb_replies[0];
 
@@ -1849,6 +1862,7 @@ int isSpecialConnection(client *c) {
     if (c == server.ssdb_client
         || c == server.slave_ssdb_load_evict_client
         || c == server.ssdb_replication_client
+        || c == server.expired_delete_client
         || c == server.delete_confirm_client)
         return 1;
     else
@@ -1899,8 +1913,15 @@ void handleSSDBReply(client *c, int revert_len) {
 
     if (c == server.master && handleResponseOfReplicationConn(c, reply) == C_OK) return;
 
-    if (c == server.delete_confirm_client
-        && handleResponseOfDeleteCheckConfirm(c) == C_OK) {
+    if (c == server.expired_delete_client && handleResponseOfExpiredDelete(c) == C_OK) {
+        if (c->btype == BLOCKED_BY_EXPIRED_DELETE) {
+            unblockClient(c);
+            resetClient(c);
+        }
+        return;
+    }
+
+    if (c == server.delete_confirm_client && handleResponseOfDeleteCheckConfirm(c) == C_OK) {
         if (c->btype == BLOCKED_BY_DELETE_CONFIRM) {
             unblockClient(c);
             resetClient(c);
@@ -2190,6 +2211,7 @@ void connectSepecialSSDBclients() {
     server.ssdb_replication_client = createSpecialSSDBclient();
     server.slave_ssdb_load_evict_client = createSpecialSSDBclient();
     server.delete_confirm_client = createSpecialSSDBclient();
+    server.expired_delete_client = createSpecialSSDBclient();
 }
 
 static void freeClientArgv(client *c) {
@@ -2320,6 +2342,9 @@ void resetSpecialCient(client *c) {
         cleanAndSignalDeleteConfirmKeys();
         server.delete_confirm_client = NULL;
     }
+
+    if (c == server.expired_delete_client)
+        server.expired_delete_client = NULL;
 
     /* this is a normal client doing flushall. */
     if (c == server.current_flushall_client)
