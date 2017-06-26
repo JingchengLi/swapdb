@@ -3790,7 +3790,7 @@ int processCommandMaybeInSSDB(client *c) {
             if (processBeforeVisitingSSDB(c, keyobj) == C_OK)
                 return C_OK;
 
-            if (isThisKeyVisitingWriteSSDB(keyobj->ptr)) {
+            if (server.masterhost == NULL && c->cmd->flags & CMD_WRITE && isThisKeyVisitingWriteSSDB(keyobj->ptr)) {
                 addClientToListForBlockedKey(c, c->cmd, server.db[0].blocking_keys_write_same_ssdbkey, keyobj);
                 c->bpop.timeout = server.client_visiting_ssdb_timeout + mstime();
                 serverLog(LL_DEBUG, "client fd:%d, cmd: %s, key: %s is blocked by another write on the same key",
