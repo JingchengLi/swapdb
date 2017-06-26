@@ -4680,7 +4680,7 @@ void ssdbRespDelCommand(client *c) {
 void ssdbRespRestoreCommand(client *c) {
     robj * key = c->argv[1];
     long long old_dirty = server.dirty;
-
+    robj *argv[3];
     serverAssert(c->db->id == 0);
 
     preventCommandPropagation(c);
@@ -4706,6 +4706,7 @@ void ssdbRespRestoreCommand(client *c) {
 
        /* Delete key from EVICTED_DATA_DB if restoreCommand is OK. */
         if (server.dirty == old_dirty + 1) {
+            mstime_t when;
             dictEntry* ev_de = dictFind(EVICTED_DATA_DB->dict, c->argv[1]->ptr);
             dictEntry* de = dictFind(c->db->dict, c->argv[1]->ptr);
             robj* tmpargv[2];
@@ -4715,6 +4716,8 @@ void ssdbRespRestoreCommand(client *c) {
             unsigned int lfu = sdsgetlfu(evdb_key);
             sds db_key = dictGetKey(de);
             sdssetlfu(db_key, lfu);
+
+            when = getExpire(EVICTED_DATA_DB, c->argv[1]);
 
             if (server.lazyfree_lazy_eviction)
                 dbAsyncDelete(EVICTED_DATA_DB, key);
@@ -4735,6 +4738,18 @@ void ssdbRespRestoreCommand(client *c) {
             tmpargv[1] = key;
             propagate(server.delCommand,EVICTED_DATA_DBID,tmpargv,2,PROPAGATE_AOF);
             decrRefCount(delCmdObj);
+
+            /* Restore ttl info if needed. */
+            if (when >= 0) {
+                setExpire(c, server.db, c->argv[1], when);
+
+                argv[0] = createStringObject("PEXPIREAT", 9);
+                argv[1] = c->argv[1];
+                argv[2] = createStringObjectFromLongLong(when);
+                propagate(server.pexpireatCommand, 0, argv, 3, PROPAGATE_AOF);
+                decrRefCount(argv[0]);
+                decrRefCount(argv[2]);
+            }
 
             // progate dumpfromssdb to slaves
             robj *argv[2] = {shared.dumpcmdobj, key};

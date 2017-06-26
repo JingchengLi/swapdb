@@ -432,24 +432,35 @@ void expireGenericCommand(client *c, long long basetime, int unit) {
     }
 }
 
+void expireCustomizedCommand(client *c, long long basetime, int unit) {
+    redisDb *db = c->db;
+    if (server.jdjr_mode && lookupKey(EVICTED_DATA_DB, c->argv[1], LOOKUP_NOTOUCH)) {
+        c->db = EVICTED_DATA_DB;
+        expireGenericCommand(c, mstime(), unit);
+        c->db = db;
+    } else {
+        expireGenericCommand(c, mstime(), unit);
+    }
+}
+
 /* EXPIRE key seconds */
 void expireCommand(client *c) {
-    expireGenericCommand(c,mstime(),UNIT_SECONDS);
+    expireCustomizedCommand(c,mstime(),UNIT_SECONDS);
 }
 
 /* EXPIREAT key time */
 void expireatCommand(client *c) {
-    expireGenericCommand(c,0,UNIT_SECONDS);
+    expireCustomizedCommand(c,0,UNIT_SECONDS);
 }
 
 /* PEXPIRE key milliseconds */
 void pexpireCommand(client *c) {
-    expireGenericCommand(c,mstime(),UNIT_MILLISECONDS);
+    expireCustomizedCommand(c,mstime(),UNIT_MILLISECONDS);
 }
 
 /* PEXPIREAT key ms_time */
 void pexpireatCommand(client *c) {
-    expireGenericCommand(c,0,UNIT_MILLISECONDS);
+    expireCustomizedCommand(c,0,UNIT_MILLISECONDS);
 }
 
 /* Implements TTL and PTTL */
