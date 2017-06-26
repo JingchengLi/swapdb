@@ -4680,8 +4680,7 @@ void ssdbRespDelCommand(client *c) {
 void ssdbRespRestoreCommand(client *c) {
     robj * key = c->argv[1];
     long long old_dirty = server.dirty;
-    robj *argv[3];
-    serverAssert(c->db->id == 0);
+    serverAssert(c->db->id == 0 && c->argc == 5);
 
     preventCommandPropagation(c);
 
@@ -4709,7 +4708,7 @@ void ssdbRespRestoreCommand(client *c) {
             mstime_t when;
             dictEntry* ev_de = dictFind(EVICTED_DATA_DB->dict, c->argv[1]->ptr);
             dictEntry* de = dictFind(c->db->dict, c->argv[1]->ptr);
-            robj* tmpargv[2];
+            robj *argv[5];
 
             /* copy lfu info when load ssdb key to redis.*/
             sds evdb_key = dictGetKey(ev_de);
@@ -4725,19 +4724,16 @@ void ssdbRespRestoreCommand(client *c) {
                 dbSyncDelete(EVICTED_DATA_DB, key);
 
             /* propagate aof */
-            robj** restore_argv = zmalloc(c->argc * sizeof(robj*));
-            restore_argv[0] = createStringObject("restore", strlen("restore"));
-            memcpy(restore_argv+1,c->argv+1,(c->argc-1) * sizeof(robj*));
+            argv[0] = createStringObject("restore", 7);
+            memcpy(argv+1,c->argv+1,(c->argc-1) * sizeof(robj*));
 
-            propagate(server.restoreCommand,c->db->id,restore_argv,c->argc,PROPAGATE_AOF);
-            decrRefCount(restore_argv[0]);
-            zfree(restore_argv);
+            propagate(server.restoreCommand,c->db->id,argv,c->argc,PROPAGATE_AOF);
+            decrRefCount(argv[0]);
 
-            robj* delCmdObj = createStringObject("del",3);
-            tmpargv[0] = delCmdObj;
-            tmpargv[1] = key;
-            propagate(server.delCommand,EVICTED_DATA_DBID,tmpargv,2,PROPAGATE_AOF);
-            decrRefCount(delCmdObj);
+            argv[0] = createStringObject("del",3);
+            argv[1] = key;
+            propagate(server.delCommand,EVICTED_DATA_DBID,argv,2,PROPAGATE_AOF);
+            decrRefCount(argv[0]);
 
             /* Restore ttl info if needed. */
             if (when >= 0) {
@@ -4752,7 +4748,8 @@ void ssdbRespRestoreCommand(client *c) {
             }
 
             // progate dumpfromssdb to slaves
-            robj *argv[2] = {shared.dumpcmdobj, key};
+            argv[0] = shared.dumpcmdobj;
+            argv[1] = key;
             propagate(lookupCommand(shared.dumpcmdobj->ptr), 0, argv, 2, PROPAGATE_REPL);
             serverLog(LL_DEBUG, "ssdbRespRestoreCommand succeed.");
         } else
