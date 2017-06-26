@@ -3190,8 +3190,10 @@ int blockInMediateKey(client* c, struct redisCommand* cmd, robj** argv, int argc
     int *keys = NULL, blockednum = 0, numkeys = 0, j;
     keys = getKeysFromCommand(cmd, argv, argc, &numkeys);
 
-    if (numkeys)
+    if (numkeys) {
         keyobjs = zmalloc(sizeof(robj *) * numkeys);
+        c->first_key_index = keys[0];
+    }
 
     for (j = 0; j < numkeys; j ++)
         keyobjs[j] = argv[keys[j]];
@@ -3771,8 +3773,10 @@ int processCommandMaybeInSSDB(client *c) {
     /* TODO: support multiple key migrateCommand ??? */
     if (c->cmd->proc == migrateCommand)
         keyobj = c->argv[3];
-    else
-        keyobj = c->argv[1];
+    else {
+        serverAssert(c->first_key_index != 0);
+        keyobj = c->argv[c->first_key_index];
+    }
 
     if (!dictFind(EVICTED_DATA_DB->dict, keyobj->ptr))
         return C_ERR;
@@ -3816,15 +3820,6 @@ int processCommandMaybeInSSDB(client *c) {
 
             if (processBeforeVisitingSSDB(c, keyobj) == C_OK)
                 return C_OK;
-
-            if (server.masterhost == NULL && c->cmd->flags & CMD_WRITE && isThisKeyVisitingWriteSSDB(keyobj->ptr)) {
-                addClientToListForBlockedKey(c, c->cmd, server.db[0].blocking_keys_write_same_ssdbkey, keyobj);
-                c->bpop.timeout = server.client_visiting_ssdb_timeout + mstime();
-                serverLog(LL_DEBUG, "client fd:%d, cmd: %s, key: %s is blocked by another write on the same key",
-                          c->fd, c->cmd->name, (char*)keyobj->ptr);
-                blockClient(c, BLOCKED_WRITE_SAME_SSDB_KEY);
-                return C_OK;
-            }
 
             ret = sendCommandToSSDB(c, NULL);
             if (ret != C_OK) return ret;
@@ -4176,6 +4171,7 @@ void handleCustomizedBlockedClients() {
 
 int tryBlockingClient(client *c) {
     int ret;
+    robj *keyobj;
 
     if (server.jdjr_mode
         && c->cmd->proc == migrateCommand) {
@@ -4194,6 +4190,19 @@ int tryBlockingClient(client *c) {
     /* Check if current cmd contains blocked keys. */
     if (server.jdjr_mode && c->argc > 1 && checkKeysInMediateState(c) == C_ERR) {
         /* Return C_ERR to keep client info and handle it later. */
+        return C_ERR;
+    }
+
+    if (server.masterhost == NULL
+        && (c->cmd->flags & CMD_WRITE)
+        && c->first_key_index
+        && (keyobj = c->argv[c->first_key_index])
+        && isThisKeyVisitingWriteSSDB(keyobj->ptr)) {
+        addClientToListForBlockedKey(c, c->cmd, server.db[0].blocking_keys_write_same_ssdbkey, keyobj);
+        c->bpop.timeout = server.client_visiting_ssdb_timeout + mstime();
+        serverLog(LL_DEBUG, "client fd:%d, cmd: %s, key: %s is blocked by another write on the same key",
+                  c->fd, c->cmd->name, (char*)keyobj->ptr);
+        blockClient(c, BLOCKED_WRITE_SAME_SSDB_KEY);
         return C_ERR;
     }
 

@@ -1226,7 +1226,7 @@ void handleClientsBlockedOnSSDB(void) {
                         if (server.master == c && server.slave_failed_retry_interrupted) {
                             confirmAndRetrySlaveSSDBwriteOp(server.blocked_write_op->time, server.blocked_write_op->index);
                         } else {
-                            if (runCommand(c) == C_OK)
+                            if (tryBlockingClient(c) == C_OK && runCommand(c) == C_OK)
                                 resetClient(c);
                             if (server.master == c && server.send_failed_write_after_unblock) {
                                 serverAssert(!(server.master->ssdb_conn_flags & CONN_SUCCESS));

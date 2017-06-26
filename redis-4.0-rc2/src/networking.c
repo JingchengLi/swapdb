@@ -130,6 +130,7 @@ client *createClient(int fd) {
         c->ssdb_replies[0] = NULL;
         c->ssdb_replies[1] = NULL;
         c->revert_len = 0;
+        c->first_key_index = 0;
     }
     c->bpop.target = NULL;
     c->bpop.numreplicas = 0;
@@ -2605,6 +2606,8 @@ void resetClient(client *c) {
     c->reqtype = 0;
     c->multibulklen = 0;
     c->bulklen = -1;
+
+    if (server.jdjr_mode) c->first_key_index = 0;
 
     /* We clear the ASKING flag as well if we are not inside a MULTI, and
      * if what we just executed is not the ASKING command itself. */
