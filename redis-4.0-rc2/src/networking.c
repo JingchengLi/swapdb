@@ -848,7 +848,7 @@ static int internalSendCommandToSSDB(client *c, sds finalcmd) {
                 /* Try again later. */
             } else {
                 if (isSpecialConnection(c))
-                    freeClientAsync(c);
+                    freeClient(c);
                 else {
                     serverLog(LL_WARNING, "Error writing to SSDB server: %s", strerror(errno));
                     closeAndReconnectSSDBconnection(c);
@@ -926,7 +926,7 @@ int sendCommandToSSDB(client *c, sds finalcmd) {
     if (!(c->ssdb_conn_flags & CONN_SUCCESS) ||
         !c->context || c->context->fd <= 0) {
         if (isSpecialConnection(c))
-            freeClientAsync(c);
+            freeClient(c);
         else {
             if ((c->ssdb_conn_flags & CONN_CONNECTING) ||
                 (c == server.master && (c->ssdb_conn_flags & CONN_CHECK_REPOPID)))
@@ -2052,7 +2052,7 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
             serverLog(LL_WARNING, "ssdb read error: %s ", c->context->errstr);
 
             if (isSpecialConnection(c)) {
-                freeClientAsync(c);
+                freeClient(c);
                 return;
             } else {
                 if (c->ssdb_replies[0])
