@@ -1393,6 +1393,8 @@ void configGetCommand(client *c) {
     config_get_numerical_field("tcp-keepalive",server.tcpkeepalive);
     config_get_numerical_field("ssdb-transfer-lower-limit",server.ssdb_transfer_lower_limit);
     config_get_numerical_field("ssdb-load-upper-limit",server.ssdb_load_upper_limit);
+    config_get_numerical_field("lfu-log-factor",server.lfu_log_factor);
+    config_get_numerical_field("lfu-decay-time",server.lfu_decay_time);
 
     /* Bool (yes/no) values */
     config_get_bool_field("cluster-require-full-coverage",
