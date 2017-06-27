@@ -54,15 +54,13 @@
 int activeExpireCycleTryExpire(redisDb *db, dictEntry *de, long long now) {
     long long t = dictGetSignedIntegerVal(de);
     if (now > t) {
-        /* when there is a write SSDB operation on this key, we can't expire
-         * it now.*/
-        if (server.jdjr_mode && (db->id == EVICTED_DATA_DBID)
-            && isThisKeyVisitingWriteSSDB(de->key))
-            return 0;
-
         sds key = dictGetKey(de);
         robj *keyobj = createStringObject(key,sdslen(key));
 
+        if (0 == checkBeforeExpire(db, keyobj)) {
+            decrRefCount(keyobj);
+            return 0;
+        }
         propagateExpire(db,keyobj,server.lazyfree_lazy_expire);
         if (server.lazyfree_lazy_expire)
             dbAsyncDelete(db,keyobj);

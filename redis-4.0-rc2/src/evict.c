@@ -1105,6 +1105,8 @@ int freeMemoryIfNeeded(void) {
             db = server.db+bestdbid;
             robj *keyobj = createStringObject(bestkey,sdslen(bestkey));
 
+            if (0 == checkBeforeExpire(db, keyobj)) continue;
+
             propagateExpire(db,keyobj,server.lazyfree_lazy_eviction);
             /* We compute the amount of memory freed by db*Delete() alone.
              * It is possible that actually the memory needed to propagate

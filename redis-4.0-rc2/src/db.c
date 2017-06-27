@@ -1220,6 +1220,23 @@ void propagateExpire(redisDb *db, robj *key, int lazy) {
     decrRefCount(argv[1]);
 }
 
+int checkBeforeExpire(redisDb *db, robj *key) {
+    /* when there is a write SSDB operation on this key, we can't expire
+     * it now.*/
+    if (server.jdjr_mode && (db->id == EVICTED_DATA_DBID)
+        && isThisKeyVisitingWriteSSDB(key->ptr))
+        return 0;
+
+    if (dictDelete(EVICTED_DATA_DB->loading_hot_keys, key->ptr) == DICT_OK) {
+        serverLog(LL_DEBUG, "key: %s is unblocked and deleted from loading_hot_keys.", (char *)key->ptr);
+        signalBlockingKeyAsReady(db, key);
+    } else if (dictDelete(EVICTED_DATA_DB->transferring_keys, key->ptr) == DICT_OK) {
+        signalBlockingKeyAsReady(db, key);
+        serverLog(LL_DEBUG, "key: %s is unblocked and deleted from transferring_keys.", (char *)key->ptr);
+    }
+    return 1;
+}
+
 int expireIfNeeded(redisDb *db, robj *key) {
     mstime_t when = getExpire(db,key);
     mstime_t now;
@@ -1248,11 +1265,7 @@ int expireIfNeeded(redisDb *db, robj *key) {
     /* Return when this key has not expired */
     if (now <= when) return 0;
 
-    /* when there is a write SSDB operation on this key, we can't expire
-     * it now.*/
-    if (server.jdjr_mode && (db->id == EVICTED_DATA_DBID)
-        && isThisKeyVisitingWriteSSDB(key->ptr))
-        return 0;
+    if (0 == checkBeforeExpire(db, key)) return 0;
 
     /* Delete the key */
     server.stat_expiredkeys++;
