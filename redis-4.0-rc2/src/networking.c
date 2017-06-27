@@ -2301,11 +2301,6 @@ void unlinkClient(client *c) {
             aeDeleteTimeEvent(server.el, c->repl_timer_id);
             c->repl_timer_id = -1;
         }
-        if (c->context && c->context->fd != -1) {
-            aeDeleteFileEvent(server.el, c->context->fd, AE_READABLE | AE_WRITABLE);
-            close(c->context->fd);
-            c->context->fd = -1;
-        }
         /* handle ssdb connection */
         handleSSDBconnectionDisconnect(c);
     }
