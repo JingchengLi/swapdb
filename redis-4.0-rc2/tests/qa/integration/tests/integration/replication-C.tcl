@@ -27,6 +27,7 @@ start_server {tags {"repl-abnormal"}} {
             after 1000
             restart_ssdb_server
             set slave [srv 0 client]
+            set slavessdb [srv 0 ssdbclient]
             after 500
             stop_bg_client_list $clist
             wait_for_condition 100 100 {
@@ -40,6 +41,12 @@ start_server {tags {"repl-abnormal"}} {
 #                fail "Different digest between master([$master debug digest]) and slave([$slave debug digest]) after too long time."
 #            }
             assert_equal "" [status $master db0] "No keys should stay in redis"
+
+            wait_for_condition 100 100 {
+                [$slavessdb ssdb_dbsize] == [status $slave keys_in_ssdb_count]
+            } else {
+                fail "slave ssdb keys num equal with ssdbkeys in redis:[$slavessdb ssdb_dbsize] != [status $slave keys_in_ssdb_count]"
+            }
             compare_debug_digest
         }
     }
@@ -52,6 +59,7 @@ start_server {tags {"repl-abnormal"}} {
         set master_host [srv -1 host]
         set master_port [srv -1 port]
         set slave [srv 0 client]
+        set slavessdb [srv 0 ssdbclient]
         set num 100000
         set clients 1
         set clist {}
@@ -82,6 +90,12 @@ start_server {tags {"repl-abnormal"}} {
                 fail "Different digest between master([$master debug digest]) and slave([$slave debug digest]) after too long time."
             }
             assert_equal "" [status $master db0] "No keys should stay in redis"
+
+            wait_for_condition 100 100 {
+                [$slavessdb ssdb_dbsize] == [status $slave keys_in_ssdb_count]
+            } else {
+                fail "slave ssdb keys num equal with ssdbkeys in redis:[$slavessdb ssdb_dbsize] != [status $slave keys_in_ssdb_count]"
+            }
             compare_debug_digest
         }
     }

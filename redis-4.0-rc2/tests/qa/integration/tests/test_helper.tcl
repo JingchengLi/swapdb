@@ -221,7 +221,7 @@ proc sr {args} {
     }
     after 1
     # ssdb not support volatile default.
-    if {"ttl" eq [lindex $args 1] || "pttl" eq [lindex $args 1]} {
+    if {"ttl" eq [lindex $args 0] || "pttl" eq [lindex $args 0]} {
         [srv $level "client"] {*}$args
     } else {
         [srv $level "ssdbclient"] {*}$args
