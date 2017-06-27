@@ -697,6 +697,13 @@ void syncCommand(client *c) {
     /* ignore SYNC if already slave or in monitor mode */
     if (c->flags & CLIENT_SLAVE) return;
 
+    if (server.masterhost && server.jdjr_mode) {
+        addReplyError(c, "don't support psync/sync for slave server in jdjr mode");
+        serverLog(LL_DEBUG, "don't support psync/sync for slave server in jdjr mode");
+        freeClientAsync(c);
+        return;
+    }
+
     /* Refuse SYNC requests if we are a slave but the link with our master
      * is not ok... */
     if (server.masterhost && server.repl_state != REPL_STATE_CONNECTED) {
