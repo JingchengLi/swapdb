@@ -3761,7 +3761,8 @@ int processBeforeVisitingSSDB(client *c, robj *keyobj) {
 /* Process keys may be in SSDB, only handle the command jdjr_mode supported.
  The rest cases will be handled by processCommand. */
 int processCommandMaybeInSSDB(client *c) {
-    robj *keyobj = NULL;
+    robj *keyobj;
+
     if ( !c->cmd || !(c->cmd->flags & (CMD_READONLY | CMD_WRITE)) )
         return C_ERR;
     if (c->cmd->flags & CMD_JDJR_REDIS_ONLY)
@@ -3773,12 +3774,12 @@ int processCommandMaybeInSSDB(client *c) {
     /* TODO: support multiple key migrateCommand ??? */
     if (c->cmd->proc == migrateCommand)
         keyobj = c->argv[3];
-    else {
-        serverAssert(c->first_key_index != 0);
+    else if (c->first_key_index != 0)
         keyobj = c->argv[c->first_key_index];
-    }
+    else
+        keyobj = NULL;
 
-    if (!dictFind(EVICTED_DATA_DB->dict, keyobj->ptr))
+    if (!keyobj || !dictFind(EVICTED_DATA_DB->dict, keyobj->ptr))
         return C_ERR;
 
     /* TODO: ignore C_NOTSUPPORT_ERR in LL_DEBUG temporary. */
