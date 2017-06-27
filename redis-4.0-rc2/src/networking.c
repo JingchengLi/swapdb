@@ -1597,7 +1597,7 @@ int handleResponseOfExpiredDelete(client *c) {
         int j;
         serverAssert(c->cmd->proc == delCommand);
         for (j=1; j < c->argc; j++) {
-            serverLog(LL_DEBUG, "expired key: %s is deleted in ssdb", c->argv[j]->ptr);
+            serverLog(LL_DEBUG, "expired key: %s is deleted in ssdb", (char*)c->argv[j]->ptr);
             dictDelete(EVICTED_DATA_DB->delete_expired_keys, c->argv[j]->ptr);
         }
     }

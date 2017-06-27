@@ -3761,7 +3761,8 @@ int processBeforeVisitingSSDB(client *c, robj *keyobj) {
 /* Process keys may be in SSDB, only handle the command jdjr_mode supported.
  The rest cases will be handled by processCommand. */
 int processCommandMaybeInSSDB(client *c) {
-    robj *keyobj;
+    robj *keyobj = NULL;
+    int ret;
 
     if ( !c->cmd || !(c->cmd->flags & (CMD_READONLY | CMD_WRITE)) )
         return C_ERR;
@@ -3815,15 +3816,17 @@ int processCommandMaybeInSSDB(client *c) {
         /* Calling lookupKey to update lru or lfu counter. */
         robj* val = lookupKey(EVICTED_DATA_DB, keyobj, LOOKUP_NONE);
         if (val) {
-            int ret;
-            if (expireIfNeeded(EVICTED_DATA_DB, keyobj) == 1)
-                return C_ERR;
+            if (expireIfNeeded(EVICTED_DATA_DB, keyobj) == 1) {
+                ret = C_ERR;
+                goto check_blocked_clients;
+            }
 
             if (processBeforeVisitingSSDB(c, keyobj) == C_OK)
                 return C_OK;
 
             ret = sendCommandToSSDB(c, NULL);
-            if (ret != C_OK) return ret;
+            if (ret != C_OK)
+                goto check_blocked_clients;
 
             server.stat_keyspace_ssdb_hits ++;
 
@@ -3845,6 +3848,11 @@ int processCommandMaybeInSSDB(client *c) {
     }
 
     return C_ERR;
+
+check_blocked_clients:
+    if (c->cmd->flags & CMD_WRITE)
+        unblockClientWritingOnSameKey(keyobj);
+    return ret;
 }
 
 void cleanAndSignalImmediateKeys(dict* dictory) {

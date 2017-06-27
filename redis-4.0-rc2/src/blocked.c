@@ -142,6 +142,22 @@ void removeClientWaitingSSDBcheckWrite(client* c) {
     if (ln) listDelNode(server.no_writing_ssdb_blocked_clients, ln);
 }
 
+/* Unblock the first client in the blocked client list of writing on the same key. */
+void unblockClientWritingOnSameKey(robj* keyobj) {
+    if (dictFind(server.db[0].blocking_keys_write_same_ssdbkey, keyobj) &&
+        0 == isThisKeyVisitingWriteSSDB(keyobj->ptr)) {
+        client *blocked = removeFirstClientFromListForBlockedKey(server.db[0].blocking_keys_write_same_ssdbkey, keyobj);
+        serverAssert(blocked->btype == BLOCKED_WRITE_SAME_SSDB_KEY);
+        unblockClient(blocked);
+        serverLog(LL_DEBUG, "client fd:%d, cmd: %s, key: %s is unblocked",
+                  blocked->fd, blocked->cmd->name, (char*)keyobj->ptr);
+        if (tryBlockingClient(blocked) == C_OK) {
+            if (C_OK == runCommand(blocked))
+                resetClient(blocked);
+        }
+    }
+}
+
 /* Unblock a client calling the right function depending on the kind
  * of operation the client is blocking for. */
 void unblockClient(client *c) {
@@ -165,19 +181,9 @@ void unblockClient(client *c) {
         if (server.masterhost == NULL) {
             removeVisitingSSDBKey(c->cmd, c->argc, c->argv);
             if (c->cmd->flags & CMD_WRITE) {
-                client *blocked;
-                robj* keyobj = c->argv[1];
-                if (dictFind(server.db[0].blocking_keys_write_same_ssdbkey, keyobj) &&
-                        0 == isThisKeyVisitingWriteSSDB(keyobj->ptr)) {
-                    blocked = removeFirstClientFromListForBlockedKey(server.db[0].blocking_keys_write_same_ssdbkey, keyobj);
-                    serverAssert(blocked->btype == BLOCKED_WRITE_SAME_SSDB_KEY);
-                    unblockClient(blocked);
-                    serverLog(LL_DEBUG, "client fd:%d, cmd: %s, key: %s is unblocked",
-                              blocked->fd, blocked->cmd->name, (char*)keyobj->ptr);
-                    if (tryBlockingClient(blocked) == C_OK) {
-                        if (C_OK == runCommand(blocked))
-                            resetClient(blocked);
-                    }
+                if (c->first_key_index != 0) {
+                    robj* keyobj = c->argv[c->first_key_index];
+                    unblockClientWritingOnSameKey(keyobj);
                 }
             }
         }
