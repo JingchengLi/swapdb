@@ -1918,6 +1918,9 @@ void handleSSDBReply(client *c, int revert_len) {
         if (c->btype == BLOCKED_BY_EXPIRED_DELETE) {
             unblockClient(c);
             resetClient(c);
+            /* c->argv is reused for this connection. avoid to call decrRefcount on c->argv[j]
+             * in freeClientArgv when free client*/
+            c->argc = 0;
         }
         return;
     }
@@ -1926,8 +1929,9 @@ void handleSSDBReply(client *c, int revert_len) {
         if (c->btype == BLOCKED_BY_DELETE_CONFIRM) {
             unblockClient(c);
             resetClient(c);
-            c->argv[0] = NULL;
-            c->argv[1] = NULL;
+            /* c->argv is reused for this connection. avoid to call decrRefcount on c->argv[j]
+             * in freeClientArgv when free client*/
+            c->argc = 0;
         }
         return;
     }

@@ -1769,12 +1769,6 @@ void handleDeleteConfirmKeys(void) {
     if (server.masterhost && server.repl_state != REPL_STATE_CONNECTED)
         return;
 
-    server.delete_confirm_client->argc = 2;
-    server.delete_confirm_client->cmd = lookupCommandByCString("exists");
-    if (!server.delete_confirm_client->argv)
-        server.delete_confirm_client->argv = zmalloc(sizeof(robj *)
-                                                     * server.delete_confirm_client->argc);
-
     di = dictGetSafeIterator(server.maybe_deleted_ssdb_keys);
     while((de = dictNext(di))) {
         if (dictFind(EVICTED_DATA_DB->delete_confirm_keys, de->key)) {
@@ -1795,6 +1789,12 @@ void handleDeleteConfirmKeys(void) {
             continue;
         }
 
+        server.delete_confirm_client->argc = 2;
+        server.delete_confirm_client->cmd = lookupCommandByCString("exists");
+        if (!server.delete_confirm_client->argv)
+            server.delete_confirm_client->argv = zmalloc(sizeof(robj *)
+                                                         * server.delete_confirm_client->argc);
+
         server.delete_confirm_client->argv[0] = createObject(OBJ_STRING, sdsnew("exists"));
         server.delete_confirm_client->argv[1] = createObject(OBJ_STRING, sdsdup(de->key));
 
@@ -1807,7 +1807,6 @@ void handleDeleteConfirmKeys(void) {
         server.delete_confirm_client->bpop.timeout = 2000 + mstime();
         blockClient(server.delete_confirm_client, BLOCKED_BY_DELETE_CONFIRM);
         /* we are blocked to wait ssdb's response for this key, can't continue and just break this loop. */
-
 
         dictAddOrFind(EVICTED_DATA_DB->delete_confirm_keys, de->key);
         serverLog(LL_DEBUG, "start to confirm with ssdb whether key: %s is deleted", (sds)de->key);
