@@ -1631,12 +1631,10 @@ int cmpDictEntry(const void *a, const void *b) {
 }
 
 void startToHandleCmdListInSlave(void) {
-    dictEntry* random_entries[SLAVE_MAX_SSDB_SWAP_COUNT_EVERYTIME];
     dictEntry *de;
     uint64_t type;
     sds key;
-    int j, max_retry = 10;
-    int returned, total_returned;
+    int count;
 
     if (server.repl_state != REPL_STATE_CONNECTED)
         return;
@@ -1649,63 +1647,55 @@ void startToHandleCmdListInSlave(void) {
         SLAVE_MAX_CONCURRENT_SSDB_SWAP_COUNT)
         return;
 
-    total_returned = 0;
-    while (max_retry--) {
-        if (total_returned >= SLAVE_MAX_SSDB_SWAP_COUNT_EVERYTIME) break;
+    count = 0;
+    while (1) {
         /* for slave redis, limit the transfer/load operation count to MAX_SSDB_SWAP_COUNT_EVERY_TIME every time,
         * avoid to cause a long time delay of data replication for server.master when do stress test. */
-        returned = dictGetSomeKeys(server.loadAndEvictCmdDict, random_entries, SLAVE_MAX_SSDB_SWAP_COUNT_EVERYTIME);
-        if (returned == 0) continue;
+        if (count >= SLAVE_MAX_SSDB_SWAP_COUNT_EVERYTIME) break;
 
-        total_returned += returned;
+        de = dictGetRandomKey(server.loadAndEvictCmdDict);
+        if (!de) break;
 
-        qsort(random_entries, returned, sizeof(dictEntry *), cmpDictEntry);
-        for (j = 0; j < returned; j++) {
-            /* skip duplicated dict entry, otherwise may cause crash after dictDelete. */
-            if (j < (returned - 1) && random_entries[j] == random_entries[j + 1]) continue;
+        key = dictGetKey(de);
+        type = dictGetUnsignedIntegerVal(de);
 
-            de = random_entries[j];
-            key = dictGetKey(de);
-            type = dictGetUnsignedIntegerVal(de);
+        server.cmdNotDone = 0;
 
-            server.cmdNotDone = 0;
+        if (TYPE_LOAD_KEY_FORM_SSDB == type) {
+            /* prohibit to load keys from SSDB if the SSDB connection status of server.master
+             * is not CONN_SUCCESS. because if a SSDB write command of a key is in server.ssdb_write_oplist,
+             * and we move the key from ssdb to redis, after the ssdb connection of server.master reconnect
+             * successfully, the SSDB write command in server.ssdb_write_oplist will fail to execute(because
+             * the key is not exist in SSDB already). */
+            if (!server.master || !(server.master->ssdb_conn_flags & CONN_SUCCESS))
+                continue;
 
-            if (TYPE_LOAD_KEY_FORM_SSDB == type) {
-                /* prohibit to load keys from SSDB if the SSDB connection status of server.master
-                 * is not CONN_SUCCESS. because if a SSDB write command of a key is in server.ssdb_write_oplist,
-                 * and we move the key from ssdb to redis, after the ssdb connection of server.master reconnect
-                 * successfully, the SSDB write command in server.ssdb_write_oplist will fail to execute(because
-                 * the key is not exist in SSDB already). */
-                if (!server.master || !(server.master->ssdb_conn_flags & CONN_SUCCESS))
-                    continue;
-
-                server.load_evict_argv[0] = shared.dumpcmdobj;
-                server.slave_ssdb_load_evict_client->cmd = lookupCommandByCString("dumpfromssdb");
-            } else if (TYPE_TRANSFER_TO_SSDB == type) {
-                server.load_evict_argv[0] = shared.storecmdobj;
-                server.slave_ssdb_load_evict_client->cmd = lookupCommandByCString("storetossdb");
-            }
-            server.load_evict_argv[1] = server.load_evict_key_arg;
-            server.load_evict_argv[1]->ptr = key;
-
-            server.slave_ssdb_load_evict_client->argv = server.load_evict_argv;
-            server.slave_ssdb_load_evict_client->argc = 2;
-
-            server.slave_ssdb_load_evict_client->lastcmd = server.slave_ssdb_load_evict_client->cmd;
-
-            runCommand(server.slave_ssdb_load_evict_client);
-
-            server.slave_ssdb_load_evict_client->argv = NULL;
-            if (0 == server.cmdNotDone) {
-                serverLog(LL_DEBUG, "beforesleep processing cmd: %s", server.slave_ssdb_load_evict_client->cmd->name);
-                /* !!!don't use 'key' after dictDelete, because it has been freed. */
-                dictDelete(server.loadAndEvictCmdDict, key);
-            }
-            resetClient(server.slave_ssdb_load_evict_client);
+            server.load_evict_argv[0] = shared.dumpcmdobj;
+            server.slave_ssdb_load_evict_client->cmd = server.dumpfromssdbCommand;
+        } else if (TYPE_TRANSFER_TO_SSDB == type) {
+            server.load_evict_argv[0] = shared.storecmdobj;
+            server.slave_ssdb_load_evict_client->cmd = server.storetossdbCommand;
         }
+        server.load_evict_argv[1] = server.load_evict_key_arg;
+        server.load_evict_argv[1]->ptr = key;
+
+        server.slave_ssdb_load_evict_client->argv = server.load_evict_argv;
+        server.slave_ssdb_load_evict_client->argc = 2;
+
+        server.slave_ssdb_load_evict_client->lastcmd = server.slave_ssdb_load_evict_client->cmd;
+
+        runCommand(server.slave_ssdb_load_evict_client);
+
+        server.slave_ssdb_load_evict_client->argv = NULL;
+        if (0 == server.cmdNotDone) {
+            serverLog(LL_DEBUG, "beforesleep processing cmd: %s", server.slave_ssdb_load_evict_client->cmd->name);
+            /* !!!don't use 'key' after dictDelete, because it has been freed. */
+            dictDelete(server.loadAndEvictCmdDict, key);
+        }
+        resetClient(server.slave_ssdb_load_evict_client);
+        count++;
     }
-    serverLog(LL_DEBUG, "do startToHandleCmdListInSlave, dictSize:%lu, total_returned:%d",
-              dictSize(server.loadAndEvictCmdDict), total_returned);
+    serverLog(LL_DEBUG, "do startToHandleCmdListInSlave, dictSize:%lu", dictSize(server.loadAndEvictCmdDict));
 }
 
 #define MAX_NUM_EXPIRED_DELETE_EVERY_TIME 10
