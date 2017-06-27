@@ -848,7 +848,7 @@ static int internalSendCommandToSSDB(client *c, sds finalcmd) {
                 /* Try again later. */
             } else {
                 if (isSpecialConnection(c))
-                    freeClient(c);
+                    freeClientAsync(c);
                 else {
                     serverLog(LL_WARNING, "Error writing to SSDB server: %s", strerror(errno));
                     closeAndReconnectSSDBconnection(c);
@@ -926,7 +926,7 @@ int sendCommandToSSDB(client *c, sds finalcmd) {
     if (!(c->ssdb_conn_flags & CONN_SUCCESS) ||
         !c->context || c->context->fd <= 0) {
         if (isSpecialConnection(c))
-            freeClient(c);
+            freeClientAsync(c);
         else {
             if ((c->ssdb_conn_flags & CONN_CONNECTING) ||
                 (c == server.master && (c->ssdb_conn_flags & CONN_CHECK_REPOPID)))
@@ -2046,7 +2046,7 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
             serverLog(LL_WARNING, "ssdb read error: %s ", c->context->errstr);
 
             if (isSpecialConnection(c)) {
-                freeClient(c);
+                freeClientAsync(c);
                 return;
             } else {
                 if (c->ssdb_replies[0])
@@ -2300,6 +2300,11 @@ void unlinkClient(client *c) {
         if (c->repl_timer_id != -1) {
             aeDeleteTimeEvent(server.el, c->repl_timer_id);
             c->repl_timer_id = -1;
+        }
+        if (c->context && c->context->fd != -1) {
+            aeDeleteFileEvent(server.el, c->context->fd, AE_READABLE | AE_WRITABLE);
+            close(c->context->fd);
+            c->context->fd = -1;
         }
         /* handle ssdb connection */
         handleSSDBconnectionDisconnect(c);
