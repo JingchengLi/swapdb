@@ -1229,9 +1229,9 @@ int checkBeforeExpire(redisDb *db, robj *key) {
 
     if (dictDelete(EVICTED_DATA_DB->loading_hot_keys, key->ptr) == DICT_OK) {
         serverLog(LL_DEBUG, "key: %s is unblocked and deleted from loading_hot_keys.", (char *)key->ptr);
-        signalBlockingKeyAsReady(db, key);
+        signalBlockingKeyAsReady(&server.db[0], key);
     } else if (dictDelete(EVICTED_DATA_DB->transferring_keys, key->ptr) == DICT_OK) {
-        signalBlockingKeyAsReady(db, key);
+        signalBlockingKeyAsReady(&server.db[0], key);
         serverLog(LL_DEBUG, "key: %s is unblocked and deleted from transferring_keys.", (char *)key->ptr);
     }
     return 1;
