@@ -107,14 +107,10 @@ int SSDBImpl::dump(Context &ctx, const Bytes &key, std::string *res, int64_t *pt
 
     DumpEncoder rdbEncoder(compress);
 
-    ret = rdbEncoder.rdbSaveObjectType(dtype);
-    if (ret < 0) {
-        return ret;
-    }
-
+    if (rdbEncoder.rdbSaveObjectType(dtype) < 0) return -1;
     if (rdbSaveObject(ctx, key, dtype, meta_val, rdbEncoder, snapshot) < 0) return -1;
+    if (rdbEncoder.encodeFooter() == -1) return -1;
 
-    rdbEncoder.encodeFooter();
     *res = rdbEncoder.toString();
 
     return 1;

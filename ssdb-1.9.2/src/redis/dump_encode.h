@@ -42,18 +42,21 @@ public:
     }
 
 
-    void encodeFooter() {
+    int encodeFooter() {
 
         unsigned char buf[2];
         buf[0] = RDB_VERSION & 0xff;
         buf[1] = (RDB_VERSION >> 8) & 0xff;
-        rdbWriteRaw(&buf, 2);
+
+        if (rdbWriteRaw(&buf, 2) == -1) return -1;
 
         uint64_t crc;
         crc = crc64_fast(0, w.data(), w.size());
         memrev64ifbe(&crc);
-        rdbWriteRaw(&crc, 8);
 
+        if (rdbWriteRaw(&crc, 8) == -1) return -1;
+
+        return 0;
     }
 
 
