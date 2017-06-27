@@ -1926,6 +1926,8 @@ void handleSSDBReply(client *c, int revert_len) {
         if (c->btype == BLOCKED_BY_DELETE_CONFIRM) {
             unblockClient(c);
             resetClient(c);
+            c->argv[0] = NULL;
+            c->argv[1] = NULL;
         }
         return;
     }
