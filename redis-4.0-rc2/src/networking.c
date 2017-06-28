@@ -2216,6 +2216,12 @@ client* createSpecialSSDBclient() {
 
 void connectSepecialSSDBclients() {
     server.ssdb_client = createSpecialSSDBclient();
+#ifdef TEST_MEM_CRASH
+    sdsfree(server.ssdb_client->querybuf);
+    server.ssdb_client->querybuf = algin_sdsnewlen(NULL, 0);
+    void* mem = server.ssdb_client->querybuf - sdsHdrSize((server.ssdb_client->querybuf)[-1]);
+    protectMemWrite(mem, SDS_MEM_SIZE(server.ssdb_client->querybuf));
+#endif
     server.ssdb_replication_client = createSpecialSSDBclient();
     server.slave_ssdb_load_evict_client = createSpecialSSDBclient();
     server.delete_confirm_client = createSpecialSSDBclient();
@@ -2386,6 +2392,12 @@ void freeClient(client *c) {
             replicationGetSlaveName(c));
     }
 
+#ifdef TEST_MEM_CRASH
+    if (c == server.ssdb_client) {
+        void* mem = server.ssdb_client->querybuf - sdsHdrSize((server.ssdb_client->querybuf)[-1]);
+        unprotectMemAccess(mem, SDS_MEM_SIZE(server.ssdb_client->querybuf));
+    }
+#endif
     /* Free the query buffer */
     sdsfree(c->querybuf);
     c->querybuf = NULL;

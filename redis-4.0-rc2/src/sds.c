@@ -36,6 +36,8 @@
 #include <ctype.h>
 #include <assert.h>
 #include <limits.h>
+#include <malloc.h>
+#include <unistd.h>
 #include "sds.h"
 #include "sdsalloc.h"
 
@@ -1250,6 +1252,66 @@ sds sdsjoinsds(sds *argv, int argc, const char *sep, size_t seplen) {
 void *sds_malloc(size_t size) { return s_malloc(size); }
 void *sds_realloc(void *ptr, size_t size) { return s_realloc(ptr,size); }
 void sds_free(void *ptr) { s_free(ptr); }
+
+sds algin_sdsnewlen(const void *init, size_t initlen) {
+    void *sh;
+    sds s;
+    int multi, alloc;
+    long sz = sysconf(_SC_PAGESIZE);
+    char type = SDS_TYPE_32;
+    int hdrlen = sdsHdrSize(type);
+    unsigned char *fp; /* flags pointer. */
+
+    multi = (hdrlen+initlen+1)/sz;
+    if (multi == 0 || (hdrlen+initlen+1)%sz != 0)
+        multi += 1;
+    alloc = multi*sz - hdrlen - 1;
+
+    sh = memalign(sz, multi * sz);
+    if (sh == NULL) return NULL;
+    if (!init)
+        memset(sh, 0, multi * sz);
+    s = (char*)sh+hdrlen;
+    fp = ((unsigned char*)s)-1;
+    switch(type) {
+        case SDS_TYPE_5: {
+            *fp = type | (initlen << SDS_TYPE_BITS);
+            break;
+        }
+        case SDS_TYPE_8: {
+            SDS_HDR_VAR(8,s);
+            sh->len = initlen;
+            sh->alloc = alloc;
+            *fp = type;
+            break;
+        }
+        case SDS_TYPE_16: {
+            SDS_HDR_VAR(16,s);
+            sh->len = initlen;
+            sh->alloc = alloc;
+            *fp = type;
+            break;
+        }
+        case SDS_TYPE_32: {
+            SDS_HDR_VAR(32,s);
+            sh->len = initlen;
+            sh->alloc = alloc;
+            *fp = type;
+            break;
+        }
+        case SDS_TYPE_64: {
+            SDS_HDR_VAR(64,s);
+            sh->len = initlen;
+            sh->alloc = alloc;
+            *fp = type;
+            break;
+        }
+    }
+    if (initlen && init)
+        memcpy(s, init, initlen);
+    s[initlen] = '\0';
+    return s;
+}
 
 #if defined(SDS_TEST_MAIN)
 #include <stdio.h>

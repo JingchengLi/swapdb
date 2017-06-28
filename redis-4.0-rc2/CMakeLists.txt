@@ -139,6 +139,7 @@ SET(redis-server_files
         src/db.c
         src/dict.c
         src/debug.c
+        src/memprotect.c
         src/endianconv.c
         src/evict.c
         src/expire.c
