@@ -2882,28 +2882,28 @@ void propagateCmdHandledBySSDB(client *c) {
         }
     }
 
-    // todo: process for slaves on server.master connection
     /* Update expire time in redis and update AOF. */
     if (((reply->type == REDIS_REPLY_STATUS && !strcasecmp(reply->str, "ok"))
          || (reply->type == REDIS_REPLY_INTEGER && reply->integer == 1))
-        && ((milliseconds = getAbsoluteExpireTimeFromArgs(c)) != C_ERR)) {
+        && ((milliseconds = getAbsoluteExpireTimeFromArgs(c->argv, c->argc, c->cmd)) != C_ERR)) {
         robj *key = c->argv[1];
 
         /* setCommand or persist. */
         if (milliseconds == C_NO_EXPIRE) {
             serverAssert(c->cmd->proc == setCommand || c->cmd->proc == persistCommand);
-            removeExpire(EVICTED_DATA_DB, key);
-
-            /* Update aof. */
-            argv[0] = createStringObject("PERSIST", 7);
-            argv[1] = key;
-            propagate(server.persistCommand, EVICTED_DATA_DBID, argv, 2, PROPAGATE_AOF);
-
-            /* Propagate command. */
+             /* Propagate command. */
             if (c->cmd->proc == setCommand)
                 propagate(server.setCommand, 0, c->argv, 3, PROPAGATE_REPL);
-            propagate(server.persistCommand, 0, argv, 2, PROPAGATE_REPL);
-            decrRefCount(argv[0]);
+
+            if (DICT_OK == removeExpire(EVICTED_DATA_DB, key)) {
+                /* Update aof. */
+                argv[0] = createStringObject("PERSIST", 7);
+                argv[1] = key;
+                propagate(server.persistCommand, EVICTED_DATA_DBID, argv, 2, PROPAGATE_AOF);
+
+                propagate(server.persistCommand, 0, argv, 2, PROPAGATE_REPL);
+                decrRefCount(argv[0]);
+            }
         } else {
             setExpire(c, EVICTED_DATA_DB, key, milliseconds);
 
@@ -3591,6 +3591,42 @@ void recordVisitingSSDBkeys(struct redisCommand* cmd, robj** argv, int argc) {
     if (keys) getKeysFreeResult(keys);
 }
 
+void updateExpireInfo(robj** argv, int argc, struct redisCommand* cmd) {
+    long long milliseconds = 0;
+    robj *tmpargv[3];
+
+    if (server.masterhost == NULL) return;
+
+    /* Update expire time in redis and update AOF. */
+    if ((milliseconds = getAbsoluteExpireTimeFromArgs(argv, argc, cmd)) != C_ERR) {
+        robj *key = argv[1];
+
+        /* setCommand or persist. */
+        if (milliseconds == C_NO_EXPIRE) {
+            serverAssert(cmd->proc == setCommand || cmd->proc == persistCommand);
+            if (DICT_OK == removeExpire(EVICTED_DATA_DB, key)) {
+                /* Update aof. */
+                tmpargv[0] = createStringObject("PERSIST", 7);
+                tmpargv[1] = key;
+                propagate(server.persistCommand, EVICTED_DATA_DBID, tmpargv, 2, PROPAGATE_AOF);
+
+                decrRefCount(tmpargv[0]);
+            }
+        } else {
+            setExpire(NULL, EVICTED_DATA_DB, key, milliseconds);
+
+            /* Update aof. */
+            tmpargv[0] = createStringObject("PEXPIREAT", 9);
+            tmpargv[1] = key;
+            tmpargv[2] = createObject(OBJ_STRING, sdsfromlonglong(milliseconds));
+            propagate(server.pexpireatCommand, EVICTED_DATA_DBID, tmpargv, 3, PROPAGATE_AOF);
+
+            decrRefCount(tmpargv[0]);
+            decrRefCount(tmpargv[2]);
+        }
+    }
+}
+
 /* for the replication connection only, if returned value is C_ERR, this failed write
  * command will be process in redis */
 int processCommandReplicationConn(client* c, struct ssdb_write_op* slave_retry_write) {
@@ -3654,9 +3690,16 @@ int processCommandReplicationConn(client* c, struct ssdb_write_op* slave_retry_w
 
         if (slave_retry_write) {
             sds finalcmd = composeCmdFromArgs(slave_retry_write->argc, slave_retry_write->argv);
+            /* update aof and expire info in redis */
+            updateExpireInfo(slave_retry_write->argv, slave_retry_write->argc, slave_retry_write->cmd);
+
             ret = sendFailedRetryCommandToSSDB(c, finalcmd);
-        } else
+        } else {
+            /* update aof and expire info in redis */
+            updateExpireInfo(c->argv, c->argc, c->cmd);
+
             ret = sendCommandToSSDB(c, NULL);
+        }
 
         if (ret != C_OK) return ret;
 
@@ -4021,19 +4064,19 @@ int runCommandReplicationConn(client *c, listNode* writeop_ln) {
     return C_OK;
 }
 
-long long getAbsoluteExpireTimeFromArgs(client *c) {
+long long getAbsoluteExpireTimeFromArgs(robj** argv, int argc, struct redisCommand* cmd) {
     robj *expireobj = NULL;
     int num = sizeof(expiretimeInfoTable)/sizeof(struct expiretimeInfo);
     int i;
     long long milliseconds = 0;
     struct expiretimeInfo ei;
 
-    if (!c || !c->cmd) return C_ERR;
+    if (!cmd) return C_ERR;
 
     for (i = 0; i < num; i ++) {
         ei = expiretimeInfoTable[i];
-        if (c->cmd->proc == ei.proc && c->argc > 0) {
-            expireobj = c->argv[ei.time_arg_index];
+        if (cmd->proc == ei.proc && argc > 0) {
+            expireobj = argv[ei.time_arg_index];
 
             if (!expireobj || getLongLongFromObject(expireobj, &milliseconds) != C_OK)
                 return C_ERR;
@@ -4044,18 +4087,18 @@ long long getAbsoluteExpireTimeFromArgs(client *c) {
         }
     }
 
-    if (c->cmd->proc == setCommand) {
+    if (cmd->proc == setCommand) {
         int i;
-        for (i = 3; i < c->argc; i ++) {
-            if (sdsEncodedObject(c->argv[i]) && !strcasecmp(c->argv[i]->ptr, "ex")) {
-                serverAssert(getLongLongFromObject(c->argv[i + 1], &milliseconds) == C_OK);
+        for (i = 3; i < argc; i ++) {
+            if (sdsEncodedObject(argv[i]) && !strcasecmp(argv[i]->ptr, "ex")) {
+                serverAssert(getLongLongFromObject(argv[i + 1], &milliseconds) == C_OK);
                 milliseconds *= 1000;
                 milliseconds += mstime();
                 return milliseconds;
             }
 
-            if (sdsEncodedObject(c->argv[i]) && !strcasecmp(c->argv[i]->ptr, "px")) {
-                serverAssert(getLongLongFromObject(c->argv[i + 1], &milliseconds) == C_OK);
+            if (sdsEncodedObject(argv[i]) && !strcasecmp(argv[i]->ptr, "px")) {
+                serverAssert(getLongLongFromObject(argv[i + 1], &milliseconds) == C_OK);
                 milliseconds += mstime();
                 return milliseconds;
             }
@@ -4064,7 +4107,7 @@ long long getAbsoluteExpireTimeFromArgs(client *c) {
         return C_NO_EXPIRE;
     }
 
-    if (c->cmd->proc == persistCommand)
+    if (cmd->proc == persistCommand)
         return C_NO_EXPIRE;
 
     return C_ERR;
