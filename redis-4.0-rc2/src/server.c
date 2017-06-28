@@ -1656,6 +1656,7 @@ void startToHandleCmdListInSlave(void) {
         de = dictGetRandomKey(server.loadAndEvictCmdDict);
         if (!de) break;
 
+        count++;
         key = dictGetKey(de);
         type = dictGetUnsignedIntegerVal(de);
 
@@ -1693,7 +1694,6 @@ void startToHandleCmdListInSlave(void) {
             dictDelete(server.loadAndEvictCmdDict, key);
         }
         resetClient(server.slave_ssdb_load_evict_client);
-        count++;
     }
     serverLog(LL_DEBUG, "do startToHandleCmdListInSlave, dictSize:%lu", dictSize(server.loadAndEvictCmdDict));
 }
