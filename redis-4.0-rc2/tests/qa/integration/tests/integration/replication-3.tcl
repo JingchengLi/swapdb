@@ -33,19 +33,18 @@ start_server {tags {"repl"}} {
             }
         }
 
-        if {$::accurate} {set numops 5000} else {set numops 500}
+        if {$::accurate} {set numops 50000} else {set numops 5000}
 
         test {MASTER and SLAVE consistency with expire} {
             set keyslist [ createComplexDataset r $numops useexpire ]
             after 4000 ;# Make sure everything expired before taking the digest
 
             set oldmaxmemory [lindex [ r config get maxmemory ] 1]
-            r config set maxmemory 0 ;# load all keys to redis
             foreach key $keyslist {
                 wait_for_condition 50 100 {
                     [ r exists $key ] eq [ r -1 exists $key ]
                 } else {
-                    fail "key:$key in master and slave not identical [ r -1 exists $key ] [ r exists $key ]"
+                    fail "key:$key in master and slave not identical [ r exists $key ] [ r -1 exists $key ]"
                 }
             }
             # r keys *   ;# Force DEL syntesizing to slave
@@ -62,7 +61,9 @@ start_server {tags {"repl"}} {
                 # puts "Master - Slave inconsistency"
                 # puts "Run diff -u against /tmp/repldump*.txt for more info"
             # }
+            r config set maxmemory 0 ;# load all keys to redis
             assert_equal [r debug digest] [r -1 debug digest]
+            compare_debug_digest { 0 -1 }
             r config set maxmemory $oldmaxmemory
         }
     }

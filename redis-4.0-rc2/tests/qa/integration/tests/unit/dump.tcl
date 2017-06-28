@@ -304,7 +304,7 @@ start_server {tags {"dump"}} {
 
             wait_for_dumpto_ssdb $first foo
 
-            assert_error "ERR*connect*target*" {$first migrate abc $second_port foo 0 5000}
+            assert_error "*ERR*" {$first migrate abc $second_port foo 0 5000}
             assert_error "IOERR*timeout*client*" {$first migrate 111.111.111.111 8889 foo 0 5000}
             assert_error "IOERR*timeout*target*" {$first migrate $second_host abc foo 0 5000}
             assert_error "IOERR*timeout*target*" {$first migrate $second_host 1111 foo 0 5000}

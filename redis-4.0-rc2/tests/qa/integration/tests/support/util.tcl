@@ -588,36 +588,6 @@ proc populate_diff_keys {r2 r1 {num -1} {flag redis}} {
     return $diff
 }
 
-proc compare_debug_digest {{levels {0 -1}}} {
-    if {$::accurate} {
-        return
-    }
-    assert {[llength $levels] > 1}
-    set master_level 1
-    set master_digest {}
-    set master_memory 0
-    foreach level $levels {
-        if {[lindex [r $level role] 0] == "master"} {
-            set master_level $level
-        }
-    }
-
-    if {$master_level ne 1} {
-        set master_memory [lindex [r $master_level config get maxmemory] 1 ]
-        r $master_level config set maxmemory 0
-        set master_digest [debug_digest r $master_level]
-    } else {
-        fail "no master cannot debug digest!!"
-    }
-
-    foreach level $levels {
-        if {$master_level ne $level} {
-            assert_equal $master_digest [debug_digest r $level] "master digest should equal to each slave"
-        }
-    }
-    r $master_level config set maxmemory $master_memory
-}
-
 proc debug_digest {r {level 0}} {
     set oldmemory [lindex [$r $level config get maxmemory] 1 ]
     # avoid keys transfer to ssdb again after debug digest.
@@ -636,6 +606,11 @@ proc debug_digest {r {level 0}} {
         if {$retry == 0} {
             error "assertion:master not load all keys after multi access key"
         }
+    }
+
+    # TODO expect redis db16 index also not exists.
+    foreach ssdbkey [$r $level ssdbkeys *] {
+        assert_equal 0 [ $r $level exists $ssdbkey ] "key: $ssdbkey should not in ssdbkeys."
     }
 
     wait_for_condition 200 100 {
@@ -866,4 +841,82 @@ proc hit_ssdb_load_key {{level 0}} {
     set rule [lindex [r $level config get ssdb-load-rule] 1]
     lassign $rule time tps
     access_key_tps_time keynull [expr $tps/$time*1.1] $time true $level
+}
+
+proc get_val_with_types {level key} {
+    switch [r $level type $key] {
+        {string} {
+            set vlist [list [r $level get $key]]
+        }
+        {list} {
+            set vlist [lsort [r $level lrange $key 0 -1]]
+        }
+        {set} {
+            set vlist [lsort [r $level smembers $key]]
+        }
+        {zset} {
+            set vlist [lsort [r $level zrange $key 0 -1 withscores]]
+        }
+        {hash} {
+            set vlist [lsort [r $level hgetall $key]]
+        }
+    }
+    return $vlist
+}
+
+proc compare_key {key {levels {0 -1}}} {
+    assert {[llength $levels] > 1}
+
+
+    set val [get_val_with_types [lindex $levels 0] $key]
+
+    foreach level [lrange $levels 1 end] {
+
+        # assert_equal {redis} [r $level locatekey $key] "key: $key should be in redis."
+
+        foreach v1 $val v2 [get_val_with_types $level $key] {
+            assert_equal $v1 $v2 "key: $key not identical between level [lindex $levels 0] and $level."
+        }
+    }
+}
+
+proc compare_allkeys {{levels {0 -1}}} {
+    set keyslist [r [lindex $levels 0] rediskeys *]
+    foreach key $keyslist {
+        compare_key $key $levels
+    }
+}
+
+proc compare_debug_digest {{levels {0 -1}}} {
+    if {$::accurate} {
+        return
+    }
+    assert {[llength $levels] > 1}
+    set master_level 1
+    set master_digest {}
+    set master_memory 0
+    foreach level $levels {
+        if {[lindex [r $level role] 0] == "master"} {
+            set master_level $level
+        }
+    }
+
+    if {$master_level ne 1} {
+        set master_memory [lindex [r $master_level config get maxmemory] 1 ]
+        r $master_level config set maxmemory 0
+        set master_digest [debug_digest r $master_level]
+    } else {
+        fail "no master cannot debug digest!!"
+    }
+
+    foreach level $levels {
+        if {$master_level ne $level} {
+            if {$master_digest ne [debug_digest r $level]} {
+                puts "master digest should equal to each slave!!!!!"
+                compare_allkeys {$master_level $level}
+            }
+            # assert_equal $master_digest [debug_digest r $level] "master digest should equal to each slave"
+        }
+    }
+    r $master_level config set maxmemory $master_memory
 }
