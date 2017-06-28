@@ -2895,7 +2895,7 @@ void propagateCmdHandledBySSDB(client *c) {
             if (c->cmd->proc == setCommand)
                 propagate(server.setCommand, 0, c->argv, 3, PROPAGATE_REPL);
 
-            if (DICT_OK == removeExpire(EVICTED_DATA_DB, key)) {
+            if (removeExpire(EVICTED_DATA_DB, key)) {
                 /* Update aof. */
                 argv[0] = createStringObject("PERSIST", 7);
                 argv[1] = key;
@@ -3604,7 +3604,7 @@ void updateExpireInfo(robj** argv, int argc, struct redisCommand* cmd) {
         /* setCommand or persist. */
         if (milliseconds == C_NO_EXPIRE) {
             serverAssert(cmd->proc == setCommand || cmd->proc == persistCommand);
-            if (DICT_OK == removeExpire(EVICTED_DATA_DB, key)) {
+            if (removeExpire(EVICTED_DATA_DB, key)) {
                 /* Update aof. */
                 tmpargv[0] = createStringObject("PERSIST", 7);
                 tmpargv[1] = key;
