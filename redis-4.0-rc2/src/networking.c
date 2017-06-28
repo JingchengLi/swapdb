@@ -1969,6 +1969,13 @@ void handleSSDBReply(client *c, int revert_len) {
     /* Unblock the client is reading/writing SSDB. */
     if (c->btype == BLOCKED_VISITING_SSDB
         || c->btype == BLOCKED_MIGRATING_DUMP) {
+
+        /* Handle the rest of migrating. */
+        if (c->cmd->proc == migrateCommand
+            && handleResponseOfMigrateDump(c) != C_OK) {
+            serverLog(LL_WARNING, "migrate log: failed to handle migrate dump.");
+            return;
+        }
         propagateCmdHandledBySSDB(c);
         unblockClient(c);
         resetClient(c);

@@ -1622,14 +1622,6 @@ void startToLoadIfNeeded() {
     return;
 }
 
-int cmpDictEntry(const void *a, const void *b) {
-    unsigned long la, lb;
-
-    la = (long) (*((dictEntry**)a));
-    lb = (long) (*((dictEntry**)b));
-    return la-lb;
-}
-
 void startToHandleCmdListInSlave(void) {
     dictEntry *de;
     uint64_t type;
@@ -2882,19 +2874,12 @@ void propagateCmdHandledBySSDB(client *c) {
                     serverLog(LL_DEBUG, "spop replication log, key: %s, member: %s", (char *)propargv[1]->ptr, (char *)propargv[2]->ptr);
                     decrRefCount(propargv[2]);
                     index ++;
-                };
+                }
 
                 decrRefCount(aux);
                 return;
             }
         }
-    }
-
-    /* Handle the rest of migrating. */
-    if (c->cmd->proc == migrateCommand
-        && handleResponseOfMigrateDump(c) != C_OK) {
-        serverLog(LL_WARNING, "migrate log: failed to handle migrate dump.");
-        return;
     }
 
     // todo: process for slaves on server.master connection
