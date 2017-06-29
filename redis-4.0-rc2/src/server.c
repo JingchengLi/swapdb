@@ -3631,6 +3631,18 @@ void updateExpireInfo(robj** argv, int argc, struct redisCommand* cmd) {
             decrRefCount(tmpargv[2]);
         }
     }
+
+    /* In master, any client reads or writes will be blocked if key is in
+     * delete_confirm_keys, then a delCommand will be propagated to slave.
+     * In slave, deleting key in EVICTED_DATA_DB before calling sendCommandToSSDB
+     * will remove dirty expire info. */
+    if (cmd->proc == delCommand) {
+        robj *key = argv[1];
+        serverAssert(server.lazyfree_lazy_expire ? dbAsyncDelete(EVICTED_DATA_DB, key) :
+                     dbSyncDelete(EVICTED_DATA_DB, key));
+        /* TODO: to support slave's slave. */
+        propagate(server.delCommand, EVICTED_DATA_DBID, argv, 2, PROPAGATE_AOF);
+    }
 }
 
 /* for the replication connection only, if returned value is C_ERR, this failed write
