@@ -104,10 +104,12 @@ typedef long long mstime_t; /* millisecond time type. */
 //#define TEST_CLIENT_BUF
 //#define TEST_TIME_CONSUMPTION
 //#define TEST_SLAVE_NO_TRANSFER
-//#define TEST_MEM_CRASH
+#define TEST_MEM_CRASH
 #ifdef TEST_MEM_CRASH
 #include "memprotect.h"
+int memalign_ssdb_client;
 #endif
+void* save_querybuf;
 
 /* is_allow_ssdb_write codes */
 #define ALLOW_SSDB_WRITE 1
@@ -2311,9 +2313,15 @@ void tryInsertColdPool(struct evictionPoolEntry *pool, sds key, int dbid, unsign
 
 #if defined(__GNUC__)
 void *calloc(size_t count, size_t size) __attribute__ ((deprecated));
+#ifndef TEST_MEM_CRASH
 void free(void *ptr) __attribute__ ((deprecated));
+#endif
 void *malloc(size_t size) __attribute__ ((deprecated));
 void *realloc(void *ptr, size_t size) __attribute__ ((deprecated));
+#endif
+
+#ifdef TEST_MEM_CRASH
+client* createReuseClient(client* reuse, int fd);
 #endif
 
 /* Debugging stuff */

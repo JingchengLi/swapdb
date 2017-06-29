@@ -66,6 +66,92 @@ int listMatchObjects(void *a, void *b) {
     return equalStringObjects(a,b);
 }
 
+#ifdef TEST_MEM_CRASH
+client* createReuseClient(client* reuse, int fd) {
+    client *c = NULL;
+    if (!reuse)
+        c = zmalloc(sizeof(client));
+    else
+        c = reuse;
+    /* passing -1 as fd it is possible to create a non connected client.
+     * This is useful since all the commands needs to be executed
+     * in the context of a client. When commands are executed in other
+     * contexts (for instance a Lua script) we need a non connected client. */
+    if (fd != -1) {
+        anetNonBlock(NULL,fd);
+        anetEnableTcpNoDelay(NULL,fd);
+        if (server.tcpkeepalive)
+            anetKeepAlive(NULL,fd,server.tcpkeepalive);
+        if (aeCreateFileEvent(server.el,fd,AE_READABLE,
+            readQueryFromClient, c) == AE_ERR)
+        {
+            close(fd);
+            zfree(c);
+            return NULL;
+        }
+    }
+
+    selectDb(c,0);
+    c->id = server.next_client_id++;
+    c->fd = fd;
+    c->name = NULL;
+    c->bufpos = 0;
+    c->querybuf = sdsempty();
+    c->querybuf_peak = 0;
+    c->reqtype = 0;
+    c->argc = 0;
+    c->argv = NULL;
+    c->cmd = c->lastcmd = NULL;
+    c->multibulklen = 0;
+    c->bulklen = -1;
+    c->sentlen = 0;
+    c->flags = 0;
+    c->ctime = c->lastinteraction = server.unixtime;
+    c->authenticated = 0;
+    c->replstate = REPL_STATE_NONE;
+    c->repl_put_online_on_ack = 0;
+    c->reploff = 0;
+    c->repl_ack_off = 0;
+    c->repl_ack_time = 0;
+    c->slave_listening_port = 0;
+    c->slave_ip[0] = '\0';
+    c->slave_capa = SLAVE_CAPA_NONE;
+    c->reply = listCreate();
+    c->reply_bytes = 0;
+    c->obuf_soft_limit_reached_time = 0;
+    listSetFreeMethod(c->reply,freeClientReplyValue);
+    listSetDupMethod(c->reply,dupClientReplyValue);
+    c->btype = BLOCKED_NONE;
+    c->bpop.timeout = 0;
+    c->bpop.keys = dictCreate(&objectKeyPointerValueDictType,NULL);
+    if (server.jdjr_mode) {
+        c->context = NULL;
+        c->repl_timer_id = -1;
+        c->ssdb_status = SSDB_NONE;
+        c->transfer_snapshot_last_keepalive_time = -1;
+        c->bpop.loading_or_transfer_keys = dictCreate(&objectKeyPointerValueDictType,NULL);
+        c->ssdb_conn_flags = 0;
+        c->ssdb_replies[0] = NULL;
+        c->ssdb_replies[1] = NULL;
+        c->revert_len = 0;
+        c->first_key_index = 0;
+    }
+    c->bpop.target = NULL;
+    c->bpop.numreplicas = 0;
+    c->bpop.reploffset = 0;
+    c->woff = 0;
+    c->watched_keys = listCreate();
+    c->pubsub_channels = dictCreate(&objectKeyPointerValueDictType,NULL);
+    c->pubsub_patterns = listCreate();
+    c->peerid = NULL;
+    listSetFreeMethod(c->pubsub_patterns,decrRefCountVoid);
+    listSetMatchMethod(c->pubsub_patterns,listMatchObjects);
+    if (fd != -1) listAddNodeTail(server.clients,c);
+    initClientMultiState(c);
+    return c;
+}
+#endif
+
 client *createClient(int fd) {
     client *c = zmalloc(sizeof(client));
 
@@ -646,6 +732,15 @@ void handleConnectSSDBok(client* c) {
 
     } else {
         c->ssdb_conn_flags |= CONN_SUCCESS;
+#ifdef TEST_MEM_CRASH
+        if (server.masterhost && memalign_ssdb_client && c == server.ssdb_client) {
+            int pages = sizeof(client) / PAGE_SIZE;
+            if (pages == 0 || sizeof(client) % PAGE_SIZE != 0) {
+                pages += 1;
+            }
+            protectMemWrite(c, pages * PAGE_SIZE);
+        }
+#endif
     }
 }
 
@@ -689,6 +784,15 @@ int nonBlockConnectToSsdbServer(client *c) {
     redisContext *context = NULL;
     if (c->context) return C_OK;
 
+#ifdef TEST_MEM_CRASH
+    if (memalign_ssdb_client && c == server.ssdb_client) {
+        int pages = sizeof(client)/PAGE_SIZE;
+        if (pages == 0 || sizeof(client)%PAGE_SIZE != 0) {
+            pages += 1;
+        }
+        unprotectMemAccess(c, pages * PAGE_SIZE);
+    }
+#endif
     if (server.ssdb_server_unixsocket != NULL) {
         /* reset connect failed flag before re-connect. */
         c->ssdb_conn_flags &= ~CONN_CONNECT_FAILED;
@@ -2200,6 +2304,30 @@ clean:
     }
 }
 
+#ifdef TEST_MEM_CRASH
+client* createSpecialSSDBreuseClient() {
+    client* c;
+    client* reuse;
+    int pages;
+
+    pages = sizeof(client)/PAGE_SIZE;
+    if (pages == 0 || sizeof(client)%PAGE_SIZE != 0) {
+        pages += 1;
+    }
+    reuse = memalign(PAGE_SIZE, pages * PAGE_SIZE);
+
+    c = createReuseClient(reuse, -1);
+    if (!c) {
+        serverLog(LL_WARNING, "Error creating specical SSDB client.");
+        return NULL;
+    }
+
+    nonBlockConnectToSsdbServer(c);
+
+    return c;
+}
+#endif
+
 client* createSpecialSSDBclient() {
     client* c;
 
@@ -2215,12 +2343,21 @@ client* createSpecialSSDBclient() {
 }
 
 void connectSepecialSSDBclients() {
-    server.ssdb_client = createSpecialSSDBclient();
 #ifdef TEST_MEM_CRASH
+    if (server.masterhost) {
+        server.ssdb_client = createSpecialSSDBreuseClient();
+        memalign_ssdb_client = 1;
+    } else
+        server.ssdb_client = createSpecialSSDBclient();
+
     sdsfree(server.ssdb_client->querybuf);
     server.ssdb_client->querybuf = algin_sdsnewlen(NULL, 0);
     void* mem = server.ssdb_client->querybuf - sdsHdrSize((server.ssdb_client->querybuf)[-1]);
     protectMemWrite(mem, SDS_MEM_SIZE(server.ssdb_client->querybuf));
+#else
+    server.ssdb_client = createSpecialSSDBclient();
+    sdsfree(server.ssdb_client->querybuf);
+    server.ssdb_client->querybuf = sdsempty();
 #endif
     server.ssdb_replication_client = createSpecialSSDBclient();
     server.slave_ssdb_load_evict_client = createSpecialSSDBclient();
@@ -2367,7 +2504,17 @@ void resetSpecialCient(client *c) {
 
 void freeClient(client *c) {
     listNode *ln;
-
+#ifdef TEST_MEM_CRASH
+    int is_ssdb_client = 0;
+    if (memalign_ssdb_client && c == server.ssdb_client) {
+        int pages = sizeof(client)/PAGE_SIZE;
+        if (pages == 0 || sizeof(client)%PAGE_SIZE != 0) {
+            pages += 1;
+        }
+        is_ssdb_client = 1;
+        unprotectMemAccess(c, pages * PAGE_SIZE);
+    }
+#endif
     /* If it is our master that's beging disconnected we should make sure
      * to cache the state to try a partial resynchronization later.
      *
@@ -2395,7 +2542,10 @@ void freeClient(client *c) {
 #ifdef TEST_MEM_CRASH
     if (c == server.ssdb_client) {
         void* mem = server.ssdb_client->querybuf - sdsHdrSize((server.ssdb_client->querybuf)[-1]);
-        unprotectMemAccess(mem, SDS_MEM_SIZE(server.ssdb_client->querybuf));
+        serverLog(LL_DEBUG, "unprotect mem address:%p, querybuf:%p", mem, (char*)(c->querybuf)-sdsHdrSize(c->querybuf[-1]));
+        serverAssert(0 == unprotectMemAccess(mem, SDS_MEM_SIZE(server.ssdb_client->querybuf)));
+        free(mem);
+        c->querybuf = NULL;
     }
 #endif
     /* Free the query buffer */
@@ -2471,7 +2621,14 @@ void freeClient(client *c) {
     zfree(c->argv);
     freeClientMultiState(c);
     sdsfree(c->peerid);
+#ifdef TEST_MEM_CRASH
+    if (memalign_ssdb_client && is_ssdb_client)
+        free(c);
+    else
+        zfree(c);
+#else
     zfree(c);
+#endif
 }
 
 /* Schedule a client to free it at a safe time in the serverCron() function.
