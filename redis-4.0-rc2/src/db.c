@@ -1233,11 +1233,9 @@ int checkBeforeExpire(redisDb *db, robj *key) {
     } else if (dictDelete(EVICTED_DATA_DB->transferring_keys, key->ptr) == DICT_OK) {
         signalBlockingKeyAsReady(&server.db[0], key);
         serverLog(LL_DEBUG, "key: %s is unblocked and deleted from transferring_keys.", (char *)key->ptr);
-
         if (server.jdjr_mode && NULL == server.masterhost) {
-            /* add this expired key to dict, we will tell ssdb to
-             * delete it. */
-            dictAddOrFind(db->delete_expired_keys, key->ptr);
+            /* the key may have been transferred to ssdb */
+            dictAddOrFind(EVICTED_DATA_DB->delete_expired_keys, key->ptr);
         }
     }
     return 1;
