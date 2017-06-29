@@ -104,12 +104,11 @@ typedef long long mstime_t; /* millisecond time type. */
 //#define TEST_CLIENT_BUF
 //#define TEST_TIME_CONSUMPTION
 //#define TEST_SLAVE_NO_TRANSFER
-#define TEST_MEM_CRASH
+//#define TEST_MEM_CRASH
 #ifdef TEST_MEM_CRASH
 #include "memprotect.h"
 int memalign_ssdb_client;
 #endif
-void* save_querybuf;
 
 /* is_allow_ssdb_write codes */
 #define ALLOW_SSDB_WRITE 1

@@ -2356,8 +2356,6 @@ void connectSepecialSSDBclients() {
     protectMemWrite(mem, SDS_MEM_SIZE(server.ssdb_client->querybuf));
 #else
     server.ssdb_client = createSpecialSSDBclient();
-    sdsfree(server.ssdb_client->querybuf);
-    server.ssdb_client->querybuf = sdsempty();
 #endif
     server.ssdb_replication_client = createSpecialSSDBclient();
     server.slave_ssdb_load_evict_client = createSpecialSSDBclient();
