@@ -36,7 +36,6 @@ private:
     std::string ip;
     int port;
     long timeout_ms;
-    bool inited = false;
     int maxRetry = 5;
     int retryConnect = 5;
 };

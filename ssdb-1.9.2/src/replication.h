@@ -80,7 +80,7 @@ public:
     int process() override;
 
 
-    int callback(NetworkServer *nets, Fdevents *fdes);
+    int callback(NetworkServer *nets, Fdevents *fdes) override;
 
 };
 
@@ -132,7 +132,7 @@ public:
 
     int process() override;
 
-    int callback(NetworkServer *nets, Fdevents *fdes) {
+    int callback(NetworkServer *nets, Fdevents *fdes) override {
         return 0;
     };
 };

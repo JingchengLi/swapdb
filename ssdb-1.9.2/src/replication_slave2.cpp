@@ -244,7 +244,7 @@ void *ssdb_sync2(void *arg) {
                             break;
                         }
 
-                        tmp = std::move(std::string(decoder.data(), raw_len));
+                        tmp = std::string(decoder.data(), raw_len);
                         compressed_len = raw_len;
                     } else {
 

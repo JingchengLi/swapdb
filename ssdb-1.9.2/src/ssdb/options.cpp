@@ -6,12 +6,6 @@ found in the LICENSE file.
 #include "options.h"
 #include "../util/strings.h"
 
-#ifdef NDEBUG
-	static const int LOG_QUEUE_SIZE  = 20 * 1000 * 1000;
-#else
-	static const int LOG_QUEUE_SIZE  = 10000;
-#endif
-
 #ifdef USE_LEVELDB
 Options::Options(){
 	Config c;

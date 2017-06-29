@@ -479,10 +479,10 @@ int proc_debug(Context &ctx, Link *link, const Request &req, Response *resp) {
 
         for (uint64_t i = 0; i < count; ++i) {
             char kbuf[128] = {0};
-            snprintf(kbuf, sizeof(kbuf), "%s:%lu", "key", i);
+            snprintf(kbuf, sizeof(kbuf), "%s:%llu", "key", i);
 
             char vbuf[128] = {0};
-            snprintf(vbuf, sizeof(vbuf), "%s:%lu", "value", i);
+            snprintf(vbuf, sizeof(vbuf), "%s:%llu", "value", i);
 
             batch.Put(encode_meta_key(Bytes(kbuf)), encode_kv_val(Bytes(vbuf), 0));
 
