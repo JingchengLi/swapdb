@@ -274,8 +274,6 @@ int SSDBImpl::restore(Context &ctx, const Bytes &key, int64_t expire, const Byte
     std::string meta_key = encode_meta_key(key);
     leveldb::Status s;
 
-    bool found = true;
-
     s = ldb->Get(commonRdOpt, meta_key, &meta_val);
     if (!s.ok() && !s.IsNotFound()) {
         return STORAGE_ERR;

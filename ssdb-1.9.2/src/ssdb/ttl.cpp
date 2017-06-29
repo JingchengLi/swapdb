@@ -336,6 +336,8 @@ int ExpirationHandler::clear() {
     CHECK_DISABLD_EXPIRE
 
     fast_keys.clear();
+
+    return 0;
 }
 
 int ExpirationHandler::contrlExpiration(bool if_enable) {

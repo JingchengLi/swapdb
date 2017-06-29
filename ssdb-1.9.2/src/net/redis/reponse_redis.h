@@ -89,7 +89,9 @@ public:
 
     std::string toString() {
         if (status != 1) {
-            return "error status :" + status;
+            char buf[21] = {0};
+            snprintf(buf, sizeof(buf), "%u", status);
+            return std::string("error status :") + std::string(buf);
         }
 
         switch (type) {

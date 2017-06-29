@@ -91,7 +91,7 @@ public:
             lastSeqCnx = currentSeqCnx;
         }
 
-        vec.emplace_back(std::move(lastSeqCnx.toString()));
+        vec.emplace_back(lastSeqCnx.toString());
 
         return vec;
     }

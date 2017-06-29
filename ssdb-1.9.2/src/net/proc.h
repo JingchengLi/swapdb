@@ -99,7 +99,7 @@ struct BytesHash{
 	#include <tr1/unordered_map>
 	typedef std::tr1::unordered_map<Bytes, Command *, BytesHash, BytesEqual> proc_map_t;
 #else
-	#ifdef NEW_MAC
+	#ifdef __clang__
 		#include <unordered_map>
 		typedef std::unordered_map<Bytes, Command *, BytesHash, BytesEqual> proc_map_t;
 	#else
