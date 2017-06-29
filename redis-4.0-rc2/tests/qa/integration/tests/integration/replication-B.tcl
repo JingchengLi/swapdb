@@ -124,14 +124,14 @@ foreach {flag pattern} $pairs {
 
                     kill_ssdb_server
                     restart_ssdb_server
-                    # new client
-                    set slave [srv 0 client]
                     wait_for_online $master 2
 
                     stop_bg_client_list  $clist
                 }
 
                 test "master and slave are identical after $pattern (slave ssdb restart)" {
+                    # new client
+                    set slave [srv 0 client]
                     wait_for_condition 100 100 {
                         [$master dbsize] == [$slave dbsize]
                     } else {
