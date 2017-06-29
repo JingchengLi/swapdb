@@ -1861,7 +1861,7 @@ void handleClientsBlockedOnFlushall(void);
 void handleClientsBlockedOnMigrate(void);
 void handleLoadAndEvictCmdInSlave(void);
 void prepareSSDBreplication(client* slave);
-int tryEvictingKeysToSSDB(int *mem_tofree);
+int tryEvictingKeysToSSDB(size_t *mem_tofree);
 size_t objectComputeSize(robj *o, size_t sample_size);
 size_t estimateKeyMemoryUsage(dictEntry *de);
 int processCommand(client *c);

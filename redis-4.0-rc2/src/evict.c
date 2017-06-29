@@ -852,7 +852,7 @@ void addHotKeys() {
     }
 }
 
-int tryEvictingKeysToSSDB(int *mem_tofree) {
+int tryEvictingKeysToSSDB(size_t *mem_tofree) {
     mstime_t latency;
     int k, i;
     sds bestkey = NULL;

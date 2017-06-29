@@ -1406,7 +1406,7 @@ int memoryReachLoadUpperLimit() {
 }
 
 void startToEvictIfNeeded() {
-    int mem_tofree, old_mem_tofree = 0;
+    size_t mem_tofree, old_mem_tofree = 0;
     float transfer_lower_threshold;
 
     if (server.ssdb_client == NULL || !(server.ssdb_client->ssdb_conn_flags & CONN_SUCCESS)) return;
