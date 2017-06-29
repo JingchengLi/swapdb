@@ -1654,6 +1654,21 @@ void startToHandleCmdListInSlave(void) {
         SLAVE_MAX_CONCURRENT_SSDB_SWAP_COUNT)
         return;
 
+    /* prohibit to load keys from SSDB if the SSDB connection status of server.master
+    * is not CONN_SUCCESS. because if a SSDB write command of a key is in server.ssdb_write_oplist,
+    * and we move the key from ssdb to redis, after the ssdb connection of server.master reconnect
+    * successfully, the SSDB write command in server.ssdb_write_oplist will fail to execute(because
+    * the key is not exist in SSDB already).
+    *
+    * also we prohibit to transfer keys to SSDB if the SSDB connection status of server.master
+    * is not CONN_SUCCESS. considering that if there is failed delCommand for a key in
+    * server.ssdb_write_oplist, if new namesake key is generated and transferred to SSDB before
+    * we re-send the failed delCommand, we maybe delete the new namesake key by mistake(
+    * for some reasons, delCommand would delete the key index directly, see updateExpireInfo).
+    * */
+    if (!server.master || !(server.master->ssdb_conn_flags & CONN_SUCCESS))
+        return;
+
     count = 0;
     while (1) {
         /* for slave redis, limit the transfer/load operation count to MAX_SSDB_SWAP_COUNT_EVERY_TIME every time,
@@ -1670,14 +1685,6 @@ void startToHandleCmdListInSlave(void) {
         server.cmdNotDone = 0;
 
         if (TYPE_LOAD_KEY_FORM_SSDB == type) {
-            /* prohibit to load keys from SSDB if the SSDB connection status of server.master
-             * is not CONN_SUCCESS. because if a SSDB write command of a key is in server.ssdb_write_oplist,
-             * and we move the key from ssdb to redis, after the ssdb connection of server.master reconnect
-             * successfully, the SSDB write command in server.ssdb_write_oplist will fail to execute(because
-             * the key is not exist in SSDB already). */
-            if (!server.master || !(server.master->ssdb_conn_flags & CONN_SUCCESS))
-                continue;
-
             server.load_evict_argv[0] = shared.dumpcmdobj;
             server.slave_ssdb_load_evict_client->cmd = server.dumpfromssdbCommand;
         } else if (TYPE_TRANSFER_TO_SSDB == type) {
@@ -3641,10 +3648,10 @@ void updateExpireInfo(robj** argv, int argc, struct redisCommand* cmd) {
         }
     }
 
-    /* In master, any client reads or writes will be blocked if key is in
-     * delete_confirm_keys, then a delCommand will be propagated to slave.
-     * In slave, deleting key in EVICTED_DATA_DB before calling sendCommandToSSDB
-     * will remove dirty expire info. */
+    /* for slave redis, if this is a delCommand, we delete the key index directly to avoid
+     * some issues. when the del is caused by expire propagate or delete confirm propagate
+     * in our master, if we don't delete its key index in ssdb key dict, the following writes
+     * of a namesake key may get a wrong expire time. */
     if (cmd->proc == delCommand) {
         robj *key = argv[1];
         serverAssert(server.lazyfree_lazy_expire ? dbAsyncDelete(EVICTED_DATA_DB, key) :
@@ -4041,6 +4048,12 @@ int runCommandReplicationConn(client *c, listNode* writeop_ln) {
 
     serverAssert(C_ERR == ret);
     if (slave_retry_write) {
+        if (NULL == dictFind(server.db[0].dict, slave_retry_write->argv[1]->ptr)) {
+            /* for slave redis, delCommand would delete the key index directly to avoid
+             * some issues.(such as expire propagate or delete confirm propagate) */
+            return C_OK;
+        }
+
         serverAssert(NULL);
         /*NOTE: for some commands like set, setex, etc..., its c->argv[j]->ptr
         * may be modified when call tryObjectEncoding.
