@@ -945,10 +945,11 @@ int closeAndReconnectSSDBconnection(client* c) {
 /* don't call this function directly, use sendCommandToSSDB instead. */
 static int internalSendCommandToSSDB(client *c, sds finalcmd) {
     int nwritten;
-    if (!c || !finalcmd) {
-        return C_ERR;
-    }
-     while (finalcmd && sdslen(finalcmd) > 0) {
+    serverAssert(c && finalcmd);
+    if (!c->context)
+        return C_FD_ERR;
+
+    while (finalcmd && sdslen(finalcmd) > 0) {
         nwritten = write(c->context->fd, finalcmd, sdslen(finalcmd));
         if (nwritten == -1) {
             if (errno == EAGAIN || errno == EINTR) {

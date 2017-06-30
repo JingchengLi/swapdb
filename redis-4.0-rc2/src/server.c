@@ -3718,34 +3718,27 @@ int processCommandReplicationConn(client* c, struct ssdb_write_op* slave_retry_w
     robj* val = lookupKey(EVICTED_DATA_DB, keyobj, LOOKUP_NONE);
     if (val) {
         int ret;
+        /* for slave, we update aof and expire info in redis at first. if this is a del
+         * command, we remove its key index from redis to avoid some consistency issues.*/
+        updateExpireInfo(argv, argc, cmd);
+
         if (slave_retry_write) {
+            sds finalcmd;
             /* this is a failed write retry, reuse its write op time and id. */
             ret = sendRepopidToSSDB(server.master, slave_retry_write->time, slave_retry_write->index, 1);
-        } else
-            ret = updateSendRepopidToSSDB(c);
-
-        if (ret != C_OK) return ret;
-
-        if (slave_retry_write) {
-            sds finalcmd = composeCmdFromArgs(slave_retry_write->argc, slave_retry_write->argv);
-            /* update aof and expire info in redis */
-            updateExpireInfo(slave_retry_write->argv, slave_retry_write->argc, slave_retry_write->cmd);
-
+            if (ret != C_OK) return ret;
+            finalcmd = composeCmdFromArgs(slave_retry_write->argc, slave_retry_write->argv);
             ret = sendFailedRetryCommandToSSDB(c, finalcmd);
         } else {
-            /* update aof and expire info in redis */
-            updateExpireInfo(c->argv, c->argc, c->cmd);
-
+            ret = updateSendRepopidToSSDB(c);
+            if (ret != C_OK) return ret;
             ret = sendCommandToSSDB(c, NULL);
         }
 
         if (ret != C_OK) return ret;
 
         /* Record the keys visting SSDB. */
-        if (slave_retry_write)
-            recordVisitingSSDBkeys(slave_retry_write->cmd, slave_retry_write->argv, slave_retry_write->argc);
-        else
-            recordVisitingSSDBkeys(c->cmd, c->argv, c->argc);
+        recordVisitingSSDBkeys(cmd, argv, argc);
 
         serverLog(LL_DEBUG, "processing %s, fd: %d in ssdb: %s",
                   cmd->name, c->fd, argc > 1 ? (char *)argv[1]->ptr : "");
