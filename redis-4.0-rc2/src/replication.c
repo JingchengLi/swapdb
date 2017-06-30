@@ -1061,6 +1061,7 @@ void sendBulkToSlave(aeEventLoop *el, int fd, void *privdata, int mask) {
 
         if (server.jdjr_mode && server.use_customized_replication) {
             slave->replstate = SLAVE_STATE_SEND_BULK_FINISHED;
+            serverLog(LL_DEBUG, "Replication log: slave->replstate: SLAVE_STATE_SEND_BULK_FINISHED");
             /* for jdjr mode, we install write event handler when RDB transfer
              * is done(may SSDB snapshot transfer is going on), and our slave will
              * receive increment updates and buffer them in server.ssdb_write_oplist.
@@ -2800,6 +2801,7 @@ void abortCustomizedReplication() {
     }
 }
 
+/* TODO: could be replaced by abortCustomizedReplication ??? */
 /* disconnect slaves in replication handshake status and before BGSAVE stage. */
 void resetCustomizedReplication() {
     listIter li;

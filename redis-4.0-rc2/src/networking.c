@@ -799,7 +799,10 @@ int nonBlockConnectToSsdbServer(client *c) {
 
         context = redisConnectUnixNonBlock(server.ssdb_server_unixsocket);
 
-        if (!context) return C_ERR;
+        if (!context) {
+            c->ssdb_conn_flags |= CONN_CONNECT_FAILED;
+            return C_ERR;
+        }
 
         if (context->err) {
             c->ssdb_conn_flags |= CONN_CONNECT_FAILED;
