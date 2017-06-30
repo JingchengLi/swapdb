@@ -258,3 +258,10 @@ test "Verify $numkeys keys for consistency with logical content after failover a
         }
     }
 }
+
+test "reset maxmemory to 100M" {
+    foreach_redis_id id {
+        R $id config set maxmemory 100M
+        R $id config rewrite
+    }
+}

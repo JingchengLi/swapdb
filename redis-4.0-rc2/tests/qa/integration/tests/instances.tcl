@@ -138,6 +138,7 @@ proc spawn_instance {type base_port count {conf {}}} {
         set link [redis 127.0.0.1 $port]
         set ssdblink [redis 127.0.0.1 [expr $port+20000]]
         $link reconnect 1
+        $ssdblink reconnect 1
         lappend ::${type}_instances [list \
             pid $pid \
             host 127.0.0.1 \
@@ -200,8 +201,16 @@ proc parse_options {} {
         if {$opt eq "--single"} {
             incr j
             set ::run_matching "*${val}*"
-        } elseif {$opt eq "--pause-on-error"} {
+        } elseif {$opt eq "--pause-on-error" || $opt eq "--debug"} {
             set ::pause_on_error 1
+            proc error {errMsg {errInfo 0}} {
+                puts "errMsg:$errMsg"
+                if {$errInfo} {
+                    puts "error info: $errInfo"
+                }
+                puts "waiting........."
+                after 100000000
+            }
         } elseif {$opt eq "--fail"} {
             set ::simulate_error 1
         } elseif {$opt eq {--valgrind}} {
@@ -214,15 +223,6 @@ proc parse_options {} {
             set ::loglevel $val
             set ::cfgfile  ${::cfgdir}/${::loglevel}_cluster_testreport.xml
             exec rm -f $::cfgfile
-        } elseif {$opt eq {--debug}} {
-            proc error {errMsg {errInfo 0}} {
-                puts "$errMsg"
-                if {$errInfo} {
-                    puts "error info: $errInfo"
-                }
-                puts "waiting........."
-                after 100000000
-            }
         } elseif {$opt eq "--help"} {
             puts "Hello, I'm sentinel.tcl and I run Sentinel unit tests."
             puts "\nOptions:"
@@ -406,7 +406,13 @@ proc run_tests {} {
         puts [colorstr yellow "Testing unit: [lindex [file split $test] end]"]
         set ::class 0
         catch { source $test } err
-        if {$err ne {}} { puts $err }
+        if {$err ne {}} {
+            puts $err
+            if {$::pause_on_error} {
+                puts "waiting........"
+                after 100000000
+            }
+        }
         write_cluster_test_result_report "[format {</testsuite>}]"
         check_leaks {redis sentinel}
     }
