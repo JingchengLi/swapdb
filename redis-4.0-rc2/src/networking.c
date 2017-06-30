@@ -1815,7 +1815,7 @@ int handleExtraSSDBReply(client *c) {
         }
 
         if (repopid_index == op->index && repopid_time == op->time) {
-            serverLog(LL_DEBUG, "[REPOPID]ssdb process (key: %s, cmd: %s, op time:%ld, op id:%d) success,"
+            serverLog(LL_DEBUG, "[REPOPID DONE]ssdb process (key: %s, cmd: %s, op time:%ld, op id:%d) success,"
                               " remove from write op list", op->argc > 1 ? (sds)op->argv[1]->ptr : "",
                       op->cmd->name, op->time, op->index);
             /* for server.master connection of slave, we check whether the key is deleted when

@@ -4029,7 +4029,7 @@ int runCommandReplicationConn(client *c, listNode* writeop_ln) {
     int ret = processCommandReplicationConn(c, slave_retry_write);
     if (ret == C_OK) {
         if (slave_retry_write)
-            serverLog(LL_DEBUG, "[REPOPID CHECK] re-send failed write op"
+            serverLog(LL_DEBUG, "[REPOPID RE-SEND] re-send failed write op"
                               "(key: %s, cmd:%s, op time:%ld, op id:%d) to SSDB",
                       slave_retry_write->argc > 1 ? (sds)slave_retry_write->argv[1]->ptr : "",
                       slave_retry_write->cmd->name, slave_retry_write->time, slave_retry_write->index);
@@ -4051,7 +4051,7 @@ int runCommandReplicationConn(client *c, listNode* writeop_ln) {
     serverAssert(C_ERR == ret);
 
     if (slave_retry_write) {
-        serverLog(LL_DEBUG, "[REPOPID CHECK] ignore failed write op"
+        serverLog(LL_DEBUG, "[REPOPID RE-SEND] ignore failed write op"
                           "(key: %s, cmd:%s, op time:%ld, op id:%d),"
                           "caused by a delCommand after this write op",
                   slave_retry_write->argc > 1 ? (sds)slave_retry_write->argv[1]->ptr : "",
