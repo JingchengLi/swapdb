@@ -5892,7 +5892,13 @@ int main(int argc, char **argv) {
             exit(1);
         }
         resetServerSaveParams();
+        resetSSDBloadRule();
         loadServerConfig(configfile,options);
+        if (0 == server.ssdb_load_rules_len) {
+            appendSSDBloadRule(1, 100); /* 100 ssdb hits every second */
+            appendSSDBloadRule(10, 80*10); /* 800 ssdb hits every 10 seconds */
+            appendSSDBloadRule(60, 60*60); /* 3600 ssdb hits every 1 minute */
+        }
         sdsfree(options);
     }
 
