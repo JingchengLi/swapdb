@@ -9,6 +9,14 @@ overrides {maxmemory 0}} {
             assert_equal $rule [lindex [r config get ssdb-load-rule] 1] "get ssdb-load-rule"
         }
 
+        test "#issue ssdb-load-rule config after restart" {
+            set rule "5 200"
+            assert_equal {OK} [r config set ssdb-load-rule $rule] "set ssdb-load-rule"
+            catch {r debug restart}
+            after 1000
+            assert_equal $rule [lindex [r config get ssdb-load-rule] 1] "get ssdb-load-rule"
+        }
+
         # load key when reach hits defined in rule and the lfu of key > 5
         r set foo 0 ;# key load when accessing with lfu > 5
         r set foo_1 0 ;# key not load with lfu <= 5
