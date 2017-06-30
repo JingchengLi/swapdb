@@ -29,6 +29,7 @@ start_server {tags {"repl"}} {
                 wait_for_condition 50 100 {
                     [ r exists $key ] eq [ r -1 exists $key ]
                 } else {
+                    stop_bg_complex_data $load_handle0
                     fail "key:$key in master and slave not identical"
                 }
             }
