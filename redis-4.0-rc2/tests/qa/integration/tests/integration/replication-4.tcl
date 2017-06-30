@@ -1,5 +1,30 @@
 start_server {tags {"repl"}} {
     start_server {} {
+        set master [srv -1 client]
+        set master_host [srv -1 host]
+        set master_port [srv -1 port]
+        set slave [srv 0 client]
+        set num 10000
+        set clients 50
+        test {#issue master and slave may be identical when write clients killed forcely} {
+            $slave slaveof $master_host $master_port
+            wait_for_online $master
+            after 1000
+            set clist [ start_bg_complex_data_list $master_host $master_port $num $clients incr]
+            after 100
+            stop_bg_client_list  $clist
+            wait_for_condition 10 100 {
+                [$master get incr_key] eq [$slave get incr_key]
+            } else {
+                fail "incr_key in master:[$master get incr_key] and slave:[$slave get incr_key] are not \
+                identical when clients were killed forcely."
+            }
+        }
+    }
+}
+
+start_server {tags {"repl"}} {
+    start_server {} {
 
         set master [srv -1 client]
         set master_host [srv -1 host]
@@ -96,7 +121,8 @@ start_server {tags {"repl"}} {
             stop_bg_complex_data $load_handle2
             r config set maxmemory 0
             r -1 config set maxmemory 0
-            assert_equal [debug_digest r -1] [debug_digest r]
+            compare_debug_digest
+            # assert_equal [debug_digest r -1] [debug_digest r]
         }
     }
 }

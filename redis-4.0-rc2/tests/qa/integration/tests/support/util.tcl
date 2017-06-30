@@ -160,11 +160,12 @@ proc randomKey {} {
     } {
         # 64 bit
         randpath {randomInt 1000000000000}
-    } {
-        # Random string
-        randpath {randstring 1 256 alpha} \
-                {randstring 1 256 compr}
     }
+#    {
+#        # Random string
+#        randpath {randstring 1 256 alpha} \
+#                {randstring 1 256 compr}
+#    }
 }
 
 proc findKeyWithType {r type} {
@@ -185,7 +186,10 @@ proc createComplexDataset {r ops {opt {}}} {
     for {set j 0} {$j < $ops} {incr j} {
         if {[lsearch -exact $opt samekey] != -1} {
             set k "key_8888888888"
-        } else {
+        } elseif {[lsearch -exact $opt incr] != -1} {
+            $r incr incr_key
+            continue
+         } else {
             randpath {
                 set k [randomKey]
             } {
@@ -706,6 +710,7 @@ proc wait_start_ssdb_server {{level 0}} {
     set config [lindex $::servers end+$level]
     set ssdbstdout [dict get $config "ssdbstdout"]
     wait_log_pattern "ssdb server started" $ssdbstdout
+    after 1000
 }
 
 proc restart_ssdb_server {{level 0}} {
@@ -860,6 +865,9 @@ proc get_val_with_types {level key} {
         {hash} {
             set vlist [lsort [r $level hgetall $key]]
         }
+        {none} {
+            set vlist ""
+        }
     }
     return $vlist
 }
@@ -898,6 +906,7 @@ proc compare_debug_digest {{levels {0 -1}}} {
     foreach level $levels {
         if {[lindex [r $level role] 0] == "master"} {
             set master_level $level
+            break
         }
     }
 
@@ -913,7 +922,7 @@ proc compare_debug_digest {{levels {0 -1}}} {
         if {$master_level ne $level} {
             if {$master_digest ne [debug_digest r $level]} {
                 puts "master digest should equal to each slave!!!!!"
-                compare_allkeys {$master_level $level}
+                compare_allkeys [list $master_level $level]
             }
             # assert_equal $master_digest [debug_digest r $level] "master digest should equal to each slave"
         }
