@@ -3309,7 +3309,7 @@ int processCommandMaybeFlushdb(client *c) {
 
                 ln = listFirst(server.ssdb_write_oplist);
                 op = ln->value;
-                serverLog(LL_DEBUG, "[REPOPID]redis send %s(op time:%ld, op id:%d) to ssdb success",
+                serverLog(LL_DEBUG, "[REPOPID]redis send (cmd: %s, op time:%ld, op id:%d) to ssdb success",
                           op->cmd->name, op->time, op->index);
 
                 return C_OK;
@@ -3538,8 +3538,6 @@ int confirmAndRetrySlaveSSDBwriteOp(time_t time, int index) {
             * the new SSDB connnection. */
             if (ret != C_OK) break;
 
-            serverLog(LL_DEBUG, "[REPOPID CHECK] re-send failed write op(cmd:%s, op time:%ld, op id:%d) to SSDB",
-                      op->cmd->name, op->time, op->index);
         }
     }
     if (C_OK == ret)
@@ -4030,6 +4028,11 @@ int runCommandReplicationConn(client *c, listNode* writeop_ln) {
 
     int ret = processCommandReplicationConn(c, slave_retry_write);
     if (ret == C_OK) {
+        if (slave_retry_write)
+            serverLog(LL_DEBUG, "[REPOPID CHECK] re-send failed write op"
+                              "(key: %s, cmd:%s, op time:%ld, op id:%d) to SSDB",
+                      slave_retry_write->argc > 1 ? (sds)slave_retry_write->argv[1]->ptr : "",
+                      slave_retry_write->cmd->name, slave_retry_write->time, slave_retry_write->index);
         /* for the replication connection of slave redis, after we send write commands
          * to SSDB and record them in server.ssdb_write_oplist, we just return and
          * process next write command. */
@@ -4045,16 +4048,22 @@ int runCommandReplicationConn(client *c, listNode* writeop_ln) {
     } else if (ret == C_BLOCKED) {
         return ret;
     }
-
     serverAssert(C_ERR == ret);
-    if (slave_retry_write) {
-        if (NULL == dictFind(server.db[0].dict, slave_retry_write->argv[1]->ptr)) {
-            /* for slave redis, delCommand would delete the key index directly to avoid
-             * some issues.(such as expire propagate or delete confirm propagate) */
-            return C_OK;
-        }
 
-        serverAssert(NULL);
+    if (slave_retry_write) {
+        serverLog(LL_DEBUG, "[REPOPID CHECK] ignore failed write op"
+                          "(key: %s, cmd:%s, op time:%ld, op id:%d),"
+                          "caused by a delCommand after this write op",
+                  slave_retry_write->argc > 1 ? (sds)slave_retry_write->argv[1]->ptr : "",
+                  slave_retry_write->cmd->name, slave_retry_write->time, slave_retry_write->index);
+        /* for slave redis, when we receive delCommand from our master, we delete
+         * the key index directly to avoid some issues.(such as expire propagate
+         * or delete confirm propagate), so we need ignore all writes before del. */
+        listDelNode(server.ssdb_write_oplist, writeop_ln);
+        return C_OK;
+    }
+
+    if (slave_retry_write) {
         /*NOTE: for some commands like set, setex, etc..., its c->argv[j]->ptr
         * may be modified when call tryObjectEncoding.
          *
@@ -4082,11 +4091,8 @@ int runCommandReplicationConn(client *c, listNode* writeop_ln) {
     if (slave_retry_write) {
          serverLog(LL_DEBUG, "[REPOPID]the key: %s is now in redis, remove write op from"
                           " list(op cmd:%s, time:%ld, index:%d)",
-                  (char*)c->argv[1]->ptr,
-                  slave_retry_write->cmd->name,
-                  slave_retry_write->time,
-                  slave_retry_write->index);
-
+                  slave_retry_write->argc > 1 ?  (sds)slave_retry_write->argv[1]->ptr : "",
+                  slave_retry_write->cmd->name, slave_retry_write->time, slave_retry_write->index);
 
          /* the key is in redis and this op is processed, just remove it */
         listDelNode(server.ssdb_write_oplist, writeop_ln);
