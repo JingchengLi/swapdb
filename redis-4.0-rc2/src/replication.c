@@ -165,6 +165,16 @@ void feedReplicationBacklogWithObject(robj *o) {
     feedReplicationBacklog(p,len);
 }
 
+void enableSlaveToPropagate(client *slave) {
+    if (server.jdjr_mode && slave->replstate == SLAVE_STATE_SEND_BULK_FINISHED)
+        slave->flags |= CLIENT_SLAVE_FORCE_PROPAGATE;
+}
+
+void disableSlaveToPropagate(client *slave) {
+    if (server.jdjr_mode && slave->replstate == SLAVE_STATE_SEND_BULK_FINISHED)
+        slave->flags &= ~CLIENT_SLAVE_FORCE_PROPAGATE;
+}
+
 /* Propagate write commands to slaves, and populate the replication backlog
  * as well. This function is used if the instance is a master: we use
  * the commands received by our clients in order to create the replication
@@ -221,7 +231,9 @@ void replicationFeedSlaves(list *slaves, int dictid, robj **argv, int argc) {
         while((ln = listNext(&li))) {
             client *slave = ln->value;
             if (slave->replstate == SLAVE_STATE_WAIT_BGSAVE_START) continue;
+            enableSlaveToPropagate(slave);
             addReply(slave,selectcmd);
+            disableSlaveToPropagate(slave);
         }
 
         if (dictid < 0 || dictid >= PROTO_SHARED_SELECT_CMDS)
@@ -268,6 +280,8 @@ void replicationFeedSlaves(list *slaves, int dictid, robj **argv, int argc) {
         /* Don't feed slaves that are still waiting for BGSAVE to start */
         if (slave->replstate == SLAVE_STATE_WAIT_BGSAVE_START) continue;
 
+        enableSlaveToPropagate(slave);
+
         /* Feed slaves that are waiting for the initial SYNC (so these commands
          * are queued in the output buffer until the initial SYNC completes),
          * or are already in sync with the master. */
@@ -279,6 +293,8 @@ void replicationFeedSlaves(list *slaves, int dictid, robj **argv, int argc) {
          * static buffer if any (from j to argc). */
         for (j = 0; j < argc; j++)
             addReplyBulk(slave,argv[j]);
+
+        disableSlaveToPropagate(slave);
     }
 }
 

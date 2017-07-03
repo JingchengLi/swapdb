@@ -304,6 +304,7 @@ int memalign_ssdb_client;
 #define CLIENT_MODULE (1<<27) /* Non connected client used by some module. */
 /* for jdjr mode only */
 #define CLIENT_BUFFER_HAS_UNPROCESSED_DATA (1<<28) /* we need process remained query data in the client buffer */
+#define CLIENT_SLAVE_FORCE_PROPAGATE (1<<29) /* Force to propagate before SLAVE_STATE_ONLINE. */
 
 /* Client block type (btype field in client structure)
  * if CLIENT_BLOCKED flag is set. */

@@ -279,8 +279,8 @@ int prepareClientToWrite(client *c) {
     if (!clientHasPendingReplies(c) &&
         !(c->flags & CLIENT_PENDING_WRITE) &&
             (c->replstate == REPL_STATE_NONE ||
-             (c->replstate == SLAVE_STATE_ONLINE && !c->repl_put_online_on_ack)
-             || (server.jdjr_mode && c->flags & CLIENT_SLAVE && c->replstate == SLAVE_STATE_SEND_BULK_FINISHED)))
+             (c->replstate == SLAVE_STATE_ONLINE && !c->repl_put_online_on_ack) ||
+             (c->flags & CLIENT_SLAVE_FORCE_PROPAGATE)))
     {
         /* Here instead of installing the write handler, we just flag the
          * client and put it into a list of clients that have something
