@@ -34,7 +34,10 @@ test "Cluster nodes hard reset" {
         # product env
             set node_timeout 5000
         }
-        catch {R $id flushall} ; # May fail for readonly slaves.
+        catch {R $id flushall} err; # May fail for readonly slaves.
+    }
+
+    foreach_redis_id id {
         # R $id MULTI
         R $id cluster reset hard
         R $id cluster set-config-epoch [expr {$id+1}]
