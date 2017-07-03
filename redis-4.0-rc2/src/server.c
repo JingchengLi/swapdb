@@ -152,7 +152,11 @@ struct redisCommand redisCommandTable[] = {
     {"setrange",setrangeCommand,4,"wmJ",0,NULL,1,1,1,0,0},
     {"getrange",getrangeCommand,4,"rJ",0,NULL,1,1,1,0,0},
     {"substr",getrangeCommand,4,"rJ",0,NULL,1,1,1,0,0},
+#ifdef TEST_SWAP_77
+    {"incr",incrCommand,-2,"wmFJ",0,NULL,1,1,1,0,0},
+#else
     {"incr",incrCommand,2,"wmFJ",0,NULL,1,1,1,0,0},
+#endif
     {"decr",decrCommand,2,"wmFJ",0,NULL,1,1,1,0,0},
     {"mget",mgetCommand,-2,"r",0,NULL,1,-1,1,0,0},
     {"rpush",rpushCommand,-3,"wmFJ",0,NULL,1,1,1,0,0},
@@ -3724,12 +3728,28 @@ int processCommandReplicationConn(client* c, struct ssdb_write_op* slave_retry_w
             /* this is a failed write retry, reuse its write op time and id. */
             ret = sendRepopidToSSDB(server.master, slave_retry_write->time, slave_retry_write->index, 1);
             if (ret != C_OK) return ret;
+#ifdef TEST_SWAP_77
+            if (slave_retry_write->cmd->proc == incrCommand)
+                slave_retry_write->argc = 2;
+#endif
             finalcmd = composeCmdFromArgs(slave_retry_write->argc, slave_retry_write->argv);
             ret = sendFailedRetryCommandToSSDB(c, finalcmd);
+#ifdef TEST_SWAP_77
+            if (slave_retry_write->cmd->proc == incrCommand)
+                slave_retry_write->argc = 3;
+#endif
         } else {
             ret = updateSendRepopidToSSDB(c);
             if (ret != C_OK) return ret;
+#ifdef TEST_SWAP_77
+            if (c->cmd->proc == incrCommand)
+                c->argc = 2;
+#endif
             ret = sendCommandToSSDB(c, NULL);
+#ifdef TEST_SWAP_77
+            if (c->cmd->proc == incrCommand)
+                c->argc = 3;
+#endif
         }
 
         if (ret != C_OK) return ret;
@@ -3869,9 +3889,19 @@ int processCommandMaybeInSSDB(client *c) {
             if (processBeforeVisitingSSDB(c, keyobj) == C_OK)
                 return C_OK;
 
+#ifdef TEST_SWAP_77
+            if (c->cmd->proc == incrCommand)
+                c->argc = 2;
+#endif
             ret = sendCommandToSSDB(c, NULL);
             if (ret != C_OK)
                 goto check_blocked_clients;
+#ifdef TEST_SWAP_77
+            if (c->cmd->proc == incrCommand) {
+                test_incr_id++;
+                c->argc = 3;
+            }
+#endif
 
             server.stat_keyspace_ssdb_hits ++;
 

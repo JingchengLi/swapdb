@@ -1819,6 +1819,24 @@ int handleExtraSSDBReply(client *c) {
         }
 
         if (repopid_index == op->index && repopid_time == op->time) {
+#ifdef TEST_SWAP_77
+            if (op->cmd->proc == incrCommand && c->ssdb_replies[0]->type == REDIS_REPLY_INTEGER) {
+                if (op->argc >= 3) {
+                    long long arg_value;
+                    redisReply* reply_val = c->ssdb_replies[0];
+                    serverLog(LL_DEBUG, "incr id command is: %s %s %s", (sds)op->argv[0]->ptr, (sds)op->argv[1]->ptr, (sds)op->argv[2]->ptr);
+
+                    if (1 == string2ll((char*)op->argv[2]->ptr, sdslen((sds)op->argv[2]->ptr), &arg_value)) {
+                        if (arg_value == reply_val->integer)
+                            serverLog(LL_DEBUG, "incr id:%lld,value:%lld", arg_value, reply_val->integer);
+                        else
+                            serverLog(LL_DEBUG, "not match incr id:%lld,value:%lld", arg_value, reply_val->integer);
+                    } else {
+                        serverLog(LL_DEBUG, "unknown incr id:%s", (sds)op->argv[2]->ptr);
+                    }
+                }
+            }
+#endif
             serverLog(LL_DEBUG, "[REPOPID DONE]ssdb process (key: %s, cmd: %s, op time:%ld, op id:%d) success,"
                               " remove from write op list", op->argc > 1 ? (sds)op->argv[1]->ptr : "",
                       op->cmd->name, op->time, op->index);
@@ -2085,6 +2103,35 @@ void handleSSDBReply(client *c, int revert_len) {
             serverLog(LL_WARNING, "migrate log: failed to handle migrate dump.");
             return;
         }
+
+#ifdef TEST_SWAP_77
+       if (c->cmd->proc == incrCommand && c->argc == 2) {
+           if (NULL == server.masterhost) {
+               int j, argc;
+               robj** argv;
+               char buf[128];
+
+               argc = c->argc+1;
+               argv = zmalloc(sizeof(robj*) * argc);
+               for (j = 0; j < c->argc; j++) {
+                   argv[j] = c->argv[j];
+               }
+               serverAssert(j == 2);
+               ll2string(buf, 128, test_incr_id);
+               argv[j] = createObject(OBJ_STRING, sdsnew(buf));
+               zfree(c->argv);
+
+               c->argv = argv;
+               c->argc = argc;
+
+               if (test_incr_id == reply->integer)
+                   serverLog(LL_DEBUG, "incr id:%lld,value:%lld", test_incr_id, reply->integer);
+               else
+                   serverLog(LL_DEBUG, "not match incr id:%lld,value:%lld", test_incr_id, reply->integer);
+           }
+       }
+#endif
+
         propagateCmdHandledBySSDB(c);
         unblockClient(c);
         resetClient(c);

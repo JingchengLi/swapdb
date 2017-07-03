@@ -109,6 +109,10 @@ typedef long long mstime_t; /* millisecond time type. */
 #include "memprotect.h"
 int memalign_ssdb_client;
 #endif
+//#define TEST_SWAP_77
+#ifdef TEST_SWAP_77
+long long test_incr_id;
+#endif
 
 /* is_allow_ssdb_write codes */
 #define ALLOW_SSDB_WRITE 1
