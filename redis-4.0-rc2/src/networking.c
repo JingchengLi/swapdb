@@ -1819,7 +1819,7 @@ int handleExtraSSDBReply(client *c) {
         }
 
         if (repopid_index == op->index && repopid_time == op->time) {
-#ifdef TEST_SWAP_77
+#ifdef TEST_INCR_CONCURRENT
             if (op->cmd->proc == incrCommand && c->ssdb_replies[0]->type == REDIS_REPLY_INTEGER) {
                 if (op->argc >= 3) {
                     long long arg_value;
@@ -2106,7 +2106,7 @@ void handleSSDBReply(client *c, int revert_len) {
             return;
         }
 
-#ifdef TEST_SWAP_77
+#ifdef TEST_INCR_CONCURRENT
        if (c->cmd->proc == incrCommand && c->argc == 2) {
            if (NULL == server.masterhost) {
                int j, argc;
@@ -3136,7 +3136,7 @@ void processInputBuffer(client *c) {
         } else {
             if (c == server.master)
                 serverLog(LL_DEBUG, "receive %s %s", (char*)c->argv[0]->ptr, c->argc > 1 ? (char*)c->argv[1]->ptr : "");
-#ifdef TEST_SWAP_77
+#ifdef TEST_INCR_CONCURRENT
             if (c->argc > 1 && 0 == strcasecmp(c->argv[0]->ptr, "incr")) {
                 if (c->argc == 3)
                     serverLog(LL_DEBUG, "command %s %s %s", (sds)c->argv[0]->ptr, (sds)c->argv[1]->ptr, (sds)c->argv[2]->ptr);
