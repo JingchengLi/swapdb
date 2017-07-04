@@ -3148,6 +3148,44 @@ void call(client *c, int flags) {
              * unexpected issues.*/
             if (c->cmd->flags & CMD_WRITE) {
                 if (propagate_flags != PROPAGATE_NONE) {
+#ifdef TEST_SWAP_77
+                    if (c->cmd->proc == incrCommand && c->argc == 2) {
+                        if (NULL == server.masterhost) {
+                            int j, argc;
+                            robj** argv;
+                            char buf[128];
+
+                            argc = c->argc+1;
+                            argv = zmalloc(sizeof(robj*) * argc);
+                            for (j = 0; j < c->argc; j++) {
+                                argv[j] = c->argv[j];
+                            }
+                            serverAssert(j == 2);
+                            ll2string(buf, 128, test_incr_id);
+                            argv[j] = createObject(OBJ_STRING, sdsnew(buf));
+                            zfree(c->argv);
+
+                            c->argv = argv;
+                            c->argc = argc;
+
+                            test_incr_id++;
+
+                            long long value;
+                            robj *o;
+
+                            o = lookupKey(c->db,c->argv[1],LOOKUP_NOTOUCH);
+                            if (o && 0 == checkType(c,o,OBJ_STRING)) {
+                                if (getLongLongFromObjectOrReply(c,o,&value,NULL) == C_OK) {
+                                    if (test_incr_id == value)
+                                        serverLog(LL_DEBUG, "incr id:%lld,value:%lld", test_incr_id, value);
+                                    else
+                                        serverLog(LL_DEBUG, "not match incr id:%lld,value:%lld", test_incr_id, value);
+                                }
+                            }
+                        }
+                    }
+#endif
+
                     propagate(c->cmd,c->db->id,c->argv,c->argc,propagate_flags);
                 }
             }
@@ -3729,26 +3767,32 @@ int processCommandReplicationConn(client* c, struct ssdb_write_op* slave_retry_w
             ret = sendRepopidToSSDB(server.master, slave_retry_write->time, slave_retry_write->index, 1);
             if (ret != C_OK) return ret;
 #ifdef TEST_SWAP_77
-            if (slave_retry_write->cmd->proc == incrCommand)
+            int tmp;
+            if (slave_retry_write->cmd->proc == incrCommand) {
+                tmp = slave_retry_write->argc;
                 slave_retry_write->argc = 2;
+            }
 #endif
             finalcmd = composeCmdFromArgs(slave_retry_write->argc, slave_retry_write->argv);
             ret = sendFailedRetryCommandToSSDB(c, finalcmd);
 #ifdef TEST_SWAP_77
             if (slave_retry_write->cmd->proc == incrCommand)
-                slave_retry_write->argc = 3;
+                slave_retry_write->argc = tmp;
 #endif
         } else {
             ret = updateSendRepopidToSSDB(c);
             if (ret != C_OK) return ret;
 #ifdef TEST_SWAP_77
-            if (c->cmd->proc == incrCommand)
+            int tmp;
+            if (c->cmd->proc == incrCommand) {
+                tmp = c->argc;
                 c->argc = 2;
+            }
 #endif
             ret = sendCommandToSSDB(c, NULL);
 #ifdef TEST_SWAP_77
             if (c->cmd->proc == incrCommand)
-                c->argc = 3;
+                c->argc = tmp;
 #endif
         }
 
@@ -3889,18 +3933,12 @@ int processCommandMaybeInSSDB(client *c) {
             if (processBeforeVisitingSSDB(c, keyobj) == C_OK)
                 return C_OK;
 
-#ifdef TEST_SWAP_77
-            if (c->cmd->proc == incrCommand)
-                c->argc = 2;
-#endif
             ret = sendCommandToSSDB(c, NULL);
             if (ret != C_OK)
                 goto check_blocked_clients;
 #ifdef TEST_SWAP_77
-            if (c->cmd->proc == incrCommand) {
+            if (c->cmd->proc == incrCommand)
                 test_incr_id++;
-                c->argc = 3;
-            }
 #endif
 
             server.stat_keyspace_ssdb_hits ++;

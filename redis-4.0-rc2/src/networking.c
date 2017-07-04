@@ -2035,6 +2035,8 @@ void handleSSDBReply(client *c, int revert_len) {
                   reply->str, c->fd, c->context ? c->context->fd : -1);
     if (reply && reply->type == REDIS_REPLY_STRING)
         serverLog(LL_DEBUG, "reply str: %s, reply len:%lu", reply->str, reply->len);
+    if (reply && reply->type == REDIS_REPLY_INTEGER)
+        serverLog(LL_DEBUG, "reply integer: %lld", reply->integer);
 
     /* Handle special connections. */
     if (c == server.ssdb_client) return;
@@ -3134,6 +3136,14 @@ void processInputBuffer(client *c) {
         } else {
             if (c == server.master)
                 serverLog(LL_DEBUG, "receive %s %s", (char*)c->argv[0]->ptr, c->argc > 1 ? (char*)c->argv[1]->ptr : "");
+#ifdef TEST_SWAP_77
+            if (c->argc > 1 && 0 == strcasecmp(c->argv[0]->ptr, "incr")) {
+                if (c->argc == 3)
+                    serverLog(LL_DEBUG, "command %s %s %s", (sds)c->argv[0]->ptr, (sds)c->argv[1]->ptr, (sds)c->argv[2]->ptr);
+                else if (c->argc == 2)
+                    serverLog(LL_DEBUG, "command %s %s", (sds)c->argv[0]->ptr, (sds)c->argv[1]->ptr);
+            }
+#endif
             /* Only reset the client when the command was executed. */
             if (processCommand(c) == C_OK)
                 resetClient(c);
