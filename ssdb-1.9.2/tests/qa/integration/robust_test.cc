@@ -352,7 +352,7 @@ void RobustTest::checkDataOK(int times=10) {
 
         for (int m = 0; m < keysNum; ++m) {
             client->zget(key, field+itoa(m), &getScore);
-            ASSERT_EQ(m, getScore)<<key<<":"<<m;
+            ASSERT_NEAR(m+score, getScore, eps)<<key<<":"<<m;
         }
     }
 }
