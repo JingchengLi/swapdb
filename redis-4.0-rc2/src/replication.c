@@ -1228,9 +1228,6 @@ int slaveIsInHandshakeState(void) {
  * The function is called in two contexts: while we flush the current
  * data with emptyDb(), and while we load the new data received as an
  * RDB file from the master.
- *
- * in jdjr mode, the function is also called when redis RDB transfer done
- * but SSDB snapshot have not.
  * */
 void replicationSendNewlineToMaster(void) {
     static time_t newline_sent;

@@ -105,11 +105,13 @@ typedef long long mstime_t; /* millisecond time type. */
 //#define TEST_TIME_CONSUMPTION
 //#define TEST_SLAVE_NO_TRANSFER
 //#define TEST_MEM_CRASH
+//#define TEST_INCR_CONCURRENT
+
 #ifdef TEST_MEM_CRASH
 #include "memprotect.h"
 int memalign_ssdb_client;
 #endif
-#define TEST_INCR_CONCURRENT
+
 #ifdef TEST_INCR_CONCURRENT
 long long test_incr_id;
 #endif
