@@ -97,12 +97,12 @@ overrides {maxmemory 0}} {
                 dumpto_ssdb_and_wait r foo
                 dumpto_ssdb_and_wait r foo_1
                 dumpto_ssdb_and_wait r foo_2
-                access_key_tps_time foo_2 [expr $tps/$time*0.5] 1;# make its lfu > 5
-                access_key_tps_time foo [expr $tps/$time*0.9] $time
+                access_key_tps_time foo_2 [expr $tps/$time*0.1] 1;# make its lfu > 5
+                access_key_tps_time foo [expr $tps/$time*0.8] $time
                 assert_equal {ssdb} [r locatekey foo] "foo should not be loaded"
                 assert_equal {ssdb} [r locatekey foo_2] "foo_2 should not be loaded"
 
-                access_key_tps_time foo [expr $tps/$time*1.1] $time false
+                access_key_tps_time foo [expr $tps/$time*1.2] $time false
                 assert {[r object freq foo] > 5}
                 assert {[r object freq foo_2] > 5}
                 assert_equal {redis} [r locatekey foo] "foo should be loaded"
