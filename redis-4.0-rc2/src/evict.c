@@ -920,7 +920,8 @@ int tryEvictingKeysToSSDB(size_t *mem_tofree) {
         robj *keyobj = createStringObject(bestkey,sdslen(bestkey));
 
         /* Try restoring the redis dumped data to SSDB. */
-        prologOfEvictingToSSDB(keyobj, db);
+        if (prologOfEvictingToSSDB(keyobj, db) == C_FD_ERR)
+            return C_ERR;
 
         decrRefCount(keyobj);
     }
