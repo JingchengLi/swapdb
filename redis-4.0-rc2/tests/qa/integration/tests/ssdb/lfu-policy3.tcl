@@ -59,20 +59,19 @@ start_server {tags {"lfu"}} {
         return $sum
     }
 
-    proc check_keys_load_when_access {pre nums flag {lfu true}} {
+    proc check_keys_load_when_access {pre nums flag} {
         for {set i 0} {$i < $nums} {incr i} {
             if {[r locatekey "$pre:$i"] eq {ssdb}} {
                 r setlfu "$pre:$i" 5
                 if {$flag} {
-                    for {set n 0} {$n < 50} {incr n} {
-                        r exists $pre:$i
-                        if {[r locatekey "$pre:$i"] eq "redis"} {
-                            break
-                        }
-                        after 10
+                    r exists $pre:$i
+                    wait_for_condition 10 5 {
+                        [r locatekey "$pre:$i"] eq "redis"
+                    } else {
+                        fail "$pre:$i not load success"
                     }
-                    assert_equal [r locatekey "$pre:$i"] redis "$pre:$i not load success"
                 } else {
+                    r exists $pre:$i
                     assert_equal [r locatekey "$pre:$i"] ssdb "$pre:$i should not load"
                 }
             }
@@ -320,7 +319,6 @@ start_server {tags {"lfu"}} {
             }
             set key_d_ssdb_after [sum_keystatus key_d 3000 ssdb]
             assert {$key_d_ssdb_before > $key_d_ssdb_after}
-            assert {$key_d_ssdb_after ne 0}
         }
         stop_write_load $handle
 
