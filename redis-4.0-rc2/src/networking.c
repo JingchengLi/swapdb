@@ -2101,6 +2101,13 @@ void handleSSDBReply(client *c, int revert_len) {
             return;
         }
 
+/* Add sds to reply (takes ownership of sds and frees it) */
+void addReplyBulkSds(client *c, sds s)  {
+    addReplyLongLongWithPrefix(c,sdslen(s),'$');
+    addReplySds(c,s);
+    addReply(c,shared.crlf);
+}
+
 #ifdef TEST_INCR_CONCURRENT
        if (c->cmd->proc == incrCommand && c->argc == 2) {
            if (NULL == server.masterhost) {
