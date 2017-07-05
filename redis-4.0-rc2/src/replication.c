@@ -2881,10 +2881,6 @@ void replicationCron(void) {
                 serverLog(LL_DEBUG, "don't receive SSDB snapshot transfer message for a long "
                         "time, cancel replication handshake");
                 cancelReplicationHandshake();
-            } else {
-                /* in jdjr mode, when redis RDB transfer is done but SSDB snapshot not, we need send
-                * keep-alive message, avoid the master to detect the slave is timing out. */
-                replicationSendNewlineToMaster();
             }
         }
     }
