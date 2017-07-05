@@ -311,6 +311,9 @@ long long test_incr_id;
 /* for jdjr mode only */
 #define CLIENT_BUFFER_HAS_UNPROCESSED_DATA (1<<28) /* we need process remained query data in the client buffer */
 #define CLIENT_SLAVE_FORCE_PROPAGATE (1<<29) /* Force to propagate before SLAVE_STATE_ONLINE. */
+#define CLIENT_CLOSE_AFTER_SSDB_WRITE_PROPAGATE (1<<30) /* if the client is blocked by visiting ssdb, close after
+ * we receive write reply from SSDB and propagate write operation to slaves, to avoid some data inconsistency because
+ * of connection disconnect of user side. */
 
 /* Client block type (btype field in client structure)
  * if CLIENT_BLOCKED flag is set. */

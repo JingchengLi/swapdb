@@ -2137,6 +2137,8 @@ void handleSSDBReply(client *c, int revert_len) {
         propagateCmdHandledBySSDB(c);
         unblockClient(c);
         resetClient(c);
+        if (c->flags & CLIENT_CLOSE_AFTER_SSDB_WRITE_PROPAGATE)
+            freeClientAsync(c);
     }
 }
 
@@ -2225,6 +2227,10 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
                     || c->btype == BLOCKED_BY_FLUSHALL) {
                     unblockClient(c);
                     resetClient(c);
+                    if (c->flags & CLIENT_CLOSE_AFTER_SSDB_WRITE_PROPAGATE) {
+                        freeClient(c);
+                        return;
+                    }
                     /* only reply to redis user client when there is a write/read SSDB request. */
                     addReplyError(c, "SSDB disconnect when read");
                 }
@@ -2583,6 +2589,12 @@ void freeClient(client *c) {
             replicationCacheMaster(c);
             return;
         }
+    }
+
+    /* will close after we receive reply from SSDB and propagate. */
+    if (server.jdjr_mode && c->flags & CLIENT_BLOCKED && c->btype == BLOCKED_VISITING_SSDB) {
+        c->flags |= CLIENT_CLOSE_AFTER_SSDB_WRITE_PROPAGATE;
+        return;
     }
 
     /* Log link disconnection with slave */
