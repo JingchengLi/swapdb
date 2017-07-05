@@ -1354,7 +1354,11 @@ int handleResponseOfSlaveSSDBflush(client *c, redisReply* reply) {
              * so we are sure the first write op must be 'flushall'. */
             ln = listFirst(server.ssdb_write_oplist);
             op = ln->value;
-            serverAssert(op->cmd->proc == flushallCommand);
+            if (op->cmd->proc != flushallCommand) {
+                 /* this is not a response of this "flushall" command. */
+                serverLog(LL_DEBUG, "this is not a response of this 'flushall' command");
+                return C_OK;
+            }
 
             reply2 = c->ssdb_replies[1];
             repoid_response = reply2->element[1];

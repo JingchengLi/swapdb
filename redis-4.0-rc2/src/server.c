@@ -3547,6 +3547,9 @@ int confirmAndRetrySlaveSSDBwriteOp(time_t time, int index) {
 
                 /* this is a failed write, retry it. */
                 if (op->cmd->proc == flushallCommand) {
+                    /* clean all keys need to transfer/load */
+                    dictEmpty(server.loadAndEvictCmdDict, NULL);
+
                     ret = sendRepopidToSSDB(server.master, op->time, op->index, 1);
                     if (ret != C_OK) break;
 
