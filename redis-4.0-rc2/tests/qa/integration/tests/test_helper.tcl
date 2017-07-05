@@ -127,6 +127,7 @@ set ::all_tests {
 # Index to the next test to run in the ::all_tests list.
 set ::next_test 0
 
+set ::mirror 0
 set ::expire 0
 set ::host 127.0.0.1
 set ::port 21111

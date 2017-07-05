@@ -184,6 +184,12 @@ proc findKeyWithType {r type} {
 proc createComplexDataset {r ops {opt {}}} {
     set keyslist {}
     for {set j 0} {$j < $ops} {incr j} {
+        # TODO grace quit clients ops
+        if {$j%100 == 0} {
+            if {[$r get stopflag] eq "true"} {
+                break
+            }
+        }
         if {[lsearch -exact $opt samekey] != -1} {
             set k "key_8888888888"
         } elseif {[lsearch -exact $opt incr] != -1} {
@@ -280,7 +286,7 @@ proc createComplexDataset {r ops {opt {}}} {
                     catch {
                         randpath {{*}$r setex $k [expr $delaytime+1000+[randomInt 10000]] ${v}_volatile} \
                         {{*}$r set $k ${v}_volatile EX [expr $delaytime+1000+[randomInt 10000]]}
-                        {{*}$r set $k ${v}_volatile PX [expr $delaytime+[randomInt 1000]]}
+                        {{*}$r set $k ${v}_volatile PX [expr 1000*$delaytime+[randomInt 1000]]}
                    } err;
                 }
             }
@@ -417,6 +423,38 @@ proc start_hit_ssdb_tps {host port seconds {interval 0}} {
 # Stop a process generating write load executed with start_write_load.
 proc stop_write_load {handle} {
     catch {exec /bin/kill -9 $handle}
+}
+
+#TODO
+proc OnRead {fd} {
+ if {[eof $fd] } {
+        puts "Terminated."
+        if {$::mirror == 0} {
+            set ::mirror 1
+        }
+        close $fd
+    } else {
+        set buf [gets $fd]
+        if {[regexp {1000} $buf]} {
+            puts "buf:$buf"
+        }
+    }
+}
+
+proc start_bg_mirror_complex {host port shost sport ops {opt {}}} {
+    set ::mirror 1
+    set tclsh [info nameofexecutable]
+    exec $tclsh tests/helpers/bg_mirror_complex.tcl $host $port $shost $sport $ops $opt &
+#    set fd [open "|$tclsh tests/helpers/bg_mirror_complex.tcl $host $port $shost $sport $ops $opt"]
+#    fileevent $fd readable [list OnRead $fd]
+#    return $fd
+}
+
+#TODO
+proc stop_bg_mirror_complex {} {
+    set ::mirror 0
+    vwait ::mirror
+    puts mirror:"$::mirror"
 }
 
 proc start_bg_complex_data {host port db ops {opt {}}} {
