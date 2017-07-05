@@ -1349,9 +1349,6 @@ int handleResponseOfSlaveSSDBflush(client *c, redisReply* reply) {
             int resp_op_index;
             int ret;
 
-            /* if 'flushall' is in server.ssdb_write_oplist, all the previous writes had been
-             * removed by emptySlaveSSDBwriteOperations.
-             * so we are sure the first write op must be 'flushall'. */
             ln = listFirst(server.ssdb_write_oplist);
             op = ln->value;
             if (op->cmd->proc != flushallCommand) {
