@@ -1528,7 +1528,6 @@ void readSyncBulkPayload(aeEventLoop *el, int fd, void *privdata, int mask) {
 
         if (server.jdjr_mode) {
             emptySlaveSSDBwriteOperations();
-            server.tmp_repl_stream_dbid = rsi.repl_stream_db;
             server.repl_state = REPL_STATE_TRANSFER_END;
 
              /* Restart the AOF subsystem now that we finished the sync. This
@@ -1543,7 +1542,7 @@ void readSyncBulkPayload(aeEventLoop *el, int fd, void *privdata, int mask) {
              * to avoid accumulating too much data in my query_buf (server.master->query_buf)
              * or output buffer of my master, which may overflow these buffers and break
              * replication, then cause full sync again. */
-            replicationCreateMasterClient(server.repl_transfer_s,server.tmp_repl_stream_dbid);
+            replicationCreateMasterClient(server.repl_transfer_s, rsi.repl_stream_db);
 
             /* when RDB file transfer is done but SSDB snapshot has not, allow receiving increment updates to avoid
              * accumulating too much data in my query_buf(server.master->query_buf) or output buffer of my master,
@@ -1551,9 +1550,9 @@ void readSyncBulkPayload(aeEventLoop *el, int fd, void *privdata, int mask) {
             if (server.ssdb_repl_state != REPL_STATE_TRANSFER_SSDB_SNAPSHOT_END)
                 server.master->ssdb_conn_flags |= CONN_RECEIVE_INCREMENT_UPDATES;
 
-            server.tmp_repl_stream_dbid = -1;
             if (C_OK != nonBlockConnectToSsdbServer(server.master)) {
                 serverLog(LL_WARNING, "Failed to connect SSDB when sync");
+                freeClient(server.master);
                 cancelReplicationHandshake();
                 return;
             }
@@ -2178,9 +2177,11 @@ int connectWithMaster(void) {
 void undoConnectWithMaster(void) {
     int fd = server.repl_transfer_s;
 
-    aeDeleteFileEvent(server.el,fd,AE_READABLE|AE_WRITABLE);
-    close(fd);
-    server.repl_transfer_s = -1;
+    if (fd != -1) {
+        aeDeleteFileEvent(server.el,fd,AE_READABLE|AE_WRITABLE);
+        close(fd);
+        server.repl_transfer_s = -1;
+    }
 }
 
 /* Abort the async download of the bulk dataset while SYNC-ing with master.
@@ -2523,8 +2524,8 @@ void replicationResurrectCachedMaster(int newfd) {
 
     if (server.jdjr_mode && !server.master->context) {
         if (C_OK != nonBlockConnectToSsdbServer(server.master)) {
-            serverLog(LL_WARNING,"Error resurrecting the cached master, can't connect SSDB");
-            freeClientAsync(server.master); /* Close ASAP. */
+            /* will reconnect if we can't connect SSDB here. */
+            serverLog(LL_WARNING,"resurrecting the cached master, can't connect SSDB");
         }
     }
 }

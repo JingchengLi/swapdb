@@ -2682,7 +2682,6 @@ void initServer(void) {
         server.ssdb_status = SSDB_NONE;
         server.ssdb_repl_state = REPL_STATE_NONE;
         server.slave_ssdb_transfer_keepalive_time = -1;
-        server.tmp_repl_stream_dbid = -1;
         server.check_write_begin_time = -1;
         server.check_write_unresponse_num = -1;
         server.no_writing_ssdb_blocked_clients = listCreate();

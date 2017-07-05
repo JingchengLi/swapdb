@@ -1250,7 +1250,6 @@ struct redisServer {
     off_t repl_transfer_last_fsync_off; /* Offset when we fsync-ed last time. */
     int repl_transfer_s;     /* Slave -> Master SYNC socket */
     int repl_transfer_fd;    /* Slave -> Master SYNC temp file descriptor */
-    int tmp_repl_stream_dbid; /* for jdjr_mode, save rdbSaveInfo.repl_stream_db temporarily */
     char *repl_transfer_tmpfile; /* Slave-> master SYNC temp file name */
     time_t repl_transfer_lastio; /* Unix time of the latest read, for timeout */
     int repl_serve_stale_data; /* Serve stale data when link is down? */
