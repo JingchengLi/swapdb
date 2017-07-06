@@ -218,7 +218,7 @@ start_server {tags {"lfu"}} {
         }
 
         # reach load tps access ssdb
-        set handle [ start_hit_ssdb_tps [srv host] [srv port] 200 ]
+        set handle [ start_hit_ssdb_tps [srv host] [srv port] 500 ]
         test "no load from ssdb when maxmemory usage higer than ssdb-load-upper-limit" {
             set ssdb_load_upper_limit 10
             assert {[s used_memory] > $limit*($ssdb_load_upper_limit/100.0)*1}

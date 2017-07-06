@@ -14,7 +14,13 @@ test "Cluster is up" {
 }
 
 test "The first master has actually two slaves" {
-    assert {[llength [lindex [R 0 role] 2]] == 2}
+    # currently slave sync maybe delayed when some other slaves are doing replicaiton.
+    wait_for_condition 10 500 {
+        [llength [lindex [R 0 role] 2]] == 2
+    } else {
+        fail "Wait too long time for two slaves sync done."
+    }
+    # assert {[llength [lindex [R 0 role] 2]] == 2}
 }
 
 test {Slaves of #0 are instance #5 and #10 as expected} {
