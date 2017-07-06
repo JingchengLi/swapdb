@@ -826,6 +826,8 @@ void syncCommand(client *c) {
                                   "and SSDB snapshot. BGSAVE for replication delayed");
                 /* Slave will connect Master later. */
                 freeClientAsync(c);
+
+                server.stat_sync_full_err ++;
                 return;
             }
         } else {
@@ -836,6 +838,7 @@ void syncCommand(client *c) {
                  * later in replicationCron. */
                 server.ssdb_status = MASTER_SSDB_SNAPSHOT_WAIT_FLUSHALL;
                 c->ssdb_status = SLAVE_SSDB_SNAPSHOT_WAIT_FLUSHALL;
+
                 return;
             }
 
