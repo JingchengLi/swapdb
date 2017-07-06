@@ -133,10 +133,13 @@ start_server {} {
 
         test "PSYNC2: total sum of full synchronizations is exactly 4" {
             set sum 0
+            # currently sync_full++ but was delayed when some other slaves are doing replicaiton.
+            set errsum 0
             for {set j 0} {$j < 5} {incr j} {
                 incr sum [status $R($j) sync_full]
+                incr errsum [status $R($j) sync_full_err]
             }
-            assert {$sum == 4}
+            assert {$sum == 4+$errsum}
         }
     }
 
