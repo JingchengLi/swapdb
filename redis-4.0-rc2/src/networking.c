@@ -1340,7 +1340,7 @@ static void revertClientBufReply(client *c, size_t revertlen) {
     0 == memcmp((reply)->str, sds_response, (reply)->len))
 
 int handleResponseOfSlaveSSDBflush(client *c, redisReply* reply) {
-    if (server.master == c) {
+    if (server.master == c || server.cached_master == c) {
         if (c->cmd && c->btype == BLOCKED_BY_FLUSHALL && c->cmd->proc == flushallCommand) {
             struct ssdb_write_op* op;
             listNode *ln;
@@ -1373,7 +1373,7 @@ int handleResponseOfSlaveSSDBflush(client *c, redisReply* reply) {
                     listDelNode(server.ssdb_write_oplist, ln);
                     /* if conn status of server.master is not CONN_SUCCESS, continue to process
                      * the rest failed writes. */
-                    if (!(c->ssdb_conn_flags & CONN_SUCCESS))
+                    if ((c == server.master) && !(c->ssdb_conn_flags & CONN_SUCCESS))
                         confirmAndRetrySlaveSSDBwriteOp(-1, -1);
                 } else {
                     resetClient(c);
@@ -1782,7 +1782,7 @@ int handleExtraSSDBReply(client *c) {
     serverAssert(element0->type == REDIS_REPLY_STRING);
     serverLog(LL_DEBUG, "check reply:%s", element0->str);
 
-    if (server.master == c) {
+    if (server.master == c || server.cached_master == c) {
         /* process "repopid" response for slave redis. */
         serverAssert(reply->elements == 2);
         time_t repopid_time;
@@ -1849,8 +1849,10 @@ int handleExtraSSDBReply(client *c) {
             listDelNode(server.ssdb_write_oplist, ln);
         } else {
             serverLog(LL_DEBUG, "repopid time/index don't match the first in server.ssdb_write_oplist");
-            closeAndReconnectSSDBconnection(c);
-            return C_ERR;
+            if (c == server.master) {
+                closeAndReconnectSSDBconnection(c);
+                return C_ERR;
+            }
         }
     } else {
         if (!isSpecialConnection(c))
@@ -1861,9 +1863,9 @@ int handleExtraSSDBReply(client *c) {
 }
 
 int handleResponseOfReplicationConn(client* c, redisReply* reply) {
-    if (c != server.master) return C_ERR;
+    if (c != server.master && c != server.cached_master) return C_ERR;
 
-    if (c->ssdb_conn_flags & CONN_CHECK_REPOPID) {
+    if (c == server.master && c->ssdb_conn_flags & CONN_CHECK_REPOPID) {
         if (reply && reply->type == REDIS_REPLY_STRING && reply->str) {
             /* we received response of "repopid get" */
             time_t last_successful_write_time = -1;
@@ -2042,7 +2044,8 @@ void handleSSDBReply(client *c, int revert_len) {
     /* Handle special connections. */
     if (c == server.ssdb_client) return;
 
-    if (c == server.master && handleResponseOfReplicationConn(c, reply) == C_OK) return;
+    if ((c == server.master || c == server.cached_master) &&
+        handleResponseOfReplicationConn(c, reply) == C_OK) return;
 
     if (c == server.expired_delete_client && handleResponseOfExpiredDelete(c) == C_OK) {
         if (c->btype == BLOCKED_BY_EXPIRED_DELETE) {
