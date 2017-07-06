@@ -364,12 +364,14 @@ proc roundFloat f {
 proc find_available_port start {
     for {set j $start} {$j < $start+1024} {incr j} {
         if {[catch {set fd1 [socket 127.0.0.1 $j]}] &&
-            [catch {set fd2 [socket 127.0.0.1 [expr $j+10000]]}]} {
+            [catch {set fd2 [socket 127.0.0.1 [expr $j+10000]]}] &&
+            [catch {set fd3 [socket 127.0.0.1 [expr $j+$::ssdbport]]}]} {
             return $j
         } else {
             catch {
                 close $fd1
                 close $fd2
+                close $fd3
             }
         }
     }
@@ -937,9 +939,6 @@ proc compare_allkeys {{levels {0 -1}}} {
 }
 
 proc compare_debug_digest {{levels {0 -1}}} {
-    if {$::accurate} {
-        return
-    }
     assert {[llength $levels] > 1}
     set master_level 1
     set master_digest {}

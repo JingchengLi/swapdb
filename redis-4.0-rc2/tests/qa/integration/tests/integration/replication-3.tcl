@@ -1,70 +1,45 @@
 start_server {tags {"repl"}} {
+    set master [srv 0 client]
     start_server {} {
+        set slave [srv 0 client]
         test {MASTER and SLAVE consistency with single key expire} {
-            r -1 slaveof [srv 0 host] [srv 0 port]
+            $slave slaveof [srv -1 host] [srv -1 port]
             wait_for_condition 50 100 {
-                [s -1 master_link_status] eq {up}
+                [s master_link_status] eq {up}
             } else {
                 fail "Replication not started."
             }
-            r set foo bar
-            r expire foo 1
+            $master set foo bar
+            $master expire foo 1
             after 2000 ;# Make sure everything expired before taking the digest
 
-            set oldmaxmemory [lindex [ r config get maxmemory ] 1]
+            set oldmaxmemory [lindex [ $master config get maxmemory ] 1]
             wait_for_condition 10 100 {
-                [ r exists foo ] == 0 &&
-                [ r -1 exists foo ] == 0
+                [ $master exists foo ] == 0 &&
+                [ $slave exists foo ] == 0
             } else {
                 fail "key in master and slave not identical"
             }
         }
-    }
-}
-
-start_server {tags {"repl"}} {
-    start_server {} {
-        test {First server should have role slave after SLAVEOF} {
-            r -1 slaveof [srv 0 host] [srv 0 port]
-            wait_for_condition 50 100 {
-                [s -1 master_link_status] eq {up}
-            } else {
-                fail "Replication not started."
-            }
-        }
-
-        if {$::accurate} {set numops 50000} else {set numops 5000}
 
         test {MASTER and SLAVE consistency with expire} {
-            set keyslist [ createComplexDataset r $numops useexpire ]
+            if {$::accurate} {set numops 50000} else {set numops 5000}
+            set keyslist [ createComplexDataset $master $numops useexpire ]
             after 4000 ;# Make sure everything expired before taking the digest
 
-            set oldmaxmemory [lindex [ r config get maxmemory ] 1]
+            set oldmaxmemory [lindex [ $master config get maxmemory ] 1]
             foreach key $keyslist {
                 wait_for_condition 50 100 {
-                    [ r exists $key ] eq [ r -1 exists $key ]
+                    [ $master exists $key ] eq [ $slave exists $key ]
                 } else {
-                    fail "key:$key in master and slave not identical [ r exists $key ] [ r -1 exists $key ]"
+                    fail "key:$key in master and slave not identical [ $master exists $key ] [ $slave exists $key ]"
                 }
             }
-            # r keys *   ;# Force DEL syntesizing to slave
             after 1000 ;# Wait another second. Now everything should be fine.
-            # if {[r debug digest] ne [r -1 debug digest]} {
-                # set csv1 [csvdump r]
-                # set csv2 [csvdump {r -1}]
-                # set fd [open /tmp/repldump1.txt w]
-                # puts -nonewline $fd $csv1
-                # close $fd
-                # set fd [open /tmp/repldump2.txt w]
-                # puts -nonewline $fd $csv2
-                # close $fd
-                # puts "Master - Slave inconsistency"
-                # puts "Run diff -u against /tmp/repldump*.txt for more info"
-            # }
-            r config set maxmemory 0 ;# load all keys to redis
+            $master config set maxmemory 0 ;# load all keys to redis
             assert_equal [r debug digest] [r -1 debug digest]
-            compare_debug_digest { 0 -1 }
-            r config set maxmemory $oldmaxmemory
+            compare_debug_digest
+            $master config set maxmemory $oldmaxmemory
         }
     }
 }

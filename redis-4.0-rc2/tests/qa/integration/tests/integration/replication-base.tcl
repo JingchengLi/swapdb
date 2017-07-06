@@ -1,17 +1,15 @@
 start_server {tags {"repl"}} {
     set A [srv 0 client]
-    set A_host [srv 0 host]
-    set A_port [srv 0 port]
+    set master_host [srv 0 host]
+    set master_port [srv 0 port]
     start_server {} {
         set B [srv 0 client]
-        set B_host [srv 0 host]
-        set B_port [srv 0 port]
 
-        test {Set instance A as slave of B} {
-            $A slaveof $B_host $B_port
+        test {Set instance B as slave of A} {
+            $B slaveof $master_host $master_port
             wait_for_condition 50 100 {
-                [lindex [$A role] 0] eq {slave} &&
-                [string match {*master_link_status:up*} [$A info replication]]
+                [lindex [$B role] 0] eq {slave} &&
+                [string match {*master_link_status:up*} [$B info replication]]
             } else {
                 fail "Can't turn the instance into a slave"
             }
@@ -21,37 +19,35 @@ start_server {tags {"repl"}} {
 
 start_server {tags {"repl"}} {
     set A [srv 0 client]
-    set A_host [srv 0 host]
-    set A_port [srv 0 port]
+    set master_host [srv 0 host]
+    set master_port [srv 0 port]
     $A debug populate 1000
     $A set foo bar
     start_server {} {
         set B [srv 0 client]
-        set B_host [srv 0 host]
-        set B_port [srv 0 port]
         $B debug populate 1000
         $B set fooB barB
         after 500
 
-        test {A with keys slaveof B} {
-            $A slaveof $B_host $B_port
+        test {instance B with keys slaveof instance A} {
+            $B slaveof $master_host $master_port
             wait_for_condition 50 100 {
-                [lindex [$A role] 0] eq {slave} &&
-                [string match {*master_link_status:up*} [$A info replication]]
+                [lindex [$B role] 0] eq {slave} &&
+                [string match {*master_link_status:up*} [$B info replication]]
             } else {
                 fail "Can't turn the instance into a slave"
             }
-            wait_for_online $B
+            wait_for_online $A
         }
 
-        test {Slave A is identical with Master B} {
+        test {Slave B is identical with Master A} {
             wait_for_condition 10 500 {
                 [$A debug digest] == [$B debug digest]
             } else {
                 fail "Digest not equal:master([$A debug digest]) and slave([$B debug digest]) after too long time."
             }
-            assert_equal {barB} [$A get fooB]
-            assert_equal {} [$A get foo]
+            assert_equal {bar} [$B get foo]
+            assert_equal {} [$B get fooB]
         }
     }
 }

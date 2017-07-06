@@ -64,9 +64,8 @@ start_server {tags {"lfu"}} {
             if {[r locatekey "$pre:$i"] eq {ssdb}} {
                 r setlfu "$pre:$i" 5
                 if {$flag} {
-                    r exists $pre:$i
-                    wait_for_condition 10 5 {
-                        [r locatekey "$pre:$i"] eq "redis"
+                    wait_for_condition 100 5 {
+                        [r exists $pre:$i] && [r locatekey "$pre:$i"] eq "redis"
                     } else {
                         fail "$pre:$i not load success"
                     }
@@ -150,7 +149,7 @@ start_server {tags {"lfu"}} {
             # We should still be under the limit.
             assert {[s used_memory] < $limit*($ssdb_transfer_limit/100.0)}
             # memory usage near to the limit.
-            assert {[s used_memory] > $limit*($ssdb_transfer_limit/100.0)*0.9}
+            assert {[s used_memory] > $limit*($ssdb_transfer_limit/100.0)*0.8}
             # However all our keys should be here.
             check_keystatus key_a 1000 redis
             check_keystatus key_b 1000 redis
@@ -177,7 +176,7 @@ start_server {tags {"lfu"}} {
             # puts "current limit:[expr double( [s used_memory] )/$limit ]"
             assert {[s used_memory] < $limit*($ssdb_transfer_limit/100.0)*1}
             # memory usage near to the limit.
-            assert {[s used_memory] > $limit*($ssdb_transfer_limit/100.0)*0.7}
+            assert {[s used_memory] > $limit*($ssdb_transfer_limit/100.0)*0.5}
             # more frequently key with less probability to storetossdb
             set key_a_ssdb [sum_keystatus key_a 1000 ssdb]
             set key_d_ssdb [sum_keystatus key_d 3000 ssdb]
