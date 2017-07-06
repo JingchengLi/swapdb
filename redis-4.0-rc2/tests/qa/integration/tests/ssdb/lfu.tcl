@@ -53,56 +53,63 @@ lfu-log-factor 1}} {
     }
 }
 
-start_server {tags {"lfu"}
-overrides {maxmemory 0}} {
-    test "lfu count 22 decay to 11 divide by two" {
-        r config set lfu-decay-time 0
-        set foo 0
-        while {[r object freq foo] < 22} {
-            r incr foo
-        }
-        set freq [r object freq foo]
-        r config set maxmemory 100M
-        assert_equal 11 [r object freq foo]
-    }
+# need wait one minute to run this test, only enable it when accurate set.
+if {$::accurate} {
+    start_server {tags {"lfu"}
+    overrides { maxmemory 0
+        lfu-decay-time 1}} {
+        test "initialize keys lfu count" {
+            while {[r object freq foo22] < 22} {
+                r incr foo22
+            }
 
-    test "lfu count 20 decay to 10 divide by two" {
-        r config set maxmemory 0
-        r dumpfromssdb foo ;# TODO
-        while {[r object freq foo] < 20} {
-            r incr foo
-        }
+            while {[r object freq foo20] < 20} {
+                r incr foo20
+            }
 
-        set freq [r object freq foo]
-        r config set maxmemory 100M
-        assert_equal 10 [r object freq foo]
-    }
+            while {[r object freq foo12] < 12} {
+                r incr foo12
+            }
 
-    test "lfu count 12 decay to 10 by set to ten" {
-        r config set maxmemory 0
-        r dumpfromssdb foo ;# TODO
-        while {[r object freq foo] < 12} {
-            r incr foo
+            for {set var 0} {$var <= 10} {incr var} {
+                r set foo$var 0
+                r setlfu foo$var $var
+            }
+
+            r config set maxmemory 100M
+            after 61000
         }
 
-        set freq [r object freq foo]
-        r config set maxmemory 100M
-        assert_equal 10 [r object freq foo]
-    }
-
-    test "decr when lfu count <= 10" {
-        while {[r object freq foo] > 0} {
-            set freq [r object freq foo]
-            r dumpfromssdb foo
-            after 10
-            assert_equal [expr $freq-1] [r object freq foo]
+        test "lfu count 22 decay to 11 divide by two" {
+            assert_equal 11 [r object freq foo22]
         }
-    }
 
-    test "keep 0 when lfu count == 0" {
-        r dumpfromssdb foo
-        after 10
-        assert_equal 0 [r object freq foo]
+        test "lfu count 20 decay to 10 divide by two" {
+            assert_equal 10 [r object freq foo20]
+        }
+
+        test "lfu count 12 decay to 10 by set to ten" {
+            assert_equal 10 [r object freq foo12]
+        }
+
+        test "decr when lfu 6 <= count <= 10 and keep in redis" {
+            for {set var 6} {$var <= 10} {incr var} {
+                assert_equal [expr $var-1] [r object freq foo$var]
+                assert_equal {redis} [r locatekey foo$var]
+            }
+        }
+
+        test "decr when lfu 5 == count and store to ssdb" {
+            assert_equal 4 [r object freq foo5]
+            assert_equal {ssdb} [r locatekey foo5]
+        }
+
+        test "keep same when lfu count <= 4 and store to ssdb" {
+            for {set var 0} {$var <= 4} {incr var} {
+                assert_equal [expr $var] [r object freq foo$var]
+                assert_equal {ssdb} [r locatekey foo$var]
+            }
+        }
     }
 }
 
