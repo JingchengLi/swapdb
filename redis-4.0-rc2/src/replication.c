@@ -2257,8 +2257,10 @@ void replicationSetMaster(char *ip, int port) {
 void replicationUnsetMaster(void) {
     if (server.masterhost == NULL) return; /* Nothing to do. */
 
-    if (server.jdjr_mode)
+    if (server.jdjr_mode) {
+        emptySlaveSSDBwriteOperations();
         cleanSpecialClientsAndIntermediateKeys(0);
+    }
 
     sdsfree(server.masterhost);
     server.masterhost = NULL;

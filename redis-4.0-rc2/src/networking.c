@@ -2504,16 +2504,6 @@ void unlinkClient(client *c) {
         c->fd = -1;
     }
 
-    if (server.jdjr_mode) {
-        /* remove replication timeout timer. */
-        if (c->repl_timer_id != -1) {
-            aeDeleteTimeEvent(server.el, c->repl_timer_id);
-            c->repl_timer_id = -1;
-        }
-        /* handle ssdb connection */
-        handleSSDBconnectionDisconnect(c);
-    }
-
     /* Remove from the list of pending writes if needed. */
     if (c->flags & CLIENT_PENDING_WRITE) {
         ln = listSearchKey(server.clients_pending_write,c);
@@ -2641,6 +2631,17 @@ void freeClient(client *c) {
      * handlers, and remove references of the client from different
      * places where active clients may be referenced. */
     unlinkClient(c);
+
+    if (server.jdjr_mode) {
+        /* remove replication timeout timer. */
+        if (c->repl_timer_id != -1) {
+            aeDeleteTimeEvent(server.el, c->repl_timer_id);
+            c->repl_timer_id = -1;
+        }
+        /* handle ssdb connection */
+        handleSSDBconnectionDisconnect(c);
+    }
+
 
     /* Master/slave cleanup Case 1:
      * we lost the connection with a slave. */

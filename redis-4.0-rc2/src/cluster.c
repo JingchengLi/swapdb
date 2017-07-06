@@ -2708,6 +2708,9 @@ void clusterLogCantFailover(int reason) {
     case CLUSTER_CANT_FAILOVER_WAITING_VOTES:
         msg = "Waiting for votes, but majority still not reached.";
         break;
+    case CLUSTER_CANT_FAILOVER_REMAIN_SSDB_WRITES:
+        msg = "there remain failed ssdb writes unprocessed.";
+        break;
     default:
         msg = "Unknown reason code.";
         break;
@@ -2823,6 +2826,15 @@ void clusterHandleSlaveFailover(void) {
     {
         if (!manual_failover) {
             clusterLogCantFailover(CLUSTER_CANT_FAILOVER_DATA_AGE);
+            return;
+        }
+    }
+
+    if (server.jdjr_mode) {
+        if (myself->slaveof->numslaves > 1 && listLength(server.ssdb_write_oplist) > 10 &&
+            (server.master && !(server.master->ssdb_conn_flags & CONN_SUCCESS)) &&
+            (server.cached_master && !(server.cached_master->ssdb_conn_flags & CONN_SUCCESS))) {
+            clusterLogCantFailover(CLUSTER_CANT_FAILOVER_REMAIN_SSDB_WRITES);
             return;
         }
     }
