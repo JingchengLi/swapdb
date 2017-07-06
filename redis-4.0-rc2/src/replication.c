@@ -1303,7 +1303,7 @@ void ssdbNotifyCommand(client* c) {
             } else if (!strcasecmp(c->argv[2]->ptr, "continue")) {
                 server.ssdb_repl_state = REPL_STATE_TRANSFER_SSDB_SNAPSHOT;
                 serverLog(LL_DEBUG, "receive 'ssdb-notify transfer continue'");
-                server.slave_ssdb_transfer_keepalive_time = server.unixtime;
+                server.slave_ssdb_transfer_snapshot_keepalive = server.unixtime;
                 addReply(c, shared.ok);
             } else {
                 serverLog(LL_WARNING, "unknow argument for ssdb-notify");
@@ -1336,7 +1336,7 @@ void completeReplicationHandshake() {
 
     if (server.jdjr_mode) {
         server.ssdb_repl_state = REPL_STATE_NONE;
-        server.slave_ssdb_transfer_keepalive_time = -1;
+        server.slave_ssdb_transfer_snapshot_keepalive = -1;
     }
 
     server.repl_state = REPL_STATE_CONNECTED;
@@ -1566,7 +1566,7 @@ void readSyncBulkPayload(aeEventLoop *el, int fd, void *privdata, int mask) {
              * server.ssdb_repl_state in replicationCron, and do the rest work of replication */
             if (server.ssdb_repl_state != REPL_STATE_TRANSFER_SSDB_SNAPSHOT_END) {
                 serverLog(LL_DEBUG, "RDB receiving complete, wait ssdb snapshot to complete receiving");
-                server.slave_ssdb_transfer_keepalive_time = server.unixtime;
+                server.slave_ssdb_transfer_snapshot_keepalive = server.unixtime;
                 serverAssert(server.ssdb_repl_state == REPL_STATE_NONE ||
                              server.ssdb_repl_state == REPL_STATE_TRANSFER_SSDB_SNAPSHOT);
                 return;
@@ -2210,7 +2210,7 @@ void replicationAbortSyncTransfer(void) {
 int cancelReplicationHandshake(void) {
     if (server.jdjr_mode) {
         server.ssdb_repl_state = REPL_STATE_NONE;
-        server.slave_ssdb_transfer_keepalive_time = -1;
+        server.slave_ssdb_transfer_snapshot_keepalive = -1;
     }
     if (server.repl_state == REPL_STATE_TRANSFER ||
         (server.jdjr_mode && server.repl_state == REPL_STATE_TRANSFER_END)) {
@@ -2876,9 +2876,9 @@ void replicationCron(void) {
             serverLog(LL_DEBUG, "SSDB snapshot receiving complete, establish replication handshake success.");
             completeReplicationHandshake();
         } else if (server.ssdb_repl_state == REPL_STATE_NONE || server.ssdb_repl_state == REPL_STATE_TRANSFER_SSDB_SNAPSHOT) {
-            if ((server.unixtime - server.slave_ssdb_transfer_keepalive_time) > SLAVE_SSDB_TRANSFER_KEEPALIVE_TIMEOUT) {
+            if ((server.unixtime - server.slave_ssdb_transfer_snapshot_keepalive) > server.slave_transfer_ssdb_snapshot_timeout) {
                 /* we don't receive snapshot transfer message from SSDB for a long time */
-                serverAssert(server.slave_ssdb_transfer_keepalive_time != -1);
+                serverAssert(server.slave_ssdb_transfer_snapshot_keepalive != -1);
                 serverLog(LL_DEBUG, "don't receive SSDB snapshot transfer message for a long "
                         "time, cancel replication handshake");
                 cancelReplicationHandshake();
@@ -3018,9 +3018,9 @@ void replicationCron(void) {
         if (server.jdjr_mode && server.use_customized_replication) {
             if (slave->ssdb_status == SLAVE_SSDB_SNAPSHOT_TRANSFER_START &&
                 (server.unixtime - slave->transfer_snapshot_last_keepalive_time)
-                    > TRANSFER_SSDB_SNAPSHOT_KEEPALIVE_TIMEOUT) {
+                    > server.master_transfer_ssdb_snapshot_timeout) {
                 serverLog(LL_WARNING, "have not received SSDB transfer snapshot keepalive message in %d "
-                          "seconds, disconnect the slave(%s:%d)!", TRANSFER_SSDB_SNAPSHOT_KEEPALIVE_TIMEOUT,
+                          "seconds, disconnect the slave(%s:%d)!", server.master_transfer_ssdb_snapshot_timeout,
                           slave->client_ip, slave->slave_listening_port);
                 freeClient(slave);
                 continue;

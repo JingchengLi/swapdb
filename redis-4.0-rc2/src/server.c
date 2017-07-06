@@ -1449,7 +1449,7 @@ void startToEvictIfNeeded() {
         }
     }
 
-    while (dictSize(EVICTED_DATA_DB->transferring_keys) <= MASTER_MAX_CONCURRENT_TRANSFERRING_KEYS
+    while (dictSize(EVICTED_DATA_DB->transferring_keys) <= server.master_max_concurrent_transferring_keys
            && listLength(server.storetossdb_migrate_keys)) {
         listNode *head = listIndex(server.storetossdb_migrate_keys, 0);
         robj *keyobj = head->value;
@@ -1658,7 +1658,7 @@ void startToHandleCmdListInSlave(void) {
 
     /* limit concurrent transferring/loading keys, avoid to reduce preformance of replication. */
     if (dictSize(EVICTED_DATA_DB->transferring_keys)+dictSize(EVICTED_DATA_DB->loading_hot_keys) >=
-        SLAVE_MAX_CONCURRENT_SSDB_SWAP_COUNT)
+        server.slave_max_concurrent_ssdb_swap_count)
         return;
 
     /* prohibit to load keys from SSDB if the SSDB connection status of server.master
@@ -1680,7 +1680,7 @@ void startToHandleCmdListInSlave(void) {
     while (1) {
         /* for slave redis, limit the transfer/load operation count to MAX_SSDB_SWAP_COUNT_EVERY_TIME every time,
         * avoid to cause a long time delay of data replication for server.master when do stress test. */
-        if (count >= SLAVE_MAX_SSDB_SWAP_COUNT_EVERYTIME) break;
+        if (count >= server.slave_max_ssdb_swap_count_everytime) break;
 
         de = dictGetRandomKey(server.loadAndEvictCmdDict);
         if (!de) break;
@@ -2183,6 +2183,17 @@ void initServerConfig(void) {
     server.repl_diskless_sync_delay = CONFIG_DEFAULT_REPL_DISKLESS_SYNC_DELAY;
     server.repl_ping_slave_period = CONFIG_DEFAULT_REPL_PING_SLAVE_PERIOD;
     server.repl_timeout = CONFIG_DEFAULT_REPL_TIMEOUT;
+
+    server.master_transfer_ssdb_snapshot_timeout = MASTER_TRANSFER_SSDB_SNAPSHOT_TIMEOUT;
+    server.slave_transfer_ssdb_snapshot_timeout = SLAVE_SSDB_TRANSFER_SNAPSHOT_TIMEOUT;
+    server.master_max_concurrent_loading_keys = MASTER_MAX_CONCURRENT_LOADING_KEYS;
+    server.master_max_concurrent_transferring_keys = MASTER_MAX_CONCURRENT_TRANSFERRING_KEYS;
+    server.slave_max_concurrent_ssdb_swap_count = SLAVE_MAX_CONCURRENT_SSDB_SWAP_COUNT;
+    server.slave_max_ssdb_swap_count_everytime = SLAVE_MAX_SSDB_SWAP_COUNT_EVERYTIME;
+    server.slave_max_processed_cmd_num_everytime = SLAVE_MAX_PROCESSED_CMD_NUM_EVERYTIME;
+    server.coldkey_filter_times_everytime = COLDKEY_FILTER_TIMES_EVERYTIME;
+    server.lowest_idle_val_of_cold_key = LOWEST_IDLE_VAL_OF_COLD_KEY;
+
     server.repl_min_slaves_to_write = CONFIG_DEFAULT_MIN_SLAVES_TO_WRITE;
     server.repl_min_slaves_max_lag = CONFIG_DEFAULT_MIN_SLAVES_MAX_LAG;
     server.slave_priority = CONFIG_DEFAULT_SLAVE_PRIORITY;
@@ -2682,7 +2693,7 @@ void initServer(void) {
         server.is_allow_ssdb_write = ALLOW_SSDB_WRITE;
         server.ssdb_status = SSDB_NONE;
         server.ssdb_repl_state = REPL_STATE_NONE;
-        server.slave_ssdb_transfer_keepalive_time = -1;
+        server.slave_ssdb_transfer_snapshot_keepalive = -1;
         server.check_write_begin_time = -1;
         server.check_write_unresponse_num = -1;
         server.no_writing_ssdb_blocked_clients = listCreate();
@@ -3830,7 +3841,7 @@ void chooseHotKeysByLFUcounter(robj* keyobj) {
 
             /* limit the max num of server.hot_keys to avoid to load too many keys
              * when startToLoadIfNeeded called, which may block redis. */
-            if (dictSize(server.hot_keys)+dictSize(EVICTED_DATA_DB->loading_hot_keys) > MASTER_MAX_CONCURRENT_LOADING_KEYS)
+            if (dictSize(server.hot_keys)+dictSize(EVICTED_DATA_DB->loading_hot_keys) > server.master_max_concurrent_loading_keys)
                 return;
 
             if (NULL == dictFind(EVICTED_DATA_DB->loading_hot_keys, dictGetKey(de)) &&

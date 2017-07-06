@@ -1244,7 +1244,7 @@ struct redisServer {
     int repl_syncio_timeout; /* Timeout for synchronous I/O calls */
     int repl_state;          /* Replication status if the instance is a slave */
     int ssdb_repl_state;     /* SSDB snapshot receive status if the instance is a slave */
-    time_t slave_ssdb_transfer_keepalive_time; /* in jdjr_mode, slave ssdb will send keepalive
+    time_t slave_ssdb_transfer_snapshot_keepalive; /* in jdjr_mode, slave ssdb will send keepalive
                                                 * message to its redis when transfer snapshot. */
     off_t repl_transfer_size; /* Size of RDB to read from master during sync. */
     off_t repl_transfer_read; /* Amount of RDB read from master during sync. */
@@ -1427,6 +1427,17 @@ struct redisServer {
     int slave_blocked_by_flushall_timeout;
     int client_blocked_by_migrate_timeout;
     int client_blocked_by_replication_nowrite_timeout;
+
+    int master_transfer_ssdb_snapshot_timeout;
+    int slave_transfer_ssdb_snapshot_timeout;
+    int master_max_concurrent_loading_keys;
+    int master_max_concurrent_transferring_keys;
+    int slave_max_concurrent_ssdb_swap_count;
+    int slave_max_ssdb_swap_count_everytime;
+
+    int slave_max_processed_cmd_num_everytime;
+    int coldkey_filter_times_everytime;
+    int lowest_idle_val_of_cold_key;
 };
 
 typedef struct pubsubPattern {
@@ -2367,16 +2378,14 @@ int isThisKeyVisitingWriteSSDB(sds key);
 #define dictSetVisitingSSDBreadCount(entry, _val_) \
     do { (entry)->v.visiting_ssdb.rcnt = _val_; } while(0)
 
-
-// todo: add config options
 /* for slave redis, after we complete RDB receiving, we wait
  * for my SSDB to send ssdb transfer message to me. if timeout,
  * cancel replication handshake this time. */
-#define SLAVE_SSDB_TRANSFER_KEEPALIVE_TIMEOUT 10
+#define SLAVE_SSDB_TRANSFER_SNAPSHOT_TIMEOUT 30
 
 /* SSDB send "rr_transfer_snapshot continue" every 5 seconds,
  * we use a larger timeout as the timeout interval.*/
-#define TRANSFER_SSDB_SNAPSHOT_KEEPALIVE_TIMEOUT 30
+#define MASTER_TRANSFER_SSDB_SNAPSHOT_TIMEOUT 30
 
 /* config options for jdjr mode */
 #define MASTER_MAX_CONCURRENT_LOADING_KEYS 5

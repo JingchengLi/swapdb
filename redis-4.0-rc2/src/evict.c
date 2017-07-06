@@ -396,7 +396,7 @@ void coldKeyPopulate(dict *sampledict, struct evictionPoolEntry *pool) {
             serverPanic("Unknown eviction policy in coldKeyPopulate()");
         }
 
-        if (idle >= LOWEST_IDLE_VAL_OF_COLD_KEY)
+        if (idle >= server.lowest_idle_val_of_cold_key)
             tryInsertColdPool(pool, key, 0, idle);
     }
 }
@@ -807,7 +807,7 @@ void addHotKeys() {
     /* limit the max num of concurrent loading keys, which may block redis and
      * reduce performance. */
     if (dictSize(server.hot_keys)+dictSize(EVICTED_DATA_DB->loading_hot_keys) >=
-        MASTER_MAX_CONCURRENT_LOADING_KEYS)
+        server.master_max_concurrent_loading_keys)
         return;
 
     /* Go backward from best to worst element to evict. */
@@ -847,7 +847,7 @@ void addHotKeys() {
         }
 
         if (dictSize(server.hot_keys)+dictSize(EVICTED_DATA_DB->loading_hot_keys) >=
-            MASTER_MAX_CONCURRENT_LOADING_KEYS)
+            server.master_max_concurrent_loading_keys)
             return;
     }
 }
@@ -869,7 +869,7 @@ int tryEvictingKeysToSSDB(size_t *mem_tofree) {
     db = server.db;
     dict = db->dict;
     if ((keys = dictSize(dict)) != 0) {
-        for (i = 0; i < COLDKEY_FILTER_TIMES_EVERYTIME; i++) {
+        for (i = 0; i < server.coldkey_filter_times_everytime; i++) {
             coldKeyPopulate(dict, pool);
         }
         total_keys += keys;
@@ -879,7 +879,7 @@ int tryEvictingKeysToSSDB(size_t *mem_tofree) {
     if (!total_keys || !ColdKeyPool[0].key) return C_ERR; /* No keys to evict. */
 
     /* limit concurrent number of transferring keys */
-    if ( dictSize(EVICTED_DATA_DB->transferring_keys) >= MASTER_MAX_CONCURRENT_TRANSFERRING_KEYS) return C_ERR;
+    if ( dictSize(EVICTED_DATA_DB->transferring_keys) >= server.master_max_concurrent_transferring_keys) return C_ERR;
 
     /* Go backward from best to worst element to evict. */
     for (k = EVPOOL_SIZE-1; k >= 0; k--) {

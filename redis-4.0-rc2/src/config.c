@@ -451,9 +451,63 @@ void loadServerConfigFromString(char *config) {
                 err = "repl-timeout must be 1 or greater";
                 goto loaderr;
             }
+        } else if (!strcasecmp(argv[0],"slave-transfer-ssdb-snapshot-timeout") && argc == 2) {
+            server.slave_transfer_ssdb_snapshot_timeout = atoi(argv[1]);
+            if (server.slave_transfer_ssdb_snapshot_timeout <= 0) {
+                err = "slave-transfer-ssdb-snapshot-timeout must be 1 or greater";
+                goto loaderr;
+            }
+        } else if (!strcasecmp(argv[0],"master-transfer-ssdb-snapshot-timeout") && argc == 2) {
+            server.master_transfer_ssdb_snapshot_timeout = atoi(argv[1]);
+            if (server.master_transfer_ssdb_snapshot_timeout <= 0) {
+                err = "master-transfer-ssdb-snapshot-timeout must be 1 or greater";
+                goto loaderr;
+            }
+         } else if (!strcasecmp(argv[0],"master-max-concurrent-loading-keys") && argc == 2) {
+            server.master_max_concurrent_loading_keys = atoi(argv[1]);
+            if (server.master_max_concurrent_loading_keys < 0) {
+                err = "master-max-concurrent-loading-keys must be 0 or greater";
+                goto loaderr;
+            }
+         } else if (!strcasecmp(argv[0],"master-max-concurrent-transferring-keys") && argc == 2) {
+            server.master_max_concurrent_transferring_keys = atoi(argv[1]);
+            if (server.master_max_concurrent_transferring_keys < 0) {
+                err = "master-max-concurrent-transferring-keys must be 0 or greater";
+                goto loaderr;
+            }
+         } else if (!strcasecmp(argv[0],"slave-max-concurrent-ssdb-swap-count") && argc == 2) {
+            server.slave_max_concurrent_ssdb_swap_count = atoi(argv[1]);
+            if (server.slave_max_concurrent_ssdb_swap_count < 0) {
+                err = "slave-max-concurrent-ssdb-swap-count must be 0 or greater";
+                goto loaderr;
+            }
+         } else if (!strcasecmp(argv[0],"slave-max-ssdb-swap-count-everytime") && argc == 2) {
+            server.slave_max_ssdb_swap_count_everytime = atoi(argv[1]);
+            if (server.slave_max_ssdb_swap_count_everytime < 0) {
+                err = "slave-max-ssdb-swap-count-everytime must be 0 or greater";
+                goto loaderr;
+            }
+         } else if (!strcasecmp(argv[0],"slave-max-processed-cmd-num-everytime") && argc == 2) {
+            server.slave_max_processed_cmd_num_everytime = atoi(argv[1]);
+            if (server.slave_max_processed_cmd_num_everytime <= 0) {
+                err = "slave-max-processed-cmd-num-everytime must be 1 or greater";
+                goto loaderr;
+            }
+         } else if (!strcasecmp(argv[0],"coldkey-filter-times-everytime") && argc == 2) {
+            server.coldkey_filter_times_everytime = atoi(argv[1]);
+            if (server.coldkey_filter_times_everytime < 0) {
+                err = "coldkey-filter-times-everytime must be 0 or greater";
+                goto loaderr;
+            }
+          } else if (!strcasecmp(argv[0],"lowest-idle-val-of-cold-key") && argc == 2) {
+            server.lowest_idle_val_of_cold_key = atoi(argv[1]);
+            if (server.lowest_idle_val_of_cold_key < 0 && server.lowest_idle_val_of_cold_key > 255) {
+                err = "lowest-idle-val-of-cold-key must be a integer between [0-255]";
+                goto loaderr;
+            }
         } else if (!strcasecmp(argv[0],"repl-disable-tcp-nodelay") && argc==2) {
             if ((server.repl_disable_tcp_nodelay = yesnotoi(argv[1])) == -1) {
-                err = "argument must be 'yes' or 'no'"; goto loaderr;
+                err = "repl-disable-tcp-nodelay argument must be 'yes' or 'no'"; goto loaderr;
             }
         } else if (!strcasecmp(argv[0],"repl-diskless-sync") && argc==2) {
             if ((server.repl_diskless_sync = yesnotoi(argv[1])) == -1) {
@@ -1131,7 +1185,6 @@ void configSetCommand(client *c) {
       "slave-lazy-flush",server.repl_slave_lazy_flush) {
     } config_set_bool_field(
       "no-appendfsync-on-rewrite",server.aof_no_fsync_on_rewrite) {
-
     /* Numerical fields.
      * config_set_numerical_field(name,var,min,max) */
     } config_set_numerical_field(
@@ -1175,7 +1228,7 @@ void configSetCommand(client *c) {
     } config_set_numerical_field(
       "slowlog-max-len",ll,0,LLONG_MAX) {
       /* Cast to unsigned. */
-        server.slowlog_max_len = (unsigned)ll;
+      server.slowlog_max_len = (unsigned)ll;
     } config_set_numerical_field(
       "latency-monitor-threshold",server.latency_monitor_threshold,0,LLONG_MAX){
     } config_set_numerical_field(
@@ -1183,19 +1236,37 @@ void configSetCommand(client *c) {
     } config_set_numerical_field(
       "repl-timeout",server.repl_timeout,1,LLONG_MAX) {
     } config_set_numerical_field(
-        "client-visiting-ssdb-timeout",server.client_visiting_ssdb_timeout,1,LLONG_MAX) {
+      "master-transfer-ssdb-snapshot-timeout",server.master_transfer_ssdb_snapshot_timeout,1,LLONG_MAX) {
     } config_set_numerical_field(
-        "client-blocked-by-keys-timeout",server.client_blocked_by_keys_timeout,1,LLONG_MAX) {
+      "slave-transfer-ssdb-snapshot-timeout",server.slave_transfer_ssdb_snapshot_timeout,1,LLONG_MAX) {
     } config_set_numerical_field(
-        "client-blocked-by-flushall-timeout",server.client_blocked_by_flushall_timeout,1,LLONG_MAX) {
+      "master-max-concurrent-loading-keys",server.master_max_concurrent_loading_keys,0,LLONG_MAX) {
     } config_set_numerical_field(
-        "client-blocked-by-replication-nowrite-timeout",server.client_blocked_by_replication_nowrite_timeout,1,LLONG_MAX) {
+      "master-max-concurrent-transferring-keys",server.master_max_concurrent_transferring_keys,0,LLONG_MAX) {
     } config_set_numerical_field(
-        "client-blocked-by-migrate-dump-timeout",server.client_blocked_by_migrate_dump_timeout,1,LLONG_MAX) {
+      "slave-max-concurrent-ssdb-swap-count",server.slave_max_concurrent_ssdb_swap_count,0,LLONG_MAX) {
     } config_set_numerical_field(
-        "client-blocked-by-migrate-timeout",server.client_blocked_by_migrate_timeout,1,LLONG_MAX) {
+      "slave-max-ssdb-swap-count-everytime",server.slave_max_ssdb_swap_count_everytime,0,LLONG_MAX) {
     } config_set_numerical_field(
-        "slave-blocked-by-flushall-timeout",server.slave_blocked_by_flushall_timeout,1,LLONG_MAX) {
+      "coldkey-filter-times-everytime",server.coldkey_filter_times_everytime,0,LLONG_MAX) {
+    } config_set_numerical_field(
+      "slave-max-processed-cmd-num-everytime",server.slave_max_processed_cmd_num_everytime,1,LLONG_MAX) {
+    } config_set_numerical_field(
+      "lowest-idle-val-of-cold-key",server.lowest_idle_val_of_cold_key,0,255) {
+    } config_set_numerical_field(
+      "client-visiting-ssdb-timeout",server.client_visiting_ssdb_timeout,1,LLONG_MAX) {
+    } config_set_numerical_field(
+      "client-blocked-by-keys-timeout",server.client_blocked_by_keys_timeout,1,LLONG_MAX) {
+    } config_set_numerical_field(
+      "client-blocked-by-flushall-timeout",server.client_blocked_by_flushall_timeout,1,LLONG_MAX) {
+    } config_set_numerical_field(
+      "client-blocked-by-replication-nowrite-timeout",server.client_blocked_by_replication_nowrite_timeout,1,LLONG_MAX) {
+    } config_set_numerical_field(
+      "client-blocked-by-migrate-dump-timeout",server.client_blocked_by_migrate_dump_timeout,1,LLONG_MAX) {
+    } config_set_numerical_field(
+      "client-blocked-by-migrate-timeout",server.client_blocked_by_migrate_timeout,1,LLONG_MAX) {
+    } config_set_numerical_field(
+      "slave-blocked-by-flushall-timeout",server.slave_blocked_by_flushall_timeout,1,LLONG_MAX) {
     } config_set_numerical_field(
       "repl-backlog-ttl",server.repl_backlog_time_limit,0,LLONG_MAX) {
     } config_set_numerical_field(
@@ -1370,6 +1441,17 @@ void configGetCommand(client *c) {
     config_get_numerical_field("databases",server.dbnum);
     config_get_numerical_field("repl-ping-slave-period",server.repl_ping_slave_period);
     config_get_numerical_field("repl-timeout",server.repl_timeout);
+
+    config_get_numerical_field("master-transfer-ssdb-snapshot-timeout", server.master_transfer_ssdb_snapshot_timeout);
+    config_get_numerical_field("slave-transfer-ssdb-snapshot-timeout", server.slave_transfer_ssdb_snapshot_timeout);
+    config_get_numerical_field("master-max-concurrent-loading-keys", server.master_max_concurrent_loading_keys);
+    config_get_numerical_field("master-max-concurrent-transferring-keys", server.master_max_concurrent_transferring_keys);
+    config_get_numerical_field("slave-max-concurrent-ssdb-swap-count", server.slave_max_concurrent_ssdb_swap_count);
+    config_get_numerical_field("slave-max-ssdb-swap-count-everytime", server.slave_max_ssdb_swap_count_everytime);
+    config_get_numerical_field("slave-max-processed-cmd-num-everytime", server.slave_max_processed_cmd_num_everytime);
+    config_get_numerical_field("coldkey-filter-times-everytime", server.coldkey_filter_times_everytime);
+    config_get_numerical_field("lowest-idle-val-of-cold-key", server.lowest_idle_val_of_cold_key);
+
     config_get_numerical_field("client-visiting-ssdb-timeout",server.client_visiting_ssdb_timeout);
     config_get_numerical_field("client-blocked-by-keys-timeout",server.client_blocked_by_keys_timeout);
     config_get_numerical_field("client-blocked-by-flushall-timeout",server.client_blocked_by_flushall_timeout);
@@ -2134,6 +2216,17 @@ int rewriteConfig(char *path) {
     rewriteConfigYesNoOption(state,"slave-read-only",server.repl_slave_ro,CONFIG_DEFAULT_SLAVE_READ_ONLY);
     rewriteConfigNumericalOption(state,"repl-ping-slave-period",server.repl_ping_slave_period,CONFIG_DEFAULT_REPL_PING_SLAVE_PERIOD);
     rewriteConfigNumericalOption(state,"repl-timeout",server.repl_timeout,CONFIG_DEFAULT_REPL_TIMEOUT);
+
+    rewriteConfigNumericalOption(state,"master-transfer-ssdb-snapshot-timeout",server.master_transfer_ssdb_snapshot_timeout,MASTER_TRANSFER_SSDB_SNAPSHOT_TIMEOUT);
+    rewriteConfigNumericalOption(state,"slave-transfer-ssdb-snapshot-timeout",server.slave_transfer_ssdb_snapshot_timeout,SLAVE_SSDB_TRANSFER_SNAPSHOT_TIMEOUT);
+    rewriteConfigNumericalOption(state,"master-max-concurrent-loading-keys",server.master_max_concurrent_loading_keys,MASTER_MAX_CONCURRENT_LOADING_KEYS);
+    rewriteConfigNumericalOption(state,"master-max-concurrent-transferring-keys",server.master_max_concurrent_transferring_keys,MASTER_MAX_CONCURRENT_TRANSFERRING_KEYS);
+    rewriteConfigNumericalOption(state,"slave-max-concurrent-ssdb-swap-count",server.slave_max_concurrent_ssdb_swap_count,SLAVE_MAX_CONCURRENT_SSDB_SWAP_COUNT);
+    rewriteConfigNumericalOption(state,"slave-max-ssdb-swap-count-everytime",server.slave_max_ssdb_swap_count_everytime,SLAVE_MAX_SSDB_SWAP_COUNT_EVERYTIME);
+    rewriteConfigNumericalOption(state,"slave-max-processed-cmd-num-everytime",server.slave_max_processed_cmd_num_everytime,SLAVE_MAX_PROCESSED_CMD_NUM_EVERYTIME);
+    rewriteConfigNumericalOption(state,"coldkey-filter-times-everytime",server.coldkey_filter_times_everytime,COLDKEY_FILTER_TIMES_EVERYTIME);
+    rewriteConfigNumericalOption(state,"lowest-idle-val-of-cold-key",server.lowest_idle_val_of_cold_key,LOWEST_IDLE_VAL_OF_COLD_KEY);
+
     rewriteConfigNumericalOption(state,"client-visiting-ssdb-timeout",server.client_visiting_ssdb_timeout,CONFIG_DEFAULT_CLIENT_VISITING_SSDB_TIMEOUT);
     rewriteConfigNumericalOption(state,"client-blocked-by-keys-timeout",server.client_blocked_by_keys_timeout,CONFIG_DEFAULT_CLIENT_BLOCKED_BY_KEYS_TIMEOUT);
     rewriteConfigNumericalOption(state,"client-blocked-by-flushall-timeout",server.client_blocked_by_flushall_timeout,CONFIG_DEFAULT_CLIENT_BLOCKED_BY_FLUSHALL_TIMEOUT);
