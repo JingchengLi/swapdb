@@ -1,11 +1,12 @@
-start_server {tags {"lfu"}} {
-    test "#issue block timeout when multi threads incr key" {
-        r set foo 0
-        # dumpto_ssdb_and_wait r foo
-        exec ../../../build/redis-benchmark -q -p [srv port] -c 100 -n 20000 incr foo
-        assert_equal [expr 20000] [r get foo] "val should be right after multi threads incr key."
-    }
-}
+#    TODO write is blocked during load/transfer
+#start_server {tags {"lfu"}} {
+#    test "#issue block timeout when multi threads incr key" {
+#        r set foo 0
+#        # dumpto_ssdb_and_wait r foo
+#        exec ../../../build/redis-benchmark -q -p [srv port] -c 100 -n 20000 incr foo
+#        assert_equal [expr 20000] [r get foo] "val should be right after multi threads incr key."
+#    }
+#}
 
 start_server {tags {"ssdb"} } {
     test "multi threads access same key" {
