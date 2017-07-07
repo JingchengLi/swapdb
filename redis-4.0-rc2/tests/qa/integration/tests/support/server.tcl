@@ -239,7 +239,7 @@ proc start_server {options {code undefined}} {
     set ssdbpid [exec ssdb-server $ssdb_config_file > $ssdbstdout 2> $ssdbstderr &]
     if {[server_is_up 127.0.0.1 $ssdbport 100] == 0} {
         set err {}
-        append err "Cant' start the ssdb server\n"
+        append err "Cant' start the ssdb server:$workdir\n"
         send_data_packet $::test_server_fd err $err
         return
     }

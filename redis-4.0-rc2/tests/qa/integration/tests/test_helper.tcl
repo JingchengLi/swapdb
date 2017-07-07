@@ -57,9 +57,9 @@ set ::all_tests {
     integration/replication-3
     integration/replication-4
     integration/replication-5
-    integration/replication-a
-    integration/replication-b
-    integration/replication-c
+    integration/replication-r1
+    integration/replication-r2
+    integration/replication-r3
     integration/replication-psync
     integration/psync2
     integration/replication-A
@@ -631,7 +631,7 @@ for {set j 0} {$j < [llength $argv]} {incr j} {
             if {$errInfo} {
                 puts "error info: $errInfo"
             }
-            puts "waiting........."
+            puts "waiting.........$::port"
             after 100000000
         }
     } elseif {$opt eq {--loglevel}} {
