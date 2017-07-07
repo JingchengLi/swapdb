@@ -3320,8 +3320,8 @@ int processCommandMaybeFlushdb(client *c) {
             return C_OK;
         }
     } else {
-        if (server.master == c) {
-            if (server.repl_state == REPL_STATE_CONNECTED) {
+        if (c->flags & CLIENT_MASTER) {
+            if (c == server.cached_master || (server.master == c && server.repl_state == REPL_STATE_CONNECTED)) {
                 struct ssdb_write_op* op;
                 listNode *ln;
 
@@ -3355,6 +3355,15 @@ int processCommandMaybeFlushdb(client *c) {
                 return C_OK;
             } else {
                 /* when RDB transfer is done but SSDB snapshot not. */
+
+                 /* before flushall, clean all visiting keys and all writes in ssdb write op list. */
+                emptySlaveSSDBwriteOperations();
+                /* clean all keys need to transfer/load */
+                dictEmpty(server.loadAndEvictCmdDict, NULL);
+
+                /* we must delete all key indexes in redis here. */
+                flushallCommand(c);
+
                 updateSlaveSSDBwriteIndex();
                 saveSlaveSSDBwriteOp(c, server.last_send_writeop_time, server.last_send_writeop_index);
                 return C_ERR;
@@ -4547,7 +4556,7 @@ int processCommand(client *c) {
 
     if (server.jdjr_mode && (c->cmd->proc == flushallCommand || c->cmd->proc == flushdbCommand)) {
         ret = processCommandMaybeFlushdb(c);
-        if (c == server.master) {
+        if (c->flags & CLIENT_MASTER) {
             if (C_OK == ret) {
                 /* we are blocked by flushall, return C_ERR to keep client info and handle it later. */
                 return C_ERR;

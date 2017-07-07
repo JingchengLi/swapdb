@@ -1508,7 +1508,10 @@ void readSyncBulkPayload(aeEventLoop *el, int fd, void *privdata, int mask) {
          * RDB, otherwise we'll create a copy-on-write disaster. */
         if (aof_is_enabled) stopAppendOnly();
         signalFlushedDb(-1);
-        if (server.jdjr_mode) cleanSpecialClientsAndIntermediateKeys(1);
+        if (server.jdjr_mode) {
+            emptySlaveSSDBwriteOperations();
+            cleanSpecialClientsAndIntermediateKeys(1);
+        }
         emptyDb(
             -1,
             server.repl_slave_lazy_flush ? EMPTYDB_ASYNC : EMPTYDB_NO_FLAGS,
@@ -1530,7 +1533,6 @@ void readSyncBulkPayload(aeEventLoop *el, int fd, void *privdata, int mask) {
         }
 
         if (server.jdjr_mode) {
-            emptySlaveSSDBwriteOperations();
             server.repl_state = REPL_STATE_TRANSFER_END;
 
              /* Restart the AOF subsystem now that we finished the sync. This
@@ -2491,7 +2493,6 @@ void replicationDiscardCachedMaster(void) {
     server.cached_master->flags &= ~CLIENT_MASTER;
     freeClient(server.cached_master);
     server.cached_master = NULL;
-    if (server.jdjr_mode) emptySlaveSSDBwriteOperations();
 }
 
 /* Turn the cached master into the current master, using the file descriptor
