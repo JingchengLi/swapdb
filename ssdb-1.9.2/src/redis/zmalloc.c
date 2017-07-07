@@ -11,6 +11,7 @@
 #endif
 
 
+#include <unistd.h>
 #include <zconf.h>
 #include <fcntl.h>
 #include <stdlib.h>
