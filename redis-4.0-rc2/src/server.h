@@ -102,8 +102,6 @@ typedef long long mstime_t; /* millisecond time type. */
 
 /* Macros for jdjr test cases */
 //#define TEST_CLIENT_BUF
-//#define TEST_TIME_CONSUMPTION
-//#define TEST_SLAVE_NO_TRANSFER
 //#define TEST_MEM_CRASH
 //#define TEST_INCR_CONCURRENT
 

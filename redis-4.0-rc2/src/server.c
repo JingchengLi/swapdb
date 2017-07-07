@@ -1841,10 +1841,7 @@ void handleDeleteConfirmKeys(void) {
  * for ready file descriptors. */
 void beforeSleep(struct aeEventLoop *eventLoop) {
     UNUSED(eventLoop);
-#ifdef TEST_TIME_CONSUMPTION
-    long long enter_time = ustime();
-    serverLog(LL_DEBUG, "enter beforeSleep: %lld", enter_time);
-#endif
+
     /* Call the Redis Cluster before sleep function. Note that this function
      * may change the state of Redis Cluster (from ok to fail or vice versa),
      * so it's a good idea to call it before serving the unblocked clients
@@ -1905,27 +1902,12 @@ void beforeSleep(struct aeEventLoop *eventLoop) {
 
     if (server.jdjr_mode) handleDeleteConfirmKeys();
 
-#ifdef TEST_TIME_CONSUMPTION
-    serverLog(LL_DEBUG, "beforeSleep 1:%lld us", ustime()-enter_time);
-    enter_time = ustime();
-#endif
-
-#ifndef TEST_SLAVE_NO_TRANSFER
     /* Try to handle cmds(load/evict cmds) in an extra list in slave. */
     if (server.jdjr_mode && server.masterhost) startToHandleCmdListInSlave();
-#endif
-
-#ifdef TEST_TIME_CONSUMPTION
-    serverLog(LL_DEBUG, "beforeSleep 2:%lld us", ustime()-enter_time);
-    enter_time = ustime();
-#endif
 
     /* Call handleCustomizedBlockedClients in beforeSleep to
        avoid timeout when there's only 1 real client. */
     if (server.jdjr_mode) handleCustomizedBlockedClients();
-#ifdef TEST_TIME_CONSUMPTION
-    serverLog(LL_DEBUG, "beforeSleep 3:%lld us", ustime()-enter_time);
-#endif
 }
 
 /* =========================== Server initialization ======================== */
@@ -3099,10 +3081,6 @@ void call(client *c, int flags) {
     duration = ustime()-start;
     dirty = server.dirty-dirty;
     if (dirty < 0) dirty = 0;
-
-#ifdef TEST_TIME_CONSUMPTION
-    serverLog(LL_DEBUG, "process redis command: %lld us", duration);
-#endif
 
     /* When EVAL is called loading the AOF we don't want commands called
      * from Lua to go into the slowlog or to populate statistics. */
@@ -4555,7 +4533,6 @@ int processCommand(client *c) {
         && server.masterhost
         && (c->cmd->proc == storetossdbCommand
             || c->cmd->proc == dumpfromssdbCommand)) {
-#ifndef TEST_SLAVE_NO_TRANSFER
         dictEntry* entry = dictAddOrFind(server.loadAndEvictCmdDict, c->argv[1]->ptr);
         if (c->cmd->proc == storetossdbCommand)
             dictSetUnsignedIntegerVal(entry, TYPE_TRANSFER_TO_SSDB);
@@ -4564,7 +4541,6 @@ int processCommand(client *c) {
 
         serverLog(LL_DEBUG, "load_or_store cmd: %s, key: %s is added to loadAndEvictCmdList.",
                   c->cmd->name, (char *)c->argv[1]->ptr);
-#endif
 
         return C_OK;
     }
