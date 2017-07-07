@@ -3726,7 +3726,7 @@ int processCommandReplicationConn(client* c, struct ssdb_write_op* slave_retry_w
     int argc;
     robj** argv;
 
-    if (c != server.master)
+    if (!(c->flags & CLIENT_MASTER))
         return C_ERR;
 
     if (slave_retry_write) {
@@ -3758,11 +3758,11 @@ int processCommandReplicationConn(client* c, struct ssdb_write_op* slave_retry_w
      * Note: we also can have slaves if this server is a slave. */
     if ((server.is_allow_ssdb_write == DISALLOW_SSDB_WRITE)
         && (cmd->flags & CMD_WRITE) && (cmd->flags & CMD_JDJR_MODE)) {
-        listAddNodeTail(server.no_writing_ssdb_blocked_clients, server.master);
+        listAddNodeTail(server.no_writing_ssdb_blocked_clients, c);
         serverLog(LL_DEBUG, "server.master is added to server.no_writing_ssdb_blocked_clients");
         /* TODO: use a suitable timeout. */
-        server.master->bpop.timeout = 5000 + mstime();
-        blockClient(server.master, BLOCKED_NO_WRITE_TO_SSDB);
+        c->bpop.timeout = 5000 + mstime();
+        blockClient(c, BLOCKED_NO_WRITE_TO_SSDB);
 
         return C_BLOCKED;
     }
@@ -3778,7 +3778,7 @@ int processCommandReplicationConn(client* c, struct ssdb_write_op* slave_retry_w
         if (slave_retry_write) {
             sds finalcmd;
             /* this is a failed write retry, reuse its write op time and id. */
-            ret = sendRepopidToSSDB(server.master, slave_retry_write->time, slave_retry_write->index, 1);
+            ret = sendRepopidToSSDB(c, slave_retry_write->time, slave_retry_write->index, 1);
             if (ret != C_OK) return ret;
 #ifdef TEST_INCR_CONCURRENT
             int tmp;
@@ -4098,7 +4098,7 @@ void prepareSSDBflush(client* c) {
  * use this to retry failed/timeout write commands.*/
 int runCommandReplicationConn(client *c, listNode* writeop_ln) {
     int j;
-    if (c != server.master) return C_ERR;
+    if (!(c->flags & CLIENT_MASTER)) return C_ERR;
     struct ssdb_write_op* slave_retry_write = NULL;
 
     if (writeop_ln)
@@ -4240,9 +4240,9 @@ long long getAbsoluteExpireTimeFromArgs(robj** argv, int argc, struct redisComma
 int runCommand(client *c) {
     int ret;
     robj *firstkey = NULL;
-    if (c == server.master) {
-        ret = runCommandReplicationConn(server.master, NULL);
-        if (ret != C_BLOCKED) resetClient(server.master);
+    if (c->flags & CLIENT_MASTER) {
+        ret = runCommandReplicationConn(c, NULL);
+        if (ret != C_BLOCKED) resetClient(c);
         return ret;
     }
 
