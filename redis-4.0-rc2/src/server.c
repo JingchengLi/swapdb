@@ -1800,6 +1800,12 @@ void handleDeleteConfirmKeys(void) {
             continue;
         }
 
+        /* if the key is in redis now, or is not in EVICTED_DATA_DB(for slave), don't need check it */
+        if (dictFind(server.db->dict, de->key) || !dictFind(EVICTED_DATA_DB->dict, de->key)) {
+            dictDelete(server.maybe_deleted_ssdb_keys, de->key);
+            continue;
+        }
+
         server.delete_confirm_client->argc = 2;
         server.delete_confirm_client->cmd = lookupCommandByCString("exists");
         if (!server.delete_confirm_client->argv)
@@ -4026,6 +4032,7 @@ void cleanSpecialClientsAndIntermediateKeys(int is_flushall) {
     if (is_flushall && server.delete_confirm_client) freeClient(server.delete_confirm_client);
 
     dictEmpty(EVICTED_DATA_DB->delete_expired_keys, NULL);
+    if (is_flushall) dictEmpty(server.maybe_deleted_ssdb_keys, NULL);
     if (server.masterhost) dictEmpty(server.loadAndEvictCmdDict, NULL);
 
     emptyEvictionPool();
