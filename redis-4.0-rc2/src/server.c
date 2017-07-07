@@ -1449,7 +1449,7 @@ void startToEvictIfNeeded() {
         }
     }
 
-    while (dictSize(EVICTED_DATA_DB->transferring_keys) <= server.master_max_concurrent_transferring_keys
+    while (dictSize(EVICTED_DATA_DB->transferring_keys) <= (unsigned long)server.master_max_concurrent_transferring_keys
            && listLength(server.storetossdb_migrate_keys)) {
         listNode *head = listIndex(server.storetossdb_migrate_keys, 0);
         robj *keyobj = head->value;
@@ -1658,7 +1658,7 @@ void startToHandleCmdListInSlave(void) {
 
     /* limit concurrent transferring/loading keys, avoid to reduce preformance of replication. */
     if (dictSize(EVICTED_DATA_DB->transferring_keys)+dictSize(EVICTED_DATA_DB->loading_hot_keys) >=
-        server.slave_max_concurrent_ssdb_swap_count)
+        (unsigned long)server.slave_max_concurrent_ssdb_swap_count)
         return;
 
     /* prohibit to load keys from SSDB if the SSDB connection status of server.master
@@ -3841,7 +3841,7 @@ void chooseHotKeysByLFUcounter(robj* keyobj) {
 
             /* limit the max num of server.hot_keys to avoid to load too many keys
              * when startToLoadIfNeeded called, which may block redis. */
-            if (dictSize(server.hot_keys)+dictSize(EVICTED_DATA_DB->loading_hot_keys) > server.master_max_concurrent_loading_keys)
+            if (dictSize(server.hot_keys)+dictSize(EVICTED_DATA_DB->loading_hot_keys) > (unsigned long)server.master_max_concurrent_loading_keys)
                 return;
 
             if (NULL == dictFind(EVICTED_DATA_DB->loading_hot_keys, dictGetKey(de)) &&
