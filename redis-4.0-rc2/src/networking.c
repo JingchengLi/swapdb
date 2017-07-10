@@ -1364,22 +1364,20 @@ int handleResponseOfSlaveSSDBflush(client *c, redisReply* reply) {
             if (resp_op_time == op->time && resp_op_index == op->index) {
                 /* this is the response of 'flushall' */
                 unblockClient(c);
-                serverLog(LL_DEBUG, "received ssdb flushall response, server.master client is unblocked");
+                resetClient(c);
                 if (IsReplyEqual(reply, shared.flushdoneok)){
-                    /* we receive flushall response of SSDB, now we can empty redis.*/
-                    flushallCommand(c);
-                    resetClient(c);
-                    /* flushall success, we can remove it from ssdb_write_oplist. */
+                    /* ssdb flushall success, we can remove it from ssdb_write_oplist. */
+                    serverLog(LL_DEBUG, "received ssdb flushall response");
                     listDelNode(server.ssdb_write_oplist, ln);
                     /* if conn status of server.master is not CONN_SUCCESS, continue to process
                      * the rest failed writes. */
                     if ((c == server.master) && !(c->ssdb_conn_flags & CONN_SUCCESS))
                         confirmAndRetrySlaveSSDBwriteOp(-1, -1);
                 } else {
-                    resetClient(c);
                     /* close SSDB connection and we will retry flushall after connected. */
                     closeAndReconnectSSDBconnection(c);
                 }
+                serverLog(LL_DEBUG, "server.master client is unblocked");
                 return C_RETURN;
             } else {
                 /* this is not a response of this "flushall" command. */

@@ -3338,6 +3338,8 @@ int processCommandMaybeFlushdb(client *c) {
                 emptySlaveSSDBwriteOperations();
                 /* clean all keys need to transfer/load */
                 dictEmpty(server.loadAndEvictCmdDict, NULL);
+                /* we must delete all key indexes in redis here. */
+                flushallCommand(c);
 
                 ret = updateSendRepopidToSSDB(c);
                 if (ret != C_OK) return ret;
