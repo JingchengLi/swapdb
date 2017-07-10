@@ -6,6 +6,7 @@ found in the LICENSE file.
 #ifndef SSDB_OPTION_H_
 #define SSDB_OPTION_H_
 
+#include <ostream>
 #include "../util/config.h"
 
 #ifdef USE_LEVELDB
@@ -50,6 +51,7 @@ struct Options {
     bool transfer_compression = true;
     bool level_compaction_dynamic_level_bytes = false;
     bool use_direct_reads = false;
+    bool optimize_filters_for_hits = false;
     bool expire_enable = false;
 
     int max_write_buffer_number = 3;
@@ -79,6 +81,8 @@ struct Options {
     }
 
     Config* c = nullptr;
+
+    friend std::ostream &operator<<(std::ostream &os, const Options &options);
 };
 
 #endif

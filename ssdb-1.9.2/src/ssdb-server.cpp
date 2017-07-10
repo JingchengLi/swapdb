@@ -15,17 +15,18 @@ found in the LICENSE file.
 #define APP_GIT_BUILD GIT_BUILD
 #define APP_BUILD_DATE BUILD_DATE
 
-class MyApplication : public Application
-{
+class MyApplication : public Application {
 public:
-	virtual void usage(int argc, char **argv);
-	virtual void welcome();
-	virtual void run();
+    virtual void usage(int argc, char **argv);
+
+    virtual void welcome();
+
+    virtual void run();
 };
 
-void MyApplication::welcome(){
-	fprintf(stderr, "%s %s\n", APP_NAME, APP_VERSION);
-	fprintf(stderr, "Copyright (c) 2012-2015 ssdb.io\n");
+void MyApplication::welcome() {
+    fprintf(stderr, "%s %s\n", APP_NAME, APP_VERSION);
+    fprintf(stderr, "Copyright (c) 2012-2015 ssdb.io\n");
 //	fprintf(stderr,
 //            "　　　　　　 ,-､　　　 　 　　     　..-､\n"
 //			"　　  　　 ./::＼　　R2M-SSDB     ／:::ヽ\n"
@@ -39,60 +40,68 @@ void MyApplication::welcome(){
 //			"　　　　` ､　　　　　　         　 　 　 /\n"
 //			"　　　　　　`ｰ ､__　　　 　 　 　　  　.／\n"
 //			"　　　　　　　　　/`'''ｰ‐‐──‐‐‐┬--- ／\n");
-	fprintf(stderr, "\n");
+    fprintf(stderr, "\n");
 }
 
-void MyApplication::usage(int argc, char **argv){
-	printf("Usage:\n");
-	printf("    %s [-d] /path/to/ssdb.conf [-s start|stop|restart]\n", argv[0]);
-	printf("Options:\n");
-	printf("    -d    run as daemon\n");
-	printf("    -s    option to start|stop|restart the server\n");
-	printf("    -h    show this message\n");
+void MyApplication::usage(int argc, char **argv) {
+    printf("Usage:\n");
+    printf("    %s [-d] /path/to/ssdb.conf [-s start|stop|restart]\n", argv[0]);
+    printf("Options:\n");
+    printf("    -d    run as daemon\n");
+    printf("    -s    option to start|stop|restart the server\n");
+    printf("    -h    show this message\n");
 }
 
-void MyApplication::run(){
-	Options option;
-	option.load(conf);
+void MyApplication::run() {
+    Options option;
+    option.load(conf);
 
-	std::string data_db_dir = app_args.work_dir;
+    std::string data_db_dir = app_args.work_dir;
 
-	log_info("ssdb-server %s", APP_VERSION);
-	log_info("build_version %s", APP_GIT_BUILD);
-	log_info("build_date %s", APP_BUILD_DATE);
-	log_info("conf_file        : %s", app_args.conf_file.c_str());
-	log_info("log_level        : %s", Logger::shared()->level_name().c_str());
-	log_info("log_output       : %s", Logger::shared()->output_name().c_str());
-	log_info("log_rotate_size  : %" PRId64, Logger::shared()->rotate_size());
+    log_info("ssdb-server %s", APP_VERSION);
+    log_info("build_version %s", APP_GIT_BUILD);
+    log_info("build_date %s", APP_BUILD_DATE);
+    log_info("conf_file        : %s", app_args.conf_file.c_str());
+    log_info("log_level        : %s", Logger::shared()->level_name().c_str());
+    log_info("log_output       : %s", Logger::shared()->output_name().c_str());
+    log_info("log_rotate_size  : %"
+                     PRId64, Logger::shared()->rotate_size());
 
-	log_info("main_db          : %s", data_db_dir.c_str());
-	log_info("cache_size       : %d MB", option.cache_size);
-	log_info("block_size       : %d KB", option.block_size);
+    log_info("main_db          : %s", data_db_dir.c_str());
+    log_info("cache_size       : %d MB", option.cache_size);
+    log_info("block_size       : %d KB", option.block_size);
 #ifdef USE_LEVELDB
-	log_info("compaction_speed : %d MB/s", option.compaction_speed);
+    log_info("compaction_speed : %d MB/s", option.compaction_speed);
 #endif
-	log_info("write_buffer     : %d MB", option.write_buffer_size);
-	log_info("max_open_files   : %d", option.max_open_files);
-	log_info("compression      : %s", option.compression ? "enable" : "disable");
-	log_info("rdb_compression  : %s", option.rdb_compression ? "enable" : "disable");
-	log_info("trans_compression: %s", option.transfer_compression ? "enable" : "disable");
-	log_info("sync_speed       : %d MB/s", conf->get_num("replication.sync_speed"));
+    log_info("write_buffer     : %d MB", option.write_buffer_size);
+    log_info("max_open_files   : %d", option.max_open_files);
+    log_info("op_filters4hit   : %s", option.optimize_filters_for_hits ? "enable" : "disable");
+    log_info("dy_level_bytes   : %s", option.level_compaction_dynamic_level_bytes ? "enable" : "disable");
+
+    log_info("compression      : %s", option.compression ? "enable" : "disable");
+    log_info("rdb_compression  : %s", option.rdb_compression ? "enable" : "disable");
+    log_info("trans_compression: %s", option.transfer_compression ? "enable" : "disable");
+    log_info("sync_speed       : %d MB/s", conf->get_num("replication.sync_speed"));
 
 #ifdef PTIMER
-	log_info("ptimer           : enable");
+    log_info("ptimer           : enable");
 #endif
 #ifdef DREPLY
-	log_info("dreply           : enable");
+    log_info("dreply           : enable");
 #endif
 
+    stringstream ss;
+    ss << option;
+    log_info("config           : %s", ss.str().c_str());
 
-	SSDB *data_db = nullptr;
-	data_db = SSDB::open(option, data_db_dir);
-	if(!data_db){
-		log_fatal("could not open data db: %s", data_db_dir.c_str());
-		fprintf(stderr, "could not open data db: %s\n", data_db_dir.c_str());
-		exit(1);
-	}
+
+    SSDB *data_db = nullptr;
+    data_db = SSDB::open(option, data_db_dir);
+    if (!data_db) {
+        log_fatal("could not open data db: %s", data_db_dir.c_str());
+        fprintf(stderr, "could not open data db: %s\n", data_db_dir.c_str());
+        exit(1);
+    }
 
 //	meta_db = SSDB::open(Options(), meta_db_dir);
 //	if(!meta_db){
@@ -101,25 +110,27 @@ void MyApplication::run(){
 //		exit(1);
 //	}
 
-	NetworkServer *net = NULL;	
-	SSDBServer *server;
-	net = NetworkServer::init(*conf);
-	server = new SSDBServer(data_db, option, net);
-	
-	log_info("pidfile: %s, pid: %d", app_args.pidfile.c_str(), (int)getpid());
-	log_info("ssdb server ready.");
-	net->serve();
-	
-	delete net;
-	delete server;
-	delete data_db;
+    NetworkServer *net = NULL;
+    SSDBServer *server;
+    net = NetworkServer::init(*conf);
+    server = new SSDBServer(data_db, option, net);
 
-	log_info("%s exit.", APP_NAME);
+    log_info("pidfile: %s, pid: %d", app_args.pidfile.c_str(), (int) getpid());
+    log_info("ssdb server ready.");
+    net->serve();
+
+    delete net;
+    delete server;
+    delete data_db;
+
+    log_info("%s exit.", APP_NAME);
 }
 
 #ifndef GTESTING
-int main(int argc, char **argv){
-	MyApplication app;
-	return app.main(argc, argv);
+
+int main(int argc, char **argv) {
+    MyApplication app;
+    return app.main(argc, argv);
 }
+
 #endif

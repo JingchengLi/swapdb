@@ -107,6 +107,7 @@ SSDB *SSDB::open(const Options &opt, const std::string &dir) {
     }
 
 
+    ssdb->options.optimize_filters_for_hits = opt.optimize_filters_for_hits;
     ssdb->options.compaction_readahead_size = opt.compaction_readahead_size * UNIT_MB;
 
     ssdb->options.level0_file_num_compaction_trigger = opt.level0_file_num_compaction_trigger; //start compaction
