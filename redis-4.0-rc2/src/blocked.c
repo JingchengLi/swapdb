@@ -167,9 +167,14 @@ void unblockClient(client *c) {
         unblockClientWaitingReplicas(c);
     } else if (c->btype == BLOCKED_MODULE) {
         unblockClientFromModule(c);
+    } else if (server.jdjr_mode && c->btype == BLOCKED_BY_FLUSHALL) {
+        if (server.masterhost == NULL) {
+            server.prohibit_ssdb_read_write = NO_PROHIBIT_SSDB_READ_WRITE;
+            server.is_doing_flushall = 0;
+            server.current_flushall_client = NULL;
+        }
     } else if (server.jdjr_mode
                && (c->btype == BLOCKED_SSDB_LOADING_OR_TRANSFER
-                   || c->btype == BLOCKED_BY_FLUSHALL
                    || c->btype == BLOCKED_NO_READ_WRITE_TO_SSDB
                    || c->btype == BLOCKED_NO_WRITE_TO_SSDB
                    || c->btype == BLOCKED_WRITE_SAME_SSDB_KEY

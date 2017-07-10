@@ -1416,12 +1416,6 @@ int handleResponseOfSSDBflushDone(client *c, redisReply* reply, int revert_len) 
                 addReplyError(cur_flush_client, "do ssdb flushall failed!");
                 resetClient(cur_flush_client);
             }
-
-            /* allow read/write operations to ssdb. */
-            server.prohibit_ssdb_read_write = NO_PROHIBIT_SSDB_READ_WRITE;
-            server.is_doing_flushall = 0;
-            server.current_flushall_client = NULL;
-
             handleClientsBlockedOnFlushall();
         } else {
             /* unexpected response, revert it to avoid be send to user client. */
@@ -1448,8 +1442,11 @@ void doSSDBflushIfCheckDone() {
              * of flush check will be processed in serverCron.*/
             server.flush_check_begin_time = 0;
             serverLog(LL_WARNING, "Sending rr_do_flushall to SSDB failed.");
-        } else
+        } else {
+            server.current_flushall_client->bpop.timeout = server.client_blocked_by_flushall_timeout+mstime();
+            blockClient(server.current_flushall_client, BLOCKED_BY_FLUSHALL);
             serverLog(LL_DEBUG, "Sending rr_do_flushall to SSDB success.");
+        }
     }
 }
 

@@ -4083,9 +4083,7 @@ void prepareSSDBflush(client* c) {
         }
     }
     serverLog(LL_DEBUG, "[flushall]initial server.flush_check_unresponse_num:%d", server.flush_check_unresponse_num);
-    /* don't need a timeout, will process timeout case in serverCron. */
-    c->bpop.timeout = 0;
-    blockClient(c, BLOCKED_BY_FLUSHALL);
+
 }
 
 /* for replication connection(server.master), after reconnect with SSDB success, we
