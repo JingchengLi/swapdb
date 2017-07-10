@@ -62,7 +62,6 @@ start_server {tags {"lfu"}} {
     proc check_keys_load_when_access {pre nums flag} {
         for {set i 0} {$i < $nums} {incr i} {
             if {[r locatekey "$pre:$i"] eq {ssdb}} {
-                r setlfu "$pre:$i" 5
                 if {$flag} {
                     wait_for_condition 100 5 {
                         [r exists $pre:$i] && [r locatekey "$pre:$i"] eq "redis"
@@ -71,6 +70,9 @@ start_server {tags {"lfu"}} {
                     }
                 } else {
                     r exists $pre:$i
+                    while {[r object freq $pre:$i] < 5} {
+                        r exists $pre:$i
+                    }
                     assert_equal [r locatekey "$pre:$i"] ssdb "$pre:$i should not load"
                 }
             }
@@ -181,11 +183,10 @@ start_server {tags {"lfu"}} {
             set key_a_ssdb [sum_keystatus key_a 1000 ssdb]
             set key_d_ssdb [sum_keystatus key_d 3000 ssdb]
             assert {[expr double($key_a_ssdb)/1000] <= [expr double($key_d_ssdb)/3000]}
+            r config set lfu-decay-time 1
         }
 
         test "some key's lfu count decay" {
-            # TODO currentlly not support config get lfu-decay-time
-            # assert_equal 1 [lindex [ r config get lfu-decay-time ] 1] "make sure lfu-decay-time == 1"
             for {set i 0} {$i < 3000} {incr i} {
                 if {[r object freq "key_d:$i"] < 4} {
                     break
@@ -311,7 +312,7 @@ start_server {tags {"lfu"}} {
             check_keys_load_when_access key_d 3000 0
         }
 
-        test "only freq > 5 can be load into redis" {
+        test "only freq >= 5 can be load into redis" {
             set key_d_ssdb_before [sum_keystatus key_d 3000 ssdb]
             for {set i 0} {$i < 3000} {incr i} {
                 check_single_key_load_when_access "key_d:$i"
