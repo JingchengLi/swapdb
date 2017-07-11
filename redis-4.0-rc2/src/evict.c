@@ -921,6 +921,8 @@ int tryEvictingKeysToSSDB(size_t *mem_tofree) {
             unsigned int idle = 255 - lfu_counter;
             if (idle >= server.lowest_idle_val_of_cold_key) {
                 robj *keyobj = createStringObject(bestkey,sdslen(bestkey));
+
+                db = server.db+bestdbid;
                 /* Try restoring the redis dumped data to SSDB. */
                 if (prologOfEvictingToSSDB(keyobj, db) == C_FD_ERR)
                     return C_ERR;
