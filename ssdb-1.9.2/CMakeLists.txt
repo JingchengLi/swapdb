@@ -104,17 +104,6 @@ IF(DREPLY)
 ENDIF()
 
 
-ADD_LIBRARY(libjemalloc-static ${JEMALLOC_PATH}/lib)
-SET_TARGET_PROPERTIES(libjemalloc-static PROPERTIES
-        LINKER_LANGUAGE C
-        OUTPUT_NAME "jemalloc")
-
-ADD_LIBRARY(libsnappy-static ${SNAPPY_PATH}/.libs)
-SET_TARGET_PROPERTIES(libsnappy-static PROPERTIES
-        LINKER_LANGUAGE CXX
-        OUTPUT_NAME "snappy")
-
-
 SET( SSDB_OBJS
         src/ssdb/ssdb_impl.cpp
         src/ssdb/iterator.cpp
@@ -278,11 +267,9 @@ SET( SRC_OBJS
         )
 
 ADD_EXECUTABLE(ssdb-server ${SRC_OBJS})
-#TARGET_LINK_LIBRARIES(ssdb-server libssdb-static libutil-static libnet-static libcodec-static leveldb gtest gflags snappy.a jemalloc pthread rt z bz2)
-
 
 IF(ROCKSDB)
-    TARGET_LINK_LIBRARIES(ssdb-server libssdb-static librdb-static libutil-static libnet-static libcodec-static rocksdb gflags snappy.a jemalloc pthread) # z bz2
+    TARGET_LINK_LIBRARIES(ssdb-server libssdb-static librdb-static libutil-static libnet-static libcodec-static rocksdb gflags snappy.a jemalloc.a pthread) # z bz2
     if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
     ELSE()
         TARGET_LINK_LIBRARIES(ssdb-server rt) # z bz2
