@@ -615,15 +615,19 @@ proc restart_instance {type id} {
 
     # Execute the instance with its old setup and append the new pid
     # file for cleanup.
-    set ssdbpid [exec_ssdb_instance $ssdbcfgfile]
-    if {[server_is_up 127.0.0.1 $ssdbport 100] == 0} {
-        abort_sentinel_test "Problems starting $type #$j: ssdb ping timeout"
+    set ssdbpid [get_instance_attrib $type $id ssdbpid]
+    # sometime only redis instance was killed
+    if {$ssdbpid == -1} {
+        set ssdbpid [exec_ssdb_instance $ssdbcfgfile]
+        if {[server_is_up 127.0.0.1 $ssdbport 100] == 0} {
+            abort_sentinel_test "Problems starting $type #$j: ssdb ping timeout"
+        }
+        set_instance_attrib $type $id ssdbpid $ssdbpid
+        lappend ::ssdbpids $ssdbpid
     }
     set pid [exec_instance $type $cfgfile]
     set_instance_attrib $type $id pid $pid
-    set_instance_attrib $type $id ssdbpid $ssdbpid
     lappend ::pids $pid
-    lappend ::ssdbpids $ssdbpid
 
     # Check that the instance is running
     if {[server_is_up 127.0.0.1 $port 100] == 0} {

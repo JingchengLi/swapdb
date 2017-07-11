@@ -835,8 +835,8 @@ proc check_keys_cleared {r {levels {0}}} {
             fail "some keys not clear after 10s"
         }
         if {[lindex [$r $level role] 0] == "slave"} {
-            wait_for_condition 1 100 {
-                [s $level "slave_unprocessed_transferring_or_loading_keys"] == 0 &&
+            wait_for_condition 10 100 {
+                [ s $level "slave_unprocessed_transferring_or_loading_keys"] == 0 &&
                 [ s $level "slave_write_op_list_num" ] == 0 &&
                 [ s $level "slave_write_op_list_memsize" ] == 0 &&
                 [ s $level "slave_ssdb_critical_write_error_count" ] == 0

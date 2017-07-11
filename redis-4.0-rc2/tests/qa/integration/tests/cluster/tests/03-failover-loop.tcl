@@ -61,8 +61,15 @@ while {[incr iterations -1]} {
         }
     }
 
-    test "Killing node #$tokill" {
-        kill_instance redis $tokill
+    if {rand() < 0.5} {
+        test "Killing node #$tokill" {
+            kill_instance redis $tokill
+        }
+    } else {
+        test "Shutdown #$tokill" {
+            catch { R $tokill shutdown }
+            set_instance_attrib redis $tokill pid -1
+        }
     }
 
     if {$role eq {master}} {
