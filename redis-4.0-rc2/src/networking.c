@@ -1439,7 +1439,8 @@ void doSSDBflushIfCheckDone() {
             serverLog(LL_WARNING, "Sending rr_do_flushall to SSDB failed.");
         } else {
             /* just empty redis before we receive response from SSDB, avoid dirty data issue.*/
-            flushallCommand(server.current_flushall_client);
+            call(server.current_flushall_client,CMD_CALL_FULL);
+            server.current_flushall_client->woff = server.master_repl_offset;
 
             server.current_flushall_client->bpop.timeout = server.client_blocked_by_flushall_timeout+mstime();
             blockClient(server.current_flushall_client, BLOCKED_BY_FLUSHALL);
@@ -1448,11 +1449,12 @@ void doSSDBflushIfCheckDone() {
     }
 }
 
-int handleResponseOfFlushCheck(client *c, redisReply* reply) {
+int handleResponseOfFlushCheck(client *c, redisReply* reply, int revert_len) {
     int process_status;
     UNUSED(c);
 
     if (IsReplyEqual(reply, shared.flushcheckok)) {
+        revertClientBufReply(c, revert_len);
         if (server.is_doing_flushall) {
             server.flush_check_unresponse_num -= 1;
 
@@ -1468,6 +1470,7 @@ int handleResponseOfFlushCheck(client *c, redisReply* reply) {
         }
         process_status = C_OK;
     } else if (IsReplyEqual(reply, shared.flushchecknok)) {
+        revertClientBufReply(c, revert_len);
         if (server.is_doing_flushall) {
             serverLog(LL_DEBUG, "[flushall]receive flush check failed response, check failed and abort");
             /* set to 0 so flush check will be timeout. exception case
@@ -2059,8 +2062,7 @@ void handleSSDBReply(client *c, int revert_len) {
     }
 
     if (reply && reply->type == REDIS_REPLY_STRING) {
-        if (handleResponseOfFlushCheck(c, reply) == C_OK) {
-            revertClientBufReply(c, revert_len);
+        if (handleResponseOfFlushCheck(c, reply, revert_len) == C_OK) {
             return;
         }
 
