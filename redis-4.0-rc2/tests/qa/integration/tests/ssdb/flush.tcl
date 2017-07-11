@@ -205,8 +205,13 @@ start_server {tags {"ssdb"}} {
                 } else {
                     fail "Digest not null:master([$master debug digest]) and slave([$slave debug digest]) after $flush."
                 }
-                list [lindex [sr scan 0] 0] [lindex [sr -1 scan 0] 0]
-            } {0 0}
+                wait_for_condition 50 100 {
+                    [lindex [sr scan 0] 0] == 0 &&
+                    [lindex [sr -1 scan 0] 0] == 0
+                } else {
+                    fail "ssdb not null after 5s!"
+                }
+            }
         }
     }
 }
@@ -358,16 +363,16 @@ start_server {tags {"ssdb"}} {
                         [$master dbsize] == [[lindex $slaves 0] dbsize] &&
                         [$master dbsize] == [[lindex $slaves 1] dbsize]
                     } else {
-                        check_real_diff_keys $master $slaves
-                        # fail "Different number of keys between master and slaves after too long time."
+                        # check_real_diff_keys $master $slaves
+                        fail "Different number of keys between master and slaves after too long time."
                     }
                     assert {[$master dbsize] > 0}
-#                    wait_for_condition 10 500 {
-#                        [$master debug digest] == [[lindex $slaves 0] debug digest] &&
-#                        [$master debug digest] == [[lindex $slaves 1] debug digest]
-#                    } else {
-#                        fail "Different digest between master([$master debug digest]) and slave1([[lindex $slaves 0] debug digest]) slave2([[lindex $slaves 1] debug digest]) after too long time."
-#                    }
+                    wait_for_condition 10 500 {
+                        [$master debug digest] == [[lindex $slaves 0] debug digest] &&
+                        [$master debug digest] == [[lindex $slaves 1] debug digest]
+                    } else {
+                        fail "Different digest between master([$master debug digest]) and slave1([[lindex $slaves 0] debug digest]) slave2([[lindex $slaves 1] debug digest]) after too long time."
+                    }
                 }
 
                 test "master and slaves are clear after $flush again" {
