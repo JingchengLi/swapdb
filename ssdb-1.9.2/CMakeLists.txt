@@ -74,7 +74,7 @@ IF(ROCKSDB)
             ${ROCKSDB_PATH}/
     )
     ADD_LIBRARY(librocksdb-static ${ROCKSDB_PATH})
-    TARGET_LINK_LIBRARIES ( librocksdb-static snappy gtest gflags )
+    TARGET_LINK_LIBRARIES ( librocksdb-static snappy.a gtest gflags )
     SET_TARGET_PROPERTIES(librocksdb-static PROPERTIES
             LINKER_LANGUAGE CXX
             OUTPUT_NAME "rocksdb")
@@ -136,10 +136,10 @@ ADD_LIBRARY(libssdb-static STATIC ${SSDB_OBJS})
 
 
 IF(ROCKSDB)
-    TARGET_LINK_LIBRARIES ( libssdb-static rocksdb snappy z bz2)
+    TARGET_LINK_LIBRARIES ( libssdb-static rocksdb snappy.a z bz2)
     #TARGET_LINK_LIBRARIES ( libssdb-shared rocksdb )
 ELSE()
-    TARGET_LINK_LIBRARIES ( libssdb-static leveldb snappy )
+    TARGET_LINK_LIBRARIES ( libssdb-static leveldb snappy.a )
     #TARGET_LINK_LIBRARIES ( libssdb-shared leveldb )
 ENDIF()
 
@@ -278,18 +278,18 @@ SET( SRC_OBJS
         )
 
 ADD_EXECUTABLE(ssdb-server ${SRC_OBJS})
-#TARGET_LINK_LIBRARIES(ssdb-server libssdb-static libutil-static libnet-static libcodec-static leveldb gtest gflags snappy jemalloc pthread rt z bz2)
+#TARGET_LINK_LIBRARIES(ssdb-server libssdb-static libutil-static libnet-static libcodec-static leveldb gtest gflags snappy.a jemalloc pthread rt z bz2)
 
 
 IF(ROCKSDB)
-    TARGET_LINK_LIBRARIES(ssdb-server libssdb-static librdb-static libutil-static libnet-static libcodec-static rocksdb gflags snappy jemalloc pthread) # z bz2
+    TARGET_LINK_LIBRARIES(ssdb-server libssdb-static librdb-static libutil-static libnet-static libcodec-static rocksdb gflags snappy.a jemalloc pthread) # z bz2
     if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
     ELSE()
         TARGET_LINK_LIBRARIES(ssdb-server rt) # z bz2
     endif()
 
 ELSE()
-    TARGET_LINK_LIBRARIES(ssdb-server leveldb libssdb-static librdb-static libutil-static libnet-static libcodec-static gflags snappy jemalloc pthread rt z bz2)
+    TARGET_LINK_LIBRARIES(ssdb-server leveldb libssdb-static librdb-static libutil-static libnet-static libcodec-static gflags snappy.a jemalloc pthread rt z bz2)
 ENDIF()
 
 #ADD_EXECUTABLE(hello-ssdb ${CLIENT_OBJS})
