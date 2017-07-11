@@ -34,7 +34,7 @@ extern "C" {
 
 SSDBImpl::SSDBImpl()  {
     ldb = NULL;
-    this->bgtask_quit = false;
+    this->bgtask_quit = true;
     expiration = NULL;
 }
 
@@ -537,6 +537,10 @@ void SSDBImpl::start() {
 void SSDBImpl::stop() {
     Locking<Mutex> l(&this->mutex_bgtask_);
     log_info("del thread stopping");
+
+    if (this->bgtask_quit) {
+        return;
+    }
 
     this->bgtask_quit = true;
     for (int i = 0; i < 1000; i++) {
