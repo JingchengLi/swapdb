@@ -1403,16 +1403,13 @@ int handleResponseOfSSDBflushDone(client *c, redisReply* reply, int revert_len) 
 
             cur_flush_client = server.current_flushall_client;
 
-            /* unblock the client doing flushall and do flushall in redis. */
+            /* unblock the client doing flushall. */
             unblockClient(cur_flush_client);
+            resetClient(cur_flush_client);
             if (IsReplyEqual(reply, shared.flushdoneok)) {
                 serverLog(LL_DEBUG, "[flushall] receive do flush ok");
-                if (runCommand(cur_flush_client) == C_OK)
-                    resetClient(cur_flush_client);
             } else if (IsReplyEqual(reply, shared.flushdonenok)) {
                 serverLog(LL_DEBUG, "[flushall] receive do flush nok, ssdb flushall failed");
-                addReplyError(cur_flush_client, "do ssdb flushall failed!");
-                resetClient(cur_flush_client);
             }
             handleClientsBlockedOnFlushall();
         } else {
@@ -1441,6 +1438,9 @@ void doSSDBflushIfCheckDone() {
             server.flush_check_begin_time = 0;
             serverLog(LL_WARNING, "Sending rr_do_flushall to SSDB failed.");
         } else {
+            /* just empty redis before we receive response from SSDB, avoid dirty data issue.*/
+            flushallCommand(server.current_flushall_client);
+
             server.current_flushall_client->bpop.timeout = server.client_blocked_by_flushall_timeout+mstime();
             blockClient(server.current_flushall_client, BLOCKED_BY_FLUSHALL);
             serverLog(LL_DEBUG, "Sending rr_do_flushall to SSDB success.");

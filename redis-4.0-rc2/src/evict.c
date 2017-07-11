@@ -886,7 +886,7 @@ int tryEvictingKeysToSSDB(size_t *mem_tofree) {
         if (pool[k].key == NULL) continue;
         bestdbid = pool[k].dbid;
 
-        de = dictFind(server.db[pool[k].dbid].dict,
+        de = dictFind(server.db[bestdbid].dict,
                       pool[k].key);
 
         /* Remove the entry from the pool. */
@@ -916,14 +916,17 @@ int tryEvictingKeysToSSDB(size_t *mem_tofree) {
 
     /* Try to remove the selected key. */
     if (bestkey) {
-        db = server.db+bestdbid;
-        robj *keyobj = createStringObject(bestkey,sdslen(bestkey));
-
-        /* Try restoring the redis dumped data to SSDB. */
-        if (prologOfEvictingToSSDB(keyobj, db) == C_FD_ERR)
-            return C_ERR;
-
-        decrRefCount(keyobj);
+        if (de) {
+            unsigned int lfu_counter = 255 & sdsgetlfu(dictGetKey(de));
+            unsigned int idle = 255 - lfu_counter;
+            if (idle >= server.lowest_idle_val_of_cold_key) {
+                robj *keyobj = createStringObject(bestkey,sdslen(bestkey));
+                /* Try restoring the redis dumped data to SSDB. */
+                if (prologOfEvictingToSSDB(keyobj, db) == C_FD_ERR)
+                    return C_ERR;
+                decrRefCount(keyobj);
+            }
+        }
     }
 
     latencyEndMonitor(latency);
