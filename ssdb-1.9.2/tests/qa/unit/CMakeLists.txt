@@ -2,7 +2,6 @@ cmake_minimum_required(VERSION 2.8)
 project(ssdb-test)
 
 option(ROCKSDB "enable rocksdb support" ON)
-
 SET(BUILD_PATH "${CMAKE_SOURCE_DIR}/../../..")
 SET(ROCKSDB_PATH=${BUILD_PATH}/deps/rocksdb-5.3.6)
 SET(LEVELDB_PATH=${BUILD_PATH}/deps/leveldb-1.18)
@@ -19,7 +18,8 @@ INCLUDE_DIRECTORIES(
     ${BUILD_PATH}/deps/bzip2-1.0.6
     ${BUILD_PATH}/deps/gflags-2.2.0/include
     ${BUILD_PATH}/deps/snappy-1.1.0
-    ${BUILD_PATH}/tests/gtest_1.7.0/include
+    ${BUILD_PATH}/tests/googletest/googlemock/include
+    ${BUILD_PATH}/tests/googletest/googletest/include
     include
     )
 
@@ -35,10 +35,14 @@ LINK_DIRECTORIES(
     ${BUILD_PATH}/src/codec
     ${BUILD_PATH}/deps/gflags-2.2.0/lib
     )
-add_subdirectory(${BUILD_PATH}/tests/gtest_1.7.0 gtest)
+add_subdirectory(${BUILD_PATH}/tests/googletest gtest)
 ADD_DEFINITIONS(-DGTESTING)
-AUX_SOURCE_DIRECTORY(. GTEST_SRC)
+#AUX_SOURCE_DIRECTORY(. GTEST_SRC)
 AUX_SOURCE_DIRECTORY(./codec GTEST_CODEC_SRC)
+
+SET ( GTEST_SRC
+    ${BUILD_PATH}/tests/googletest/googlemock/src/gmock_main.cc
+)
 
 IF(GCOV)
     ADD_DEFINITIONS("-fprofile-arcs -ftest-coverage")
@@ -74,5 +78,5 @@ ADD_EXECUTABLE(ssdb-server
     ${GTEST_CODEC_SRC}
     )
 
-TARGET_LINK_LIBRARIES(ssdb-server gtest) 
+TARGET_LINK_LIBRARIES(ssdb-server gmock)
 

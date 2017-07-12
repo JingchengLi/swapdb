@@ -1,4 +1,3 @@
-#include "gtest/gtest.h"
 #include "util/error.h"
 #include "util/bytes.h"
 #include "codec/decode.h"
@@ -13,11 +12,11 @@ class DecodeTest : public SSDBTest
 
 void compare_meta_key(const string & key){
     string meta_key = encode_meta_key(key);
-    uint16_t slot = (uint16_t)keyHashSlot(key.data(), (int)key.size());
+    // uint16_t slot = (uint16_t)keyHashSlot(key.data(), (int)key.size());
     MetaKey metakey;
     EXPECT_EQ(0, metakey.DecodeMetaKey(meta_key));
-    EXPECT_EQ(slot, metakey.slot);
-    EXPECT_EQ(0, key.compare(metakey.key));
+    // EXPECT_EQ(slot, metakey.slot);
+    EXPECT_EQ(0, key.compare(metakey.key.String()));
 }
 
 TEST_F(DecodeTest, Test_DecodeMetaKey) {
@@ -40,10 +39,11 @@ TEST_F(DecodeTest, Test_DecodeMetaKey) {
     compare_meta_key(GetRandomBytes_(maxKeyLen_));
 
     //error return
-    string dummyMetaKey [] = {"", "XXXXXXXXX", "M1"};
+    string dummyMetaKey [] = {"", "XXXXXXXXX"};
     MetaKey metakey;
-    for(int n = 0; n < sizeof(dummyMetaKey)/sizeof(string); n++)
+    for(int n = 0; n < sizeof(dummyMetaKey)/sizeof(string); n++){
         EXPECT_EQ(-1, metakey.DecodeMetaKey(dummyMetaKey[n]));
+    }
 }
 
 void compare_ItemKey(const string & key, const string & field, uint16_t version){
@@ -63,7 +63,7 @@ void compare_ItemKey(const string & key, const string & field, uint16_t version)
 
     EXPECT_EQ(itemkey.DecodeItemKey(item_key), 0);
     EXPECT_EQ(0, key.compare(itemkey.key));
-    EXPECT_EQ(0, field.compare(itemkey.field));
+    EXPECT_EQ(0, field.compare(itemkey.field.String()));
     EXPECT_EQ(version, itemkey.version);
 }
 
@@ -105,7 +105,7 @@ void compare_ZScoreItemKey(const string & key, const string & member, double sco
 
     EXPECT_EQ(zscoreitemkey.DecodeItemKey(zscore_item_key), 0);
     EXPECT_EQ(0, key.compare(zscoreitemkey.key));
-    EXPECT_EQ(0, member.compare(zscoreitemkey.field));
+    EXPECT_EQ(0, member.compare(zscoreitemkey.field.String()));
     EXPECT_NEAR(score, zscoreitemkey.score, 0.00001);
     EXPECT_EQ(version, zscoreitemkey.version);
 }
@@ -323,14 +323,14 @@ void compare_DeleteKey(const string &key, uint16_t version){
     string delete_key;
     delete_key = encode_delete_key(key, version);
 
-    uint16_t slot = (uint16_t)keyHashSlot(key.data(), (int)key.size());
+    // uint16_t slot = (uint16_t)keyHashSlot(key.data(), (int)key.size());
     DeleteKey deletekey;
 
     EXPECT_EQ(deletekey.DecodeDeleteKey(delete_key), 0);
     EXPECT_EQ('D', deletekey.type);
     EXPECT_EQ(version, deletekey.version);
     EXPECT_EQ(0, key.compare(deletekey.key));
-    EXPECT_EQ(slot, deletekey.slot);
+    // EXPECT_EQ(slot, deletekey.slot);
 }
 
 TEST_F(DecodeTest, Test_DeleteKey) {
@@ -371,7 +371,7 @@ void compare_EScoreItemKey(const string &key, uint64_t ts){
 
     EXPECT_EQ(escorekey.DecodeItemKey(escore_key), 0);
     EXPECT_EQ(ts, escorekey.score);
-    EXPECT_EQ(0, key.compare(escorekey.field));
+    EXPECT_EQ(0, key.compare(escorekey.field.String()));
 }
 
 TEST_F(DecodeTest, Test_EScoreItemKey) {

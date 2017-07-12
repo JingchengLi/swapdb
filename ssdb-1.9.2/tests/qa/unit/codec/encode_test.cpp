@@ -1,4 +1,3 @@
-#include "gtest/gtest.h"
 #include "codec/encode.h"
 #include "util/bytes.h"
 #include "ssdb_test.h"
@@ -20,13 +19,13 @@ inline uint64_t encodeScore(const double score) {
 
 void compare_encode_meta_key(const string & key, char* expectStr){
     string meta_key = encode_meta_key(Bytes(key.data(), key.size()));
-    uint16_t slot = (uint16_t)keyHashSlot(key.data(), (int)key.size());
-    uint8_t* pslot = (uint8_t*)&slot;
+    // uint16_t slot = (uint16_t)keyHashSlot(key.data(), (int)key.size());
+    // uint8_t* pslot = (uint8_t*)&slot;
     expectStr[0] = 'M';
-    expectStr[1] = pslot[1];
-    expectStr[2] = pslot[0];
-    memcpy(expectStr+3, key.data(), key.size());
-    EXPECT_EQ(0, meta_key.compare(0, key.size()+3, expectStr, key.size()+3));
+    // expectStr[1] = pslot[1];
+    // expectStr[2] = pslot[0];
+    memcpy(expectStr+3-2, key.data(), key.size());
+    EXPECT_EQ(0, meta_key.compare(0, key.size()+3-2, expectStr, key.size()+3-2));
 }
 
 void compare_encode_key_internal(string(*func)(const Bytes & , const Bytes & , uint16_t),const string & key, const string& field, uint16_t version, char* expectStr){
@@ -415,23 +414,23 @@ TEST_F(EncodeTest, Test_encode_list_meta_val) {
 void compare_encode_delete_key(const string & key, char key_type, uint16_t version, char* expectStr){
     string delete_key = encode_delete_key(key, version);
     uint16_t keylen = key.size(); 
-    uint16_t slot = (uint16_t)keyHashSlot(key.data(), keylen);
-    uint8_t* pslot = (uint8_t*)&slot;
+    // uint16_t slot = (uint16_t)keyHashSlot(key.data(), keylen);
+    // uint8_t* pslot = (uint8_t*)&slot;
     expectStr[0] = 'D';
-    expectStr[1] = pslot[1];
-    expectStr[2] = pslot[0];
+    // expectStr[1] = pslot[1];
+    // expectStr[2] = pslot[0];
     uint8_t* pkeylen = (uint8_t*)&keylen;
-    expectStr[3] = pkeylen[1];
-    expectStr[4] = pkeylen[0];
-    memcpy(expectStr+5, key.data(), keylen);
+    expectStr[3-2] = pkeylen[1];
+    expectStr[4-2] = pkeylen[0];
+    memcpy(expectStr+5-2, key.data(), keylen);
     uint8_t* pversion = (uint8_t*)&version;
-    expectStr[keylen+5] = pversion[1];
-    expectStr[keylen+6] = pversion[0];
-    EXPECT_EQ(0, delete_key.compare(0, keylen+7, expectStr, keylen+7));
+    expectStr[keylen+5-2] = pversion[1];
+    expectStr[keylen+6-2] = pversion[0];
+    EXPECT_EQ(0, delete_key.compare(0, keylen+7-2, expectStr, keylen+7-2));
 }
 
 TEST_F(EncodeTest, Test_encode_delete_key) {
-    char* space = new char[maxKeyLen_+7];
+    char* space = new char[maxKeyLen_+7-2];
     uint16_t version;
 
     //Some special keys

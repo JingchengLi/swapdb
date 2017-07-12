@@ -4,6 +4,7 @@
 #include <sys/time.h>
 #include <unistd.h>
 #include <sstream>
+#include "gmock/gmock.h"
 
 #include "gtest/gtest.h"
 
