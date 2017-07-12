@@ -81,7 +81,7 @@ int TransferWorker::proc(TransferJob *job) {
 
 
     if (job->value != nullptr) {
-        free(job->value);
+        delete job->value;
         job->value = nullptr;
     }
 

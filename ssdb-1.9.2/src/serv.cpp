@@ -793,7 +793,7 @@ int proc_info(Context &ctx, Link *link, const Request &req, Response *resp) {
             double block_cache_hit_rate = (block_cache_hit * 1.0 / (total + (total > 0 ? 0 : 1)) * 1.0) * 100;
             ReplyWtihSize(block_cache_hit_rate);
 
-            serv->ssdb->simCache->reset_counter();
+//            serv->ssdb->simCache->reset_counter();
 
         }
 

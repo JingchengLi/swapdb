@@ -12,6 +12,7 @@
 #include <util/strings.h>
 #include <map>
 #include <net/proc.h>
+#include <util/dump_data.h>
 #include "string"
 #include "iostream"
 #include "redis_stream.h"
@@ -33,10 +34,10 @@ public:
     std::string data_key;
 
 
-    void *value;
+    DumpData *value;
     bproc_t proc;
 
-    TransferJob(Context &ctx, uint16_t type, const std::string &key, void *value = nullptr) :
+    TransferJob(Context &ctx, uint16_t type, const std::string &key, DumpData *value = nullptr) :
             ctx(ctx), type(type), data_key(key), value(value) {
         ts = time_ms();
         retry = 0;

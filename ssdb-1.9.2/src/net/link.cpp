@@ -269,7 +269,7 @@ sock_err:
 Link *Link::accept() {
     Link *link;
     int client_sock;
-    struct sockaddr_in addr;
+    struct sockaddr_in addr{};
     socklen_t addrlen = sizeof(addr);
 
     while ((client_sock = ::accept(sock, (struct sockaddr *) &addr, &addrlen)) == -1) {

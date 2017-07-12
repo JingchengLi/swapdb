@@ -367,8 +367,7 @@ void NetworkServer::serve(){
 				if(link){
                     link->append_reply = true;
 					this->link_count ++;
-					log_debug("new link from %s:%d, fd: %d, links: %d",
-							  link->remote_ip, link->remote_port, link->fd(), this->link_count);
+					log_debug("new udf link fd: %d, links: %d",  link->fd(), this->link_count);
 					fdes->set(link->fd(), FDEVENT_IN, 1, link);
 				}else{
 					log_debug("accept return NULL");
@@ -470,6 +469,7 @@ void NetworkServer::serve(){
 			}else if(result == PROC_BACKEND){
 				fdes->del(link->fd());
 				this->link_count --;
+				delete job;
 			}else{
 				if(proc_result(job, &ready_list_2) == PROC_ERROR){
 					//
