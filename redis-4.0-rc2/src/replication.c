@@ -2172,6 +2172,7 @@ int connectWithMaster(void) {
     server.repl_transfer_lastio = server.unixtime;
     server.repl_transfer_s = fd;
     server.repl_state = REPL_STATE_CONNECTING;
+    if (server.jdjr_mode) server.ssdb_repl_state = REPL_STATE_NONE;
     return C_OK;
 }
 
