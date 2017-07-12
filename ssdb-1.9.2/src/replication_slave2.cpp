@@ -41,7 +41,7 @@ void *ssdb_sync2(void *arg) {
     std::vector<std::future<int>> bgs(total_threads);
 //    std::future<int> bg;
 
-
+    log_warn("[ssdb_sync] update transfer state");
     {
         Locking<Mutex> l(&serv->replicState.rMutex);
 
@@ -52,10 +52,12 @@ void *ssdb_sync2(void *arg) {
         serv->replicState.startReplic();
     }
 
-
+    log_warn("[ssdb_sync] expiration stop");
     if (serv->ssdb->expiration) {
         serv->ssdb->expiration->stop();
     }
+
+    log_warn("[ssdb_sync] ssdb stop");
     serv->ssdb->stop();
 
     log_warn("[ssdb_sync] do flushdb");

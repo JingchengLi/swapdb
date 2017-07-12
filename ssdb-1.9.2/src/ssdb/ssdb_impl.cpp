@@ -553,6 +553,7 @@ void SSDBImpl::stop() {
 
     std::queue<std::string> tmp_tasks_;
     tasks_.swap(tmp_tasks_);
+    log_info("del thread stopped");
 }
 
 void SSDBImpl::load_delete_keys_from_db(int num) {
