@@ -714,10 +714,18 @@ int proc_info(Context &ctx, Link *link, const Request &req, Response *resp) {
         call_uname = 0;
     }
 
+    bool all = true;
+    std::string selected;
+    if (req.size() > 1) {
+        selected = req[1].String();
+        strtolower(&selected);
+        all = false;
+    }
+
 
     resp->emplace_back("ok");
 
-    {
+    if (all || selected == "server") {
         //# Server
         resp->emplace_back("# Server");
         resp->emplace_back("ssdb_version:" + str(SSDB_VERSION));
@@ -730,19 +738,22 @@ int proc_info(Context &ctx, Link *link, const Request &req, Response *resp) {
         resp->emplace_back("gcc_version: 0.0.0");
 #endif
         resp->emplace_back("pid:" + str(getpid()));
+
+        resp->emplace_back("");
     };
 
-    {
+    if (all || selected == "clients") {
         //# Clients
-        resp->emplace_back("\n# Clients");
+        resp->emplace_back("# Clients");
         resp->emplace_back("connected_clients:" + str(ctx.net->link_count));
         resp->emplace_back("blocked_clients: 0");
 
+        resp->emplace_back("");
     };
 
 
-    {//memory
-        resp->emplace_back("\n# Memory");
+    if (all || selected == "memory") {//memory
+        resp->emplace_back("# Memory");
 
         uint64_t used_memory_rss = zmalloc_get_rss();
         uint64_t used_memory = used_memory_rss;
@@ -786,11 +797,12 @@ int proc_info(Context &ctx, Link *link, const Request &req, Response *resp) {
 
         }
 
+        resp->emplace_back("");
     }
 
 
-    {//filesize
-        resp->push_back("\n# Persistence");
+    if (all || selected == "persistence") {//filesize
+        resp->push_back("# Persistence");
         uint64_t filesize = 0;
         serv->ssdb->filesize(ctx, &filesize);
         ReplyWtihHuman(filesize);
@@ -804,21 +816,24 @@ int proc_info(Context &ctx, Link *link, const Request &req, Response *resp) {
         resp->emplace_back("aof_rewrite_in_progress:0"); //Todo Fake
         resp->emplace_back("loading:0"); //Todo Fake
 
+        resp->emplace_back("");
     }
 
 
 
-    {//snapshot
-        resp->push_back("\n# Snapshot");
+    if (all || selected == "snapshot") {//snapshot
+        resp->push_back("# Snapshot");
 
         std::string val;
         FastGetProperty(leveldb::DB::Properties::kNumSnapshots, "live_snapshots");
         FastGetProperty(leveldb::DB::Properties::kOldestSnapshotTime, "oldest_snapshot");
+
+        resp->emplace_back("");
     }
 
 
-    {//Stats
-        resp->push_back("\n# Stats");
+    if (all || selected == "stats") {//Stats
+        resp->push_back("# Stats");
         resp->emplace_back("total_connections_received:0"); //Todo Fake
 
         {//total_calls
@@ -831,25 +846,29 @@ int proc_info(Context &ctx, Link *link, const Request &req, Response *resp) {
             resp->emplace_back("total_commands_processed:" + str(calls));
         }
 
-
+        resp->emplace_back("");
     }
 
-    {//Keyspace
-        resp->push_back("\n# Keyspace");
+    if (all || selected == "keyspace") {//Keyspace
+        resp->push_back("# Keyspace");
 
         uint64_t size = serv->ssdb->size();
         resp->emplace_back("db0:keys=" + str(size) + ",expires=0,avg_ttl=0");
+
+        resp->emplace_back("");
     }
 
 
 
-    if (req.size() > 1 && (req[1] == "leveldb" || req[1] == "rocksdb")) {
+    if (selected == "leveldb" || selected == "rocksdb") {
         for(auto const &block : serv->ssdb->info()) {
             resp->push_back(block);
         }
+
+        resp->emplace_back("");
     }
 
-    if (req.size() > 1 && req[1] == "cmd") {
+    if (selected == "cmd") {
         for_each(ctx.net->proc_map.begin(), ctx.net->proc_map.end(), [&](std::pair<const Bytes, Command *> it) {
             Command *cmd = it.second;
             resp->push_back("cmd." + cmd->name);
@@ -858,6 +877,8 @@ int proc_info(Context &ctx, Link *link, const Request &req, Response *resp) {
                      cmd->calls, cmd->time_wait, cmd->time_proc);
             resp->push_back(buf);
         });
+
+        resp->emplace_back("");
     }
 
     resp->push_back("");
