@@ -1,5 +1,5 @@
 #    TODO write is blocked during load/transfer
-#start_server {tags {"lfu"}} {
+#start_server {tags {"mtreads"}} {
 #    test "#issue block timeout when multi threads incr key" {
 #        r set foo 0
 #        # dumpto_ssdb_and_wait r foo
@@ -7,6 +7,13 @@
 #        assert_equal [expr 20000] [r get foo] "val should be right after multi threads incr key."
 #    }
 #}
+
+start_server {tags {"threads"}} {
+    test "#issue crash when multi threads spop same key" {
+        exec ../../../build/redis-benchmark -q -p [srv port] -n 100 -t sadd,spop > /dev/null
+        r ping
+    } {PONG}
+}
 
 start_server {tags {"ssdb"} } {
     test "multi threads access same key" {
