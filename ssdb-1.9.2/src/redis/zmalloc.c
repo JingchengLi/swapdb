@@ -34,6 +34,7 @@ void zfree(void *ptr) {
     free(ptr);
 }
 
+#ifndef __APPLE__
 size_t zmalloc_get_rss(void) {
     int page = sysconf(_SC_PAGESIZE);
     size_t rss;
@@ -65,6 +66,27 @@ size_t zmalloc_get_rss(void) {
     rss *= page;
     return rss;
 }
+#else
+#include <unistd.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/sysctl.h>
+#include <mach/task.h>
+#include <mach/mach_init.h>
+
+size_t zmalloc_get_rss(void) {
+    task_t task = MACH_PORT_NULL;
+    struct task_basic_info t_info;
+    mach_msg_type_number_t t_info_count = TASK_BASIC_INFO_COUNT;
+
+    if (task_for_pid(current_task(), getpid(), &task) != KERN_SUCCESS)
+        return 0;
+    task_info(task, TASK_BASIC_INFO, (task_info_t)&t_info, &t_info_count);
+
+    return t_info.resident_size;
+}
+#endif
 
 
 size_t zmalloc_get_memory_size(void) {
