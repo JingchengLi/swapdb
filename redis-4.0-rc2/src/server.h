@@ -307,9 +307,8 @@ long long test_incr_id;
 #define CLIENT_LUA_DEBUG_SYNC (1<<26)  /* EVAL debugging without fork() */
 #define CLIENT_MODULE (1<<27) /* Non connected client used by some module. */
 /* for jdjr mode only */
-#define CLIENT_BUFFER_HAS_UNPROCESSED_DATA (1<<28) /* we need process remained query data in the client buffer */
-#define CLIENT_SLAVE_FORCE_PROPAGATE (1<<29) /* Force to propagate before SLAVE_STATE_ONLINE. */
-#define CLIENT_CLOSE_AFTER_SSDB_WRITE_PROPAGATE (1<<30) /* if the client is blocked by visiting ssdb, close after
+#define CLIENT_SLAVE_FORCE_PROPAGATE (1<<28) /* Force to propagate before SLAVE_STATE_ONLINE. */
+#define CLIENT_CLOSE_AFTER_SSDB_WRITE_PROPAGATE (1<<29) /* if the client is blocked by visiting ssdb, close after
  * we receive write reply from SSDB and propagate write operation to slaves, to avoid some data inconsistency because
  * of connection disconnect of user side. */
 
@@ -1433,7 +1432,6 @@ struct redisServer {
     int slave_max_concurrent_ssdb_swap_count;
     int slave_max_ssdb_swap_count_everytime;
 
-    int slave_max_processed_cmd_num_everytime;
     int coldkey_filter_times_everytime;
     int lowest_idle_val_of_cold_key;
 };

@@ -3097,23 +3097,9 @@ int processMultibulkBuffer(client *c) {
 }
 
 void processInputBuffer(client *c) {
-    int processed_count = 0;
     server.current_client = c;
-    if (server.jdjr_mode && c == server.master)
-        server.master->flags &= ~CLIENT_BUFFER_HAS_UNPROCESSED_DATA;
     /* Keep processing while there is something in the input buffer */
     while(sdslen(c->querybuf)) {
-        if (server.jdjr_mode && c == server.master) {
-            /* for slave redis, redis server may process write commands on
-             * server.master connection for a long time, which may cause some
-             * serious issue such as replication keepalive timeout, etc.. */
-            processed_count++;
-            if (processed_count >= SLAVE_MAX_PROCESSED_CMD_NUM_EVERYTIME) {
-                server.master->flags |= CLIENT_BUFFER_HAS_UNPROCESSED_DATA;
-                /* there is unprocessed data in c->querybuf */
-                break;
-            }
-        }
         /* Return if clients are paused. */
         if (!(c->flags & CLIENT_SLAVE) && clientsArePaused()) break;
 

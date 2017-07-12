@@ -487,12 +487,6 @@ void loadServerConfigFromString(char *config) {
                 err = "slave-max-ssdb-swap-count-everytime must be 0 or greater";
                 goto loaderr;
             }
-         } else if (!strcasecmp(argv[0],"slave-max-processed-cmd-num-everytime") && argc == 2) {
-            server.slave_max_processed_cmd_num_everytime = atoi(argv[1]);
-            if (server.slave_max_processed_cmd_num_everytime <= 0) {
-                err = "slave-max-processed-cmd-num-everytime must be 1 or greater";
-                goto loaderr;
-            }
          } else if (!strcasecmp(argv[0],"coldkey-filter-times-everytime") && argc == 2) {
             server.coldkey_filter_times_everytime = atoi(argv[1]);
             if (server.coldkey_filter_times_everytime < 0) {
@@ -1250,8 +1244,6 @@ void configSetCommand(client *c) {
     } config_set_numerical_field(
       "coldkey-filter-times-everytime",server.coldkey_filter_times_everytime,0,LLONG_MAX) {
     } config_set_numerical_field(
-      "slave-max-processed-cmd-num-everytime",server.slave_max_processed_cmd_num_everytime,1,LLONG_MAX) {
-    } config_set_numerical_field(
       "lowest-idle-val-of-cold-key",server.lowest_idle_val_of_cold_key,0,255) {
     } config_set_numerical_field(
       "client-visiting-ssdb-timeout",server.client_visiting_ssdb_timeout,1,LLONG_MAX) {
@@ -1448,7 +1440,6 @@ void configGetCommand(client *c) {
     config_get_numerical_field("master-max-concurrent-transferring-keys", server.master_max_concurrent_transferring_keys);
     config_get_numerical_field("slave-max-concurrent-ssdb-swap-count", server.slave_max_concurrent_ssdb_swap_count);
     config_get_numerical_field("slave-max-ssdb-swap-count-everytime", server.slave_max_ssdb_swap_count_everytime);
-    config_get_numerical_field("slave-max-processed-cmd-num-everytime", server.slave_max_processed_cmd_num_everytime);
     config_get_numerical_field("coldkey-filter-times-everytime", server.coldkey_filter_times_everytime);
     config_get_numerical_field("lowest-idle-val-of-cold-key", server.lowest_idle_val_of_cold_key);
 
@@ -2223,7 +2214,6 @@ int rewriteConfig(char *path) {
     rewriteConfigNumericalOption(state,"master-max-concurrent-transferring-keys",server.master_max_concurrent_transferring_keys,MASTER_MAX_CONCURRENT_TRANSFERRING_KEYS);
     rewriteConfigNumericalOption(state,"slave-max-concurrent-ssdb-swap-count",server.slave_max_concurrent_ssdb_swap_count,SLAVE_MAX_CONCURRENT_SSDB_SWAP_COUNT);
     rewriteConfigNumericalOption(state,"slave-max-ssdb-swap-count-everytime",server.slave_max_ssdb_swap_count_everytime,SLAVE_MAX_SSDB_SWAP_COUNT_EVERYTIME);
-    rewriteConfigNumericalOption(state,"slave-max-processed-cmd-num-everytime",server.slave_max_processed_cmd_num_everytime,SLAVE_MAX_PROCESSED_CMD_NUM_EVERYTIME);
     rewriteConfigNumericalOption(state,"coldkey-filter-times-everytime",server.coldkey_filter_times_everytime,COLDKEY_FILTER_TIMES_EVERYTIME);
     rewriteConfigNumericalOption(state,"lowest-idle-val-of-cold-key",server.lowest_idle_val_of_cold_key,LOWEST_IDLE_VAL_OF_COLD_KEY);
 

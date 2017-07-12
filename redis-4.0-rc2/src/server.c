@@ -1881,10 +1881,6 @@ void beforeSleep(struct aeEventLoop *eventLoop) {
     if (listLength(server.unblocked_clients))
         processUnblockedClients();
 
-    if (server.jdjr_mode && server.master
-        && (server.master->flags & CLIENT_BUFFER_HAS_UNPROCESSED_DATA))
-        processInputBuffer(server.master);
-
     /* Write the AOF buffer on disk */
     flushAppendOnlyFile(0);
 
@@ -2178,7 +2174,6 @@ void initServerConfig(void) {
     server.master_max_concurrent_transferring_keys = MASTER_MAX_CONCURRENT_TRANSFERRING_KEYS;
     server.slave_max_concurrent_ssdb_swap_count = SLAVE_MAX_CONCURRENT_SSDB_SWAP_COUNT;
     server.slave_max_ssdb_swap_count_everytime = SLAVE_MAX_SSDB_SWAP_COUNT_EVERYTIME;
-    server.slave_max_processed_cmd_num_everytime = SLAVE_MAX_PROCESSED_CMD_NUM_EVERYTIME;
     server.coldkey_filter_times_everytime = COLDKEY_FILTER_TIMES_EVERYTIME;
     server.lowest_idle_val_of_cold_key = LOWEST_IDLE_VAL_OF_COLD_KEY;
 
