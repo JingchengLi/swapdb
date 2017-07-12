@@ -2877,7 +2877,9 @@ void propagateCmdHandledBySSDB(client *c) {
 
     /* Replicate this command as an SREM operation. */
     if (c->cmd->proc == spopCommand) {
-        if (reply) {
+        if (reply && reply->type == REDIS_REPLY_NIL)
+            return;
+        if (reply && reply->type == REDIS_REPLY_ARRAY) {
             aux = createStringObject("SREM", 4);
             ele = createObjFromSpopReply(reply);
             if (ele) {
@@ -2890,7 +2892,6 @@ void propagateCmdHandledBySSDB(client *c) {
                 robj *propargv[3];
                 propargv[0] = aux;
                 propargv[1] = c->argv[1];
-                serverAssert(reply->type == REDIS_REPLY_ARRAY);
 
                 /* TODO: optimize n srem to 1 srem. */
                 while (index < count) {
