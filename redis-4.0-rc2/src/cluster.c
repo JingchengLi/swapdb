@@ -2831,9 +2831,9 @@ void clusterHandleSlaveFailover(void) {
     }
 
     if (server.jdjr_mode) {
-        if (myself->slaveof->numslaves > 1 && listLength(server.ssdb_write_oplist) > 10 &&
-            (server.master && !(server.master->ssdb_conn_flags & CONN_SUCCESS)) &&
-            (server.cached_master && !(server.cached_master->ssdb_conn_flags & CONN_SUCCESS))) {
+        if (!manual_failover && myself->slaveof->numslaves > 1 && listLength(server.ssdb_write_oplist) > 10
+            && ((server.master && !(server.master->ssdb_conn_flags & CONN_SUCCESS))
+                || (server.cached_master && !(server.cached_master->ssdb_conn_flags & CONN_SUCCESS)))) {
             clusterLogCantFailover(CLUSTER_CANT_FAILOVER_REMAIN_SSDB_WRITES);
             return;
         }
