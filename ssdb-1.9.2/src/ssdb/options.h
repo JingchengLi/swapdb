@@ -52,6 +52,7 @@ struct Options {
     bool level_compaction_dynamic_level_bytes = false;
     bool use_direct_reads = false;
     bool optimize_filters_for_hits = false;
+    bool cache_index_and_filter_blocks = false;
     bool expire_enable = false;
 
     int max_write_buffer_number = 3;

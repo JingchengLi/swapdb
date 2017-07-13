@@ -780,6 +780,7 @@ int proc_info(Context &ctx, Link *link, const Request &req, Response *resp) {
 
         std::string val;
         FastGetPropertyHuman(leveldb::DB::Properties::kCurSizeAllMemTables ,"current_memtables_size");
+        FastGetPropertyHuman(leveldb::DB::Properties::kSizeAllMemTables ,"all_memtables_size");
         FastGetPropertyHuman(leveldb::DB::Properties::kEstimateTableReadersMem, "indexes_filter_blocks");
 
         if (serv->ssdb->simCache != nullptr) {
@@ -810,6 +811,16 @@ int proc_info(Context &ctx, Link *link, const Request &req, Response *resp) {
         std::string val;
         FastGetPropertyHuman(leveldb::DB::Properties::kTotalSstFilesSize ,"sst_file_size");
         FastGetPropertyHuman(leveldb::DB::Properties::kEstimateLiveDataSize ,"live_data_size");
+
+        FastGetProperty(leveldb::DB::Properties::kActualDelayedWriteRate ,"write_delay_rate");
+        FastGetProperty(leveldb::DB::Properties::kIsWriteStopped ,"is_write_stop");
+
+        FastGetProperty(leveldb::DB::Properties::kMemTableFlushPending ,"mem_table_flush_pending");
+        FastGetProperty(leveldb::DB::Properties::kNumRunningFlushes ,"num_running_flushes");
+
+        FastGetProperty(leveldb::DB::Properties::kCompactionPending ,"num_compaction_pending");
+        FastGetProperty(leveldb::DB::Properties::kNumRunningCompactions ,"num_running_compactions");
+        
 
 
         resp->emplace_back("bgsave_in_progress:0"); //Todo Fake

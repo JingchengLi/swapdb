@@ -68,6 +68,7 @@ void Options::load(Config *conf) {
     level_compaction_dynamic_level_bytes = conf->get_bool("rocksdb.level_compaction_dynamic_level_bytes");
     use_direct_reads = conf->get_bool("rocksdb.use_direct_reads", false);
     optimize_filters_for_hits = conf->get_bool("rocksdb.optimize_filters_for_hits", false);
+    cache_index_and_filter_blocks = conf->get_bool("rocksdb.cache_index_and_filter_blocks", false);
 
     compaction_readahead_size = (size_t) conf->get_num("rocksdb.compaction_readahead_size", 4);
     max_bytes_for_level_base = (size_t) conf->get_num("rocksdb.max_bytes_for_level_base", 256);

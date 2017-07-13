@@ -102,6 +102,9 @@ SSDB *SSDB::open(const Options &opt, const std::string &dir) {
 
         op.filter_policy = std::shared_ptr<const leveldb::FilterPolicy>(leveldb::NewBloomFilterPolicy(10));
         op.block_size = opt.block_size * UNIT_KB;
+        op.cache_index_and_filter_blocks = opt.cache_index_and_filter_blocks;
+        op.cache_index_and_filter_blocks_with_high_priority = true;
+
 
         ssdb->options.table_factory = std::shared_ptr<leveldb::TableFactory>(rocksdb::NewBlockBasedTableFactory(op));
     }
