@@ -717,6 +717,7 @@ void handleConnectSSDBok(client* c) {
         * server.master/server.cached_master->ssdb_conn_flags to CONN_SUCCESS, after that,
         * SSDB write commands can be send and processed normally by 'processCommandMaybeInSSDB'. */
 
+        serverLog(LL_DEBUG, "master/cached_master connect ssdb success, check repopid...");
         if (sendRepopidCheckToSSDB(c) == C_OK)
             c->ssdb_conn_flags |= CONN_CHECK_REPOPID;
     } else {
