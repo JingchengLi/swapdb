@@ -29,7 +29,7 @@ namespace rocksdb {
 
 }
 
-const uint64_t MAX_PACKAGE_SIZE = 16 * 1024 * 1024;
+const uint64_t MAX_PACKAGE_SIZE = 4 * 1024 * 1024;
 const uint64_t MIN_PACKAGE_SIZE = 1024 * 1024;
 
 //#define REPLIC_NO_COMPRESS TRUE

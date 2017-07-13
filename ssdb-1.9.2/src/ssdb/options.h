@@ -42,7 +42,7 @@ public:
 struct Options {
     bool create_if_missing = true;
     bool create_missing_column_families = true;
-    int write_buffer_size = 4;
+    int write_buffer_size = 64;
     int max_open_files = 5000;
 
     // default target_file_size_base and multiplier is the save as rocksdb

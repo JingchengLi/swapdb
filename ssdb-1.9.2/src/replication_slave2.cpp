@@ -29,7 +29,7 @@ void *ssdb_sync2(void *arg) {
     delete job;
     job = nullptr;
 
-    size_t total_threads = 10;
+    size_t total_threads = 5;
     size_t current_thread = 0;
 
     auto get_thread_id = [&current_thread, total_threads]() {
