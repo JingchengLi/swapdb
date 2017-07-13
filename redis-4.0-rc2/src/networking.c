@@ -2563,7 +2563,26 @@ void freeClient(client *c) {
             !(c->flags & (CLIENT_CLOSE_AFTER_REPLY| CLIENT_CLOSE_ASAP))
             && server.repl_state == REPL_STATE_CONNECTED)
         {
-            resetClient(c);
+            if (c->flags & CLIENT_BLOCKED && c->btype == BLOCKED_SSDB_LOADING_OR_TRANSFER) {
+                removeBlockedKeysFromTransferOrLoadingKeys(c);
+
+                unblockClient(c);
+                if (c->flags & CLIENT_MASTER && server.slave_failed_retry_interrupted) {
+                    confirmAndRetrySlaveSSDBwriteOp(c, server.blocked_write_op->time, server.blocked_write_op->index);
+                } else {
+                    if (runCommand(c) == C_OK)
+                        resetClient(c);
+                    if (c->flags & CLIENT_MASTER && server.send_failed_write_after_unblock) {
+                        serverAssert(c->flags & CLIENT_MASTER && !(c->ssdb_conn_flags & CONN_SUCCESS));
+                        confirmAndRetrySlaveSSDBwriteOp(c, -1,-1);
+                        server.send_failed_write_after_unblock = 0;
+                    }
+                }
+            } else if (c->flags & CLIENT_BLOCKED) {
+                /* do nothing */
+            } else
+                resetClient(c);
+
             replicationCacheMaster(c);
             if (c == server.cached_master
                 && c->flags & ( CLIENT_BLOCKED| CLIENT_UNBLOCKED)
