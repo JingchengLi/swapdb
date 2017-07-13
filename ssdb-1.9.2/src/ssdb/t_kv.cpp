@@ -19,13 +19,16 @@ int SSDBImpl::GetKvMetaVal(const std::string &meta_key, KvMetaVal &kv) {
 #ifdef USE_LEVELDB
     s = ldb->Get(commonRdOpt, meta_key, &meta_val);
 #else
-    if (ldb->KeyMayExist(commonRdOpt, meta_key, &meta_val, &found)) {
-        if (!found) {
-            s = ldb->Get(commonRdOpt, meta_key, &meta_val);
-        }
-    } else {
-        s = s.NotFound();
-    }
+//    if (ldb->KeyMayExist(commonRdOpt, meta_key, &meta_val, &found)) {
+//        if (!found) {
+//            s = ldb->Get(commonRdOpt, meta_key, &meta_val);
+//        }
+//    } else {
+//        s = s.NotFound();
+//    }
+
+    s = ldb->Get(commonRdOpt, meta_key, &meta_val);
+
 #endif
 
     if (s.IsNotFound()) {

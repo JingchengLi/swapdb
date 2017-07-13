@@ -38,13 +38,15 @@ int SSDBImpl::eget(Context &ctx, const Bytes &key, int64_t *ts) {
 #ifdef USE_LEVELDB
     s = ldb->Get(commonRdOpt, dbkey, &str_score);
 #else
-    if (ldb->KeyMayExist(commonRdOpt, dbkey, &str_score, &found)) {
-        if (!found) {
-            s = ldb->Get(commonRdOpt, dbkey, &str_score);
-        }
-    } else {
-        return 0;
-    }
+//    if (ldb->KeyMayExist(commonRdOpt, dbkey, &str_score, &found)) {
+//        if (!found) {
+//            s = ldb->Get(commonRdOpt, dbkey, &str_score);
+//        }
+//    } else {
+//        return 0;
+//    }
+
+    s = ldb->Get(commonRdOpt, dbkey, &str_score);
 #endif
 
     if (s.IsNotFound()) {

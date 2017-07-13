@@ -104,6 +104,7 @@ SSDB *SSDB::open(const Options &opt, const std::string &dir) {
         op.block_size = opt.block_size * UNIT_KB;
         op.cache_index_and_filter_blocks = opt.cache_index_and_filter_blocks;
         op.cache_index_and_filter_blocks_with_high_priority = true;
+        op.pin_l0_filter_and_index_blocks_in_cache = true;
 
 
         ssdb->options.table_factory = std::shared_ptr<leveldb::TableFactory>(rocksdb::NewBlockBasedTableFactory(op));

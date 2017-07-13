@@ -690,7 +690,7 @@ int proc_save(Context &ctx, Link *link, const Request &req, Response *resp) {
 
 
 #define FastGetProperty(key, name) \
-    if (serv->ssdb->getLdb()->GetProperty(key, &val)) {\
+    if (serv->ssdb->getLdb()->GetProperty((key), &val)) {\
     uint64_t temp_size = Bytes(val).Uint64();\
     resp->emplace_back(name":" + str(temp_size));\
 }
@@ -820,7 +820,6 @@ int proc_info(Context &ctx, Link *link, const Request &req, Response *resp) {
 
         FastGetProperty(leveldb::DB::Properties::kCompactionPending ,"num_compaction_pending");
         FastGetProperty(leveldb::DB::Properties::kNumRunningCompactions ,"num_running_compactions");
-        
 
 
         resp->emplace_back("bgsave_in_progress:0"); //Todo Fake
