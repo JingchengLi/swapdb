@@ -90,7 +90,7 @@ typedef long long mstime_t; /* millisecond time type. */
  * is done but SSDB snapshot file has not, we save increment updates about SSDB data in
  * server.ssdb_write_oplist. after SSDB snapshot transfer is done, we apply these increment updates
  * to SSDB. */
-#define CONN_CHECK_REPOPID          (1<<3) /* for server.master only */
+#define CONN_CHECK_REPOPID          (1<<3) /* for server.master/server.cached_master only */
 #define CONN_SUCCESS                (1<<4) /* now we can send command to SSDB. */
 #define CONN_WAIT_WRITE_CHECK_REPLY (1<<9) /* for check write in replication process */
 #define CONN_WAIT_FLUSH_CHECK_REPLY (1<<10) /* for flush check when process 'flushall' */
@@ -311,6 +311,8 @@ long long test_incr_id;
 #define CLIENT_CLOSE_AFTER_SSDB_WRITE_PROPAGATE (1<<29) /* if the client is blocked by visiting ssdb, close after
  * we receive write reply from SSDB and propagate write operation to slaves, to avoid some data inconsistency because
  * of connection disconnect of user side. */
+#define CLIENT_BUFFER_HAS_UNPROCESSED_DATA (1<<30) /* we need process remained query data in the client buffer */
+
 
 /* Client block type (btype field in client structure)
  * if CLIENT_BLOCKED flag is set. */
@@ -1862,7 +1864,7 @@ int zslLexValueLteMax(sds value, zlexrangespec *spec);
 /* Core functions */
 int freeMemoryIfNeeded(void);
 void removeSuccessWriteop(time_t last_success_time, int last_success_index);
-int confirmAndRetrySlaveSSDBwriteOp(time_t time, int index);
+int confirmAndRetrySlaveSSDBwriteOp(client* master, time_t time, int index);
 void emptySlaveSSDBwriteOperations();
 void freeSSDBwriteOp(struct ssdb_write_op* op);
 void cleanSpecialClientsAndIntermediateKeys(int is_flushall);

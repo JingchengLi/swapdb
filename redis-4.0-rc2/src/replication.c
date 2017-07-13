@@ -1326,11 +1326,11 @@ void completeReplicationHandshake() {
     if (server.master->ssdb_conn_flags & CONN_RECEIVE_INCREMENT_UPDATES) {
         server.master->ssdb_conn_flags &= ~CONN_RECEIVE_INCREMENT_UPDATES;
         /* now we can apply increment updates received from my master
-        * during SSDB snapshot transferring.
+         * during SSDB snapshot transferring.
          *
          * confirmAndRetrySlaveSSDBwriteOp also will update ssdb connection status of
          * server.master to CONN_SUCCESS.  */
-        confirmAndRetrySlaveSSDBwriteOp(-1, -1);
+        confirmAndRetrySlaveSSDBwriteOp(server.master, -1, -1);
         serverLog(LL_DEBUG, "apply increment updates on SSDB");
     }
 

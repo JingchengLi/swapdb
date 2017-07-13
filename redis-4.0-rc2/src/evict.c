@@ -1231,14 +1231,14 @@ void handleClientsBlockedOnSSDB(void) {
 
                         unblockClient(c);
 
-                        if (server.master == c && server.slave_failed_retry_interrupted) {
-                            confirmAndRetrySlaveSSDBwriteOp(server.blocked_write_op->time, server.blocked_write_op->index);
+                        if (c->flags & CLIENT_MASTER && server.slave_failed_retry_interrupted) {
+                            confirmAndRetrySlaveSSDBwriteOp(c, server.blocked_write_op->time, server.blocked_write_op->index);
                         } else {
                             if (tryBlockingClient(c) == C_OK && runCommand(c) == C_OK)
                                 resetClient(c);
-                            if (server.master == c && server.send_failed_write_after_unblock) {
-                                serverAssert(!(server.master->ssdb_conn_flags & CONN_SUCCESS));
-                                confirmAndRetrySlaveSSDBwriteOp(-1,-1);
+                            if (c->flags & CLIENT_MASTER && server.send_failed_write_after_unblock) {
+                                serverAssert(c->flags & CLIENT_MASTER && !(c->ssdb_conn_flags & CONN_SUCCESS));
+                                confirmAndRetrySlaveSSDBwriteOp(c, -1,-1);
                                 server.send_failed_write_after_unblock = 0;
                             }
                         }
@@ -1274,9 +1274,9 @@ void handleClientsBlockedOnCustomizedPsync(void) {
         }
         if (runCommand(c) == C_OK)
             resetClient(c);
-        if (server.master == c && server.send_failed_write_after_unblock) {
-            serverAssert(!(server.master->ssdb_conn_flags & CONN_SUCCESS));
-            confirmAndRetrySlaveSSDBwriteOp(-1,-1);
+        if (c->flags & CLIENT_MASTER && server.send_failed_write_after_unblock) {
+            serverAssert(!(c->ssdb_conn_flags & CONN_SUCCESS));
+            confirmAndRetrySlaveSSDBwriteOp(c,-1,-1);
             server.send_failed_write_after_unblock = 0;
         }
     }
@@ -1463,8 +1463,8 @@ void transferringOrLoadingBlockedClientTimeOut(client *c) {
 
     /* process timeout case in our way. */
     unblockClient(c);
-    if (c == server.master && server.slave_failed_retry_interrupted) {
-        confirmAndRetrySlaveSSDBwriteOp(server.blocked_write_op->time, server.blocked_write_op->index);
+    if (c->flags & CLIENT_MASTER && server.slave_failed_retry_interrupted) {
+        confirmAndRetrySlaveSSDBwriteOp(c, server.blocked_write_op->time, server.blocked_write_op->index);
     } else {
         addReplyError(c, "timeout");
         resetClient(c);

@@ -1011,6 +1011,11 @@ void reconnectSSDB() {
     RECONNECT_SPECIAL_CLIENT(server.ssdb_replication_client);
     RECONNECT_SPECIAL_CLIENT(server.expired_delete_client);
 
+    if (NULL == server.master && server.cached_master &&
+        IS_NOT_CONNECTED(server.cached_master)) {
+        RECONNECT_SPECIAL_CLIENT(server.cached_master);
+    }
+
     listRewind(server.clients, &li);
     while ((ln = listNext(&li))) {
         client *c = listNodeValue(ln);
@@ -1880,6 +1885,10 @@ void beforeSleep(struct aeEventLoop *eventLoop) {
     /* Try to process pending commands for clients that were just unblocked. */
     if (listLength(server.unblocked_clients))
         processUnblockedClients();
+
+    if (server.jdjr_mode && server.cached_master &&
+        (server.cached_master->flags & CLIENT_BUFFER_HAS_UNPROCESSED_DATA))
+        processInputBuffer(server.cached_master);
 
     /* Write the AOF buffer on disk */
     flushAppendOnlyFile(0);
@@ -3499,7 +3508,7 @@ void removeSuccessWriteop(time_t last_success_time, int last_success_index) {
     }
 }
 
-int confirmAndRetrySlaveSSDBwriteOp(time_t time, int index) {
+int confirmAndRetrySlaveSSDBwriteOp(client* master, time_t time, int index) {
     struct ssdb_write_op* op;
     listIter li;
     listNode *ln;
@@ -3537,7 +3546,7 @@ int confirmAndRetrySlaveSSDBwriteOp(time_t time, int index) {
                 } else {
                     /* we have found the write op saved by server.blocked_write_op, server.master is
                      * unblocked now and we can go on. */
-                    ret = runCommandReplicationConn(server.master, ln);
+                    ret = runCommandReplicationConn(master, ln);
                     if (ret == C_BLOCKED) {
                          /* server.master is blocked, return and handle it later. */
                         server.slave_failed_retry_interrupted = 1;
@@ -3552,30 +3561,30 @@ int confirmAndRetrySlaveSSDBwriteOp(time_t time, int index) {
                     /* clean all keys need to transfer/load */
                     dictEmpty(server.loadAndEvictCmdDict, NULL);
 
-                    ret = sendRepopidToSSDB(server.master, op->time, op->index, 1);
+                    ret = sendRepopidToSSDB(master, op->time, op->index, 1);
                     if (ret != C_OK) break;
 
-                    server.master->cmd = server.flushallCommand;
-                    server.master->argc = 1;
-                    server.master->argv = zmalloc(sizeof(robj *) * 1);
-                    server.master->argv[0] = createObject(OBJ_STRING, sdsnew("flushall"));
+                    master->cmd = server.flushallCommand;
+                    master->argc = 1;
+                    master->argv = zmalloc(sizeof(robj *) * 1);
+                    master->argv[0] = createObject(OBJ_STRING, sdsnew("flushall"));
 
-                    ret = blockAndFlushSlaveSSDB(server.master, op);
+                    ret = blockAndFlushSlaveSSDB(master, op);
                     /* server.master is blocked, return and handle the rest after unblock.*/
                     if (ret == C_OK)
                         return C_OK;
                     else
-                        resetClient(server.master);
+                        resetClient(master);
                 } else {
                     /* Check if current cmd contains blocked keys. */
-                    if (op->argc > 1 && blockInMediateKey(server.master, op->cmd, op->argv, op->argc) == C_ERR) {
+                    if (op->argc > 1 && blockInMediateKey(master, op->cmd, op->argv, op->argc) == C_ERR) {
                         /* server.master is blocked, return and handle it later. */
                         server.slave_failed_retry_interrupted = 1;
                         server.blocked_write_op = op;
                         return C_ERR;
                     }
 
-                    ret = runCommandReplicationConn(server.master, ln);
+                    ret = runCommandReplicationConn(master, ln);
                     if (ret == C_BLOCKED) {
                          /* server.master is blocked, return and handle it later. */
                         server.slave_failed_retry_interrupted = 1;
@@ -3591,7 +3600,7 @@ int confirmAndRetrySlaveSSDBwriteOp(time_t time, int index) {
         }
     }
     if (C_OK == ret)
-        server.master->ssdb_conn_flags |= CONN_SUCCESS;
+        master->ssdb_conn_flags |= CONN_SUCCESS;
 
     if (C_OK == ret)
         serverLog(LL_DEBUG, "server.master status is CONN_SUCCESS now");
@@ -3621,7 +3630,7 @@ void updateSlaveSSDBwriteIndex() {
 int updateSendRepopidToSSDB(client* c) {
     int ret;
 
-    serverAssert(server.master == c);
+    serverAssert(c->flags & CLIENT_MASTER);
 
     updateSlaveSSDBwriteIndex();
 
@@ -3750,7 +3759,7 @@ int processCommandReplicationConn(client* c, struct ssdb_write_op* slave_retry_w
     if ((server.is_allow_ssdb_write == DISALLOW_SSDB_WRITE)
         && (cmd->flags & CMD_WRITE) && (cmd->flags & CMD_JDJR_MODE)) {
         listAddNodeTail(server.no_writing_ssdb_blocked_clients, c);
-        serverLog(LL_DEBUG, "server.master is added to server.no_writing_ssdb_blocked_clients");
+        serverLog(LL_DEBUG, "server.master/server.cached_master is added to server.no_writing_ssdb_blocked_clients");
         /* TODO: use a suitable timeout. */
         c->bpop.timeout = 5000 + mstime();
         blockClient(c, BLOCKED_NO_WRITE_TO_SSDB);

@@ -475,7 +475,6 @@ void addReplyErrorLength(client *c, const char *s, size_t len) {
 }
 
 void addReplyError(client *c, const char *err) {
-    if (server.master == c) serverLog(LL_DEBUG, "-ERR %s", err);
     addReplyErrorLength(c,err,strlen(err));
 }
 
@@ -706,30 +705,20 @@ void handleConnectSSDBok(client* c) {
         server.ssdb_is_down = 0;
     }
     c->revert_len = 0;
-    if (server.master == c &&
-        (listLength(server.ssdb_write_oplist) > 0 ||
-                server.master->ssdb_conn_flags & CONN_RECEIVE_INCREMENT_UPDATES)) {
-        if (server.master->ssdb_conn_flags & CONN_RECEIVE_INCREMENT_UPDATES) {
-            /* do nothing */
-        } else if (listLength(server.ssdb_write_oplist) > 0) {
-            /* NOTE: to ensure data consistency between the slave myself and our master,
-            * for server.master connection, if there are unconfirmed write operations in
-            * server.ssdb_write_oplist, which had been send to SSDB successfully but
-            * we don't know whether they are executed actually, we must confirm with
-            * SSDB and re-send all failed writes to SSDB at first, then we change
-            * server.master->ssdb_conn_flags to CONN_SUCCESS, after that, SSDB write
-            * commands can be send and processed normally by 'processCommandMaybeInSSDB'. */
-            serverLog(LL_DEBUG, "connect master success, check repopid..."
-                              "server.master:%p, context:%p, context->fd:%d, ssdb conn flags:%d",
-                      (void*)server.master,
-                      (void*)server.master->context,
-                      server.master->context? server.master->context->fd : -1,
-                      server.master->ssdb_conn_flags);
 
-            if (sendRepopidCheckToSSDB(server.master) == C_OK)
-                server.master->ssdb_conn_flags |= CONN_CHECK_REPOPID;
-        }
+    if (c == server.master && server.master->ssdb_conn_flags & CONN_RECEIVE_INCREMENT_UPDATES) {
+        /* do nothing */
+    } else if (c->flags & CLIENT_MASTER && listLength(server.ssdb_write_oplist) > 0) {
+        /* NOTE: to ensure data consistency between the slave myself and our master,
+        * for server.master/server.cached_master connection, if there are unconfirmed
+        * write operations in server.ssdb_write_oplist, which had been send to SSDB
+        * successfully but we don't know whether they are executed actually, we must
+        * confirm with SSDB and re-send all failed writes to SSDB at first, then we change
+        * server.master/server.cached_master->ssdb_conn_flags to CONN_SUCCESS, after that,
+        * SSDB write commands can be send and processed normally by 'processCommandMaybeInSSDB'. */
 
+        if (sendRepopidCheckToSSDB(c) == C_OK)
+            c->ssdb_conn_flags |= CONN_CHECK_REPOPID;
     } else {
         c->ssdb_conn_flags |= CONN_SUCCESS;
 #ifdef TEST_MEM_CRASH
@@ -919,8 +908,8 @@ void handleSSDBconnectionDisconnect(client* c) {
         c->context = NULL;
     }
 
-    /* for server.master only */
-    if (server.master == c) {
+    /* for server.master/server.cached_master only */
+    if (c->flags & CLIENT_MASTER) {
         c->ssdb_conn_flags &= ~CONN_CHECK_REPOPID;
         server.send_failed_write_after_unblock = 0;
         /* if the replication connection(server.master) disconnect, we must clean visiting_ssdb_keys to
@@ -983,7 +972,7 @@ int sendFailedRetryCommandToSSDB(client* c, sds finalcmd) {
 }
 
 int sendRepopidCheckToSSDB(client* c) {
-    if (c != server.master) return C_ERR;
+    if (!(c->flags & CLIENT_MASTER)) return C_ERR;
 
     const char* tmpargv[2];
     tmpargv[0] = "repopid";
@@ -991,7 +980,7 @@ int sendRepopidCheckToSSDB(client* c) {
 
     sds cmd = composeRedisCmd(2, tmpargv, NULL);
 
-    return internalSendCommandToSSDB(server.master, cmd);
+    return internalSendCommandToSSDB(c, cmd);
 }
 
 /* for server.master, we must send all failed writes to SSDB at first, and then
@@ -1037,7 +1026,7 @@ int sendCommandToSSDB(client *c, sds finalcmd) {
             freeClient(c);
         else {
             if ((c->ssdb_conn_flags & CONN_CONNECTING) ||
-                (c == server.master && (c->ssdb_conn_flags & CONN_CHECK_REPOPID)))
+                (c->flags & CLIENT_MASTER && (c->ssdb_conn_flags & CONN_CHECK_REPOPID)))
                 serverLog(LL_DEBUG, "ssdb connection status is connecting");
             else
                 serverLog(LL_DEBUG, "ssdb connection status is disconnected");
@@ -1369,15 +1358,15 @@ int handleResponseOfSlaveSSDBflush(client *c, redisReply* reply) {
                     /* ssdb flushall success, we can remove it from ssdb_write_oplist. */
                     serverLog(LL_DEBUG, "received ssdb flushall response");
                     listDelNode(server.ssdb_write_oplist, ln);
-                    /* if conn status of server.master is not CONN_SUCCESS, continue to process
-                     * the rest failed writes. */
-                    if ((c == server.master) && !(c->ssdb_conn_flags & CONN_SUCCESS))
-                        confirmAndRetrySlaveSSDBwriteOp(-1, -1);
+                    /* if conn status of server.master/server.cached_master is not CONN_SUCCESS,
+                     * continue to process the rest failed writes. */
+                    if (c->flags & CLIENT_MASTER && !(c->ssdb_conn_flags & CONN_SUCCESS))
+                        confirmAndRetrySlaveSSDBwriteOp(c, -1, -1);
                 } else {
                     /* close SSDB connection and we will retry flushall after connected. */
                     closeAndReconnectSSDBconnection(c);
                 }
-                serverLog(LL_DEBUG, "server.master client is unblocked");
+                serverLog(LL_DEBUG, "server.master/server.cached_master client is unblocked");
                 return C_RETURN;
             } else {
                 /* this is not a response of this "flushall" command. */
@@ -1847,10 +1836,8 @@ int handleExtraSSDBReply(client *c) {
             listDelNode(server.ssdb_write_oplist, ln);
         } else {
             serverLog(LL_DEBUG, "repopid time/index don't match the first in server.ssdb_write_oplist");
-            if (c == server.master) {
-                closeAndReconnectSSDBconnection(c);
-                return C_ERR;
-            }
+            closeAndReconnectSSDBconnection(c);
+            return C_ERR;
         }
     } else {
         if (!isSpecialConnection(c))
@@ -1863,7 +1850,7 @@ int handleExtraSSDBReply(client *c) {
 int handleResponseOfReplicationConn(client* c, redisReply* reply) {
     if (c != server.master && c != server.cached_master) return C_ERR;
 
-    if (c == server.master && c->ssdb_conn_flags & CONN_CHECK_REPOPID) {
+    if (c->flags & CLIENT_MASTER && c->ssdb_conn_flags & CONN_CHECK_REPOPID) {
         if (reply && reply->type == REDIS_REPLY_STRING && reply->str) {
             /* we received response of "repopid get" */
             time_t last_successful_write_time = -1;
@@ -1898,7 +1885,7 @@ int handleResponseOfReplicationConn(client* c, redisReply* reply) {
                         server.send_failed_write_after_unblock = 1;
                     }
                 } else
-                    confirmAndRetrySlaveSSDBwriteOp(last_successful_write_time, last_successful_write_index);
+                    confirmAndRetrySlaveSSDBwriteOp(c, last_successful_write_time, last_successful_write_index);
             }
         } else {
             serverLog(LL_WARNING, "failed to get repopid of slave ssdb, reply type:%d", reply->type);
@@ -2571,12 +2558,22 @@ void freeClient(client *c) {
      * some unexpected state, by checking its flags. */
     if (server.master && c->flags & CLIENT_MASTER) {
         serverLog(LL_WARNING,"Connection with master lost.");
-        if (!(c->flags & (CLIENT_CLOSE_AFTER_REPLY|
-                          CLIENT_CLOSE_ASAP|
-                          CLIENT_BLOCKED|
-                          CLIENT_UNBLOCKED)) && server.repl_state == REPL_STATE_CONNECTED)
+        if (server.jdjr_mode &&
+            !(c->flags & (CLIENT_CLOSE_AFTER_REPLY| CLIENT_CLOSE_ASAP))
+            && server.repl_state == REPL_STATE_CONNECTED)
         {
-            if (server.jdjr_mode) resetClient(c);
+            resetClient(c);
+            replicationCacheMaster(c);
+            if (c == server.cached_master
+                && c->flags & ( CLIENT_BLOCKED| CLIENT_UNBLOCKED)
+                && c->querybuf && sdslen(c->querybuf) > 0)
+                c->flags |= CLIENT_BUFFER_HAS_UNPROCESSED_DATA;
+            return;
+        } else if (!server.jdjr_mode
+                   && !(c->flags & (CLIENT_CLOSE_AFTER_REPLY|
+                                    CLIENT_CLOSE_ASAP| CLIENT_BLOCKED|
+                                    CLIENT_UNBLOCKED)) && server.repl_state == REPL_STATE_CONNECTED)
+        {
             replicationCacheMaster(c);
             return;
         }
@@ -3134,7 +3131,7 @@ void processInputBuffer(client *c) {
         if (c->argc == 0) {
             resetClient(c);
         } else {
-            if (c == server.master)
+            if (c->flags & CLIENT_MASTER)
                 serverLog(LL_DEBUG, "receive %s %s", (char*)c->argv[0]->ptr, c->argc > 1 ? (char*)c->argv[1]->ptr : "");
 #ifdef TEST_INCR_CONCURRENT
             if (c->argc > 1 && 0 == strcasecmp(c->argv[0]->ptr, "incr")) {
