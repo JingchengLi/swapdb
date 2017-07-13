@@ -175,6 +175,7 @@ proc createMirrorComplexDataset {r mr ops {opt {}}} {
             }
         }
     }
+    $r del stopflag
     return [lsort -unique $keyslist ]
 }
 

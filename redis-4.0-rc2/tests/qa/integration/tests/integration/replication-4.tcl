@@ -31,9 +31,8 @@ start_server {tags {"repl"}} {
         set master_port [srv -1 port]
         set slave [srv 0 client]
         set num 10000000
-        set load_handle0 [start_bg_complex_data $master_host $master_port 9 $num]
-        # set load_handle1 [start_bg_complex_data $master_host $master_port 11 $num]
-        # set load_handle2 [start_bg_complex_data $master_host $master_port 12 $num]
+        set clients 5
+        set clist [ start_bg_complex_data_list $master_host $master_port $num $clients]
         after 1000
 
         test {slave sync with master during writing data} {
@@ -42,9 +41,7 @@ start_server {tags {"repl"}} {
                 [lindex [$slave role] 0] eq {slave} &&
                 [string match {*master_link_status:up*} [$slave info replication]]
             } else {
-                stop_bg_complex_data $load_handle0
-                # stop_bg_complex_data $load_handle1
-                # stop_bg_complex_data $load_handle2
+                stop_bg_client_list  $clist
                 fail "slave can not sync with master during writing"
             }
             set keyslist [r -1 ssdbkeys *]
@@ -54,75 +51,12 @@ start_server {tags {"repl"}} {
                 wait_for_condition 50 100 {
                     [ r exists $key ] eq [ r -1 exists $key ]
                 } else {
-                    stop_bg_complex_data $load_handle0
+                    stop_bg_client_list  $clist
                     fail "key:$key in master and slave not identical"
                 }
             }
-            stop_bg_complex_data $load_handle0
-            # stop_bg_complex_data $load_handle1
-            # stop_bg_complex_data $load_handle2
-        }
-    }
-}
-
-start_server {tags {"repl"}} {
-    start_server {} {
-
-        set master [srv -1 client]
-        set master_host [srv -1 host]
-        set master_port [srv -1 port]
-        set slave [srv 0 client]
-        set num 100000
-        set load_handle0 [start_bg_complex_data $master_host $master_port 9 $num]
-        # set load_handle1 [start_bg_complex_data $master_host $master_port 11 $num]
-        # set load_handle2 [start_bg_complex_data $master_host $master_port 12 $num]
-        after 1000
-
-        test {slave sync with master during writing data} {
-            $slave slaveof $master_host $master_port
-            wait_for_condition 50 500 {
-                [lindex [$slave role] 0] eq {slave} &&
-                [string match {*master_link_status:up*} [$slave info replication]]
-            } else {
-                stop_bg_complex_data $load_handle0
-                # stop_bg_complex_data $load_handle1
-                # stop_bg_complex_data $load_handle2
-                fail "slave can not sync with master during writing"
-            }
-            stop_bg_complex_data $load_handle0
-            # stop_bg_complex_data $load_handle1
-            # stop_bg_complex_data $load_handle2
-        }
-    }
-}
-
-start_server {tags {"repl"}} {
-    start_server {} {
-
-        set master [srv -1 client]
-        set master_host [srv -1 host]
-        set master_port [srv -1 port]
-        set slave [srv 0 client]
-        set num 50000
-        set load_handle0 [start_bg_complex_data $master_host $master_port 9 $num]
-        set load_handle1 [start_bg_complex_data $master_host $master_port 11 $num]
-        set load_handle2 [start_bg_complex_data $master_host $master_port 12 $num]
-
-        test {First server should have role slave after SLAVEOF} {
-            $slave slaveof $master_host $master_port
-            after 1000
-            s 0 role
-        } {slave}
-
-        test {Test replication with parallel clients writing in DB 0} {
-            after 5000
-            stop_bg_complex_data $load_handle0
-            stop_bg_complex_data $load_handle1
-            stop_bg_complex_data $load_handle2
-            r config set maxmemory 0
-            r -1 config set maxmemory 0
+            stop_bg_client_list  $clist
             compare_debug_digest
-            # assert_equal [debug_digest r -1] [debug_digest r]
         }
     }
 }

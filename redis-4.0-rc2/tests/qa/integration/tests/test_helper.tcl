@@ -65,6 +65,7 @@ set ::all_tests {
     integration/replication-A
     integration/replication-B
     integration/replication-C
+    integration/mirror
 }
 # lfu-policy update
     # ssdb/lfu-policy
