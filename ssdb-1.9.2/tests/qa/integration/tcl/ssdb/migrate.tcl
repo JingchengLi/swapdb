@@ -109,20 +109,21 @@ start_server {tags {"ssdb"}} {
         }
     }
 
-    test {MIGRATE timeout actually works} {
-        r set key "Some Value"
-        $ssdb_8889 flushdb
-
-        assert {[r exists key] == 1}
-        assert {[$ssdb_8889 exists key] == 0}
-
-        set rd [redis $::host 8889 1]
-        $rd debug sleep 1.0 ; # Make ssdb_8889 server unable to reply.
-        set e {}
-        catch {r migrate $::host 8889 key 0 500} e
-        assert_match {IOERR*} $e
-    }
-
+#    TODO debug sleep cannot work, so disable this case.
+#    test {MIGRATE timeout actually works} {
+#        r set key "Some Value"
+#        $ssdb_8889 flushdb
+#
+#        assert {[r exists key] == 1}
+#        assert {[$ssdb_8889 exists key] == 0}
+#
+#        set rd [redis $::host 8889 1]
+#        $rd debug sleep 1.0 ; # Make ssdb_8889 server unable to reply.
+#        set e {}
+#        catch {r migrate $::host 8889 key 0 500} e
+#        assert_match {IOERR*} $e
+#    }
+#
     test {MIGRATE can migrate multiple keys at once} {
         r set key1 "v1"
         r set key2 "v2"
