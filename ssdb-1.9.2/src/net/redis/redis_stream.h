@@ -24,8 +24,6 @@ public:
 
     void setMaxRetry(int maxRetry);
 
-    void setRetryConnect(int retryConnect);
-
     bool isConnected() {
         return client != nullptr;
     }

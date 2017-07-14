@@ -16,13 +16,6 @@ RedisUpstream::~RedisUpstream() {
 }
 
 RedisClient *RedisUpstream::getNewLink() {
-    if (retryConnect >= 0) {
-        if (retryConnect == 0) {
-            return nullptr;
-        }
-    }
-
-    retryConnect --;
     log_debug("connect to redis %s:%d", ip.c_str(), port);
     return RedisClient::connect(ip.c_str(), port, timeout_ms);
 }
@@ -77,8 +70,4 @@ RedisResponse *RedisUpstream::sendCommand(const std::vector<std::string> &args) 
 
 void RedisUpstream::setMaxRetry(int maxRetry) {
     RedisUpstream::maxRetry = maxRetry;
-}
-
-void RedisUpstream::setRetryConnect(int retryConnect) {
-    RedisUpstream::retryConnect = retryConnect;
 }

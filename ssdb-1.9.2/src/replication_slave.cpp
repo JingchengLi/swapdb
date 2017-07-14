@@ -65,7 +65,6 @@ void *ssdb_sync(void *arg) {
 
     if (heartbeat) {
         redisUpstream.setMaxRetry(1);
-        redisUpstream.setRetryConnect(-1);
         redisUpstream.reset();
         if (!redisUpstream.isConnected()) {
             log_warn("cannot connect to redis");
