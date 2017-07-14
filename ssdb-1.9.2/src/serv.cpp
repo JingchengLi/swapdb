@@ -802,6 +802,18 @@ int proc_info(Context &ctx, Link *link, const Request &req, Response *resp) {
     }
 
 
+    if (all || selected == "queue") {//filesize
+        resp->push_back("# Queue");
+
+        int queued_transfer_job = ctx.net->redis->queued();
+        ReplyWtihSize(queued_transfer_job);
+
+        int queued_background_job = ctx.net->background->queued();
+        ReplyWtihSize(queued_background_job);
+
+        resp->emplace_back("");
+    }
+
     if (all || selected == "persistence") {//filesize
         resp->push_back("# Persistence");
         uint64_t filesize = 0;
