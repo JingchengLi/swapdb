@@ -35,7 +35,6 @@ private:
     int port;
     long timeout_ms;
     int maxRetry = 5;
-    int retryConnect = 5;
 };
 
 #endif //SSDB_REDISUPSTREAM_H
