@@ -43,7 +43,7 @@ int TransferWorker::proc(TransferJob *job) {
     }
 
     int64_t current = time_ms();
-    int res = (*job->proc)(job->ctx, this, job->data_key, job->value);
+    int res = (*job->proc)(job->ctx, this, job->data_key, job->dumpData);
     if (res != 0) {
         log_error("bg_job failed %s ", job->dump().c_str());
     }
@@ -77,12 +77,6 @@ int TransferWorker::proc(TransferJob *job) {
             log_warn("task %s had waited %d ms",  job->dump().c_str(), wait_time);
         }
 
-    }
-
-
-    if (job->value != nullptr) {
-        delete job->value;
-        job->value = nullptr;
     }
 
     return 0;

@@ -389,19 +389,6 @@ void NetworkServer::serve(){
 					log_fatal("reading result from workers error!");
 					exit(0);
 				}
-//
-//					int qsize = worker->queued();
-//					if (qsize > 500) {
-//						log_error("BackgroundJob queue size is now : %d", qsize);
-//					} else if (qsize > 218) {
-//						log_warn("BackgroundJob queue size is now : %d", qsize);
-//					} else if (qsize > 50) {
-//						log_info("BackgroundJob queue size is now : %d", qsize);
-//					} else if (qsize > 6) {
-//						log_debug("BackgroundJob queue size is now : %d", qsize);
-//					}
-//
-//					log_debug("job process done %s", job->dump().c_str());
 
 				if (job != nullptr) {
 					delete job;

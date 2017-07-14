@@ -34,11 +34,11 @@ public:
     std::string data_key;
 
 
-    DumpData *value;
+    DumpData *dumpData;
     bproc_t proc;
 
     TransferJob(Context &ctx, uint16_t type, const std::string &key, DumpData *value = nullptr) :
-            ctx(ctx), type(type), data_key(key), value(value) {
+            ctx(ctx), type(type), data_key(key), dumpData(value) {
         ts = time_ms();
         retry = 0;
     }
@@ -48,6 +48,13 @@ public:
         stringStream << " task_type:" << type
                      << " data_key: " << hexmem(data_key.data(), data_key.size()).c_str();
         return stringStream.str();
+    }
+
+    virtual ~TransferJob() {
+        if (dumpData != nullptr) {
+            delete dumpData;
+            dumpData = nullptr;
+        }
     }
 
 };
