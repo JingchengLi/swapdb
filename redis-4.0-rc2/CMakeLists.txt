@@ -164,6 +164,7 @@ SET(redis-server_files
         src/rand.c
         src/rdb.c
         src/redis-check-rdb.c
+        src/redis-check-aof.c
         src/release.c
         src/replication.c
         src/rio.c
