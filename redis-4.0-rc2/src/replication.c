@@ -3038,6 +3038,11 @@ void replicationCron(void) {
         }
     }
 
+    /* slave wait for flushall is disconnected and freed, need reset server.ssdb_status */
+    if (!server.is_doing_flushall && server.ssdb_status == MASTER_SSDB_SNAPSHOT_WAIT_FLUSHALL) {
+        server.ssdb_status = SSDB_NONE;
+    }
+
     if (server.jdjr_mode && server.use_customized_replication
         && server.ssdb_status == MASTER_SSDB_SNAPSHOT_OK) {
         int has_slave_in_transfer = 0;

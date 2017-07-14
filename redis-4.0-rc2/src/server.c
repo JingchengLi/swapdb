@@ -975,10 +975,12 @@ void reconnectSSDB() {
     listNode* ln;
     listIter li;
     if (server.is_doing_flushall) {
+        serverLog(LL_DEBUG, "flushall check is going on, avoid to reconnect SSDB now");
         /* maybe redis is doing flush check before flushall.*/
         return;
     }
     if (server.ssdb_status > SSDB_NONE && server.ssdb_status < MASTER_SSDB_SNAPSHOT_PRE) {
+        serverLog(LL_DEBUG, "replication write check is going on, avoid to reconnect SSDB now");
         /* redis is doing write check before replication. */
         return;
     }
