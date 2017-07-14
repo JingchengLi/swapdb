@@ -641,7 +641,6 @@ sds sdscatcolor(sds o, char *s, size_t len, char *color) {
     int bold = strstr(color,"bold") != NULL;
     int ccode = 37; /* Defaults to white. */
     if (strstr(color,"red")) ccode = 31;
-    else if (strstr(color,"red")) ccode = 31;
     else if (strstr(color,"green")) ccode = 32;
     else if (strstr(color,"yellow")) ccode = 33;
     else if (strstr(color,"blue")) ccode = 34;
@@ -1358,9 +1357,10 @@ static void repl(void) {
                 } else {
                     long long start_time = mstime(), elapsed;
                     int repeat, skipargs = 0;
+                    char *endptr;
 
-                    repeat = atoi(argv[0]);
-                    if (argc > 1 && repeat) {
+                    repeat = strtol(argv[0], &endptr, 10);
+                    if (argc > 1 && *endptr == '\0' && repeat) {
                         skipargs = 1;
                     } else {
                         repeat = 1;

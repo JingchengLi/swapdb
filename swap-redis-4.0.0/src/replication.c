@@ -599,18 +599,19 @@ int startBgsaveForReplication(int mincapa) {
     serverLog(LL_NOTICE,"Starting BGSAVE for SYNC with target: %s",
         socket_target ? "slaves sockets" : "disk");
 
-    rdbSaveInfo rsi = RDB_SAVE_INFO_INIT;
-    /* If we are saving for a chained slave (that is, if we are,
-     * in turn, a slave of another instance), make sure after
-     * loadig the RDB, our slaves select the right DB: we'll just
-     * send the replication stream we receive from our master, so
-     * no way to send SELECT commands. */
-    if (server.master) rsi.repl_stream_db = server.master->db->id;
-
-    if (socket_target)
-        retval = rdbSaveToSlavesSockets(&rsi);
-    else
-        retval = rdbSaveBackground(server.rdb_filename,&rsi);
+    rdbSaveInfo rsi, *rsiptr;
+    rsiptr = rdbPopulateSaveInfo(&rsi);
+    /* Only do rdbSave* when rsiptr is not NULL,
+     * otherwise slave will miss repl-stream-db. */
+    if (rsiptr) {
+        if (socket_target)
+            retval = rdbSaveToSlavesSockets(rsiptr);
+        else
+            retval = rdbSaveBackground(server.rdb_filename,rsiptr);
+    } else {
+        serverLog(LL_WARNING,"BGSAVE for replication: replication information not available, can't generate the RDB file right now. Try later.");
+        retval = C_ERR;
+    }
 
     /* If we failed to BGSAVE, remove the slaves waiting for a full
      * resynchorinization from the list of salves, inform them with
@@ -1863,6 +1864,11 @@ int slaveTryPartialResynchronization(int fd, int read_reply) {
         /* Setup the replication to continue. */
         sdsfree(reply);
         replicationResurrectCachedMaster(fd);
+
+        /* If this instance was restarted and we read the metadata to
+         * PSYNC from the persistence file, our replication backlog could
+         * be still not initialized. Create it. */
+        if (server.repl_backlog == NULL) createReplicationBacklog();
         return PSYNC_CONTINUE;
     }
 

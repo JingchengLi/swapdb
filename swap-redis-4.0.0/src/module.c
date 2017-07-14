@@ -2684,7 +2684,7 @@ moduleType *moduleTypeLookupModuleByID(uint64_t id) {
 
     /* Search in cache to start. */
     int j;
-    for (j = 0; j < MODULE_LOOKUP_CACHE_SIZE; j++)
+    for (j = 0; j < MODULE_LOOKUP_CACHE_SIZE && cache[j].mt != NULL; j++)
         if (cache[j].id == id) return cache[j].mt;
 
     /* Slow module by module lookup. */
@@ -2692,17 +2692,20 @@ moduleType *moduleTypeLookupModuleByID(uint64_t id) {
     dictIterator *di = dictGetIterator(modules);
     dictEntry *de;
 
-    while ((de = dictNext(di)) != NULL) {
+    while ((de = dictNext(di)) != NULL && mt == NULL) {
         struct RedisModule *module = dictGetVal(de);
         listIter li;
         listNode *ln;
 
         listRewind(module->types,&li);
         while((ln = listNext(&li))) {
-            mt = ln->value;
+            moduleType *this_mt = ln->value;
             /* Compare only the 54 bit module identifier and not the
              * encoding version. */
-            if (mt->id >> 10 == id >> 10) break;
+            if (this_mt->id >> 10 == id >> 10) {
+                mt = this_mt;
+                break;
+            }
         }
     }
     dictReleaseIterator(di);
@@ -3316,7 +3319,7 @@ void unblockClientFromModule(client *c) {
 }
 
 /* Block a client in the context of a blocking command, returning an handle
- * which will be used, later, in order to block the client with a call to
+ * which will be used, later, in order to unblock the client with a call to
  * RedisModule_UnblockClient(). The arguments specify callback functions
  * and a timeout after which the client is unblocked.
  *
@@ -3333,10 +3336,15 @@ void unblockClientFromModule(client *c) {
  */
 RedisModuleBlockedClient *RM_BlockClient(RedisModuleCtx *ctx, RedisModuleCmdFunc reply_callback, RedisModuleCmdFunc timeout_callback, void (*free_privdata)(void*), long long timeout_ms) {
     client *c = ctx->client;
+    int islua = c->flags & CLIENT_LUA;
+
     c->bpop.module_blocked_handle = zmalloc(sizeof(RedisModuleBlockedClient));
     RedisModuleBlockedClient *bc = c->bpop.module_blocked_handle;
 
-    bc->client = c;
+    /* We need to handle the invalid operation of calling modules blocking
+     * commands from Lua. We actually create an already aborted (client set to
+     * NULL) blocked client handle, and actually reply to Lua with an error. */
+    bc->client = islua ? NULL : c;
     bc->module = ctx->module;
     bc->reply_callback = reply_callback;
     bc->timeout_callback = timeout_callback;
@@ -3347,7 +3355,12 @@ RedisModuleBlockedClient *RM_BlockClient(RedisModuleCtx *ctx, RedisModuleCmdFunc
     bc->dbid = c->db->id;
     c->bpop.timeout = timeout_ms ? (mstime()+timeout_ms) : 0;
 
-    blockClient(c,BLOCKED_MODULE);
+    if (islua) {
+        c->bpop.module_blocked_handle = NULL;
+        addReplyError(c,"Blocking module command called from Lua script");
+    } else {
+        blockClient(c,BLOCKED_MODULE);
+    }
     return bc;
 }
 
