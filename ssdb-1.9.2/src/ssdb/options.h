@@ -55,6 +55,7 @@ struct Options {
     bool cache_index_and_filter_blocks = false;
     bool expire_enable = false;
 
+    int min_write_buffer_number_to_merge = 2;
     int max_write_buffer_number = 3;
     int max_background_flushes = 4;
     int max_background_compactions = 4;

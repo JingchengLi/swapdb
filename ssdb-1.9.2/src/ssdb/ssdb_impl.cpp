@@ -120,8 +120,7 @@ SSDB *SSDB::open(const Options &opt, const std::string &dir) {
     //========
     ssdb->options.target_file_size_base = opt.target_file_size_base * UNIT_MB; //sst file target size
 
-//    ssdb->options.IncreaseParallelism(opt.max_background_cd_threads);
-
+    ssdb->options.min_write_buffer_number_to_merge = opt.min_write_buffer_number_to_merge;
     ssdb->options.max_write_buffer_number = opt.max_write_buffer_number;
 
 
