@@ -32,7 +32,7 @@ extern "C" {
 #endif
 
 
-SSDBImpl::SSDBImpl()  {
+SSDBImpl::SSDBImpl() {
     ldb = NULL;
     this->bgtask_quit = true;
     expiration = NULL;
@@ -93,11 +93,10 @@ SSDB *SSDB::open(const Options &opt, const std::string &dir) {
             std::shared_ptr<rocksdb::Cache> sim_cache =
                     leveldb::NewSimCache(normal_block_cache, opt.sim_cache * UNIT_MB, 10);
             op.block_cache = sim_cache;
-            ssdb->simCache = (leveldb::SimCache*)((sim_cache).get());
+            ssdb->simCache = (leveldb::SimCache *) ((sim_cache).get());
         } else {
             op.block_cache = normal_block_cache;
         }
-
 
 
         op.filter_policy = std::shared_ptr<const leveldb::FilterPolicy>(leveldb::NewBloomFilterPolicy(10));
@@ -106,12 +105,13 @@ SSDB *SSDB::open(const Options &opt, const std::string &dir) {
         op.cache_index_and_filter_blocks_with_high_priority = true;
         op.pin_l0_filter_and_index_blocks_in_cache = true;
 
-
         ssdb->options.table_factory = std::shared_ptr<leveldb::TableFactory>(rocksdb::NewBlockBasedTableFactory(op));
     }
 
+//    {
+//        ssdb->options.memtable_factory = std::shared_ptr<leveldb::SkipListFactory>(new leveldb::SkipListFactory);
+//    }
 
-    ssdb->options.optimize_filters_for_hits = opt.optimize_filters_for_hits;
     ssdb->options.compaction_readahead_size = opt.compaction_readahead_size * UNIT_MB;
 
     ssdb->options.level0_file_num_compaction_trigger = opt.level0_file_num_compaction_trigger; //start compaction
@@ -125,13 +125,16 @@ SSDB *SSDB::open(const Options &opt, const std::string &dir) {
     ssdb->options.max_write_buffer_number = opt.max_write_buffer_number;
 
 
-    auto env = rocksdb::Env::Default();
-
     ssdb->options.max_background_flushes = opt.max_background_flushes;
-    env->SetBackgroundThreads(opt.max_background_flushes, rocksdb::Env::HIGH);
+    ssdb->options.env->SetBackgroundThreads(opt.max_background_flushes, rocksdb::Env::HIGH);
 
+
+    if (opt.max_background_compactions > 2) {
+        ssdb->options.max_subcompactions = static_cast<uint32_t>(opt.max_background_compactions / 2);
+
+    }
     ssdb->options.max_background_compactions = opt.max_background_compactions;
-    env->SetBackgroundThreads(opt.max_background_compactions, rocksdb::Env::LOW);
+    ssdb->options.env->SetBackgroundThreads(opt.max_background_compactions, rocksdb::Env::LOW);
 
     //level config
     ssdb->options.use_direct_reads = opt.use_direct_reads;  //see : http://rocksdb.org/blog/2015/07/23/dynamic-level.html
@@ -139,11 +142,11 @@ SSDB *SSDB::open(const Options &opt, const std::string &dir) {
     ssdb->options.max_bytes_for_level_base = opt.max_bytes_for_level_base * UNIT_MB; //256M
     ssdb->options.max_bytes_for_level_multiplier = opt.max_bytes_for_level_multiplier; //10  // multiplier between levels
 
-            //rate_limiter
+    //rate_limiter
 //    ssdb->options.rate_limiter = std::shared_ptr<leveldb::GenericRateLimiter>(new leveldb::GenericRateLimiter(1024 * 50, 1000, 10));
     // refill_bytes  refill_period_us  1024, 1000 = 1MB/s
 
-   ssdb->options.listeners.push_back(std::shared_ptr<t_listener>(new t_listener()));
+    ssdb->options.listeners.push_back(std::shared_ptr<t_listener>(new t_listener()));
 
 #endif
     ssdb->options.write_buffer_size = static_cast<size_t >(opt.write_buffer_size) * UNIT_MB;
@@ -184,19 +187,19 @@ int SSDBImpl::filesize(Context &ctx, uint64_t *total_file_size) {
     leveldb::Env *env = leveldb::Env::Default();
     std::vector<std::string> result;
     leveldb::Status s = env->GetChildren(getDataPath(), &result);
-    if (!s.ok()){
+    if (!s.ok()) {
         //error
         log_error("error: %s", s.ToString().c_str());
         return STORAGE_ERR;
     }
 
-    for_each(result.begin(), result.end() ,[&](std::string filename) {
-        if (filename== "." || filename == "..") {
+    for_each(result.begin(), result.end(), [&](std::string filename) {
+        if (filename == "." || filename == "..") {
             //ignore
         }
         uint64_t file_size = 0;
         s = env->GetFileSize(getDataPath() + filename, &file_size);
-        if (!s.ok()){
+        if (!s.ok()) {
             //error
             log_error("error: %s", s.ToString().c_str());
         } else {
@@ -212,9 +215,9 @@ int SSDBImpl::resetRepopid(Context &ctx) {
 
     leveldb::WriteBatch updates;
     updates.Put(handles[1], encode_repo_key(),
-                 encode_repo_item(ctx.currentSeqCnx.timestamp, ctx.currentSeqCnx.id));
+                encode_repo_item(ctx.currentSeqCnx.timestamp, ctx.currentSeqCnx.id));
     leveldb::Status s = ldb->Write(leveldb::WriteOptions(), &(updates));
-    if (!s.ok()){
+    if (!s.ok()) {
         //error
         log_error("error: %s", s.ToString().c_str());
         return -1;
@@ -265,7 +268,8 @@ int SSDBImpl::flushdb(Context &ctx) {
     iterate_options.fill_cache = false;
     leveldb::WriteOptions write_opts;
 
-    unique_ptr<leveldb::Iterator> it = unique_ptr<leveldb::Iterator>(ldb->NewIterator(iterate_options, ldb->DefaultColumnFamily()));
+    unique_ptr<leveldb::Iterator> it = unique_ptr<leveldb::Iterator>(
+            ldb->NewIterator(iterate_options, ldb->DefaultColumnFamily()));
 
     it->SeekToFirst();
 
@@ -294,7 +298,7 @@ int SSDBImpl::flushdb(Context &ctx) {
     }
 
     leveldb::WriteBatch writeBatch;
-    leveldb::Status s = CommitBatch(ctx, write_opts, &writeBatch );
+    leveldb::Status s = CommitBatch(ctx, write_opts, &writeBatch);
     if (!s.ok()) {
         ret = -1;
     }
@@ -321,7 +325,7 @@ Iterator *SSDBImpl::iterator(const std::string &start, const std::string &end, u
 }
 
 Iterator *SSDBImpl::iterator(const std::string &start, const std::string &end, uint64_t limit,
-                              const leveldb::ReadOptions& iterate_options) {
+                             const leveldb::ReadOptions &iterate_options) {
     leveldb::Iterator *it;
     it = ldb->NewIterator(iterate_options);
     it->Seek(start);
@@ -442,7 +446,7 @@ std::vector<std::string> SSDBImpl::info() {
     keys.push_back("leveldb.sstables");
 
 #else
-     for (int i = 0; i < 7; i++) {
+    for (int i = 0; i < 7; i++) {
         keys.push_back(leveldb::DB::Properties::kNumFilesAtLevelPrefix + str(i));
 //        keys.push_back(leveldb::DB::Properties::kCompressionRatioAtLevelPrefix + str(i));
     }
@@ -707,6 +711,7 @@ void *SSDBImpl::thread_func(void *arg) {
 
 
 #include "redis/rdb.h"
+
 extern "C" {
 #include "redis/crc64.h"
 #include "redis/endianconv.h"
@@ -731,7 +736,7 @@ public:
         if (handle != nullptr) {
             s = handle->Append(leveldb::Slice((const char *) p, n));
             if (update_cksum) {
-                genericUpdateChecksum(p , n);
+                genericUpdateChecksum(p, n);
             }
             if (!s.ok()) {
                 return -1;
@@ -796,19 +801,19 @@ int SSDBImpl::save(Context &ctx) {
 
 
     auto it = std::unique_ptr<MIterator>(new MIterator(iterator(start, "", -1, snapshot)));
-    while(it->next()){
-        const Bytes& key = it->key;
-        const std::string& meta_val = it->val.String();
+    while (it->next()) {
+        const Bytes &key = it->key;
+        const std::string &meta_val = it->val.String();
 
         //decodeMetaVal
-        if(meta_val.size()<4) {
+        if (meta_val.size() < 4) {
             //invalid
             log_error("invalid MetaVal: %s", s.ToString().c_str());
             continue;
         }
 
         char del = meta_val[POS_DEL];
-        if (del != KEY_ENABLED_MASK){
+        if (del != KEY_ENABLED_MASK) {
             //deleted
             continue;
         }
@@ -835,7 +840,7 @@ int SSDBImpl::save(Context &ctx) {
 
     uint64_t cksum = encoder.cksum;
     memrev64ifbe(&cksum);
-    if (encoder.rdbWriteRaw(&cksum,8) == -1) return -1;
+    if (encoder.rdbWriteRaw(&cksum, 8) == -1) return -1;
 
     saved->Flush();
     saved->Sync();
