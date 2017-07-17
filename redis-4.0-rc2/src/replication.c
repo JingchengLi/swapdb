@@ -561,6 +561,9 @@ int masterTryPartialResynchronization(client *c) {
     return C_OK; /* The caller can return, no full resync needed. */
 
 need_full_resync:
+    /* in jdjr mode, we disconnect SSDB connection of a slave connection, to make sure
+     * previous SSDB snapshot transfer procedure is aborted. */
+    if (server.jdjr_mode) closeAndReconnectSSDBconnection(c);
     /* We need a full resync for some reason... Note that we can't
      * reply to PSYNC right now if a full SYNC is needed. The reply
      * must include the master offset at the time the RDB file we transfer

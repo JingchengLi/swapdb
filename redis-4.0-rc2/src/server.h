@@ -2322,6 +2322,7 @@ void updateSlaveSSDBwriteIndex();
 int updateSendRepopidToSSDB(client* c);
 void saveSlaveSSDBwriteOp(client *c, time_t time, int index);
 void unblockClientWritingOnSameKey(robj* keyobj);
+int closeAndReconnectSSDBconnection(client* c);
 
 void replaceKeyInHotPool(sds key, int dbid, unsigned long long idle);
 void tryInsertColdPool(struct evictionPoolEntry *pool, sds key, int dbid, unsigned long long idle);

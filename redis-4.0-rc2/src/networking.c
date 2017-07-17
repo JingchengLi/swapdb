@@ -2581,8 +2581,15 @@ void freeClient(client *c) {
                 }
             } else if (c->flags & CLIENT_BLOCKED) {
                 /* do nothing */
-            } else
-                resetClient(c);
+            } else {
+                if (c->multibulklen == 0)
+                    resetClient(c);
+                else {
+                    serverLog(LL_DEBUG, "there is some arguments left to read, we can't reset it");
+                    serverLog(LL_DEBUG, "parsing command is:%s %s", c->argc > 0 ? (sds)c->argv[0]->ptr:"",
+                              c->argc > 1 ? (sds)c->argv[1]->ptr:"");
+                }
+            }
 
             replicationCacheMaster(c);
             if (c == server.cached_master
