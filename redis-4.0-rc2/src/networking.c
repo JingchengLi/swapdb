@@ -2124,6 +2124,7 @@ void handleSSDBReply(client *c, int revert_len) {
 #endif
 
         propagateCmdHandledBySSDB(c);
+        server.stat_numcommands++;
         unblockClient(c);
         resetClient(c);
         if (c->flags & CLIENT_CLOSE_AFTER_SSDB_WRITE_PROPAGATE)
