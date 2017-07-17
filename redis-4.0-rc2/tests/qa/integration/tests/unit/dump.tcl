@@ -1,7 +1,7 @@
 start_server {tags {"dump"}} {
 
     proc wait_key_exists_ssdb {key {level 0}} {
-        wait_for_condition 50 10 {
+        wait_for_condition 500 10 {
             [sr $level exists $key] == 1
         } else {
             fail "$key not found in ssdb after some time."
@@ -264,6 +264,7 @@ start_server {tags {"dump"}} {
 
             assert {[$first exists key] == 1}
             assert {[$second exists key] == 0}
+            wait_key_exists_ssdb key -1; # For some slow machine need more time for del large key
             wait_for_dumpto_ssdb $first key
             set ret [r -1 migrate $second_host $second_port key 0 10000]
             assert {$ret eq {OK}}

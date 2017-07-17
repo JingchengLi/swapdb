@@ -60,11 +60,13 @@ proc test_psync {descr duration backlog_size backlog_ttl delay cond reconnect} {
                 wait_memory_stable -1; wait_memory_stable
 
                 wait_for_online $master 1
-                wait_for_condition 200 100 {
-                    [$master debug digest] == [$slave debug digest]
-                } else {
-                    fail "Different digest between master([$master debug digest]) and slave([$slave debug digest]) after too long time."
-                }
+                compare_debug_digest
+#                cold/hot distribute not identical
+#                wait_for_condition 1 100 {
+#                    [$master debug digest] == [$slave debug digest]
+#                } else {
+#                    fail "Different digest between master([$master debug digest]) and slave([$slave debug digest]) after too long time."
+#                }
                 assert {[$master dbsize] > 0}
 
                 eval $cond
