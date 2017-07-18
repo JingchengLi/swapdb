@@ -107,7 +107,7 @@ void Application::init(){
 			log_level_ = "debug";
 		}
 		int level = Logger::get_level(log_level_.c_str());
-		log_rotate_size = conf->get_int64("logger.rotate.size");
+		log_rotate_size = conf->get_int64("logger.rotate_size");
 		log_output = conf->get_str("logger.output");
 		if(log_output == ""){
 			log_output = "stdout";
