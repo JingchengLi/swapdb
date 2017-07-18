@@ -123,7 +123,11 @@ overrides {maxmemory 0}} {
             assert_equal [lsort $list] [lsort [r smembers myset]]
             r dumpfromssdb myset ;# TODO
             assert_equal [r locatekey myset] {redis}
-            assert_equal [ sr exists myset ] 0
+            wait_for_condition 50 2 {
+                [ sr exists myset ] eq 0
+            } else {
+                fail "myset should not exist in ssdb!"
+            }
         }
 
         test {Be Cold/Hot with an expire key} {

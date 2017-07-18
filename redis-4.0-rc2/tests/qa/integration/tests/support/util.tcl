@@ -642,26 +642,28 @@ proc debug_digest {r {level 0}} {
             set keyslist [$r $level ssdbkeys *]
             if {[llength $keyslist] == 0} {break}
             foreach key $keyslist {
-                $r $level dumpfromssdb $key ;# TODO
-                $r $level exists $key ;#load keys to redis
+                # some key hot in master, cold in slave, and some are opposite.
+                $r $level dumpfromssdb $key
+                # $r $level exists $key ;#load keys to redis
             }
             after 1000
         }
         if {$retry == 0} {
             error "assertion:master not load all keys after multi access key"
         }
+
+        # TODO sometimes key in redis of master, but in ssdb of slave. so the ssdbkey not null in slave.
+        foreach ssdbkey [$r $level ssdbkeys *] {
+            assert_equal 0 [ $r $level exists $ssdbkey ] "key: $ssdbkey should not in ssdbkeys."
+        }
+
+        wait_for_condition 200 100 {
+            [s $level keys_in_ssdb_count] eq 0
+        } else {
+            fail "wait $r $level debug digest timeout."
+        }
     }
 
-    # TODO expect redis db16 index also not exists.
-    foreach ssdbkey [$r $level ssdbkeys *] {
-        assert_equal 0 [ $r $level exists $ssdbkey ] "key: $ssdbkey should not in ssdbkeys."
-    }
-
-    wait_for_condition 200 100 {
-        [s $level keys_in_ssdb_count] eq 0
-    } else {
-        fail "wait $r $level debug digest timeout."
-    }
 
     set digest [$r $level debug digest]
     return $digest

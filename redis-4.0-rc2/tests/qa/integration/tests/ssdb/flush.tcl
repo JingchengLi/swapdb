@@ -371,7 +371,8 @@ start_server {tags {"ssdb"}} {
                         [$master debug digest] == [[lindex $slaves 0] debug digest] &&
                         [$master debug digest] == [[lindex $slaves 1] debug digest]
                     } else {
-                        fail "Different digest between master([$master debug digest]) and slave1([[lindex $slaves 0] debug digest]) slave2([[lindex $slaves 1] debug digest]) after too long time."
+                        puts "Different digest between master([$master debug digest]) and slave1([[lindex $slaves 0] debug digest]) slave2([[lindex $slaves 1] debug digest]) after too long time."
+                        compare_debug_digest {0 -1 -2}
                     }
                 }
 

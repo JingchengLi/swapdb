@@ -8,7 +8,7 @@ start_server {tags {"repl-abnormal"}} {
         set master_port [srv -1 port]
         set slave [srv 0 client]
         set num 100000
-        set clients 1
+        set clients 10
         set clist {}
         set clist [ start_bg_complex_data_list $master_host $master_port $num $clients ]
         after 500
@@ -64,7 +64,7 @@ start_server {tags {"repl-abnormal"}} {
         set slave [srv 0 client]
         set slavessdb [srv 0 ssdbclient]
         set num 100000
-        set clients 1
+        set clients 10
         set clist {}
         set clist [ start_bg_complex_data_list $master_host $master_port $num $clients ]
         after 500
