@@ -261,7 +261,6 @@ SET( SRC_OBJS
         src/serv.cpp
         src/replication.cpp
         src/replication2.cpp
-        src/replication3.cpp
         src/replication_slave.cpp
         src/replication_slave2.cpp
         )

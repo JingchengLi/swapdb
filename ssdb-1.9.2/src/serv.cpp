@@ -18,139 +18,244 @@ extern "C" {
 }
 
 DEF_PROC(type);
+
 DEF_PROC(get);
+
 DEF_PROC(set);
+
 DEF_PROC(append);
+
 DEF_PROC(setx);
+
 DEF_PROC(psetx);
+
 DEF_PROC(setnx);
+
 DEF_PROC(getset);
+
 DEF_PROC(getbit);
+
 DEF_PROC(setbit);
+
 DEF_PROC(countbit);
+
 DEF_PROC(substr);
+
 DEF_PROC(getrange);
+
 DEF_PROC(setrange);
+
 DEF_PROC(strlen);
+
 DEF_PROC(bitcount);
+
 DEF_PROC(del);
+
 DEF_PROC(incr);
+
 DEF_PROC(incrbyfloat);
+
 DEF_PROC(decr);
+
 DEF_PROC(scan);
+
 DEF_PROC(keys);
+
 DEF_PROC(exists);
+
 DEF_PROC(multi_get);
+
 DEF_PROC(multi_set);
+
 DEF_PROC(multi_del);
+
 DEF_PROC(ttl);
+
 DEF_PROC(pttl);
+
 DEF_PROC(expire);
+
 DEF_PROC(pexpire);
+
 DEF_PROC(expireat);
+
 DEF_PROC(pexpireat);
+
 DEF_PROC(persist);
 DEF_PROC(hsize);
+
 DEF_PROC(hget);
+
 DEF_PROC(hset);
+
 DEF_PROC(hsetnx);
+
 DEF_PROC(hdel);
+
 DEF_PROC(hincr);
+
 DEF_PROC(hincrbyfloat);
+
 DEF_PROC(hgetall);
+
 DEF_PROC(hscan);
+
 DEF_PROC(hkeys);
+
 DEF_PROC(hvals);
+
 DEF_PROC(hexists);
+
 DEF_PROC(hmget);
+
 DEF_PROC(hmset);
 DEF_PROC(sadd);
+
 DEF_PROC(srem);
+
 DEF_PROC(scard);
 //DEF_PROC(sdiff);
 //DEF_PROC(sdiffstore);
 //DEF_PROC(sinter);
 //DEF_PROC(sinterstore);
 DEF_PROC(sismember);
+
 DEF_PROC(smembers);
 //DEF_PROC(smove);
 DEF_PROC(spop);
+
 DEF_PROC(srandmember);
 //DEF_PROC(sunion);
 //DEF_PROC(sunionstore);
 DEF_PROC(sscan);
 DEF_PROC(zrank);
+
 DEF_PROC(zrrank);
+
 DEF_PROC(zrange);
+
 DEF_PROC(zrrange);
+
 DEF_PROC(zrangebyscore);
+
 DEF_PROC(zrevrangebyscore);
+
 DEF_PROC(zsize);
+
 DEF_PROC(zget);
+
 DEF_PROC(zincr);
+
 DEF_PROC(zdecr);
+
 DEF_PROC(zscan);
+
 DEF_PROC(zcount);
+
 DEF_PROC(zremrangebyrank);
+
 DEF_PROC(zremrangebyscore);
+
 DEF_PROC(multi_zset);
+
 DEF_PROC(multi_zdel);
+
 DEF_PROC(zlexcount);
+
 DEF_PROC(zrangebylex);
+
 DEF_PROC(zremrangebylex);
+
 DEF_PROC(zrevrangebylex);
 DEF_PROC(qsize);
+
 DEF_PROC(qpush_front);
+
 DEF_PROC(qpush_frontx);
+
 DEF_PROC(qpush_back);
+
 DEF_PROC(qpush_backx);
+
 DEF_PROC(qpop_front);
+
 DEF_PROC(qpop_back);
+
 DEF_PROC(qslice);
+
 DEF_PROC(qtrim);
+
 DEF_PROC(qget);
+
 DEF_PROC(qset);
 
 DEF_PROC(info);
+
 DEF_PROC(save);
+
 DEF_PROC(version);
+
 DEF_PROC(dbsize);
+
 DEF_PROC(filesize);
+
 DEF_PROC(compact);
+
 DEF_PROC(flush);
+
 DEF_PROC(flushdb);
+
 DEF_PROC(dreply);
 DEF_PROC(cursor_cleanup);
+
 DEF_PROC(debug);
+
 DEF_PROC(dump);
+
 DEF_PROC(restore);
+
 DEF_PROC(select);
+
 DEF_PROC(client);
+
 DEF_PROC(quit);
+
 DEF_PROC(replic);
+
 DEF_PROC(replic_info);
+
 DEF_PROC(slowlog);
 
 DEF_PROC(migrate);
 
 DEF_PROC(ssdb_scan);
+
 DEF_PROC(ssdb_dbsize);
+
 DEF_PROC(ssdb_sync);
+
 DEF_PROC(ssdb_sync2);
 
 DEF_PROC(redis_req_dump);
+
 DEF_PROC(redis_req_restore);
 DEF_PROC(rr_do_flushall);
+
 DEF_PROC(rr_flushall_check);
+
 DEF_PROC(rr_check_write);
+
 DEF_PROC(rr_make_snapshot);
+
 DEF_PROC(rr_transfer_snapshot);
+
 DEF_PROC(rr_del_snapshot);
 
 DEF_PROC(repopid);
 
 
 DEF_BPROC(COMMAND_DATA_SAVE);
+
 DEF_BPROC(COMMAND_DATA_DUMP);
 
 #define REG_PROC(c, f)     net->proc_map.set_proc(#c, f, proc_##c)
@@ -306,7 +411,7 @@ void SSDBServer::reg_procs(NetworkServer *net) {
 #define COMMAND_DATA_DUMP 2
 
 
-SSDBServer::SSDBServer(SSDB *ssdb, const Options &opt, NetworkServer *net) : opt(opt){
+SSDBServer::SSDBServer(SSDB *ssdb, const Options &opt, NetworkServer *net) : opt(opt) {
     this->ssdb = (SSDBImpl *) ssdb;
 
     net->data = this;
@@ -319,7 +424,7 @@ SSDBServer::~SSDBServer() {
     {
         Locking<Mutex> l(&replicState.rMutex);
 
-        if(replicState.inTransState()) {
+        if (replicState.inTransState()) {
             log_error("The replication is not finish but we are on quiting!");
         }
 
@@ -345,17 +450,18 @@ int proc_dreply(Context &ctx, Link *link, const Request &req, Response *resp) {
 int proc_flushdb(Context &ctx, Link *link, const Request &req, Response *resp) {
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
-	log_warn("[!!!] do flushdb");
-	serv->ssdb->flushdb(ctx);
-	resp->reply_ok();
+    log_warn("[!!!] do flushdb");
+    serv->ssdb->flushdb(ctx);
+    resp->reply_ok();
 
     return 0;
 }
+
 int proc_flush(Context &ctx, Link *link, const Request &req, Response *resp) {
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
-	serv->ssdb->flush(ctx);
-	resp->reply_ok();
+    serv->ssdb->flush(ctx);
+    resp->reply_ok();
 
     return 0;
 }
@@ -447,7 +553,7 @@ int proc_debug(Context &ctx, Link *link, const Request &req, Response *resp) {
         CHECK_NUM_PARAMS(3);
         double dtime = req[2].Double();
 
-        long long utime = dtime*1000000;
+        long long utime = dtime * 1000000;
         struct timespec tv;
 
         tv.tv_sec = utime / 1000000;
@@ -499,7 +605,7 @@ int proc_debug(Context &ctx, Link *link, const Request &req, Response *resp) {
         }
 
         leveldb::Status s = serv->ssdb->CommitBatch(ctx, writeOptions, &(batch));
-        if (!s.ok()){
+        if (!s.ok()) {
             log_error("error: %s", s.ToString().c_str());
             return STORAGE_ERR;
         }
@@ -669,16 +775,15 @@ int proc_version(Context &ctx, Link *link, const Request &req, Response *resp) {
 int proc_save(Context &ctx, Link *link, const Request &req, Response *resp) {
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
-   int ret = serv->ssdb->save(ctx);
-    if(ret < 0){
+    int ret = serv->ssdb->save(ctx);
+    if (ret < 0) {
         resp->push_back("error");
-    }else{
+    } else {
         resp->push_back("ok");
-     }
+    }
 
     return 0;
 }
-
 
 
 #define ReplyWtihSize(name_size) \
@@ -730,10 +835,10 @@ int proc_info(Context &ctx, Link *link, const Request &req, Response *resp) {
         resp->emplace_back("# Server");
         resp->emplace_back("ssdb_version:" + str(SSDB_VERSION));
         resp->emplace_back("engine:" + str(SSDB_ENGINE));
-        resp->emplace_back("os:" + str(name.sysname) + " "+ str(name.release) + " "+ str(name.machine));
+        resp->emplace_back("os:" + str(name.sysname) + " " + str(name.release) + " " + str(name.machine));
         resp->emplace_back("arch_bits:" + str((sizeof(long) == 8) ? 64 : 32));
 #ifdef __GNUC__
-        resp->emplace_back("gcc_version:" + str(__GNUC__) + "."+ str(__GNUC_MINOR__) + "."+ str(__GNUC_PATCHLEVEL__));
+        resp->emplace_back("gcc_version:" + str(__GNUC__) + "." + str(__GNUC_MINOR__) + "." + str(__GNUC_PATCHLEVEL__));
 #else
         resp->emplace_back("gcc_version: 0.0.0");
 #endif
@@ -765,22 +870,22 @@ int proc_info(Context &ctx, Link *link, const Request &req, Response *resp) {
 
 
         auto options = serv->ssdb->getLdb()->GetOptions().table_factory->GetOptions();
-        if (options!= nullptr) {
+        if (options != nullptr) {
             {
-                uint64_t block_cache_size = ((leveldb::BlockBasedTableOptions*)options)->block_cache->GetCapacity();
+                uint64_t block_cache_size = ((leveldb::BlockBasedTableOptions *) options)->block_cache->GetCapacity();
                 ReplyWtihHuman(block_cache_size);
             }
 
             {
-                uint64_t block_cache_used = ((leveldb::BlockBasedTableOptions*)options)->block_cache->GetUsage();
+                uint64_t block_cache_used = ((leveldb::BlockBasedTableOptions *) options)->block_cache->GetUsage();
                 ReplyWtihHuman(block_cache_used);
             }
 
         }
 
         std::string val;
-        FastGetPropertyHuman(leveldb::DB::Properties::kCurSizeAllMemTables ,"current_memtables_size");
-        FastGetPropertyHuman(leveldb::DB::Properties::kSizeAllMemTables ,"all_memtables_size");
+        FastGetPropertyHuman(leveldb::DB::Properties::kCurSizeAllMemTables, "current_memtables_size");
+        FastGetPropertyHuman(leveldb::DB::Properties::kSizeAllMemTables, "all_memtables_size");
         FastGetPropertyHuman(leveldb::DB::Properties::kEstimateTableReadersMem, "indexes_filter_blocks");
 
         if (serv->ssdb->simCache != nullptr) {
@@ -821,17 +926,17 @@ int proc_info(Context &ctx, Link *link, const Request &req, Response *resp) {
         ReplyWtihHuman(filesize);
 
         std::string val;
-        FastGetPropertyHuman(leveldb::DB::Properties::kTotalSstFilesSize ,"sst_file_size");
-        FastGetPropertyHuman(leveldb::DB::Properties::kEstimateLiveDataSize ,"live_data_size");
+        FastGetPropertyHuman(leveldb::DB::Properties::kTotalSstFilesSize, "sst_file_size");
+        FastGetPropertyHuman(leveldb::DB::Properties::kEstimateLiveDataSize, "live_data_size");
 
-        FastGetProperty(leveldb::DB::Properties::kActualDelayedWriteRate ,"write_delay_rate");
-        FastGetProperty(leveldb::DB::Properties::kIsWriteStopped ,"is_write_stop");
+        FastGetProperty(leveldb::DB::Properties::kActualDelayedWriteRate, "write_delay_rate");
+        FastGetProperty(leveldb::DB::Properties::kIsWriteStopped, "is_write_stop");
 
-        FastGetProperty(leveldb::DB::Properties::kMemTableFlushPending ,"mem_table_flush_pending");
-        FastGetProperty(leveldb::DB::Properties::kNumRunningFlushes ,"num_running_flushes");
+        FastGetProperty(leveldb::DB::Properties::kMemTableFlushPending, "mem_table_flush_pending");
+        FastGetProperty(leveldb::DB::Properties::kNumRunningFlushes, "num_running_flushes");
 
-        FastGetProperty(leveldb::DB::Properties::kCompactionPending ,"num_compaction_pending");
-        FastGetProperty(leveldb::DB::Properties::kNumRunningCompactions ,"num_running_compactions");
+        FastGetProperty(leveldb::DB::Properties::kCompactionPending, "num_compaction_pending");
+        FastGetProperty(leveldb::DB::Properties::kNumRunningCompactions, "num_running_compactions");
 
 
         resp->emplace_back("bgsave_in_progress:0"); //Todo Fake
@@ -840,7 +945,6 @@ int proc_info(Context &ctx, Link *link, const Request &req, Response *resp) {
 
         resp->emplace_back("");
     }
-
 
 
     if (all || selected == "snapshot") {//snapshot
@@ -881,9 +985,8 @@ int proc_info(Context &ctx, Link *link, const Request &req, Response *resp) {
     }
 
 
-
     if (selected == "leveldb" || selected == "rocksdb") {
-        for(auto const &block : serv->ssdb->info()) {
+        for (auto const &block : serv->ssdb->info()) {
             resp->push_back(block);
         }
 
@@ -935,6 +1038,7 @@ int proc_replic(Context &ctx, Link *link, const Request &req, Response *resp) {
     CHECK_NUM_PARAMS(3);
     std::string ip = req[1].String();
     int port = req[2].Int();
+    int64_t replts = time_ms();
 
     {
         Locking<Mutex> l(&serv->replicState.rMutex);
@@ -954,7 +1058,8 @@ int proc_replic(Context &ctx, Link *link, const Request &req, Response *resp) {
         serv->replicState.startReplic();
     }
 
-    BackgroundThreadJob *job = new ReplicationByIterator2(ctx, HostAndPort{ip, port}, link, serv->opt.transfer_compression, false);
+    BackgroundThreadJob *job = new ReplicationByIterator2(ctx, HostAndPort{ip, port},
+                                                          link, serv->opt.transfer_compression, false, replts);
 
     ctx.net->background->push(job);
 
@@ -980,37 +1085,36 @@ int proc_rr_flushall_check(Context &ctx, Link *link, const Request &req, Respons
 int proc_rr_do_flushall(Context &ctx, Link *link, const Request &req, Response *resp) {
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
-	log_warn("[!!!] do flushall");
-	std::queue<TransferJob *> discarded_jobs = ctx.net->redis->discard();
+    log_warn("[!!!] do flushall");
+    std::queue<TransferJob *> discarded_jobs = ctx.net->redis->discard();
 
-	log_warn("[!!!] discard %d TransferJob waiting for remain jobs", discarded_jobs.size());
-	while (!discarded_jobs.empty())
-	{
-		delete discarded_jobs.front();
-		discarded_jobs.pop();
-	}
+    log_warn("[!!!] discard %d TransferJob waiting for remain jobs", discarded_jobs.size());
+    while (!discarded_jobs.empty()) {
+        delete discarded_jobs.front();
+        discarded_jobs.pop();
+    }
 
-	Locking<RecordMutex<Mutex>> gl(&serv->transfer_mutex_record_);
+    Locking<RecordMutex<Mutex>> gl(&serv->transfer_mutex_record_);
 
-	log_warn("[!!!] TransferJob clear done , starting flushdb");
+    log_warn("[!!!] TransferJob clear done , starting flushdb");
 
     if (serv->ssdb->expiration != nullptr) {
         serv->ssdb->expiration->clear();
     }
 
     int ret = serv->ssdb->flushdb(ctx);
-	if (ret < 0) {
-		resp->push_back("ok");
-		resp->push_back("rr_do_flushall nok");
-	} else {
-		resp->push_back("ok");
-		resp->push_back("rr_do_flushall ok");
-	}
+    if (ret < 0) {
+        resp->push_back("ok");
+        resp->push_back("rr_do_flushall nok");
+    } else {
+        resp->push_back("ok");
+        resp->push_back("rr_do_flushall ok");
+    }
 
     return 0;
 }
 
-int proc_rr_make_snapshot(Context &ctx, Link *link, const Request &req, Response *resp){
+int proc_rr_make_snapshot(Context &ctx, Link *link, const Request &req, Response *resp) {
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
     log_debug("1:link address:%lld", link);
 
@@ -1041,41 +1145,43 @@ int proc_rr_make_snapshot(Context &ctx, Link *link, const Request &req, Response
 
 int proc_rr_transfer_snapshot(Context &ctx, Link *link, const Request &req, Response *resp) {
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
-    CHECK_NUM_PARAMS(3);
+    CHECK_NUM_PARAMS(4);
 
     std::string ip = req[1].String();
     int port = req[2].Int();
+    int64_t replts = req[3].Int64();
 
     {
         Locking<Mutex> l(&serv->replicState.rMutex);
         serv->replicState.startReplic();
     }
 
-    log_info("transfer_snapshot start %s:%d , link address:%lld", ip.c_str(), port, link);
+    log_info("transfer_snapshot start %s:%d , link address:%lld, replts : %d", ip.c_str(), port, link, replts);
 
-    link->quick_send({"ok","rr_transfer_snapshot ok"});
+    link->quick_send({"ok", "rr_transfer_snapshot ok"});
 
-    BackgroundThreadJob *job = new ReplicationByIterator2(ctx, HostAndPort{ip, port}, link, serv->opt.transfer_compression, true);
+    BackgroundThreadJob *job = new ReplicationByIterator2(ctx, HostAndPort{ip, port},
+                                                          link, serv->opt.transfer_compression, true, replts);
     ctx.net->background->push(job);
 
     resp->resp.clear(); //prevent send resp
     return PROC_BACKEND;
 }
 
-int proc_rr_del_snapshot(Context &ctx, Link *link, const Request &req, Response *resp){
+int proc_rr_del_snapshot(Context &ctx, Link *link, const Request &req, Response *resp) {
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
 
     {
         Locking<Mutex> l(&serv->replicState.rMutex);
 
-        if(serv->replicState.inTransState()) {
+        if (serv->replicState.inTransState()) {
             log_error("The replication is not finish");
             resp->push_back("ok");
             resp->push_back("rr_del_snapshot nok");
             return 0;
         }
 
-        if (serv->replicState.rSnapshot != nullptr){
+        if (serv->replicState.rSnapshot != nullptr) {
             serv->ssdb->ReleaseSnapshot(serv->replicState.rSnapshot);
             serv->replicState.rSnapshot = nullptr;
         }
@@ -1087,7 +1193,6 @@ int proc_rr_del_snapshot(Context &ctx, Link *link, const Request &req, Response 
     resp->push_back("rr_del_snapshot ok");
     return 0;
 }
-
 
 
 int proc_repopid(Context &ctx, Link *link, const Request &req, Response *resp) {
@@ -1130,12 +1235,12 @@ int proc_repopid(Context &ctx, Link *link, const Request &req, Response *resp) {
         CHECK_NUM_PARAMS(4);
 
         uint64_t timestamp = req[2].Uint64();
-        if (errno == EINVAL){
+        if (errno == EINVAL) {
             reply_err_return(INVALID_INT);
         }
 
         uint64_t id = req[3].Uint64();
-        if (errno == EINVAL){
+        if (errno == EINVAL) {
             reply_err_return(INVALID_INT);
         }
 
@@ -1176,12 +1281,12 @@ int proc_repopid(Context &ctx, Link *link, const Request &req, Response *resp) {
 }
 
 
-
-int proc_ssdb_sync(Context &ctx, Link *link, const Request &req, Response *resp){
+int proc_ssdb_sync(Context &ctx, Link *link, const Request &req, Response *resp) {
 
     log_info("ssdb_sync , link address:%lld", link);
 
-    BackgroundThreadJob *job = new ReplicationByIterator(ctx, HostAndPort{link->remote_ip, link->remote_port}, link, true, false);
+    BackgroundThreadJob *job = new ReplicationByIterator(ctx, HostAndPort{link->remote_ip, link->remote_port}, link,
+                                                         true, false);
 //	net->replication->push(job);
 
     pthread_t tid;
@@ -1195,17 +1300,33 @@ int proc_ssdb_sync(Context &ctx, Link *link, const Request &req, Response *resp)
     return PROC_BACKEND;
 }
 
-int proc_ssdb_sync2(Context &ctx, Link *link, const Request &req, Response *resp){
+int proc_ssdb_sync2(Context &ctx, Link *link, const Request &req, Response *resp) {
     log_info("ssdb_sync2 , link address:%lld", link);
     bool heartbeat = false;
+    int64_t replts = 0;
 
     if (req.size() > 2) {
-        if (req[1].String() == "heartbeat") {
-            heartbeat = (req[2].String() == "1");
+        for (int i = 1; i < req.size(); ++i) {
+            std::string key = req[i].String();
+            strtolower(&key);
+            if (key == "heartbeat") {
+                i++;
+                if (i >= req.size()) {
+                    reply_err_return(SYNTAX_ERR);
+                }
+                heartbeat = (req[i].String() == "1");
+            } else if (key == "replts") {
+                i++;
+                if (i >= req.size()) {
+                    reply_err_return(SYNTAX_ERR);
+                }
+                replts = req[i].Int64();
+            }
         }
     }
 
-    BackgroundThreadJob *job = new ReplicationByIterator(ctx, HostAndPort{link->remote_ip, link->remote_port}, link, true, heartbeat);
+    ReplicationByIterator2 *job = new ReplicationByIterator2(ctx, HostAndPort{link->remote_ip, link->remote_port}, link,
+                                                         true, heartbeat, replts);
 //	net->replication->push(job);
 
     pthread_t tid;
@@ -1256,9 +1377,9 @@ int proc_migrate(Context &ctx, Link *link, const Request &req, Response *resp) {
             } else if (q4 == "keys") {
                 if (!req[3].empty()) {
                     reply_errinfo_return("ERR When using MIGRATE KEYS option, the key argument"
-                                    " must be set to the empty string");
+                                                 " must be set to the empty string");
                 }
-                first_key = j+1;
+                first_key = j + 1;
                 num_keys = (int) (req.size() - j - 1);
                 break;
             } else {
@@ -1286,13 +1407,13 @@ int proc_migrate(Context &ctx, Link *link, const Request &req, Response *resp) {
     if (timeout <= 0) timeout = 1000;
 
     for (j = 0; j < num_keys; j++) {
-        int res = serv->ssdb->check_meta_key(ctx, req[first_key+j]);
+        int res = serv->ssdb->check_meta_key(ctx, req[first_key + j]);
         if (res < 0) {
             reply_err_return(res);
-        } else if (res == 0){
+        } else if (res == 0) {
             //ingnore
         } else {
-            kv.emplace_back(req[first_key+j].String());
+            kv.emplace_back(req[first_key + j].String());
         }
     }
 
@@ -1323,7 +1444,7 @@ int proc_migrate(Context &ctx, Link *link, const Request &req, Response *resp) {
     std::string cmd;
 
     if (dbid != 0) {
-        appendRedisRequest(cmd, {"SELECT", str((int)dbid)});
+        appendRedisRequest(cmd, {"SELECT", str((int) dbid)});
     }
 
     /* Create RESTORE payload and generate the protocol to call the command. */
@@ -1332,11 +1453,11 @@ int proc_migrate(Context &ctx, Link *link, const Request &req, Response *resp) {
         int64_t pttl = 0;
 
         int ret = serv->ssdb->dump(ctx, kv[j], &payload, &pttl, serv->opt.rdb_compression);
-         if (ret < 0) {
+        if (ret < 0) {
             reply_err_return(ret);
         } else if (ret == 0) {
-             continue;
-         }
+            continue;
+        }
 
         std::vector<std::string> cmd_item;
 //        cmd_item.emplace_back("RESTORE");
@@ -1361,9 +1482,9 @@ int proc_migrate(Context &ctx, Link *link, const Request &req, Response *resp) {
             towrite = (towrite > (64 * 1024) ? (64 * 1024) : towrite);
             cs->output->append(buf + pos, (int) towrite);
             nwritten = cs->write();
-            if (nwritten <0 || cs->output->size()!=0) {
+            if (nwritten < 0 || cs->output->size() != 0) {
                 if (errno != 0) {
-                    log_debug("%s" , strerror(errno));
+                    log_debug("%s", strerror(errno));
                 }
 
                 reply_errinfo_return("ERR write failed");
@@ -1371,7 +1492,6 @@ int proc_migrate(Context &ctx, Link *link, const Request &req, Response *resp) {
             pos += nwritten;
         }
     }
-
 
 
     if (dbid != 0) {
@@ -1419,8 +1539,8 @@ int proc_migrate(Context &ctx, Link *link, const Request &req, Response *resp) {
         reply_errinfo_return(("ERR Target instance replied with error: " + error_info_from_target));
     }
 
-     /* Success! Update the last_dbid in migrateCachedSocket, so that we can
-     * avoid SELECT the next time if the target DB is the same. Reply +OK. */
+    /* Success! Update the last_dbid in migrateCachedSocket, so that we can
+    * avoid SELECT the next time if the target DB is the same. Reply +OK. */
     resp->reply_ok();
 
     return 0;

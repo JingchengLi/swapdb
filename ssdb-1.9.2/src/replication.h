@@ -87,16 +87,15 @@ public:
 class ReplicationByIterator2 : public ReplicationByIterator {
 
 public:
-    ReplicationByIterator2(const Context &ctx, const HostAndPort &hnp, Link *link, bool compress,
-                                                   bool heartbeat) : ReplicationByIterator(ctx, hnp, link, compress,
-                                                                                           heartbeat) {
+    ReplicationByIterator2(const Context &ctx, const HostAndPort &hnp, Link *link, bool compress, bool heartbeat, int64_t ts) :
+            ReplicationByIterator(ctx, hnp, link, compress, heartbeat) {
         buffer = new Buffer(MAX_PACKAGE_SIZE);
         buffer2 = new Buffer(MAX_PACKAGE_SIZE);
 
         for (int i = 0; i < quickmap_size; ++i) {
             quickmap.emplace_back(replic_save_len((uint64_t) i));
         }
-
+        replTs = ts;
     }
 
     ~ReplicationByIterator2() override {
@@ -109,6 +108,8 @@ public:
     int process() override;
 
     std::future<CompressResult> bg;
+
+    int64_t replTs = 0;
 
     Buffer *buffer = nullptr;
     Buffer *buffer2 = nullptr;

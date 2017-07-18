@@ -18,13 +18,14 @@ extern "C" {
 
 void *ssdb_sync2(void *arg) {
 
-    ReplicationByIterator *job = (ReplicationByIterator *) arg;
+    ReplicationByIterator2 *job = (ReplicationByIterator2 *) arg;
     Context ctx = job->ctx;
     SSDBServer *serv = (SSDBServer *) ctx.net->data;
     HostAndPort hnp = job->hnp;
     std::unique_ptr<Link> master_link(job->client_link); //upstream cannot be null !
     bool heartbeat = job->heartbeat;
     bool quit = job->quit;
+    int64_t replTs = job->replTs;
 
     delete job;
     job = nullptr;
@@ -41,7 +42,7 @@ void *ssdb_sync2(void *arg) {
             log_warn("cannot connect to redis");
         } else {
             std::unique_ptr<RedisResponse> t_res(
-                    redisUpstream.sendCommand({"ssdb-notify-redis", "transfer", "continue"}));
+                    redisUpstream.sendCommand({"ssdb-notify-redis", "transfer", "continue", str(replTs)}));
             if (!t_res) {
                 log_warn("send transfer continue to redis<%s:%d> failed", upstream_ip.c_str(), upstream_port);
             }
@@ -116,7 +117,7 @@ void *ssdb_sync2(void *arg) {
             if ((time_ms() - lastHeartBeat) > 3000) {
 
                 std::unique_ptr<RedisResponse> t_res(
-                        redisUpstream.sendCommand({"ssdb-notify-redis", "transfer", "continue"}));
+                        redisUpstream.sendCommand({"ssdb-notify-redis", "transfer", "continue", str(replTs)}));
                 if (!t_res) {
                     log_warn("send transfer continue to redis<%s:%d> failed", upstream_ip.c_str(), upstream_port);
                 }
@@ -400,7 +401,7 @@ void *ssdb_sync2(void *arg) {
 
         if (heartbeat) {
             std::unique_ptr<RedisResponse> t_res(
-                    redisUpstream.sendCommand({"ssdb-notify-redis", "transfer", "unfinished"}));
+                    redisUpstream.sendCommand({"ssdb-notify-redis", "transfer", "unfinished", str(replTs)}));
             if (!t_res) {
                 log_warn("send transfer unfinished to redis<%s:%d> failed", upstream_ip.c_str(), upstream_port);
             }
@@ -411,7 +412,7 @@ void *ssdb_sync2(void *arg) {
 
         if (heartbeat) {
             std::unique_ptr<RedisResponse> t_res(
-                    redisUpstream.sendCommand({"ssdb-notify-redis", "transfer", "finished"}));
+                    redisUpstream.sendCommand({"ssdb-notify-redis", "transfer", "finished", str(replTs)}));
             if (!t_res) {
                 log_warn("send transfer finished to redis<%s:%d> failed", upstream_ip.c_str(), upstream_port);
             }
