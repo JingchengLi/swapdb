@@ -1373,6 +1373,7 @@ struct redisServer {
     list *no_writing_ssdb_blocked_clients;
 
     int ssdb_status;
+    mstime_t ssdb_snapshot_timestamp;
     time_t check_write_begin_time;
     /* Calculate the num of unresponsed clients. */
     int check_write_unresponse_num;

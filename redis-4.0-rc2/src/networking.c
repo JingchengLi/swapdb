@@ -1545,6 +1545,7 @@ int handleResponseOfPsync(client *c, redisReply* reply) {
     if (IsReplyEqual(reply, shared.makesnapshotok)) {
         if (c == server.ssdb_replication_client && server.ssdb_status == MASTER_SSDB_SNAPSHOT_PRE) {
             server.make_snapshot_begin_time = -1;
+            server.ssdb_snapshot_timestamp = mstime();
             server.ssdb_status = MASTER_SSDB_SNAPSHOT_OK;
         } else
             serverLog(LL_DEBUG, "unexpected response:%s", shared.makesnapshotok);

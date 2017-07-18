@@ -455,8 +455,12 @@ int replicationSetupSlaveForFullResync(client *slave, long long offset) {
     /* Don't send this reply to slaves that approached us with
      * the old SYNC command. */
     if (!(slave->flags & CLIENT_PRE_PSYNC)) {
-        buflen = snprintf(buf,sizeof(buf),"+FULLRESYNC %s %lld\r\n",
-                          server.replid,offset);
+        if (server.jdjr_mode)
+            buflen = snprintf(buf,sizeof(buf),"+FULLRESYNC %s %lld %lld\r\n",
+                              server.replid,offset, server.ssdb_snapshot_timestamp);
+        else
+            buflen = snprintf(buf,sizeof(buf),"+FULLRESYNC %s %lld\r\n",
+                              server.replid,offset);
         if (write(slave->fd,buf,buflen) != buflen) {
             freeClientAsync(slave);
             return C_ERR;
@@ -1291,8 +1295,18 @@ void ssdbNotifyCommand(client* c) {
         c->flags |= CLIENT_CLOSE_AFTER_REPLY;
         return;
     }
+
     if (!strcasecmp(c->argv[1]->ptr, "transfer")) {
-        if (server.repl_state >= REPL_STATE_SEND_PSYNC) {
+        sds s = c->argv[3]->ptr;
+        long long ssdb_snapshot_timestamp = -1;
+
+        if (string2ll(s, sdslen(s), &ssdb_snapshot_timestamp) == 0) {
+            serverLog(LL_WARNING, "wrong ssdb snapshot timestamp format for ssdb-notify-redis transfer");
+            addReplyErrorFormat(c, "wrong argument:%s", (char*)c->argv[3]->ptr);
+            return;
+        }
+
+        if (server.repl_state >= REPL_STATE_RECEIVE_PSYNC && server.ssdb_snapshot_timestamp == ssdb_snapshot_timestamp) {
             if (!strcasecmp(c->argv[2]->ptr, "finished")) {
                 serverLog(LL_DEBUG, "receive 'ssdb-notify transfer finished'");
                 server.ssdb_repl_state = REPL_STATE_TRANSFER_SSDB_SNAPSHOT_END;
@@ -1313,10 +1327,8 @@ void ssdbNotifyCommand(client* c) {
                 addReplyErrorFormat(c, "unknow argument:%s", (char*)c->argv[2]->ptr);
             }
         } else {
-            serverLog(LL_WARNING, "unexpected snapshot transfer message"
-                    "ssdb is not in snapshot receiving state.");
-            addReplyError(c, "unexpected snapshot transfer message, ssdb is not"
-                    " in snapshot receiving state.");
+            serverLog(LL_WARNING, "unexpected snapshot transfer message");
+            addReplyError(c, "unexpected snapshot transfer message");
             c->flags |= CLIENT_CLOSE_AFTER_REPLY;
         }
     } else {
@@ -1768,7 +1780,7 @@ int slaveTryPartialResynchronization(int fd, int read_reply) {
     aeDeleteFileEvent(server.el,fd,AE_READABLE);
 
     if (!strncmp(reply,"+FULLRESYNC",11)) {
-        char *replid = NULL, *offset = NULL;
+        char *replid = NULL, *offset = NULL, *ssdb_snapshot_timestamp = NULL;
 
         /* FULL RESYNC, parse the reply in order to extract the run id
          * and the replication offset. */
@@ -1776,9 +1788,15 @@ int slaveTryPartialResynchronization(int fd, int read_reply) {
         if (replid) {
             replid++;
             offset = strchr(replid,' ');
-            if (offset) offset++;
+            if (offset) {
+                offset++;
+                if (server.jdjr_mode) {
+                    ssdb_snapshot_timestamp = strchr(offset, ' ');
+                    if (ssdb_snapshot_timestamp) ssdb_snapshot_timestamp++;
+                }
+            }
         }
-        if (!replid || !offset || (offset-replid-1) != CONFIG_RUN_ID_SIZE) {
+        if (!replid || !offset || (offset-replid-1) != CONFIG_RUN_ID_SIZE || (server.jdjr_mode && !ssdb_snapshot_timestamp)) {
             serverLog(LL_WARNING,
                 "Master replied with wrong +FULLRESYNC syntax.");
             /* This is an unexpected condition, actually the +FULLRESYNC
@@ -1790,9 +1808,12 @@ int slaveTryPartialResynchronization(int fd, int read_reply) {
             memcpy(server.master_replid, replid, offset-replid-1);
             server.master_replid[CONFIG_RUN_ID_SIZE] = '\0';
             server.master_initial_offset = strtoll(offset,NULL,10);
-            serverLog(LL_NOTICE,"Full resync from master: %s:%lld",
+            if (server.jdjr_mode)
+                server.ssdb_snapshot_timestamp = strtoll(ssdb_snapshot_timestamp,NULL,10);
+            serverLog(LL_NOTICE,"Full resync from master: %s:%lld:%lld",
                 server.master_replid,
-                server.master_initial_offset);
+                server.master_initial_offset,
+                server.ssdb_snapshot_timestamp);
         }
         /* We are going to full resync, discard the cached master structure. */
         replicationDiscardCachedMaster();
@@ -2991,16 +3012,19 @@ void replicationCron(void) {
             && (server.ssdb_status == MASTER_SSDB_SNAPSHOT_OK)
             && (slave->ssdb_status == SLAVE_SSDB_SNAPSHOT_TRANSFER_PRE)) {
             char buf[64];
-            char * argv[3];
+            char ssdb_snapshot_timestamp[64];
+            char * argv[4];
 
             ll2string(buf, 64, slave->slave_listening_port + SSDB_SLAVE_PORT_INCR);
+            ll2string(ssdb_snapshot_timestamp, 64, server.ssdb_snapshot_timestamp);
 
             argv[0] = "rr_transfer_snapshot";
             argv[1] = slave->client_ip;
             argv[2] = buf;
+            argv[3] = ssdb_snapshot_timestamp;
 
             /* cmsds will be consumed by sendCommandToSSDB. */
-            sds cmdsds = composeRedisCmd(3, (const char **)argv, NULL);
+            sds cmdsds = composeRedisCmd(4, (const char **)argv, NULL);
 
             if (cmdsds && sendCommandToSSDB(slave, cmdsds) != C_OK) {
                 serverLog(LL_WARNING,
