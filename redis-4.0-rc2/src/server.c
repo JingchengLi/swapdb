@@ -1892,7 +1892,7 @@ void beforeSleep(struct aeEventLoop *eventLoop) {
     /* Try to load keys from SSDB to redis. */
     if (server.jdjr_mode && server.masterhost == NULL) startToLoadIfNeeded();
 
-    if (server.jdjr_mode && server.masterhost == NULL) handleSSDBkeysToClean();
+    if (server.jdjr_mode) handleSSDBkeysToClean();
 
     if (server.jdjr_mode) handleDeleteConfirmKeys();
 

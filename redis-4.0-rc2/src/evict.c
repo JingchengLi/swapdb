@@ -978,15 +978,6 @@ int freeMemoryIfNeeded(void) {
     /* Check if we are still over the memory limit. */
     if (mem_used <= server.maxmemory) return C_OK;
 
-    /* todo: clean keys in evict db first if memory reach the max
-     * value and memory policy allow keys evict. */
-
-    // todo: remove below commented codes
-    /* review by lijingcheng: we shoudn't prohibit memory data eviction even if in
-     * jdjr_mode, this is due to maxmory policy specified by our users. */
-    /* Forbid free memory in jdjr_mode. */
-    //if (server.jdjr_mode) goto cant_free;
-
     /* Compute how much memory we need to free. */
     mem_tofree = mem_used - server.maxmemory;
     mem_freed = 0;
@@ -1015,26 +1006,53 @@ int freeMemoryIfNeeded(void) {
 
             while(bestkey == NULL) {
                 unsigned long total_keys = 0, keys;
+                int evict_dbid;
+                struct dict* evict_dict;
+                redisDb* evict_db;
 
-                /* We don't want to make local-db choices when expiring keys,
-                 * so to start populate the eviction pool sampling keys from
-                 * every DB. */
-                for (i = 0; i < server.dbnum; i++) {
-                    if (server.jdjr_mode && i == EVICTED_DATA_DBID) continue;
-
-                    db = server.db+i;
+                if (server.jdjr_mode) {
+                    db = server.db+EVICTED_DATA_DBID;
                     dict = (server.maxmemory_policy & MAXMEMORY_FLAG_ALLKEYS) ?
-                            db->dict : db->expires;
+                           db->dict : db->expires;
+                    total_keys += dictSize(dict);
+
+                    /* try to evict cold keys first */
                     if ((keys = dictSize(dict)) != 0) {
-                        evictionPoolPopulate(i, dict, db->dict, pool);
-                        total_keys += keys;
+                        evict_dbid = EVICTED_DATA_DBID;
+                        evict_db = EVICTED_DATA_DB;
+                    } else {
+                        evict_dbid = 0;
+                        evict_db = server.db;
+                    }
+                    db = server.db;
+                    dict = (server.maxmemory_policy & MAXMEMORY_FLAG_ALLKEYS) ?
+                           db->dict : db->expires;
+                    total_keys += dictSize(dict);
+
+                    evict_dict = (server.maxmemory_policy & MAXMEMORY_FLAG_ALLKEYS) ?
+                           evict_db->dict : evict_db->expires;
+
+                    evictionPoolPopulate(evict_dbid, evict_dict, evict_db->dict, pool);
+                } else {
+                    /* We don't want to make local-db choices when expiring keys,
+                     * so to start populate the eviction pool sampling keys from
+                     * every DB. */
+                    for (i = 0; i < server.dbnum; i++) {
+                        if (server.jdjr_mode && i == EVICTED_DATA_DBID) continue;
+
+                        db = server.db+i;
+                        dict = (server.maxmemory_policy & MAXMEMORY_FLAG_ALLKEYS) ?
+                               db->dict : db->expires;
+                        if ((keys = dictSize(dict)) != 0) {
+                            evictionPoolPopulate(i, dict, db->dict, pool);
+                            total_keys += keys;
+                        }
                     }
                 }
                 if (!total_keys) break; /* No keys to evict. */
 
                 /* If total_keys < dictSize of EVICTED_DATA_DB->transferring_keys,
-                 the loop happens to be endless.
-                 TODO: to be determined if it is allowed to evict data in jdjr-mode. */
+                 the loop happens to be endless. */
                 if (server.jdjr_mode
                     && total_keys <= dictSize(EVICTED_DATA_DB->transferring_keys))
                     break;
