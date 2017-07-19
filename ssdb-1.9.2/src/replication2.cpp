@@ -30,7 +30,7 @@ int ReplicationByIterator2::process() {
     Link *master_link = client_link;
     const leveldb::Snapshot *snapshot = nullptr;
 
-    log_info("[ReplicationByIterator2] send snapshot to %s start!", hnp.String().c_str());
+    log_info("[ReplicationByIterator2] send snapshot[%d] to %s start!", replTs, hnp.String().c_str());
     {
         Locking<Mutex> l(&serv->replicState.rMutex);
         snapshot = serv->replicState.rSnapshot;
@@ -73,7 +73,7 @@ int ReplicationByIterator2::process() {
     ssdb_slave_link->response();
     ssdb_slave_link->noblock(true);
 
-    log_info("[ReplicationByIterator2] ssdb_sync2 done");
+    log_info("[ReplicationByIterator2] ssdb_sync2 cmd done");
 
     bool iterator_done = false;
 
@@ -348,7 +348,7 @@ int ReplicationByIterator2::process() {
 
     double elapsed = (time_ms() - start) * 1.0 / 1000.0 + 0.0000001;
     int64_t speed = (int64_t) (sendBytes / elapsed);
-    log_info("[ReplicationByIterator2] send snapshot to %s finished!", hnp.String().c_str());
+    log_info("[ReplicationByIterator2] send snapshot[%d] to %s finished!", replTs, hnp.String().c_str());
     log_debug("send rr_transfer_snapshot finished!!");
     log_info("replic procedure finish!");
     log_info("[ReplicationByIterator2] task stats : dataSize %s, sendByes %s, elapsed %s, speed %s/s",

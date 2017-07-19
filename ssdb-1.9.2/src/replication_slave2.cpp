@@ -35,7 +35,7 @@ void *ssdb_sync2(void *arg) {
     RedisUpstream redisUpstream(upstream_ip, upstream_port, 500);
 
     if (heartbeat) {
-        log_warn("[ssdb_sync] sending heartbeat to upstream");
+        log_info("[ssdb_sync2] sending heartbeat to upstream");
         redisUpstream.setMaxRetry(1);
         redisUpstream.reset();
         if (!redisUpstream.isConnected()) {
@@ -48,8 +48,11 @@ void *ssdb_sync2(void *arg) {
             }
         }
 
+    } else {
+        log_warn("[ssdb_sync2] heartbeat disabled");
     }
 
+    log_info("[ssdb_sync2] current snapshot transfer timestamp id : %d", replTs);
 
     size_t total_threads = 5;
     size_t current_thread = 0;
@@ -63,7 +66,7 @@ void *ssdb_sync2(void *arg) {
     std::vector<std::future<int>> bgs(total_threads);
 //    std::future<int> bg;
 
-    log_warn("[ssdb_sync] update transfer state");
+    log_warn("[ssdb_sync2] update transfer state");
     {
         Locking<Mutex> l(&serv->replicState.rMutex);
 
@@ -74,24 +77,24 @@ void *ssdb_sync2(void *arg) {
         serv->replicState.startReplic();
     }
 
-    log_warn("[ssdb_sync] expiration stop");
+    log_info("[ssdb_sync2] expiration stop");
     if (serv->ssdb->expiration) {
         serv->ssdb->expiration->stop();
     }
 
-    log_warn("[ssdb_sync] ssdb stop");
+    log_info("[ssdb_sync2] ssdb stop");
     serv->ssdb->stop();
 
-    log_warn("[ssdb_sync] do flushdb");
+    log_info("[ssdb_sync2] do flushdb");
     serv->ssdb->flushdb(ctx);
     serv->ssdb->resetRepopid(ctx);
 
 
-    log_warn("[ssdb_sync] ready to revieve");
-    master_link->quick_send({"ok", "ready to revieve"});
+    log_info("[ssdb_sync2] ready to receive snapshot %d", replTs);
+    master_link->quick_send({"ok", "ready to receive"});
 
 
-    log_debug("[ssdb_sync] prepare for event loop");
+    log_info("[ssdb_sync2] prepare for event loop");
 
     unique_ptr<Fdevents> fdes = unique_ptr<Fdevents>(new Fdevents());
 
@@ -382,22 +385,22 @@ void *ssdb_sync2(void *arg) {
 //        kvs.clear();
 //    }
 
-    log_info("[ssdb_sync] flush memtable");
+    log_info("[ssdb_sync2] flush memtable");
     serv->ssdb->flush(ctx, true);
 
-    log_info("[ssdb_sync] expiration starting");
+    log_info("[ssdb_sync2] expiration starting");
 
     if (serv->ssdb->expiration != nullptr) {
         serv->ssdb->expiration->start();
     }
 
-    log_info("[ssdb_sync] ssdb starting");
+    log_info("[ssdb_sync2] ssdb starting");
 
     serv->ssdb->start();
 
     if (errorCode != 0) {
         master_link->quick_send({"error", "recieve snapshot failed!"});
-        log_error("[ssdb_sync] recieve snapshot from %s failed!, err: %d", hnp.String().c_str(), errorCode);
+        log_error("[ssdb_sync2] recieve snapshot from %s failed!, err: %d", hnp.String().c_str(), errorCode);
 
         if (heartbeat) {
             std::unique_ptr<RedisResponse> t_res(
@@ -408,7 +411,7 @@ void *ssdb_sync2(void *arg) {
         }
     } else {
         master_link->quick_send({"ok", "recieve snapshot finished"});
-        log_info("[ssdb_sync] recieve snapshot from %s finished!", hnp.String().c_str());
+        log_info("[ssdb_sync2] recieve snapshot from %s finished!", hnp.String().c_str());
 
         if (heartbeat) {
             std::unique_ptr<RedisResponse> t_res(
