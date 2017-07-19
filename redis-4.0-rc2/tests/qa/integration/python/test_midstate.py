@@ -111,9 +111,9 @@ class TestMidState(unittest.TestCase):
         self.p.apply_async(append, args = (q,))
         time.sleep(0.01)
         for i in range(150):
-            time.sleep(0.001)
             result = self.p.apply_async(AllowReadBlockWrite, args = (q,))
             results.append(result)
+            time.sleep(0.005)
 
         self.p.close()
         self.p.join()
