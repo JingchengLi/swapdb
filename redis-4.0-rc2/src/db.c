@@ -1204,7 +1204,7 @@ void propagateExpire(redisDb *db, robj *key, int lazy) {
     if (server.jdjr_mode && NULL == server.masterhost && db->id == EVICTED_DATA_DBID) {
         /* add this expired key to dict, we will tell ssdb to
          * delete it. */
-        dictAddOrFind(db->delete_expired_keys, key->ptr);
+        dictAddOrFind(db->ssdb_keys_to_clean, key->ptr);
     }
 
     argv[0] = lazy ? shared.unlink : shared.del;
@@ -1235,7 +1235,7 @@ int checkBeforeExpire(redisDb *db, robj *key) {
         serverLog(LL_DEBUG, "key: %s is unblocked and deleted from transferring_keys.", (char *)key->ptr);
         if (server.jdjr_mode && NULL == server.masterhost) {
             /* the key may have been transferred to ssdb */
-            dictAddOrFind(EVICTED_DATA_DB->delete_expired_keys, key->ptr);
+            dictAddOrFind(EVICTED_DATA_DB->ssdb_keys_to_clean, key->ptr);
         }
     }
     return 1;

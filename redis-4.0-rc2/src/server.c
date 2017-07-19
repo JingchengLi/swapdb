@@ -1714,11 +1714,11 @@ void startToHandleCmdListInSlave(void) {
 }
 
 #define MAX_NUM_EXPIRED_DELETE_EVERY_TIME 10
-void handleExpiredDeleteKeys(void) {
+void handleSSDBkeysToClean(void) {
     dictIterator *di;
     dictEntry *de;
     int arg_pos;
-    unsigned int size = dictSize(EVICTED_DATA_DB->delete_expired_keys);
+    unsigned int size = dictSize(EVICTED_DATA_DB->ssdb_keys_to_clean);
 
     if (0 == size)
         return;
@@ -1739,7 +1739,7 @@ void handleExpiredDeleteKeys(void) {
     server.expired_delete_client->argv[0] = createObject(OBJ_STRING, sdsnew("del"));
 
     arg_pos = 1;
-    di = dictGetSafeIterator(EVICTED_DATA_DB->delete_expired_keys);
+    di = dictGetSafeIterator(EVICTED_DATA_DB->ssdb_keys_to_clean);
     while((de = dictNext(di))) {
         if (arg_pos > MAX_NUM_EXPIRED_DELETE_EVERY_TIME)
             break;
@@ -1892,7 +1892,7 @@ void beforeSleep(struct aeEventLoop *eventLoop) {
     /* Try to load keys from SSDB to redis. */
     if (server.jdjr_mode && server.masterhost == NULL) startToLoadIfNeeded();
 
-    if (server.jdjr_mode && server.masterhost == NULL) handleExpiredDeleteKeys();
+    if (server.jdjr_mode && server.masterhost == NULL) handleSSDBkeysToClean();
 
     if (server.jdjr_mode) handleDeleteConfirmKeys();
 
@@ -2576,7 +2576,7 @@ void initServer(void) {
         server.db[EVICTED_DATA_DBID].visiting_ssdb_keys = dictCreate(&keyDictType,NULL);
         server.db[EVICTED_DATA_DBID].delete_confirm_keys = dictCreate(&keyDictType,NULL);
         // todo: 优化字典类型,避免较多的内存分配
-        server.db[EVICTED_DATA_DBID].delete_expired_keys = dictCreate(&keyDictType,NULL);
+        server.db[EVICTED_DATA_DBID].ssdb_keys_to_clean = dictCreate(&keyDictType,NULL);
 
         server.hot_keys = dictCreate(&keyDictType,NULL);
         server.maybe_deleted_ssdb_keys = dictCreate(&keyDictType,NULL);
@@ -4011,7 +4011,7 @@ void cleanSpecialClientsAndIntermediateKeys(int is_flushall) {
     if (server.slave_ssdb_load_evict_client) freeClient(server.slave_ssdb_load_evict_client);
     if (is_flushall && server.delete_confirm_client) freeClient(server.delete_confirm_client);
 
-    dictEmpty(EVICTED_DATA_DB->delete_expired_keys, NULL);
+    dictEmpty(EVICTED_DATA_DB->ssdb_keys_to_clean, NULL);
     if (is_flushall) dictEmpty(server.maybe_deleted_ssdb_keys, NULL);
     if (server.masterhost) dictEmpty(server.loadAndEvictCmdDict, NULL);
 

@@ -740,11 +740,11 @@ int prologOfEvictingToSSDB(robj *keyobj, redisDb *db) {
         return C_ERR;
     }
 
-    /* when the key was expired before but had not been deleted. but now we are sure
-     * it's a new key, so remove it from delete_expired_keys to avoid deleting a key
-     * by mistake. */
-    if (db->id == EVICTED_DATA_DBID && dictFind(db->delete_expired_keys, keyobj->ptr)) {
-        dictDelete(db->delete_expired_keys, keyobj->ptr);
+    /* when the key was expired/evicted before but had not been deleted from SSDB. but now
+     * we are sure it's a new key, so remove it from ssdb_keys_to_clean to avoid deleting
+     * a key by mistake. */
+    if (dictFind(EVICTED_DATA_DB->ssdb_keys_to_clean, keyobj->ptr)) {
+        dictDelete(EVICTED_DATA_DB->ssdb_keys_to_clean, keyobj->ptr);
     }
 
     if (expiretime != -1) {

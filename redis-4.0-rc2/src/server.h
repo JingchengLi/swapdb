@@ -722,7 +722,7 @@ typedef struct redisDb {
     dict *delete_confirm_keys;  /* need to confirm whether keys are deleted in SSDB when receive
                                  * 'check 1' responses for get like APIs or hdel like APIs. */
     dict *migrating_ssdb_keys;  /* For jdjr-mode: record the migrating keys in ssdb. */
-    dict *delete_expired_keys;  /* For jdjr-mode: these keys are expired and need to tell ssdb to delete them. */
+    dict *ssdb_keys_to_clean;  /* For jdjr-mode: these keys are expired or evicted and need to tell ssdb to delete them. */
     int id;                     /* Database ID */
     long long avg_ttl;          /* Average TTL, just for stats */
 } redisDb;
