@@ -11,7 +11,7 @@
 # redis client double free问题。
 # TODO
 
-## 在主从复制的任一阶段，将redis或ssdb搞挂，恢复后是否还能重新发起主从复制。
+## 在主从复制的任一阶段，将从节点ssdb搞挂，恢复后是否还能重新发起主从复制。
 set all {
     slaveredis "SLAVE OF.*enabled"
     masterredis "Slave.*asks for synchronization"
@@ -56,97 +56,50 @@ foreach {flag pattern} $pairs {
         set master_port [srv 0 port]
         set slaves {}
         start_server {} {
-            lappend slaves [srv 0 client]
-            start_server {} {
-                lappend slaves [srv 0 client]
-                switch $flag {
-                    slaveredis {set log [srv -1 stdout]}
-                    masterredis {set log [srv -2 stdout]}
-                    slavessdb {set log [srv -1 ssdbstdout]}
-                    masterssdb {set log [srv -2 ssdbstdout]}
-                    default {fail "$flag is invaild"}
-                }
-                set num 100000
-                if {$::accurate} {
-                    set clients 10
+            set slave [srv 0 client]
+            switch $flag {
+                slaveredis {set log [srv 0 stdout]}
+                masterredis {set log [srv -1 stdout]}
+                slavessdb {set log [srv 0 ssdbstdout]}
+                masterssdb {set log [srv -1 ssdbstdout]}
+                default {fail "$flag is invaild"}
+            }
+            set num 100000
+            if {$::accurate} {
+                set clients 10
+            } else {
+                set clients 1
+            }
+
+            test "slave ssdb restart after $pattern" {
+                set clist [ start_bg_complex_data_list $master_host $master_port $num $clients ]
+                after 1000
+                $slave slaveof $master_host $master_port
+                wait_log_pattern $pattern $log
+
+                kill_ssdb_server
+                restart_ssdb_server
+                wait_for_online $master 1
+
+                stop_bg_client_list  $clist
+            }
+
+            test "master and slave are identical after $pattern (slave ssdb restart)" {
+                # new client
+                set slave [srv 0 client]
+                wait_for_condition 100 100 {
+                    [$master dbsize] == [$slave dbsize]
                 } else {
-                    set clients 1
+                    fail "Different number of keys between master and slave after too long time."
                 }
-
-                test "master ssdb restart after $pattern" {
-                    set clist [ start_bg_complex_data_list $master_host $master_port $num $clients ]
-                    after 1000
-                    [lindex $slaves 0] slaveof $master_host $master_port
-                    wait_log_pattern $pattern $log
-
-                    kill_ssdb_server -2
-                    restart_ssdb_server -2
-                    # new client
-                    set master [srv -2 client]
-                    wait_for_online $master 1
-
-                    stop_bg_client_list  $clist
-                }
-
-                test "master and slave are identical after $pattern (master ssdb restart)" {
-                #    主节点ssdb重启, 主节点上残留index的问题
-                #    wait_for_condition 100 100 {
-                #        [$master dbsize] == [[lindex $slaves 0] dbsize]
-                #    } else {
-                #        fail "Different number of keys between master and slave after too long time."
-                #    }
-                #    wait_for_condition 100 100 {
-                #        [$master debug digest] == [[lindex $slaves 0] debug digest]
-                #    } else {
-                #        fail "Different digest between master([$master debug digest]) and slave([[lindex $slaves 0] debug digest]) after too long time."
-                #    }
-                    assert {[$master dbsize] > 0}
-                    compare_debug_digest {-1 -2}
-                }
-
-                switch $flag {
-                    slaveredis {set log [srv 0 stdout]}
-                    masterredis {set log [srv -2 stdout]}
-                    slavessdb {set log [srv 0 ssdbstdout]}
-                    masterssdb {set log [srv -2 ssdbstdout]}
-                    default {fail "$flag is invaild"}
-                }
-
-                # cleanup the log during first slaveof and backup it
-                set out_bak [format "%s_bak" $log]
-                exec cp $log $out_bak
-                exec echo > $log
-
-                test "slave ssdb restart after $pattern" {
-                    set clist [ start_bg_complex_data_list $master_host $master_port $num $clients ]
-                    after 1000
-                    [lindex $slaves 1] slaveof $master_host $master_port
-                    wait_log_pattern $pattern $log
-
-                    kill_ssdb_server
-                    restart_ssdb_server
-                    wait_for_online $master 2
-
-                    stop_bg_client_list  $clist
-                }
-
-                test "master and slave are identical after $pattern (slave ssdb restart)" {
-                    # new client
-                    set slave [srv 0 client]
-                    wait_for_condition 100 100 {
-                        [$master dbsize] == [$slave dbsize]
-                    } else {
-                        fail "Different number of keys between master and slave after too long time."
-                    }
-                    #从节点ssdb发生重启的情况下不保证主从冷热数据分布一致
-                    #wait_for_condition 100 100 {
-                    #    [$master debug digest] == [$slave debug digest]
-                    #} else {
-                    #    fail "Different digest between master([$master debug digest]) and slave([$slave debug digest]) after too long time."
-                    #}
-                    assert {[$master dbsize] > 0}
-                    compare_debug_digest {0 -1 -2}
-                }
+                #从节点ssdb发生重启的情况下不保证主从冷热数据分布一致
+                #wait_for_condition 100 100 {
+                #    [$master debug digest] == [$slave debug digest]
+                #} else {
+                #    fail "Different digest between master([$master debug digest]) and slave([$slave debug digest]) after too long time."
+                #}
+                assert {[$master dbsize] > 0}
+                compare_debug_digest {0 -1}
             }
         }
     }
