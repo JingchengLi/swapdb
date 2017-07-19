@@ -268,6 +268,7 @@ long long test_incr_id;
 
 #define CMD_JDJR_MODE (1<<22)       /* "J" flag */
 #define CMD_JDJR_REDIS_ONLY (1<<23) /* "j" flag */
+#define CMD_JDJR_NOT_ALLOWED (1<<24)/* "n" flag */
 
 /* AOF states */
 #define AOF_OFF 0             /* AOF is off */

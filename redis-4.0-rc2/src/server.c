@@ -126,6 +126,7 @@ struct redisServer server; /* server global state */
  * j: For jdjr mode and commands with read/write flag only, this indicates redis
  *    can process this command but SSDB can't and we can't transfer this command
  *    to SSDB.
+ * n: In jdjr mode, commands are not allowed.
  */
 struct redisCommand redisCommandTable[] = {
     {"module",moduleCommand,-2,"asn",0,NULL,1,1,1,0,0},
@@ -137,18 +138,12 @@ struct redisCommand redisCommandTable[] = {
     {"append",appendCommand,3,"wmJ",0,NULL,1,1,1,0,0},
     {"strlen",strlenCommand,2,"rFJ",0,NULL,1,1,1,0,0},
     /* in jdjr mode, we only support one key command */
-#ifdef RUN_MAKE_TEST
-    {"del",delCommand,-2,"wJ",0,NULL,1,-1,1,0,0},
-    {"unlink",unlinkCommand,-2,"wFn",0,NULL,1,-1,1,0,0},
-    {"exists",existsCommand,-2,"rFJ",0,NULL,1,-1,1,0,0},
-#else
     {"del",delCommand,2,"wJ",0,NULL,1,1,1,0,0},
-    {"unlink",unlinkCommand,2,"wFn",0,NULL,1,1,1,0,0},
+    {"unlink",unlinkCommand,2,"wF",0,NULL,1,1,1,0,0},
     {"exists",existsCommand,2,"rFJ",0,NULL,1,1,1,0,0},
-#endif
     {"setbit",setbitCommand,4,"wmJ",0,NULL,1,1,1,0,0},
     {"getbit",getbitCommand,3,"rFJ",0,NULL,1,1,1,0,0},
-    {"bitfield",bitfieldCommand,-2,"wmn",0,NULL,1,1,1,0,0},
+    {"bitfield",bitfieldCommand,-2,"wm",0,NULL,1,1,1,0,0},
     {"setrange",setrangeCommand,4,"wmJ",0,NULL,1,1,1,0,0},
     {"getrange",getrangeCommand,4,"rJ",0,NULL,1,1,1,0,0},
     {"substr",getrangeCommand,4,"rJ",0,NULL,1,1,1,0,0},
@@ -158,47 +153,47 @@ struct redisCommand redisCommandTable[] = {
     {"incr",incrCommand,2,"wmFJ",0,NULL,1,1,1,0,0},
 #endif
     {"decr",decrCommand,2,"wmFJ",0,NULL,1,1,1,0,0},
-    {"mget",mgetCommand,-2,"rn",0,NULL,1,-1,1,0,0},
+    {"mget",mgetCommand,-2,"r",0,NULL,1,-1,1,0,0},
     {"rpush",rpushCommand,-3,"wmFJ",0,NULL,1,1,1,0,0},
     {"lpush",lpushCommand,-3,"wmFJ",0,NULL,1,1,1,0,0},
     {"rpushx",rpushxCommand,-3,"wmFJ",0,NULL,1,1,1,0,0},
     {"lpushx",lpushxCommand,-3,"wmFJ",0,NULL,1,1,1,0,0},
-    {"linsert",linsertCommand,5,"wmn",0,NULL,1,1,1,0,0},
+    {"linsert",linsertCommand,5,"wm",0,NULL,1,1,1,0,0},
     {"rpop",rpopCommand,2,"wFJ",0,NULL,1,1,1,0,0},
     {"lpop",lpopCommand,2,"wFJ",0,NULL,1,1,1,0,0},
-    {"brpop",brpopCommand,-3,"wsn",0,NULL,1,1,1,0,0},
-    {"brpoplpush",brpoplpushCommand,4,"wmsn",0,NULL,1,2,1,0,0},
-    {"blpop",blpopCommand,-3,"wsn",0,NULL,1,-2,1,0,0},
+    {"brpop",brpopCommand,-3,"ws",0,NULL,1,1,1,0,0},
+    {"brpoplpush",brpoplpushCommand,4,"wms",0,NULL,1,2,1,0,0},
+    {"blpop",blpopCommand,-3,"ws",0,NULL,1,-2,1,0,0},
     {"llen",llenCommand,2,"rFJ",0,NULL,1,1,1,0,0},
     {"lindex",lindexCommand,3,"rJ",0,NULL,1,1,1,0,0},
     {"lset",lsetCommand,4,"wmJ",0,NULL,1,1,1,0,0},
     {"lrange",lrangeCommand,4,"rJ",0,NULL,1,1,1,0,0},
     {"ltrim",ltrimCommand,4,"wJ",0,NULL,1,1,1,0,0},
-    {"lrem",lremCommand,4,"wn",0,NULL,1,1,1,0,0},
-    {"rpoplpush",rpoplpushCommand,3,"wmn",0,NULL,1,2,1,0,0},
+    {"lrem",lremCommand,4,"w",0,NULL,1,1,1,0,0},
+    {"rpoplpush",rpoplpushCommand,3,"wm",0,NULL,1,2,1,0,0},
     {"sadd",saddCommand,-3,"wmFJ",0,NULL,1,1,1,0,0},
     {"srem",sremCommand,-3,"wFJ",0,NULL,1,1,1,0,0},
-    {"smove",smoveCommand,4,"wFn",0,NULL,1,2,1,0,0},
+    {"smove",smoveCommand,4,"wF",0,NULL,1,2,1,0,0},
     {"sismember",sismemberCommand,3,"rFJ",0,NULL,1,1,1,0,0},
     {"scard",scardCommand,2,"rFJ",0,NULL,1,1,1,0,0},
     {"spop",spopCommand,-2,"wRFJ",0,NULL,1,1,1,0,0},
     {"srandmember",srandmemberCommand,-2,"rRJ",0,NULL,1,1,1,0,0},
-    {"sinter",sinterCommand,-2,"rSn",0,NULL,1,-1,1,0,0},
-    {"sinterstore",sinterstoreCommand,-3,"wmn",0,NULL,1,-1,1,0,0},
-    {"sunion",sunionCommand,-2,"rSn",0,NULL,1,-1,1,0,0},
-    {"sunionstore",sunionstoreCommand,-3,"wmn",0,NULL,1,-1,1,0,0},
-    {"sdiff",sdiffCommand,-2,"rSn",0,NULL,1,-1,1,0,0},
-    {"sdiffstore",sdiffstoreCommand,-3,"wmn",0,NULL,1,-1,1,0,0},
+    {"sinter",sinterCommand,-2,"rS",0,NULL,1,-1,1,0,0},
+    {"sinterstore",sinterstoreCommand,-3,"wm",0,NULL,1,-1,1,0,0},
+    {"sunion",sunionCommand,-2,"rS",0,NULL,1,-1,1,0,0},
+    {"sunionstore",sunionstoreCommand,-3,"wm",0,NULL,1,-1,1,0,0},
+    {"sdiff",sdiffCommand,-2,"rS",0,NULL,1,-1,1,0,0},
+    {"sdiffstore",sdiffstoreCommand,-3,"wm",0,NULL,1,-1,1,0,0},
     {"smembers",sinterCommand,2,"rSJ",0,NULL,1,1,1,0,0},
-    {"sscan",sscanCommand,-3,"rRJn",0,NULL,1,1,1,0,0},
+    {"sscan",sscanCommand,-3,"rR",0,NULL,1,1,1,0,0},
     {"zadd",zaddCommand,-4,"wmFJ",0,NULL,1,1,1,0,0},
     {"zincrby",zincrbyCommand,4,"wmFJ",0,NULL,1,1,1,0,0},
     {"zrem",zremCommand,-3,"wFJ",0,NULL,1,1,1,0,0},
     {"zremrangebyscore",zremrangebyscoreCommand,4,"wJ",0,NULL,1,1,1,0,0},
     {"zremrangebyrank",zremrangebyrankCommand,4,"wJ",0,NULL,1,1,1,0,0},
     {"zremrangebylex",zremrangebylexCommand,4,"wJ",0,NULL,1,1,1,0,0},
-    {"zunionstore",zunionstoreCommand,-4,"wmn",0,zunionInterGetKeys,0,0,0,0,0},
-    {"zinterstore",zinterstoreCommand,-4,"wmn",0,zunionInterGetKeys,0,0,0,0,0},
+    {"zunionstore",zunionstoreCommand,-4,"wm",0,zunionInterGetKeys,0,0,0,0,0},
+    {"zinterstore",zinterstoreCommand,-4,"wm",0,zunionInterGetKeys,0,0,0,0,0},
     {"zrange",zrangeCommand,-4,"rJ",0,NULL,1,1,1,0,0},
     {"zrangebyscore",zrangebyscoreCommand,-4,"rJ",0,NULL,1,1,1,0,0},
     {"zrevrangebyscore",zrevrangebyscoreCommand,-4,"rJ",0,NULL,1,1,1,0,0},
@@ -211,7 +206,7 @@ struct redisCommand redisCommandTable[] = {
     {"zscore",zscoreCommand,3,"rFJ",0,NULL,1,1,1,0,0},
     {"zrank",zrankCommand,3,"rFJ",0,NULL,1,1,1,0,0},
     {"zrevrank",zrevrankCommand,3,"rFJ",0,NULL,1,1,1,0,0},
-    {"zscan",zscanCommand,-3,"rRJn",0,NULL,1,1,1,0,0},
+    {"zscan",zscanCommand,-3,"rR",0,NULL,1,1,1,0,0},
     {"hset",hsetCommand,4,"wmFJ",0,NULL,1,1,1,0,0},
     {"hsetnx",hsetnxCommand,4,"wmFJ",0,NULL,1,1,1,0,0},
     {"hget",hgetCommand,3,"rFJ",0,NULL,1,1,1,0,0},
@@ -226,19 +221,19 @@ struct redisCommand redisCommandTable[] = {
     {"hvals",hvalsCommand,2,"rSJ",0,NULL,1,1,1,0,0},
     {"hgetall",hgetallCommand,2,"rJ",0,NULL,1,1,1,0,0},
     {"hexists",hexistsCommand,3,"rFJ",0,NULL,1,1,1,0,0},
-    {"hscan",hscanCommand,-3,"rRJn",0,NULL,1,1,1,0,0},
+    {"hscan",hscanCommand,-3,"rRJ",0,NULL,1,1,1,0,0},
     {"incrby",incrbyCommand,3,"wmFJ",0,NULL,1,1,1,0,0},
     {"decrby",decrbyCommand,3,"wmFJ",0,NULL,1,1,1,0,0},
     {"incrbyfloat",incrbyfloatCommand,3,"wmFJ",0,NULL,1,1,1,0,0},
     {"getset",getsetCommand,3,"wmJ",0,NULL,1,1,1,0,0},
-    {"mset",msetCommand,-3,"wmn",0,NULL,1,-1,2,0,0},
-    {"msetnx",msetnxCommand,-3,"wmn",0,NULL,1,-1,2,0,0},
-    {"randomkey",randomkeyCommand,1,"rRn",0,NULL,0,0,0,0,0},
+    {"mset",msetCommand,-3,"wm",0,NULL,1,-1,2,0,0},
+    {"msetnx",msetnxCommand,-3,"wm",0,NULL,1,-1,2,0,0},
+    {"randomkey",randomkeyCommand,1,"rR",0,NULL,0,0,0,0,0},
     {"select",selectCommand,2,"lF",0,NULL,0,0,0,0,0},
-    {"swapdb",swapdbCommand,3,"wFn",0,NULL,0,0,0,0,0},
-    {"move",moveCommand,3,"wFn",0,NULL,1,1,1,0,0},
-    {"rename",renameCommand,3,"wn",0,NULL,1,2,1,0,0},
-    {"renamenx",renamenxCommand,3,"wFn",0,NULL,1,2,1,0,0},
+    {"swapdb",swapdbCommand,3,"wF",0,NULL,0,0,0,0,0},
+    {"move",moveCommand,3,"wF",0,NULL,1,1,1,0,0},
+    {"rename",renameCommand,3,"w",0,NULL,1,2,1,0,0},
+    {"renamenx",renamenxCommand,3,"wF",0,NULL,1,2,1,0,0},
     {"expire",expireCommand,3,"wFj",0,NULL,1,1,1,0,0},
     {"expireat",expireatCommand,3,"wFj",0,NULL,1,1,1,0,0},
     {"pexpire",pexpireCommand,3,"wFj",0,NULL,1,1,1,0,0},
@@ -257,26 +252,20 @@ struct redisCommand redisCommandTable[] = {
     {"shutdown",shutdownCommand,-1,"alt",0,NULL,0,0,0,0,0},
     {"lastsave",lastsaveCommand,1,"RF",0,NULL,0,0,0,0,0},
     {"type",typeCommand,2,"rFJ",0,NULL,1,1,1,0,0},
-#ifdef RUN_MAKE_TEST
     {"multi",multiCommand,1,"sFn",0,NULL,0,0,0,0,0},
-#endif
     {"exec",execCommand,1,"sMn",0,NULL,0,0,0,0,0},
     {"discard",discardCommand,1,"sFn",0,NULL,0,0,0,0,0},
     {"sync",syncCommand,1,"arsj",0,NULL,0,0,0,0,0},
     {"psync",syncCommand,3,"arsj",0,NULL,0,0,0,0,0},
     {"replconf",replconfCommand,-1,"aslt",0,NULL,0,0,0,0,0},
     /* for jdjr mode, we replace flushdb by flushall */
-#ifdef RUN_MAKE_TEST
-    {"flushdb",flushdbCommand,-1,"wJ",0,NULL,0,0,0,0,0},
-#else
     {"flushdb",flushallCommand,-1,"wJ",0,NULL,0,0,0,0,0},
-#endif
     {"flushall",flushallCommand,-1,"wJ",0,NULL,0,0,0,0,0},
-    {"sort",sortCommand,-2,"wmn",0,sortGetKeys,1,1,1,0,0},
+    {"sort",sortCommand,-2,"wm",0,sortGetKeys,1,1,1,0,0},
     {"info",infoCommand,-1,"lt",0,NULL,0,0,0,0,0},
     {"monitor",monitorCommand,1,"as",0,NULL,0,0,0,0,0},
     {"ttl",ttlCommand,2,"rFj",0,NULL,1,1,1,0,0},
-    {"touch",touchCommand,-2,"rFn",0,NULL,1,1,1,0,0},
+    {"touch",touchCommand,-2,"rF",0,NULL,1,1,1,0,0},
     {"pttl",pttlCommand,2,"rFj",0,NULL,1,1,1,0,0},
     {"persist",persistCommand,2,"wFJ",0,NULL,1,1,1,0,0},
     {"slaveof",slaveofCommand,3,"ast",0,NULL,0,0,0,0,0},
@@ -289,10 +278,8 @@ struct redisCommand redisCommandTable[] = {
     {"punsubscribe",punsubscribeCommand,-1,"pslt",0,NULL,0,0,0,0,0},
     {"publish",publishCommand,3,"pltF",0,NULL,0,0,0,0,0},
     {"pubsub",pubsubCommand,-2,"pltR",0,NULL,0,0,0,0,0},
-#ifdef RUN_MAKE_TEST
     {"watch",watchCommand,-2,"sFn",0,NULL,1,-1,1,0,0},
     {"unwatch",unwatchCommand,1,"sFn",0,NULL,0,0,0,0,0},
-#endif
     {"cluster",clusterCommand,-2,"a",0,NULL,0,0,0,0,0},
     {"restore",restoreCommand,-4,"wmJ",0,NULL,1,1,1,0,0},
     // todo: support migrate and restore-asking(?)
@@ -310,22 +297,22 @@ struct redisCommand redisCommandTable[] = {
     {"slowlog",slowlogCommand,-2,"a",0,NULL,0,0,0,0,0},
     {"script",scriptCommand,-2,"sn",0,NULL,0,0,0,0,0},
     {"time",timeCommand,1,"RF",0,NULL,0,0,0,0,0},
-    {"bitop",bitopCommand,-4,"wmn",0,NULL,2,-1,1,0,0},
+    {"bitop",bitopCommand,-4,"wm",0,NULL,2,-1,1,0,0},
     {"bitcount",bitcountCommand,-2,"rJ",0,NULL,1,1,1,0,0},
-    {"bitpos",bitposCommand,-3,"rn",0,NULL,1,1,1,0,0},
+    {"bitpos",bitposCommand,-3,"r",0,NULL,1,1,1,0,0},
     {"wait",waitCommand,3,"s",0,NULL,0,0,0,0,0},
     {"command",commandCommand,0,"lt",0,NULL,0,0,0,0,0},
-    {"geoadd",geoaddCommand,-5,"wmn",0,NULL,1,1,1,0,0},
-    {"georadius",georadiusCommand,-6,"wn",0,NULL,1,1,1,0,0},
-    {"georadiusbymember",georadiusByMemberCommand,-5,"wn",0,NULL,1,1,1,0,0},
-    {"geohash",geohashCommand,-2,"rn",0,NULL,1,1,1,0,0},
-    {"geopos",geoposCommand,-2,"rn",0,NULL,1,1,1,0,0},
-    {"geodist",geodistCommand,-4,"rn",0,NULL,1,1,1,0,0},
+    {"geoadd",geoaddCommand,-5,"wm",0,NULL,1,1,1,0,0},
+    {"georadius",georadiusCommand,-6,"w",0,NULL,1,1,1,0,0},
+    {"georadiusbymember",georadiusByMemberCommand,-5,"w",0,NULL,1,1,1,0,0},
+    {"geohash",geohashCommand,-2,"r",0,NULL,1,1,1,0,0},
+    {"geopos",geoposCommand,-2,"r",0,NULL,1,1,1,0,0},
+    {"geodist",geodistCommand,-4,"r",0,NULL,1,1,1,0,0},
     {"pfselftest",pfselftestCommand,1,"an",0,NULL,0,0,0,0,0},
-    {"pfadd",pfaddCommand,-2,"wmFn",0,NULL,1,1,1,0,0},
-    {"pfcount",pfcountCommand,-2,"rn",0,NULL,1,-1,1,0,0},
-    {"pfmerge",pfmergeCommand,-2,"wmn",0,NULL,1,-1,1,0,0},
-    {"pfdebug",pfdebugCommand,-3,"wn",0,NULL,0,0,0,0,0},
+    {"pfadd",pfaddCommand,-2,"wmF",0,NULL,1,1,1,0,0},
+    {"pfcount",pfcountCommand,-2,"r",0,NULL,1,-1,1,0,0},
+    {"pfmerge",pfmergeCommand,-2,"wm",0,NULL,1,-1,1,0,0},
+    {"pfdebug",pfdebugCommand,-3,"w",0,NULL,0,0,0,0,0},
     {"post",securityWarningCommand,-1,"lt",0,NULL,0,0,0,0,0},
     {"host:",securityWarningCommand,-1,"lt",0,NULL,0,0,0,0,0},
     {"latency",latencyCommand,-2,"aslt",0,NULL,0,0,0,0,0},
@@ -2757,6 +2744,7 @@ void populateCommandTable(void) {
             case 'F': c->flags |= CMD_FAST; break;
             case 'J': c->flags |= CMD_JDJR_MODE; break;
             case 'j': c->flags |= CMD_JDJR_REDIS_ONLY; break;
+            case 'n': c->flags |= CMD_JDJR_NOT_ALLOWED; break;
             default: serverPanic("Unsupported command flag"); break;
             }
             f++;
@@ -3909,11 +3897,6 @@ int processCommandMaybeInSSDB(client *c) {
     if (!keyobj || !dictFind(EVICTED_DATA_DB->dict, keyobj->ptr))
         return C_ERR;
 
-    /* TODO: ignore C_NOTSUPPORT_ERR in LL_DEBUG temporary. */
-    if (server.verbosity != LL_DEBUG
-        && !(c->cmd->flags & CMD_JDJR_MODE))
-        return C_NOTSUPPORT_ERR;
-
     /* prohibit write operations to SSDB when replication,
      *
      * Note: we also can have slaves if this server is a slave. */
@@ -4117,10 +4100,6 @@ int runCommandReplicationConn(client *c, listNode* writeop_ln) {
          * to SSDB and record them in server.ssdb_write_oplist, we just return and
          * process next write command. */
         return C_OK;
-    } else if (ret == C_NOTSUPPORT_ERR) {
-        addReplyErrorFormat(c, "don't support this command in jdjr mode:%s.", c->cmd->name);
-        serverLog(LL_NOTICE, "unsupported cmd:%s in ssdb", c->cmd->name);
-        return C_OK;
     } else if (ret == C_FD_ERR) {
         /* for a slave failed write retry, we retrun error so don't go on to retry
          * the rest failed writes. */
@@ -4242,6 +4221,14 @@ long long getAbsoluteExpireTimeFromArgs(robj** argv, int argc, struct redisComma
 int runCommand(client *c) {
     int ret;
     robj *firstkey = NULL;
+
+    if (((c->cmd->flags & CMD_READONLY || c->cmd->flags & CMD_WRITE)
+         && !(c->cmd->flags & CMD_JDJR_MODE) && !(c->cmd->flags & CMD_JDJR_REDIS_ONLY)) ||
+        (c->cmd->flags & CMD_JDJR_NOT_ALLOWED)) {
+        addReplyErrorFormat(c, "don't support this command in jdjr mode:%s.", c->cmd->name);
+        return C_OK;
+    }
+
     if (c->flags & CLIENT_MASTER) {
         ret = runCommandReplicationConn(c, NULL);
         if (ret != C_BLOCKED) resetClient(c);
@@ -4276,14 +4263,9 @@ int runCommand(client *c) {
             serverLog(LL_DEBUG, "processing %s, fd: %d in ssdb: %s",
                       c->cmd->name, c->fd, firstkey ? (char *)firstkey->ptr : "");
             return C_ERR;
-        } else {
-            if (ret == C_NOTSUPPORT_ERR) {
-                addReplyErrorFormat(c, "don't support this command in jdjr mode:%s.", c->cmd->name);
-                return C_OK;
-            } else if (ret == C_FD_ERR) {
-                addReplyErrorFormat(c, "SSDB disconnect");
-                return C_OK;
-            }
+        } else if (ret == C_FD_ERR) {
+            addReplyErrorFormat(c, "SSDB disconnect");
+            return C_OK;
         }
     }
 
