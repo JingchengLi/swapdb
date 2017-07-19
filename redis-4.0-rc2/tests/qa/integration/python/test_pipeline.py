@@ -24,7 +24,7 @@ class TestPipeline(unittest.TestCase):
         print "setUp..."
         self.R = RedisPool().Redis_Pool()
         self.R.flushall()
-        time.sleep(0.5)
+        time.sleep(1)
 
     def tearDown(self):
         print "tearDown..."
