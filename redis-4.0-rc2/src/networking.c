@@ -1934,7 +1934,7 @@ int removeVisitingSSDBKey(struct redisCommand *cmd, int argc, robj** argv) {
          (cmd->flags & CMD_JDJR_MODE) ) {
         keys = getKeysFromCommand(cmd, argv, argc, &numkeys);
         /* in jdjr_mode, we only support one key command. */
-        serverAssert(1 == numkeys);
+        if (numkeys > 0) serverAssert(1 == numkeys);
 
         for (j = 0; j < numkeys; j ++) {
             robj* key = argv[keys[j]];

@@ -565,9 +565,6 @@ int masterTryPartialResynchronization(client *c) {
     return C_OK; /* The caller can return, no full resync needed. */
 
 need_full_resync:
-    /* in jdjr mode, we disconnect SSDB connection of a slave connection, to make sure
-     * previous SSDB snapshot transfer procedure is aborted. */
-    if (server.jdjr_mode) closeAndReconnectSSDBconnection(c);
     /* We need a full resync for some reason... Note that we can't
      * reply to PSYNC right now if a full SYNC is needed. The reply
      * must include the master offset at the time the RDB file we transfer
@@ -1305,21 +1302,24 @@ void ssdbNotifyCommand(client* c) {
             addReplyErrorFormat(c, "wrong argument:%s", (char*)c->argv[3]->ptr);
             return;
         }
+        if (server.ssdb_snapshot_timestamp != ssdb_snapshot_timestamp) {
+            serverLog(LL_DEBUG, "receive 'ssdb-notify' with previous ssdb snapshot timestamp, ignore it");
+        }
 
         if (server.repl_state >= REPL_STATE_RECEIVE_PSYNC && server.ssdb_snapshot_timestamp == ssdb_snapshot_timestamp) {
             if (!strcasecmp(c->argv[2]->ptr, "finished")) {
-                serverLog(LL_DEBUG, "receive 'ssdb-notify transfer finished'");
+                serverLog(LL_DEBUG, "receive 'ssdb-notify transfer finished %lld'", ssdb_snapshot_timestamp);
                 server.ssdb_repl_state = REPL_STATE_TRANSFER_SSDB_SNAPSHOT_END;
                 addReply(c, shared.ok);
                 c->flags |= CLIENT_CLOSE_AFTER_REPLY;
             } else if (!strcasecmp(c->argv[2]->ptr, "unfinished")) {
-                serverLog(LL_DEBUG, "receive 'ssdb-notify transfer unfinished'");
+                serverLog(LL_DEBUG, "receive 'ssdb-notify transfer unfinished %lld'", ssdb_snapshot_timestamp);
                 cancelReplicationHandshake();
                 addReply(c, shared.ok);
                 c->flags |= CLIENT_CLOSE_AFTER_REPLY;
             } else if (!strcasecmp(c->argv[2]->ptr, "continue")) {
                 server.ssdb_repl_state = REPL_STATE_TRANSFER_SSDB_SNAPSHOT;
-                serverLog(LL_DEBUG, "receive 'ssdb-notify transfer continue'");
+                serverLog(LL_DEBUG, "receive 'ssdb-notify transfer continue %lld'", ssdb_snapshot_timestamp);
                 server.slave_ssdb_transfer_snapshot_keepalive = server.unixtime;
                 addReply(c, shared.ok);
             } else {
@@ -2196,7 +2196,10 @@ int connectWithMaster(void) {
     server.repl_transfer_lastio = server.unixtime;
     server.repl_transfer_s = fd;
     server.repl_state = REPL_STATE_CONNECTING;
-    if (server.jdjr_mode) server.ssdb_repl_state = REPL_STATE_NONE;
+    if (server.jdjr_mode) {
+        server.ssdb_repl_state = REPL_STATE_NONE;
+        server.ssdb_snapshot_timestamp = -1;
+    }
     return C_OK;
 }
 
