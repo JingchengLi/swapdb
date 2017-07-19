@@ -236,8 +236,11 @@ proc start_server {options {code undefined}} {
     set ssdbstdout [format "%s/%s" [dict get $config "dir"] "ssdbstdout"]
     set ssdbstderr [format "%s/%s" [dict get $config "dir"] "ssdbstderr"]
     puts "start dir: $workdir"
-    # set ssdbpid [exec valgrind --track-origins=yes --suppressions=../../../src/valgrind.sup --show-reachable=no --show-possibly-lost=no --leak-check=full ssdb-server $ssdb_config_file > $ssdbstdout 2> $ssdbstderr &]
-    set ssdbpid [exec ssdb-server $ssdb_config_file > $ssdbstdout 2> $ssdbstderr &]
+    if {$::valgrind} {
+        set ssdbpid [exec valgrind --track-origins=yes --suppressions=../../../src/valgrind.sup --show-reachable=no --show-possibly-lost=no --leak-check=full ssdb-server $ssdb_config_file > $ssdbstdout 2> $ssdbstderr &]
+    } else {
+        set ssdbpid [exec ssdb-server $ssdb_config_file > $ssdbstdout 2> $ssdbstderr &]
+    }
     if {[server_is_up 127.0.0.1 $ssdbport 10000] == 0} {
         set err {}
         append err "Cant' start the ssdb server:$workdir\n"

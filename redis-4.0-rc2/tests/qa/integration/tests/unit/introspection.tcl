@@ -12,14 +12,15 @@ start_server {tags {"introspection"}} {
         list [$rd read] [$rd read]
     } {*"set" "foo"*"get" "foo"*}
 
-    test {MONITOR can log commands issued by the scripting engine} {
-        set rd [redis_deferring_client]
-        $rd monitor
-        $rd read ;# Discard the OK
-        r eval {redis.call('set',KEYS[1],ARGV[1])} 1 foo bar
-        assert_match {*eval*} [$rd read]
-        assert_match {*lua*"set"*"foo"*"bar"*} [$rd read]
-    }
+#    #TODO not support eval
+#    test {MONITOR can log commands issued by the scripting engine} {
+#        set rd [redis_deferring_client]
+#        $rd monitor
+#        $rd read ;# Discard the OK
+#        r eval {redis.call('set',KEYS[1],ARGV[1])} 1 foo bar
+#        assert_match {*eval*} [$rd read]
+#        assert_match {*lua*"set"*"foo"*"bar"*} [$rd read]
+#    }
 
     test {CLIENT GETNAME should return NIL if name is not assigned} {
         r client getname

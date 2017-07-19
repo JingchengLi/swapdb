@@ -1,5 +1,7 @@
 # ssdb在写入运行过程中，发生重启, 保证数据不丢失
 
+#disable this case that dirty key should be processed by clients when master ssdb restart.
+return
 start_server {tags {"repl-abnormal"}} {
     start_server {} {
 
