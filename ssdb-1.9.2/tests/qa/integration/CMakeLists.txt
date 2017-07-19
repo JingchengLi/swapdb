@@ -3,13 +3,14 @@ project(integ-test)
 
 SET(BUILD_PATH "${CMAKE_SOURCE_DIR}/../../..")
 INCLUDE_DIRECTORIES(
-    ${BUILD_PATH}/tests/gtest_1.7.0/include
+    ${BUILD_PATH}/tests/googletest/googlemock/include
+    ${BUILD_PATH}/tests/googletest/googletest/include
     ${BUILD_PATH}/src
     ${BUILD_PATH}/src/client
     include
     )
 
-add_subdirectory(${BUILD_PATH}/tests/gtest_1.7.0 gtest)
+add_subdirectory(${BUILD_PATH}/tests/googletest gtest)
 ADD_DEFINITIONS(-DGTESTING)
 AUX_SOURCE_DIRECTORY(. GTEST_SRC)
 #AUX_SOURCE_DIRECTORY(./codec GTEST_CODEC_SRC)
