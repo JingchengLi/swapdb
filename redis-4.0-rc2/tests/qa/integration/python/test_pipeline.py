@@ -24,7 +24,15 @@ class TestPipeline(unittest.TestCase):
         print "setUp..."
         self.R = RedisPool().Redis_Pool()
         self.R.flushall()
-        time.sleep(1)
+        self.R.set("nullkey", "nullvalue")
+        while True:
+            try:
+                self.R.execute_command("storetossdb "+"nullkey")
+            except redis.exceptions.ResponseError:
+                time.sleep(0.1)
+            else:
+                self.R.delete("nullkey")
+                break
 
     def tearDown(self):
         print "tearDown..."

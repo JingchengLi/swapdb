@@ -1,12 +1,16 @@
+# just run it for stable, need run in machine with 15gb+ free memory
 start_server {tags {"repl-stable"}
-config {real.conf}} {
+config {real.conf}
+overrides {maxmemory 5gb}} {
     set master [srv 0 client]
     set master_host [srv 0 host]
     set master_port [srv 0 port]
     set slaves {}
-    start_server {config {real.conf}} {
+    start_server {config {real.conf}
+    overrides {maxmemory 5gb}} {
         lappend slaves [srv 0 client]
-        start_server {config {real.conf}} {
+        start_server {config {real.conf}
+        overrides {maxmemory 5gb}} {
             lappend slaves [srv 0 client]
 
             set num 1000000

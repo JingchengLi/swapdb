@@ -13,9 +13,11 @@ config {real.conf}} {
         start_server {config {real.conf}} {
             lappend slaves [srv 0 client]
 
-            set num 30000
-            set clients 10
-            set clist [ start_bg_complex_data_list $master_host $master_port $num $clients 100k]
+            set num 300000
+            set clients 3
+            set clist [ start_bg_complex_data_list $master_host $master_port $num $clients 1k]
+            lappend clist {*}[ start_bg_complex_data_list $master_host $master_port $num $clients 10k]
+            lappend clist {*}[ start_bg_complex_data_list $master_host $master_port $num $clients 100k]
             wait_for_transfer_limit 1 -2
             after 1000
             test "Two slaves slaveof at the same time during writing" {
@@ -41,9 +43,6 @@ config {real.conf}} {
                 } else {
                     fail "Different digest between master([$master debug digest]) and slave1([[lindex $slaves 0] debug digest]) slave2([[lindex $slaves 1] debug digest]) after too long time."
                 }
-                # assert_equal [$master debug digest] [[lindex $slaves 0] debug digest] "Different digest between master and slave"
-                # assert_equal [[lindex $slaves 0] debug digest] [[lindex $slaves 1] debug digest] "Different digest between slaves"
-                # $master config set maxmemory 1000MB
             }
         }
     }
@@ -58,9 +57,11 @@ config {real.conf}} {
         set slaves {}
         lappend slaves [srv 0 client]
 
-        set num 30000
-        set clients 10
-        set clist [ start_bg_complex_data_list $master_host $master_port $num $clients 100k]
+        set num 300000
+        set clients 3
+        set clist [ start_bg_complex_data_list $master_host $master_port $num $clients 1k]
+        lappend clist {*}[ start_bg_complex_data_list $master_host $master_port $num $clients 10k]
+        lappend clist {*}[ start_bg_complex_data_list $master_host $master_port $num $clients 100k]
 
         wait_for_transfer_limit 1 -1
         after 1000
@@ -97,7 +98,9 @@ config {real.conf}} {
         start_server {config {real.conf}} {
             lappend slaves [srv 0 client]
 
-            set clist [ start_bg_complex_data_list $master_host $master_port $num $clients 10k]
+            set clist [ start_bg_complex_data_list $master_host $master_port $num $clients 1k]
+            lappend clist {*}[ start_bg_complex_data_list $master_host $master_port $num $clients 10k]
+            lappend clist {*}[ start_bg_complex_data_list $master_host $master_port $num $clients 100k]
             wait_for_transfer_limit 1 -2; # wait storing keys to ssdb
             test "Second server should have role slave after SLAVEOF" {
                 [lindex $slaves 1] slaveof $master_host $master_port
