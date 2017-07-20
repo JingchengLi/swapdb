@@ -283,7 +283,7 @@ struct redisCommand redisCommandTable[] = {
     {"cluster",clusterCommand,-2,"a",0,NULL,0,0,0,0,0},
     {"restore",restoreCommand,-4,"wmJ",0,NULL,1,1,1,0,0},
     // todo: support migrate and restore-asking(?)
-    {"restore-asking",restoreCommand,-4,"wmk",0,NULL,1,1,1,0,0},
+    {"restore-asking",restoreCommand,-4,"wmkj",0,NULL,1,1,1,0,0},
     {"migrate",migrateCommand,-6,"wJ",0,migrateGetKeys,0,0,0,0,0},
     {"asking",askingCommand,1,"F",0,NULL,0,0,0,0,0},
     {"readonly",readonlyCommand,1,"F",0,NULL,0,0,0,0,0},
