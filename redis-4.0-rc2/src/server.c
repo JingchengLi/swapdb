@@ -3922,8 +3922,11 @@ int processCommandMaybeInSSDB(client *c) {
 
     if ((c->cmd->flags & (CMD_READONLY | CMD_WRITE)) &&
          (c->cmd->flags & CMD_JDJR_MODE)) {
+        int lookup_flags = LOOKUP_NONE;
+        if (c->cmd->proc == typeCommand) lookup_flags = LOOKUP_NOTOUCH;
+
         /* Calling lookupKey to update lru or lfu counter. */
-        robj* val = lookupKey(EVICTED_DATA_DB, keyobj, LOOKUP_NONE);
+        robj* val = lookupKey(EVICTED_DATA_DB, keyobj, lookup_flags);
         if (val) {
             if (expireIfNeeded(EVICTED_DATA_DB, keyobj) == 1) {
                 ret = C_ERR;
