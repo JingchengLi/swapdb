@@ -722,7 +722,7 @@ void scanGenericCommand(client *c, robj *o, unsigned long cursor) {
             privdata[0] = keys;
             privdata[1] = o;
             do {
-                cursor = dictScan(ht, cursor, scanCallback, privdata);
+                cursor = dictScan(ht, cursor, scanCallback, NULL, privdata);
             } while (cursor &&
                      maxiterations-- &&
                      listLength(keys) < (unsigned long)count);
@@ -742,7 +742,7 @@ void scanGenericCommand(client *c, robj *o, unsigned long cursor) {
             /* Traverse ht of db[0]. */
             if (cursor < max_sizemask + 1) {
                 do {
-                    cursor = dictScan(ht, cursor, scanCallback, privdata);
+                    cursor = dictScan(ht, cursor, scanCallback, NULL, privdata);
                 } while (cursor &&
                          maxiterations-- &&
                          listLength(keys) < (unsigned long)count);
@@ -756,7 +756,7 @@ void scanGenericCommand(client *c, robj *o, unsigned long cursor) {
                 if (cursor >= max_sizemask + 1) cursor -= max_sizemask;
 
                 do {
-                    cursor = dictScan(EVICTED_DATA_DB->dict, cursor, scanCallback, privdata);
+                    cursor = dictScan(EVICTED_DATA_DB->dict, cursor, scanCallback, NULL, privdata);
                 } while (cursor &&
                          maxiterations-- &&
                          listLength(keys) < (unsigned long)count);
