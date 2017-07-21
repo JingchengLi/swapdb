@@ -33,6 +33,8 @@
 #include "server.h"
 #include "bio.h"
 #include "cluster.h"
+#include "atomicvar.h"
+
 
 /* ----------------------------------------------------------------------------
  * Data structures
@@ -71,6 +73,20 @@ unsigned long LFUDecrAndReturn(robj *o);
 /* ----------------------------------------------------------------------------
  * Implementation of eviction, aging and LRU
  * --------------------------------------------------------------------------*/
+
+/* This function is used to obtain the current LRU clock.
+ * If the current resolution is lower than the frequency we refresh the
+ * LRU clock (as it should be in production servers) we return the
+ * precomputed value, otherwise we need to resort to a system call. */
+unsigned int LRU_CLOCK(void) {
+    unsigned int lruclock;
+    if (1000/server.hz <= LRU_CLOCK_RESOLUTION) {
+        atomicGet(server.lruclock,lruclock);
+    } else {
+        lruclock = getLRUClock();
+    }
+    return lruclock;
+}
 
 /* Return the LRU clock, based on the clock resolution. This is a time
  * in a reduced-bits format that can be used to set and check the
