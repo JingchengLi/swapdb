@@ -373,6 +373,7 @@ static int _zincr(Context &ctx, SSDB *ssdb, Link *link, const Request &req, Resp
             resp->redisResponse = new RedisResponse(resp->resp[1]);
         } else{
             resp->redisResponse = new RedisResponse("");
+            resp->redisResponse->type = REDIS_REPLY_NIL;
         }
     }
 
