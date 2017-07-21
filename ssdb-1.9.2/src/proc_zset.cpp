@@ -83,6 +83,7 @@ int proc_multi_zset(Context &ctx, Link *link, const Request &req, Response *resp
                 resp->redisResponse = new RedisResponse(resp->resp[1]);
             } else{
                 resp->redisResponse = new RedisResponse("");
+                resp->redisResponse->type = REDIS_REPLY_NIL;
             }
         }
 
