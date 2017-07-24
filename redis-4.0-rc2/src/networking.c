@@ -1436,9 +1436,6 @@ void doSSDBflushIfCheckDone() {
             call(server.current_flushall_client,CMD_CALL_FULL);
             server.current_flushall_client->woff = server.master_repl_offset;
 
-            server.current_flushall_client->bpop.timeout = server.client_blocked_by_flushall_timeout+mstime();
-            blockClient(server.current_flushall_client, BLOCKED_BY_FLUSHALL);
-            serverLog(LL_DEBUG, "Sending rr_do_flushall to SSDB success.");
         }
     }
 }
