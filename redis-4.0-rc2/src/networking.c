@@ -1182,13 +1182,13 @@ static void acceptCommonHandler(int fd, int flags, char *ip) {
         if (server.is_doing_flushall) {
             /* maybe redis is doing flush check before flushall, will connect SSDB later.*/
             c->ssdb_conn_flags |= CONN_CONNECT_FAILED;
-            serverLog(LOG_DEBUG, "is doing flushall, will connnect SSDB later.");
+            serverLog(LL_DEBUG, "is doing flushall, will connnect SSDB later.");
         } else if (server.ssdb_status > SSDB_NONE && server.ssdb_status < MASTER_SSDB_SNAPSHOT_PRE) {
             /* redis is doing write check before replication, will connect SSDB later. */
             c->ssdb_conn_flags |= CONN_CONNECT_FAILED;
-            serverLog(LOG_DEBUG, "is doing write check for replication, will connnect SSDB later.");
+            serverLog(LL_DEBUG, "is doing write check for replication, will connnect SSDB later.");
         } else if (C_OK != nonBlockConnectToSsdbServer(c))
-            serverLog(LOG_DEBUG, "connect ssdb failed, will retry to connect.");
+            serverLog(LL_DEBUG, "connect ssdb failed, will retry to connect.");
     }
 }
 
@@ -1241,7 +1241,7 @@ void handleClientsBlockedOnFlushall(void) {
         client *c = listNodeValue(ln);
         listDelNode(server.ssdb_flushall_blocked_clients, ln);
 
-        serverLog(LOG_DEBUG, "[!!!!]unblocked by handleClientsBlockedOnFlushall:%p", (void*)c);
+        serverLog(LL_DEBUG, "[!!!!]unblocked by handleClientsBlockedOnFlushall:%p", (void*)c);
         unblockClient(c);
 
         /* Convert block type. */
@@ -2176,7 +2176,7 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
     redisReader *r = c->context->reader;
     char* reply_start;
 #ifdef TEST_CLIENT_BUF
-    serverLog(LOG_DEBUG, "reader process>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
+    serverLog(LL_DEBUG, "reader process>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
     sds tmp = sdsempty();
 #endif
 

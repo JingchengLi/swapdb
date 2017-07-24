@@ -241,7 +241,7 @@ int replyToBlockedClientTimedOut(client *c) {
                    || c->btype == BLOCKED_BY_EXPIRED_DELETE
                    || c->btype == BLOCKED_MIGRATING_CLIENT
                    || c->btype == BLOCKED_MIGRATING_DUMP)) {
-        serverLog(LOG_DEBUG, "[!!!!]block timeout(client:%p,fd:%d,btype:%d), will free client",
+        serverLog(LL_DEBUG, "[!!!!]block timeout(client:%p,fd:%d,btype:%d), will free client",
                   (void*)c, c->fd, c->btype);
         /* must unblock for BLOCKED_VISITING_SSDB and BLOCKED_MIGRATING_DUMP types. */
         unblockClient(c);
@@ -252,7 +252,7 @@ int replyToBlockedClientTimedOut(client *c) {
     } else if (server.jdjr_mode && (c->btype == BLOCKED_WRITE_SAME_SSDB_KEY ||
                                     c->btype == BLOCKED_NO_READ_WRITE_TO_SSDB ||
                                     c->btype == BLOCKED_NO_WRITE_TO_SSDB)) {
-        serverLog(LOG_DEBUG, "[!!!!]block timeout(client:%p,fd:%d,btype:%d), reset it", (void*)c, c->fd, c->btype);
+        serverLog(LL_DEBUG, "[!!!!]block timeout(client:%p,fd:%d,btype:%d), reset it", (void*)c, c->fd, c->btype);
         if (c->btype == BLOCKED_WRITE_SAME_SSDB_KEY)
             removeClientFromListForBlockedKey(c, server.db[0].blocking_keys_write_same_ssdbkey, c->argv[1]);
         else if (c->btype == BLOCKED_NO_READ_WRITE_TO_SSDB)
