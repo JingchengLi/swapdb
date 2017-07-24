@@ -662,8 +662,7 @@ void addReplyBulkCBuffer(client *c, const void *p, size_t len) {
 
 /* Add sds to reply (takes ownership of sds and frees it) */
 void addReplyBulkSds(client *c, sds s)  {
-    addReplySds(c,sdscatfmt(sdsempty(),"$%u\r\n",
-        (unsigned long)sdslen(s)));
+    addReplyLongLongWithPrefix(c,sdslen(s),'$');
     addReplySds(c,s);
     addReply(c,shared.crlf);
 }
@@ -2100,13 +2099,6 @@ void handleSSDBReply(client *c, int revert_len) {
             serverLog(LL_WARNING, "migrate log: failed to handle migrate dump.");
             return;
         }
-
-/* Add sds to reply (takes ownership of sds and frees it) */
-void addReplyBulkSds(client *c, sds s)  {
-    addReplyLongLongWithPrefix(c,sdslen(s),'$');
-    addReplySds(c,s);
-    addReply(c,shared.crlf);
-}
 
 #ifdef TEST_INCR_CONCURRENT
        if (c->cmd->proc == incrCommand && c->argc == 2) {
