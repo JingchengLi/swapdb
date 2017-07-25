@@ -4141,7 +4141,6 @@ void prepareSSDBflush(client* c) {
 
     server.current_flushall_client->bpop.timeout = server.client_blocked_by_flushall_timeout+mstime();
     blockClient(server.current_flushall_client, BLOCKED_BY_FLUSHALL);
-    serverLog(LL_DEBUG, "Sending rr_do_flushall to SSDB success.");
 }
 
 /* for replication connection(server.master), after reconnect with SSDB success, we

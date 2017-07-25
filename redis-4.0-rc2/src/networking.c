@@ -1432,10 +1432,11 @@ void doSSDBflushIfCheckDone() {
             server.flush_check_begin_time = 0;
             serverLog(LL_WARNING, "Sending rr_do_flushall to SSDB failed.");
         } else {
+            serverLog(LL_WARNING, "Sending rr_do_flushall to SSDB success.");
+
             /* just empty redis before we receive response from SSDB, avoid dirty data issue.*/
             call(server.current_flushall_client,CMD_CALL_FULL);
             server.current_flushall_client->woff = server.master_repl_offset;
-
         }
     }
 }
