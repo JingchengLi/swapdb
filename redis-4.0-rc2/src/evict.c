@@ -693,6 +693,8 @@ int epilogOfEvictingToSSDB(robj *keyobj) {
     else
         dbSyncDelete(db,keyobj);
 
+    if (server.cluster_enabled) slotToKeyAdd(keyobj);
+
     latencyEndMonitor(eviction_latency);
     latencyAddSampleIfNeeded("coldkey-transfer",eviction_latency);
     server.stat_ssdbkeys++;

@@ -4857,6 +4857,8 @@ void ssdbRespRestoreCommand(client *c) {
             else
                 dbSyncDelete(EVICTED_DATA_DB, key);
 
+            if (server.cluster_enabled) slotToKeyAdd(key);
+
             /* propagate aof */
             argv[0] = createStringObject("restore", 7);
             memcpy(argv+1,c->argv+1,(c->argc-1) * sizeof(robj*));
