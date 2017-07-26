@@ -11,7 +11,13 @@ start_server {tags {"repl"}} {
             }
             $master set foo bar
             $master expire foo 1
-            after 2000 ;# Make sure everything expired before taking the digest
+            wait_for_condition 10 100 {
+                [ $slave ttl foo ] > 0 &&
+                [ $slave exists foo ] == 1
+            } else {
+                fail "key with expire time propogate to slave"
+            }
+            after 2000
 
             set oldmaxmemory [lindex [ $master config get maxmemory ] 1]
             wait_for_condition 10 100 {

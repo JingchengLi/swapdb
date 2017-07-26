@@ -32,6 +32,7 @@ set ::all_tests {
     ssdb/lfu
     ssdb/lfu-policy2
     ssdb/lfu-policy3
+    ssdb/client-recon
 
     unit/dump
     unit/expire

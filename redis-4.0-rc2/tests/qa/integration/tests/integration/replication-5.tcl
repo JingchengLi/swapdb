@@ -26,6 +26,12 @@ start_server {tags {"repl"}} {
                     }
                     after 1000
                 }
+                wait_for_online $master 1
+                wait_for_condition 10 500 {
+                    [[lindex $slaves 0] debug digest] == [$master debug digest]
+                } else {
+                    fail "Digest not equal:master([$master debug digest]) and slave([[lindex $slaves 0] debug digest]) after too long time."
+                }
                 list [$master ping] [[lindex $slaves 0] ping] [[lindex $slaves 1] ping]
             } {PONG PONG PONG}
 
@@ -50,6 +56,13 @@ start_server {tags {"repl"}} {
                     after 100
                 }
                 stop_bg_client_list $clist
+                wait_for_online $master 2
+                wait_for_condition 10 500 {
+                    [[lindex $slaves 0] debug digest] == [$master debug digest] &&
+                    [[lindex $slaves 1] debug digest] == [$master debug digest]
+                } else {
+                    fail "Digest not equal:master([$master debug digest]),slave0([[lindex $slaves 0] debug digest]) and slave1([[lindex $slaves 1] debug digest]) after too long time."
+                }
                 list [$master ping] [[lindex $slaves 0] ping] [[lindex $slaves 1] ping]
             } {PONG PONG PONG}
         }

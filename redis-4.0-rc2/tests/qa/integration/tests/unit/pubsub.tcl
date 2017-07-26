@@ -1,4 +1,5 @@
 start_server {tags {"pubsub"}} {
+    r select 9
     proc __consume_subscribe_messages {client type channels} {
         set numsub -1
         set counts {}
@@ -356,7 +357,7 @@ start_server {tags {"pubsub"}} {
 
     test "Keyspace notifications: expired events (background expire)" {
         r config set notify-keyspace-events Ex
-        r config set jdjr-mode no
+        # r config set jdjr-mode no
         r del foo
         set rd1 [redis_deferring_client]
         assert_equal {1} [psubscribe $rd1 *]
@@ -368,7 +369,7 @@ start_server {tags {"pubsub"}} {
     test "Keyspace notifications: evicted events" {
         r config set notify-keyspace-events Ee
         r config set maxmemory-policy allkeys-lru
-        r config set jdjr-mode no
+        # r config set jdjr-mode no
         r flushdb
         set rd1 [redis_deferring_client]
         assert_equal {1} [psubscribe $rd1 *]
