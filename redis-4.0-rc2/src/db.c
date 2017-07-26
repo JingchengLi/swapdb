@@ -1588,7 +1588,10 @@ unsigned int delKeysInSlot(unsigned int hashslot) {
         raxNext(&iter);
 
         robj *key = createStringObject((char*)iter.key+2,iter.key_len-2);
-        dbDelete(&server.db[0],key);
+        int ret = dbDelete(&server.db[0],key);
+        if (server.jdjr_mode && ret == 0) {
+            dbDelete(EVICTED_DATA_DB,key);
+        }
         decrRefCount(key);
         j++;
     }

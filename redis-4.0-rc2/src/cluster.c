@@ -4118,7 +4118,8 @@ void clusterCommand(client *c) {
         clusterReplyMultiBulkSlots(c);
     } else if (!strcasecmp(c->argv[1]->ptr,"flushslots") && c->argc == 2) {
         /* CLUSTER FLUSHSLOTS */
-        if (dictSize(server.db[0].dict) != 0) {
+        if (dictSize(server.db[0].dict) != 0 ||
+                (server.jdjr_mode && dictSize(EVICTED_DATA_DB->dict) != 0)) {
             addReplyError(c,"DB must be empty to perform CLUSTER FLUSHSLOTS.");
             return;
         }
@@ -4454,7 +4455,7 @@ void clusterCommand(client *c) {
          * Slaves can switch to another master without issues. */
         if ((nodeIsMaster(myself) &&
              (myself->numslots != 0 || dictSize(server.db[0].dict) != 0)) ||
-                (server.jdjr_mode && (dictSize(server.db[0].dict)+dictSize(EVICTED_DATA_DB->dict)) != 0)) {
+                (server.jdjr_mode && dictSize(EVICTED_DATA_DB->dict) != 0)) {
             addReplyError(c,
                 "To set a master the node must be empty and "
                 "without assigned slots.");
