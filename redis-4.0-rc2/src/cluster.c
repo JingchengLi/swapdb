@@ -4852,12 +4852,9 @@ void ssdbRespRestoreCommand(client *c) {
 
             when = getExpire(EVICTED_DATA_DB, c->argv[1]);
 
-            if (server.lazyfree_lazy_eviction)
-                dbAsyncDelete(EVICTED_DATA_DB, key);
-            else
-                dbSyncDelete(EVICTED_DATA_DB, key);
-
-            if (server.cluster_enabled) slotToKeyAdd(key);
+            /* remove the key from db 16 */
+            dictDelete(EVICTED_DATA_DB->expires,key->ptr);
+            dictDelete(EVICTED_DATA_DB->dict,key->ptr);
 
             /* propagate aof */
             argv[0] = createStringObject("restore", 7);

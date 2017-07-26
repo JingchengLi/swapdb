@@ -625,14 +625,22 @@ int epilogOfEvictingToSSDB(robj *keyobj) {
         return C_ERR;
     }
 
-    /* Record the evicted keys in an extra redis db. */
-    setKey(evicteddb, keyobj, shared.space);
-
     /* save lfu info when transfer. */
     db_key = dictGetKey(de);
     lfu = sdsgetlfu(db_key);
 
-    ev_de = dictFind(evicteddb->dict, db_key);
+    latencyStartMonitor(eviction_latency);
+    if (server.lazyfree_lazy_eviction)
+        dbAsyncDelete(db,keyobj);
+    else
+        dbSyncDelete(db,keyobj);
+    latencyEndMonitor(eviction_latency);
+    latencyAddSampleIfNeeded("coldkey-transfer",eviction_latency);
+
+    /* Record the evicted keys in an extra redis db. */
+    setKey(evicteddb, keyobj, shared.space);
+    /* update LFU with old value. */
+    ev_de = dictFind(evicteddb->dict, keyobj->ptr);
     evdb_key = dictGetKey(ev_de);
     sdssetlfu(evdb_key, lfu);
 
@@ -679,24 +687,6 @@ int epilogOfEvictingToSSDB(robj *keyobj) {
 
     cleanupEpilogOfEvicting(db, keyobj);
 
-     /* We compute the amount of memory freed by db*Delete() alone.
-     * It is possible that actually the memory needed to propagate
-     * the DEL in AOF and replication link is greater than the one
-     * we are freeing removing the key, but we can't account for
-     * that otherwise we would never exit the loop.
-     *
-     * AOF and Output buffer memory will be freed eventually so
-     * we only care about memory used by the key space. */
-    latencyStartMonitor(eviction_latency);
-    if (server.lazyfree_lazy_eviction)
-        dbAsyncDelete(db,keyobj);
-    else
-        dbSyncDelete(db,keyobj);
-
-    if (server.cluster_enabled) slotToKeyAdd(keyobj);
-
-    latencyEndMonitor(eviction_latency);
-    latencyAddSampleIfNeeded("coldkey-transfer",eviction_latency);
     server.stat_ssdbkeys++;
     notifyKeyspaceEvent(NOTIFY_EVICTED, "transfer-to-SSDB",
                         keyobj, db->id);
