@@ -122,7 +122,17 @@ void processUnblockedClients(void) {
          * client is not blocked before to proceed, but things may change and
          * the code is conceptually more correct this way. */
         if (!(c->flags & CLIENT_BLOCKED)) {
-            if (c->querybuf && sdslen(c->querybuf) > 0)
+            if (server.jdjr_mode && c->flags & CLIENT_MASTER
+                && c->querybuf && sdslen(c->querybuf) > 0) {
+                size_t prev_offset = c->reploff;
+                processInputBuffer(c);
+                size_t applied = c->reploff - prev_offset;
+                if (applied) {
+                    replicationFeedSlavesFromMasterStream(server.slaves,
+                                                          c->pending_querybuf, applied);
+                    sdsrange(c->pending_querybuf,applied,-1);
+                }
+            } else if (c->querybuf && sdslen(c->querybuf) > 0)
                 processInputBuffer(c);
         }
     }
