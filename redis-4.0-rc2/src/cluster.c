@@ -2777,7 +2777,7 @@ void clusterLogCantFailover(int reason) {
     case CLUSTER_CANT_FAILOVER_WAITING_VOTES:
         msg = "Waiting for votes, but majority still not reached.";
         break;
-    case CLUSTER_CANT_FAILOVER_REMAIN_SSDB_WRITES:
+    case CLUSTER_CANT_FAILOVER_WILL_LOST_SSDB_WRITES:
         msg = "there remain failed ssdb writes unprocessed.";
         break;
     default:
@@ -2900,10 +2900,10 @@ void clusterHandleSlaveFailover(void) {
     }
 
     if (server.jdjr_mode) {
-        if (!manual_failover && myself->slaveof->numslaves > 1 && listLength(server.ssdb_write_oplist) > 10
+        if (!manual_failover && listLength(server.ssdb_write_oplist) > 0
             && ((server.master && !(server.master->ssdb_conn_flags & CONN_SUCCESS))
                 || (server.cached_master && !(server.cached_master->ssdb_conn_flags & CONN_SUCCESS)))) {
-            clusterLogCantFailover(CLUSTER_CANT_FAILOVER_REMAIN_SSDB_WRITES);
+            clusterLogCantFailover(CLUSTER_CANT_FAILOVER_WILL_LOST_SSDB_WRITES);
             return;
         }
     }

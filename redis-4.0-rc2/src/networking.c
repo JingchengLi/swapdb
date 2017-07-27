@@ -2584,14 +2584,6 @@ void freeClient(client *c) {
                 }
             } else if (c->flags & CLIENT_BLOCKED) {
                 /* do nothing */
-            } else {
-                if (c->multibulklen == 0)
-                    resetClient(c);
-                else {
-                    serverLog(LL_DEBUG, "there is some arguments left to read, we can't reset it");
-                    serverLog(LL_DEBUG, "parsing command is:%s %s", c->argc > 0 ? (sds)c->argv[0]->ptr:"",
-                              c->argc > 1 ? (sds)c->argv[1]->ptr:"");
-                }
             }
 
             replicationCacheMaster(c);
@@ -3201,7 +3193,9 @@ void processInputBuffer(client *c) {
 #endif
             /* Only reset the client when the command was executed. */
             if (processCommand(c) == C_OK) {
-                if (c->flags & CLIENT_MASTER && !(c->flags & CLIENT_MULTI)) {
+                if (server.jdjr_mode) {
+                    /* do nothing */
+                } else if (c->flags & CLIENT_MASTER && !(c->flags & CLIENT_MULTI)) {
                     /* Update the applied replication offset of our master. */
                     c->reploff = c->read_reploff - sdslen(c->querybuf);
                 }

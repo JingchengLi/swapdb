@@ -3423,6 +3423,9 @@ int processCommandMaybeFlushdb(client *c) {
 
                 updateSlaveSSDBwriteIndex();
                 saveSlaveSSDBwriteOp(c, server.last_send_writeop_time, server.last_send_writeop_index);
+
+                /* Update the applied replication offset of our master. */
+                c->reploff = c->read_reploff - sdslen(c->querybuf);
                 return C_ERR;
             }
         }
@@ -3687,6 +3690,9 @@ int updateSendRepopidToSSDB(client* c) {
     /* for the replication connection of slave redis, we record write commands
      * in server.ssdb_write_oplist, we just return and process next write command. */
     saveSlaveSSDBwriteOp(c, server.last_send_writeop_time, server.last_send_writeop_index);
+
+    /* Update the applied replication offset of our master. */
+    c->reploff = c->read_reploff - sdslen(c->querybuf);
 
     /* if ssdb connection flag of this client is not CONN_SUCCESS, just return. but for
      * flushall command, we can do it also when the flag is before CONN_SUCCESS. */
@@ -4187,6 +4193,9 @@ int runCommandReplicationConn(client *c, listNode* writeop_ln) {
 
     call(c,CMD_CALL_FULL);
     c->woff = server.master_repl_offset;
+
+    /* Update the applied replication offset of our master. */
+    c->reploff = c->read_reploff - sdslen(c->querybuf);
 
     serverLog(LL_DEBUG, "processing %s, fd: %d in redis: %s, dbid: %d, argc: %d",
               c->cmd->name, c->fd, c->argc > 1 ? (char *)c->argv[1]->ptr : "", c->db->id, c->argc);
@@ -5733,7 +5742,9 @@ void loadDataFromDisk(void) {
                 (float)(ustime()-start)/1000000);
 
             /* Restore the replication ID / offset from the RDB file. */
-            if (rsi.repl_id_is_set && rsi.repl_offset != -1) {
+            if (server.jdjr_mode) {
+                /* do nothing */
+            } else if (rsi.repl_id_is_set && rsi.repl_offset != -1) {
                 memcpy(server.replid,rsi.repl_id,sizeof(server.replid));
                 server.master_repl_offset = rsi.repl_offset;
                 /* If we are a slave, create a cached master from this
