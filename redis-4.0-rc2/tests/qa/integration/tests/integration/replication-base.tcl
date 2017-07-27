@@ -90,7 +90,7 @@ start_server {tags {"repl"}} {
             }
         }
 
-        test {slave can only be loaded by master} {
+        test {key can only be loaded by master} {
             r config set maxmemory 0
             r -1 config set maxmemory 0
 
@@ -119,21 +119,26 @@ start_server {tags {"repl"}} {
             assert_equal [sr -1 get mykey2] {bar} "master key with status ssdb should in ssdb"
         }
 
-        test {slave should dump key to ssdb when conditions satisfied} {
+        test {key can only store to ssdb by master} {
+            r -1 set foossdb 12345
+            r config set ssdb-transfer-lower-limit 0
+            r config set maxmemory 100M
+            after 3000
+            assert_equal {redis} [r locatekey foossdb] "key should not store to ssdb when only slave statisfy transfer condition"
+
             set oldlower [lindex [ r -1 config get ssdb-transfer-lower-limit ] 1]
             r -1 config set ssdb-transfer-lower-limit 0
             set oldmaxmemory [lindex [ r -1 config get maxmemory ] 1]
             r -1 config set maxmemory 100M
-            r -1 set foossdb 12345
             wait_for_condition 50 100 {
                 [r -1 locatekey foossdb] eq {ssdb}
             } else {
-                fail "master's key should be dump to ssdb"
+                fail "master's key should store to ssdb"
             }
             wait_for_condition 50 100 {
                 [r locatekey foossdb] eq {ssdb}
             } else {
-                fail "slave's key should be dump to ssdb"
+                fail "slave's key should store to ssdb"
             }
             r -1 config set maxmemory $oldmaxmemory
             r -1 config set ssdb-transfer-lower-limit $oldlower
@@ -209,73 +214,6 @@ start_server {tags {"repl"}} {
     }
 }
 
-# master with only one slave
-foreach dl {no} {
-    start_server {tags {"repl"}} {
-        set master [srv 0 client]
-        $master config set repl-diskless-sync $dl
-        set master_host [srv 0 host]
-        set master_port [srv 0 port]
-        set slaves {}
-        set load_handle0 [start_write_load $master_host $master_port 3 10]
-        set load_handle1 [start_write_load $master_host $master_port 5 10]
-        set load_handle2 [start_write_load $master_host $master_port 20 10]
-        set load_handle3 [start_write_load $master_host $master_port 8 10]
-        set load_handle4 [start_write_load $master_host $master_port 4 10]
-        start_server {} {
-            lappend slaves [srv 0 client]
-            test "Connect single slave at the same time , diskless=$dl" {
-                # Send SLAVEOF commands to slave
-                [lindex $slaves 0] slaveof $master_host $master_port
-
-                # Wait for the slave to reach the "online"
-                # state from the POV of the master.
-                set retry 500
-                while {$retry} {
-                    set info [$master info]
-                    if {[string match {*slave0:*state=online*} $info]} {
-                        break
-                    } else {
-                        incr retry -1
-                        after 100
-                    }
-                }
-                if {$retry == 0} {
-                    error "assertion:Single Slave not correctly synchronized"
-                }
-
-                # Wait that slave acknowledge is online so
-                # we are sure that DBSIZE and DEBUG DIGEST will not
-                # fail because of timing issues.
-                wait_for_condition 500 100 {
-                    [lindex [[lindex $slaves 0] role] 3] eq {connected}
-                } else {
-                    fail "Single Slave still not connected after some time"
-                }
-
-                # Stop the write load
-                stop_write_load $load_handle0
-                stop_write_load $load_handle1
-                stop_write_load $load_handle2
-                stop_write_load $load_handle3
-                stop_write_load $load_handle4
-
-                wait_for_condition 500 100 {
-                    [$master debug digest] == [[lindex $slaves 0] debug digest]
-                } else {
-                    fail "Different digest between master and single slave after too long time."
-                }
-
-                assert {[$master debug digest] ne 0000000000000000000000000000000000000000}
-
-                # Check digests when all keys be hot
-                r -1 config set maxmemory 0
-                compare_debug_digest {-1 0}
-            }
-       }
-    }
-}
-
 # not support diskless replication.
 foreach dl {no} {
     start_server {tags {"repl"}} {
@@ -284,11 +222,9 @@ foreach dl {no} {
         set master_host [srv 0 host]
         set master_port [srv 0 port]
         set slaves {}
-        set load_handle0 [start_write_load $master_host $master_port 3 10]
-        set load_handle1 [start_write_load $master_host $master_port 5 10]
-        set load_handle2 [start_write_load $master_host $master_port 20 10]
-        set load_handle3 [start_write_load $master_host $master_port 8 10]
-        set load_handle4 [start_write_load $master_host $master_port 4 10]
+        set load_handle0 [start_write_load $master_host $master_port 3]
+        set load_handle1 [start_write_load $master_host $master_port 5]
+        set load_handle2 [start_write_load $master_host $master_port 20]
         start_server {} {
             lappend slaves [srv 0 client]
             start_server {} {
@@ -320,8 +256,6 @@ foreach dl {no} {
                         stop_write_load $load_handle0
                         stop_write_load $load_handle1
                         stop_write_load $load_handle2
-                        stop_write_load $load_handle3
-                        stop_write_load $load_handle4
 
                         # Make sure that slaves and master have same
                         # number of keys
@@ -342,18 +276,13 @@ foreach dl {no} {
                         }
                         assert {[$master debug digest] ne 0000000000000000000000000000000000000000}
 
-                        # Check digests when all keys be hot
-                        r -3 config set maxmemory 0
-                        set digest [debug_digest r -3]
-                        set digest0 [debug_digest r -2]
-                        set digest1 [debug_digest r -1]
-                        set digest2 [debug_digest r 0]
-                        wait_for_condition 500 100 {
-                            $digest == [[lindex $slaves 0] debug digest] &&
-                            $digest == [[lindex $slaves 1] debug digest] &&
-                            $digest == [[lindex $slaves 2] debug digest]
-                        } else {
-                            fail "Different digest between master and slave after too long time."
+                        set somekeys [r -3 keys 0.000*]
+                        assert {[llength $somekeys] > 0} "should compare some keys"
+                        foreach key $somekeys {
+                            set val [r -3 get $key]
+                            assert_equal $val [[lindex $slaves 0] get $key] "key:$key not identical between master and slave0!"
+                            assert_equal $val [[lindex $slaves 1] get $key] "key:$key not identical between master and slave1!"
+                            assert_equal $val [[lindex $slaves 2] get $key] "key:$key not identical between master and slave2!"
                         }
                     }
                 }

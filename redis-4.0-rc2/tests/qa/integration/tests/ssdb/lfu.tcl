@@ -77,7 +77,7 @@ if {$::accurate} {
             }
 
             r config set maxmemory 100M
-            after 61000
+            after 60500
         }
 
         test "lfu count 22 decay to 11 divide by two" {

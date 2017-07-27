@@ -1,8 +1,9 @@
-start_server {tags {"psync2"}} {
-start_server {} {
-start_server {} {
-start_server {} {
-start_server {} {
+start_server {tags {"psync2"}
+config {rdb.conf}} {
+start_server {config {rdb.conf}} {
+start_server {config {rdb.conf}} {
+start_server {config {rdb.conf}} {
+start_server {config {rdb.conf}} {
     set master_id 0                 ; # Current master
     set start_time [clock seconds]  ; # Test start time
     set counter_value 0             ; # Current value of the Redis counter "x"
@@ -124,6 +125,7 @@ start_server {} {
         if {$debug_msg} {
             for {set j 0} {$j < 5} {incr j} {
                 puts "$j: sync_full: [status $R($j) sync_full]"
+                puts "$j: sync_full_err: [status $R($j) sync_full_err]"
                 puts "$j: id1      : [status $R($j) master_replid]:[status $R($j) master_repl_offset]"
                 puts "$j: id2      : [status $R($j) master_replid2]:[status $R($j) second_repl_offset]"
                 puts "$j: backlog  : firstbyte=[status $R($j) repl_backlog_first_byte_offset] len=[status $R($j) repl_backlog_histlen]"

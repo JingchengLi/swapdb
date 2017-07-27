@@ -31,7 +31,7 @@ proc test_psync {descr duration backlog_size backlog_ttl delay cond reconnect} {
                 # Now while the clients are writing data and reach transfer limit, break the maste-slave
                 # link multiple times.
                 wait_for_transfer_limit 1 -1
-                after 1000
+                after 3000
                 if ($reconnect) {
                     for {set j 0} {$j < $duration*10} {incr j} {
                         after 100

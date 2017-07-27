@@ -77,7 +77,7 @@ overrides {maxmemory 0}} {
             assert_equal {redis} [r locatekey foo_2] "foo_2 with lfu > 5 should be loaded"
         }
 
-        set rule "1 150"
+        set rule "1 200"
         r config set ssdb-load-rule $rule
         set rule [lindex [r config get ssdb-load-rule] 1]
         lassign $rule time tps

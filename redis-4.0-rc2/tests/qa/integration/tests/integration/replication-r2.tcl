@@ -17,7 +17,7 @@ config {real.conf}} {
             set clients 3
             set clist [ start_bg_complex_data_list $master_host $master_port $num $clients 1k]
             lappend clist {*}[ start_bg_complex_data_list $master_host $master_port $num $clients 10k]
-            lappend clist {*}[ start_bg_complex_data_list $master_host $master_port $num $clients 100k]
+            lappend clist {*}[ start_bg_complex_data_list $master_host $master_port $num $clients 50k]
             wait_for_transfer_limit 1 -2
             after 1000
             test "Two slaves slaveof at the same time during writing" {
@@ -29,19 +29,16 @@ config {real.conf}} {
 
             test "MASTER and SLAVES dataset should be identical after complex ops" {
                 wait_memory_stable -2; wait_memory_stable -1; wait_memory_stable
-                # $master config set maxmemory 0
-                wait_for_condition 100 100 {
+                wait_for_condition 10 100 {
                     [$master dbsize] == [[lindex $slaves 0] dbsize] &&
                     [[lindex $slaves 0] dbsize] == [[lindex $slaves 1] dbsize]
                 } else {
-
                     fail "Different number of keys between master and slave after too long time."
                 }
-                wait_for_condition 100 100 {
-                    [$master debug digest] == [[lindex $slaves 0] debug digest] &&
-                    [[lindex $slaves 0] debug digest] == [[lindex $slaves 1] debug digest]
-                } else {
-                    fail "Different digest between master([$master debug digest]) and slave1([[lindex $slaves 0] debug digest]) slave2([[lindex $slaves 1] debug digest]) after too long time."
+                if {[$master debug digest] != [[lindex $slaves 0] debug digest] ||
+                [[lindex $slaves 0] debug digest] != [[lindex $slaves 1] debug digest]} {
+                    puts "Different digest between master([$master debug digest]) and slave1([[lindex $slaves 0] debug digest]) slave2([[lindex $slaves 1] debug digest])."
+                    compare_debug_digest {-2 -1 0}
                 }
             }
         }
@@ -61,7 +58,7 @@ config {real.conf}} {
         set clients 3
         set clist [ start_bg_complex_data_list $master_host $master_port $num $clients 1k]
         lappend clist {*}[ start_bg_complex_data_list $master_host $master_port $num $clients 10k]
-        lappend clist {*}[ start_bg_complex_data_list $master_host $master_port $num $clients 100k]
+        lappend clist {*}[ start_bg_complex_data_list $master_host $master_port $num $clients 50k]
 
         wait_for_transfer_limit 1 -1
         after 1000
@@ -79,20 +76,16 @@ config {real.conf}} {
 
         test "MASTER and one SLAVE dataset should be identical after complex ops" {
             wait_memory_stable -1; wait_memory_stable ; #wait slave sync done
-            # $master config set maxmemory 0
 
             wait_for_condition 10 100 {
                 [$master dbsize] == [[lindex $slaves 0] dbsize]
             } else {
-                # puts [ populate_diff_keys $master [lindex $slaves 0] 5 ]
                 fail "Different number of keys between master and slave after too long time."
             }
-            wait_for_condition 100 100 {
-                [$master debug digest] == [[lindex $slaves 0] debug digest]
-            } else {
-                fail "Different digest between master([$master debug digest]) and slave1([[lindex $slaves 0] debug digest]) after too long time."
+            if {[$master debug digest] != [[lindex $slaves 0] debug digest]} {
+                puts "Different digest between master([$master debug digest]) and slave1([[lindex $slaves 0] debug digest])."
+                compare_debug_digest {-1 0}
             }
-            # $master config set maxmemory 1000MB
         }
 
         start_server {config {real.conf}} {
@@ -100,7 +93,7 @@ config {real.conf}} {
 
             set clist [ start_bg_complex_data_list $master_host $master_port $num $clients 1k]
             lappend clist {*}[ start_bg_complex_data_list $master_host $master_port $num $clients 10k]
-            lappend clist {*}[ start_bg_complex_data_list $master_host $master_port $num $clients 100k]
+            lappend clist {*}[ start_bg_complex_data_list $master_host $master_port $num $clients 50k]
             wait_for_transfer_limit 1 -2; # wait storing keys to ssdb
             test "Second server should have role slave after SLAVEOF" {
                 [lindex $slaves 1] slaveof $master_host $master_port
@@ -116,7 +109,6 @@ config {real.conf}} {
 
             test "MASTER and two SLAVES dataset should be identical after complex ops" {
                 wait_memory_stable -2; wait_memory_stable -1; wait_memory_stable
-                # $master config set maxmemory 0
                 wait_for_condition 10 100 {
                     [$master dbsize] == [[lindex $slaves 0] dbsize] &&
                     [[lindex $slaves 0] dbsize] == [[lindex $slaves 1] dbsize]
@@ -124,13 +116,11 @@ config {real.conf}} {
                     fail "Different number of keys between master and slave after too long time."
                 }
 
-                wait_for_condition 100 100 {
-                    [$master debug digest] == [[lindex $slaves 0] debug digest] &&
-                    [[lindex $slaves 0] debug digest] == [[lindex $slaves 1] debug digest]
-                } else {
-                    fail "Different digest between master([$master debug digest]) and slave1([[lindex $slaves 0] debug digest]) slave2([[lindex $slaves 1] debug digest]) after too long time."
+                if {[$master debug digest] != [[lindex $slaves 0] debug digest] ||
+                [[lindex $slaves 0] debug digest] != [[lindex $slaves 1] debug digest]} {
+                    puts "Different digest between master([$master debug digest]) and slave1([[lindex $slaves 0] debug digest]) slave2([[lindex $slaves 1] debug digest])."
+                    compare_debug_digest {-2 -1 0}
                 }
-                # $master config set maxmemory 1000MB
             }
         }
     }

@@ -278,14 +278,14 @@ proc createComplexDataset {r ops {opt {}}} {
                     set delaytime 0
                 }
                randpath {{*}$r pexpire $k [expr 1000*$delaytime+[randomInt 10]]} \
-                       {{*}$r expire $k [expr $delaytime+[randomInt 5] ]} \
-                       {{*}$r expireat $k [expr $delaytime+[clock seconds] +[randomInt 10000]]} \
+                       {{*}$r expire $k [expr $delaytime+[randomInt 3]]} \
+                       {{*}$r expireat $k [expr $delaytime+[clock seconds] +[randomInt 3]]} \
                        {{*}$r pexpireat $k [expr 1000*$delaytime+[clock milliseconds] +[randomInt 1000]]} \
-                       {{*}$r expire $k [expr $delaytime+1000+[randomInt 10000]]}
+                       {{*}$r expire $k [expr $delaytime+[randomInt 3]]}
                 if {{string} eq $t} {
                     catch {
-                        randpath {{*}$r setex $k [expr $delaytime+1000+[randomInt 10000]] ${v}_volatile} \
-                        {{*}$r set $k ${v}_volatile EX [expr $delaytime+1000+[randomInt 10000]]}
+                        randpath {{*}$r setex $k [expr $delaytime+[randomInt 3]] ${v}_volatile} \
+                        {{*}$r set $k ${v}_volatile EX [expr $delaytime+[randomInt 3]]}
                         {{*}$r set $k ${v}_volatile PX [expr 1000*$delaytime+[randomInt 1000]]}
                    } err;
                 }
@@ -412,12 +412,12 @@ proc colorstr {color str} {
 
 # Execute a background process writing random data for the specified number
 # of seconds to the specified Redis instance.
-proc start_write_load {host port seconds {interval 0}} {
+proc start_write_load {host port seconds} {
     set tclsh [info nameofexecutable]
-    exec $tclsh tests/helpers/gen_write_load.tcl $host $port $seconds $interval &
+    exec $tclsh tests/helpers/gen_write_load.tcl $host $port $seconds &
 }
 
-proc start_hit_ssdb_tps {host port seconds {interval 0}} {
+proc start_hit_ssdb_tps {host port seconds} {
     set tclsh [info nameofexecutable]
     exec $tclsh tests/helpers/start_hit_ssdb_tps.tcl $host $port $seconds &
 }
@@ -647,6 +647,7 @@ proc debug_digest {r {level 0}} {
                 # $r $level exists $key ;#load keys to redis
             }
             after 1000
+            incr retry -1
         }
         if {$retry == 0} {
             error "assertion:master not load all keys after multi access key"
