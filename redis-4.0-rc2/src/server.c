@@ -4146,7 +4146,6 @@ void prepareSSDBflush(client* c) {
 /* for replication connection(server.master), after reconnect with SSDB success, we
  * use this to retry failed/timeout write commands.*/
 int runCommandReplicationConn(client *c, listNode* writeop_ln) {
-    int j;
     if (!(c->flags & CLIENT_MASTER)) return C_ERR;
     struct ssdb_write_op* slave_retry_write = NULL;
 
@@ -4186,49 +4185,11 @@ int runCommandReplicationConn(client *c, listNode* writeop_ln) {
         return C_OK;
     }
 
-    if (slave_retry_write) {
-        /*NOTE: for some commands like set, setex, etc..., its c->argv[j]->ptr
-        * may be modified when call tryObjectEncoding.
-         *
-        * so, before call redis command, we just save slave_retry_write->argv
-        * to c->argv, and delete this write op from server.ssdb_write_oplist,
-        * otherwise freeSSDBwriteOp will may crash. */
-
-        c->cmd = slave_retry_write->cmd;
-        c->argc = slave_retry_write->argc;
-        c->argv = slave_retry_write->argv;
-
-        slave_retry_write->argv = NULL;
-
-        /* c->argv[j]->ptr may be modified after call c->cmd->proc, which will
-         * cause wrong memory size statistics, compute its size before this. */
-        for (j = 0; j < c->argc; j++) {
-            server.writeop_mem_size -= sizeof(robj);
-            if (c->argv[j]->type == OBJ_STRING)
-                server.writeop_mem_size -= SDS_MEM_SIZE((char*)(c->argv[j]->ptr));
-        }
-    }
     call(c,CMD_CALL_FULL);
     c->woff = server.master_repl_offset;
 
-    if (slave_retry_write) {
-         serverLog(LL_DEBUG, "[REPOPID]the key: %s is now in redis, remove write op from"
-                          " list(op cmd:%s, time:%ld, index:%d)",
-                  slave_retry_write->argc > 1 ?  (sds)slave_retry_write->argv[1]->ptr : "",
-                  slave_retry_write->cmd->name, slave_retry_write->time, slave_retry_write->index);
-
-         /* the key is in redis and this op is processed, just remove it */
-        listDelNode(server.ssdb_write_oplist, writeop_ln);
-
-        for (j = 0; j < c->argc; j++) {
-            decrRefCount(c->argv[j]);
-        }
-        zfree(c->argv);
-        c->argv = NULL;
-    } else {
-        serverLog(LL_DEBUG, "processing %s, fd: %d in redis: %s, dbid: %d, argc: %d",
-                  c->cmd->name, c->fd, c->argc > 1 ? (char *)c->argv[1]->ptr : "", c->db->id, c->argc);
-    }
+    serverLog(LL_DEBUG, "processing %s, fd: %d in redis: %s, dbid: %d, argc: %d",
+              c->cmd->name, c->fd, c->argc > 1 ? (char *)c->argv[1]->ptr : "", c->db->id, c->argc);
 
     return C_OK;
 }

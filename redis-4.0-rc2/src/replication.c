@@ -2548,6 +2548,7 @@ void replicationResurrectCachedMaster(int newfd) {
     server.cached_master = NULL;
     server.master->fd = newfd;
     server.master->flags &= ~(CLIENT_CLOSE_AFTER_REPLY|CLIENT_CLOSE_ASAP);
+    if (server.jdjr_mode) server.master->flags &= ~CLIENT_BUFFER_HAS_UNPROCESSED_DATA;
     server.master->authenticated = 1;
     server.master->lastinteraction = server.unixtime;
     server.repl_state = REPL_STATE_CONNECTED;
