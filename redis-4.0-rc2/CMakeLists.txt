@@ -11,13 +11,12 @@ execute_process(COMMAND
 add_definitions(-Wall)
 SET(LIBRARY_OUTPUT_PATH "${CMAKE_SOURCE_DIR}/build/lib")
 SET(EXECUTABLE_OUTPUT_PATH "${CMAKE_SOURCE_DIR}/build")
-#set(CMAKE_C_FLAGS "-std=c99 -pedantic  -U__STRICT_ANSI__ -DMULTIPLE_DC") # that would be bad
 IF(GCOV)
     ADD_DEFINITIONS("-fprofile-arcs -ftest-coverage")
     SET(CMAKE_EXE_LINKER_FLAGS "-fprofile-arcs -ftest-coverage")
-    set(CMAKE_C_FLAGS "-g -std=c99 -pedantic  -U__STRICT_ANSI__ -DMULTIPLE_DC") # that would be bad
+    set(CMAKE_C_FLAGS "-g -std=c99 -pedantic -rdynamic -DUSE_JEMALLOC -U__STRICT_ANSI__ -DMULTIPLE_DC") # that would be bad
 ELSE()
-    set(CMAKE_C_FLAGS "-g -std=c99 -pedantic  -U__STRICT_ANSI__ -DMULTIPLE_DC") # that would be bad
+    set(CMAKE_C_FLAGS "-g -std=c99 -pedantic -rdynamic -DUSE_JEMALLOC -U__STRICT_ANSI__ -DMULTIPLE_DC") # that would be bad
 ENDIF()
 
 INCLUDE_DIRECTORIES(
@@ -25,6 +24,7 @@ INCLUDE_DIRECTORIES(
         "deps/hiredis"
         "deps/linenoise"
         "deps/lua/src"
+        "src"
 )
 
 LINK_DIRECTORIES(
@@ -34,8 +34,8 @@ LINK_DIRECTORIES(
         "deps/lua/src"       #lua
 )
 
-ADD_LIBRARY(jemalloc deps/jemalloc/src)
-SET_TARGET_PROPERTIES(jemalloc PROPERTIES LINKER_LANGUAGE C OUTPUT_NAME jemalloc)
+ADD_LIBRARY(jemalloc-static deps/jemalloc/lib)
+SET_TARGET_PROPERTIES(jemalloc-static PROPERTIES LINKER_LANGUAGE C OUTPUT_NAME jemalloc)
 
 ADD_LIBRARY(linenoise deps/linenoise)
 SET_TARGET_PROPERTIES(linenoise PROPERTIES LINKER_LANGUAGE C OUTPUT_NAME linenoise)
@@ -106,7 +106,7 @@ SET(redis-benchmark_files
         )
 
 ADD_EXECUTABLE(redis-benchmark ${redis-benchmark_files})
-TARGET_LINK_LIBRARIES(redis-benchmark hiredis-static jemalloc)
+TARGET_LINK_LIBRARIES(redis-benchmark hiredis jemalloc pthread)
 
 SET(redis-cli_files
         src/redis-cli.c
@@ -121,7 +121,7 @@ SET(redis-cli_files
         )
 
 ADD_EXECUTABLE(redis-cli ${redis-cli_files})
-TARGET_LINK_LIBRARIES(redis-cli hiredis-static m)
+TARGET_LINK_LIBRARIES(redis-cli hiredis m jemalloc pthread)
 
 SET(redis-server_files
         src/adlist.c
@@ -192,8 +192,8 @@ SET(redis-server_files
         src/zmalloc.c
         )
 ADD_EXECUTABLE(redis-server ${redis-server_files})
-TARGET_LINK_LIBRARIES(redis-server hiredis-static jemalloc lua-static m pthread)
+TARGET_LINK_LIBRARIES(redis-server hiredis jemalloc lua m pthread dl)
 
 
 ADD_EXECUTABLE(redis-check-rdb ${redis-server_files})
-TARGET_LINK_LIBRARIES(redis-check-rdb hiredis-static jemalloc lua-static m pthread)
+TARGET_LINK_LIBRARIES(redis-check-rdb hiredis jemalloc lua m pthread dl)
