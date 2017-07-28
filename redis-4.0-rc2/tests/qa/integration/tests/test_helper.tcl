@@ -47,7 +47,6 @@ set ::all_tests {
     unit/type/list-3
 
     unit/introspection
-    unit/introspection-2
     unit/keyspace
     unit/limits
     unit/other
@@ -65,7 +64,6 @@ set ::all_tests {
     integration/psync2
     integration/replication-A
     integration/replication-B
-    integration/replication-C
 }
 # lfu-policy update
     # ssdb/lfu-policy

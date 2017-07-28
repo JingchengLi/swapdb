@@ -1,13 +1,5 @@
 start_server {tags {"lfu"}} {
     set val [string repeat 'x' 1024]
-    proc incr_lfu_count_keys {pre nums count} {
-        for {set i 0} {$i < $nums} {incr i} {
-            for {set j 1} {$j < $count} {incr j} {
-                r get "$pre:$i"
-            }
-        }
-    }
-
     proc set_lfu_keys {pre nums lfu} {
         for {set i 0} {$i < $nums} {incr i} {
             r setlfu "$pre:$i" $lfu
@@ -104,7 +96,6 @@ start_server {tags {"lfu"}} {
     }
 
     foreach policy { allkeys-lfu } {
-        # make sure to start with a blank instance
         r flushall
 
         r config set maxmemory-policy $policy

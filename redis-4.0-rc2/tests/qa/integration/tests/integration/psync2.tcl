@@ -176,7 +176,8 @@ start_server {config {rdb.conf}} {
             fail "Slave not reconnecting"
         }
         set new_sync_count [status $R($master_id) sync_full]
-        assert {$sync_count == $new_sync_count}
+        # prohibit psync when slave restart for ops in slave write list may lose.
+        assert {$sync_count == $new_sync_count - 1}
     }
 
     if {$no_exit} {

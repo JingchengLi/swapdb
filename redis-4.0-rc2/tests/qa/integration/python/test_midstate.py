@@ -121,22 +121,6 @@ class TestMidState(unittest.TestCase):
             flags |= result.get()
         self.assertEqual(0x9, flags, "%d : no blocked write or read is blocked during transferring status" % flags)
 
-#    lower python version not support skip
-#    @unittest.skip("block timeout and reset some write ops")
-#    def test_loading_block_write(self):
-#        '''during loading key block write operation'''
-#        manager = Manager()
-#        q = manager.Queue()
-#        flags = 0
-#        storetossdb()
-#        self.assertTrue(wait_status("ssdb"), "wait dump key timeout")
-#        for i in range(1000):
-#            self.p.apply_async(append, args = (q,))
-#
-#        self.p.close()
-#        self.p.join()
-#        self.assertEqual(20001000, R.strlen(self.key), "%d : mthreads write comflict during loading status" % R.strlen(self.key))
-
     def test_loading_block_read(self):
         '''during loading key block read operation'''
         manager = Manager()
@@ -162,5 +146,3 @@ class TestMidState(unittest.TestCase):
 config_set_maxmemory()
 suite = unittest.TestLoader().loadTestsFromTestCase(TestMidState)
 unittest.TextTestRunner(verbosity=2).run(suite)
-#  if __name__=='__main__':
-    #  unittest.main(verbosity=2)

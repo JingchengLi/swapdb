@@ -28,10 +28,14 @@ start_server {tags {"keyspace"}} {
         ssdbr dbsize
     } {6}
 
-#    test {DEL all keys} {
-#        foreach key [ssdbr keys *] {r del $key}
-#        r dbsize
-#    } {0}
+    test {DEL all keys} {
+        foreach key [ssdbr keys *] {r del $key}
+        wait_for_condition 10 1 {
+            0 == [ r dbsize ]
+        } else {
+            fail "Not del all keys after short time."
+        }
+    }
 
     test "DEL against expired key" {
         ssdbr debug set-active-expire 0
@@ -73,22 +77,31 @@ start_server {tags {"keyspace"}} {
         string match ERR* $err
     } {1}
 
-    test {DEL all keys again (DB 0)} {
-        foreach key [ssdbr keys *] {
+    test {DEL all keys and set immediately (DB 0)} {
+        set allkeys [ssdbr keys *]
+        foreach key $allkeys {
             ssdbr del $key
+            r set $key $key
         }
-        ssdbr dbsize
-    } {0}
+        after 10
+        foreach key $allkeys {
+            assert_equal $key [r get $key]
+        }
+        assert_equal [llength $allkeys] [ssdbr dbsize]
+    }
 
     test {DEL all keys again (DB 1)} {
         ssdbr select 10
         foreach key [ssdbr keys *] {
             ssdbr del $key
         }
-        set res [ssdbr dbsize]
+        wait_for_condition 10 1 {
+            0 == [ ssdbr dbsize ]
+        } else {
+            fail "Not del all keys after short time."
+        }
         ssdbr select 9
-        format $res
-    } {0}
+    }
 
 #    test {SET/GET keys in different DBs} {
 #        ssdbr set a hello

@@ -25,6 +25,7 @@ class TestPipeline(unittest.TestCase):
         self.R = RedisPool().Redis_Pool()
         self.R.flushall()
         self.R.set("nullkey", "nullvalue")
+        self.R.execute_command("config set maxmemory 0")
         while True:
             try:
                 self.R.execute_command("storetossdb "+"nullkey")
@@ -53,14 +54,26 @@ class TestPipeline(unittest.TestCase):
             result = pipe.execute()
             self.assertEqual(expect, result)
 
+        self.dumpKeys()
+        self.R.set("foohot", 'barhot')
+
+        with r.pipeline(False) as pipe:
+            expect = [True, True, 'ssdbbar', 'bar']
+            pipe.set("foo", "ssdbbar");
+            pipe.set("foohot", "bar");
+            pipe.get("foo");
+            pipe.get("foohot");
+            result = pipe.execute()
+            self.assertEqual(expect, result)
+
     def test_pipelineResponse(self, r=RedisPool().Redis_Pool()):
         self.R.set("stringkey", "foo")
         self.R.lpush("listkey", "foo")
         self.R.hset("hashkey", "foo", "bar")
+        self.dumpKeys()
         self.R.zadd("zsetkey", 1, "foo")
         self.R.sadd("setkey", "foo")
         self.R.setrange("setrangekey", 0, "0123456789");
-        self.dumpKeys()
 
         #  bytesForSetRange = [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 ]
         #  self.R.setrange("setrangebytes".getBytes(), 0, bytesForSetRange);

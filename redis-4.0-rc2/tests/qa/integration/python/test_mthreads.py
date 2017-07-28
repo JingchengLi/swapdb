@@ -25,6 +25,9 @@ def delete(key="key"):
 def storetossdb(key="key"):
     return R.execute_command("storetossdb "+key)
 
+def dumpfromssdb(key="key"):
+    return R.execute_command("dumpfromssdb "+key)
+
 def locatekey(key="key"):
     return R.execute_command("locatekey "+key)
 
@@ -68,29 +71,14 @@ class TestMthreads(unittest.TestCase):
         self.assertNotEqual(100, n, "more than 20 secs to wait memory stable.")
         return memory
 
-    #  @unittest.skip("skip test_01")
-    def test_01(self):
-        '''set/storetossdb/get concurrency'''
-        for i in range(500):
-            self.p.apply_async(set)
-            self.p.apply_async(storetossdb)
-            self.p.apply_async(get)
-
-        self.p.close()
-        self.p.join()
-        print "At last key(%s)'s status is %s!" % (self.key, locatekey())
-        self.assertTrue(locatekey() in ["redis", "ssdb"])
-        #  self.assertIn(locatekey(),["redis", "ssdb"])
-        R.delete(self.key)
-
-    #  @unittest.skip("skip test_01_leak")
-    def test_01_leak(self):
-        '''set/storetossdb/get concurrency memory leak'''
+    def test_store_dump_leak(self):
+        '''set/storetossdb/get/dumpfromssdb concurrency memory leak'''
         memory_before = R.info("memory")["used_memory"]
-        for i in range(500):
+        for i in range(1000):
             self.p.apply_async(set)
             self.p.apply_async(storetossdb)
             self.p.apply_async(get)
+            self.p.apply_async(dumpfromssdb)
 
         self.p.close()
         self.p.join()
@@ -106,39 +94,14 @@ class TestMthreads(unittest.TestCase):
             self.assertEqual(locatekey(),"ssdb")
         R.delete(self.key)
 
-    #  TODO need to check after lower 0.9
-    #  @unittest.skip("skip test_02")
-    def test_02(self):
-        '''All keys still exist after reach 0.9*maxmemory'''
-        keysNum = 2000
-
-        for i in range(keysNum):
-            self.p.apply_async(set, args=(self.key+str(i),))
-            #  print "clients:%d" % R.info("Clients")["connected_clients"]
-
-        self.p.close()
-        self.p.join()
-        self.waitMemoryStable()
-        ssdbnum = 0
-        for i in range(keysNum):
-            self.assertNotEqual(locatekey(self.key+str(i)),"none",self.key+str(i))
-            if locatekey(self.key+str(i)) == "ssdb":
-                    ssdbnum+=1
-
-        print "ssdbnum is %d" % ssdbnum
-        print "totalnum is %d" % R.dbsize()
-
-        for i in range(keysNum):
-            self.assertTrue(R.delete(self.key+str(i)))
-
-    #  @unittest.skip("skip test_03")
-    def test_03(self):
+    def test_set_get_repeat(self):
         '''repeat set/get to load from ssdb after dump'''
         keysNum = 2000
         for i in range(10):
             for j in range(keysNum):
                 self.p.apply_async(set, args=(self.key+str(j),))
                 self.p.apply_async(get, args=(self.key+str(j),))
+                self.p.apply_async(dumpfromssdb)
 
         self.p.close()
         self.p.join()
@@ -155,8 +118,7 @@ class TestMthreads(unittest.TestCase):
         for i in range(keysNum):
             self.assertTrue(R.delete(self.key+str(i)))
 
-    #  @unittest.skip("skip test_04")
-    def test_04(self):
+    def test_del_set_repeat(self):
         '''del/set to load from ssdb after dump'''
         print "start test_04"
         keysNum = 2000
@@ -171,7 +133,6 @@ class TestMthreads(unittest.TestCase):
         for i in range(keysNum):
             self.p.apply_async(delete, args=(self.key+str(i),))
             self.p.apply_async(set, args=(self.key+str(i),))
-            #  print "process key %d" % i
 
         self.p.close()
         self.p.join()
@@ -179,12 +140,10 @@ class TestMthreads(unittest.TestCase):
 
         ssdbnum, nonenum = 0, 0
         for i in range(keysNum):
-            #  self.assertNotEqual(locatekey(self.key+str(i)),"none",self.key+str(i))
             if locatekey(self.key+str(i)) == "ssdb":
                 ssdbnum+=1
             if locatekey(self.key+str(i)) == "none":
                 nonenum+=1
-                #  print "check key none %d" % i
 
         print "ssdbnum is %d" % ssdbnum
         print "totalnum is %d" % R.dbsize()
@@ -192,7 +151,3 @@ class TestMthreads(unittest.TestCase):
 
 suite = unittest.TestLoader().loadTestsFromTestCase(TestMthreads)
 unittest.TextTestRunner(verbosity=2).run(suite)
-#if __name__=='__main__':
-#    print 'Parent process %s.' % os.getpid()
-#    unittest.main(verbosity=2)
-#    print 'All subprocesses done.'
