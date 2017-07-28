@@ -2582,14 +2582,16 @@ void freeClient(client *c) {
                         server.send_failed_write_after_unblock = 0;
                     }
                 }
-                replicationCacheMaster(c);
-                return;
-            } else if (c->flags & (CLIENT_BLOCKED| CLIENT_UNBLOCKED)) {
+            } else if (c->flags & CLIENT_BLOCKED) {
                 /* do nothing */
-            } else {
-                replicationCacheMaster(c);
-                return;
             }
+
+            replicationCacheMaster(c);
+            if (c == server.cached_master
+                && c->flags & ( CLIENT_BLOCKED| CLIENT_UNBLOCKED)
+                && c->querybuf && sdslen(c->querybuf) > 0)
+                c->flags |= CLIENT_BUFFER_HAS_UNPROCESSED_DATA;
+            return;
         } else if (!server.jdjr_mode
                    && !(c->flags & (CLIENT_CLOSE_AFTER_REPLY|
                                     CLIENT_CLOSE_ASAP| CLIENT_BLOCKED|

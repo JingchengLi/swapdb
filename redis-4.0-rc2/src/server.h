@@ -320,6 +320,7 @@ long long test_incr_id;
 #define CLIENT_CLOSE_AFTER_SSDB_WRITE_PROPAGATE (1<<29) /* if the client is blocked by visiting ssdb, close after
  * we receive write reply from SSDB and propagate write operation to slaves, to avoid some data inconsistency because
  * of connection disconnect of user side. */
+#define CLIENT_BUFFER_HAS_UNPROCESSED_DATA (1<<30) /* we need process remained query data in the client buffer */
 
 
 /* Client block type (btype field in client structure)
