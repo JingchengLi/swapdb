@@ -2582,10 +2582,7 @@ void freeClient(client *c) {
                         server.send_failed_write_after_unblock = 0;
                     }
                 }
-            } else if (c->flags & CLIENT_BLOCKED) {
-                /* do nothing */
             }
-
             replicationCacheMaster(c);
             if (c == server.cached_master
                 && c->flags & ( CLIENT_BLOCKED| CLIENT_UNBLOCKED)
@@ -3214,6 +3211,18 @@ void processInputBuffer(client *c) {
     server.current_client = NULL;
 }
 
+void processInputBufferOfMaster(client* c) {
+    serverAssert(c->flags & CLIENT_MASTER);
+    size_t prev_offset = c->reploff;
+    processInputBuffer(c);
+    size_t applied = c->reploff - prev_offset;
+    if (applied) {
+        replicationFeedSlavesFromMasterStream(server.slaves,
+                                              c->pending_querybuf, applied);
+        sdsrange(c->pending_querybuf,applied,-1);
+    }
+}
+
 void readQueryFromClient(aeEventLoop *el, int fd, void *privdata, int mask) {
     client *c = (client*) privdata;
     int nread, readlen;
@@ -3286,14 +3295,7 @@ void readQueryFromClient(aeEventLoop *el, int fd, void *privdata, int mask) {
     if (!(c->flags & CLIENT_MASTER)) {
         processInputBuffer(c);
     } else {
-        size_t prev_offset = c->reploff;
-        processInputBuffer(c);
-        size_t applied = c->reploff - prev_offset;
-        if (applied) {
-            replicationFeedSlavesFromMasterStream(server.slaves,
-                    c->pending_querybuf, applied);
-            sdsrange(c->pending_querybuf,applied,-1);
-        }
+        processInputBufferOfMaster(c);
     }
 }
 

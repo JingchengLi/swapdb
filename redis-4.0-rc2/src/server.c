@@ -1886,8 +1886,11 @@ void beforeSleep(struct aeEventLoop *eventLoop) {
         processUnblockedClients();
 
     if (server.jdjr_mode && server.cached_master &&
-        (server.cached_master->flags & CLIENT_BUFFER_HAS_UNPROCESSED_DATA))
-        processInputBuffer(server.cached_master);
+        (server.cached_master->flags & CLIENT_BUFFER_HAS_UNPROCESSED_DATA)) {
+        if (server.cached_master->querybuf && sdslen(server.cached_master->querybuf) > 0) {
+            processInputBufferOfMaster(server.cached_master);
+        }
+    }
 
     /* Write the AOF buffer on disk */
     flushAppendOnlyFile(0);
