@@ -3191,9 +3191,7 @@ void processInputBuffer(client *c) {
 #endif
             /* Only reset the client when the command was executed. */
             if (processCommand(c) == C_OK) {
-                if (server.jdjr_mode) {
-                    /* do nothing */
-                } else if (c->flags & CLIENT_MASTER && !(c->flags & CLIENT_MULTI)) {
+                if (c->flags & CLIENT_MASTER && !(c->flags & CLIENT_MULTI)) {
                     /* Update the applied replication offset of our master. */
                     c->reploff = c->read_reploff - sdslen(c->querybuf);
                 }

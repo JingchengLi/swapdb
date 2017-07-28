@@ -3420,8 +3420,6 @@ int processCommandMaybeFlushdb(client *c) {
                 updateSlaveSSDBwriteIndex();
                 saveSlaveSSDBwriteOp(c, server.last_send_writeop_time, server.last_send_writeop_index);
 
-                /* Update the applied replication offset of our master. */
-                c->reploff = c->read_reploff - sdslen(c->querybuf);
                 return C_ERR;
             }
         }
@@ -3687,9 +3685,6 @@ int updateSendRepopidToSSDB(client* c) {
      * in server.ssdb_write_oplist, we just return and process next write command. */
     saveSlaveSSDBwriteOp(c, server.last_send_writeop_time, server.last_send_writeop_index);
 
-    /* Update the applied replication offset of our master. */
-    c->reploff = c->read_reploff - sdslen(c->querybuf);
-
     /* if ssdb connection flag of this client is not CONN_SUCCESS, just return. but for
      * flushall command, we can do it also when the flag is before CONN_SUCCESS. */
     if (c->cmd && (c->cmd->proc == flushallCommand || c->cmd->proc == flushdbCommand)) {
@@ -3791,7 +3786,7 @@ int processCommandReplicationConn(client* c, struct ssdb_write_op* slave_retry_w
         argv = c->argv;
     }
 
-    if ( !cmd || !(cmd->flags & CMD_WRITE) )
+    if (!cmd || !(cmd->flags & CMD_WRITE))
         return C_ERR;
     if (cmd->flags & CMD_JDJR_REDIS_ONLY)
         return C_ERR;
@@ -4155,6 +4150,11 @@ int runCommandReplicationConn(client *c, listNode* writeop_ln) {
         slave_retry_write = writeop_ln->value;
 
     int ret = processCommandReplicationConn(c, slave_retry_write);
+
+    if (ret != C_BLOCKED && !slave_retry_write) {
+        /* Update the applied replication offset of our master. */
+        c->reploff = c->read_reploff - sdslen(c->querybuf);
+    }
     if (ret == C_OK) {
         if (slave_retry_write)
             serverLog(LL_DEBUG, "[REPOPID RE-SEND] re-send failed write op"
@@ -4189,9 +4189,6 @@ int runCommandReplicationConn(client *c, listNode* writeop_ln) {
 
     call(c,CMD_CALL_FULL);
     c->woff = server.master_repl_offset;
-
-    /* Update the applied replication offset of our master. */
-    c->reploff = c->read_reploff - sdslen(c->querybuf);
 
     serverLog(LL_DEBUG, "processing %s, fd: %d in redis: %s, dbid: %d, argc: %d",
               c->cmd->name, c->fd, c->argc > 1 ? (char *)c->argv[1]->ptr : "", c->db->id, c->argc);
@@ -4570,13 +4567,15 @@ int processCommand(client *c) {
 
         serverLog(LL_DEBUG, "load_or_store cmd: %s, key: %s is added to loadAndEvictCmdList.",
                   c->cmd->name, (char *)c->argv[1]->ptr);
-
         return C_OK;
     }
 
     if (server.jdjr_mode && (c->cmd->proc == flushallCommand || c->cmd->proc == flushdbCommand)) {
         ret = processCommandMaybeFlushdb(c);
         if (c->flags & CLIENT_MASTER) {
+            /* Update the applied replication offset of our master. */
+            c->reploff = c->read_reploff - sdslen(c->querybuf);
+
             if (C_OK == ret) {
                 /* we are blocked by flushall, return C_ERR to keep client info and handle it later. */
                 return C_ERR;
