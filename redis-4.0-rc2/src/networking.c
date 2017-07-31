@@ -3213,6 +3213,8 @@ void processInputBuffer(client *c) {
 
 void processInputBufferOfMaster(client* c) {
     serverAssert(c->flags & CLIENT_MASTER);
+    serverLog(LL_DEBUG, "slave_repl_offset:%lld,master_repl_offset:%lld",
+              c->reploff, server.master_repl_offset);
     size_t prev_offset = c->reploff;
     processInputBuffer(c);
     size_t applied = c->reploff - prev_offset;

@@ -1245,8 +1245,18 @@ void handleClientsBlockedOnSSDB(void) {
                         if (c->flags & CLIENT_MASTER && server.slave_failed_retry_interrupted) {
                             confirmAndRetrySlaveSSDBwriteOp(c, server.blocked_write_op->time, server.blocked_write_op->index);
                         } else {
-                            if (tryBlockingClient(c) == C_OK && runCommand(c) == C_OK)
+                            size_t prev_offset = c->reploff;
+                            if (tryBlockingClient(c) == C_OK && runCommand(c) == C_OK) {
+                                if (c->flags & CLIENT_MASTER) {
+                                    size_t applied = c->reploff - prev_offset;
+                                    if (applied) {
+                                        replicationFeedSlavesFromMasterStream(server.slaves,
+                                                                              c->pending_querybuf, applied);
+                                        sdsrange(c->pending_querybuf,applied,-1);
+                                    }
+                                }
                                 resetClient(c);
+                            }
                             if (c->flags & CLIENT_MASTER && server.send_failed_write_after_unblock) {
                                 serverAssert(c->flags & CLIENT_MASTER && !(c->ssdb_conn_flags & CONN_SUCCESS));
                                 confirmAndRetrySlaveSSDBwriteOp(c, -1,-1);
