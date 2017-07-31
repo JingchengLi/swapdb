@@ -3,8 +3,7 @@
 PROJECT_DIR=`pwd`
 
 cd deps
-#make lua
-make jemalloc
+make lua hiredis jemalloc
 
 cd ${PROJECT_DIR}/src
 ./mkreleasehdr.sh
