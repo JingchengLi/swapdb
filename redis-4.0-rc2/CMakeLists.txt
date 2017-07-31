@@ -49,7 +49,7 @@ SET ( SRC_HIREDIS
         deps/hiredis/read.c
         deps/hiredis/test.c
         )
-ADD_LIBRARY(hiredis-static ${SRC_HIREDIS})
+ADD_LIBRARY(hiredis-static deps/hiredis)
 SET_TARGET_PROPERTIES(hiredis-static PROPERTIES LINKER_LANGUAGE C OUTPUT_NAME hiredis)
 
 
@@ -91,7 +91,7 @@ SET ( SRC_LIBLUA
         deps/lua/src/lua_struct.c
         deps/lua/src/print.c
         deps/lua/src/strbuf.c )
-ADD_LIBRARY(lua-static ${SRC_LIBLUA})
+ADD_LIBRARY(lua-static deps/lua/src)
 TARGET_LINK_LIBRARIES ( lua-static m dl)
 SET_TARGET_PROPERTIES(lua-static PROPERTIES LINKER_LANGUAGE C OUTPUT_NAME lua)
 
