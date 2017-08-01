@@ -23,8 +23,21 @@ start_server {tags {"expire"}} {
     tags {"slow"} {
         test {EXPIRE - After 2.1 seconds the key should no longer be here} {
             after 2100
-            list [ssdbr get x] [ssdbr exists x]
-        } {{} 0}
+            list [ssdbr get x] [ssdbr exists x] [sr exists x]
+        } {{} 0 0}
+    }
+
+    test {EXPIRE - negative time} {
+        ssdbr del x
+        ssdbr set x y
+        ssdbr expire x -1
+
+        wait_for_condition 10 1 {
+            0 == [ssdbr exists x] &&
+            0 == [sr exists x]
+        } else {
+            fail "key in redis or ssdb not be deleted!"
+        }
     }
 
     test {EXPIRE - write on expire should work} {
