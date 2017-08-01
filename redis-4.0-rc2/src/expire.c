@@ -412,6 +412,11 @@ void expireGenericCommand(client *c, long long basetime, int unit) {
      * (possibly in the past) and wait for an explicit DEL from the master. */
     if (when <= mstime() && !server.loading && !server.masterhost) {
         robj *aux;
+        if (server.jdjr_mode && NULL == server.masterhost && c->db->id == EVICTED_DATA_DBID) {
+            /* add this expired key to dict, we will tell ssdb to
+             * delete it. */
+            dictAddOrFind(c->db->ssdb_keys_to_clean, key->ptr);
+        }
 
         int deleted = server.lazyfree_lazy_expire ? dbAsyncDelete(c->db,key) :
                                                     dbSyncDelete(c->db,key);
