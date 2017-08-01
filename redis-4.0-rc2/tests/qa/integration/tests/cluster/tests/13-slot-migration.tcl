@@ -1,8 +1,3 @@
-# Failover stress test.
-# In this test a different node is killed in a loop for N
-# iterations. The test checks that certain properties
-# are preseved across iterations.
-
 source "../tests/includes/init-tests.tcl"
 
 proc migrate_slot {src des slot} {
@@ -49,6 +44,12 @@ test "Cluster is up" {
     assert_cluster_state ok
 }
 
+test "set maxmemory 0" {
+    foreach_redis_id id {
+        R $id config set maxmemory 0
+    }
+}
+
 set numkeys 50000
 set numops 50000
 set cluster [redis_cluster 127.0.0.1:[get_instance_attrib redis 0 port]]
@@ -89,6 +90,9 @@ test "Cluster fill keys" {
         set key "key:$listid"
         incr ele
         $cluster rpush $key $ele
+        if {rand() < 0.5} {
+            $cluster storetossdb $key
+        }
         lappend content($key) $ele
 
         if {($j % 1000) == 0} {
@@ -97,7 +101,7 @@ test "Cluster fill keys" {
     }
 }
 
-test "No duplicate keys when getkeysinslot(keys in ssdb)" {
+test "No duplicate keys by getkeysinslot(keys in ssdb/redis)" {
     for {set n 0} {$n < 5} {incr n} {
         set slot [ get_slot_with_keys ]
         set sourceId [get_id_by_slot $slot]

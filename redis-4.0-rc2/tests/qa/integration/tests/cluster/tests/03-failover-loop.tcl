@@ -57,6 +57,11 @@ while {[incr iterations -1]} {
         # Wait for the write to propagate to the slave if we
         # are going to kill a master.
         if {$role eq {master}} {
+            wait_for_condition 100 100 {
+                [ R $tokill debug digest ] eq [R [expr ( $tokill+5 )%10] debug digest]
+            } else {
+                fail "#$tokill and #[expr ( $tokill+5 )%10] not identical!!"
+            }
             R $tokill wait 1 20000
         }
     }
@@ -108,9 +113,9 @@ while {[incr iterations -1]} {
     test "We can read back the value we set before" {
         for {set i 0} {$i < 100} {incr i} {
             catch {$cluster get $key:$i} err
-            assert {$err eq "$val:$i"}
+            assert {$err eq "$val:$i"} "$key:$i"
             catch {$cluster get $key:$i:2} err
-            assert {$err eq "$val:$i:2"}
+            assert {$err eq "$val:$i:2"} "$key:$i:2"
         }
     }
 }
