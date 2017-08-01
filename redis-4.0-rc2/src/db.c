@@ -1520,20 +1520,25 @@ int *georadiusGetKeys(struct redisCommand *cmd, robj **argv, int argc, int *numk
  * while rehashing the cluster and in other conditions when we need to
  * understand if we have keys for a given hash slot. */
 void slotToKeyUpdateKey(robj *key, int add) {
+    int ret;
     unsigned int hashslot = keyHashSlot(key->ptr,sdslen(key->ptr));
     unsigned char buf[64];
     unsigned char *indexed = buf;
     size_t keylen = sdslen(key->ptr);
 
-    server.cluster->slots_keys_count[hashslot] += add ? 1 : -1;
+    if (!server.jdjr_mode) server.cluster->slots_keys_count[hashslot] += add ? 1 : -1;
     if (keylen+2 > 64) indexed = zmalloc(keylen+2);
     indexed[0] = (hashslot >> 8) & 0xff;
     indexed[1] = hashslot & 0xff;
     memcpy(indexed+2,key->ptr,keylen);
     if (add) {
-        raxInsert(server.cluster->slots_to_keys,indexed,keylen+2,NULL,NULL);
+        ret = raxInsert(server.cluster->slots_to_keys,indexed,keylen+2,NULL,NULL);
+        if (server.jdjr_mode && ret == 1)
+            server.cluster->slots_keys_count[hashslot] += 1;
     } else {
-        raxRemove(server.cluster->slots_to_keys,indexed,keylen+2,NULL);
+        ret = raxRemove(server.cluster->slots_to_keys,indexed,keylen+2,NULL);
+        if (server.jdjr_mode && ret == 1)
+            server.cluster->slots_keys_count[hashslot] += -1;
     }
     if (indexed != buf) zfree(indexed);
 }
