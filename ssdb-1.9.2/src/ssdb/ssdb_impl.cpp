@@ -247,7 +247,7 @@ int SSDBImpl::flushdb(Context &ctx) {
 #else
     log_info("[flushdb] using DeleteFilesInRange");
     leveldb::Slice begin("0");
-    leveldb::Slice end("z");
+    leveldb::Slice end("~");
     leveldb::DeleteFilesInRange(ldb, ldb->DefaultColumnFamily(), &begin, &end);
 
     if (ROCKSDB_MAJOR >= 5) {
