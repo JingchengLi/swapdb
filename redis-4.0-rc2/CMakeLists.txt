@@ -100,7 +100,6 @@ SET(redis-benchmark_files
         src/redis-benchmark.c
         src/ae.c
         src/anet.c
-        src/sds.c
         src/adlist.c
         src/zmalloc.c
         )
@@ -111,7 +110,6 @@ TARGET_LINK_LIBRARIES(redis-benchmark hiredis jemalloc pthread)
 SET(redis-cli_files
         src/redis-cli.c
         src/anet.c
-        src/sds.c
         src/adlist.c
         src/zmalloc.c
         src/release.c
