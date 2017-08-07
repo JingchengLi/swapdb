@@ -86,6 +86,7 @@ int bproc_COMMAND_DATA_DUMP(Context &ctx, TransferWorker *worker, const std::str
 
 
         if (t_res->isOk()) {
+            log_debug("mark deleting %s", hexstr(data_key).c_str());
             serv->ssdb->del(ctx, data_key);
         }
 
