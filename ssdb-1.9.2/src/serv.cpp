@@ -1006,7 +1006,7 @@ int proc_info(Context &ctx, Link *link, const Request &req, Response *resp) {
         resp->emplace_back("");
     }
 
-    resp->push_back("");f
+    resp->push_back("");
     return 0;
 }
 
