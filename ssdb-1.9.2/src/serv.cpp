@@ -1006,7 +1006,7 @@ int proc_info(Context &ctx, Link *link, const Request &req, Response *resp) {
         resp->emplace_back("");
     }
 
-    resp->push_back("");
+    resp->push_back("");f
     return 0;
 }
 
@@ -1133,7 +1133,11 @@ int proc_rr_make_snapshot(Context &ctx, Link *link, const Request &req, Response
             serv->ssdb->ReleaseSnapshot(serv->replicState.rSnapshot);
             serv->replicState.rSnapshot = nullptr;
         }
-        serv->replicState.rSnapshot = serv->ssdb->GetSnapshot();
+
+
+        {
+            serv->replicState.rSnapshot = serv->ssdb->GetSnapshotWithLock();
+        }
 
         serv->replicState.resetReplic();
     }

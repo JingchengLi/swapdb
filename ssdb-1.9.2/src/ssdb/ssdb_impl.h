@@ -132,6 +132,7 @@ public:
 
 	virtual Iterator* rev_iterator(const std::string &start, const std::string &end, uint64_t limit,
 								   const leveldb::Snapshot *snapshot=nullptr);
+	virtual const leveldb::Snapshot* GetSnapshotWithLock();
 	virtual const leveldb::Snapshot* GetSnapshot();
 	virtual void ReleaseSnapshot(const leveldb::Snapshot* snapshot);
 
@@ -365,7 +366,6 @@ private:
 	pthread_t bg_tid_;
     std::queue<std::string> tasks_;
 
-	RecordKeyMutex mutex_record_;
 
 	void load_delete_keys_from_db(int num);
     void delete_key_loop(const std::string& del_key);
@@ -374,7 +374,10 @@ private:
 	static void* thread_func(void *arg);
 
 public:
-    void start();
+
+	RecordKeyMutex mutex_record_;
+
+	void start();
     void stop();
 };
 
