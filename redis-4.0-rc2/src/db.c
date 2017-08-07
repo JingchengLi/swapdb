@@ -344,7 +344,6 @@ long long emptyDb(int dbnum, int flags, void(callback)(void*)) {
             dictEmpty(server.db[j].expires,callback);
         }
     }
-
     if (server.cluster_enabled) {
         if (async) {
             slotToKeyFlushAsync();
@@ -353,7 +352,6 @@ long long emptyDb(int dbnum, int flags, void(callback)(void*)) {
         }
     }
     if (dbnum == -1) flushSlaveKeysWithExpireList();
-
     return removed;
 }
 
@@ -1269,15 +1267,13 @@ int expireIfNeeded(redisDb *db, robj *key) {
     /* Return when this key has not expired */
     if (now <= when) return 0;
 
-    if (0 == checkBeforeExpire(db, key)) return 0;
+    if (server.jdjr_mode && 0 == checkBeforeExpire(db, key)) return 0;
 
     /* Delete the key */
     server.stat_expiredkeys++;
-
     serverLog(LL_DEBUG, "expireIfNeeded: %s, now: %lld, when: %lld", (char *)key->ptr, now, when);
 
     propagateExpire(db,key,server.lazyfree_lazy_expire);
-
     notifyKeyspaceEvent(NOTIFY_EXPIRED,
         "expired",key,db->id);
     return server.lazyfree_lazy_expire ? dbAsyncDelete(db,key) :

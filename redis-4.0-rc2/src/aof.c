@@ -545,6 +545,7 @@ void feedAppendOnlyFile(struct redisCommand *cmd, int dictid, robj **argv, int a
             if (!strcasecmp(argv[i]->ptr, "ex")) exarg = argv[i+1];
             if (!strcasecmp(argv[i]->ptr, "px")) pxarg = argv[i+1];
         }
+        serverAssert(!(exarg && pxarg));
         if (exarg)
             buf = catAppendOnlyExpireAtCommand(buf,server.expireCommand,argv[1],
                                                exarg);

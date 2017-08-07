@@ -1693,7 +1693,6 @@ void backgroundSaveDoneHandlerDisk(int exitcode, int bysignal) {
         if (bysignal != SIGUSR1)
             server.lastbgsave_status = C_ERR;
     }
-
     server.rdb_child_pid = -1;
     server.rdb_child_type = RDB_CHILD_TYPE_NONE;
     server.rdb_save_time_last = time(NULL)-server.rdb_save_time_start;

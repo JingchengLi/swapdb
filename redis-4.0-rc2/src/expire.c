@@ -57,7 +57,7 @@ int activeExpireCycleTryExpire(redisDb *db, dictEntry *de, long long now) {
         sds key = dictGetKey(de);
         robj *keyobj = createStringObject(key,sdslen(key));
 
-        if (0 == checkBeforeExpire(db, keyobj)) {
+        if (server.jdjr_mode && 0 == checkBeforeExpire(db, keyobj)) {
             decrRefCount(keyobj);
             return 0;
         }

@@ -3251,7 +3251,6 @@ void readQueryFromClient(aeEventLoop *el, int fd, void *privdata, int mask) {
     if (c->querybuf_peak < qblen) c->querybuf_peak = qblen;
     c->querybuf = sdsMakeRoomFor(c->querybuf, readlen);
     nread = read(fd, c->querybuf+qblen, readlen);
-
     if (nread == -1) {
         if (errno == EAGAIN) {
             return;
@@ -3416,7 +3415,6 @@ sds getAllClientsInfoString(void) {
     listRewind(server.clients,&li);
     while ((ln = listNext(&li)) != NULL) {
         client = listNodeValue(ln);
-
         o = catClientInfoString(o,client);
         o = sdscatlen(o,"\n",1);
     }

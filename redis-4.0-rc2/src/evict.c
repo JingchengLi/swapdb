@@ -35,7 +35,6 @@
 #include "cluster.h"
 #include "atomicvar.h"
 
-
 /* ----------------------------------------------------------------------------
  * Data structures
  * --------------------------------------------------------------------------*/
@@ -74,6 +73,13 @@ unsigned long LFUDecrAndReturn(robj *o);
  * Implementation of eviction, aging and LRU
  * --------------------------------------------------------------------------*/
 
+/* Return the LRU clock, based on the clock resolution. This is a time
+ * in a reduced-bits format that can be used to set and check the
+ * object->lru field of redisObject structures. */
+unsigned int getLRUClock(void) {
+    return (mstime()/LRU_CLOCK_RESOLUTION) & LRU_CLOCK_MAX;
+}
+
 /* This function is used to obtain the current LRU clock.
  * If the current resolution is lower than the frequency we refresh the
  * LRU clock (as it should be in production servers) we return the
@@ -86,13 +92,6 @@ unsigned int LRU_CLOCK(void) {
         lruclock = getLRUClock();
     }
     return lruclock;
-}
-
-/* Return the LRU clock, based on the clock resolution. This is a time
- * in a reduced-bits format that can be used to set and check the
- * object->lru field of redisObject structures. */
-unsigned int getLRUClock(void) {
-    return (mstime()/LRU_CLOCK_RESOLUTION) & LRU_CLOCK_MAX;
 }
 
 /* Given an object returns the min number of milliseconds the object was never

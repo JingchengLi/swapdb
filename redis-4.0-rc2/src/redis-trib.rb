@@ -933,20 +933,17 @@ class RedisTrib
         # Migrate all the keys from source to target using the MIGRATE command
         while true
             keys = source.r.cluster("getkeysinslot",slot,o[:pipeline])
-
             break if keys.length == 0
-            for key in keys
-                begin
-                    source.r.client.call(["migrate",target.info[:host],target.info[:port],key,0,@timeout])
-                rescue => e
-                    if o[:fix] && e.to_s =~ /BUSYKEY/
-                        xputs "*** Target key exists. Replacing it for FIX."
-                        source.r.client.call(["migrate",target.info[:host],target.info[:port],key,0,@timeout,:replace])
-                    else
-                        puts ""
-                        xputs "[ERR] Calling MIGRATE: #{e}"
-                        exit 1
-                    end
+            begin
+                source.r.client.call(["migrate",target.info[:host],target.info[:port],"",0,@timeout,:keys,*keys])
+            rescue => e
+                if o[:fix] && e.to_s =~ /BUSYKEY/
+                    xputs "*** Target key exists. Replacing it for FIX."
+                    source.r.client.call(["migrate",target.info[:host],target.info[:port],"",0,@timeout,:replace,:keys,*keys])
+                else
+                    puts ""
+                    xputs "[ERR] Calling MIGRATE: #{e}"
+                    exit 1
                 end
             end
             print "."*keys.length if o[:dots]

@@ -641,6 +641,7 @@ int startBgsaveForReplication(int mincapa) {
         listRewind(server.slaves,&li);
         while((ln = listNext(&li))) {
             client *slave = ln->value;
+
             if (slave->replstate == SLAVE_STATE_WAIT_BGSAVE_START) {
                     replicationSetupSlaveForFullResync(slave,
                             getPsyncInitialOffset());
@@ -741,7 +742,7 @@ void syncCommand(client *c) {
     }
 
     serverLog(LL_NOTICE,"Slave %s asks for synchronization",
-              replicationGetSlaveName(c));
+        replicationGetSlaveName(c));
 
     /* Try a partial resynchronization if this is a PSYNC command.
      * If it fails, we continue with usual full resynchronization, however
@@ -908,8 +909,8 @@ void syncCommand(client *c) {
                 startBgsaveForReplication(c->slave_capa);
             } else {
                 serverLog(LL_NOTICE,
-                          "No BGSAVE in progress, but an AOF rewrite is active. "
-                                  "BGSAVE for replication delayed");
+                    "No BGSAVE in progress, but an AOF rewrite is active. "
+                    "BGSAVE for replication delayed");
             }
         }
     }
@@ -1234,8 +1235,7 @@ int slaveIsInHandshakeState(void) {
  *
  * The function is called in two contexts: while we flush the current
  * data with emptyDb(), and while we load the new data received as an
- * RDB file from the master.
- * */
+ * RDB file from the master. */
 void replicationSendNewlineToMaster(void) {
     static time_t newline_sent;
     if (time(NULL) != newline_sent) {
@@ -1269,7 +1269,6 @@ void replicationCreateMasterClient(int fd, int dbid) {
     if (server.master->reploff == -1)
         server.master->flags |= CLIENT_PRE_PSYNC;
     if (dbid != -1) selectDb(server.master,dbid);
-
 }
 
 void restartAOF() {
@@ -2999,7 +2998,6 @@ void replicationCron(void) {
      * last interaction timer preventing a timeout. In this case we ignore the
      * ping period and refresh the connection once per second since certain
      * timeouts are set at a few seconds (example: PSYNC response). */
-
     listRewind(server.slaves,&li);
     serverLog(LL_DEBUG, "Replication log: slaves length: %ld", listLength(server.slaves));
     while((ln = listNext(&li))) {

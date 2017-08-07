@@ -1226,7 +1226,7 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
         run_with_period(5000) {
             serverLog(LL_VERBOSE,
                 "%lu clients connected (%lu slaves), %zu bytes in use",
-                      listLength(server.clients)-listLength(server.slaves),
+                listLength(server.clients)-listLength(server.slaves),
                 listLength(server.slaves),
                 zmalloc_used_memory());
         }
@@ -2563,7 +2563,6 @@ void initServer(void) {
     server.slaveseldb = -1; /* Force to emit the first SELECT command. */
     server.unblocked_clients = listCreate();
     server.ready_keys = listCreate();
-
     server.clients_waiting_acks = listCreate();
     server.get_ack_from_slaves = 0;
     server.clients_paused = 0;
@@ -2612,7 +2611,6 @@ void initServer(void) {
         server.db[j].blocking_keys = dictCreate(&keylistDictType,NULL);
         server.db[j].ready_keys = dictCreate(&objectKeyPointerValueDictType,NULL);
         server.db[j].watched_keys = dictCreate(&keylistDictType,NULL);
-
         server.db[j].id = j;
         server.db[j].avg_ttl = 0;
     }
@@ -2657,8 +2655,6 @@ void initServer(void) {
     server.rdb_save_time_last = -1;
     server.rdb_save_time_start = -1;
     server.dirty = 0;
-
-
     resetServerStats();
     /* A few stats we don't want to reset: server startup time, and peak mem. */
     server.stat_starttime = time(NULL);
@@ -3135,7 +3131,6 @@ void call(client *c, int flags) {
     dirty = server.dirty;
     start = ustime();
     c->cmd->proc(c);
-
     duration = ustime()-start;
     dirty = server.dirty-dirty;
     if (dirty < 0) dirty = 0;
@@ -4400,7 +4395,6 @@ int processCommand(client *c) {
     /* Now lookup the command and check ASAP about trivial error conditions
      * such as wrong arity, bad command name and so forth. */
     c->cmd = c->lastcmd = lookupCommand(c->argv[0]->ptr);
-
     if (!c->cmd) {
         flagTransaction(c);
         addReplyErrorFormat(c,"unknown command '%s'",
@@ -4465,7 +4459,6 @@ int processCommand(client *c) {
         if ((c->cmd->flags & CMD_DENYOOM) && retval == C_ERR) {
             flagTransaction(c);
             addReply(c, shared.oomerr);
-
             return C_OK;
         }
     }
