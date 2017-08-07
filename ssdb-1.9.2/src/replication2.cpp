@@ -36,7 +36,7 @@ int ReplicationByIterator2::process() {
         snapshot = serv->replicState.rSnapshot;
 
         if (snapshot == nullptr) {
-            log_error("snapshot is null, maybe rr_make_snapshot not receive or error!");
+            log_error("[ReplicationByIterator2] snapshot is null, maybe rr_make_snapshot not receive or error!");
             reportError();
             return -1;
         }
@@ -53,8 +53,8 @@ int ReplicationByIterator2::process() {
 
     Link *ssdb_slave_link = Link::connect((hnp.ip).c_str(), hnp.port);
     if (ssdb_slave_link == nullptr) {
-        log_error("fail to connect to slave ssdb %s!", hnp.String().c_str());
-        log_debug("replic send snapshot failed!");
+        log_error("[ReplicationByIterator2] fail to connect to slave ssdb %s!", hnp.String().c_str());
+        log_debug("[ReplicationByIterator2] replic send snapshot failed!");
 
         reportError();
 
@@ -77,7 +77,7 @@ int ReplicationByIterator2::process() {
 
     bool iterator_done = false;
 
-    log_debug("[ReplicationByIterator2] prepare for event loop");
+    log_info("[ReplicationByIterator2] prepare for event loop");
     unique_ptr<Fdevents> fdes = unique_ptr<Fdevents>(new Fdevents());
 
     fdes->set(master_link->fd(), FDEVENT_IN, 1, master_link); //open evin
@@ -110,7 +110,7 @@ int ReplicationByIterator2::process() {
         if (heartbeat) {
             if ((ts - lastHeartBeat) > 5000) {
                 if (!master_link->output->empty()) {
-                    log_debug("master_link->output not empty , redis may blocked ?");
+                    log_debug("[ReplicationByIterator2] master_link->output not empty , redis may blocked ?");
                 }
 
                 RedisResponse r("rr_transfer_snapshot continue");
@@ -133,7 +133,7 @@ int ReplicationByIterator2::process() {
         }
 
         if (events == nullptr) {
-            log_fatal("events.wait error: %s", strerror(errno));
+            log_fatal("[ReplicationByIterator2] events.wait error: %s", strerror(errno));
 
             reportError();
             delete ssdb_slave_link;
@@ -152,7 +152,7 @@ int ReplicationByIterator2::process() {
                 }
                 int len = link->read();
                 if (len <= 0) {
-                    net_debug("fd: %d, read: %d, delete link, e:%d, f:%d", link->fd(), len, fde->events, fde->s_flags);
+                    log_error("fd: %d, read: %d, delete link, e:%d, f:%d", link->fd(), len, fde->events, fde->s_flags);
                     link->mark_error();
                     continue;
                 }
@@ -169,7 +169,7 @@ int ReplicationByIterator2::process() {
                 }
                 int len = link->write();
                 if (len <= 0) {
-                    net_debug("fd: %d, write: %d, delete link, e:%d, f:%d", link->fd(), len, fde->events, fde->s_flags);
+                    log_error("fd: %d, write: %d, delete link, e:%d, f:%d", link->fd(), len, fde->events, fde->s_flags);
                     link->mark_error();
                     continue;
                 } else if (link == ssdb_slave_link) {
@@ -184,12 +184,12 @@ int ReplicationByIterator2::process() {
         for (it = ready_list.begin(); it != ready_list.end(); it++) {
             Link *link = *it;
             if (link->error()) {
-                log_warn("fd: %d, link broken, address:%lld", link->fd(), link);
+                log_warn("[ReplicationByIterator2] fd: %d, link broken, address:%lld", link->fd(), link);
 
                 if (link == master_link) {
-                    log_info("link to redis broken");
+                    log_info("[ReplicationByIterator2] link to redis broken");
                 } else if (link == ssdb_slave_link) {
-                    log_info("link to slave ssdb broken");
+                    log_info("[ReplicationByIterator2] link to slave ssdb broken");
                     send_error_to_redis(master_link);
                 } else {
                     log_info("?????????????????????????????????WTF????????????????????????????????????????????????");
@@ -215,7 +215,7 @@ int ReplicationByIterator2::process() {
 
         if (ssdb_slave_link->output->size() > MAX_PACKAGE_SIZE * 3) {
 //            uint s = uint(ssdb_slave_link->output->size() * 1.0 / (MIN_PACKAGE_SIZE * 1.0)) * 500;
-            log_debug("delay for output buffer write slow~");
+            log_debug("[ReplicationByIterator2] delay for output buffer write slow~");
             usleep(100000);
             continue;
         }
@@ -279,14 +279,11 @@ int ReplicationByIterator2::process() {
                     if (len > 0) { sendBytes = sendBytes + len; }
                 }
 
-                if (!ssdb_slave_link->output->empty()) {
-//                    log_warn("slave slowdown ?");
-                    fdes->set(ssdb_slave_link->fd(), FDEVENT_OUT, 1, ssdb_slave_link);
-                }
             }
 
             if (!ssdb_slave_link->output->empty()) {
-                log_debug("wait for output buffer empty~");
+                fdes->set(ssdb_slave_link->fd(), FDEVENT_OUT, 1, ssdb_slave_link);
+                log_debug("[ReplicationByIterator2] wait for output buffer empty~");
                 continue; //wait for buffer empty
             } else {
                 break;
@@ -323,7 +320,7 @@ int ReplicationByIterator2::process() {
                 ret.append(hexstr(h));
             });
 
-            log_debug("%s~", ret.c_str());
+            log_info("[ReplicationByIterator2] %s~", ret.c_str());
 
         } else {
             transFailed = true;
@@ -335,7 +332,7 @@ int ReplicationByIterator2::process() {
     if (transFailed) {
         reportError();
         log_info("[ReplicationByIterator2] send snapshot to %s failed!!!!", hnp.String().c_str());
-        log_debug("send rr_transfer_snapshot failed!!");
+        log_debug("[ReplicationByIterator2] send rr_transfer_snapshot failed!!");
         delete ssdb_slave_link;
         return -1;
     }
