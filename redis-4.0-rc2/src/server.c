@@ -1471,9 +1471,13 @@ void startToEvictIfNeeded() {
 
 #define RESERVED_MEMORY_WHEN_LOAD (1024*1024*2)
 int isMeetLoadCondition() {
-   if (server.is_allow_ssdb_write == DISALLOW_SSDB_WRITE ||
-        server.prohibit_ssdb_read_write == PROHIBIT_SSDB_READ_WRITE) {
-        serverLog(LL_DEBUG, "replication write check write is going on.");
+    if (server.is_allow_ssdb_write == DISALLOW_SSDB_WRITE) {
+        serverLog(LL_DEBUG, "replication check write is going on.");
+        return 0;
+    }
+
+    if (server.prohibit_ssdb_read_write == PROHIBIT_SSDB_READ_WRITE) {
+        serverLog(LL_DEBUG, "flushall check is going on.");
         return 0;
     }
 
@@ -1482,7 +1486,7 @@ int isMeetLoadCondition() {
         goto clean_hot_keys;
     }
 
-    int mem_free = server.maxmemory - zmalloc_used_memory();
+    size_t mem_free = server.maxmemory - zmalloc_used_memory();
 
     if (server.maxmemory > 0 && mem_free <= RESERVED_MEMORY_WHEN_LOAD)
         goto clean_hot_keys;
