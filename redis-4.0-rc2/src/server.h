@@ -1146,7 +1146,7 @@ struct redisServer {
     double stat_fork_rate;          /* Fork rate in GB/sec. */
     long long stat_rejected_conn;   /* Clients rejected because of maxclients */
     long long stat_sync_full;       /* Number of full resyncs with slaves. */
-    long long stat_sync_full_err;   /* Number of unaccepted full resyncs with slaves only for JDJR mode. */
+    long long stat_sync_full_ok;   /* Number of successful full resyncs with slaves only for JDJR mode. */
     long long stat_sync_partial_ok; /* Number of accepted PSYNC requests. */
     long long stat_sync_partial_err;/* Number of unaccepted PSYNC requests. */
     list *slowlog;                  /* SLOWLOG list of commands */

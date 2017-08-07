@@ -831,8 +831,6 @@ void syncCommand(client *c) {
                                   "and SSDB snapshot. BGSAVE for replication delayed");
                 /* Slave will connect Master later. */
                 freeClientAsync(c);
-
-                server.stat_sync_full_err ++;
                 return;
             }
         } else {
@@ -1367,6 +1365,7 @@ void completeReplicationHandshake() {
      * masters after a failover. */
     if (server.repl_backlog == NULL) createReplicationBacklog();
 
+    server.stat_sync_full_ok++;
     serverLog(LL_NOTICE, "MASTER <-> SLAVE sync: Finished with success");
 }
 

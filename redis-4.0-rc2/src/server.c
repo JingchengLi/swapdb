@@ -2530,7 +2530,7 @@ void resetServerStats(void) {
     server.stat_fork_rate = 0;
     server.stat_rejected_conn = 0;
     server.stat_sync_full = 0;
-    server.stat_sync_full_err = 0;
+    server.stat_sync_full_ok = 0;
     server.stat_sync_partial_ok = 0;
     server.stat_sync_partial_err = 0;
     for (j = 0; j < STATS_METRIC_COUNT; j++) {
@@ -5245,7 +5245,7 @@ sds genRedisInfoString(char *section) {
             "instantaneous_output_kbps:%.2f\r\n"
             "rejected_connections:%lld\r\n"
             "sync_full:%lld\r\n"
-            "sync_full_err:%lld\r\n"
+            "sync_full_ok:%lld\r\n"
             "sync_partial_ok:%lld\r\n"
             "sync_partial_err:%lld\r\n"
             "expired_keys:%lld\r\n"
@@ -5271,7 +5271,7 @@ sds genRedisInfoString(char *section) {
             (float)getInstantaneousMetric(STATS_METRIC_NET_OUTPUT)/1024,
             server.stat_rejected_conn,
             server.stat_sync_full,
-            server.stat_sync_full_err,
+            server.stat_sync_full_ok,
             server.stat_sync_partial_ok,
             server.stat_sync_partial_err,
             server.stat_expiredkeys,
