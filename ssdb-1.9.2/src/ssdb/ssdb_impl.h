@@ -373,9 +373,9 @@ private:
 	void runBGTask();
 	static void* thread_func(void *arg);
 
-public:
-
 	RecordKeyMutex mutex_record_;
+
+public:
 
 	void start();
     void stop();

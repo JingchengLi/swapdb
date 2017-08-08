@@ -238,8 +238,11 @@ int SSDBImpl::flush(Context &ctx, bool wait) {
 
 int SSDBImpl::flushdb(Context &ctx) {
 //lock
+    PTST(flushdb, 0.03)
 
     Locking<RecordKeyMutex> gl(&mutex_record_);
+    PTE(flushdb, "mutex_record_")
+
     redisCursorService.ClearAllCursor();
 
 #ifdef USE_LEVELDB
@@ -249,12 +252,15 @@ int SSDBImpl::flushdb(Context &ctx) {
     leveldb::Slice begin("0");
     leveldb::Slice end("~");
     leveldb::DeleteFilesInRange(ldb, ldb->DefaultColumnFamily(), &begin, &end);
+    PTE(flushdb, "DeleteFilesInRange")
 
     if (ROCKSDB_MAJOR >= 5) {
         log_info("[flushdb] using DeleteRange");
 
         ldb->DeleteRange(leveldb::WriteOptions(), ldb->DefaultColumnFamily(), begin, end);
         ldb->Flush(leveldb::FlushOptions(), ldb->DefaultColumnFamily());
+        PTE(flushdb, "DeleteRange")
+
     }
 #endif
 
@@ -266,6 +272,11 @@ int SSDBImpl::flushdb(Context &ctx) {
     leveldb::ReadOptions iterate_options;
     iterate_options.fill_cache = false;
     leveldb::WriteOptions write_opts;
+
+#ifdef USE_LEVELDB
+#else
+    write_opts.disableWAL = true;
+#endif
 
     unique_ptr<leveldb::Iterator> it = unique_ptr<leveldb::Iterator>(
             ldb->NewIterator(iterate_options, ldb->DefaultColumnFamily()));
@@ -296,11 +307,22 @@ int SSDBImpl::flushdb(Context &ctx) {
 
     }
 
+    PTE(flushdb, "Iteration")
+
+#ifdef USE_LEVELDB
+#else
+    ldb->Flush(leveldb::FlushOptions());
+    write_opts.disableWAL = false;
+    PTE(flushdb, "Iteration Flush")
+#endif
+
     leveldb::WriteBatch writeBatch;
     leveldb::Status s = CommitBatch(ctx, write_opts, &writeBatch);
     if (!s.ok()) {
         ret = -1;
     }
+
+    PTE(flushdb, "CommitBatch")
 
     log_info("[flushdb] %d keys deleted by iteration", total);
 
