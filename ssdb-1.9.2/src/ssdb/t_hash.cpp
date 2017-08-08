@@ -378,6 +378,8 @@ int SSDBImpl::incr_hsize(Context &ctx, const Bytes &name, leveldb::WriteBatch &b
 		}
 	}
 
+	log_debug("incr_hsize %s %d", hexstr(name).c_str(), incr);
+
 	return ret;
 }
 

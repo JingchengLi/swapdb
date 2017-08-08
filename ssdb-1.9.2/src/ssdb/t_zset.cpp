@@ -694,6 +694,9 @@ int SSDBImpl::incr_zsize(Context &ctx, const Bytes &name, leveldb::WriteBatch &b
             batch.Put(size_key, meta_val);
         }
     }
+
+    log_debug("incr_zsize %s %d", hexstr(name).c_str(), incr);
+
     return ret;
 }
 
