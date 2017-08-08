@@ -1102,6 +1102,9 @@ int proc_rr_do_flushall(Context &ctx, Link *link, const Request &req, Response *
         serv->ssdb->expiration->clear();
     }
 
+    log_info("[!!!] ssdb stopping");
+    serv->ssdb->stop();
+
     int ret = serv->ssdb->flushdb(ctx);
     if (ret < 0) {
         resp->push_back("ok");
@@ -1110,6 +1113,10 @@ int proc_rr_do_flushall(Context &ctx, Link *link, const Request &req, Response *
         resp->push_back("ok");
         resp->push_back("rr_do_flushall ok");
     }
+
+    log_info("[!!!] ssdb starting");
+    serv->ssdb->start();
+
 
     return 0;
 }
