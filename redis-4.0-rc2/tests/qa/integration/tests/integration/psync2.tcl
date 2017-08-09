@@ -52,18 +52,6 @@ start_server {config {rdb.conf}} {
             }
         }
 
-        for {set var 0} {$var <= 4} {incr var} {
-            set pattern "ERR don't support psync/sync for slave server"
-            set level [expr 0-$var]
-            set log [srv $level stdout]
-            catch {[exec grep $pattern $log | wc -l]} err
-            if {![string match "*child process*" $err]} {
-                puts "slave server error"
-                set flag 1
-                break
-            }
-        }
-
         # 2) Attach all the slaves to master
         while {[llength $used] != 5} {
             while 1 {
@@ -77,6 +65,18 @@ start_server {config {rdb.conf}} {
                 $R($slave_id) slaveof $master_host $master_port
             }
             lappend used $slave_id
+        }
+
+        for {set var 0} {$var <= 4} {incr var} {
+            set pattern "ERR don't support psync/sync for slave server"
+            set level [expr 0-$var]
+            set log [srv $level stdout]
+            catch {[exec grep $pattern $log | wc -l]} err
+            if {![string match "*child process*" $err]} {
+                puts "slave server error"
+                set flag 1
+                break
+            }
         }
 
         # 3) Increment the counter and wait for all the instances
