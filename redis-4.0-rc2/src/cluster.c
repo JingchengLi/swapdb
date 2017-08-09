@@ -4824,7 +4824,7 @@ void ssdbRespRestoreCommand(client *c) {
     robj * key = c->argv[1];
     long long old_dirty = server.dirty;
     dictEntry* de;
-    serverAssert(c->db->id == 0 && c->argc == 5);
+    serverAssert(c->db->id == 0 && c->argc == 6);
 
     preventCommandPropagation(c);
 
