@@ -295,6 +295,8 @@ std::string hexstr(const T &t){
 	return hexmem(t.data(), t.size());
 }
 
+#define hexcstr(t) hexstr(t).c_str()
+
 // TODO: mem_printf("%5c%d%s", p, size);
 static inline
 void dump(const void *p, int size, const char *msg = NULL){

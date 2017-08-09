@@ -23,7 +23,7 @@ class TransferWorker;
 #define PROC_BACKEND	100
 
 #define DEF_PROC(f) int proc_##f(Context &ctx, Link *link, const Request &req, Response *resp)
-#define DEF_BPROC(c) int bproc_##c(Context &ctx, TransferWorker *worker, const std::string &data_key, void* value)
+#define DEF_BPROC(c) int bproc_##c(Context &ctx, TransferWorker *worker, const std::string &dataKey, const std::string &trasId, void* value)
 
 typedef std::vector<Bytes> Request;
 typedef int (*proc_t)(Context &ctx, Link *link, const Request &req, Response *resp);

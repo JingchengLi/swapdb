@@ -688,35 +688,17 @@ int proc_cursor_cleanup(Context &ctx, Link *link, const Request &req, Response *
 
 
 int proc_redis_req_restore(Context &ctx, Link *link, const Request &req, Response *resp) {
-    CHECK_NUM_PARAMS(4);
+    CHECK_NUM_PARAMS(6);
 
     int64_t ttl = req[2].Int64();
     if (errno == EINVAL || ttl < 0) {
         reply_err_return(INVALID_INT);
     }
 
-    bool replace = false;
+    std::string trans_id = req[5].String();
 
-
-    if (req.size() > 4) {
-
-        std::vector<Bytes>::const_iterator it = req.begin() + 4;
-        for (; it != req.end(); it += 1) {
-            std::string key = (*it).String();
-            strtoupper(&key);
-
-            if (key == "REPLACE") {
-                replace = true;
-            } else {
-                reply_err_return(SYNTAX_ERR);
-            }
-        }
-
-
-    }
-
-    TransferJob *job = new TransferJob(ctx, COMMAND_DATA_SAVE, req[1].String(),
-                                       new DumpData(req[1].String(), req[3].String(), ttl, replace));
+    TransferJob *job = new TransferJob(ctx, COMMAND_DATA_SAVE, req[1].String(), trans_id,
+                                       new DumpData(req[1].String(), req[3].String(), ttl, true));
     job->proc = BPROC(COMMAND_DATA_SAVE);
 
     ctx.net->redis->push(job);
@@ -728,9 +710,11 @@ int proc_redis_req_restore(Context &ctx, Link *link, const Request &req, Respons
 
 
 int proc_redis_req_dump(Context &ctx, Link *link, const Request &req, Response *resp) {
-    CHECK_NUM_PARAMS(2);
+    CHECK_NUM_PARAMS(3);
 
-    TransferJob *job = new TransferJob(ctx, COMMAND_DATA_DUMP, req[1].String());
+    std::string trans_id = req[2].String();
+
+    TransferJob *job = new TransferJob(ctx, COMMAND_DATA_DUMP, req[1].String(), trans_id);
     job->proc = BPROC(COMMAND_DATA_DUMP);
 
     //TODO push1st
@@ -1337,7 +1321,7 @@ int proc_ssdb_sync2(Context &ctx, Link *link, const Request &req, Response *resp
     }
 
     ReplicationByIterator2 *job = new ReplicationByIterator2(ctx, HostAndPort{link->remote_ip, link->remote_port}, link,
-                                                         true, heartbeat, replts);
+                                                             true, heartbeat, replts);
 //	net->replication->push(job);
 
     pthread_t tid;

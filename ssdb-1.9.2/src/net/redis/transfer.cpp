@@ -43,7 +43,7 @@ int TransferWorker::proc(TransferJob *job) {
     }
 
     int64_t current = time_ms();
-    int res = (*job->proc)(job->ctx, this, job->data_key, job->dumpData);
+    int res = (*job->proc)(job->ctx, this, job->data_key, job->trans_id, job->dumpData);
     if (res != 0) {
         log_error("bg_job failed %s ", job->dump().c_str());
     }
