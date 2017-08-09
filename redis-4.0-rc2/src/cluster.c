@@ -4853,6 +4853,8 @@ void ssdbRespRestoreCommand(client *c) {
             return;
         }
 
+        /* remove transfer id before call restore command. */
+        c->argc = 5;
         restoreCommand(c);
 
        /* Delete key from EVICTED_DATA_DB if restoreCommand is OK. */
@@ -4914,6 +4916,7 @@ void ssdbRespRestoreCommand(client *c) {
             signalBlockingKeyAsReady(c->db, key);
             serverLog(LL_DEBUG, "key: %s is deleted from loading_hot_keys.", (char *)key->ptr);
         }
+        c->argc = 6;
     }
 }
 
