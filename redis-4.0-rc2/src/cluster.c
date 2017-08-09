@@ -4835,7 +4835,7 @@ void ssdbRespRestoreCommand(client *c) {
     long long resp_transfer_id;
     unsigned long long transfer_id = dictGetUnsignedIntegerVal(de);
 
-    if (string2ll(c->argv[4]->ptr, sdslen(c->argv[4]->ptr), &resp_transfer_id) != 1 ||
+    if (string2ll(c->argv[5]->ptr, sdslen(c->argv[5]->ptr), &resp_transfer_id) != 1 ||
             resp_transfer_id != (long long)transfer_id) {
         addReplyError(c, "transfer id is not match");
         return;;
