@@ -4778,6 +4778,7 @@ void restoreCommand(client *c) {
 void ssdbRespDelCommand(client *c) {
     int numdel = 0;
     robj* keyobj = c->argv[1];
+    dictEntry* de;
 
     preventCommandPropagation(c);
 
@@ -4787,9 +4788,17 @@ void ssdbRespDelCommand(client *c) {
         return;
     }
 
-    if (!dictFind(EVICTED_DATA_DB->transferring_keys, keyobj->ptr)) {
+    if (!(de = dictFind(EVICTED_DATA_DB->transferring_keys, keyobj->ptr))) {
         addReplyError(c, "key is already unblocked");
         return;
+    }
+    long long resp_transfer_id;
+    unsigned long long transfer_id = dictGetUnsignedIntegerVal(de);
+
+    if (string2ll(c->argv[2]->ptr, sdslen(c->argv[2]->ptr), &resp_transfer_id) != 1 ||
+            resp_transfer_id != (long long)transfer_id) {
+        addReplyError(c, "transfer id is not match");
+        return;;
     }
 
     if (server.is_doing_flushall) {
@@ -4814,13 +4823,22 @@ void ssdbRespDelCommand(client *c) {
 void ssdbRespRestoreCommand(client *c) {
     robj * key = c->argv[1];
     long long old_dirty = server.dirty;
+    dictEntry* de;
     serverAssert(c->db->id == 0 && c->argc == 5);
 
     preventCommandPropagation(c);
 
-    if (!dictFind(EVICTED_DATA_DB->loading_hot_keys, key->ptr)) {
+    if (!(de = dictFind(EVICTED_DATA_DB->loading_hot_keys, key->ptr))) {
         addReplyError(c, "key is already unblocked");
         return;
+    }
+    long long resp_transfer_id;
+    unsigned long long transfer_id = dictGetUnsignedIntegerVal(de);
+
+    if (string2ll(c->argv[4]->ptr, sdslen(c->argv[4]->ptr), &resp_transfer_id) != 1 ||
+            resp_transfer_id != (long long)transfer_id) {
+        addReplyError(c, "transfer id is not match");
+        return;;
     }
 
     if (server.is_doing_flushall) {
@@ -4900,6 +4918,7 @@ void ssdbRespRestoreCommand(client *c) {
 }
 
 void ssdbRespNotfoundCommand(client *c) {
+    dictEntry* de;
     robj *cmd = c->argv[1];
     robj *keyobj = c->argv[2];
 
@@ -4910,9 +4929,17 @@ void ssdbRespNotfoundCommand(client *c) {
 
     preventCommandPropagation(c);
 
-    if (!dictFind(EVICTED_DATA_DB->loading_hot_keys, keyobj->ptr)) {
+    if (!(de = dictFind(EVICTED_DATA_DB->loading_hot_keys, keyobj->ptr))) {
         addReplyError(c, "key is already unblocked");
         return;
+    }
+    long long resp_transfer_id;
+    unsigned long long transfer_id = dictGetUnsignedIntegerVal(de);
+
+    if (string2ll(c->argv[3]->ptr, sdslen(c->argv[3]->ptr), &resp_transfer_id) != 1 ||
+            resp_transfer_id != (long long)transfer_id) {
+        addReplyError(c, "transfer id is not match");
+        return;;
     }
 
     if (!sdscmp(cmd->ptr, fail_restore)) {
@@ -4951,20 +4978,29 @@ void ssdbRespNotfoundCommand(client *c) {
 }
 
 void ssdbRespFailCommand(client *c) {
+    dictEntry* de;
     robj *cmd = c->argv[1];
     robj *keyobj = c->argv[2];
-
-    preventCommandPropagation(c);
-
-    if (!dictFind(EVICTED_DATA_DB->loading_hot_keys, keyobj->ptr)
-        && !dictFind(EVICTED_DATA_DB->transferring_keys, keyobj->ptr)) {
-        addReplyError(c, "key is already unblocked");
-        return;
-    }
 
     /* TODO: make sds vars shared. */
     sds fail_restore = sdsnew("ssdb-resp-restore");
     sds fail_dump = sdsnew("ssdb-resp-dump");
+
+    preventCommandPropagation(c);
+
+    if ((!sdscmp(cmd->ptr, fail_restore) && !(de = dictFind(EVICTED_DATA_DB->loading_hot_keys, keyobj->ptr))) ||
+        (!sdscmp(cmd->ptr, fail_dump) && !(de = dictFind(EVICTED_DATA_DB->transferring_keys, keyobj->ptr)))) {
+        addReplyError(c, "key is already unblocked");
+        return;
+    }
+    long long resp_transfer_id;
+    unsigned long long transfer_id = dictGetUnsignedIntegerVal(de);
+
+    if (string2ll(c->argv[3]->ptr, sdslen(c->argv[3]->ptr), &resp_transfer_id) != 1 ||
+            resp_transfer_id != (long long)transfer_id) {
+        addReplyError(c, "transfer id is not match");
+        return;;
+    }
 
     serverAssert(c->db->id == 0);
 

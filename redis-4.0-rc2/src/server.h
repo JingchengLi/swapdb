@@ -1440,6 +1440,8 @@ struct redisServer {
     list *delayed_migrate_clients;
     list *storetossdb_migrate_keys;
 
+    unsigned long long global_transfer_id;
+
     /* rules for loading hot keys in ssdb */
     int load_test_mode;
     struct loadSSDBkeyRule* ssdb_load_rules;
@@ -2061,8 +2063,8 @@ int removeExpire(redisDb *db, robj *key);
 void propagateExpire(redisDb *db, robj *key, int lazy);
 int expireIfNeeded(redisDb *db, robj *key);
 long long getExpire(redisDb *db, robj *key);
-void setTransferringDB(redisDb *db, robj *key);
-void setLoadingDB(robj *key);
+void setTransferringDB(redisDb *db, robj *key, unsigned long long id);
+void setLoadingDB(robj *key, unsigned long long id);
 long long getTransferringDB(robj *key);
 void setExpire(client *c, redisDb *db, robj *key, long long when);
 robj *lookupKey(redisDb *db, robj *key, int flags);

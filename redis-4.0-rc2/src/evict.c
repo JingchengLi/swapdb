@@ -709,10 +709,12 @@ int prologOfLoadingFromSSDB(client* c, robj *keyobj) {
     }
 
     rioInitWithBuffer(&cmd, sdsempty());
-    serverAssert(rioWriteBulkCount(&cmd, '*', 2));
+    serverAssert(rioWriteBulkCount(&cmd, '*', 3));
     serverAssert(rioWriteBulkString(&cmd, "redis_req_dump", strlen("redis_req_dump")));
     serverAssert(sdsEncodedObject(keyobj));
     serverAssert(rioWriteBulkString(&cmd, keyobj->ptr, sdslen(keyobj->ptr)));
+    server.global_transfer_id++;
+    serverAssert(rioWriteBulkLongLong(&cmd, server.global_transfer_id));
 
     /* sendCommandToSSDB will free cmd.io.buffer.ptr. */
     if (sendCommandToSSDB(server.ssdb_client, cmd.io.buffer.ptr) != C_OK) {
@@ -720,7 +722,7 @@ int prologOfLoadingFromSSDB(client* c, robj *keyobj) {
         return C_ERR;
     }
 
-    setLoadingDB(keyobj);
+    setLoadingDB(keyobj, server.global_transfer_id);
     if (c) addReply(c,shared.ok);
 
     serverLog(LL_DEBUG, "Loading key: %s from SSDB started.", (char *)(keyobj->ptr));
@@ -765,7 +767,7 @@ int prologOfEvictingToSSDB(robj *keyobj, redisDb *db) {
     }
 
     rioInitWithBuffer(&cmd, sdsempty());
-    serverAssert(rioWriteBulkCount(&cmd, '*', 5));
+    serverAssert(rioWriteBulkCount(&cmd, '*', 6));
     serverAssert(rioWriteBulkString(&cmd, "redis_req_restore", strlen("redis_req_restore")));
     serverAssert(sdsEncodedObject(keyobj));
     serverAssert(rioWriteBulkString(&cmd, keyobj->ptr, sdslen(keyobj->ptr)));
@@ -782,6 +784,8 @@ int prologOfEvictingToSSDB(robj *keyobj, redisDb *db) {
     /* NOTE: we must use "REPLACE" option when restore a key to SSDB, because maybe there
      * is a identical dirty key in SSDB. */
     serverAssert(rioWriteBulkString(&cmd, "REPLACE", strlen("REPLACE")));
+    server.global_transfer_id++;
+    serverAssert(rioWriteBulkLongLong(&cmd, server.global_transfer_id));
 
     /* sendCommandToSSDB will free cmd.io.buffer.ptr. */
     /* Using the same connection with propagate method. */
@@ -790,7 +794,7 @@ int prologOfEvictingToSSDB(robj *keyobj, redisDb *db) {
         return C_FD_ERR;
     }
 
-    setTransferringDB(db, keyobj);
+    setTransferringDB(db, keyobj, server.global_transfer_id);
     serverLog(LL_DEBUG, "Evicting key: %s to SSDB, maxmemory: %lld, zmalloc_used_memory: %lu.",
               (char *)(keyobj->ptr), server.maxmemory, zmalloc_used_memory());
 

@@ -1140,23 +1140,24 @@ void setExpire(client *c, redisDb *db, robj *key, long long when) {
         rememberSlaveKeyWithExpire(db,key);
 }
 
-void setTransferringDB(redisDb *db, robj *key) {
+void setTransferringDB(redisDb *db, robj *key, unsigned long long id) {
     dictEntry *kde, *de;
 
     /* Reuse the sds from the main dict in the transferring dict. */
     kde = dictFind(db->dict,key->ptr);
     serverAssertWithInfo(NULL,key,kde != NULL);
     de = dictAddOrFind(EVICTED_DATA_DB->transferring_keys,dictGetKey(kde));
+    dictSetUnsignedIntegerVal(de,id);
     serverLog(LL_DEBUG, "key: %s is added to transferring_keys.", (char *)key->ptr);
-    dictSetSignedIntegerVal(de,db->id);
 }
 
-void setLoadingDB(robj *key) {
+void setLoadingDB(robj *key, unsigned long long id) {
     dictEntry *kde, *de;
     /* Reuse the sds from the main dict in the loading_hot_keys dict. */
     kde = dictFind(EVICTED_DATA_DB->dict,key->ptr);
     de = dictAddOrFind(EVICTED_DATA_DB->loading_hot_keys,dictGetKey(kde));
     serverAssert(de);
+    dictSetUnsignedIntegerVal(de,id);
     /* delete the key from server.hot_keys. but for "dumpfromssdb", the key
      * maybe is not in server.hot_keys before. */
     dictDelete(server.hot_keys, key->ptr);

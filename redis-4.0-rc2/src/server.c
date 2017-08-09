@@ -322,10 +322,10 @@ struct redisCommand redisCommandTable[] = {
     {"latency",latencyCommand,-2,"aslt",0,NULL,0,0,0,0,0},
 
     /* Interfaces called by SSDB. */
-    {"ssdb-resp-del",ssdbRespDelCommand,-2,"wj",0,NULL,1,-1,1,0,0},
-    {"ssdb-resp-restore",ssdbRespRestoreCommand,-4,"wmj",0,NULL,1,1,1,0,0},
-    {"ssdb-resp-fail",ssdbRespFailCommand,3,"wj",0,NULL,1,1,1,0,0},
-    {"ssdb-resp-notfound",ssdbRespNotfoundCommand,3,"wj",0,NULL,1,1,1,0,0},
+    {"ssdb-resp-del",ssdbRespDelCommand,-3,"wj",0,NULL,1,-1,1,0,0},
+    {"ssdb-resp-restore",ssdbRespRestoreCommand,-5,"wmj",0,NULL,1,1,1,0,0},
+    {"ssdb-resp-fail",ssdbRespFailCommand,4,"wj",0,NULL,1,1,1,0,0},
+    {"ssdb-resp-notfound",ssdbRespNotfoundCommand,4,"wj",0,NULL,1,1,1,0,0},
 
     /* used by slave ssdb to notify slave redis when transfer ssdb snapshot. */
     {"ssdb-notify-redis",ssdbNotifyCommand,-4,"lj",0,NULL,0,0,0,0,0},
@@ -2744,6 +2744,7 @@ void initServer(void) {
         server.ssdbargv = zmalloc(sizeof(char *) * SSDB_CMD_DEFAULT_MAX_ARGC);
         server.ssdbargvlen = zmalloc(sizeof(size_t) * SSDB_CMD_DEFAULT_MAX_ARGC);
 
+        server.global_transfer_id = 0;
         server.loadAndEvictCmdDict = dictCreate(&keyDictType,NULL);
 
         server.delayed_migrate_clients = listCreate();
