@@ -1164,16 +1164,6 @@ void setLoadingDB(robj *key, unsigned long long id) {
     serverLog(LL_DEBUG, "key: %s is added to loading_hot_keys.", (char *)key->ptr);
 }
 
-long long getTransferringDB(robj *key) {
-    redisDb *db = EVICTED_DATA_DB;
-    dictEntry *de;
-
-    if (dictSize(db->transferring_keys) == 0
-        || (de = dictFind(db->transferring_keys,key->ptr)) == NULL) return -1;
-
-    return dictGetSignedIntegerVal(de);
-}
-
 /* Return the expire time of the specified key, or -1 if no expire
  * is associated with this key (i.e. the key is non volatile) */
 long long getExpire(redisDb *db, robj *key) {

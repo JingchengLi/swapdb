@@ -2065,7 +2065,6 @@ int expireIfNeeded(redisDb *db, robj *key);
 long long getExpire(redisDb *db, robj *key);
 void setTransferringDB(redisDb *db, robj *key, unsigned long long id);
 void setLoadingDB(robj *key, unsigned long long id);
-long long getTransferringDB(robj *key);
 void setExpire(client *c, redisDb *db, robj *key, long long when);
 robj *lookupKey(redisDb *db, robj *key, int flags);
 robj *lookupKeyRead(redisDb *db, robj *key);

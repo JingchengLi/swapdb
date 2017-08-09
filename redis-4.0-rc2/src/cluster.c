@@ -5025,7 +5025,6 @@ void ssdbRespFailCommand(client *c) {
 
 void storetossdbCommand(client *c) {
     robj *keyobj;
-    dictEntry *de;
     int ret;
 
     preventCommandPropagation(c);
@@ -5043,11 +5042,11 @@ void storetossdbCommand(client *c) {
         return;
     }
 
-    if ((de = dictFind(EVICTED_DATA_DB->transferring_keys, keyobj->ptr))) {
+    if (dictFind(EVICTED_DATA_DB->transferring_keys, keyobj->ptr)) {
         addReplyError(c, "In transferring_keys.");
         server.cmdNotDone = 1;
         return;
-    } else if ((de = dictFind(EVICTED_DATA_DB->loading_hot_keys, keyobj->ptr))) {
+    } else if (dictFind(EVICTED_DATA_DB->loading_hot_keys, keyobj->ptr)) {
         addReplyError(c, "In loading_hot_keys.");
         server.cmdNotDone = 1;
         return;
@@ -5082,7 +5081,6 @@ void storetossdbCommand(client *c) {
 
 void dumpfromssdbCommand(client *c) {
     robj *keyobj = c->argv[1];
-    dictEntry *de;
 
     if (!server.jdjr_mode) {
         addReplyErrorFormat(c,"Command only supported in jdjr-mode '%s'",
@@ -5090,11 +5088,11 @@ void dumpfromssdbCommand(client *c) {
         return;
     }
 
-    if ((de = dictFind(EVICTED_DATA_DB->transferring_keys, keyobj->ptr))) {
+    if (dictFind(EVICTED_DATA_DB->transferring_keys, keyobj->ptr)) {
         addReplyError(c, "In transferring_keys.");
         server.cmdNotDone = 1;
         return;
-    } else if ((de = dictFind(EVICTED_DATA_DB->loading_hot_keys, keyobj->ptr))) {
+    } else if (dictFind(EVICTED_DATA_DB->loading_hot_keys, keyobj->ptr)) {
         addReplyError(c, "In loading_hot_keys.");
         server.cmdNotDone = 1;
         return;

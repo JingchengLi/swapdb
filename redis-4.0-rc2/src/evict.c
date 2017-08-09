@@ -599,7 +599,6 @@ int epilogOfEvictingToSSDB(robj *keyobj) {
     mstime_t eviction_latency;
     dictEntry *de, *ev_de;
     long long now = mstime(), expiretime;
-    /* TODO: clean up getTransferringDB. */
     int dbid = 0;
     sds db_key, evdb_key;
     unsigned int lfu;
