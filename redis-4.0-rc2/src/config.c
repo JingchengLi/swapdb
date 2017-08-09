@@ -363,12 +363,6 @@ void loadServerConfigFromString(char *config) {
         } else if (!strcasecmp(argv[0],"maxmemory-policy") && argc == 2) {
             server.maxmemory_policy =
                 configEnumGetValue(maxmemory_policy_enum,argv[1]);
-            if (server.jdjr_mode) {
-                server.maxmemory_policy |= MAXMEMORY_FLAG_LFU;
-                server.maxmemory_policy &= ~MAXMEMORY_FLAG_LRU;
-                serverLog(LL_NOTICE, "Force maxmemory-policy with MAXMEMORY_FLAG_LFU in jdjr-mode. ");
-            }
-
             if (server.maxmemory_policy == INT_MIN) {
                 err = "Invalid maxmemory policy";
                 goto loaderr;
@@ -883,6 +877,10 @@ void loadServerConfigFromString(char *config) {
                     " must be greater than ssdb-transfer-lower-limit ";
             goto loaderr;
         }
+
+        server.maxmemory_policy |= MAXMEMORY_FLAG_LFU;
+        server.maxmemory_policy &= ~MAXMEMORY_FLAG_LRU;
+        serverLog(LL_NOTICE, "Force maxmemory-policy with MAXMEMORY_FLAG_LFU in jdjr-mode. ");
     }
 
     /* Sanity checks. */
