@@ -72,7 +72,7 @@ overrides {maxmemory 0}} {
             r get foo_2
             assert {[r object freq foo_1] <= 5}
             assert {[r object freq foo_2] > 5}
-            access_key_tps_time foo [expr $tps/$time*1.1] $time false
+            access_key_tps_time foo [expr $tps/$time*1.1] $time
             assert_equal {ssdb} [r locatekey foo_1] "foo_1 with lfu <= 5 should not be loaded"
             assert_equal {redis} [r locatekey foo_2] "foo_2 with lfu > 5 should be loaded"
         }
@@ -85,7 +85,7 @@ overrides {maxmemory 0}} {
             dumpto_ssdb_and_wait r foo
             access_key_tps_time foo [expr $tps/$time*0.9] $time
             assert_equal {ssdb} [r locatekey foo] "foo should not be loaded"
-            access_key_tps_time foo [expr $tps/$time*1.1] $time
+            access_key_tps_time foo [expr $tps/$time*1.1] $time*2
             assert_equal {redis} [r locatekey foo] "foo should be loaded"
         }
 

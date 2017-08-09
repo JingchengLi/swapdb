@@ -243,28 +243,28 @@ proc createComplexDataset {r ops {opt {}}} {
             switch $t {
                 {string} {
                     randpath {{*}$r set $k $v} \
-                    {{*}$r set $k ${v}_diff}
+                    {{*}$r set $k ${v}_${d}}
                 }
                 {list} {
                     randpath {{*}$r lpush $k $v} \
                     {{*}$r rpush $k $v} \
-                    {{*}$r rpush $k ${v}_diff} \
+                    {{*}$r rpush $k ${v}_${d}} \
                     {{*}$r rpop $k} \
                     {{*}$r lpop $k}
                 }
                 {set} {
                     randpath {{*}$r sadd $k $v} \
-                    {{*}$r sadd $k ${v}_diff} \
+                    {{*}$r sadd $k ${v}_${d}} \
                     {{*}$r srem $k $v}
                 }
                 {zset} {
                     randpath {{*}$r zadd $k $d $v} \
-                    {{*}$r zadd $k $d ${v}_diff} \
+                    {{*}$r zadd $k $d ${v}_${d}} \
                     {{*}$r zrem $k $v}
                 }
                 {hash} {
                     randpath {{*}$r hset $k $f $v} \
-                    {{*}$r hset $k $f ${v}_diff} \
+                    {{*}$r hset $k $f ${v}_${d}} \
                     {{*}$r hdel $k $f}
                 }
             }
@@ -838,13 +838,13 @@ proc check_keys_cleared {r {levels {0}}} {
             fail "some keys not clear after 10s"
         }
         if {[lindex [$r $level role] 0] == "slave"} {
-            wait_for_condition 10 100 {
+            wait_for_condition 50 100 {
                 [ s $level "slave_unprocessed_transferring_or_loading_keys"] == 0 &&
                 [ s $level "slave_write_op_list_num" ] == 0 &&
                 [ s $level "slave_write_op_list_memsize" ] == 0 &&
                 [ s $level "slave_ssdb_critical_write_error_count" ] == 0
             } else {
-                fail "some keys not clear in slave"
+                fail "some keys not clear in slave($level)"
             }
         }
     }
