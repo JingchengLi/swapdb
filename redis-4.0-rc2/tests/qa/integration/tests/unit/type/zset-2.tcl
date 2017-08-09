@@ -54,7 +54,8 @@ overrides {maxmemory 0}} {
 
         set flag 0
         for {set i 0; set j 0} {$i < $elements} {incr i} {
-            if {[lindex $aux $i] ne [ssdbr zscore zscoretest $i]} {
+            # if {[lindex $aux $i] ne [ssdbr zscore zscoretest $i]}
+            if {abs([expr [lindex $aux $i]-[ssdbr zscore zscoretest $i]]) > 0.001} {
                 set flag 1
                 puts "[lindex $aux $i]:[ssdbr zscore zscoretest $i]"
                 incr j
@@ -66,7 +67,8 @@ overrides {maxmemory 0}} {
         assert_equal 0 $flag "some big int score lose accuracy."
     }
 
-    set eps 0.000001
+    # set eps 0.000001
+    set eps 0.00001
     test "Decimal score accuracy 5 bits" {
         ssdbr del zscoretest
         set aux {}

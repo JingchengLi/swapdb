@@ -103,7 +103,7 @@ overrides {maxmemory 0}} {
                 assert_equal {ssdb} [r locatekey foo] "foo should not be loaded"
                 assert_equal {ssdb} [r locatekey foo_2] "foo_2 should not be loaded"
 
-                access_key_tps_time foo [expr $tps/$time*1.2] $time false
+                access_key_tps_time foo [expr $tps/$time*1.1] $time*2
                 assert {[r object freq foo] > 5}
                 assert {[r object freq foo_2] > 5}
                 assert_equal {redis} [r locatekey foo] "foo should be loaded"

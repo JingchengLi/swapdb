@@ -33,6 +33,7 @@ start_server {config {rdb.conf}} {
     }
 
     set cycle 1
+    set flag 0
     while {([clock seconds]-$start_time) < $duration} {
         test "PSYNC2: --- CYCLE $cycle ---" {
             incr cycle
@@ -48,6 +49,18 @@ start_server {config {rdb.conf}} {
             $R($master_id) slaveof no one
             if {$counter_value == 0} {
                 $R($master_id) set x $counter_value
+            }
+        }
+
+        for {set var 0} {$var <= 4} {incr var} {
+            set pattern "ERR don't support psync/sync for slave server"
+            set level [expr 0-$var]
+            set log [srv $level stdout]
+            catch {[exec grep $pattern $log | wc -l]} err
+            if {![string match "*child process*" $err]} {
+                puts "slave server error"
+                set flag 1
+                break
             }
         }
 
@@ -125,7 +138,7 @@ start_server {config {rdb.conf}} {
         if {$debug_msg} {
             for {set j 0} {$j < 5} {incr j} {
                 puts "$j: sync_full: [status $R($j) sync_full]"
-                puts "$j: sync_full_err: [status $R($j) sync_full_err]"
+                puts "$j: sync_full_ok: [status $R($j) sync_full_ok]"
                 puts "$j: id1      : [status $R($j) master_replid]:[status $R($j) master_repl_offset]"
                 puts "$j: id2      : [status $R($j) master_replid2]:[status $R($j) second_repl_offset]"
                 puts "$j: backlog  : firstbyte=[status $R($j) repl_backlog_first_byte_offset] len=[status $R($j) repl_backlog_histlen]"
@@ -133,15 +146,19 @@ start_server {config {rdb.conf}} {
             }
         }
 
-        test "PSYNC2: total sum of full synchronizations is exactly 4" {
-            set sum 0
-            # currently sync_full++ but was delayed when some other slaves are doing replicaiton.
-            set errsum 0
-            for {set j 0} {$j < 5} {incr j} {
-                incr sum [status $R($j) sync_full]
-                incr errsum [status $R($j) sync_full_err]
+        set oksum 0
+        for {set j 0} {$j < 5} {incr j} {
+            incr oksum [status $R($j) sync_full_ok]
+        }
+
+        if {1 == $flag} {
+            test "PSYNC2: total sum of ok full synchronizations is greater than 4 when sync with slave happens" {
+                assert {$oksum > 4} "sync_full_ok should be > 4 if sync with slave happend"
             }
-            assert {$sum == 4+$errsum}
+        } else {
+            test "PSYNC2: total sum of full synchronizations is exactly 4" {
+                assert {$oksum == 4} "sync_full_ok should be 4 if no sync with slave happend"
+            }
         }
     }
 
@@ -177,7 +194,7 @@ start_server {config {rdb.conf}} {
         }
         set new_sync_count [status $R($master_id) sync_full]
         # prohibit psync when slave restart for ops in slave write list may lose.
-        assert {$sync_count == $new_sync_count - 1}
+        assert {$sync_count < $new_sync_count}
     }
 
     if {$no_exit} {

@@ -438,24 +438,23 @@ for {set n 0} {$n < $loops} {incr n} {
             start_server {overrides {slave-blocked-by-flushall-timeout 1}} {
                 lappend slaves [srv 0 client]
                 foreach flush $allflush {
-                        test "master flushall timeout with client-blocked-by-flushall-timeout 1" {
-                            set num 10000
-                            set clients 20
-                            set clist [ start_bg_complex_data_list $master_host $master_port $num $clients 10k]
-                            [lindex $slaves 0] slaveof $master_host $master_port
-                            wait_for_online $master 1
-                            stop_bg_client_list $clist
-                            after 100
-                            set flushclient [redis $master_host $master_port]
-                            catch { $flushclient $flush } ret
-                            $master ping
-                        } {PONG}
+                    test "master flushall timeout with client-blocked-by-flushall-timeout 1" {
+                        set num 10000
+                        set clients 20
+                        set clist [ start_bg_complex_data_list $master_host $master_port $num $clients 10k]
+                        [lindex $slaves 0] slaveof $master_host $master_port
+                        wait_for_online $master 1
+                        stop_bg_client_list $clist
+                        after 1000
+                        set flushclient [redis $master_host $master_port]
+                        catch { $flushclient $flush } ret
+                        $master ping
+                    } {PONG}
 
                     if {![string match "OK" $ret]} {
                         test "master and slave are not clear if $flush return err" {
                             after 3000
                             wait_for_condition 100 100 {
-                                [$master dbsize] > 0 &&
                                 [$master dbsize] == [[lindex $slaves 0] dbsize]
                             } else {
                                 fail "Different number of keys between master and slaves after too long time."
@@ -465,10 +464,16 @@ for {set n 0} {$n < $loops} {incr n} {
                         test "master and slave are both null after $flush" {
                             wait_for_condition 100 100 {
                                 [$master dbsize] == 0 &&
-                                [[lindex $slaves 0] dbsize] == 0
+                                [[lindex $slaves 0] dbsize] == 0 &&
+                                [sr -1 ssdb_dbsize] == 0 &&
+                                [sr -2 ssdb_dbsize] == 0
                             } else {
                                 fail "master and slaves are not null after too long time."
                             }
+                            assert_equal 0 [llength [sr -2 keys *]]
+                            assert_equal 0 [llength [sr -1 keys *]]
+                            assert_equal 0 [llength [sr -2 ssdb_scan 0 count 1] ] "master ssdb scan should be null"
+                            assert_equal 0 [llength [sr -1 ssdb_scan 0 count 1] ] "slave ssdb scan should be null"
                         }
                     }
 

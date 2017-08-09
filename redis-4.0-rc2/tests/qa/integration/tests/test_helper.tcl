@@ -64,6 +64,7 @@ set ::all_tests {
     integration/psync2
     integration/replication-A
     integration/replication-B
+    integration/replication-C
 }
 # lfu-policy update
     # ssdb/lfu-policy
