@@ -1489,7 +1489,11 @@ void transferringOrLoadingBlockedClientTimeOut(client *c) {
     if (c->flags & CLIENT_MASTER && server.slave_failed_retry_interrupted) {
         confirmAndRetrySlaveSSDBwriteOp(c, server.blocked_write_op->time, server.blocked_write_op->index);
     } else {
-        addReplyError(c, "timeout");
-        resetClient(c);
+        if (c->flags & CLIENT_MASTER) {
+            runCommand(c);
+        } else {
+            addReplyError(c, "timeout");
+            resetClient(c);
+        }
     }
 }
