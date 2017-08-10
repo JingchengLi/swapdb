@@ -40,6 +40,8 @@ test "Cluster nodes hard reset" {
     foreach_redis_id id {
         # R $id MULTI
         R $id cluster reset hard
+        # some slaves's appendonly not clear as flushall not implement
+        R $id bgrewriteaof
         R $id cluster set-config-epoch [expr {$id+1}]
         # R $id EXEC
         R $id config set cluster-node-timeout $node_timeout

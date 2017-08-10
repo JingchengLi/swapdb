@@ -116,7 +116,6 @@ test "Cluster consistency during live resharding" {
             if {rand() < 0.5} {
                 $cluster llen [lindex $keys $r]
             }
-            # puts "key: [lindex $keys $r]"
         }
 
         if {($j % 1000) == 0} {
@@ -173,7 +172,6 @@ test "Verify $numkeys keys for consistency with logical content" {
         }
     }
 }
-
 test "Crash and restart all the instances" {
     foreach_redis_id id {
         kill_instance redis $id
