@@ -29,7 +29,7 @@ start_server {tags {"repl"}} {
         }
 
         test {MASTER and SLAVE consistency with expire} {
-            if {$::accurate} {set numops 50000} else {set numops 5000}
+            if {$::accurate} {set numops 20000} else {set numops 5000}
             set keyslist [ createComplexDataset $master $numops useexpire ]
             after 4000 ;# Make sure everything expired before taking the digest
 

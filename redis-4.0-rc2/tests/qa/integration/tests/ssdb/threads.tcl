@@ -1,14 +1,17 @@
+if {![file exists ../../../src/redis-benchmark]} {
+    catch {exec make -C ../../../src redis-benchmark} info
+}
 start_server {tags {"mtreads"}} {
     test "single client incr key" {
         r set foo 0
-        exec ../../../build/redis-benchmark -q -p [srv port] -c 1 -n 20000 incr foo
+        exec ../../../src/redis-benchmark -q -p [srv port] -c 1 -n 20000 incr foo
         assert_equal [expr 20000] [r get foo] "val should be right after one client incr key continuously."
     }
 }
 
 start_server {tags {"threads"}} {
     test "#issue crash when multi threads spop same key" {
-        exec ../../../build/redis-benchmark -q -p [srv port] -n 100 -t sadd,spop > /dev/null
+        exec ../../../src/redis-benchmark -q -p [srv port] -n 100 -t sadd,spop > /dev/null
         r ping
     } {PONG}
 }

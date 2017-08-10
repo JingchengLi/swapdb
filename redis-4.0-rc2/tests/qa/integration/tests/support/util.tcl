@@ -790,11 +790,17 @@ proc wait_ssdb_reconnect {{level 0}} {
         incr retry -1
         after 1
     }
-    r $level del foonull
     if {$retry == 0} {
         error "timeout for ssdb reconnect"
     } else {
         puts "wait [expr 10000-$retry]ms for ssdb reconnect!"
+    }
+    for {set n 0} {$n < 10} {incr n} {
+        catch {[r $level del foonull]} ret
+        if {![string match "*ERR*timeout*" $err]} {
+            break
+        }
+        after 1000
     }
 }
 

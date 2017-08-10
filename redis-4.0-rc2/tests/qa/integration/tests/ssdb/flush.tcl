@@ -1,10 +1,8 @@
 # only flush exec on master
 if {$::accurate} {
     set allflush {flushdb}
-    set loops 20
 } else {
     set allflush {flushall}
-    set loops 1
 }
 
 start_server {tags {"ssdb"}} {
@@ -426,104 +424,102 @@ start_server {tags {"ssdb"}} {
 }
 
 # flush timeout
-for {set n 0} {$n < $loops} {incr n} {
-    start_server {tags {"ssdb"}
-    overrides {client-blocked-by-flushall-timeout 1}} {
-        set master [srv client]
-        set master_host [srv host]
-        set master_port [srv port]
-        start_server {} {
-            set slaves {}
+start_server {tags {"ssdb"}
+overrides {client-blocked-by-flushall-timeout 1}} {
+    set master [srv client]
+    set master_host [srv host]
+    set master_port [srv port]
+    start_server {} {
+        set slaves {}
+        lappend slaves [srv 0 client]
+        start_server {overrides {slave-blocked-by-flushall-timeout 1}} {
             lappend slaves [srv 0 client]
-            start_server {overrides {slave-blocked-by-flushall-timeout 1}} {
-                lappend slaves [srv 0 client]
-                foreach flush $allflush {
-                    test "master flushall timeout with client-blocked-by-flushall-timeout 1" {
-                        set num 10000
-                        set clients 20
-                        set clist [ start_bg_complex_data_list $master_host $master_port $num $clients 10k]
-                        [lindex $slaves 0] slaveof $master_host $master_port
-                        wait_for_online $master 1
-                        stop_bg_client_list $clist
-                        after 1000
-                        set flushclient [redis $master_host $master_port]
-                        catch { $flushclient $flush } ret
-                        $master ping
-                    } {PONG}
+            foreach flush $allflush {
+                test "master flushall timeout with client-blocked-by-flushall-timeout 1" {
+                    set num 10000
+                    set clients 20
+                    set clist [ start_bg_complex_data_list $master_host $master_port $num $clients 10k]
+                    [lindex $slaves 0] slaveof $master_host $master_port
+                    wait_for_online $master 1
+                    stop_bg_client_list $clist
+                    after 1000
+                    set flushclient [redis $master_host $master_port]
+                    catch { $flushclient $flush } ret
+                    $master ping
+                } {PONG}
 
-                    if {![string match "OK" $ret]} {
-                        test "master and slave are not clear if $flush return err" {
-                            after 3000
-                            wait_for_condition 100 100 {
-                                [$master dbsize] == [[lindex $slaves 0] dbsize]
-                            } else {
-                                fail "Different number of keys between master and slaves after too long time."
-                            }
-                        }
-                    } else {
-                        test "master and slave are both null after $flush" {
-                            wait_for_condition 100 100 {
-                                [$master dbsize] == 0 &&
-                                [[lindex $slaves 0] dbsize] == 0 &&
-                                [sr -1 ssdb_dbsize] == 0 &&
-                                [sr -2 ssdb_dbsize] == 0
-                            } else {
-                                fail "master and slaves are not null after too long time."
-                            }
-                            assert_equal 0 [llength [sr -2 keys *]]
-                            assert_equal 0 [llength [sr -1 keys *]]
-                            assert_equal 0 [llength [sr -2 ssdb_scan 0 count 1] ] "master ssdb scan should be null"
-                            assert_equal 0 [llength [sr -1 ssdb_scan 0 count 1] ] "slave ssdb scan should be null"
-                        }
-                    }
-
-                    test "sync with second slave(flush timeout) after $flush" {
-                        set clist [ start_bg_complex_data_list $master_host $master_port $num $clients ]
-                        after 1000
-                        [lindex $slaves 1] slaveof $master_host $master_port
-                        wait_for_online $master 2
-                    }
-
-                    test "clients write keys after $flush" {
+                if {![string match "OK" $ret]} {
+                    test "master and slave are not clear if $flush return err" {
+                        after 3000
                         wait_for_condition 100 100 {
-                            [sr -2 dbsize] > 0 &&
-                            [sr -1 dbsize] > 0 &&
-                            [sr dbsize] > 0
-                        } else {
-                            fail "No keys store to ssdb after $flush"
-                        }
-                        stop_bg_client_list $clist
-                    }
-
-                    test "master and slaves are identical" {
-                        wait_for_condition 100 100 {
-                            [$master dbsize] == [[lindex $slaves 0] dbsize] &&
-                            [$master dbsize] == [[lindex $slaves 1] dbsize]
+                            [$master dbsize] == [[lindex $slaves 0] dbsize]
                         } else {
                             fail "Different number of keys between master and slaves after too long time."
                         }
-                        assert {[$master dbsize] > 0}
-                        wait_memory_stable; wait_memory_stable -1; wait_memory_stable -2;
-                        if {[$master debug digest] != [[lindex $slaves 0] debug digest] ||
-                        [[lindex $slaves 0] debug digest] != [[lindex $slaves 1] debug digest]} {
-                            puts "Different digest between master([$master debug digest]) and slave1([[lindex $slaves 0] debug digest]) slave2([[lindex $slaves 1] debug digest])."
-                            compare_debug_digest {-2 -1 0}
-                        }
                     }
-
-                    test "slave flushall timeout with slave-blocked-by-flushall-timeout 1" {
-                        $master config set client-blocked-by-flushall-timeout 5000
-                        $master $flush
-                        wait_for_condition 10 500 {
-                            [$master debug digest] == 0000000000000000000000000000000000000000 &&
-                            [[lindex $slaves 0] debug digest] == 0000000000000000000000000000000000000000 &&
-                            [[lindex $slaves 1] debug digest] == 0000000000000000000000000000000000000000
+                } else {
+                    test "master and slave are both null after $flush" {
+                        wait_for_condition 100 100 {
+                            [$master dbsize] == 0 &&
+                            [[lindex $slaves 0] dbsize] == 0 &&
+                            [sr -1 ssdb_dbsize] == 0 &&
+                            [sr -2 ssdb_dbsize] == 0
                         } else {
-                            fail "Digest not null:master([$master debug digest]) and slave1([[lindex $slaves 0] debug digest]) slave2([[lindex $slaves 1] debug digest]) after too long time."
+                            fail "master and slaves are not null after too long time."
                         }
-                        list [lindex [sr scan 0] 0] [lindex [sr -1 scan 0] 0] [lindex [sr -2 scan 0] 0]
-                    } {0 0 0}
+                        assert_equal 0 [llength [sr -2 keys *]]
+                        assert_equal 0 [llength [sr -1 keys *]]
+                        assert_equal 0 [llength [sr -2 ssdb_scan 0 count 1] ] "master ssdb scan should be null"
+                        assert_equal 0 [llength [sr -1 ssdb_scan 0 count 1] ] "slave ssdb scan should be null"
+                    }
                 }
+
+                test "sync with second slave(flush timeout) after $flush" {
+                    set clist [ start_bg_complex_data_list $master_host $master_port $num $clients ]
+                    after 1000
+                    [lindex $slaves 1] slaveof $master_host $master_port
+                    wait_for_online $master 2
+                }
+
+                test "clients write keys after $flush" {
+                    wait_for_condition 100 100 {
+                        [sr -2 dbsize] > 0 &&
+                        [sr -1 dbsize] > 0 &&
+                        [sr dbsize] > 0
+                    } else {
+                        fail "No keys store to ssdb after $flush"
+                    }
+                    stop_bg_client_list $clist
+                }
+
+                test "master and slaves are identical" {
+                    wait_for_condition 100 100 {
+                        [$master dbsize] == [[lindex $slaves 0] dbsize] &&
+                        [$master dbsize] == [[lindex $slaves 1] dbsize]
+                    } else {
+                        fail "Different number of keys between master and slaves after too long time."
+                    }
+                    assert {[$master dbsize] > 0}
+                    wait_memory_stable; wait_memory_stable -1; wait_memory_stable -2;
+                    if {[$master debug digest] != [[lindex $slaves 0] debug digest] ||
+                    [[lindex $slaves 0] debug digest] != [[lindex $slaves 1] debug digest]} {
+                        puts "Different digest between master([$master debug digest]) and slave1([[lindex $slaves 0] debug digest]) slave2([[lindex $slaves 1] debug digest])."
+                        compare_debug_digest {-2 -1 0}
+                    }
+                }
+
+                test "slave flushall timeout with slave-blocked-by-flushall-timeout 1" {
+                    $master config set client-blocked-by-flushall-timeout 5000
+                    $master $flush
+                    wait_for_condition 10 500 {
+                        [$master debug digest] == 0000000000000000000000000000000000000000 &&
+                        [[lindex $slaves 0] debug digest] == 0000000000000000000000000000000000000000 &&
+                        [[lindex $slaves 1] debug digest] == 0000000000000000000000000000000000000000
+                    } else {
+                        fail "Digest not null:master([$master debug digest]) and slave1([[lindex $slaves 0] debug digest]) slave2([[lindex $slaves 1] debug digest]) after too long time."
+                    }
+                    list [lindex [sr scan 0] 0] [lindex [sr -1 scan 0] 0] [lindex [sr -2 scan 0] 0]
+                } {0 0 0}
             }
         }
     }

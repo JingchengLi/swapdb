@@ -141,7 +141,11 @@ start_server {tags {"repl-abnormal"}} {
 #            } else {
 #                fail "Different digest between master([$master debug digest]) and slave([$slave debug digest]) after too long time."
 #            }
-            assert_equal "" [status $master db0] "No keys should stay in redis"
+            wait_for_condition 500 2 {
+                "" eq [status $master db0]
+            } else {
+                fail "No keys should stay in redis"
+            }
 
 #            从节点ssdb发生重启的情况下从节点ssdb中会出现脏数据情况
 #            wait_for_condition 100 100 {

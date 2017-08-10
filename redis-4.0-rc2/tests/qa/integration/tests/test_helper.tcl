@@ -11,13 +11,6 @@ source tests/support/tmpfile.tcl
 source tests/support/test.tcl
 source tests/support/util.tcl
 
-    ## unit/type/zset-2 score range
-    ## unit/type/list-3 too slow
-    ## ssdb/flush
-    ## integration/replication-base flushall延迟
-    ## integration/replication-b 第二个节点同步
-    ## integration/replication-c
-    ## integration/replication-A close client
 set ::all_tests {
     ssdb/communicate-base
     ssdb/encoding
@@ -66,63 +59,10 @@ set ::all_tests {
     integration/replication-B
     integration/replication-C
 }
-# lfu-policy update
-    # ssdb/lfu-policy
 # Too slow without SSD, need to run manually.
     # integration/replication-stable
 # next time support
     # unit/scan
-#need update
-    #ssdb/loadconfig
-# maxpolicy is a stress test.
-    # ssdb/maxpolicy
-    # ssdb/db
-
-# unit/printver
-# unit/dump
-# unit/auth
-# unit/protocol
-# unit/keyspace
-# unit/scan
-# unit/type/string
-# unit/type/incr
-# unit/type/list
-# unit/type/list-2
-# unit/type/list-3
-# unit/type/set
-# unit/type/zset
-# unit/type/hash
-# unit/sort
-# unit/expire
-# unit/other
-# unit/multi
-# unit/quit
-# unit/aofrw
-# integration/replication
-# integration/replication-2
-# integration/replication-3
-# integration/replication-4
-# integration/replication-psync
-# integration/aof
-# integration/rdb
-# integration/convert-zipmap-hash-on-load
-# integration/logging
-# integration/psync2
-# unit/pubsub
-# unit/slowlog
-# unit/scripting
-# unit/maxmemory
-# unit/introspection
-# unit/introspection-2
-# unit/limits
-# unit/obuf-limits
-# unit/bitops
-# unit/bitfield
-# unit/geo
-# unit/memefficiency
-# unit/hyperloglog
-# unit/lazyfree
-# unit/wait
 
 # Index to the next test to run in the ::all_tests list.
 set ::next_test 0
