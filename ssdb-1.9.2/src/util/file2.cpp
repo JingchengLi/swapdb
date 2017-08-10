@@ -8,7 +8,7 @@
 #include <sys/errno.h>
 #include "file2.h"
 
-namespace R2mFile {
+namespace R2File {
 
     using rocksdb::Status;
 

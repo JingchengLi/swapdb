@@ -435,7 +435,6 @@ int SSDBImpl::raw_get(Context &ctx, const Bytes &key, leveldb::ColumnFamilyHandl
 }
 
 uint64_t SSDBImpl::size() {
-    // todo r2m adaptation
 #ifdef USE_LEVELDB
     //    std::string s = "A";
         std::string s(1, DataType::META);

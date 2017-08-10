@@ -10,7 +10,7 @@
 #include <vector>
 
 
-namespace R2mFile {
+namespace R2File {
 
     using rocksdb::Status;
 
