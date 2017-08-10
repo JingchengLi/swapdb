@@ -26,7 +26,7 @@ public:
 
 void MyApplication::welcome() {
     fprintf(stderr, "%s %s\n", APP_NAME, APP_VERSION);
-    fprintf(stderr, "Copyright (c) 2017, Timothy\n");
+    fprintf(stderr, "Copyright (c) 2012-2015 ssdb.io\n");
     fprintf(stderr, "\n");
 }
 
