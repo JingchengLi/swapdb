@@ -1,6 +1,8 @@
-//
-// Created by zts on 16-12-20.
-//
+/*
+Copyright (c) 2004-2017, JD.com Inc. All rights reserved.
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file.
+*/
 
 #include "rdb_decoder.h"
 #include "util/bytes.h"

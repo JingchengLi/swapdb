@@ -10,7 +10,7 @@ found in the LICENSE file.
 #include "util/app.h"
 #include "serv.h"
 
-#define APP_NAME "ssdb-server"
+#define APP_NAME "r2m_ssdb-server"
 #define APP_VERSION SSDB_VERSION
 #define APP_GIT_BUILD GIT_BUILD
 #define APP_BUILD_DATE BUILD_DATE
@@ -26,7 +26,7 @@ public:
 
 void MyApplication::welcome() {
     fprintf(stderr, "%s %s\n", APP_NAME, APP_VERSION);
-    fprintf(stderr, "Copyright (c) 2012-2015 ssdb.io\n");
+    fprintf(stderr, "Copyright (c) 2004-2017, JD.com Inc\n");
 //	fprintf(stderr,
 //            "　　　　　　 ,-､　　　 　 　　     　..-､\n"
 //			"　　  　　 ./::＼　　R2M-SSDB     ／:::ヽ\n"

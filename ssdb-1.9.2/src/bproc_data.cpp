@@ -1,6 +1,8 @@
-//
-// Created by zts on 17-2-16.
-//
+/*
+Copyright (c) 2004-2017, JD.com Inc. All rights reserved.
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file.
+*/
 #include <net/redis/redis_stream.h>
 #include <net/redis/transfer.h>
 #include "serv.h"

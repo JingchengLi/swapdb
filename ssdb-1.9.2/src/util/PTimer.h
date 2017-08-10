@@ -1,6 +1,8 @@
-//
-// Created by zts on 16-12-14.
-//
+/*
+Copyright (c) 2004-2017, JD.com Inc. All rights reserved.
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file.
+*/
 
 #ifndef SSDB_PTIMER_H
 #define SSDB_PTIMER_H

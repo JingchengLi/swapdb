@@ -1,7 +1,8 @@
-//
-// Created by zts on 17-6-12.
-//
-
+/*
+Copyright (c) 2004-2017, JD.com Inc. All rights reserved.
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file.
+*/
 #ifndef SSDB_T_LIST_H
 #define SSDB_T_LIST_H
 

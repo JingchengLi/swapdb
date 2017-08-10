@@ -1,11 +1,15 @@
-//
-// Created by zts on 17-4-27.
-//
+/*
+Copyright (c) 2004-2017, JD.com Inc. All rights reserved.
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file.
+*/
 #include "replication.h"
 #include "serv.h"
 
 #ifdef USE_SNAPPY
+
 #include <snappy.h>
+
 #else
 #include <util/cfree.h>
 extern "C" {
@@ -13,13 +17,9 @@ extern "C" {
 };
 #endif
 
-static void send_error_to_redis(Link *link);
-
 static void moveBufferSync(Buffer *dst, Buffer *src, bool compress);
 
-static void moveBufferAsync(ReplicationByIterator2 *job, Buffer *dst, Buffer *src, bool compress);
-
-static void saveStrToBuffer(Buffer *buffer, const Bytes &fit);
+static void moveBufferAsync(ReplicationByIterator2 *job, Buffer *dst, Buffer *input, bool compress);
 
 
 int ReplicationByIterator2::process() {
@@ -53,7 +53,7 @@ int ReplicationByIterator2::process() {
 
     Link *ssdb_slave_link = Link::connect((hnp.ip).c_str(), hnp.port);
     if (ssdb_slave_link == nullptr) {
-        log_error("[ReplicationByIterator2] fail to connect to slave ssdb %s!", hnp.String().c_str());
+        log_error("[ReplicationByIterator2] fail to connect to slave node %s!", hnp.String().c_str());
         log_debug("[ReplicationByIterator2] replic send snapshot failed!");
 
         reportError();
@@ -62,7 +62,7 @@ int ReplicationByIterator2::process() {
     }
 
     ssdb_slave_link->noblock(false);
-    std::vector<std::string> ssdb_sync_cmd({"ssdb_sync2", "replts" , str(replTs)});
+    std::vector<std::string> ssdb_sync_cmd({"ssdb_sync2", "replts", str(replTs)});
     if (heartbeat) {
         ssdb_sync_cmd.emplace_back("heartbeat");
         ssdb_sync_cmd.emplace_back("1");
@@ -189,7 +189,7 @@ int ReplicationByIterator2::process() {
                 if (link == master_link) {
                     log_info("[ReplicationByIterator2] link to redis broken");
                 } else if (link == ssdb_slave_link) {
-                    log_info("[ReplicationByIterator2] link to slave ssdb broken");
+                    log_info("[ReplicationByIterator2] link to slave node broken");
                     send_error_to_redis(master_link);
                 } else {
                     log_info("?????????????????????????????????WTF????????????????????????????????????????????????");
@@ -382,20 +382,6 @@ void ReplicationByIterator2::saveStrToBufferQuick(Buffer *buffer, const leveldb:
 }
 
 
-void send_error_to_redis(Link *link) {
-    if (link != nullptr) {
-        link->quick_send({"ok", "rr_transfer_snapshot unfinished"});
-        log_error("send rr_transfer_snapshot error!!");
-    }
-}
-
-
-void saveStrToBuffer(Buffer *buffer, const Bytes &fit) {
-    string val_len = replic_save_len((uint64_t) (fit.size()));
-    buffer->append(val_len);
-    buffer->append(fit);
-}
-
 void moveBufferSync(Buffer *dst, Buffer *src, bool compress) {
     saveStrToBuffer(dst, "mset");
     dst->append(replic_save_len((uint64_t) src->size()));
@@ -447,6 +433,43 @@ void moveBufferSync(Buffer *dst, Buffer *src, bool compress) {
     src->nice();
 }
 
+
+void ReplicationByIterator2::reportError() {
+    send_error_to_redis(client_link);
+    SSDBServer *serv = (SSDBServer *) ctx.net->data;
+
+    {
+        Locking<Mutex> l(&serv->replicState.rMutex);
+        serv->replicState.finishReplic(false);
+    }
+    delete client_link;
+    client_link = nullptr; //reset
+}
+
+int ReplicationByIterator2::callback(NetworkServer *nets, Fdevents *fdes) {
+
+    Link *master_link = client_link;
+    if (master_link != nullptr) {
+        log_debug("before send finish rr_link address:%lld", master_link);
+
+        if (master_link->quick_send({"ok", "rr_transfer_snapshot finished"}) <= 0) {
+            log_error("The link write error, delete link! fd:%d", master_link->fd());
+            fdes->del(master_link->fd());
+            delete master_link;
+        } else {
+            nets->link_count++;
+
+            master_link->noblock(true);
+            fdes->set(master_link->fd(), FDEVENT_IN, 1, master_link);
+        }
+    } else {
+        log_error("The link from redis is off!");
+    }
+
+    return 0;
+}
+
+
 void moveBufferAsync(ReplicationByIterator2 *job, Buffer *dst, Buffer *input, bool compress) {
     if (!compress && input != nullptr) {
         return moveBufferSync(dst, input, false);
@@ -473,17 +496,11 @@ void moveBufferAsync(ReplicationByIterator2 *job, Buffer *dst, Buffer *input, bo
             dst->append(buf.out.data(), (int) comprlen);
         }
 
-//        delete buf.in;
     }
 
 
     if (input != nullptr) {
-//        auto copy = new Buffer(input->size());
-//        copy->append(input->data(), input->size());
-//        input->decr(input->size());
-//        input->nice();
 
-//        auto copy = new Buffer(input->size());
         swap(job->buffer2, input);
 
         job->bg = std::async(std::launch::async, [](Buffer *b) {
@@ -502,7 +519,6 @@ void moveBufferAsync(ReplicationByIterator2 *job, Buffer *dst, Buffer *input, bo
 
             }
 #else
-
             /**
              * when src->size() is small , comprlen may longer than outlen , which cause lzf_compress failed
              * and lzf_compress return 0 , so :so
