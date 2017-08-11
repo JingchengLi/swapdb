@@ -32,7 +32,7 @@ int SSDBImpl::eget(Context &ctx, const Bytes &key, int64_t *ts) {
 
     std::string str_score;
     std::string dbkey = encode_eset_key(key);
-    bool found = true;
+//    bool found = true;
 
     leveldb::Status s;
 

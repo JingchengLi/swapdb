@@ -11,7 +11,7 @@ found in the LICENSE file.
 
 int SSDBImpl::GetKvMetaVal(const std::string &meta_key, KvMetaVal &kv) {
     std::string meta_val;
-    bool found = true;
+//    bool found = true;
 
     leveldb::Status s;
 
