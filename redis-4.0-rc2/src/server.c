@@ -978,22 +978,7 @@ void reconnectSSDB() {
     int total_ssdb_conn = 0;
     int total_ssdb_disconnected = 0;
 
-#ifdef TEST_MEM_CRASH
-    int mem_protect = 1;
-    if (!server.ssdb_client)
-        mem_protect = 0;
-#endif
-
     RECONNECT_SPECIAL_CLIENT(server.ssdb_client);
-#ifdef TEST_MEM_CRASH
-    if (0 == mem_protect) {
-        sdsfree(server.ssdb_client->querybuf);
-        server.ssdb_client->querybuf = sdsempty();
-        server.ssdb_client->querybuf = algin_sdsnewlen(NULL, 0);
-        void* mem = server.ssdb_client->querybuf - sdsHdrSize((server.ssdb_client->querybuf)[-1]);
-        protectMemWrite(mem, SDS_MEM_SIZE(server.ssdb_client->querybuf));
-    }
-#endif
     RECONNECT_SPECIAL_CLIENT(server.delete_confirm_client);
 
     /* if ssdb is down before this, we just try two connections. avoid too many

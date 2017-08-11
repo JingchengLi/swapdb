@@ -102,15 +102,9 @@ typedef long long mstime_t; /* millisecond time type. */
 
 #define SSDB_SLAVE_PORT_INCR 20000 /* SSDB port = redis port + PORT_INCR */
 
-/* Macros for jdjr test cases */
+/* Macros for test cases */
 //#define TEST_CLIENT_BUF
-//#define TEST_MEM_CRASH
 //#define TEST_INCR_CONCURRENT
-
-#ifdef TEST_MEM_CRASH
-#include "memprotect.h"
-int memalign_ssdb_client;
-#endif
 
 #ifdef TEST_INCR_CONCURRENT
 long long test_incr_id;
@@ -2396,15 +2390,9 @@ void tryInsertColdPool(struct evictionPoolEntry *pool, sds key, int dbid, unsign
 
 #if defined(__GNUC__)
 void *calloc(size_t count, size_t size) __attribute__ ((deprecated));
-#ifndef TEST_MEM_CRASH
 void free(void *ptr) __attribute__ ((deprecated));
-#endif
 void *malloc(size_t size) __attribute__ ((deprecated));
 void *realloc(void *ptr, size_t size) __attribute__ ((deprecated));
-#endif
-
-#ifdef TEST_MEM_CRASH
-client* createReuseClient(client* reuse, int fd);
 #endif
 
 /* Debugging stuff */
