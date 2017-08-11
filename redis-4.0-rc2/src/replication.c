@@ -166,12 +166,12 @@ void feedReplicationBacklogWithObject(robj *o) {
 }
 
 void enableSlaveToPropagate(client *slave) {
-    if (server.jdjr_mode && slave->replstate == SLAVE_STATE_SEND_BULK_FINISHED)
+    if (server.swap_mode && slave->replstate == SLAVE_STATE_SEND_BULK_FINISHED)
         slave->flags |= CLIENT_SLAVE_FORCE_PROPAGATE;
 }
 
 void disableSlaveToPropagate(client *slave) {
-    if (server.jdjr_mode && slave->replstate == SLAVE_STATE_SEND_BULK_FINISHED)
+    if (server.swap_mode && slave->replstate == SLAVE_STATE_SEND_BULK_FINISHED)
         slave->flags &= ~CLIENT_SLAVE_FORCE_PROPAGATE;
 }
 
@@ -200,9 +200,9 @@ void replicationFeedSlaves(list *slaves, int dictid, robj **argv, int argc) {
     /* We can't have slaves attached and no backlog. */
     serverAssert(!(listLength(slaves) != 0 && server.repl_backlog == NULL));
 
-    /* in jdjr mode, we only use dbid 0 to propagate command to slaves. to
+    /* in swap mode, we only use dbid 0 to propagate command to slaves. to
      * avoid some issues because of inconsistent hot/cold keys. */
-    if (server.jdjr_mode) {
+    if (server.swap_mode) {
         dictid = 0;
     }
 
@@ -455,7 +455,7 @@ int replicationSetupSlaveForFullResync(client *slave, long long offset) {
     /* Don't send this reply to slaves that approached us with
      * the old SYNC command. */
     if (!(slave->flags & CLIENT_PRE_PSYNC)) {
-        if (server.jdjr_mode)
+        if (server.swap_mode)
             buflen = snprintf(buf,sizeof(buf),"+FULLRESYNC %s %lld %lld\r\n",
                               server.replid,offset, server.ssdb_snapshot_timestamp);
         else
@@ -629,7 +629,7 @@ int startBgsaveForReplication(int mincapa) {
                 slave->flags |= CLIENT_CLOSE_AFTER_REPLY;
             }
         }
-        if (server.jdjr_mode && server.use_customized_replication) {
+        if (server.swap_mode && server.use_customized_replication) {
             server.ssdb_status = SSDB_NONE;
         }
         return retval;
@@ -718,9 +718,9 @@ void syncCommand(client *c) {
     /* ignore SYNC if already slave or in monitor mode */
     if (c->flags & CLIENT_SLAVE) return;
 
-    if (server.masterhost && server.jdjr_mode) {
-        addReplyError(c, "don't support psync/sync for slave server in jdjr mode");
-        serverLog(LL_DEBUG, "don't support psync/sync for slave server in jdjr mode");
+    if (server.masterhost && server.swap_mode) {
+        addReplyError(c, "don't support psync/sync for slave server in swap mode");
+        serverLog(LL_DEBUG, "don't support psync/sync for slave server in swap mode");
         freeClientAsync(c);
         return;
     }
@@ -795,7 +795,7 @@ void syncCommand(client *c) {
         createReplicationBacklog();
     }
 
-    if (server.jdjr_mode && server.use_customized_replication) {
+    if (server.swap_mode && server.use_customized_replication) {
         if (server.ssdb_status > SSDB_NONE) {
             /* at least one slave is doing replication.*/
             client *slave;
@@ -891,7 +891,7 @@ void syncCommand(client *c) {
 
     /* CASE 3: There is no BGSAVE is progress. */
     } else {
-        if (server.jdjr_mode && server.use_customized_replication) {
+        if (server.swap_mode && server.use_customized_replication) {
             /* start BGSAVE in replicationCron. do nothing here*/
         } else if (server.repl_diskless_sync && (c->slave_capa & SLAVE_CAPA_EOF)) {
             /* Diskless replication RDB child is created inside
@@ -1010,8 +1010,8 @@ void putSlaveOnline(client *slave) {
     slave->replstate = SLAVE_STATE_ONLINE;
     slave->repl_put_online_on_ack = 0;
     slave->repl_ack_time = server.unixtime; /* Prevent false timeout. */
-    if (server.jdjr_mode) {
-        /* for jdjr mode, we install write event handler when RDB transfer
+    if (server.swap_mode) {
+        /* for swap mode, we install write event handler when RDB transfer
          * is done(may SSDB snapshot transfer is going on), and our slave will
          * receive increment updates and buffer them in server.ssdb_write_oplist.
          * avoid to overflow output buffer. */
@@ -1081,10 +1081,10 @@ void sendBulkToSlave(aeEventLoop *el, int fd, void *privdata, int mask) {
         slave->repldbfd = -1;
         aeDeleteFileEvent(server.el,slave->fd,AE_WRITABLE);
 
-        if (server.jdjr_mode && server.use_customized_replication) {
+        if (server.swap_mode && server.use_customized_replication) {
             slave->replstate = SLAVE_STATE_SEND_BULK_FINISHED;
             serverLog(LL_DEBUG, "Replication log: slave->replstate: SLAVE_STATE_SEND_BULK_FINISHED");
-            /* for jdjr mode, we install write event handler when RDB transfer
+            /* for swap mode, we install write event handler when RDB transfer
              * is done(may SSDB snapshot transfer is going on), and our slave will
              * receive increment updates and buffer them in server.ssdb_write_oplist.
              * avoid to overflow output buffer. */
@@ -1165,7 +1165,7 @@ void updateSlavesWaitingBgsave(int bgsaveerr, int type) {
                 slave->replpreamble = sdscatprintf(sdsempty(),"$%lld\r\n",
                     (unsigned long long) slave->repldbsize);
 
-                if (server.jdjr_mode && server.use_customized_replication) {
+                if (server.swap_mode && server.use_customized_replication) {
                     slave->ssdb_status = SLAVE_SSDB_SNAPSHOT_TRANSFER_PRE;
                 } else {
                     aeDeleteFileEvent(server.el,slave->fd,AE_WRITABLE);
@@ -1281,7 +1281,7 @@ void restartAOF() {
     }
 }
 
-/* in jdjr_mode, slave redis don't know the SSDB snapshot transfer state,
+/* in swap_mode, slave redis don't know the SSDB snapshot transfer state,
  * add this command so SSDB can send notify message to its redis after
  * snapshot transfer completed or aborted. */
 void ssdbNotifyCommand(client* c) {
@@ -1347,7 +1347,7 @@ void completeReplicationHandshake() {
         serverLog(LL_DEBUG, "apply increment updates on SSDB");
     }
 
-    if (server.jdjr_mode) {
+    if (server.swap_mode) {
         server.ssdb_repl_state = REPL_STATE_NONE;
         server.slave_ssdb_transfer_snapshot_keepalive = -1;
     }
@@ -1522,7 +1522,7 @@ void readSyncBulkPayload(aeEventLoop *el, int fd, void *privdata, int mask) {
          * RDB, otherwise we'll create a copy-on-write disaster. */
         if (aof_is_enabled) stopAppendOnly();
         signalFlushedDb(-1);
-        if (server.jdjr_mode) {
+        if (server.swap_mode) {
             emptySlaveSSDBwriteOperations();
             cleanSpecialClientsAndIntermediateKeys(1);
         }
@@ -1546,7 +1546,7 @@ void readSyncBulkPayload(aeEventLoop *el, int fd, void *privdata, int mask) {
             return;
         }
 
-        if (server.jdjr_mode) {
+        if (server.swap_mode) {
             server.repl_state = REPL_STATE_TRANSFER_END;
 
              /* Restart the AOF subsystem now that we finished the sync. This
@@ -1789,13 +1789,13 @@ int slaveTryPartialResynchronization(int fd, int read_reply) {
             offset = strchr(replid,' ');
             if (offset) {
                 offset++;
-                if (server.jdjr_mode) {
+                if (server.swap_mode) {
                     ssdb_snapshot_timestamp = strchr(offset, ' ');
                     if (ssdb_snapshot_timestamp) ssdb_snapshot_timestamp++;
                 }
             }
         }
-        if (!replid || !offset || (offset-replid-1) != CONFIG_RUN_ID_SIZE || (server.jdjr_mode && !ssdb_snapshot_timestamp)) {
+        if (!replid || !offset || (offset-replid-1) != CONFIG_RUN_ID_SIZE || (server.swap_mode && !ssdb_snapshot_timestamp)) {
             serverLog(LL_WARNING,
                 "Master replied with wrong +FULLRESYNC syntax.");
             /* This is an unexpected condition, actually the +FULLRESYNC
@@ -1807,7 +1807,7 @@ int slaveTryPartialResynchronization(int fd, int read_reply) {
             memcpy(server.master_replid, replid, offset-replid-1);
             server.master_replid[CONFIG_RUN_ID_SIZE] = '\0';
             server.master_initial_offset = strtoll(offset,NULL,10);
-            if (server.jdjr_mode)
+            if (server.swap_mode)
                 server.ssdb_snapshot_timestamp = strtoll(ssdb_snapshot_timestamp,NULL,10);
             serverLog(LL_NOTICE,"Full resync from master: %s:%lld:%lld",
                 server.master_replid,
@@ -2196,7 +2196,7 @@ int connectWithMaster(void) {
     server.repl_transfer_lastio = server.unixtime;
     server.repl_transfer_s = fd;
     server.repl_state = REPL_STATE_CONNECTING;
-    if (server.jdjr_mode) {
+    if (server.swap_mode) {
         server.ssdb_repl_state = REPL_STATE_NONE;
         server.ssdb_snapshot_timestamp = -1;
     }
@@ -2222,7 +2222,7 @@ void undoConnectWithMaster(void) {
  */
 void replicationAbortSyncTransfer(void) {
     serverAssert(server.repl_state == REPL_STATE_TRANSFER ||
-                 (server.jdjr_mode && server.repl_state == REPL_STATE_TRANSFER_END));
+                 (server.swap_mode && server.repl_state == REPL_STATE_TRANSFER_END));
     undoConnectWithMaster();
     close(server.repl_transfer_fd);
     unlink(server.repl_transfer_tmpfile);
@@ -2238,12 +2238,12 @@ void replicationAbortSyncTransfer(void) {
  *
  * Otherwise zero is returned and no operation is perforemd at all. */
 int cancelReplicationHandshake(void) {
-    if (server.jdjr_mode) {
+    if (server.swap_mode) {
         server.ssdb_repl_state = REPL_STATE_NONE;
         server.slave_ssdb_transfer_snapshot_keepalive = -1;
     }
     if (server.repl_state == REPL_STATE_TRANSFER ||
-        (server.jdjr_mode && server.repl_state == REPL_STATE_TRANSFER_END)) {
+        (server.swap_mode && server.repl_state == REPL_STATE_TRANSFER_END)) {
         replicationAbortSyncTransfer();
         server.repl_state = REPL_STATE_CONNECT;
     } else if (server.repl_state == REPL_STATE_CONNECTING ||
@@ -2261,7 +2261,7 @@ int cancelReplicationHandshake(void) {
 void replicationSetMaster(char *ip, int port) {
     int was_master = server.masterhost == NULL;
 
-    if (server.jdjr_mode)
+    if (server.swap_mode)
         cleanSpecialClientsAndIntermediateKeys(0);
 
     sdsfree(server.masterhost);
@@ -2287,7 +2287,7 @@ void replicationSetMaster(char *ip, int port) {
 void replicationUnsetMaster(void) {
     if (server.masterhost == NULL) return; /* Nothing to do. */
 
-    if (server.jdjr_mode) {
+    if (server.swap_mode) {
         emptySlaveSSDBwriteOperations();
         cleanSpecialClientsAndIntermediateKeys(0);
     }
@@ -2546,7 +2546,7 @@ void replicationResurrectCachedMaster(int newfd) {
     server.cached_master = NULL;
     server.master->fd = newfd;
     server.master->flags &= ~(CLIENT_CLOSE_AFTER_REPLY|CLIENT_CLOSE_ASAP);
-    if (server.jdjr_mode) server.master->flags &= ~CLIENT_BUFFER_HAS_UNPROCESSED_DATA;
+    if (server.swap_mode) server.master->flags &= ~CLIENT_BUFFER_HAS_UNPROCESSED_DATA;
     server.master->authenticated = 1;
     server.master->lastinteraction = server.unixtime;
     server.repl_state = REPL_STATE_CONNECTED;
@@ -2569,7 +2569,7 @@ void replicationResurrectCachedMaster(int newfd) {
         }
     }
 
-    if (server.jdjr_mode && !server.master->context) {
+    if (server.swap_mode && !server.master->context) {
         if (C_OK != nonBlockConnectToSsdbServer(server.master)) {
             /* will reconnect if we can't connect SSDB here. */
             serverLog(LL_WARNING,"resurrecting the cached master, can't connect SSDB");
@@ -2914,7 +2914,7 @@ void replicationCron(void) {
 
     /* when RDB transfer is done but SSDB snapshot transfer have not, we check whether it's ok now
      * or we don't receive notify message from SSDB for a long time. */
-    if (server.jdjr_mode && server.masterhost && server.repl_state == REPL_STATE_TRANSFER_END) {
+    if (server.swap_mode && server.masterhost && server.repl_state == REPL_STATE_TRANSFER_END) {
         if (server.ssdb_repl_state == REPL_STATE_TRANSFER_SSDB_SNAPSHOT_END) {
             /* RDB and SSDB snapshot transfer is done, now it's time to complete replication handshake. */
             serverLog(LL_DEBUG, "SSDB snapshot receiving complete, establish replication handshake success.");
@@ -2973,7 +2973,7 @@ void replicationCron(void) {
     }
 
     /* Process the case of ssdb write check timeout or ssdb make snapshot failed. */
-    if (server.jdjr_mode && server.use_customized_replication) {
+    if (server.swap_mode && server.use_customized_replication) {
         /* TODO : use a reasonable timeout to replace 5 seconds. */
         if (server.check_write_begin_time != -1
              && (server.unixtime - server.check_write_begin_time > 5))
@@ -3023,7 +3023,7 @@ void replicationCron(void) {
 
         serverLog(LL_DEBUG, "Replication log: server.ssdb_status: %d, slave->ssdb_status: %d, slave->replstate: %d",
                   server.ssdb_status, slave->ssdb_status, slave->replstate);
-        if (server.jdjr_mode && server.use_customized_replication
+        if (server.swap_mode && server.use_customized_replication
             && (server.ssdb_status == MASTER_SSDB_SNAPSHOT_OK)
             && (slave->ssdb_status == SLAVE_SSDB_SNAPSHOT_TRANSFER_PRE)) {
             char buf[64];
@@ -3061,7 +3061,7 @@ void replicationCron(void) {
             }
         }
 
-        if (server.jdjr_mode && server.use_customized_replication) {
+        if (server.swap_mode && server.use_customized_replication) {
             if (slave->ssdb_status == SLAVE_SSDB_SNAPSHOT_TRANSFER_START &&
                 (server.unixtime - slave->transfer_snapshot_last_keepalive_time)
                     > server.master_transfer_ssdb_snapshot_timeout) {
@@ -3085,7 +3085,7 @@ void replicationCron(void) {
         server.ssdb_status = SSDB_NONE;
     }
 
-    if (server.jdjr_mode && server.use_customized_replication
+    if (server.swap_mode && server.use_customized_replication
         && server.ssdb_status == MASTER_SSDB_SNAPSHOT_OK) {
         int has_slave_in_transfer = 0;
         int max_replstate = REPL_STATE_NONE;
@@ -3117,7 +3117,7 @@ void replicationCron(void) {
         }
     }
 
-    if (server.jdjr_mode && server.use_customized_replication &&
+    if (server.swap_mode && server.use_customized_replication &&
                             server.ssdb_status == SSDB_NONE && server.retry_del_snapshot) {
         sendDelSSDBsnapshot();
     }
@@ -3179,7 +3179,7 @@ void replicationCron(void) {
      * number of seconds (according to configuration) so that other slaves
      * have the time to arrive before we start streaming. */
 
-    /* in jdjr_mode, we delay BGSAVE til the redis RDB and ssdb data send
+    /* in swap_mode, we delay BGSAVE til the redis RDB and ssdb data send
      * completely, to avoid high network overload. */
     if (server.rdb_child_pid == -1 && server.aof_child_pid == -1) {
         time_t idle, max_idle = 0;
@@ -3199,7 +3199,7 @@ void replicationCron(void) {
                 mincapa = (mincapa == -1) ? slave->slave_capa :
                                             (mincapa & slave->slave_capa);
 
-                if (server.jdjr_mode && server.use_customized_replication) {
+                if (server.swap_mode && server.use_customized_replication) {
                     if (server.ssdb_status == MASTER_SSDB_SNAPSHOT_OK &&
                         slave->ssdb_status == SLAVE_SSDB_SNAPSHOT_IN_PROCESS) {
                         can_bgsave = 1;
@@ -3208,7 +3208,7 @@ void replicationCron(void) {
             }
         }
 
-        if (server.jdjr_mode && server.use_customized_replication) {
+        if (server.swap_mode && server.use_customized_replication) {
             if (can_bgsave) {
                 startBgsaveForReplication(mincapa);
                 server.is_allow_ssdb_write = ALLOW_SSDB_WRITE;

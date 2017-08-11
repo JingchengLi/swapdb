@@ -221,8 +221,8 @@ void loadServerConfigFromString(char *config) {
             if ((server.load_test_mode = yesnotoi(argv[1])) == -1) {
                 err = "argument must be 'yes' or 'no'"; goto loaderr;
             }
-        } else if (!strcasecmp(argv[0],"jdjr-mode") && argc == 2) {
-            if ((server.jdjr_mode = yesnotoi(argv[1])) == -1) {
+        } else if (!strcasecmp(argv[0],"swap-mode") && argc == 2) {
+            if ((server.swap_mode = yesnotoi(argv[1])) == -1) {
                 err = "argument must be 'yes' or 'no'"; goto loaderr;
             }
         } else if (!strcasecmp(argv[0], "behave-as-ssdb") && argc == 2) {
@@ -868,7 +868,7 @@ void loadServerConfigFromString(char *config) {
         sdsfreesplitres(argv,argc);
     }
 
-    if (server.jdjr_mode) {
+    if (server.swap_mode) {
         server.dbnum += 1;
 
         if (server.ssdb_load_upper_limit > 0 &&
@@ -880,7 +880,7 @@ void loadServerConfigFromString(char *config) {
 
         server.maxmemory_policy |= MAXMEMORY_FLAG_LFU;
         server.maxmemory_policy &= ~MAXMEMORY_FLAG_LRU;
-        serverLog(LL_NOTICE, "Force maxmemory-policy with MAXMEMORY_FLAG_LFU in jdjr-mode. ");
+        serverLog(LL_NOTICE, "Force maxmemory-policy with MAXMEMORY_FLAG_LFU in swap-mode. ");
     }
 
     /* Sanity checks. */
@@ -1368,10 +1368,10 @@ void configSetCommand(client *c) {
       "loglevel",server.verbosity,loglevel_enum) {
     } config_set_enum_field(
       "maxmemory-policy",server.maxmemory_policy,maxmemory_policy_enum) {
-        if (server.jdjr_mode) {
+        if (server.swap_mode) {
             server.maxmemory_policy |= MAXMEMORY_FLAG_LFU;
             server.maxmemory_policy &= ~MAXMEMORY_FLAG_LRU;
-            serverLog(LL_NOTICE, "Force maxmemory-policy with MAXMEMORY_FLAG_LFU in jdjr-mode. ");
+            serverLog(LL_NOTICE, "Force maxmemory-policy with MAXMEMORY_FLAG_LFU in swap-mode. ");
         }
     } config_set_enum_field(
       "appendfsync",server.aof_fsync,aof_fsync_enum) {
@@ -1545,7 +1545,7 @@ void configGetCommand(client *c) {
     config_get_bool_field("activerehashing", server.activerehashing);
     config_get_bool_field("activedefrag", server.active_defrag_enabled);
     config_get_bool_field("protected-mode", server.protected_mode);
-    config_get_bool_field("jdjr-mode", server.jdjr_mode);
+    config_get_bool_field("swap-mode", server.swap_mode);
     config_get_bool_field("load-test-mode", server.load_test_mode);
     config_get_bool_field("behave-as-ssdb", server.behave_as_ssdb);
     config_get_bool_field("load-from-ssdb", server.load_from_ssdb);
@@ -2253,7 +2253,7 @@ int rewriteConfig(char *path) {
     rewriteConfigSyslogfacilityOption(state);
     rewriteConfigSaveOption(state);
     rewriteConfigSSDBloadRuleOption(state);
-    rewriteConfigNumericalOption(state,"databases", (server.jdjr_mode ? server.dbnum - 1 : server.dbnum),CONFIG_DEFAULT_DBNUM);
+    rewriteConfigNumericalOption(state,"databases", (server.swap_mode ? server.dbnum - 1 : server.dbnum),CONFIG_DEFAULT_DBNUM);
     rewriteConfigYesNoOption(state,"stop-writes-on-bgsave-error",server.stop_writes_on_bgsave_err,CONFIG_DEFAULT_STOP_WRITES_ON_BGSAVE_ERROR);
     rewriteConfigYesNoOption(state,"rdbcompression",server.rdb_compression,CONFIG_DEFAULT_RDB_COMPRESSION);
     rewriteConfigYesNoOption(state,"rdbchecksum",server.rdb_checksum,CONFIG_DEFAULT_RDB_CHECKSUM);
@@ -2330,7 +2330,7 @@ int rewriteConfig(char *path) {
     rewriteConfigYesNoOption(state,"activerehashing",server.activerehashing,CONFIG_DEFAULT_ACTIVE_REHASHING);
     rewriteConfigYesNoOption(state,"activedefrag",server.active_defrag_enabled,CONFIG_DEFAULT_ACTIVE_DEFRAG);
     rewriteConfigYesNoOption(state,"protected-mode",server.protected_mode,CONFIG_DEFAULT_PROTECTED_MODE);
-    rewriteConfigYesNoOption(state,"jdjr-mode",server.jdjr_mode,CONFIG_DEFAULT_JDJR_MODE);
+    rewriteConfigYesNoOption(state,"swap-mode",server.swap_mode,CONFIG_DEFAULT_SWAP_MODE);
     rewriteConfigYesNoOption(state,"load-test-mode",server.load_test_mode,0);
     rewriteConfigYesNoOption(state,"behave-as-ssdb",server.behave_as_ssdb,CONFIG_DEFAULT_BEHAVE_AS_SSDB);
     rewriteConfigYesNoOption(state,"load-from-ssdb",server.load_from_ssdb,CONFIG_DEFAULT_LOAD_FROM_SSDB);

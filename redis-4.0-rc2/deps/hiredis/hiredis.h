@@ -216,7 +216,7 @@ void *redisvCommand(redisContext *c, const char *format, va_list ap);
 void *redisCommand(redisContext *c, const char *format, ...);
 void *redisCommandArgv(redisContext *c, int argc, const char **argv, const size_t *argvlen);
 
-/* for jdjr_mode only */
+/* for swap_mode only */
 void discardSSDBreaderBuffer(redisReader *r);
 int redisGetReplyFromReader(redisContext *c, void **reply, int* reply_len);
 int redisGetSSDBreplyFromReader(redisContext *c, void **reply, int* reply_len);

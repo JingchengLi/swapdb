@@ -2899,7 +2899,7 @@ void clusterHandleSlaveFailover(void) {
         }
     }
 
-    if (server.jdjr_mode) {
+    if (server.swap_mode) {
         if (!manual_failover && listLength(server.ssdb_write_oplist) > 0
             && ((server.master && !(server.master->ssdb_conn_flags & CONN_SUCCESS))
                 || (server.cached_master && !(server.cached_master->ssdb_conn_flags & CONN_SUCCESS)))) {
@@ -3185,7 +3185,7 @@ void clusterHandleManualFailover(void) {
     if (server.cluster->mf_master_offset == 0) return; /* Wait for offset... */
 
     if (server.cluster->mf_master_offset == replicationGetSlaveOffset() &&
-            (!server.jdjr_mode || (server.jdjr_mode && 0 == listLength(server.ssdb_write_oplist)))) {
+            (!server.swap_mode || (server.swap_mode && 0 == listLength(server.ssdb_write_oplist)))) {
         /* Our replication offset matches the master replication offset
          * announced after clients were paused. We can start the failover. */
         server.cluster->mf_can_start = 1;
@@ -3768,7 +3768,7 @@ int verifyClusterConfigWithData(void) {
 
     /* Make sure we only have keys in DB0. */
     for (j = 1; j < server.dbnum; j++) {
-        if (server.jdjr_mode && j == EVICTED_DATA_DBID) continue;
+        if (server.swap_mode && j == EVICTED_DATA_DBID) continue;
 
         if (dictSize(server.db[j].dict)) return C_ERR;
     }
@@ -4119,7 +4119,7 @@ void clusterCommand(client *c) {
     } else if (!strcasecmp(c->argv[1]->ptr,"flushslots") && c->argc == 2) {
         /* CLUSTER FLUSHSLOTS */
         if (dictSize(server.db[0].dict) != 0 ||
-                (server.jdjr_mode && dictSize(EVICTED_DATA_DB->dict) != 0)) {
+                (server.swap_mode && dictSize(EVICTED_DATA_DB->dict) != 0)) {
             addReplyError(c,"DB must be empty to perform CLUSTER FLUSHSLOTS.");
             return;
         }
@@ -4455,7 +4455,7 @@ void clusterCommand(client *c) {
          * Slaves can switch to another master without issues. */
         if ((nodeIsMaster(myself) &&
              (myself->numslots != 0 || dictSize(server.db[0].dict) != 0)) ||
-                (server.jdjr_mode && dictSize(EVICTED_DATA_DB->dict) != 0)) {
+                (server.swap_mode && dictSize(EVICTED_DATA_DB->dict) != 0)) {
             addReplyError(c,
                 "To set a master the node must be empty and "
                 "without assigned slots.");
@@ -4727,7 +4727,7 @@ void restoreCommand(client *c) {
         return;
     }
 
-    if (server.jdjr_mode
+    if (server.swap_mode
         && !replace
         && ((!strcasecmp(c->cmd->name, "restoressdbkey")
              || !strcasecmp(c->cmd->name, "restore-asking"))
@@ -4782,8 +4782,8 @@ void ssdbRespDelCommand(client *c) {
 
     preventCommandPropagation(c);
 
-    if (!server.jdjr_mode) {
-        addReplyErrorFormat(c,"Command only supported in jdjr-mode '%s'",
+    if (!server.swap_mode) {
+        addReplyErrorFormat(c,"Command only supported in swap-mode '%s'",
                             (char *)c->argv[0]->ptr);
         return;
     }
@@ -5032,8 +5032,8 @@ void storetossdbCommand(client *c) {
 
     preventCommandPropagation(c);
 
-    if (!server.jdjr_mode) {
-        addReplyErrorFormat(c,"Command only supported in jdjr-mode '%s'",
+    if (!server.swap_mode) {
+        addReplyErrorFormat(c,"Command only supported in swap-mode '%s'",
                             (char*)c->argv[0]->ptr);
         return;
     }
@@ -5085,8 +5085,8 @@ void storetossdbCommand(client *c) {
 void dumpfromssdbCommand(client *c) {
     robj *keyobj = c->argv[1];
 
-    if (!server.jdjr_mode) {
-        addReplyErrorFormat(c,"Command only supported in jdjr-mode '%s'",
+    if (!server.swap_mode) {
+        addReplyErrorFormat(c,"Command only supported in swap-mode '%s'",
                             (char*)c->argv[0]->ptr);
         return;
     }
@@ -5350,7 +5350,7 @@ try_again:
             serverAssertWithInfo(c,NULL,
                 rioWriteBulkString(&cmd,"RESTORE-ASKING",14));
         else {
-            if (server.jdjr_mode)
+            if (server.swap_mode)
                 serverAssertWithInfo(c,NULL,rioWriteBulkString(&cmd,"RESTORESSDBKEY",14));
             else
                 serverAssertWithInfo(c,NULL,rioWriteBulkString(&cmd,"RESTORE",7));
@@ -5364,7 +5364,7 @@ try_again:
         /* Emit the payload argument, that is the serialized object using
          * the DUMP format. */
         createDumpPayload(&payload,ov[j]);
-        if (server.jdjr_mode && (c->flags & BLOCKED_MIGRATING_DUMP))
+        if (server.swap_mode && (c->flags & BLOCKED_MIGRATING_DUMP))
             /* c->ssdb_replies will be free later. */
             serverAssertWithInfo(c,NULL,
                                  rioWriteBulkString(&cmd,c->ssdb_replies[0]->str,
@@ -5430,7 +5430,7 @@ try_again:
         } else {
             if (!copy) {
                 /* No COPY option: remove the local key, signal the change. */
-                if (server.jdjr_mode && (c->flags & BLOCKED_MIGRATING_DUMP)) {
+                if (server.swap_mode && (c->flags & BLOCKED_MIGRATING_DUMP)) {
                     char *argv[2];
                     sds delcmd;
                     redisReply *replies[2] = {0};
@@ -5787,7 +5787,7 @@ clusterNode *getNodeByQuery(client *c, struct redisCommand *cmd, robj **argv, in
 }
 
 int isSSDBrespCmd(struct redisCommand *cmd) {
-    if (server.jdjr_mode && cmd
+    if (server.swap_mode && cmd
         && (cmd->proc == ssdbRespDelCommand
             || cmd->proc == ssdbRespRestoreCommand
             || cmd->proc == ssdbRespFailCommand

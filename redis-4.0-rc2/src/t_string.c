@@ -84,7 +84,7 @@ void setGenericCommand(client *c, int flags, robj *key, robj *val, robj *expire,
         return;
     }
 
-    if (server.jdjr_mode && server.behave_as_ssdb) {
+    if (server.swap_mode && server.behave_as_ssdb) {
         robj *o = lookupKey(c->db, key, LOOKUP_NOTOUCH);
         if (o && o->type != OBJ_STRING) {
             addReply(c,shared.wrongtypeerr);

@@ -157,7 +157,7 @@ void evictionPoolAlloc(void) {
         ep[j].dbid = 0;
     }
     EvictionPoolLRU = ep;
-    if (server.jdjr_mode) {
+    if (server.swap_mode) {
         ep = zmalloc(sizeof(*ep)*EVPOOL_SIZE);
         for (j = 0; j < EVPOOL_SIZE; j++) {
             ep[j].idle = 0;
@@ -401,7 +401,7 @@ void coldKeyPopulate(dict *sampledict, struct evictionPoolEntry *pool) {
              * first. So inside the pool we put objects using the inverted
              * frequency subtracting the actual frequency to the maximum
              * frequency of 255. */
-            if (server.jdjr_mode) {
+            if (server.swap_mode) {
                 idle = 255-KeyLFUDecrAndReturn(key);
             } else {
                 robj* o = dictGetVal(de);
@@ -439,7 +439,7 @@ void evictionPoolPopulate(int dbid, dict *sampledict, dict *keydict, struct evic
         key = dictGetKey(de);
 
         /* skip the keys already in "transfering" state. */
-        if (server.jdjr_mode && dictFind(EVICTED_DATA_DB->transferring_keys, key) != NULL)
+        if (server.swap_mode && dictFind(EVICTED_DATA_DB->transferring_keys, key) != NULL)
             continue;
 
         /* If the dictionary we are sampling from is not the main
@@ -463,7 +463,7 @@ void evictionPoolPopulate(int dbid, dict *sampledict, dict *keydict, struct evic
              * first. So inside the pool we put objects using the inverted
              * frequency subtracting the actual frequency to the maximum
              * frequency of 255. */
-            if (server.jdjr_mode) {
+            if (server.swap_mode) {
                 idle = 255-KeyLFUDecrAndReturn(key);
             } else {
                 idle = 255-LFUDecrAndReturn(o);
@@ -567,7 +567,7 @@ unsigned long LFUDecrAndReturn(robj *o) {
     return counter;
 }
 
-/* in jdjr_mode, the lfu info is stored in the sds header of db key. */
+/* in swap_mode, the lfu info is stored in the sds header of db key. */
 unsigned long KeyLFUDecrAndReturn(sds key) {
     unsigned int lfu = sdsgetlfu(key);
     unsigned long ldt = lfu >> 8;
@@ -1028,7 +1028,7 @@ int freeMemoryIfNeeded(void) {
                  * so to start populate the eviction pool sampling keys from
                  * every DB. */
                 for (i = 0; i < server.dbnum; i++) {
-                    if (server.jdjr_mode && i == EVICTED_DATA_DBID) continue;
+                    if (server.swap_mode && i == EVICTED_DATA_DBID) continue;
 
                     db = server.db+i;
                     dict = (server.maxmemory_policy & MAXMEMORY_FLAG_ALLKEYS) ?
@@ -1042,7 +1042,7 @@ int freeMemoryIfNeeded(void) {
 
                 /* If total_keys < dictSize of EVICTED_DATA_DB->transferring_keys,
                  the loop happens to be endless. */
-                if (server.jdjr_mode
+                if (server.swap_mode
                     && total_keys <= dictSize(EVICTED_DATA_DB->transferring_keys))
                     break;
 
@@ -1060,7 +1060,7 @@ int freeMemoryIfNeeded(void) {
                             pool[k].key);
                     }
 
-                    if (server.jdjr_mode
+                    if (server.swap_mode
                         && dictFind(EVICTED_DATA_DB->transferring_keys, pool[k].key) != NULL)
                         key_is_transfering = 1;
 
@@ -1070,7 +1070,7 @@ int freeMemoryIfNeeded(void) {
                     pool[k].key = NULL;
                     pool[k].idle = 0;
 
-                    if (server.jdjr_mode && key_is_transfering) {
+                    if (server.swap_mode && key_is_transfering) {
                         continue;
                     }
 
@@ -1084,7 +1084,7 @@ int freeMemoryIfNeeded(void) {
 
                         /* I think there are the following cases:
                          * 1. the key maybe had been deleted after pushed into eviction pool.
-                         * 2. in jdjr_mode, the key maybe had been transfered to SSDB after
+                         * 2. in swap_mode, the key maybe had been transfered to SSDB after
                          * pushed into eviction pool.
                          * */
                     }
@@ -1118,7 +1118,7 @@ int freeMemoryIfNeeded(void) {
             db = server.db+bestdbid;
             robj *keyobj = createStringObject(bestkey,sdslen(bestkey));
 
-            if (server.jdjr_mode && 0 == checkBeforeExpire(db, keyobj)) continue;
+            if (server.swap_mode && 0 == checkBeforeExpire(db, keyobj)) continue;
 
             propagateExpire(db,keyobj,server.lazyfree_lazy_eviction);
             /* We compute the amount of memory freed by db*Delete() alone.

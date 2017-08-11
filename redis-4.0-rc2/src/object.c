@@ -48,7 +48,7 @@ robj *createObject(int type, void *ptr) {
     /* Set the LRU to the current lruclock (minutes resolution), or
      * alternatively the LFU counter. */
     if (server.maxmemory_policy & MAXMEMORY_FLAG_LFU) {
-        if (!server.jdjr_mode) {
+        if (!server.swap_mode) {
             o->lru = (LFUGetTimeInMinutes()<<8) | LFU_INIT_VAL;
         }
     } else {
@@ -92,7 +92,7 @@ robj *createEmbeddedStringObject(const char *ptr, size_t len) {
     o->ptr = sh+1;
     o->refcount = 1;
     if (server.maxmemory_policy & MAXMEMORY_FLAG_LFU) {
-        if (!server.jdjr_mode) {
+        if (!server.swap_mode) {
             o->lru = (LFUGetTimeInMinutes() << 8) | LFU_INIT_VAL;
         }
     } else {
@@ -1037,7 +1037,7 @@ void objectCommand(client *c) {
         sds db_key;
         long long counter;
         unsigned int lfu;
-        if (server.jdjr_mode) {
+        if (server.swap_mode) {
             if (((de = dictFind(c->db->dict,c->argv[2]->ptr)) == NULL) &&
                         ((ev_de = dictFind(EVICTED_DATA_DB->dict, c->argv[2]->ptr)) == NULL)) {
                 addReply(c, shared.nullbulk);

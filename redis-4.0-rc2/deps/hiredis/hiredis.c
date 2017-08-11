@@ -858,7 +858,7 @@ int redisBufferWrite(redisContext *c, int *done) {
 }
 
 /* we need to discard the consumed buffer by calling 'discardSSDBreaderBuffer'
- * after we process the raw reply string (for jdjr mode, we need
+ * after we process the raw reply string (for swap mode, we need
  * to preserve the raw reply string from SSDB and copy it to the client
  * buffer of redis). */
 int redisGetSSDBreplyFromReader(redisContext *c, void **reply, int* reply_len) {

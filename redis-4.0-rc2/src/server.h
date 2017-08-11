@@ -85,7 +85,7 @@ typedef long long mstime_t; /* millisecond time type. */
 #define C_BLOCKED               -6
 #define C_NO_EXPIRE             -7
 
-/* SSDB connection flags in jdjr_mode */
+/* SSDB connection flags in swap_mode */
 #define CONN_CONNECT_FAILED         (1<<0)
 #define CONN_CONNECTING             (1<<1)
 #define CONN_RECEIVE_INCREMENT_UPDATES (1<<2) /* for server.master only, when RDB file transfer
@@ -138,7 +138,7 @@ long long test_incr_id;
 #define AOF_READ_DIFF_INTERVAL_BYTES (1024*10)
 #define CONFIG_DEFAULT_SLOWLOG_LOG_SLOWER_THAN 10000
 #define CONFIG_DEFAULT_SLOWLOG_MAX_LEN 128
-/* for jdjr mode, maxclients is 10W */
+/* for swap mode, maxclients is 10W */
 //#define CONFIG_DEFAULT_MAX_CLIENTS 10000
 #define CONFIG_DEFAULT_MAX_CLIENTS 100000
 #define CONFIG_AUTHPASS_MAX_LEN 512
@@ -161,7 +161,7 @@ long long test_incr_id;
 #define CONFIG_DEFAULT_UNIX_SOCKET_PERM 0
 #define CONFIG_DEFAULT_TCP_KEEPALIVE 300
 #define CONFIG_DEFAULT_PROTECTED_MODE 1
-#define CONFIG_DEFAULT_JDJR_MODE 1
+#define CONFIG_DEFAULT_SWAP_MODE 1
 #define CONFIG_DEFAULT_BEHAVE_AS_SSDB 1
 #define CONFIG_DEFAULT_LOAD_FROM_SSDB 1
 #define CONFIG_DEFAULT_USE_CUSTOMIZED_REPLICATION 1
@@ -209,7 +209,7 @@ long long test_incr_id;
 #define CONFIG_DEFAULT_DEFRAG_CYCLE_MIN 25 /* 25% CPU min (at lower threshold) */
 #define CONFIG_DEFAULT_DEFRAG_CYCLE_MAX 75 /* 75% CPU max (at upper threshold) */
 
-/* jdjr-mode timeout configuration */
+/* swap-mode timeout configuration */
 #define CONFIG_DEFAULT_CLIENT_VISITING_SSDB_TIMEOUT 5000 /* Microseconds */
 #define CONFIG_DEFAULT_CLIENT_BLOCKED_BY_KEYS_TIMEOUT 5000 /* Microseconds */
 #define CONFIG_DEFAULT_CLIENT_BLOCKED_BY_FLUSHALL_TIMEOUT 5000 /* Microseconds */
@@ -268,9 +268,9 @@ long long test_incr_id;
 #define CMD_MODULE_GETKEYS (1<<14)  /* Use the modules getkeys interface. */
 #define CMD_MODULE_NO_CLUSTER (1<<15) /* Deny on Redis Cluster. */
 
-#define CMD_JDJR_MODE (1<<22)       /* "J" flag */
-#define CMD_JDJR_REDIS_ONLY (1<<23) /* "j" flag */
-#define CMD_JDJR_NOT_ALLOWED (1<<24)/* "n" flag */
+#define CMD_SWAP_MODE (1<<22)       /* "J" flag */
+#define CMD_SWAPMODE_REDIS_ONLY (1<<23) /* "j" flag */
+#define CMD_SWAPMODE_NOT_ALLOWED (1<<24)/* "n" flag */
 
 /* AOF states */
 #define AOF_OFF 0             /* AOF is off */
@@ -309,7 +309,7 @@ long long test_incr_id;
 #define CLIENT_LUA_DEBUG (1<<25)  /* Run EVAL in debug mode. */
 #define CLIENT_LUA_DEBUG_SYNC (1<<26)  /* EVAL debugging without fork() */
 #define CLIENT_MODULE (1<<27) /* Non connected client used by some module. */
-/* for jdjr mode only */
+/* for swap mode only */
 #define CLIENT_SLAVE_FORCE_PROPAGATE (1<<28) /* Force to propagate before SLAVE_STATE_ONLINE. */
 #define CLIENT_CLOSE_AFTER_SSDB_WRITE_PROPAGATE (1<<29) /* if the client is blocked by visiting ssdb, close after
  * we receive write reply from SSDB and propagate write operation to slaves, to avoid some data inconsistency because
@@ -377,9 +377,9 @@ long long test_incr_id;
 #define REPL_STATE_RECEIVE_PSYNC 13 /* Wait for PSYNC reply */
 /* --- End of handshake states --- */
 #define REPL_STATE_TRANSFER 14 /* Receiving .rdb from master */
-/*==========for jdjr_mode start==============*/
+/*==========for swap_mode start==============*/
 #define REPL_STATE_TRANSFER_END 15
-/*==========for jdjr_mode end  ==============*/
+/*==========for swap_mode end  ==============*/
 #define REPL_STATE_CONNECTED 16 /* Connected to master */
 /* if this instance is a slave, this indicates the status of
  * SSDB receive snapshot */
@@ -393,9 +393,9 @@ long long test_incr_id;
  * to start the next background saving in order to send updates to it. */
 #define SLAVE_STATE_WAIT_BGSAVE_START 6 /* We need to produce a new RDB file. */
 #define SLAVE_STATE_WAIT_BGSAVE_END 7 /* Waiting RDB file creation to finish. */
-#define SLAVE_STATE_SEND_BULK 8 /* Sending RDB file to slave. but for jdjr_mode, this
+#define SLAVE_STATE_SEND_BULK 8 /* Sending RDB file to slave. but for swap_mode, this
  * indicates RDB file is ready and we can send RDB. */
-#define SLAVE_STATE_SEND_BULK_FINISHED 9 /* for jdjr mode only, Finish sending RDB file to slave. */
+#define SLAVE_STATE_SEND_BULK_FINISHED 9 /* for swap mode only, Finish sending RDB file to slave. */
 #define SLAVE_STATE_ONLINE 10 /* RDB file transmitted, sending just updates. */
 
 /* Use by server.ssdb_status(master) and client.ssdb_status(slave). */
@@ -728,18 +728,18 @@ typedef struct redisDb {
     dict *ready_keys;           /* Blocked keys that received a PUSH */
     dict *watched_keys;         /* WATCHED keys for MULTI/EXEC CAS */
 
-    dict *ssdb_blocking_keys;   /* For jdjr_mode: Keys in loading/tranferring/delete_confirm state
+    dict *ssdb_blocking_keys;   /* For swap_mode: Keys in loading/tranferring/delete_confirm state
                                    from/to SSDB. */
-    dict *ssdb_ready_keys;      /* For jdjr_mode: Blocked keys that ssdb load/transfer ok. */
-    dict *blocking_keys_write_same_ssdbkey; /* For jdjr_mode: Blocked keys that some clients are
+    dict *ssdb_ready_keys;      /* For swap_mode: Blocked keys that ssdb load/transfer ok. */
+    dict *blocking_keys_write_same_ssdbkey; /* For swap_mode: Blocked keys that some clients are
                                              * blocked by another write on the same ssdb key */
     dict *transferring_keys;    /* Keys are in the process of transferring keys to SSDB. */
     dict *loading_hot_keys;     /* keys become hot and in loading state from SSDB. */
     dict *visiting_ssdb_keys;   /* Keys are visiting SSDB, including reading and writing. */
     dict *delete_confirm_keys;  /* need to confirm whether keys are deleted in SSDB when receive
                                  * 'check 1' responses for get like APIs or hdel like APIs. */
-    dict *migrating_ssdb_keys;  /* For jdjr-mode: record the migrating keys in ssdb. */
-    dict *ssdb_keys_to_clean;  /* For jdjr-mode: these keys are expired or evicted and need to tell ssdb to delete them. */
+    dict *migrating_ssdb_keys;  /* For swap-mode: record the migrating keys in ssdb. */
+    dict *ssdb_keys_to_clean;  /* For swap-mode: these keys are expired or evicted and need to tell ssdb to delete them. */
     int id;                     /* Database ID */
     long long avg_ttl;          /* Average TTL, just for stats */
 } redisDb;
@@ -859,14 +859,14 @@ typedef struct client {
     int bufpos;             /* the used lenth of buf. */
     char buf[PROTO_REPLY_CHUNK_BYTES];
 
-    redisContext *context;  /* Used by redis client in jdjr-mode. */
+    redisContext *context;  /* Used by redis client in swap-mode. */
     int ssdb_conn_flags;
     char ssdb_status; /* Record the ssdb state. */
 
     /* use this time to judge whether 'transfer snapshot' is timeout, if timeout,
      * we can disconnect the slave. */
     time_t transfer_snapshot_last_keepalive_time;
-    char client_ip[NET_IP_STR_LEN]; /* Used by customized-replication in jdjr-mode. */
+    char client_ip[NET_IP_STR_LEN]; /* Used by customized-replication in swap-mode. */
     redisReply *ssdb_replies[2]; /* Pointers for ssdb replies. */
     long long repl_timer_id; /* the timer event id which is used to delete the timer event. */
     int revert_len; /* save the length we have feed to c->buf or c->reply, we may need
@@ -904,9 +904,9 @@ struct sharedObjectsStruct {
 
     sds minstring, maxstring;
 
-    /* jdjr-mode shared obj. */
+    /* swap-mode shared obj. */
     robj *storecmdobj, *dumpcmdobj, *slavedelcmdobj, *rr_restoreobj;
-    /* jdjr-mdoe shared sds. */
+    /* swap-mdoe shared sds. */
     sds checkwriteok, checkwritenok, makesnapshotok, makesnapshotnok,
         transfersnapshotok, transfersnapshotnok, transfersnapshotfinished,
         transfersnapshotunfinished, transfersnapshotcontinue, delsnapshotok,
@@ -1107,7 +1107,7 @@ struct redisServer {
     dict *migrate_cached_sockets;/* MIGRATE cached sockets */
     uint64_t next_client_id;    /* Next client unique ID. Incremental. */
     int protected_mode;         /* Don't accept external connections. */
-    int jdjr_mode;              /* Tag for using jdjr customized mode. */
+    int swap_mode;              /* Tag for using swap customized mode. */
     int behave_as_ssdb;         /* Tag for the modification to behave the same as ssdb. */
     int load_from_ssdb;         /* Option for supporting whether loading from SSDB. */
     int use_customized_replication; /* Option for use customized replication. */
@@ -1140,7 +1140,7 @@ struct redisServer {
     double stat_fork_rate;          /* Fork rate in GB/sec. */
     long long stat_rejected_conn;   /* Clients rejected because of maxclients */
     long long stat_sync_full;       /* Number of full resyncs with slaves. */
-    long long stat_sync_full_ok;   /* Number of successful full resyncs with slaves only for JDJR mode. */
+    long long stat_sync_full_ok;   /* Number of successful full resyncs with slaves only for swap mode. */
     long long stat_sync_partial_ok; /* Number of accepted PSYNC requests. */
     long long stat_sync_partial_err;/* Number of unaccepted PSYNC requests. */
     list *slowlog;                  /* SLOWLOG list of commands */
@@ -1279,7 +1279,7 @@ struct redisServer {
     int repl_syncio_timeout; /* Timeout for synchronous I/O calls */
     int repl_state;          /* Replication status if the instance is a slave */
     int ssdb_repl_state;     /* SSDB snapshot receive status if the instance is a slave */
-    time_t slave_ssdb_transfer_snapshot_keepalive; /* in jdjr_mode, slave ssdb will send keepalive
+    time_t slave_ssdb_transfer_snapshot_keepalive; /* in swap_mode, slave ssdb will send keepalive
                                                 * message to its redis when transfer snapshot. */
     off_t repl_transfer_size; /* Size of RDB to read from master during sync. */
     off_t repl_transfer_read; /* Amount of RDB read from master during sync. */
@@ -1396,7 +1396,7 @@ struct redisServer {
     /* System hardware info */
     size_t system_memory_size;  /* Total memory in system as reported by OS */
 
-    /*=======================[BEGIN]for jdjr mode========================*/
+    /*=======================[BEGIN]for swap mode========================*/
     int is_doing_flushall;
     client* current_flushall_client;
     int prohibit_ssdb_read_write;
@@ -1476,7 +1476,7 @@ struct redisServer {
 
     int coldkey_filter_times_everytime;
     int lowest_idle_val_of_cold_key;
-    /*=======================[END]for jdjr mode========================*/
+    /*=======================[END]for swap mode========================*/
 
     /* Mutexes used to protect atomic variables when atomic builtins are
      * not available. */
@@ -2440,7 +2440,7 @@ int isThisKeyVisitingWriteSSDB(sds key);
  * we use a larger timeout as the timeout interval.*/
 #define MASTER_TRANSFER_SSDB_SNAPSHOT_TIMEOUT 30
 
-/* config options for jdjr mode */
+/* config options for swap mode */
 #define MASTER_MAX_CONCURRENT_LOADING_KEYS 5
 #define MASTER_MAX_CONCURRENT_TRANSFERRING_KEYS 5
 

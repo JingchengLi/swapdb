@@ -1482,7 +1482,7 @@ void rdbLoadProgressCallback(rio *r, const void *buf, size_t len) {
          * interaction time with clients and for other important things. */
         updateCachedTime();
         if (server.masterhost && (server.repl_state == REPL_STATE_TRANSFER ||
-                (server.jdjr_mode && server.repl_state == REPL_STATE_TRANSFER_END)))
+                (server.swap_mode && server.repl_state == REPL_STATE_TRANSFER_END)))
             replicationSendNewlineToMaster();
         loadingProgress(r->processed_bytes);
         processEventsWhileBlocked();

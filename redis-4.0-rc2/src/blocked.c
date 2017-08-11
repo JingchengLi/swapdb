@@ -122,7 +122,7 @@ void processUnblockedClients(void) {
          * client is not blocked before to proceed, but things may change and
          * the code is conceptually more correct this way. */
         if (!(c->flags & CLIENT_BLOCKED)) {
-            if (server.jdjr_mode && c->flags & CLIENT_MASTER
+            if (server.swap_mode && c->flags & CLIENT_MASTER
                 && c->querybuf && sdslen(c->querybuf) > 0) {
                 processInputBufferOfMaster(c);
             } else if (c->querybuf && sdslen(c->querybuf) > 0)
@@ -170,13 +170,13 @@ void unblockClient(client *c) {
         unblockClientWaitingReplicas(c);
     } else if (c->btype == BLOCKED_MODULE) {
         unblockClientFromModule(c);
-    } else if (server.jdjr_mode && c->btype == BLOCKED_BY_FLUSHALL) {
+    } else if (server.swap_mode && c->btype == BLOCKED_BY_FLUSHALL) {
         if (server.masterhost == NULL) {
             server.prohibit_ssdb_read_write = NO_PROHIBIT_SSDB_READ_WRITE;
             server.is_doing_flushall = 0;
             server.current_flushall_client = NULL;
         }
-    } else if (server.jdjr_mode
+    } else if (server.swap_mode
                && (c->btype == BLOCKED_SSDB_LOADING_OR_TRANSFER
                    || c->btype == BLOCKED_NO_READ_WRITE_TO_SSDB
                    || c->btype == BLOCKED_NO_WRITE_TO_SSDB
@@ -185,7 +185,7 @@ void unblockClient(client *c) {
                    || c->btype == BLOCKED_BY_EXPIRED_DELETE
                    || c->btype == BLOCKED_MIGRATING_CLIENT)) {
         /* Doing nothing. */
-    } else if (server.jdjr_mode && c->btype == BLOCKED_VISITING_SSDB) {
+    } else if (server.swap_mode && c->btype == BLOCKED_VISITING_SSDB) {
         if (server.masterhost == NULL) {
             removeVisitingSSDBKey(c->cmd, c->argc, c->argv);
             if (c->cmd->flags & CMD_WRITE) {
@@ -195,7 +195,7 @@ void unblockClient(client *c) {
                 }
             }
         }
-    } else if (server.jdjr_mode && c->btype == BLOCKED_MIGRATING_DUMP) {
+    } else if (server.swap_mode && c->btype == BLOCKED_MIGRATING_DUMP) {
         /* Migrate will translated to del after migrateCommand(). */
         serverAssert(c->cmd->proc == migrateCommand
                      || c->cmd->proc == delCommand);
@@ -234,10 +234,10 @@ int replyToBlockedClientTimedOut(client *c) {
         addReplyLongLong(c,replicationCountAcksByOffset(c->bpop.reploffset));
     } else if (c->btype == BLOCKED_MODULE) {
         moduleBlockedClientTimedOut(c);
-    } else if (server.jdjr_mode && c->btype == BLOCKED_SSDB_LOADING_OR_TRANSFER) {
+    } else if (server.swap_mode && c->btype == BLOCKED_SSDB_LOADING_OR_TRANSFER) {
         transferringOrLoadingBlockedClientTimeOut(c);
         return C_ERR;
-    } else if (server.jdjr_mode
+    } else if (server.swap_mode
                && (c->btype == BLOCKED_VISITING_SSDB
                    || c->btype == BLOCKED_BY_FLUSHALL
                    || c->btype == BLOCKED_BY_DELETE_CONFIRM
@@ -252,7 +252,7 @@ int replyToBlockedClientTimedOut(client *c) {
         /* free client to avoid unexpected issues.*/
         freeClient(c);
         return C_ERR;
-    } else if (server.jdjr_mode && (c->btype == BLOCKED_WRITE_SAME_SSDB_KEY ||
+    } else if (server.swap_mode && (c->btype == BLOCKED_WRITE_SAME_SSDB_KEY ||
                                     c->btype == BLOCKED_NO_READ_WRITE_TO_SSDB ||
                                     c->btype == BLOCKED_NO_WRITE_TO_SSDB)) {
         serverLog(LL_DEBUG, "[!!!!]block timeout(client:%p,fd:%d,btype:%d), reset it", (void*)c, c->fd, c->btype);

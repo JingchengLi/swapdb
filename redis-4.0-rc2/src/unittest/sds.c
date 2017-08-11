@@ -438,7 +438,7 @@ void sdsIncrLen(sds s, int incr) {
         case SDS_TYPE_5: {
             unsigned char *fp = ((unsigned char*)s)-1;
             unsigned char oldlen = SDS_TYPE_5_LEN(flags);
-            /* The max length is 15 for SDS_TYPE_5 in jdjr_mode,
+            /* The max length is 15 for SDS_TYPE_5 in swap_mode,
              * max value is 31 for SDS_TYPE_5 in native redis.*/
             assert((incr > 0 && oldlen+incr < 16) || (incr < 0 && oldlen >= (unsigned int)(-incr)));
             *fp = SDS_TYPE_5 | ((oldlen+incr) << SDS_TYPE_BITS);
@@ -448,7 +448,7 @@ void sdsIncrLen(sds s, int incr) {
         case SDS_TYPE_5_LFU: {
             unsigned char *fp = ((unsigned char*)s)-1;
             unsigned char oldlen = SDS_TYPE_5_LFU_LEN(flags);
-            /* The max length is 15 for SDS_TYPE_5 in jdjr_mode,
+            /* The max length is 15 for SDS_TYPE_5 in swap_mode,
              * max value is 31 for SDS_TYPE_5 in native redis.*/
             assert((incr > 0 && oldlen+incr < 16) || (incr < 0 && oldlen >= (unsigned int)(-incr)));
             *fp = SDS_TYPE_5_LFU | ((oldlen+incr) << SDS_TYPE_BITS);

@@ -1289,10 +1289,10 @@ int zsetAdd(robj *zobj, double score, sds ele, int *flags, double *newscore) {
             if (incr) {
                 score += curscore;
 
-                if (server.jdjr_mode
+                if (server.swap_mode
                     && server.behave_as_ssdb
                     && checkScoreRangeForZset(&score, 1) == C_ERR)
-                    /* -1 means out of range in jdjr-mode. */
+                    /* -1 means out of range in swap-mode. */
                     return -1;
 
                 if (isnan(score)) {
@@ -1342,10 +1342,10 @@ int zsetAdd(robj *zobj, double score, sds ele, int *flags, double *newscore) {
             if (incr) {
                 score += curscore;
 
-                if (server.jdjr_mode
+                if (server.swap_mode
                     && server.behave_as_ssdb
                     && checkScoreRangeForZset(&score, 1) == C_ERR)
-                    /* -1 means out of range in jdjr-mode. */
+                    /* -1 means out of range in swap-mode. */
                     return -1;
 
                 if (isnan(score)) {
@@ -1498,7 +1498,7 @@ long zsetRank(robj *zobj, sds ele, int reverse) {
  * Sorted set commands
  *----------------------------------------------------------------------------*/
 
-/* Called in jdjr-mode, behave the same as ssdb. */
+/* Called in swap-mode, behave the same as ssdb. */
 int checkScoreRangeForZset(double *scores, int count) {
     int j;
     for (j = 0; j < count; j ++) {
@@ -1579,8 +1579,8 @@ void zaddGenericCommand(client *c, int flags) {
     /* Lookup the key and create the sorted set if does not exist. */
     zobj = lookupKeyWrite(c->db,key);
 
-    if (server.jdjr_mode && server.behave_as_ssdb) {
-        /* Check the score range: (-1e13, 1e13) in jdjr-mode. */
+    if (server.swap_mode && server.behave_as_ssdb) {
+        /* Check the score range: (-1e13, 1e13) in swap-mode. */
         if ((!incr || (incr && !zobj))
             && checkScoreRangeForZset(scores, elements) == C_ERR) {
             addReplyError(c, "value is out of range");
@@ -1616,7 +1616,7 @@ void zaddGenericCommand(client *c, int flags) {
             addReplyError(c,nanerr);
             goto cleanup;
         }
-        if (server.jdjr_mode
+        if (server.swap_mode
             && server.behave_as_ssdb
             && retval == -1) {
             addReplyError(c, "value is out of range");

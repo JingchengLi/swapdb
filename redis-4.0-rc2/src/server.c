@@ -123,12 +123,12 @@ volatile unsigned long lru_clock; /* Server global current LRU time. */
  *    its execution as long as the kernel scheduler is giving us time.
  *    Note that commands that may trigger a DEL as a side effect (like SET)
  *    are not fast commands.
- * J: For jdjr mode and commands with read/write flag only, this indicates SSDB
+ * J: For swap mode and commands with read/write flag only, this indicates SSDB
  *    can process this command and we can transfer this command to SSDB.
- * j: For jdjr mode and commands with read/write flag only, this indicates redis
+ * j: For swap mode and commands with read/write flag only, this indicates redis
  *    can process this command but SSDB can't and we can't transfer this command
  *    to SSDB.
- * n: In jdjr mode, commands are not allowed.
+ * n: In swap mode, commands are not allowed.
  */
 struct redisCommand redisCommandTable[] = {
     {"module",moduleCommand,-2,"asn",0,NULL,1,1,1,0,0},
@@ -139,7 +139,7 @@ struct redisCommand redisCommandTable[] = {
     {"psetex",psetexCommand,4,"wmJ",0,NULL,1,1,1,0,0},
     {"append",appendCommand,3,"wmJ",0,NULL,1,1,1,0,0},
     {"strlen",strlenCommand,2,"rFJ",0,NULL,1,1,1,0,0},
-    /* in jdjr mode, we only support one key command */
+    /* in swap mode, we only support one key command */
     {"del",delCommand,2,"wJ",0,NULL,1,1,1,0,0},
     {"unlink",unlinkCommand,2,"wF",0,NULL,1,1,1,0,0},
     {"exists",existsCommand,2,"rFJ",0,NULL,1,1,1,0,0},
@@ -260,7 +260,7 @@ struct redisCommand redisCommandTable[] = {
     {"sync",syncCommand,1,"arsj",0,NULL,0,0,0,0,0},
     {"psync",syncCommand,3,"arsj",0,NULL,0,0,0,0,0},
     {"replconf",replconfCommand,-1,"aslt",0,NULL,0,0,0,0,0},
-    /* for jdjr mode, we replace flushdb by flushall */
+    /* for swap mode, we replace flushdb by flushall */
     {"flushdb",flushallCommand,-1,"wJ",0,NULL,0,0,0,0,0},
     {"flushall",flushallCommand,-1,"wJ",0,NULL,0,0,0,0,0},
     {"sort",sortCommand,-2,"wm",0,sortGetKeys,1,1,1,0,0},
@@ -386,8 +386,8 @@ void locatekeyCommand(client *c) {
     char *replyString;
     robj *replyObj;
 
-    if (!server.jdjr_mode) {
-        addReplyErrorFormat(c,"Command only supported in jdjr-mode '%s'",
+    if (!server.swap_mode) {
+        addReplyErrorFormat(c,"Command only supported in swap-mode '%s'",
                             (char*)c->argv[0]->ptr);
         return;
     }
@@ -1054,7 +1054,7 @@ void clientsCron(void) {
         if (clientsCronResizeQueryBuffer(c)) continue;
     }
 
-    if (server.jdjr_mode) reconnectSSDB();
+    if (server.swap_mode) reconnectSSDB();
 }
 
 /* This function handles 'background' operations we are required to do
@@ -1085,7 +1085,7 @@ void databasesCron(void) {
         int dbs_per_call = CRON_DBS_PER_CALL;
         int j;
 
-        if (server.jdjr_mode)
+        if (server.swap_mode)
             dbs_per_call += 1;
 
         /* Don't test more DBs than we have. */
@@ -1223,7 +1223,7 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
     /* Handle background operations on Redis databases. */
     databasesCron();
 
-    if (server.jdjr_mode) {
+    if (server.swap_mode) {
         /* check operations before flushall/flushdb is timeout.*/
         if (server.flush_check_begin_time != -1 && server.unixtime - server.flush_check_begin_time > 5) {
             serverLog(LL_DEBUG, "[flushall] flush check timeout. there are [%d] flush check responses unreceived",
@@ -1874,7 +1874,7 @@ void beforeSleep(struct aeEventLoop *eventLoop) {
     if (listLength(server.unblocked_clients))
         processUnblockedClients();
 
-    if (server.jdjr_mode && server.cached_master &&
+    if (server.swap_mode && server.cached_master &&
         (server.cached_master->flags & CLIENT_BUFFER_HAS_UNPROCESSED_DATA)) {
         if (server.cached_master->querybuf && sdslen(server.cached_master->querybuf) > 0) {
             processInputBufferOfMaster(server.cached_master);
@@ -1889,21 +1889,21 @@ void beforeSleep(struct aeEventLoop *eventLoop) {
 
     /* TODO: fix the population. */
     /* Try to evict proper keys to make more free memory. */
-    if (server.jdjr_mode && server.masterhost == NULL) startToEvictIfNeeded();
+    if (server.swap_mode && server.masterhost == NULL) startToEvictIfNeeded();
 
     /* Try to load keys from SSDB to redis. */
-    if (server.jdjr_mode && server.masterhost == NULL) startToLoadIfNeeded();
+    if (server.swap_mode && server.masterhost == NULL) startToLoadIfNeeded();
 
-    if (server.jdjr_mode) handleSSDBkeysToClean();
+    if (server.swap_mode) handleSSDBkeysToClean();
 
-    if (server.jdjr_mode) handleDeleteConfirmKeys();
+    if (server.swap_mode) handleDeleteConfirmKeys();
 
     /* Try to handle cmds(load/evict cmds) in an extra list in slave. */
-    if (server.jdjr_mode && server.masterhost) startToHandleCmdListInSlave();
+    if (server.swap_mode && server.masterhost) startToHandleCmdListInSlave();
 
     /* Call handleCustomizedBlockedClients in beforeSleep to
        avoid timeout when there's only 1 real client. */
-    if (server.jdjr_mode) handleCustomizedBlockedClients();
+    if (server.swap_mode) handleCustomizedBlockedClients();
 
     /* Before we are going to sleep, let the threads access the dataset by
      * releasing the GIL. Redis main thread will not touch anything at this
@@ -2012,7 +2012,7 @@ void createSharedObjects(void) {
     shared.minstring = sdsnew("minstring");
     shared.maxstring = sdsnew("maxstring");
 
-    if (server.jdjr_mode) {
+    if (server.swap_mode) {
         shared.repopidsetok = sdsnew("repopid setok");
         shared.checkwriteok = sdsnew("rr_check_write ok");
         shared.checkwritenok = sdsnew("rr_check_write nok");
@@ -2064,7 +2064,7 @@ void initServerConfig(void) {
     server.ssdb_client = NULL;
     server.ssdb_replication_client = NULL;
     server.protected_mode = CONFIG_DEFAULT_PROTECTED_MODE;
-    server.jdjr_mode = CONFIG_DEFAULT_JDJR_MODE;
+    server.swap_mode = CONFIG_DEFAULT_SWAP_MODE;
     server.behave_as_ssdb = CONFIG_DEFAULT_BEHAVE_AS_SSDB;
     server.load_from_ssdb = CONFIG_DEFAULT_LOAD_FROM_SSDB;
     server.use_customized_replication = CONFIG_DEFAULT_USE_CUSTOMIZED_REPLICATION;
@@ -2585,7 +2585,7 @@ void initServer(void) {
         anetNonBlock(NULL,server.sofd);
     }
 
-    if (server.jdjr_mode) connectSepecialSSDBclients();
+    if (server.swap_mode) connectSepecialSSDBclients();
 
     /* Abort if there are no listening sockets at all. */
     if (server.ipfd_count == 0 && server.sofd < 0) {
@@ -2604,7 +2604,7 @@ void initServer(void) {
         server.db[j].avg_ttl = 0;
     }
 
-    if (server.jdjr_mode) {
+    if (server.swap_mode) {
         server.db[0].ssdb_blocking_keys = dictCreate(&keylistDictType,NULL);
         server.db[0].blocking_keys_write_same_ssdbkey = dictCreate(&keylistDictType,NULL);
         server.db[0].ssdb_ready_keys = dictCreate(&objectKeyPointerValueDictType,NULL);
@@ -2717,7 +2717,7 @@ void initServer(void) {
     bioInit();
     server.initial_memory_usage = zmalloc_used_memory();
 
-    if (server.jdjr_mode) {
+    if (server.swap_mode) {
         server.is_allow_ssdb_write = ALLOW_SSDB_WRITE;
         server.ssdb_status = SSDB_NONE;
         server.ssdb_snapshot_timestamp = -1;
@@ -2790,9 +2790,9 @@ void populateCommandTable(void) {
             case 'M': c->flags |= CMD_SKIP_MONITOR; break;
             case 'k': c->flags |= CMD_ASKING; break;
             case 'F': c->flags |= CMD_FAST; break;
-            case 'J': c->flags |= CMD_JDJR_MODE; break;
-            case 'j': c->flags |= CMD_JDJR_REDIS_ONLY; break;
-            case 'n': c->flags |= CMD_JDJR_NOT_ALLOWED; break;
+            case 'J': c->flags |= CMD_SWAP_MODE; break;
+            case 'j': c->flags |= CMD_SWAPMODE_REDIS_ONLY; break;
+            case 'n': c->flags |= CMD_SWAPMODE_NOT_ALLOWED; break;
             default: serverPanic("Unsupported command flag"); break;
             }
             f++;
@@ -3180,8 +3180,8 @@ void call(client *c, int flags) {
 
         /* Call propagate() only if at least one of AOF / replication
          * propagation is needed. */
-        if (server.jdjr_mode) {
-            /* for jdjr mode, we only propagate write command here. to avoid
+        if (server.swap_mode) {
+            /* for swap mode, we only propagate write command here. to avoid
              * some special commands like psync/sync propagated, which can cause
              * unexpected issues.*/
             if (c->cmd->flags & CMD_WRITE) {
@@ -3313,8 +3313,8 @@ int checkKeysForMigrate(client *c) {
 
     for (j = 6; j < c->argc; j ++) {
         if (!strcasecmp(c->argv[j]->ptr, "keys")) {
-            addReplyError(c, "Not supported yet in jdjr-mode");
-            serverLog(LL_DEBUG, "Migrate not supported keys yet in jdjr-mode");
+            addReplyError(c, "Not supported yet in swap-mode");
+            serverLog(LL_DEBUG, "Migrate not supported keys yet in swap-mode");
             return C_NOTSUPPORT_ERR;
         }
     }
@@ -3780,7 +3780,7 @@ int processCommandReplicationConn(client* c, struct ssdb_write_op* slave_retry_w
 
     if (!cmd || !(cmd->flags & CMD_WRITE))
         return C_ERR;
-    if (cmd->flags & CMD_JDJR_REDIS_ONLY)
+    if (cmd->flags & CMD_SWAPMODE_REDIS_ONLY)
         return C_ERR;
     if (argc <= 1)
         return C_ERR;
@@ -3789,14 +3789,14 @@ int processCommandReplicationConn(client* c, struct ssdb_write_op* slave_retry_w
     if (!dictFind(EVICTED_DATA_DB->dict, keyobj->ptr))
         return C_ERR;
 
-    if (!(cmd->flags & CMD_JDJR_MODE))
+    if (!(cmd->flags & CMD_SWAP_MODE))
         return C_NOTSUPPORT_ERR;
 
     /* prohibit write operations to SSDB when replication,
      *
      * Note: we also can have slaves if this server is a slave. */
     if ((server.is_allow_ssdb_write == DISALLOW_SSDB_WRITE)
-        && (cmd->flags & CMD_WRITE) && (cmd->flags & CMD_JDJR_MODE)) {
+        && (cmd->flags & CMD_WRITE) && (cmd->flags & CMD_SWAP_MODE)) {
         listAddNodeTail(server.no_writing_ssdb_blocked_clients, c);
         serverLog(LL_DEBUG, "server.master/server.cached_master is added to server.no_writing_ssdb_blocked_clients");
         /* TODO: use a suitable timeout. */
@@ -3920,7 +3920,7 @@ int processBeforeVisitingSSDB(client *c, robj *keyobj) {
     return C_ERR;
 }
 
-/* Process keys may be in SSDB, only handle the command jdjr_mode supported.
+/* Process keys may be in SSDB, only handle the command swap_mode supported.
  The rest cases will be handled by processCommand. */
 int processCommandMaybeInSSDB(client *c) {
     robj *keyobj = NULL;
@@ -3928,7 +3928,7 @@ int processCommandMaybeInSSDB(client *c) {
 
     if ( !c->cmd || !(c->cmd->flags & (CMD_READONLY | CMD_WRITE)) )
         return C_ERR;
-    if (c->cmd->flags & CMD_JDJR_REDIS_ONLY)
+    if (c->cmd->flags & CMD_SWAPMODE_REDIS_ONLY)
         return C_ERR;
 
     if (c->argc <= 1)
@@ -3949,7 +3949,7 @@ int processCommandMaybeInSSDB(client *c) {
      *
      * Note: we also can have slaves if this server is a slave. */
     if ((server.is_allow_ssdb_write == DISALLOW_SSDB_WRITE)
-        && (c->cmd->flags & CMD_WRITE) && (c->cmd->flags & CMD_JDJR_MODE)) {
+        && (c->cmd->flags & CMD_WRITE) && (c->cmd->flags & CMD_SWAP_MODE)) {
         listAddNodeTail(server.no_writing_ssdb_blocked_clients, c);
         serverLog(LL_DEBUG, "client: %ld is added to server.no_writing_ssdb_blocked_clients", (long)c);
         c->bpop.timeout = server.client_blocked_by_replication_nowrite_timeout + mstime();
@@ -3960,7 +3960,7 @@ int processCommandMaybeInSSDB(client *c) {
 
     /* prohibit read/write operations to SSDB when flushall */
     if (server.masterhost == NULL && (server.prohibit_ssdb_read_write == PROHIBIT_SSDB_READ_WRITE)
-        && (c->cmd->flags & (CMD_WRITE | CMD_READONLY)) && (c->cmd->flags & CMD_JDJR_MODE)) {
+        && (c->cmd->flags & (CMD_WRITE | CMD_READONLY)) && (c->cmd->flags & CMD_SWAP_MODE)) {
         listAddNodeTail(server.ssdb_flushall_blocked_clients, c);
         c->bpop.timeout = server.client_blocked_by_flushall_timeout + mstime();
         blockClient(c, BLOCKED_NO_READ_WRITE_TO_SSDB);
@@ -3969,7 +3969,7 @@ int processCommandMaybeInSSDB(client *c) {
     }
 
     if ((c->cmd->flags & (CMD_READONLY | CMD_WRITE)) &&
-         (c->cmd->flags & CMD_JDJR_MODE)) {
+         (c->cmd->flags & CMD_SWAP_MODE)) {
         int lookup_flags = LOOKUP_NONE;
         if (c->cmd->proc == typeCommand) lookup_flags = LOOKUP_NOTOUCH;
 
@@ -4242,9 +4242,9 @@ int runCommand(client *c) {
     robj *firstkey = NULL;
 
     if (((c->cmd->flags & CMD_READONLY || c->cmd->flags & CMD_WRITE)
-         && !(c->cmd->flags & CMD_JDJR_MODE) && !(c->cmd->flags & CMD_JDJR_REDIS_ONLY)) ||
-        (c->cmd->flags & CMD_JDJR_NOT_ALLOWED)) {
-        addReplyErrorFormat(c, "don't support this command in jdjr mode:%s.", c->cmd->name);
+         && !(c->cmd->flags & CMD_SWAP_MODE) && !(c->cmd->flags & CMD_SWAPMODE_REDIS_ONLY)) ||
+        (c->cmd->flags & CMD_SWAPMODE_NOT_ALLOWED)) {
+        addReplyErrorFormat(c, "don't support this command in swap mode:%s.", c->cmd->name);
         return C_OK;
     }
 
@@ -4255,7 +4255,7 @@ int runCommand(client *c) {
     }
 
     /* Check the migrating keys. Don not move out from runCommand as async operations. */
-    if (server.jdjr_mode) {
+    if (server.swap_mode) {
         if (c->cmd->firstkey != 0)
             firstkey = c->argv[c->cmd->firstkey];
         else if (c->cmd->proc == migrateCommand)
@@ -4274,7 +4274,7 @@ int runCommand(client *c) {
     }
 
     /* Exec the command */
-    if (server.jdjr_mode) {
+    if (server.swap_mode) {
         ret = processCommandMaybeInSSDB(c);
         if (ret == C_OK) {
             /* Otherwise, return C_ERR to avoid calling resetClient,
@@ -4326,7 +4326,7 @@ int tryBlockingClient(client *c) {
     int ret;
     robj *keyobj;
 
-    if (server.jdjr_mode
+    if (server.swap_mode
         && c->cmd->proc == migrateCommand) {
         ret = checkKeysForMigrate(c);
         if (ret == C_NOTSUPPORT_ERR) return C_NOTSUPPORT_ERR;
@@ -4341,7 +4341,7 @@ int tryBlockingClient(client *c) {
     }
 
     /* Check if current cmd contains blocked keys. */
-    if (server.jdjr_mode && c->argc > 1 && checkKeysInMediateState(c) == C_ERR) {
+    if (server.swap_mode && c->argc > 1 && checkKeysInMediateState(c) == C_ERR) {
         /* Return C_ERR to keep client info and handle it later. */
         return C_ERR;
     }
@@ -4487,14 +4487,14 @@ int processCommand(client *c) {
         return C_OK;
     }
 
-    /* for jdjr_mode, we don't allow write commands for connections if this
+    /* for swap_mode, we don't allow write commands for connections if this
      * is a slave, except for our master connection and SSDB respond commands. */
 
     /* Don't accept write commands if this is a read only slave. But
      * accept write commands if this is our master. */
-    if (server.masterhost && (server.jdjr_mode || server.repl_slave_ro) &&
+    if (server.masterhost && (server.swap_mode || server.repl_slave_ro) &&
         !(c->flags & CLIENT_MASTER) && (c->cmd->flags & CMD_WRITE) &&
-        (!server.jdjr_mode || C_ERR == isSSDBrespCmd(c->cmd)))
+        (!server.swap_mode || C_ERR == isSSDBrespCmd(c->cmd)))
     {
         addReply(c, shared.roslaveerr);
         return C_OK;
@@ -4545,7 +4545,7 @@ int processCommand(client *c) {
         return C_OK;
     }
 
-    if (server.jdjr_mode
+    if (server.swap_mode
         && server.masterhost
         && (c->cmd->proc == storetossdbCommand
             || c->cmd->proc == dumpfromssdbCommand)) {
@@ -4560,7 +4560,7 @@ int processCommand(client *c) {
         return C_OK;
     }
 
-    if (server.jdjr_mode && (c->cmd->proc == flushallCommand || c->cmd->proc == flushdbCommand)) {
+    if (server.swap_mode && (c->cmd->proc == flushallCommand || c->cmd->proc == flushdbCommand)) {
         ret = processCommandMaybeFlushdb(c);
         if (c->flags & CLIENT_MASTER) {
             /* Update the applied replication offset of our master. */
@@ -4594,7 +4594,7 @@ int processCommand(client *c) {
     if (listLength(server.ready_keys))
         handleClientsBlockedOnLists();
 
-    if (server.jdjr_mode) handleCustomizedBlockedClients();
+    if (server.swap_mode) handleCustomizedBlockedClients();
 
     return ret;
 }
@@ -5306,12 +5306,12 @@ sds genRedisInfoString(char *section) {
                 server.master ?
                 ((int)(server.unixtime-server.master->lastinteraction)) : -1,
                 server.repl_state == REPL_STATE_TRANSFER,
-                server.jdjr_mode && server.repl_state == REPL_STATE_TRANSFER_END,
+                server.swap_mode && server.repl_state == REPL_STATE_TRANSFER_END,
                 slave_repl_offset
             );
 
             if (server.repl_state == REPL_STATE_TRANSFER ||
-                (server.jdjr_mode && server.repl_state == REPL_STATE_TRANSFER_END)) {
+                (server.swap_mode && server.repl_state == REPL_STATE_TRANSFER_END)) {
                 info = sdscatprintf(info,
                     "master_sync_left_bytes:%lld\r\n"
                     "master_sync_last_io_seconds_ago:%d\r\n"
@@ -5467,7 +5467,7 @@ sds genRedisInfoString(char *section) {
         }
     }
 
-    if (server.jdjr_mode && (allsections || defsections || !strcasecmp(section,"redis-ssdb"))) {
+    if (server.swap_mode && (allsections || defsections || !strcasecmp(section,"redis-ssdb"))) {
         if (sections++) info = sdscat(info,"\r\n");
         info = sdscatprintf(info, "# Redis-SSDB\r\n"
                                     "keys_in_redis_count:%lu\r\n"
@@ -5727,7 +5727,7 @@ void loadDataFromDisk(void) {
                 (float)(ustime()-start)/1000000);
 
             /* Restore the replication ID / offset from the RDB file. */
-            if (server.jdjr_mode) {
+            if (server.swap_mode) {
                 /* do nothing */
             } else if (rsi.repl_id_is_set && rsi.repl_offset != -1) {
                 memcpy(server.replid,rsi.repl_id,sizeof(server.replid));
@@ -6013,7 +6013,7 @@ int main(int argc, char **argv) {
 
     if (argc == 1) {
         serverLog(LL_WARNING, "Warning: no config file specified, using the default config. In order to specify a config file use %s /path/to/%s.conf", argv[0], server.sentinel_mode ? "sentinel" : "redis");
-        if (server.jdjr_mode) server.dbnum += 1;
+        if (server.swap_mode) server.dbnum += 1;
     } else {
         serverLog(LL_WARNING, "Configuration loaded");
     }

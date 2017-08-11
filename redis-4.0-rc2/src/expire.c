@@ -57,7 +57,7 @@ int activeExpireCycleTryExpire(redisDb *db, dictEntry *de, long long now) {
         sds key = dictGetKey(de);
         robj *keyobj = createStringObject(key,sdslen(key));
 
-        if (server.jdjr_mode && 0 == checkBeforeExpire(db, keyobj)) {
+        if (server.swap_mode && 0 == checkBeforeExpire(db, keyobj)) {
             decrRefCount(keyobj);
             return 0;
         }
@@ -110,7 +110,7 @@ void activeExpireCycle(int type) {
     long long start = ustime(), timelimit;
 
     /* Try to expire the EVICTED_DATA_DB. */
-    if (server.jdjr_mode)
+    if (server.swap_mode)
         dbs_per_call += 1;
 
     /* When clients are paused the dataset should be static not just from the
@@ -412,7 +412,7 @@ void expireGenericCommand(client *c, long long basetime, int unit) {
      * (possibly in the past) and wait for an explicit DEL from the master. */
     if (when <= mstime() && !server.loading && !server.masterhost) {
         robj *aux;
-        if (server.jdjr_mode && NULL == server.masterhost && c->db->id == EVICTED_DATA_DBID) {
+        if (server.swap_mode && NULL == server.masterhost && c->db->id == EVICTED_DATA_DBID) {
             /* add this expired key to dict, we will tell ssdb to
              * delete it. */
             dictAddOrFind(c->db->ssdb_keys_to_clean, key->ptr);
@@ -442,7 +442,7 @@ void expireGenericCommand(client *c, long long basetime, int unit) {
 
 void expireCustomizedCommand(client *c, long long basetime, int unit) {
     redisDb *db = c->db;
-    if (server.jdjr_mode && lookupKey(EVICTED_DATA_DB, c->argv[1], LOOKUP_NOTOUCH)) {
+    if (server.swap_mode && lookupKey(EVICTED_DATA_DB, c->argv[1], LOOKUP_NOTOUCH)) {
         c->db = EVICTED_DATA_DB;
         expireGenericCommand(c, basetime, unit);
         c->db = db;
@@ -477,7 +477,7 @@ void ttlGenericCommand(client *c, int output_ms) {
     redisDb *db;
 
     db = c->db;
-    if (server.jdjr_mode
+    if (server.swap_mode
         && (lookupKeyReadWithFlags(EVICTED_DATA_DB,c->argv[1],LOOKUP_NOTOUCH) != NULL))
         db = EVICTED_DATA_DB;
     else if (lookupKeyReadWithFlags(db,c->argv[1],LOOKUP_NOTOUCH) == NULL) {

@@ -125,7 +125,7 @@ client *createClient(int fd) {
     c->btype = BLOCKED_NONE;
     c->bpop.timeout = 0;
     c->bpop.keys = dictCreate(&objectKeyPointerValueDictType,NULL);
-    if (server.jdjr_mode) {
+    if (server.swap_mode) {
         c->context = NULL;
         c->repl_timer_id = -1;
         c->ssdb_status = SSDB_NONE;
@@ -189,7 +189,7 @@ int prepareClientToWrite(client *c) {
 
     if (c->fd <= 0) return C_ERR; /* Fake client for AOF loading. */
 
-    if (server.jdjr_mode && c == server.slave_ssdb_load_evict_client) return C_ERR;
+    if (server.swap_mode && c == server.slave_ssdb_load_evict_client) return C_ERR;
 
     /* Schedule the client to write the output buffers to the socket only
      * if not already done (there were no pending writes already and the client
@@ -938,7 +938,7 @@ int sendCommandToSSDB(client *c, sds finalcmd) {
 
     if (!finalcmd) {
         cmd = lookupCommand(c->argv[0]->ptr);
-        if (!cmd || !(cmd->flags & CMD_JDJR_MODE)
+        if (!cmd || !(cmd->flags & CMD_SWAP_MODE)
             || (c->flags & CLIENT_MULTI))
             return C_ERR;
 
@@ -1072,7 +1072,7 @@ static void acceptCommonHandler(int fd, int flags, char *ip) {
     server.stat_numconnections++;
     c->flags |= flags;
 
-    if (server.jdjr_mode) {
+    if (server.swap_mode) {
         strncpy(c->client_ip, ip, NET_IP_STR_LEN);
 
         if (server.is_doing_flushall) {
@@ -1829,9 +1829,9 @@ int removeVisitingSSDBKey(struct redisCommand *cmd, int argc, robj** argv) {
     int removed = 0;
 
     if ( (cmd->flags & (CMD_READONLY | CMD_WRITE)) &&
-         (cmd->flags & CMD_JDJR_MODE) ) {
+         (cmd->flags & CMD_SWAP_MODE) ) {
         keys = getKeysFromCommand(cmd, argv, argc, &numkeys);
-        /* in jdjr_mode, we only support one key command. */
+        /* in swap_mode, we only support one key command. */
         if (numkeys > 0) serverAssert(1 == numkeys);
 
         for (j = 0; j < numkeys; j ++) {
@@ -2314,8 +2314,8 @@ void unlinkClient(client *c) {
      * fd is already set to -1. */
     if (c->fd != -1) {
 
-        /* Remove from the new added lists in jdjr-mode. */
-        if (server.jdjr_mode) {
+        /* Remove from the new added lists in swap-mode. */
+        if (server.swap_mode) {
             dictIterator *di;
             dictEntry *de;
             robj *keyobj;
@@ -2417,7 +2417,7 @@ void freeClient(client *c) {
      * some unexpected state, by checking its flags. */
     if (server.master && c->flags & CLIENT_MASTER) {
         serverLog(LL_WARNING,"Connection with master lost.");
-        if (server.jdjr_mode &&
+        if (server.swap_mode &&
             !(c->flags & (CLIENT_CLOSE_AFTER_REPLY| CLIENT_CLOSE_ASAP))
             && server.repl_state == REPL_STATE_CONNECTED)
         {
@@ -2443,7 +2443,7 @@ void freeClient(client *c) {
                 && c->querybuf && sdslen(c->querybuf) > 0)
                 c->flags |= CLIENT_BUFFER_HAS_UNPROCESSED_DATA;
             return;
-        } else if (!server.jdjr_mode
+        } else if (!server.swap_mode
                    && !(c->flags & (CLIENT_CLOSE_AFTER_REPLY|
                                     CLIENT_CLOSE_ASAP| CLIENT_BLOCKED|
                                     CLIENT_UNBLOCKED)) && server.repl_state == REPL_STATE_CONNECTED)
@@ -2454,7 +2454,7 @@ void freeClient(client *c) {
     }
 
     /* will close after we receive reply from SSDB and propagate. */
-    if (server.jdjr_mode && c->flags & CLIENT_BLOCKED && c->btype == BLOCKED_VISITING_SSDB) {
+    if (server.swap_mode && c->flags & CLIENT_BLOCKED && c->btype == BLOCKED_VISITING_SSDB) {
         c->flags |= CLIENT_CLOSE_AFTER_SSDB_WRITE_PROPAGATE;
         return;
     }
@@ -2474,7 +2474,7 @@ void freeClient(client *c) {
     if (c->flags & CLIENT_BLOCKED) unblockClient(c);
     dictRelease(c->bpop.keys);
 
-    if (server.jdjr_mode) dictRelease(c->bpop.loading_or_transfer_keys);
+    if (server.swap_mode) dictRelease(c->bpop.loading_or_transfer_keys);
 
     /* UNWATCH all the keys */
     unwatchAllKeys(c);
@@ -2495,7 +2495,7 @@ void freeClient(client *c) {
      * places where active clients may be referenced. */
     unlinkClient(c);
 
-    if (server.jdjr_mode) {
+    if (server.swap_mode) {
         /* remove replication timeout timer. */
         if (c->repl_timer_id != -1) {
             aeDeleteTimeEvent(server.el, c->repl_timer_id);
@@ -2537,7 +2537,7 @@ void freeClient(client *c) {
         listDelNode(server.clients_to_close,ln);
     }
 
-    if (server.jdjr_mode) {
+    if (server.swap_mode) {
         if (c->ssdb_replies[0]) freeReplyObject(c->ssdb_replies[0]);
         if (c->ssdb_replies[1]) freeReplyObject(c->ssdb_replies[1]);
 
@@ -2709,7 +2709,7 @@ void resetClient(client *c) {
     c->multibulklen = 0;
     c->bulklen = -1;
 
-    if (server.jdjr_mode) c->first_key_index = 0;
+    if (server.swap_mode) c->first_key_index = 0;
 
     /* We clear the ASKING flag as well if we are not inside a MULTI, and
      * if what we just executed is not the ASKING command itself. */

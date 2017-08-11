@@ -476,7 +476,7 @@ int redisReaderFeed(redisReader *r, const char *buf, size_t len) {
 
 /* if consumed reader buffer discard operation has been deferred in
  * redisReaderGetReply(when 'is_ssdb' is not 0), we need to discard
- * it after we process the raw reply string(for jdjr mode, we need
+ * it after we process the raw reply string(for swap mode, we need
  * to preserve the raw reply string from SSDB and copy it to the client
  * buffer of redis). */
 void discardSSDBreaderBuffer(redisReader *r) {
@@ -489,7 +489,7 @@ void discardSSDBreaderBuffer(redisReader *r) {
     }
 }
 
-/* NOTE:this function has been modified in jdjr mode (:add two arguments 'reply_len'
+/* NOTE:this function has been modified in swap mode (:add two arguments 'reply_len'
  * and 'is_ssdb'.)*/
 int redisReaderGetReply(redisReader *r, void **reply, int* reply_len, int is_ssdb) {
     /* Default target pointer to NULL. */
@@ -526,7 +526,7 @@ int redisReaderGetReply(redisReader *r, void **reply, int* reply_len, int is_ssd
     if (r->err)
         return REDIS_ERR;
 
-    /* before consume context buffer, we save the reply length for jdjr mode. */
+    /* before consume context buffer, we save the reply length for swap mode. */
     if (reply_len) *reply_len = r->pos - old_pos;
 
     /* Discard part of the buffer when we've consumed at least 1k, to avoid

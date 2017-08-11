@@ -54,7 +54,7 @@ robj *lookupKey(redisDb *db, robj *key, int flags) {
             !(flags & LOOKUP_NOTOUCH))
         {
             if (server.maxmemory_policy & MAXMEMORY_FLAG_LFU) {
-                if (server.jdjr_mode) {
+                if (server.swap_mode) {
                     sds db_key = dictGetKey(de);
                     unsigned int lfu = sdsgetlfu(db_key);
                     unsigned short ldt = lfu >> 8;
@@ -167,7 +167,7 @@ robj *lookupKeyWriteOrReply(client *c, robj *key, robj *reply) {
  * The program is aborted if the key already exists. */
 void dbAdd(redisDb *db, robj *key, robj *val) {
     sds copy;
-    if (server.jdjr_mode) {
+    if (server.swap_mode) {
         copy = sdsnewlen2(key->ptr, sdslen(key->ptr), 1);
         sdssetlfu(copy, LFUGetTimeInMinutes() << 8 | LFU_INIT_VAL);
     } else
@@ -190,7 +190,7 @@ void dbOverwrite(redisDb *db, robj *key, robj *val) {
 
     serverAssertWithInfo(NULL,key,de != NULL);
     if (server.maxmemory_policy & MAXMEMORY_FLAG_LFU) {
-        if (server.jdjr_mode) {
+        if (server.swap_mode) {
             /* lfu already exists in dict key. */
             dictReplace(db->dict, key->ptr, val);
         } else {
@@ -489,7 +489,7 @@ void selectCommand(client *c) {
         return;
 
     if (server.cluster_enabled && (id != 0)
-        && !(server.jdjr_mode && id == EVICTED_DATA_DBID)) {
+        && !(server.swap_mode && id == EVICTED_DATA_DBID)) {
         addReplyError(c,"SELECT is not allowed in cluster mode");
         return;
     }
@@ -524,7 +524,7 @@ void keysCommand(client *c) {
     int is_keys_command = 0;
     int is_ssdbkeys_command = 0;
 
-    if (server.jdjr_mode) {
+    if (server.swap_mode) {
         if (0 == strncasecmp(c->argv[0]->ptr, "keys", strlen("keys")))
             is_keys_command = 1;
         else if (0 == strncasecmp(c->argv[0]->ptr, "rediskeys", strlen("rediskeys")))
@@ -535,7 +535,7 @@ void keysCommand(client *c) {
 
     serverLog(LL_DEBUG, "argv[0]:%s", (char*)c->argv[0]->ptr);
     /* if command name is not "ssdbkeys" */
-    if (!server.jdjr_mode || (server.jdjr_mode && (is_keys_command || is_rediskeys_command))) {
+    if (!server.swap_mode || (server.swap_mode && (is_keys_command || is_rediskeys_command))) {
         di = dictGetSafeIterator(c->db->dict);
         allkeys = (pattern[0] == '*' && pattern[1] == '\0');
         while((de = dictNext(di)) != NULL) {
@@ -553,7 +553,7 @@ void keysCommand(client *c) {
         }
         dictReleaseIterator(di);
     }
-    if (server.jdjr_mode && (is_keys_command || is_ssdbkeys_command)) {
+    if (server.swap_mode && (is_keys_command || is_ssdbkeys_command)) {
         ev_di = dictGetSafeIterator(EVICTED_DATA_DB->dict);
         while((de = dictNext(ev_di)) != NULL) {
             sds key = dictGetKey(de);
@@ -706,7 +706,7 @@ void scanGenericCommand(client *c, robj *o, unsigned long cursor) {
     }
 
     if (ht) {
-        if (!server.jdjr_mode) {
+        if (!server.swap_mode) {
             void *privdata[2];
             /* We set the max number of iterations to ten times the specified
              * COUNT, so if the hash table is in a pathological state (very
@@ -726,7 +726,7 @@ void scanGenericCommand(client *c, robj *o, unsigned long cursor) {
                      listLength(keys) < (unsigned long)count);
         }
 
-        if (server.jdjr_mode) {
+        if (server.swap_mode) {
             void *privdata[2];
             long maxiterations = count * 10;
             unsigned long max_sizemask = 0;
@@ -859,7 +859,7 @@ void scanCommand(client *c) {
 }
 
 void dbsizeCommand(client *c) {
-    if (server.jdjr_mode) {
+    if (server.swap_mode) {
         addReplyLongLong(c,dictSize(c->db->dict) + dictSize(EVICTED_DATA_DB->dict));
     } else
         addReplyLongLong(c,dictSize(c->db->dict));
@@ -1190,7 +1190,7 @@ long long getExpire(redisDb *db, robj *key) {
 void propagateExpire(redisDb *db, robj *key, int lazy) {
     robj *argv[2];
 
-    if (server.jdjr_mode && NULL == server.masterhost && db->id == EVICTED_DATA_DBID) {
+    if (server.swap_mode && NULL == server.masterhost && db->id == EVICTED_DATA_DBID) {
         /* add this expired key to dict, we will tell ssdb to
          * delete it. */
         dictAddOrFind(db->ssdb_keys_to_clean, key->ptr);
@@ -1212,7 +1212,7 @@ void propagateExpire(redisDb *db, robj *key, int lazy) {
 int checkBeforeExpire(redisDb *db, robj *key) {
     /* when there is a write SSDB operation on this key, we can't expire
      * it now.*/
-    if (server.jdjr_mode && (db->id == EVICTED_DATA_DBID)
+    if (server.swap_mode && (db->id == EVICTED_DATA_DBID)
         && isThisKeyVisitingWriteSSDB(key->ptr))
         return 0;
 
@@ -1222,7 +1222,7 @@ int checkBeforeExpire(redisDb *db, robj *key) {
     } else if (dictDelete(EVICTED_DATA_DB->transferring_keys, key->ptr) == DICT_OK) {
         signalBlockingKeyAsReady(&server.db[0], key);
         serverLog(LL_DEBUG, "key: %s is unblocked and deleted from transferring_keys.", (char *)key->ptr);
-        if (server.jdjr_mode && NULL == server.masterhost) {
+        if (server.swap_mode && NULL == server.masterhost) {
             /* the key may have been transferred to ssdb */
             dictAddOrFind(EVICTED_DATA_DB->ssdb_keys_to_clean, key->ptr);
         }
@@ -1258,7 +1258,7 @@ int expireIfNeeded(redisDb *db, robj *key) {
     /* Return when this key has not expired */
     if (now <= when) return 0;
 
-    if (server.jdjr_mode && 0 == checkBeforeExpire(db, key)) return 0;
+    if (server.swap_mode && 0 == checkBeforeExpire(db, key)) return 0;
 
     /* Delete the key */
     server.stat_expiredkeys++;
@@ -1513,18 +1513,18 @@ void slotToKeyUpdateKey(robj *key, int add) {
     unsigned char *indexed = buf;
     size_t keylen = sdslen(key->ptr);
 
-    if (!server.jdjr_mode) server.cluster->slots_keys_count[hashslot] += add ? 1 : -1;
+    if (!server.swap_mode) server.cluster->slots_keys_count[hashslot] += add ? 1 : -1;
     if (keylen+2 > 64) indexed = zmalloc(keylen+2);
     indexed[0] = (hashslot >> 8) & 0xff;
     indexed[1] = hashslot & 0xff;
     memcpy(indexed+2,key->ptr,keylen);
     if (add) {
         ret = raxInsert(server.cluster->slots_to_keys,indexed,keylen+2,NULL,NULL);
-        if (server.jdjr_mode && ret == 1)
+        if (server.swap_mode && ret == 1)
             server.cluster->slots_keys_count[hashslot] += 1;
     } else {
         ret = raxRemove(server.cluster->slots_to_keys,indexed,keylen+2,NULL);
-        if (server.jdjr_mode && ret == 1)
+        if (server.swap_mode && ret == 1)
             server.cluster->slots_keys_count[hashslot] += -1;
     }
     if (indexed != buf) zfree(indexed);
@@ -1581,7 +1581,7 @@ unsigned int delKeysInSlot(unsigned int hashslot) {
 
         robj *key = createStringObject((char*)iter.key+2,iter.key_len-2);
         int ret = dbDelete(&server.db[0],key);
-        if (server.jdjr_mode && ret == 0) {
+        if (server.swap_mode && ret == 0) {
             dbDelete(EVICTED_DATA_DB,key);
         }
         decrRefCount(key);
