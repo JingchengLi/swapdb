@@ -571,7 +571,6 @@ void SSDBImpl::start() {
 }
 
 void SSDBImpl::stop() {
-    Locking<Mutex> l(&this->mutex_bgtask_);
     log_info("del thread stopping");
 
     if (this->bgtask_quit) {
@@ -579,7 +578,7 @@ void SSDBImpl::stop() {
     }
 
     this->bgtask_quit = true;
-    for (int i = 0; i < 1000; i++) {
+    for (int i = 0; i < 500; i++) {
         if (!bgtask_quit) {
             break;
         }
@@ -587,6 +586,8 @@ void SSDBImpl::stop() {
         usleep(1000 * 1000);
     }
 
+
+    Locking<Mutex> l(&this->mutex_bgtask_);
     std::queue<std::string> tmp_tasks_;
     tasks_.swap(tmp_tasks_);
     log_info("del thread stopped");

@@ -10,7 +10,7 @@ INCLUDE_DIRECTORIES(
     ../integration/include
 )
 
-add_subdirectory(${BUILD_PATH}/tests/gtest_1.7.0 gtest)
+add_subdirectory(${BUILD_PATH}/tests/googletest gtest)
 ADD_DEFINITIONS(-DGTESTING)
 AUX_SOURCE_DIRECTORY(../integration/ GTEST_SRC)
 AUX_SOURCE_DIRECTORY(../unit/codec CODEC_SRC)
