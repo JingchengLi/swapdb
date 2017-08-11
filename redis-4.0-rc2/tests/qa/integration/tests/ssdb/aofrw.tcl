@@ -145,7 +145,7 @@ overrides { save ""
                 if {$d3 ne $d4} {
                     error "some key restore to redis assertion:$d3 is not equal to $d4"
                 }
-                # not support del multi keys in jdjr-mode
+                # not support del multi keys in swap-mode
                 r del ssdbkey
                 r del key
             }
@@ -210,7 +210,7 @@ overrides { save ""
                 if {$d3 ne $d4} {
                     error "some key restore to redis assertion:$d3 is not equal to $d4"
                 }
-                # not support del multi keys in jdjr-mode
+                # not support del multi keys in swap-mode
                 r del ssdbkey
                 r del key
             }
@@ -271,7 +271,7 @@ overrides { save ""
                 if {$d3 ne $d4} {
                     error "some key restore to redis assertion:$d3 is not equal to $d4"
                 }
-                # not support del multi keys in jdjr-mode
+                # not support del multi keys in swap-mode
                 r del ssdbkey
                 r del key
             }
@@ -324,7 +324,7 @@ overrides { save ""
                 set d4 [r debug digest]
                 assert {$d1 ne $d3}
                 assert_equal $d3 $d4 "some key restore to redis assertion:$d3 is not equal to $d4"
-                # not support del multi keys in jdjr-mode
+                # not support del multi keys in swap-mode
                 r del ssdbkey
                 r del key
             }

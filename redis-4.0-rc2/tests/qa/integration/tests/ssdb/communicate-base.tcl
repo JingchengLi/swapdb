@@ -33,13 +33,13 @@ overrides {maxmemory 0}} {
             r set fooxxx barxxx
 
             wait_for_dumpto_ssdb r foo
-            # r config set jdjr-mode no
+            # r config set swap-mode no
             sr del foo
             list [r get fooxxx] [ r get foo ]
         } {barxxx {}}
 
         test "Redis can read key stored in ssdb with ttl($ttl)" {
-            # r config set jdjr-mode yes
+            # r config set swap-mode yes
             if {$ttl > 0} {
                 r setex foo $ttl bar
             } else {

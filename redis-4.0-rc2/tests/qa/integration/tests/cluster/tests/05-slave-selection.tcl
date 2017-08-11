@@ -50,7 +50,7 @@ test "Slaves are both able to receive and acknowledge writes" {
 test "Write data while slave #10 is paused and can't receive it" {
     # Stop the slave with a multi/exec transaction so that the master will
     # be killed as soon as it can accept writes again.
-    # Not support multi in jdjr-mode
+    # Not support multi in swap-mode
     # R 10 multi
     R 10 deferred 1
     R 10 client kill 127.0.0.1:$port0

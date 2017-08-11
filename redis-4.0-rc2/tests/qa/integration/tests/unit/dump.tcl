@@ -314,8 +314,8 @@ start_server {tags {"dump"}} {
             assert_error "ERR*syntax*" {$first migrate $second_host $second_port foo 0 abc c}
             assert_error "ERR*syntax*" {$first migrate $second_host $second_port foo 0 abc copy r}
             assert_error "ERR*syntax*" {$first migrate $second_host $second_port foo 0 abc copy replace k}
-            assert_error "ERR*Not*jdjr-mode*" {$first migrate $second_host $second_port foo 0 abc copy replace keys foo}
-            assert_error "ERR*Not*jdjr-mode*" {$first migrate $second_host $second_port "" 0 abc copy replace keys}
+            assert_error "ERR*Not*swap-mode*" {$first migrate $second_host $second_port foo 0 abc copy replace keys foo}
+            assert_error "ERR*Not*swap-mode*" {$first migrate $second_host $second_port "" 0 abc copy replace keys}
         }
     }
 

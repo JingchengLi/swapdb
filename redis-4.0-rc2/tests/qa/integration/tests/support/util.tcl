@@ -584,8 +584,8 @@ proc populate_diff_keys {r2 r1 {num -1} {flag redis}} {
         $r1 select 16
         $r2 select 16
     }
-    # $r1 config set jdjr-mode no
-    # $r2 config set jdjr-mode no
+    # $r1 config set swap-mode no
+    # $r2 config set swap-mode no
     set list1 [lsort [$r1 keys *]]
     set list2 [lsort [$r2 keys *]]
     set len1 [llength $list1]
@@ -615,8 +615,8 @@ proc populate_diff_keys {r2 r1 {num -1} {flag redis}} {
         $r1 select 0
         $r2 select 0
     }
-    # $r1 config set jdjr-mode yes
-    # $r2 config set jdjr-mode yes
+    # $r1 config set swap-mode yes
+    # $r2 config set swap-mode yes
 
     while {$i < $len1 && $num !=0} {
         lappend diff [lindex $list1 $i]

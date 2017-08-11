@@ -37,7 +37,7 @@ test "Lower the slave validity factor of #5 to the value of 2" {
 test "Break master-slave link and prevent further reconnections" {
     # Stop the slave with a multi/exec transaction so that the master will
     # be killed as soon as it can accept writes again.
-    # Not support multi in jdjr-mode
+    # Not support multi in swap-mode
     # R 5 multi
     R 5 deferred 1
     R 5 client kill 127.0.0.1:$port0
