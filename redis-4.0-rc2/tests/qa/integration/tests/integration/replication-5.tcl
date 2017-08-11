@@ -57,7 +57,7 @@ start_server {tags {"repl"}} {
                 }
                 stop_bg_client_list $clist
                 wait_for_online $master 2
-                wait_for_condition 10 500 {
+                wait_for_condition 20 500 {
                     [[lindex $slaves 0] debug digest] == [$master debug digest] &&
                     [[lindex $slaves 1] debug digest] == [$master debug digest]
                 } else {

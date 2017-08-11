@@ -344,6 +344,41 @@ start_server {tags {"dump"}} {
         }
     }
 
+    test {MIGRATE NOKEY when key not exists} {
+        set first [srv 0 client]
+        start_server {tags {"repl"}} {
+            set second [srv 0 client]
+            set second_host [srv 0 host]
+            set second_port [srv 0 port]
+
+            assert {[$first exists keynull] == 0}
+            assert {[$second exists keynull] == 0}
+            set ret [r -1 migrate $second_host $second_port keynull 0 5000]
+            assert {$ret eq {NOKEY}} "migrate no exists key should return NOKEY"
+            assert {[$first exists keynull] == 0}
+            assert {[$second exists keynull] == 0}
+        }
+    }
+
+    test {MIGRATE NOKEY when process key index exists but deleted in ssdb actually} {
+        set first [srv 0 client]
+        set firstssdb [srv 0 ssdbclient]
+        r set keydeleted "v"
+        start_server {tags {"repl"}} {
+            wait_for_dumpto_ssdb $first keydeleted
+            $firstssdb del keydeleted
+            set second [srv 0 client]
+            set second_host [srv 0 host]
+            set second_port [srv 0 port]
+
+            assert {[$second exists keydeleted] == 0}
+            set ret [r -1 migrate $second_host $second_port keydeleted 0 5000]
+            assert {$ret eq {NOKEY}} "migrate key index should return NOKEY"
+            assert {[$first exists keydeleted] == 0}
+            assert {[$second exists keydeleted] == 0}
+        }
+    }
+
 #    test {MIGRATE with multiple keys must have empty key arg} {
 #        catch {r MIGRATE 127.0.0.1 6379 NotEmpty 0 5000 keys a b c} e
 #        set e
