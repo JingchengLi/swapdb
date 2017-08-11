@@ -1900,10 +1900,15 @@ int handleResponseOfMigrateDump(client *c) {
     redisReply *reply = c->ssdb_replies[0];
     serverAssert(keyobj && de);
 
-    if (reply && reply->type == REDIS_REPLY_STRING
-        && c->btype == BLOCKED_MIGRATING_DUMP) {
+    if (reply && c->btype == BLOCKED_MIGRATING_DUMP
+        && (reply->type == REDIS_REPLY_STRING
+            || reply->type == REDIS_REPLY_NIL)) {
         olddb = c->db;
         c->db = EVICTED_DATA_DB;
+
+        if (reply->type == REDIS_REPLY_NIL)
+            dbSyncDelete(c->db, keyobj);
+
         call(c, CMD_CALL_FULL);
         c->db = olddb;
         return C_OK;
