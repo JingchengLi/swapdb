@@ -1091,7 +1091,7 @@ void sendCheckWriteCommandToSSDB(aeEventLoop *el, int fd, void *privdata, int ma
     sds finalcmd = sdsnew("*1\r\n$14\r\nrr_check_write\r\n");
 
     if (sendCommandToSSDB(c, finalcmd) != C_OK) {
-        serverLog(LL_WARNING, "Sending rr_check_write to SSDB failed.");
+        serverLog(LL_DEBUG, "Sending rr_check_write to SSDB failed.");
         if (c->ssdb_conn_flags & CONN_WAIT_WRITE_CHECK_REPLY && server.check_write_begin_time != -1) {
             server.check_write_unresponse_num -= 1;
             c->ssdb_conn_flags &= ~CONN_WAIT_WRITE_CHECK_REPLY;
