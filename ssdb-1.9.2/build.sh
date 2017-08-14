@@ -1,7 +1,6 @@
 #!/bin/sh
 BASE_DIR=`pwd`
 JEMALLOC_PATH="$BASE_DIR/deps/jemalloc-4.1.0"
-LEVELDB_PATH="$BASE_DIR/deps/leveldb-1.18"
 SNAPPY_PATH="$BASE_DIR/deps/snappy-1.1.0"
 ROCKSDB_PATH="$BASE_DIR/deps/rocksdb-5.3.6"
 BZ2_PATH="$BASE_DIR/deps/bzip2-1.0.6"
@@ -130,17 +129,6 @@ if [ -f Makefile ];then
     echo "##### building rocksdb finished #####"
 fi
 
-cd "$DIR"
-DIR=`pwd`
-cd $LEVELDB_PATH
-if [ -f Makefile ]; then
-    echo ""
-    echo "##### building leveldb... #####"
-    make
-    echo "##### building leveldb finished #####"
-    echo ""
-fi
-
 
 cd "$DIR"
 rm -f src/version.h
@@ -170,17 +158,14 @@ rm -f build_config.mk
 echo CC=$CC >> build_config.mk
 echo CXX=$CXX >> build_config.mk
 echo "MAKE=$MAKE" >> build_config.mk
-echo "LEVELDB_PATH=$LEVELDB_PATH" >> build_config.mk
 echo "JEMALLOC_PATH=$JEMALLOC_PATH" >> build_config.mk
 echo "SNAPPY_PATH=$SNAPPY_PATH" >> build_config.mk
 
 echo "CFLAGS=" >> build_config.mk
 echo "CFLAGS = -DNDEBUG -D__STDC_FORMAT_MACROS -Wall -O2 -Wno-sign-compare" >> build_config.mk
 echo "CFLAGS += ${PLATFORM_CFLAGS}" >> build_config.mk
-echo "CFLAGS += -I \"$LEVELDB_PATH/include\"" >> build_config.mk
 
 echo "CLIBS=" >> build_config.mk
-echo "CLIBS += \"$LEVELDB_PATH/libleveldb.a\"" >> build_config.mk
 echo "CLIBS += \"$SNAPPY_PATH/.libs/libsnappy.a\"" >> build_config.mk
 
 case "$TARGET_OS" in
