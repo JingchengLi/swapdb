@@ -5,6 +5,7 @@ SNAPPY_PATH="$BASE_DIR/deps/snappy-1.1.0"
 ROCKSDB_PATH="$BASE_DIR/deps/rocksdb-5.3.6"
 BZ2_PATH="$BASE_DIR/deps/bzip2-1.0.6"
 GFLAGS_PATH="$BASE_DIR/deps/gflags-2.2.0"
+ZLIB_PATH="$BASE_DIR/deps/zlib-1.2.11"
 
 # dependency check
 which autoconf > /dev/null 2>&1
@@ -123,11 +124,18 @@ DIR=`pwd`
 cd $ROCKSDB_PATH
 if [ -f Makefile ];then
     echo "##### building rocksdb... #####"
-    make -j10 OPT="-DSNAPPY -I$SNAPPY_PATH -L$SNAPPY_PATH -DJEMALLOC -I$JEMALLOC_PATH/include -L$JEMALLOC_PATH/lib" static_lib
-
-#    make  -j8 static_lib
+    make -j10 OPT="-DSNAPPY -I$SNAPPY_PATH -L$SNAPPY_PATH -DJEMALLOC -I$JEMALLOC_PATH/include -L$JEMALLOC_PATH/lib -L$ZLIB_PATH" static_lib
     echo "##### building rocksdb finished #####"
 fi
+
+
+cd "$DIR"
+DIR=`pwd`
+cd $ZLIB_PATH
+echo "##### building zlib... #####"
+./configure
+make
+echo "##### building zlib finished #####"
 
 
 cd "$DIR"
