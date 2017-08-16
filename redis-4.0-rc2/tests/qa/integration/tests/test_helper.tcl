@@ -23,6 +23,7 @@ set ::all_tests {
     ssdb/ssdbinfo
     ssdb/python
     ssdb/lfu
+    ssdb/lfu-policy
     ssdb/lfu-policy2
     ssdb/lfu-policy3
     ssdb/client-recon
@@ -98,7 +99,6 @@ cd $curpath
 set ::cfgfile [file join $::cfgdir ${::loglevel}_redis_testreport.xml]
 exec mkdir -p $::cfgdir
 exec rm -f $::cfgfile
-# exec touch $::cfgfile
 
 #Generate redis instance test result report
 proc write_redis_test_result_report {descr} {
@@ -167,8 +167,6 @@ proc sr {args} {
     } else {
         [srv $level "ssdbclient"] {*}$args
     }
-    # set ssdbport [expr [srv $level port]+$::ssdbport]
-    # [redis $::host $ssdbport] {*}$args
 }
 
 proc reconnect {args} {

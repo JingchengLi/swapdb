@@ -24,7 +24,11 @@ overrides {maxmemory 0}} {
         test "string $valtype Be Hot store in redis" {
             assert_equal $bar [ r get foo ]
             wait_for_restoreto_redis r foo
-            assert_equal {} [ sr get foo ]
+            wait_for_condition 10 1 {
+                {} eq [ sr get foo ]
+            } else {
+                fail "foo not be deleted in ssdb!"
+            }
         }
         r del foo
     }
@@ -78,9 +82,13 @@ overrides {maxmemory 0}} {
                     break
                 }
             }
-            r dumpfromssdb myhash ;# TODO
+            r dumpfromssdb myhash
             assert_equal [r locatekey myhash] {redis}
-            assert_equal 0 [ sr exists myhash ]
+            wait_for_condition 50 1 {
+                0 eq [ sr exists myhash ]
+            } else {
+                fail "myhash not be deleted in ssdb!"
+            }
             r del myhash
             set _ $err
         } {}
@@ -121,12 +129,12 @@ overrides {maxmemory 0}} {
 
         test "set ($encoding) $valtype Be Hot store in redis" {
             assert_equal [lsort $list] [lsort [r smembers myset]]
-            r dumpfromssdb myset ;# TODO
+            r dumpfromssdb myset
             assert_equal [r locatekey myset] {redis}
             wait_for_condition 50 2 {
                 [ sr exists myset ] eq 0
             } else {
-                fail "myset should not exist in ssdb!"
+                fail "myset not be deleted in ssdb!"
             }
         }
 
@@ -142,7 +150,7 @@ overrides {maxmemory 0}} {
             assert {$ttl >= 1 && $ttl <= 3}
 
             assert_equal [lsort $list] [lsort [r smembers myset]]
-            r dumpfromssdb myset ;# TODO
+            r dumpfromssdb myset
             assert_equal [r locatekey myset] {redis}
             assert {$ttl >= 1 && $ttl <= 3}
             r del myset
@@ -180,9 +188,13 @@ overrides {maxmemory 0}} {
 
         test "zset ($encoding) Be Hot store in redis" {
             assert_equal $list [r zrange myzset 0 -1 withscores]
-            r dumpfromssdb myzset ;# TODO
+            r dumpfromssdb myzset
             assert_equal [r locatekey myzset] {redis}
-            assert_equal 0 [ sr exists myzset ]
+            wait_for_condition 50 1 {
+                0 eq [ sr exists myzset ]
+            } else {
+                fail "myzset not be deleted in ssdb!"
+            }
         }
 
         test {Be Cold/Hot with an expire overflows a 32 bit integer key ($encoding)} {
@@ -199,7 +211,7 @@ overrides {maxmemory 0}} {
             assert {$pttl >= 2569591501-3000 && $pttl <= 2569591501}
 
             assert_equal $list [r zrange myzset 0 -1 withscores]
-            r dumpfromssdb myzset ;# TODO
+            r dumpfromssdb myzset
             assert_equal [r locatekey myzset] {redis}
             set pttl [r pttl myzset]
             assert {$pttl >= 2569591501-3000 && $pttl <= 2569591501}
@@ -243,9 +255,13 @@ overrides {maxmemory 0}} {
         test "list (quicklist) $valtype Be Hot store in redis" {
             assert_equal [lsort $list] [lsort [r lrange mylist 0 -1]]
 
-            r dumpfromssdb mylist ;# TODO
+            r dumpfromssdb mylist
             assert_equal [r locatekey mylist] {redis}
-            assert_equal [ sr exists mylist ] 0
+            wait_for_condition 50 1 {
+                0 eq [ sr exists mylist ]
+            } else {
+                fail "mylist not be deleted in ssdb!"
+            }
         }
 
         test {Override an key already exists in ssdb} {
