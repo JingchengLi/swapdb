@@ -44,13 +44,13 @@ typedef struct configEnum {
 } configEnum;
 
 configEnum maxmemory_policy_enum[] = {
-    {"volatile-lru", MAXMEMORY_VOLATILE_LRU},
+    /* {"volatile-lru", MAXMEMORY_VOLATILE_LRU}, */
     {"volatile-lfu", MAXMEMORY_VOLATILE_LFU},
-    {"volatile-random",MAXMEMORY_VOLATILE_RANDOM},
-    {"volatile-ttl",MAXMEMORY_VOLATILE_TTL},
-    {"allkeys-lru",MAXMEMORY_ALLKEYS_LRU},
+    /* {"volatile-random",MAXMEMORY_VOLATILE_RANDOM}, */
+    /* {"volatile-ttl",MAXMEMORY_VOLATILE_TTL}, */
+    /* {"allkeys-lru",MAXMEMORY_ALLKEYS_LRU}, */
     {"allkeys-lfu",MAXMEMORY_ALLKEYS_LFU},
-    {"allkeys-random",MAXMEMORY_ALLKEYS_RANDOM},
+    /* {"allkeys-random",MAXMEMORY_ALLKEYS_RANDOM}, */
     {"noeviction",MAXMEMORY_NO_EVICTION},
     {NULL, 0}
 };
@@ -877,10 +877,6 @@ void loadServerConfigFromString(char *config) {
                     " must be greater than ssdb-transfer-lower-limit ";
             goto loaderr;
         }
-
-        server.maxmemory_policy |= MAXMEMORY_FLAG_LFU;
-        server.maxmemory_policy &= ~MAXMEMORY_FLAG_LRU;
-        serverLog(LL_NOTICE, "Force maxmemory-policy with MAXMEMORY_FLAG_LFU in swap-mode. ");
     }
 
     /* Sanity checks. */
@@ -1368,11 +1364,6 @@ void configSetCommand(client *c) {
       "loglevel",server.verbosity,loglevel_enum) {
     } config_set_enum_field(
       "maxmemory-policy",server.maxmemory_policy,maxmemory_policy_enum) {
-        if (server.swap_mode) {
-            server.maxmemory_policy |= MAXMEMORY_FLAG_LFU;
-            server.maxmemory_policy &= ~MAXMEMORY_FLAG_LRU;
-            serverLog(LL_NOTICE, "Force maxmemory-policy with MAXMEMORY_FLAG_LFU in swap-mode. ");
-        }
     } config_set_enum_field(
       "appendfsync",server.aof_fsync,aof_fsync_enum) {
 
