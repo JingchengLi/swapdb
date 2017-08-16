@@ -270,7 +270,9 @@ proc createComplexDataset {r ops {opt {}}} {
             }
         } err;# WRONGTYPE ERR
 
-        if {[lsearch -exact $opt useexpire] != -1} {
+        if {[lsearch -exact $opt sexpire] != -1} {
+            catch { $r expire $k [randomInt 100] } err
+        } elseif {[lsearch -exact $opt useexpire] != -1} {
             if {rand() < 0.5} {
                 if {[lsearch -exact $opt noexpired] != -1} {
                     set delaytime 1000

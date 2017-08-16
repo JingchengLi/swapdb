@@ -3,22 +3,27 @@ start_server {tags {"repl"}} {
     set master [srv 0 client]
     set master_host [srv 0 host]
     set master_port [srv 0 port]
-    set num 10000000
+    set num 100000
     set clients 50
     start_server {} {
         set slave [srv 0 client]
         test {MASTER and SLAVE consistency after sync during key expiring} {
-            set clist [ start_bg_complex_data_list $master_host $master_port $num $clients sexpire]
-            after 20000
+            set clist [start_bg_complex_data_list $master_host $master_port $num $clients sexpire]
+            after 10000
 
             $slave slaveof [srv -1 host] [srv -1 port]
-            wait_for_condition 50 100 {
+            wait_for_condition 200 100 {
                 [s master_link_status] eq {up}
             } else {
+                stop_bg_client_list $clist
                 fail "Replication not started."
             }
             stop_bg_client_list $clist
-            assert_equal [$master dbsize] [$slave dbsize] "master and slave dbsize not identical"
+            wait_for_condition 20 100 {
+                [$master dbsize] eq [$slave dbsize]
+            } else {
+                fail "master ([$master dbsize]) and slave ([$slave dbsize]) dbsize not identical!"
+            }
         }
     }
 }
