@@ -19,10 +19,12 @@ start_server {tags {"repl"}} {
                 fail "Replication not started."
             }
             stop_bg_client_list $clist
-            wait_for_condition 20 100 {
-                [$master dbsize] eq [$slave dbsize]
-            } else {
-                fail "master ([$master dbsize]) and slave ([$slave dbsize]) dbsize not identical!"
+            foreach key [$master keys *] {
+                wait_for_condition 10 1 {
+                    [$master exists $key] eq [$slave exists $key]
+                } else {
+                    fail "$key not identical: [$master exists $key] : [$slave exists $key]"
+                }
             }
         }
     }
