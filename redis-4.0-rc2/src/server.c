@@ -3901,10 +3901,13 @@ int processBeforeVisitingSSDB(client *c, robj *keyobj) {
     if (c->cmd && c->cmd->proc == migrateCommand) {
         char *argv[2];
         sds dumpcmd;
+        size_t argvlen[2];
 
         argv[0] = "dump";
         argv[1] = keyobj->ptr;
-        dumpcmd = composeRedisCmd(2, (const char **)argv, NULL);
+        argvlen[0] = 4;
+        argvlen[1] = sdslen(argv[1]);
+        dumpcmd = composeRedisCmd(2, (const char **)argv, argvlen);
 
         if (!dumpcmd || sendCommandToSSDB(c, dumpcmd) != C_OK)
             addReplyError(c, "migrate dump error in ssdb.");

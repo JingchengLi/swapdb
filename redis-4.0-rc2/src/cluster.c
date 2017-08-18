@@ -5433,11 +5433,14 @@ try_again:
                 if (server.swap_mode && (c->flags & BLOCKED_MIGRATING_DUMP)) {
                     char *argv[2];
                     sds delcmd;
+                    size_t argvlen[2];
                     redisReply *replies[2] = {0};
 
                     argv[0] = "del";
                     argv[1] = kv[j]->ptr;
-                    delcmd = composeRedisCmd(2, (const char **) argv, NULL);
+                    argvlen[0] = 3;
+                    argvlen[1] = sdslen(argv[1]);
+                    delcmd = composeRedisCmd(2, (const char **) argv, argvlen);
                     if (!delcmd || sendCommandToSSDB(c, delcmd) != C_OK) {
                         error_from_ssdb = 1;
                         addReplyError(c, "migrate del error in ssdb.");
