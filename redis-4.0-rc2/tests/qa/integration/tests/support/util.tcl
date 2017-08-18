@@ -160,12 +160,12 @@ proc randomKey {} {
     } {
         # 64 bit
         randpath {randomInt 1000000000000}
+    } {
+        # Random string
+        randpath {randstring 1 256 alpha} \
+                {randstring 1 256 compr} \
+                {randstring 1 256 binary}
     }
-#    {
-#        # Random string
-#        randpath {randstring 1 256 alpha} \
-#                {randstring 1 256 compr}
-#    }
 }
 
 proc findKeyWithType {r type} {
@@ -279,11 +279,13 @@ proc createComplexDataset {r ops {opt {}}} {
                 } else {
                     set delaytime 0
                 }
-               randpath {{*}$r pexpire $k [expr 1000*$delaytime+[randomInt 10]]} \
-                       {{*}$r expire $k [expr $delaytime+[randomInt 3]]} \
-                       {{*}$r expireat $k [expr $delaytime+[clock seconds] +[randomInt 3]]} \
-                       {{*}$r pexpireat $k [expr 1000*$delaytime+[clock milliseconds] +[randomInt 1000]]} \
-                       {{*}$r expire $k [expr $delaytime+[randomInt 3]]}
+                catch {
+                    randpath {{*}$r pexpire $k [expr 1000*$delaytime+[randomInt 10]]} \
+                    {{*}$r expire $k [expr $delaytime+[randomInt 3]]} \
+                    {{*}$r expireat $k [expr $delaytime+[clock seconds] +[randomInt 3]]} \
+                    {{*}$r pexpireat $k [expr 1000*$delaytime+[clock milliseconds] +[randomInt 1000]]} \
+                    {{*}$r expire $k [expr $delaytime+[randomInt 3]]}
+                } err
                 if {{string} eq $t} {
                     catch {
                         randpath {{*}$r setex $k [expr $delaytime+[randomInt 3]] ${v}_volatile} \

@@ -105,6 +105,34 @@ start_server {tags {"dump"}} {
         }
     }
 
+    test {MIGRATE is able to migrate a binary key between two instances} {
+        set first [srv 0 client]
+        set key [randstring 0 256 binary]
+        set value [randstring 0 256 binary]
+        r set $key $value
+        assert {[$first get $key] eq $value}
+
+        start_server {tags {"repl"}} {
+            set second [srv 0 client]
+            set second_host [srv 0 host]
+            set second_port [srv 0 port]
+
+            dumpto_ssdb_and_wait $first $key
+            assert_equal $value [sr -1 get $key] "SSDB get binary key with wrong value!"
+            assert {[$first get $key] eq $value}
+
+            assert {[$second exists $key] == 0}
+            set ret [r -1 migrate $second_host $second_port $key 0 5000]
+            assert {$ret eq {OK}}
+            assert {[sr -1 exists $key] == 0}
+            assert {[$first exists $key] == 0}
+            wait_key_exists_ssdb $key
+            assert {[$second exists $key] == 1}
+            assert {[$second get $key] eq $value}
+            assert {[$second ttl $key] == -1}
+        }
+    }
+
     test {MIGRATE is able to migrate a key between two instances multi times} {
         set first [srv 0 client]
         set first_host [srv 0 host]
@@ -284,11 +312,11 @@ start_server {tags {"dump"}} {
 
             assert {[$first exists key] == 1}
             assert {[$second exists key] == 0}
+            wait_for_dumpto_ssdb $first key
 
             set rd [redis_deferring_client]
             $rd debug sleep 1.0 ; # Make second server unable to reply.
             set e {}
-            wait_for_dumpto_ssdb $first key
             catch {r -1 migrate $second_host $second_port key 0 500} e
             assert_match {IOERR*} $e
         }
