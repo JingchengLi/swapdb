@@ -82,6 +82,7 @@ DEF_PROC(expireat);
 DEF_PROC(pexpireat);
 
 DEF_PROC(persist);
+
 DEF_PROC(hsize);
 
 DEF_PROC(hget);
@@ -109,6 +110,7 @@ DEF_PROC(hexists);
 DEF_PROC(hmget);
 
 DEF_PROC(hmset);
+
 DEF_PROC(sadd);
 
 DEF_PROC(srem);
@@ -128,6 +130,7 @@ DEF_PROC(srandmember);
 //DEF_PROC(sunion);
 //DEF_PROC(sunionstore);
 DEF_PROC(sscan);
+
 DEF_PROC(zrank);
 
 DEF_PROC(zrrank);
@@ -167,6 +170,7 @@ DEF_PROC(zrangebylex);
 DEF_PROC(zremrangebylex);
 
 DEF_PROC(zrevrangebylex);
+
 DEF_PROC(qsize);
 
 DEF_PROC(qpush_front);
@@ -206,6 +210,7 @@ DEF_PROC(flush);
 DEF_PROC(flushdb);
 
 DEF_PROC(dreply);
+
 DEF_PROC(cursor_cleanup);
 
 DEF_PROC(debug);
@@ -238,6 +243,7 @@ DEF_PROC(ssdb_sync2);
 DEF_PROC(redis_req_dump);
 
 DEF_PROC(redis_req_restore);
+
 DEF_PROC(rr_do_flushall);
 
 DEF_PROC(rr_flushall_check);
