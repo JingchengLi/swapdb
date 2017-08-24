@@ -1,10 +1,13 @@
-swapdb
---------------
+## swapdb
+
 A redis compatiable storage which support data exchange between memory and disk, so you can save a lot of memory costs by using swapdb compared to redis. the main thought of swapdb is, keep hot keys in redis and cold keys in disk, when a key in disk becomes hot, will load it to redis, when a key in memory becomes cold, will transfter it to disk. by using swapdb, you can have both a high preformance cache and high capacity KV storage.
 
+## Fundamental
 
-Features
---------------
+![fundamental](./docs/fundamental.jpg)
+
+## Features
+
 * Heat statistics of keys(LFU)
 * Configurable threshold of RAM/FLASH capacity
 * Redis API compatiable(99%). supports data structures such as strings, hashes, lists, sets, sorted sets
@@ -13,9 +16,12 @@ Features
 * Data persistency support
 * High performance and high capacity redis-like storage
 
+## Quick start
 
-Applicable scenes
---------------
+Read the [Quick Start](./docs/QUICKSTART.md).
+
+## Applicable scenes
+
 * cache
 
 swapdb support LFU based heat statistics, hot keys are kept in redis，so you can use swapdb as cache, which has the same performance as redis when access hot keys.
