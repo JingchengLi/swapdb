@@ -22,18 +22,20 @@ Read the [Quick Start](./docs/QUICKSTART.md).
 
 ## Compile
 
-###requirements:  
-Cmake >= 2.8.11  
+### requirements:  
+```
+Cmake >= 2.8.11
 GCC >= 4.8
+```
 
-###Get the source code
+### Get the source code
 ```
 git clone https://github.com/JRHZRD/swapdb.git --recursive
 ```
 
 ## Let's build
 
-for submodules update process. (if you forget to add '--recursive' option when 'git clone')
+(you can skip this step if you add '--recursive' option when 'git clone'.) for submodules update process.
 ```
 git submodule update --init --recursive
 ```
