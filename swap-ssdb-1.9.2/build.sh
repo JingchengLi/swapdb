@@ -1,6 +1,6 @@
 #!/bin/sh
 BASE_DIR=`pwd`
-JEMALLOC_PATH="$BASE_DIR/deps/jemalloc-4.1.0"
+JEMALLOC_PATH="$BASE_DIR/deps/jemalloc"
 SNAPPY_PATH="$BASE_DIR/deps/snappy"
 ROCKSDB_PATH="$BASE_DIR/deps/rocksdb"
 BZ2_PATH="$BASE_DIR/deps/bzip2-1.0.6"

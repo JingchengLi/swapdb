@@ -10,3 +10,6 @@
 [submodule "ssdb_deps_rocksdb"]
 	path = swap-ssdb-1.9.2/deps/rocksdb
 	url = https://github.com/facebook/rocksdb.git
+[submodule "ssdb_deps_jemalloc"]
+	path = swap-ssdb-1.9.2/deps/jemalloc
+	url = https://github.com/jemalloc/jemalloc.git
