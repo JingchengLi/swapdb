@@ -25,7 +25,6 @@ A million repetitions of "a"
 #include <string.h>
 #include <stdint.h>
 #include "sha1.h"
-#include "config.h"
 
 
 #define rol(value, bits) (((value) << (bits)) | ((value) >> (32 - (bits))))

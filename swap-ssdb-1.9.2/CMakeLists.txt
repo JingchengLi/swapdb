@@ -6,7 +6,7 @@ option(PTIMER "performance monitor" ON)
 SET(ROCKSDB_PATH ${CMAKE_CURRENT_SOURCE_DIR}/deps/rocksdb-5.3.6)
 SET(JEMALLOC_PATH ${CMAKE_CURRENT_SOURCE_DIR}/deps/jemalloc-4.1.0)
 SET(SNAPPY_PATH ${CMAKE_CURRENT_SOURCE_DIR}/deps/snappy)
-SET(GFLAGS_PATH ${CMAKE_CURRENT_SOURCE_DIR}/deps/gflags-2.2.0)
+SET(GFLAGS_PATH ${CMAKE_CURRENT_SOURCE_DIR}/deps/gflags)
 SET(BZIP2_PATH ${CMAKE_CURRENT_SOURCE_DIR}/deps/bzip2-1.0.6)
 
 # Set a default build type if none was specified
@@ -36,9 +36,9 @@ INCLUDE_DIRECTORIES(
 
 
 LINK_DIRECTORIES(
-        ${BZIP2_PATH}
-        ${GFLAGS_PATH}/lib
-        ${SNAPPY_PATH}/.libs
+        ${BZIP2_PATH}/
+        ${GFLAGS_PATH}/lib/
+        ${SNAPPY_PATH}/
         ${JEMALLOC_PATH}/lib/
         ${CMAKE_CURRENT_SOURCE_DIR}/src/ssdb
         ${CMAKE_CURRENT_SOURCE_DIR}/src/client

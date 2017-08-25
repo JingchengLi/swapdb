@@ -4,7 +4,7 @@ JEMALLOC_PATH="$BASE_DIR/deps/jemalloc-4.1.0"
 SNAPPY_PATH="$BASE_DIR/deps/snappy"
 ROCKSDB_PATH="$BASE_DIR/deps/rocksdb-5.3.6"
 BZ2_PATH="$BASE_DIR/deps/bzip2-1.0.6"
-GFLAGS_PATH="$BASE_DIR/deps/gflags-2.2.0"
+GFLAGS_PATH="$BASE_DIR/deps/gflags"
 ZLIB_PATH="$BASE_DIR/deps/zlib-1.2.11"
 
 # dependency check
@@ -68,19 +68,15 @@ case "$TARGET_OS" in
         exit 1
 esac
 
-
+cd "$DIR"
 DIR=`pwd`
 cd $SNAPPY_PATH
-if [ ! -f Makefile ]; then
-	echo ""
-	echo "##### building snappy... #####"
-	./configure $SNAPPY_HOST
-	# FUCK! snappy compilation doesn't work on some linux!
-	find . | xargs touch
-	make
-	echo "##### building snappy finished #####"
-	echo ""
-fi
+echo ""
+echo "##### building snappy... #####"
+cmake .
+make snappy
+echo "##### building snappy finished #####"
+echo ""
 
 cd "$DIR"
 DIR=`pwd`
@@ -174,7 +170,7 @@ echo "CFLAGS = -DNDEBUG -D__STDC_FORMAT_MACROS -Wall -O2 -Wno-sign-compare" >> b
 echo "CFLAGS += ${PLATFORM_CFLAGS}" >> build_config.mk
 
 echo "CLIBS=" >> build_config.mk
-echo "CLIBS += \"$SNAPPY_PATH/.libs/libsnappy.a\"" >> build_config.mk
+echo "CLIBS += \"$SNAPPY_PATH/libsnappy.a\"" >> build_config.mk
 
 case "$TARGET_OS" in
 	CYGWIN*|FreeBSD|OS_ANDROID_CROSSCOMPILE)
