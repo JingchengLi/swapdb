@@ -1,0 +1,3 @@
+[submodule "ssdb_deps_snappy"]
+	path = swap-ssdb-1.9.2/deps/snappy
+	url = https://github.com/google/snappy.git
