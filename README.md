@@ -20,6 +20,32 @@ A redis compatiable storage which support data exchange between memory and disk,
 
 Read the [Quick Start](./docs/QUICKSTART.md).
 
+## Compile
+
+###requirements:  
+Cmake >= 2.8.11  
+GCC >= 4.8
+
+###Get the source code
+```
+git clone https://github.com/JRHZRD/swapdb.git --recursive
+```
+
+## Let's build
+
+```
+mkdir build; cd build;
+cmake .. && make -j8
+```
+
+
+
+for submodules update process. (if you forget to add --recursive when clone)
+```
+git submodule update --init --recursive
+```
+
+
 ## Applicable scenes
 
 * cache

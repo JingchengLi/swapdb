@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8)
-project(swap-all)
+project(swapdb)
 
 
 add_subdirectory(./swap-redis-4.0.0 SWAP_REDIS)

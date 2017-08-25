@@ -19,6 +19,9 @@ endif ()
 
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 
+SET(LIBRARY_OUTPUT_PATH "${CMAKE_SOURCE_DIR}/build/lib")
+SET(EXECUTABLE_OUTPUT_PATH "${CMAKE_SOURCE_DIR}/build")
+
 execute_process(COMMAND
         "./build.sh"
         WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
