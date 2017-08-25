@@ -4,3 +4,6 @@
 [submodule "ssdb_deps_gflags"]
 	path = swap-ssdb-1.9.2/deps/gflags
 	url = https://github.com/gflags/gflags.git
+[submodule "ssdb_deps_zlib"]
+	path = swap-ssdb-1.9.2/deps/zlib
+	url = https://github.com/madler/zlib.git

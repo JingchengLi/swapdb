@@ -5,7 +5,7 @@ SNAPPY_PATH="$BASE_DIR/deps/snappy"
 ROCKSDB_PATH="$BASE_DIR/deps/rocksdb-5.3.6"
 BZ2_PATH="$BASE_DIR/deps/bzip2-1.0.6"
 GFLAGS_PATH="$BASE_DIR/deps/gflags"
-ZLIB_PATH="$BASE_DIR/deps/zlib-1.2.11"
+ZLIB_PATH="$BASE_DIR/deps/zlib"
 
 # dependency check
 which autoconf > /dev/null 2>&1
