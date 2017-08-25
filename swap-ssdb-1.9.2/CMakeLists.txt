@@ -3,7 +3,7 @@ project(ssdb)
 
 option(PTIMER "performance monitor" ON)
 
-SET(ROCKSDB_PATH ${CMAKE_CURRENT_SOURCE_DIR}/deps/rocksdb-5.3.6)
+SET(ROCKSDB_PATH ${CMAKE_CURRENT_SOURCE_DIR}/deps/rocksdb)
 SET(JEMALLOC_PATH ${CMAKE_CURRENT_SOURCE_DIR}/deps/jemalloc-4.1.0)
 SET(SNAPPY_PATH ${CMAKE_CURRENT_SOURCE_DIR}/deps/snappy)
 SET(GFLAGS_PATH ${CMAKE_CURRENT_SOURCE_DIR}/deps/gflags)

@@ -7,3 +7,6 @@
 [submodule "ssdb_deps_zlib"]
 	path = swap-ssdb-1.9.2/deps/zlib
 	url = https://github.com/madler/zlib.git
+[submodule "ssdb_deps_rocksdb"]
+	path = swap-ssdb-1.9.2/deps/rocksdb
+	url = https://github.com/facebook/rocksdb.git

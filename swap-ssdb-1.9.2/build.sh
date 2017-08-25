@@ -2,7 +2,7 @@
 BASE_DIR=`pwd`
 JEMALLOC_PATH="$BASE_DIR/deps/jemalloc-4.1.0"
 SNAPPY_PATH="$BASE_DIR/deps/snappy"
-ROCKSDB_PATH="$BASE_DIR/deps/rocksdb-5.3.6"
+ROCKSDB_PATH="$BASE_DIR/deps/rocksdb"
 BZ2_PATH="$BASE_DIR/deps/bzip2-1.0.6"
 GFLAGS_PATH="$BASE_DIR/deps/gflags"
 ZLIB_PATH="$BASE_DIR/deps/zlib"
