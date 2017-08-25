@@ -33,18 +33,15 @@ git clone https://github.com/JRHZRD/swapdb.git --recursive
 
 ## Let's build
 
-```
-mkdir build; cd build;
-cmake .. && make -j8
-```
-
-
-
-for submodules update process. (if you forget to add --recursive when clone)
+for submodules update process. (if you forget to add '--recursive' option when 'git clone')
 ```
 git submodule update --init --recursive
 ```
 
+```
+mkdir build; cd build;
+cmake .. && make -j8
+```
 
 ## Applicable scenes
 
