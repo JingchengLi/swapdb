@@ -1,0 +1,24 @@
+notify-keyspace-events KEA
+daemonize no
+pidfile /var/run/redis.pid
+port 6379
+timeout 0
+bind 127.0.0.1
+loglevel notice
+logfile 'log.txt'
+latency-monitor-threshold 1
+save ""
+rdbcompression yes
+dbfilename dump.rdb
+dir .
+slave-serve-stale-data yes
+appendonly yes
+appendfsync everysec
+no-appendfsync-on-rewrite no
+activerehashing yes
+ssdb_server_unixsocket ssdb.sock
+maxclients 20000
+always-show-logo yes
+
+ssdb-transfer-lower-limit 30
+ssdb-load-upper-limit 70
