@@ -61,6 +61,10 @@ OK
 "ssdb"
 127.0.0.1:6379> get a
 "b"
+127.0.0.1:6379> dumpfromssdb a
+OK
+127.0.0.1:6379> locatekey a
+"redis"
 ```
 
 ## Applicable scenes
