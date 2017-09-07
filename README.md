@@ -16,10 +16,6 @@ A redis compatiable storage which support data exchange between memory and disk,
 * Data persistency support
 * High performance and high capacity redis-like storage
 
-## Quick start
-
-Read the [Quick Start](./docs/QUICKSTART.md).
-
 ## Compile
 
 ### requirements:  
@@ -41,8 +37,30 @@ git submodule update --init --recursive
 ```
 
 ```
-mkdir build; cd build;
-cmake .. && make -j8
+cmake . && make -j8
+```
+
+## Quick start
+
+you can quickly start a swap-redis and swap-ssdb instance like this:
+```
+cd utils
+# this will use the default "6379" port for swap-redis and "26379" port for swap-ssdb.
+./deploy_redis.sh
+# or you can specify a specific port like this, for example, use "6380" port
+# ./deploy_redis.sh 6380
+
+redis-cli -p 6379
+127.0.0.1:6379> set a b
+OK
+127.0.0.1:6379> locatekey a
+"redis"
+127.0.0.1:6379> storetossdb a
+OK
+127.0.0.1:6379> locatekey a
+"ssdb"
+127.0.0.1:6379> get a
+"b"
 ```
 
 ## Applicable scenes
