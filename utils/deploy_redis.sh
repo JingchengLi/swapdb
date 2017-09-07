@@ -10,13 +10,8 @@ if [ -n "$1" ];then
 else
     REDISPORT=6379
 fi
-DIR=./tmp/${REDISPORT}_dir
 
-cleanup(){
-    killall -9 ssdb-server
-    killall -9 redis-server
-    rm -r $DIR
-}
+DIR=./tmp/${REDISPORT}_dir
 
 prepare_dir() {
     mkdir -p $DIR
@@ -24,23 +19,37 @@ prepare_dir() {
 }
 
 startSSDBServer(){
-    sed -i "s/6379/$REDISPORT/g"  $SSDB_CFG
-    $SSDB -d $SSDB_CFG
+    if [[ ! -f "$SSDB" ]]; then
+        echo "$SSDB not exists, must build it at first!"
+        exit 0
+    fi
+    sed -i "s/6379/$REDISPORT/g" $SSDB_CFG
+    mv $SSDB_CFG ${SSDB_CFG}_${REDISPORT}
+    $SSDB -d ${SSDB_CFG}_${REDISPORT} -s restart &> /dev/null
 }
 
 startRedisServer(){
+    if [[ ! -f "$REDIS" ]]; then
+        echo "$REDIS not exists, must build it at first!"
+        exit 0
+    fi
     sed -i "s/port [0-9]\{1,\}/port $REDISPORT/g"  $REDIS_CFG
     $REDIS $REDIS_CFG &> /dev/null &
 }
 
-startServer(){
-    cd $DIR
-    startSSDBServer
-    sleep 1
-    startRedisServer
-    sleep 1
-}
-
-cleanup
 prepare_dir
-startServer
+cd $DIR
+startSSDBServer
+startRedisServer
+
+if [ "" == "`ps -ef | grep ssdb-server | grep "_$REDISPORT"`" ]; then
+    echo "ssdb-server at port $REDISPORT not start!"
+    exit 0
+fi
+
+if [ "" == "`ps -ef | grep redis-server | grep ":$REDISPORT"`" ]; then
+    echo "redis-server at port $REDISPORT not start!"
+    exit 0
+fi
+
+echo "Start SWAP server at port $REDISPORT success!"
