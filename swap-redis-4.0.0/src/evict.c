@@ -636,7 +636,7 @@ int epilogOfEvictingToSSDB(robj *keyobj) {
     latencyAddSampleIfNeeded("coldkey-transfer",eviction_latency);
 
     /* Record the evicted keys in an extra redis db. */
-    setKey(evicteddb, keyobj, shared.space);
+    setKey(evicteddb, keyobj, shared.integers[0]);
     /* update LFU with old value. */
     ev_de = dictFind(evicteddb->dict, keyobj->ptr);
     evdb_key = dictGetKey(ev_de);
