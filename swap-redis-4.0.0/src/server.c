@@ -4450,6 +4450,10 @@ int processCommand(client *c) {
         /* It was impossible to free enough memory, and the command the client
          * is trying to execute is denied during OOM conditions? Error. */
         if ((c->cmd->flags & CMD_DENYOOM) && retval == C_ERR) {
+            if (server.swap_mode && c->cmd->proc == ssdbRespRestoreCommand) {
+                if (dictDelete(EVICTED_DATA_DB->loading_hot_keys, c->argv[1]->ptr) == DICT_OK)
+                    signalBlockingKeyAsReady(c->db, c->argv[1]);
+            }
             flagTransaction(c);
             addReply(c, shared.oomerr);
             return C_OK;

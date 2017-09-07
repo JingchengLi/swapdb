@@ -4911,8 +4911,7 @@ void ssdbRespRestoreCommand(client *c) {
         /* Queue the ready key to ssdb_ready_keys. and unblock the
          * clients blocked by the loading_hot key. */
         /* Restart redis will lose data in loading_hot_keys. */
-        if (dictDelete(EVICTED_DATA_DB->loading_hot_keys,
-                       key->ptr) == DICT_OK) {
+        if (dictDelete(EVICTED_DATA_DB->loading_hot_keys, key->ptr) == DICT_OK) {
             signalBlockingKeyAsReady(c->db, key);
             serverLog(LL_DEBUG, "key: %s is deleted from loading_hot_keys.", (char *)key->ptr);
         }
