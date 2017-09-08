@@ -1969,7 +1969,6 @@ void createSharedObjects(void) {
         "-NOREPLICAS Not enough good slaves to write.\r\n"));
     shared.busykeyerr = createObject(OBJ_STRING,sdsnew(
         "-BUSYKEY Target key name already exists.\r\n"));
-    shared.space = createObject(OBJ_STRING,sdsnew(" "));
     shared.colon = createObject(OBJ_STRING,sdsnew(":"));
     shared.plus = createObject(OBJ_STRING,sdsnew("+"));
 

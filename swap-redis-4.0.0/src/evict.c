@@ -662,7 +662,7 @@ int epilogOfEvictingToSSDB(robj *keyobj) {
     robj* setCmdObj = createStringObject("set",3);
     tmpargv[0] = setCmdObj;
     tmpargv[1] = keyobj;
-    tmpargv[2] = shared.space;
+    tmpargv[2] = shared.integers[0];
     propagate(server.setCommand,EVICTED_DATA_DBID, tmpargv, 3, PROPAGATE_AOF);
     decrRefCount(setCmdObj);
 
