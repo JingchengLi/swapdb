@@ -2149,8 +2149,18 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
 #ifdef TEST_CLIENT_BUF
                 tmp = sdscatlen(tmp, reply_start, reply_len);
 #endif
-                /* NOTE: this may change r->pos */
-                discardSSDBreaderBuffer(c->context->reader);
+                /*
+                 * Discard part of the buffer in these two cases:
+                 * 1. when we've consumed at least 1024 bytes and
+                 * unprocessed data length is less than 10K bytes.
+                 * 2. when we've consumed at least 1M bytes.
+                 * to avoid doing unnecessary calls to memmove() in sds.c.
+                 * */
+
+                /* NOTE: discardSSDBreaderBuffer may change r->pos */
+                if (r->pos >= 1024 &&
+                    (r->pos > (r->len - r->pos)/10 || r->pos > 1024000))
+                    discardSSDBreaderBuffer(c->context->reader, 1024);
             }
         }
 
@@ -2200,9 +2210,10 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
             serverLog(LL_DEBUG, "[TEST_CLIENT_BUF]c->ssdb_replies[1]: %s, len:%d", tmp, total_reply_len);
             sdsfree(tmp);
 #endif
-
-            /* NOTE: this may change r->pos */
-            discardSSDBreaderBuffer(c->context->reader);
+            /* NOTE: discardSSDBreaderBuffer may change r->pos */
+            if (r->pos >= 1024 &&
+                (r->pos > (r->len - r->pos)/10 || r->pos > 1024000))
+                discardSSDBreaderBuffer(c->context->reader, 1024);
 
             break;
         }

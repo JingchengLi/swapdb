@@ -217,7 +217,7 @@ void *redisCommand(redisContext *c, const char *format, ...);
 void *redisCommandArgv(redisContext *c, int argc, const char **argv, const size_t *argvlen);
 
 /* for swap_mode only */
-void discardSSDBreaderBuffer(redisReader *r);
+void discardSSDBreaderBuffer(redisReader *r, int min);
 int redisGetReplyFromReader(redisContext *c, void **reply, int* reply_len);
 int redisGetSSDBreplyFromReader(redisContext *c, void **reply, int* reply_len);
 #ifdef __cplusplus

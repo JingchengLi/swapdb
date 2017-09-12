@@ -479,10 +479,10 @@ int redisReaderFeed(redisReader *r, const char *buf, size_t len) {
  * it after we process the raw reply string(for swap mode, we need
  * to preserve the raw reply string from SSDB and copy it to the client
  * buffer of redis). */
-void discardSSDBreaderBuffer(redisReader *r) {
-    /* Discard part of the buffer when we've consumed at least 1k, to avoid
+void discardSSDBreaderBuffer(redisReader *r, int min) {
+    /* Discard part of the buffer when we've consumed at least 'min' bytes, to avoid
      * doing unnecessary calls to memmove() in sds.c. */
-    if (r->pos >= 1024) {
+    if (r->pos >= min) {
         sdsrange(r->buf,r->pos,-1);
         r->pos = 0;
         r->len = sdslen(r->buf);
