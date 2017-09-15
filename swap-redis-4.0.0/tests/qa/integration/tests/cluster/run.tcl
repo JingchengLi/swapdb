@@ -10,7 +10,7 @@ source cluster.tcl
 source ../instances.tcl
 source ../../support/cluster.tcl ; # Redis Cluster client.
 
-set ::instances_count 20 ; # How many instances we use at max.
+set ::instances_count 30 ; # How many instances we use at max.
 set ::nodePairs 3
 #       "daemonize yes"
 
