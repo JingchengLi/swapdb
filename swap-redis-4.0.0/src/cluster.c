@@ -186,6 +186,7 @@ int clusterLoadConfig(char *filename) {
             if (p) *p = '\0';
             if (!strcasecmp(s,"myself")) {
                 serverAssert(server.cluster->myself == NULL);
+                n->datacenter_id = server.datacenter_id;
                 myself = server.cluster->myself = n;
                 n->flags |= CLUSTER_NODE_MYSELF;
             } else if (!strcasecmp(s,"master")) {
@@ -441,6 +442,7 @@ void clusterInit(void) {
          * by the createClusterNode() function. */
         myself = server.cluster->myself =
             createClusterNode(NULL,CLUSTER_NODE_MYSELF|CLUSTER_NODE_MASTER);
+        myself->datacenter_id = server.datacenter_id;
         serverLog(LL_NOTICE,"No cluster configuration found, I'm %.40s",
             myself->name);
         clusterAddNode(myself);
@@ -695,6 +697,7 @@ clusterNode *createClusterNode(char *nodename, int flags) {
     node->orphaned_time = 0;
     node->repl_offset_time = 0;
     node->repl_offset = 0;
+    node->datacenter_id = 0;
     listSetFreeMethod(node->fail_reports,zfree);
     return node;
 }
@@ -1621,6 +1624,7 @@ int clusterProcessPacket(clusterLink *link) {
         return 1;
     }
 
+    unsigned char datacenter_id = hdr->datacenter_id;
     uint16_t flags = ntohs(hdr->flags);
     uint64_t senderCurrentEpoch = 0, senderConfigEpoch = 0;
     clusterNode *sender;
@@ -1674,6 +1678,11 @@ int clusterProcessPacket(clusterLink *link) {
             sender->configEpoch = senderConfigEpoch;
             clusterDoBeforeSleep(CLUSTER_TODO_SAVE_CONFIG|
                                  CLUSTER_TODO_FSYNC_CONFIG);
+        }
+        if (sender->datacenter_id != datacenter_id) {
+            serverLog(LL_NOTICE, "node(%s:%d) datacenter-id changed from %u to %u",
+                      sender->ip, sender->port, sender->datacenter_id, datacenter_id);
+            sender->datacenter_id = datacenter_id;
         }
         /* Update the replication offset info for this node. */
         sender->repl_offset = ntohu64(hdr->offset);
@@ -2236,6 +2245,7 @@ void clusterBuildMessageHdr(clusterMsg *hdr, int type) {
     /* Set the currentEpoch and configEpochs. */
     hdr->currentEpoch = htonu64(server.cluster->currentEpoch);
     hdr->configEpoch = htonu64(master->configEpoch);
+    hdr->datacenter_id = server.datacenter_id;
 
     /* Set the replication offset. */
     if (nodeIsSlave(myself))
@@ -2599,6 +2609,11 @@ void clusterSendFailoverAuthIfNeeded(clusterNode *node, clusterMsg *request) {
     int force_ack = request->mflags[0] & CLUSTERMSG_FLAG0_FORCEACK;
     int j;
 
+    unsigned char node_datacenter_id = request->datacenter_id;
+
+    /* the node is not in the same datacenter with his master and not a manual failover.*/
+    if (node_datacenter_id != master->datacenter_id && !force_ack) return;
+
     /* IF we are not a master serving at least 1 slot, we don't have the
      * right to vote, as the cluster size in Redis Cluster is the number
      * of masters serving at least one slot, and quorum is the cluster
@@ -2715,9 +2730,24 @@ int clusterGetSlaveRank(void) {
     if (master == NULL) return 0; /* Never called by slaves without master. */
 
     myoffset = replicationGetSlaveOffset();
-    for (j = 0; j < master->numslaves; j++)
-        if (master->slaves[j] != myself &&
-            master->slaves[j]->repl_offset > myoffset) rank++;
+    for (j = 0; j < master->numslaves; j++) {
+        if (master->slaves[j] != myself) {
+            if (server.datacenter_id != master->datacenter_id) {
+                if (master->slaves[j]->datacenter_id == master->datacenter_id) {
+                    rank++;
+                } else {
+                    if (master->slaves[j]->repl_offset > myoffset) {
+                        rank++;
+                    }
+                }
+            } else {
+                if (master->slaves[j]->datacenter_id == master->datacenter_id &&
+                    master->slaves[j]->repl_offset > myoffset) {
+                    rank++;
+                }
+            }
+        }
+    }
     return rank;
 }
 
@@ -2866,6 +2896,12 @@ void clusterHandleSlaveFailover(void) {
         /* There are no reasons to failover, so we set the reason why we
          * are returning without failing over to NONE. */
         server.cluster->cant_failover_reason = CLUSTER_CANT_FAILOVER_NONE;
+        return;
+    }
+
+    if (myself->slaveof->datacenter_id != myself->datacenter_id && !manual_failover) {
+        server.cluster->cant_failover_reason = CLUSTER_CANT_FAILOVER_OTHER_DATACENTER;
+        clusterLogCantFailover(CLUSTER_CANT_FAILOVER_OTHER_DATACENTER);
         return;
     }
 
@@ -3213,6 +3249,12 @@ void clusterCron(void) {
     mstime_t handshake_timeout;
 
     iteration++; /* Number of times this function was called so far. */
+
+    if (nodeDatacenterChanged(myself)) {
+        /* braodcast my config to all nodes so they will update their datacenter-id of me. */
+        clusterBroadcastPong(CLUSTER_BROADCAST_ALL);
+        myself->flags &= ~CLUSTER_NODE_DATACENTER_CHANGED;
+    }
 
     /* We want to take myself->ip in sync with the cluster-announce-ip option.
      * The option can be set at runtime via CONFIG SET, so we periodically check

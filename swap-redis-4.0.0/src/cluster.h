@@ -55,6 +55,7 @@ typedef struct clusterLink {
 #define CLUSTER_NODE_NOADDR   64  /* We don't know the address of this node */
 #define CLUSTER_NODE_MEET 128     /* Send a MEET message to this node */
 #define CLUSTER_NODE_MIGRATE_TO 256 /* Master elegible for replica migration. */
+#define CLUSTER_NODE_DATACENTER_CHANGED  512 /* my datacenter-id changed and we need to inform other nodes. */
 #define CLUSTER_NODE_NULL_NAME "\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000"
 
 #define nodeIsMaster(n) ((n)->flags & CLUSTER_NODE_MASTER)
@@ -64,6 +65,7 @@ typedef struct clusterLink {
 #define nodeWithoutAddr(n) ((n)->flags & CLUSTER_NODE_NOADDR)
 #define nodeTimedOut(n) ((n)->flags & CLUSTER_NODE_PFAIL)
 #define nodeFailed(n) ((n)->flags & CLUSTER_NODE_FAIL)
+#define nodeDatacenterChanged(n) ((n)->flags & CLUSTER_NODE_DATACENTER_CHANGED)
 
 /* Reasons why a slave is not able to failover. */
 #define CLUSTER_CANT_FAILOVER_NONE 0
@@ -71,6 +73,7 @@ typedef struct clusterLink {
 #define CLUSTER_CANT_FAILOVER_WAITING_DELAY 2
 #define CLUSTER_CANT_FAILOVER_EXPIRED 3
 #define CLUSTER_CANT_FAILOVER_WAITING_VOTES 4
+#define CLUSTER_CANT_FAILOVER_OTHER_DATACENTER 5
 #define CLUSTER_CANT_FAILOVER_WILL_LOST_SSDB_WRITES 8
 #define CLUSTER_CANT_FAILOVER_RELOG_PERIOD (60*5) /* seconds. */
 
@@ -128,6 +131,7 @@ typedef struct clusterNode {
     int cport;                  /* Latest known cluster port of this node. */
     clusterLink *link;          /* TCP/IP link with this node */
     list *fail_reports;         /* List of nodes signaling this as failing */
+    unsigned char datacenter_id;
 } clusterNode;
 
 typedef struct clusterState {
@@ -247,7 +251,8 @@ typedef struct {
     unsigned char myslots[CLUSTER_SLOTS/8];
     char slaveof[CLUSTER_NAMELEN];
     char myip[NET_IP_STR_LEN];    /* Sender IP, if not all zeroed. */
-    char notused1[34];  /* 34 bytes reserved for future usage. */
+    char notused1[33];  /* 33 bytes reserved for future usage. */
+    unsigned char datacenter_id; /* Use datacenter flag to judge whether a slave should do auto-failover for a failed master. */
     uint16_t cport;      /* Sender TCP cluster bus port */
     uint16_t flags;      /* Sender node flags */
     unsigned char state; /* Cluster state from the POV of the sender */

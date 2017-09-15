@@ -2151,6 +2151,7 @@ void initServerConfig(void) {
     server.lazyfree_lazy_server_del = CONFIG_DEFAULT_LAZYFREE_LAZY_SERVER_DEL;
     server.always_show_logo = CONFIG_DEFAULT_ALWAYS_SHOW_LOGO;
     server.lua_time_limit = LUA_SCRIPT_TIME_LIMIT;
+    server.datacenter_id = 0;
 
     server.client_visiting_ssdb_timeout = CONFIG_DEFAULT_CLIENT_VISITING_SSDB_TIMEOUT;
     server.client_blocked_by_keys_timeout = CONFIG_DEFAULT_CLIENT_BLOCKED_BY_KEYS_TIMEOUT;

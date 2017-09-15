@@ -360,6 +360,8 @@ void loadServerConfigFromString(char *config) {
             }
         } else if (!strcasecmp(argv[0],"maxmemory") && argc == 2) {
             server.maxmemory = memtoll(argv[1],NULL);
+        } else if (!strcasecmp(argv[0],"datacenter-id") && argc == 2) {
+            server.datacenter_id = atoi(argv[1]);
         } else if (!strcasecmp(argv[0],"maxmemory-policy") && argc == 2) {
             server.maxmemory_policy =
                 configEnumGetValue(maxmemory_policy_enum,argv[1]);
@@ -1230,6 +1232,19 @@ void configSetCommand(client *c) {
     } config_set_numerical_field(
       "maxmemory-samples",server.maxmemory_samples,1,LLONG_MAX) {
     } config_set_numerical_field(
+      "datacenter-id",server.datacenter_id,0,UCHAR_MAX) {
+      if (server.cluster_enabled) {
+        if (server.cluster && server.cluster->myself) {
+          if (server.cluster->myself->datacenter_id != server.datacenter_id) {
+            serverLog(LL_NOTICE, "my datacenter-id changed from %u to %u",
+            (unsigned int)server.cluster->myself->datacenter_id, (unsigned int)server.datacenter_id);
+            server.cluster->myself->datacenter_id = server.datacenter_id;
+            /* we will broadcast our config to the other nodes in clusterCron function. */
+            server.cluster->myself->flags |= CLUSTER_NODE_DATACENTER_CHANGED;
+          }
+        }
+      }
+    } config_set_numerical_field(
       "lfu-log-factor",server.lfu_log_factor,0,LLONG_MAX) {
     } config_set_numerical_field(
       "lfu-decay-time",server.lfu_decay_time,0,LLONG_MAX) {
@@ -1518,6 +1533,7 @@ void configGetCommand(client *c) {
     config_get_numerical_field("ssdb-load-upper-limit",server.ssdb_load_upper_limit);
     config_get_numerical_field("lfu-log-factor",server.lfu_log_factor);
     config_get_numerical_field("lfu-decay-time",server.lfu_decay_time);
+    config_get_numerical_field("datacenter-id",server.datacenter_id);
 
     /* Bool (yes/no) values */
     config_get_bool_field("cluster-require-full-coverage",
@@ -2338,6 +2354,7 @@ int rewriteConfig(char *path) {
     rewriteConfigYesNoOption(state,"slave-lazy-flush",server.repl_slave_lazy_flush,CONFIG_DEFAULT_SLAVE_LAZY_FLUSH);
     rewriteConfigNumericalOption(state,"ssdb-transfer-lower-limit",server.ssdb_transfer_lower_limit,CONFIG_DEFAULT_SSDB_TRANSFER_LOWER_LIMIT);
     rewriteConfigNumericalOption(state,"ssdb-load-upper-limit",server.ssdb_load_upper_limit,CONFIG_DEFAULT_SSDB_LOAD_UPPER_LIMIT);
+    rewriteConfigNumericalOption(state,"datacenter-id",server.datacenter_id,0);
 
     /* Rewrite Sentinel config if in Sentinel mode. */
     if (server.sentinel_mode) rewriteConfigSentinelOption(state);
