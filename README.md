@@ -2,6 +2,10 @@
 
 A redis compatiable storage which support data exchange between memory and disk, so you can save a lot of memory cost by using swapdb compared to redis. the main thought of swapdb is, keep hot keys in redis and cold keys in disk, when a key in disk becomes hot, will load it to redis, when a key in memory becomes cold, will transfter it to disk. by using swapdb, you can have both a high preformance cache and high capacity KV storage.
 
+## Documentation
+
+[中文文档](https://github.com/JRHZRD/swapdb/wiki/1.-swapdb%E4%BB%8B%E7%BB%8D)
+
 ## Fundamental
 
 ![fundamental](./docs/fundamental.jpg)
