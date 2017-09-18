@@ -24,7 +24,7 @@ A redis compatiable storage which support data exchange between memory and disk,
 
 ### requirements:  
 ```
-Cmake >= 2.8.11
+CMake >= 3.1
 GCC >= 4.8
 ```
 
