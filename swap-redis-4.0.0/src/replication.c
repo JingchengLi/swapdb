@@ -1546,7 +1546,7 @@ void readSyncBulkPayload(aeEventLoop *el, int fd, void *privdata, int mask) {
             return;
         }
 
-        if (server.swap_mode) {
+        if (server.swap_mode && server.use_customized_replication) {
             server.repl_state = REPL_STATE_TRANSFER_END;
 
              /* Restart the AOF subsystem now that we finished the sync. This
@@ -1613,6 +1613,8 @@ void readSyncBulkPayload(aeEventLoop *el, int fd, void *privdata, int mask) {
              * will trigger an AOF rewrite, and when done will start appending
              * to the new file. */
             if (aof_is_enabled) restartAOF();
+
+            if (server.swap_mode) server.use_customized_replication = 1;
         }
     }
     return;
@@ -1791,11 +1793,12 @@ int slaveTryPartialResynchronization(int fd, int read_reply) {
                 offset++;
                 if (server.swap_mode) {
                     ssdb_snapshot_timestamp = strchr(offset, ' ');
+                    if (!ssdb_snapshot_timestamp) server.use_customized_replication = 0;
                     if (ssdb_snapshot_timestamp) ssdb_snapshot_timestamp++;
                 }
             }
         }
-        if (!replid || !offset || (offset-replid-1) != CONFIG_RUN_ID_SIZE || (server.swap_mode && !ssdb_snapshot_timestamp)) {
+        if (!replid || !offset || (offset-replid-1) != CONFIG_RUN_ID_SIZE) {
             serverLog(LL_WARNING,
                 "Master replied with wrong +FULLRESYNC syntax.");
             /* This is an unexpected condition, actually the +FULLRESYNC
@@ -1807,7 +1810,7 @@ int slaveTryPartialResynchronization(int fd, int read_reply) {
             memcpy(server.master_replid, replid, offset-replid-1);
             server.master_replid[CONFIG_RUN_ID_SIZE] = '\0';
             server.master_initial_offset = strtoll(offset,NULL,10);
-            if (server.swap_mode)
+            if (server.swap_mode && server.use_customized_replication)
                 server.ssdb_snapshot_timestamp = strtoll(ssdb_snapshot_timestamp,NULL,10);
             serverLog(LL_NOTICE,"Full resync from master: %s:%lld:%lld",
                 server.master_replid,
@@ -2166,6 +2169,8 @@ error:
     close(fd);
     server.repl_transfer_s = -1;
     server.repl_state = REPL_STATE_CONNECT;
+
+    if (server.swap_mode) server.use_customized_replication = 1;
     return;
 
 write_error: /* Handle sendSynchronousCommand(SYNC_CMD_WRITE) errors. */
