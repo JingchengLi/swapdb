@@ -1,5 +1,5 @@
 # Check the basic monitoring and auto failover capabilities with datacenter-id set situations.
-# One Master Two Slave, slaves are with same id.
+# One Master Two Slave, slaves are with different ids.
 
 # set nodePairs 5
 set OthersIndex 0
@@ -38,9 +38,9 @@ for {set n 0} {$n < [expr [llength $testcases]/4]} {incr n} {
     slave [lindex $testcases [expr $n*4+$SlaveIndex]]" {
         setDatacenter_id [list $CurMaster] [lindex $testcases [expr $n*4+$MasterIndex]]
         setDatacenter_id [list $CurSlave_1_1] [lindex $testcases [expr $n*4+$SlaveIndex]]
-        setDatacenter_id [list $CurSlave_1_2] [lindex $testcases [expr $n*4+$SlaveIndex]]
+        setDatacenter_id [list $CurSlave_1_2] [expr [lindex $testcases [expr $n*4+$SlaveIndex]]?0:1]
         set nodesList ""
-        for {set node 0} {$node < [expr $::nodePairs*3]} {incr node;} {
+        for {set node 0} {$node < 15} {incr node;} {
             if {$node != $CurMaster && $node != $CurSlave_1_1 && $node != $CurSlave_1_2} {
                 lappend nodesList $node
             }
@@ -87,8 +87,6 @@ for {set n 0} {$n < [expr [llength $testcases]/4]} {incr n} {
     test "Killing one master node" {
         kill_instance redis $CurMaster
     }
-
-    if {[lindex $testcases [expr $n*4+$FailIndex]] == 1} {
         test "Wait for failover" {
             wait_for_condition 1000 50 {
                 [CI 1 cluster_current_epoch] > $current_epoch
@@ -104,19 +102,9 @@ for {set n 0} {$n < [expr [llength $testcases]/4]} {incr n} {
         test "Cluster is writable" {
             cluster_write_test 1
         }
-
-        set NewMaster -1
-        set StillSlave -1
-	if { [RI $CurSlave_1_1 role]  eq {master}} {
-        set NewMaster $CurSlave_1_1
-	set StillSlave $CurSlave_1_2
-	} else {
-        set NewMaster $CurSlave_1_2
-	set StillSlave $CurSlave_1_1
-	}
-
-        test "Instance #$NewMaster is now a master" {
-            assert {[RI $NewMaster role] eq {master}}
+    if {[lindex $testcases [expr $n*4+$FailIndex]] == 1} {
+        test "Instance #$CurSlave_1_1 is now a master" {
+            assert {[RI $CurSlave_1_1 role] eq {master}}
         }
 
         test "Restarting the previously killed master node" {
@@ -139,43 +127,49 @@ for {set n 0} {$n < [expr [llength $testcases]/4]} {incr n} {
             }
         }
         
-        test "Instance #$CurMaster and #$StillSlave are slaves of #$NewMaster" {
-            set porttmp [get_instance_attrib redis $NewMaster port]
+        test "Instance #$CurMaster and #$CurSlave_1_2 are slaves of #$CurSlave_1_1" {
+            set porttmp [get_instance_attrib redis $CurSlave_1_1 port]
             assert {[lindex [R $CurMaster role] 2] == $porttmp}
-            assert {[lindex [R $StillSlave role] 2] == $porttmp}
+            assert {[lindex [R $CurSlave_1_2 role] 2] == $porttmp}
         }
-        # set new id to master, slave 1 and 2
-        set CurSlave_1_1 $CurMaster
-        set CurSlave_1_2 $StillSlave
-        set CurMaster $NewMaster
+        #Switch master and slave
+        set CurMaster [expr $CurMaster^$CurSlave_1_1]
+        set CurSlave_1_1 [expr $CurMaster^$CurSlave_1_1]
+        set CurMaster [expr $CurMaster^$CurSlave_1_1]
     } else {
-        if { [string compare [lindex [R $CurSlave_1_1 config get cluster-require-full-coverage] 1] "yes"] eq 0} {
-            test "Cluster should be down now if cluster-require-full-coverage set yes" {
-                assert_cluster_state fail
-            }
-        } else {
-            test "Cluster should be still up now if cluster-require-full-coverage set no" {
-                assert_cluster_state ok
-            }
-        }
-
-        test "Instance #$CurSlave_1_1 and #$CurSlave_1_2 are still slaves after some time (no failover)" {
-            after 5000
-            assert {[RI $CurSlave_1_1 role] eq {slave}}
-            assert {[RI $CurSlave_1_2 role] eq {slave}}
+        test "Instance #$CurSlave_1_2 is now a master" {
+            assert {[RI $CurSlave_1_2 role] eq {master}}
         }
 
         test "Restarting the previously killed master node" {
             restart_instance redis $CurMaster
         }
 
-        test "Instance #$CurMaster return to a master" {
+        test "Instance #$CurMaster gets converted into a slave" {
             wait_for_condition 1000 50 {
-                [RI $CurMaster role] eq {master}
+                [RI $CurMaster role] eq {slave}
             } else {
-                fail "Old master was not returned to master"
+                fail "Old master was not converted into slave"
             }
         }
+
+        test "Instance #$CurMaster synced with the master" {
+            wait_for_condition 1000 50 {
+                [RI $CurMaster master_link_status] eq {up}
+            } else {
+                fail "Instance #$CurMaster master link status is not up"
+            }
+        }
+        
+        test "Instance #$CurMaster and #$CurSlave_1_1 are slaves of #$CurSlave_1_2" {
+            set porttmp [get_instance_attrib redis $CurSlave_1_2 port]
+            assert {[lindex [R $CurMaster role] 2] == $porttmp}
+            assert {[lindex [R $CurSlave_1_1 role] 2] == $porttmp}
+        }
+        #Switch master and slave
+        set CurMaster [expr $CurMaster^$CurSlave_1_2]
+        set CurSlave_1_2 [expr $CurMaster^$CurSlave_1_2]
+        set CurMaster [expr $CurMaster^$CurSlave_1_2]
     }
     
     test "Instance #$CurSlave_1_1 and #$CurSlave_1_2 synced with the master" {

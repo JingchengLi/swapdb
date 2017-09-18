@@ -137,5 +137,6 @@ foreach CurMaster $Masters CurSlave $Slaves {
             fail "Instance #$CurMaster and Instance #$CurSlave not consistency"
         }
     }
-
+    # Just need run one cycle
+    break
 }

@@ -84,7 +84,8 @@ foreach CurMaster $Masters CurSlave_A $Slaves_A CurSlave_B $Slaves_B CurSlave_C 
 
         # Wait for the slave to return available again
         R $CurSlave_B deferred 0
-        assert {[R $CurSlave_B read] eq {OK OK}}
+        assert {[R $CurSlave_B read] eq {OK}}
+        assert {[R $CurSlave_B read] eq {OK}}
 
         # Kill the master so that a reconnection will not be possible.
         kill_instance redis $CurMaster
@@ -117,4 +118,6 @@ foreach CurMaster $Masters CurSlave_A $Slaves_A CurSlave_B $Slaves_B CurSlave_C 
             fail "#$CurSlave_B and #$CurSlave_C didn't become slave of #$CurSlave_A"
         }
     }
+    # Just need run one cycle
+    break
 }

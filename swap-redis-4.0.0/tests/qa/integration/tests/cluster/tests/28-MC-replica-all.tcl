@@ -104,4 +104,6 @@ foreach CurMaster $Masters CurSlave_A $Slaves_A CurSlave_B $Slaves_B {
         set porttmp [get_instance_attrib redis $CurMaster port]
         assert {[lindex [R $CurSlave_B role] 2] == $porttmp}
     }    
+    # Just need run one cycle
+    break
 }

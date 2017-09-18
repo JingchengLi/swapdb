@@ -142,4 +142,6 @@ foreach CurMaster $Masters CurSlave_A $Slaves_A CurSlave_B $Slaves_B {
         assert {[R $CurSlave_B debug digest] eq [R $CurSlave_A debug digest]}
         assert {[R $CurSlave_B debug digest] eq [R $CurMaster debug digest]}
     }
+    # Just need run one cycle
+    break
 }

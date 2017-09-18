@@ -28,19 +28,11 @@ test "Set datacenter-id masters 0 slaves 1" {
     after [lindex [R 0 config get cluster-node-timeout] 1]
 }
 
-catch {unset content}
-array set content {}
-
 test "Cluster is up" {
     assert_cluster_state ok
 }
 
 foreach CurMaster $Masters CurSlave $Slaves {
-
-    # test "Cluster Master #$CurMaster is writable" {
-        # cluster_write_test $CurMaster  
-    # }
-
     test "Instance #$CurSlave is slave" {
         assert {[RI $CurSlave role] eq {slave}}
     }
@@ -52,31 +44,34 @@ foreach CurMaster $Masters CurSlave $Slaves {
             fail "Instance #$CurSlave master link status is not up"
         }
     }
+}
 
-    set numkeys 50000
-    set numops 100000
-    set cluster [redis_cluster 127.0.0.1:[get_instance_attrib redis $CurMaster port]]
-    
-    test "Load data into cluster" {
-        for {set j 0} {$j < $numops} {incr j} {
-            # Write random data to random list.
-            set listid [randomInt $numkeys]
-            set key "key:$listid"
-            set ele [randomValue]
-            # We write both with Lua scripts and with plain commands.
-            # This way we are able to stress Lua -> Redis command invocation
-            # as well, that has tests to prevent Lua to write into wrong
-            # hash slots.
-            #if {$listid % 2} {
-                $cluster rpush $key $ele
-            #} else {
-            #   $cluster eval {redis.call("rpush",KEYS[1],ARGV[1])} 1 $key $ele
-            #}
-            lappend content($key) $ele
 
-            if {($j % 1000) == 0} {
-                puts -nonewline W; flush stdout
-            }
+catch {unset content}
+array set content {}
+set numkeys 50000
+set numops 100000
+set cluster [redis_cluster 127.0.0.1:[get_instance_attrib redis $CurMaster port]]
+
+test "Load data into cluster" {
+    for {set j 0} {$j < $numops} {incr j} {
+        # Write random data to random list.
+        set listid [randomInt $numkeys]
+        set key "key:$listid"
+        set ele [randomValue]
+        # We write both with Lua scripts and with plain commands.
+        # This way we are able to stress Lua -> Redis command invocation
+        # as well, that has tests to prevent Lua to write into wrong
+        # hash slots.
+        #if {$listid % 2} {
+            $cluster rpush $key $ele
+        #} else {
+        #   $cluster eval {redis.call("rpush",KEYS[1],ARGV[1])} 1 $key $ele
+        #}
+        lappend content($key) $ele
+
+        if {($j % 1000) == 0} {
+            puts -nonewline W; flush stdout
         }
     }
 }
@@ -90,6 +85,7 @@ test "Killing all master instances:$Masters" {
 test "Cluster should eventually be fail" {
     assert_cluster_state fail 
 }
+
 test "Send CLUSTER FAILOVER TAKEOVER to slave instances:$Slaves" {
     foreach CurSlave $Slaves {
         R $CurSlave cluster FAILOVER TAKEOVER
@@ -149,4 +145,6 @@ foreach CurMaster $Masters CurSlave $Slaves {
         set porttmp [get_instance_attrib redis $CurSlave port]
         assert {[lindex [R $CurMaster role] 2] == $porttmp}
     }    
+    # Just need run one cycle
+    break
 }
