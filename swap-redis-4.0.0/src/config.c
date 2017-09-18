@@ -29,7 +29,11 @@
  */
 
 #include "server.h"
+#ifdef USE_CLUSTER_PROTOCOL_V3
+#include "cluster_v3.h"
+#else
 #include "cluster.h"
+#endif
 
 #include <fcntl.h>
 #include <sys/stat.h>

@@ -30,7 +30,11 @@
 #include "server.h"
 #include "sha1.h"
 #include "rand.h"
+#ifdef USE_CLUSTER_PROTOCOL_V3
+#include "cluster_v3.h"
+#else
 #include "cluster.h"
+#endif
 
 #include <lua.h>
 #include <lauxlib.h>

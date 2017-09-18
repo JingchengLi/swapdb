@@ -1,7 +1,11 @@
 #include "server.h"
 #include "bio.h"
 #include "atomicvar.h"
+#ifdef USE_CLUSTER_PROTOCOL_V3
+#include "cluster_v3.h"
+#else
 #include "cluster.h"
+#endif
 
 static size_t lazyfree_objects = 0;
 pthread_mutex_t lazyfree_objects_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -99,7 +103,6 @@ void emptyDbAsync(redisDb *db) {
  * and scheduiling the old for lazy freeing. */
 void slotToKeyFlushAsync(void) {
     rax *old = server.cluster->slots_to_keys;
-
     server.cluster->slots_to_keys = raxNew();
     memset(server.cluster->slots_keys_count,0,
            sizeof(server.cluster->slots_keys_count));

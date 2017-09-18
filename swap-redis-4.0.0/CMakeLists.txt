@@ -14,9 +14,9 @@ SET(EXECUTABLE_OUTPUT_PATH "${CMAKE_SOURCE_DIR}/build")
 IF(GCOV)
     ADD_DEFINITIONS("-fprofile-arcs -ftest-coverage")
     SET(CMAKE_EXE_LINKER_FLAGS "-fprofile-arcs -ftest-coverage")
-    set(CMAKE_C_FLAGS "-g -std=c99 -pedantic -rdynamic -DUSE_JEMALLOC -U__STRICT_ANSI__ -DMULTIPLE_DC") # that would be bad
+    set(CMAKE_C_FLAGS "-g -std=c99 -pedantic -rdynamic -DUSE_JEMALLOC -U__STRICT_ANSI__ -DMULTIPLE_DC -DUSE_CLUSTER_PROTOCOL_V3") # that would be bad
 ELSE()
-    set(CMAKE_C_FLAGS "-g -std=c99 -pedantic -rdynamic -DUSE_JEMALLOC -U__STRICT_ANSI__ -DMULTIPLE_DC") # that would be bad
+    set(CMAKE_C_FLAGS "-g -std=c99 -pedantic -rdynamic -DUSE_JEMALLOC -U__STRICT_ANSI__ -DMULTIPLE_DC -DUSE_CLUSTER_PROTOCOL_V3") # that would be bad
 ENDIF()
 
 INCLUDE_DIRECTORIES(
@@ -130,7 +130,8 @@ SET(redis-server_files
         src/bitops.c
         src/blocked.c
         src/childinfo.c
-        src/cluster.c
+        #src/cluster.c
+        src/cluster_v3.c
         src/config.c
         src/crc16.c
         src/crc64.c

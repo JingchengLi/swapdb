@@ -28,7 +28,11 @@
  */
 
 #include "server.h"
+#ifdef USE_CLUSTER_PROTOCOL_V3
+#include "cluster_v3.h"
+#else
 #include "cluster.h"
+#endif
 #include <dlfcn.h>
 
 #define REDISMODULE_CORE 1

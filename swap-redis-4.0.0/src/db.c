@@ -28,7 +28,11 @@
  */
 
 #include "server.h"
+#ifdef USE_CLUSTER_PROTOCOL_V3
+#include "cluster_v3.h"
+#else
 #include "cluster.h"
+#endif
 #include "atomicvar.h"
 
 #include <signal.h>
@@ -1594,4 +1598,3 @@ unsigned int delKeysInSlot(unsigned int hashslot) {
 unsigned int countKeysInSlot(unsigned int hashslot) {
     return server.cluster->slots_keys_count[hashslot];
 }
-
