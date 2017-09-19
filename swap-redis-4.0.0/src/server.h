@@ -2168,6 +2168,7 @@ void *dictSdsDup(void *privdata, const void *val);
 char *redisGitSHA1(void);
 char *redisGitDirty(void);
 uint64_t redisBuildId(void);
+int redisGetClusterProtocolVersion(void);
 
 /* Commands prototypes */
 void authCommand(client *c);

@@ -50,3 +50,11 @@ uint64_t redisBuildId(void) {
 
     return crc64(0,(unsigned char*)buildid,strlen(buildid));
 }
+
+int redisGetClusterProtocolVersion(void) {
+#ifdef USE_CLUSTER_PROTOCOL_V3
+    return 3;
+#else
+    return 4;
+#endif
+}
