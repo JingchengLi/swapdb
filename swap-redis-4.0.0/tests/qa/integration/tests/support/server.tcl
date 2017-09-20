@@ -236,10 +236,19 @@ proc start_server {options {code undefined}} {
     set ssdbstdout [format "%s/%s" [dict get $config "dir"] "ssdbstdout"]
     set ssdbstderr [format "%s/%s" [dict get $config "dir"] "ssdbstderr"]
     puts "start dir: $workdir"
-    if {$::valgrind} {
-        set ssdbpid [exec valgrind --track-origins=yes --suppressions=../../../src/valgrind.sup --show-reachable=no --show-possibly-lost=no --leak-check=full ssdb-server $ssdb_config_file > $ssdbstdout 2> $ssdbstderr &]
+
+    if {[file exists ../../../../swap-ssdb-1.9.2/build/ssdb-server]} {
+        set ssdbprogram ../../../../swap-ssdb-1.9.2/build/ssdb-server
+    } elseif {[file exists ../../../../build/ssdb-server]} {
+        set ssdbprogram ../../../../build/ssdb-server
     } else {
-        set ssdbpid [exec ssdb-server $ssdb_config_file > $ssdbstdout 2> $ssdbstderr &]
+        error "no ssdb-server found in build directory!!!"
+    }
+
+    if {$::valgrind} {
+        set ssdbpid [exec valgrind --track-origins=yes --suppressions=../../../src/valgrind.sup --show-reachable=no --show-possibly-lost=no --leak-check=full $ssdbprogram $ssdb_config_file > $ssdbstdout 2> $ssdbstderr &]
+    } else {
+        set ssdbpid [exec $ssdbprogram $ssdb_config_file > $ssdbstdout 2> $ssdbstderr &]
     }
     if {[server_is_up 127.0.0.1 $ssdbport 10000] == 0} {
         set err {}
@@ -255,10 +264,12 @@ proc start_server {options {code undefined}} {
     set stdout [format "%s/%s" [dict get $config "dir"] "stdout"]
     set stderr [format "%s/%s" [dict get $config "dir"] "stderr"]
 
-    if {[file exists ../../../build/redis-server]} {
-        set program ../../../build/redis-server
+    if {[file exists ../../../../build/redis-server]} {
+        set program ../../../../build/redis-server
     } elseif {[file exists ../../../src/redis-server]} {
         set program ../../../src/redis-server
+    } elseif {[file exists ../../../build/redis-server]} {
+        set program ../../../build/redis-server
     } else {
         error "no redis-server found in src or build directory!!!"
     }

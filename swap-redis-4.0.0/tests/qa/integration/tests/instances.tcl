@@ -62,10 +62,12 @@ proc exec_instance {type cfgfile} {
     if {$::valgrind} {
         set pid [exec valgrind --track-origins=yes --suppressions=../../../src/valgrind.sup --show-reachable=no --show-possibly-lost=no --leak-check=full ../../../src/${prgname} $cfgfile &]
     } else {
-        if {[file exists ../../../../../../build/${prgname}]} {
-            set pid [exec ../../../../../../build/${prgname} $cfgfile &]
+        if {[file exists ../../../../../../../build/${prgname}]} {
+            set pid [exec ../../../../../../../build/${prgname} $cfgfile &]
         } elseif {[file exists ../../../../../../src/${prgname}]} {
             set pid [exec ../../../../../../src/${prgname} $cfgfile &]
+        } elseif {[file exists ../../../../../../build/${prgname}]} {
+            set pid [exec ../../../../../../build/${prgname} $cfgfile &]
         } else {
             error "no redis-server found in src or build directory!!!"
         }
@@ -75,7 +77,14 @@ proc exec_instance {type cfgfile} {
 }
 
 proc exec_ssdb_instance {cfgfile} {
-    set pid [exec ssdb-server $cfgfile 2> /dev/null &]
+    if {[file exists ../../../../../../../swap-ssdb-1.9.2/build/ssdb-server]} {
+        set ssdbprogram ../../../../../../../swap-ssdb-1.9.2/build/ssdb-server
+    } elseif {[file exists ../../../../../../../build/ssdb-server]} {
+        set ssdbprogram ../../../../../../../build/ssdb-server
+    } else {
+        error "no ssdb-server found in build directory!!!"
+    }
+    set pid [exec $ssdbprogram $cfgfile 2> /dev/null &]
     return $pid
 }
 
