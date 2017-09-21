@@ -345,21 +345,22 @@ std::string str(long double v){
 }
 
 static inline
-std::string str(double v){
-//	char buf[21] = {0};
-//	if(v - floor(v) == 0){
-//		snprintf(buf, sizeof(buf), "%.0f", v);
-//	}else{
-//		snprintf(buf, sizeof(buf), "%f", v);
+std::string str(double d){
+// 	char dbuf[128], sbuf[128];
+//	int dlen, slen;
+//	if (::isinf(d)) {
+//		/* Libc in odd systems (Hi Solaris!) will format infinite in a
+//         * different way, so better to handle it in an explicit way. */
+//		return d > 0 ? "inf" : "-inf";
+//	} else {
+//		dlen = snprintf(dbuf,sizeof(dbuf),"%.17g",d);
+//		return std::string(dbuf, dlen);
 //	}
-//	return std::string(buf);
-//
-	char buf[256];
-	int len = ld2string(buf,sizeof(buf),v,1);
+
+ 	char buf[128];
+	int len = ld2string(buf,sizeof(buf),d,0);
 
 	return std::string(buf, len);
-//	new = sdsnewlen(buf,len);
-
 }
 
 static inline

@@ -106,9 +106,6 @@ public:
 };
 
 
-double decodeScore(const int64_t score);
-
-
 
 /*
  * decode delete key class

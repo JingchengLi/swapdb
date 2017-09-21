@@ -73,4 +73,59 @@ public:
 
 };
 
+
+/*
+inline uint64_t encodeScore(const double score) {
+    int64_t iscore;
+    if (score < 0) {
+        iscore = (int64_t)(score * 100000LL - 0.5) + ZSET_SCORE_SHIFT;
+    } else {
+        iscore = (int64_t)(score * 100000LL + 0.5) + ZSET_SCORE_SHIFT;
+    }
+    return (uint64_t)(iscore);
+}
+
+
+inline double decodeScore(const int64_t score) {
+    return (double)(score - ZSET_SCORE_SHIFT) / 100000.0;
+}
+*/
+
+static_assert(sizeof(uint64_t) == sizeof(double), "sizeof(uint64_t) != sizeof(double), please check platform");
+
+static const unsigned int bit_num = sizeof(uint64_t) * 8;
+static const uint64_t bit_one = 0x01;;
+
+
+inline double decodeScore(uint64_t c) {
+
+    uint64_t pos_num = c >> (bit_num - 1);
+    if (pos_num == bit_one) {
+        //score >= 0
+        c = (c & ~(bit_one << (bit_num - 1))); //set 0
+    } else {
+        c = c ^ UINT64_MAX;
+
+    }
+    double score = *reinterpret_cast<double *>(&c);
+    return score;
+}
+
+inline uint64_t encodeScore(double score) {
+
+    uint64_t it = *reinterpret_cast<uint64_t *>(&score);
+    uint64_t pos_num = it >> (bit_num - 1);
+    if (pos_num == bit_one) {
+        it = it ^ UINT64_MAX;
+    } else {
+        it = it | (bit_one << (bit_num - 1)); //set 1
+    }
+
+    return it;
+}
+
+
+
+
+
 #endif //SSDB_UTIL_H

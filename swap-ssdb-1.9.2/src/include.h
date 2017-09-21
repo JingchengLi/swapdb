@@ -26,6 +26,7 @@ found in the LICENSE file.
 
 #include "version.h"
 #include <stdlib.h>
+#include <limits>
 
 #ifndef UINT64_MAX
 	#define UINT64_MAX		18446744073709551615ULL
@@ -35,12 +36,9 @@ found in the LICENSE file.
 #endif
 
 
-const int ZSET_SCORE_INTEGER_DIGITS = 13;
-const int ZSET_SCORE_DECIMAL_DIGITS = 5;
-//const int64_t ZSET_SCORE_SHIFT = 1000000000000000000LL; //1,000,000,000,000,000,000
-const int64_t ZSET_SCORE_MAX = 10000000000000LL;               //10,000,000,000,000 ( *10,000 for Shift )
-const int64_t ZSET_SCORE_MIN = -ZSET_SCORE_MAX;
-const double eps = 1e-5;
+const double ZSET_SCORE_MAX = std::numeric_limits<double>::max();
+const double ZSET_SCORE_MIN = std::numeric_limits<double>::min();
+const double eps = 1e-15;
 
 static inline double millitime(){
 	struct timeval now;

@@ -63,10 +63,6 @@ int proc_multi_zset(Context &ctx, Link *link, const Request &req, Response *resp
             reply_err_return(INVALID_DBL);
         }
 
-        if (score <= ZSET_SCORE_MIN || score >= ZSET_SCORE_MAX){
-            reply_err_return(VALUE_OUT_OF_RANGE);
-        }
-
         double new_val = 0;
         int ret = serv->ssdb->zincr(ctx, name, req[scoreidx+1], score, flags, &new_val);
         check_key(ret);
@@ -98,14 +94,14 @@ int proc_multi_zset(Context &ctx, Link *link, const Request &req, Response *resp
 		const Bytes &key = *(it + 1);
 		const Bytes &val = *it;
 
-        double score = val.Double();
-        if (errno == EINVAL){
-            reply_err_return(INVALID_DBL);
-        }
-
-        if (score <= ZSET_SCORE_MIN || score >= ZSET_SCORE_MAX){
-            reply_err_return(VALUE_OUT_OF_RANGE);
-        }
+//        double score = val.Double();
+//        if (errno == EINVAL){
+//            reply_err_return(INVALID_DBL);
+//        }
+//
+//        if (score <= ZSET_SCORE_MIN || score >= ZSET_SCORE_MAX){
+//            reply_err_return(VALUE_OUT_OF_RANGE);
+//        }
 
         if (nx) {
             sortedSet.insert(make_pair(key,val));
@@ -274,7 +270,7 @@ static int _zrangebyscore(Context &ctx, SSDB *ssdb, const Request &req, Response
             } else if (remaining >= 3 && !strcasecmp(req[pos].data(),"limit")) {
                 if ( (string2ld(req[pos+1].data(),req[pos+1].size(),&offset) < 0) ||
                      (string2ld(req[pos+2].data(),req[pos+2].size(),&limit) < 0) ){
-                    reply_err_return(NAN_SCORE);
+                    reply_errinfo_return("ERR min or max is not a float");
                 }
                 pos += 3; remaining -= 3;
             } else {
@@ -352,10 +348,6 @@ static int _zincr(Context &ctx, SSDB *ssdb, Link *link, const Request &req, Resp
     double score = req[3].Double();
     if (errno == EINVAL){
         reply_err_return(INVALID_DBL);
-    }
-
-    if (score <= ZSET_SCORE_MIN || score >= ZSET_SCORE_MAX){
-        reply_err_return(VALUE_OUT_OF_RANGE);
     }
 
     double new_val = 0;

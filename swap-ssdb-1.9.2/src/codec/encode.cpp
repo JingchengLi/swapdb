@@ -59,15 +59,6 @@ string encode_eset_key(const Bytes& member){
     return buf;
 }
 
-uint64_t encodeScore(const double score) {
-    int64_t iscore;
-    if (score < 0) {
-        iscore = (int64_t)(score * 100000LL - 0.5) + ZSET_SCORE_SHIFT;
-    } else {
-        iscore = (int64_t)(score * 100000LL + 0.5) + ZSET_SCORE_SHIFT;
-    }
-    return (uint64_t)(iscore);
-}
 
 string encode_zscore_key(const Bytes& key, const Bytes& field, double score, uint16_t version){
     string buf(1, DataType::ZSCORE);

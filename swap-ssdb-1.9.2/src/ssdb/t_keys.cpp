@@ -517,9 +517,6 @@ int SSDBImpl::restore(Context &ctx, const Bytes &key, int64_t expire, const Byte
                             return INVALID_DBL;
                         }
 
-                        if (*score >= ZSET_SCORE_MAX || *score <= ZSET_SCORE_MIN) {
-                            return VALUE_OUT_OF_RANGE;
-                        }
                         return 1;
                     } else {
                         log_error("value not found ");

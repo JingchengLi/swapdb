@@ -131,10 +131,6 @@ int SSDBImpl::zsetNoLock(Context &ctx, const Bytes &name, const std::map<T, T> &
             return INVALID_DBL;
         }
 
-        if (score >= ZSET_SCORE_MAX || score <= ZSET_SCORE_MIN) {
-            return VALUE_OUT_OF_RANGE;
-        }
-
         int retflags = flags;
 
         int retval = zset_one(batch, needCheck, name, key, score, zv.version, &retflags, &newscore);

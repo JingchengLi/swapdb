@@ -72,9 +72,7 @@ int ZScoreItemKey::DecodeItemKey(const Bytes &str) {
     return 0;
 }
 
-double decodeScore(const int64_t score) {
-    return (double)(score - ZSET_SCORE_SHIFT) / 100000.0;
-}
+
 
 int ListItemKey::DecodeItemKey(const Bytes &str) {
     Decoder decoder(str.data(), str.size());

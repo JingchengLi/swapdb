@@ -30,5 +30,6 @@ const int BUSY_KEY_EXISTS              = -20;
 const int INVALID_DUMP_STR             = -21;
 const int INVALID_ARGS                 = -22;
 const int VALUE_OUT_OF_RANGE           = -23;
+const int INVALID_MIN_MAX_DBL          = -24;
 
 #endif //SSDB_REDIS_ERROR_H

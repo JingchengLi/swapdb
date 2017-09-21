@@ -11,7 +11,8 @@ found in the LICENSE file.
  * @return -1: error, 0: item updated, 1: new item inserted
  */
 
-int SSDBImpl::multi_zset(Context &ctx, const Bytes &name, const std::map<Bytes, Bytes> &sortedSet, int flags, int64_t *num) {
+int SSDBImpl::multi_zset(Context &ctx, const Bytes &name, const std::map<Bytes, Bytes> &sortedSet, int flags,
+                         int64_t *num) {
     RecordKeyLock l(&mutex_record_, name.String());
     return zsetNoLock<Bytes>(ctx, name, sortedSet, flags, num);
 }
@@ -199,12 +200,12 @@ ZIterator *SSDBImpl::zscan_internal(Context &ctx, const Bytes &name, const Bytes
     if (direction == Iterator::FORWARD) {
         std::string start, end;
         if (score_start.empty()) {
-            start = encode_zscore_key(name, "", ZSET_SCORE_MIN, version);
+            start = encode_zscore_key(name, "", -std::numeric_limits<double>::quiet_NaN(), version);
         } else {
             start = encode_zscore_key(name, "", score_start.Double(), version);
         }
         if (score_end.empty()) {
-            end = encode_zscore_key(name, "", ZSET_SCORE_MAX, version);
+            end = encode_zscore_key(name, "", std::numeric_limits<double>::quiet_NaN(), version);
         } else {
             end = encode_zscore_key(name, "", score_end.Double(), version);
         }
@@ -212,12 +213,12 @@ ZIterator *SSDBImpl::zscan_internal(Context &ctx, const Bytes &name, const Bytes
     } else {
         std::string start, end;
         if (score_start.empty()) {
-            start = encode_zscore_key(name, "", ZSET_SCORE_MAX, version);
+            start = encode_zscore_key(name, "", std::numeric_limits<double>::quiet_NaN(), version);
         } else {
             start = encode_zscore_key(name, "", score_start.Double(), version);
         }
         if (score_end.empty()) {
-            end = encode_zscore_key(name, "", ZSET_SCORE_MIN, version);
+            end = encode_zscore_key(name, "", -std::numeric_limits<double>::quiet_NaN(), version);
         } else {
             end = encode_zscore_key(name, "", score_end.Double(), version);
         }
@@ -225,9 +226,10 @@ ZIterator *SSDBImpl::zscan_internal(Context &ctx, const Bytes &name, const Bytes
     }
 }
 
-ZIteratorByLex *SSDBImpl::zscanbylex_internal(Context &ctx, const Bytes &name, const Bytes &key_start, const Bytes &key_end,
-                                              uint64_t limit, Iterator::Direction direction, uint16_t version,
-                                              const leveldb::Snapshot *snapshot) {
+ZIteratorByLex *
+SSDBImpl::zscanbylex_internal(Context &ctx, const Bytes &name, const Bytes &key_start, const Bytes &key_end,
+                              uint64_t limit, Iterator::Direction direction, uint16_t version,
+                              const leveldb::Snapshot *snapshot) {
     std::string start, end;
     start = encode_zset_key(name, key_start, version);
     if (key_end != "") {
@@ -275,7 +277,7 @@ int SSDBImpl::zrank(Context &ctx, const Bytes &name, const Bytes &key, int64_t *
         ret++;
     }
 
-    *rank = found ? (int64_t)ret : -1;
+    *rank = found ? (int64_t) ret : -1;
 
     return 1;
 }
@@ -312,12 +314,13 @@ int SSDBImpl::zrrank(Context &ctx, const Bytes &name, const Bytes &key, int64_t 
         ret++;
     }
 
-    *rank = found ? (int64_t)ret : -1;
+    *rank = found ? (int64_t) ret : -1;
 
     return 1;
 }
 
-int SSDBImpl::zrangeGeneric(Context &ctx, const Bytes &name, const Bytes &begin, const Bytes &limit, std::vector<string> &key_score,
+int SSDBImpl::zrangeGeneric(Context &ctx, const Bytes &name, const Bytes &begin, const Bytes &limit,
+                            std::vector<string> &key_score,
                             int reverse) {
     long long start, end;
     if (string2ll(begin.data(), (size_t) begin.size(), &start) == 0) {
@@ -382,11 +385,13 @@ int SSDBImpl::zrangeGeneric(Context &ctx, const Bytes &name, const Bytes &begin,
     return 1;
 }
 
-int SSDBImpl::zrange(Context &ctx, const Bytes &name, const Bytes &begin, const Bytes &limit, std::vector<std::string> &key_score) {
+int SSDBImpl::zrange(Context &ctx, const Bytes &name, const Bytes &begin, const Bytes &limit,
+                     std::vector<std::string> &key_score) {
     return zrangeGeneric(ctx, name, begin, limit, key_score, 0);
 }
 
-int SSDBImpl::zrrange(Context &ctx, const Bytes &name, const Bytes &begin, const Bytes &limit, std::vector<std::string> &key_score) {
+int SSDBImpl::zrrange(Context &ctx, const Bytes &name, const Bytes &begin, const Bytes &limit,
+                      std::vector<std::string> &key_score) {
     return zrangeGeneric(ctx, name, begin, limit, key_score, 1);
 }
 
@@ -398,30 +403,53 @@ typedef struct {
 
 /* Populate the rangespec according to the objects min and max. */
 static int zslParseRange(const Bytes &min, const Bytes &max, zrangespec *spec) {
-    char *eptr;errno = 0;
+    char *eptr;
+    errno = 0;
     spec->minex = spec->maxex = 0;
 
     /* Parse the min-max interval. If one of the values is prefixed
      * by the "(" character, it's considered "open". For instance
      * ZRANGEBYSCORE zset (1.5 (2.5 will match min < x < max
      * ZRANGEBYSCORE zset 1.5 2.5 will instead match min <= x <= max */
+//INVALID_MIN_MAX_DBL
 
     if (min[0] == '(') {
         spec->min = strtod(min.data() + 1, &eptr);
-        if (eptr[0] != '\0' || std::isnan(spec->min)) return NAN_SCORE;
+        if (std::isnan(spec->min)) {
+            return NAN_SCORE;
+        }
+        if (eptr[0] != '\0') {
+            return INVALID_MIN_MAX_DBL;
+        }
+
         spec->minex = 1;
     } else {
         spec->min = strtod(min.data(), &eptr);
-        if (eptr[0] != '\0' || std::isnan(spec->min)) return NAN_SCORE;
+        if (std::isnan(spec->min)) {
+            return INVALID_MIN_MAX_DBL;
+        }
+        if (eptr[0] != '\0') {
+            return INVALID_MIN_MAX_DBL;
+        }
     }
 
     if (max[0] == '(') {
         spec->max = strtod(max.data() + 1, &eptr);
-        if (eptr[0] != '\0' || std::isnan(spec->max)) return NAN_SCORE;
+        if (std::isnan(spec->max)) {
+            return INVALID_MIN_MAX_DBL;
+        }
+        if (eptr[0] != '\0') {
+            return INVALID_MIN_MAX_DBL;
+        }
         spec->maxex = 1;
     } else {
         spec->max = strtod(max.data(), &eptr);
-        if (eptr[0] != '\0' || std::isnan(spec->max)) return NAN_SCORE;
+        if (std::isnan(spec->max)) {
+            return INVALID_MIN_MAX_DBL;
+        }
+        if (eptr[0] != '\0') {
+            return INVALID_MIN_MAX_DBL;
+        }
     }
 
     return 1;
@@ -441,35 +469,45 @@ int SSDBImpl::genericZrangebyscore(Context &ctx, const Bytes &name, const Bytes 
     zrangespec range;
     std::string score_start;
     std::string score_end;
+    double score = 0;
 
+    int ret = 0;
     if (reverse) {
-        if (zslParseRange(end_score, start_score, &range) < 0) {
-            return NAN_SCORE;
+        ret = zslParseRange(end_score, start_score, &range);
+        if (ret < 0) {
+            return ret;
         }
-        double score = range.max + eps;
+
+
+        score = range.max + eps;
         score_start = str(score);
         score = range.min - eps;
         score_end = str(score);
     } else {
-        if (zslParseRange(start_score, end_score, &range) < 0) {
-            return NAN_SCORE;
+        ret = zslParseRange(start_score, end_score, &range);
+        if (ret < 0) {
+            return ret;
         }
-        double score = range.min - eps;
+
+        if (std::isinf(range.min)) {
+            score_start = "";
+        } else {
+            score = range.min - eps;
+            score_start = str(score);
+        }
+
+        score = range.min - eps;
         score_start = str(score);
-        score = range.max + eps;
-        score_end = str(score);
+
+        if (std::isinf(range.max)) {
+            score_end = "";
+        } else {
+            score = range.max + eps;
+            score_end = str(score);
+        }
+
     }
 
-    if (start_score == "-inf" || start_score == "(-inf") {
-        score_start = str(ZSET_SCORE_MIN);
-    } else if (start_score == "+inf" || start_score == "(+inf") {
-        score_start = str(ZSET_SCORE_MAX);
-    }
-    if (end_score == "-inf" || end_score == "(-inf") {
-        score_end = str(ZSET_SCORE_MIN);
-    } else if (end_score == "+inf" || end_score == "(+inf") {
-        score_end = str(ZSET_SCORE_MAX);
-    }
 
     ZSetMetaVal zv;
     const leveldb::Snapshot *snapshot = nullptr;
@@ -556,35 +594,27 @@ int SSDBImpl::zrevrangebyscore(Context &ctx, const Bytes &name, const Bytes &sta
     return genericZrangebyscore(ctx, name, start_score, end_score, key_score, withscores, offset, limit, 1);
 }
 
-int SSDBImpl::zremrangebyscore(Context &ctx, const Bytes &name, const Bytes &score_start, const Bytes &score_end, bool remove, int64_t *count) {
+int SSDBImpl::zremrangebyscore(Context &ctx, const Bytes &name, const Bytes &score_start, const Bytes &score_end,
+                               bool remove, int64_t *count) {
     zrangespec range;
 
     std::string start_score;
     std::string end_score;
+    int ret = 0;
 
-    if (zslParseRange(score_start, score_end, &range) < 0) {
-        return NAN_SCORE;
+    ret = zslParseRange(score_start, score_end, &range);
+    if (ret  < 0) {
+        return ret;
     }
     double score = range.min - eps;
     start_score = str(score);
     score = range.max + eps;
     end_score = str(score);
 
-    if (score_start == "-inf") {
-        start_score = str(ZSET_SCORE_MIN);
-    } else if (score_start == "+inf") {
-        start_score = str(ZSET_SCORE_MAX);
-    }
-    if (score_end == "-inf") {
-        end_score = str(ZSET_SCORE_MIN);
-    } else if (score_end == "+inf") {
-        end_score = str(ZSET_SCORE_MAX);
-    }
-
     RecordKeyLock l(&mutex_record_, name.String());
     ZSetMetaVal zv;
     std::string meta_key = encode_meta_key(name);
-    int ret = GetZSetMetaVal(meta_key, zv);
+    ret = GetZSetMetaVal(meta_key, zv);
     if (ret <= 0) {
         return ret;
     }
@@ -652,7 +682,8 @@ int SSDBImpl::zdel_one(leveldb::WriteBatch &batch, const Bytes &name, const Byte
     return 1;
 }
 
-int SSDBImpl::incr_zsize(Context &ctx, const Bytes &name, leveldb::WriteBatch &batch, const ZSetMetaVal &zv, int64_t incr) {
+int
+SSDBImpl::incr_zsize(Context &ctx, const Bytes &name, leveldb::WriteBatch &batch, const ZSetMetaVal &zv, int64_t incr) {
     std::string size_key = encode_meta_key(name);
 
     int ret = 1;
@@ -714,9 +745,8 @@ int SSDBImpl::zset_one(leveldb::WriteBatch &batch, bool needCheck, const Bytes &
     if (std::isnan(score)) {
         *flags = ZADD_NAN;
         return NAN_SCORE;
-    } else if (score <= ZSET_SCORE_MIN || score >= ZSET_SCORE_MAX) {
-        return VALUE_OUT_OF_RANGE;
     }
+
 
     std::string zkey = encode_zset_key(name, key, cur_version);
 
@@ -755,13 +785,12 @@ int SSDBImpl::zset_one(leveldb::WriteBatch &batch, bool needCheck, const Bytes &
                 if (std::isnan(score)) {
                     *flags |= ZADD_NAN;
                     return NAN_SCORE;
-                } else if (score <= ZSET_SCORE_MIN || score >= ZSET_SCORE_MAX) {
-                    return VALUE_OUT_OF_RANGE;
                 }
+
                 if (newscore) *newscore = score;
             }
 
-            if (fabs(old_score - score) < eps) {
+            if (old_score == score) {
                 //same
             } else {
                 if (newscore) *newscore = score;
@@ -926,7 +955,8 @@ int SSDBImpl::zrangebylex(Context &ctx, const Bytes &name, const Bytes &key_star
     return genericZrangebylex(ctx, name, key_start, key_end, keys, offset, limit, 1, &count);
 }
 
-int SSDBImpl::zremrangebylex(Context &ctx, const Bytes &name, const Bytes &key_start, const Bytes &key_end, int64_t *count) {
+int SSDBImpl::zremrangebylex(Context &ctx, const Bytes &name, const Bytes &key_start, const Bytes &key_end,
+                             int64_t *count) {
     zlexrangespec range;
 
     /* Parse the range arguments */
@@ -1039,7 +1069,7 @@ int SSDBImpl::zrevrangebylex(Context &ctx, const Bytes &name, const Bytes &key_s
         while (!tmp_stack.empty()) {
             if (!offset) {
                 if (limit--) {
-                    std::string& top = tmp_stack.top();
+                    std::string &top = tmp_stack.top();
                     keys.push_back(top);
                     tmp_stack.pop();
                 } else

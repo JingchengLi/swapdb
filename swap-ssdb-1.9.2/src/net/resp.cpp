@@ -37,16 +37,17 @@ void Response::add(uint64_t s){
 	resp.emplace_back(buf);
 }
 
-void Response::add(double s){
-//	char buf[30];
-//	snprintf(buf, sizeof(buf), "%f", s);
-//
-	std::ostringstream strs;
-	strs << std::setprecision(64) << s;
-	std::string str = strs.str();
-//	std::string str = std::to_string(s);
+void Response::add(double d){
 
-	resp.push_back(str);
+//	std::ostringstream strs;
+//	strs << std::setprecision(64) << d;
+//	std::string str = strs.str();
+//	resp.push_back(str);
+
+	char buf[128];
+	int len = ld2string(buf,sizeof(buf),d,0);
+
+	resp.emplace_back(buf, len);
 }
 
 void Response::add(long double s){

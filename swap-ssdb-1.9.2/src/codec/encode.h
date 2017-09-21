@@ -59,6 +59,4 @@ string encode_repo_key();
 string encode_repo_item(uint64_t timestamp, uint64_t index);
 
 
-uint64_t encodeScore(const double score);
-
 #endif //SSDB_ENCODE_H

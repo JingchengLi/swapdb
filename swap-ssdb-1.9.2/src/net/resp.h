@@ -35,7 +35,7 @@ public:
 	void add(int s);
 	void add(int64_t s);
 	void add(uint64_t s);
-	void add(double s);
+	void add(double d);
 	void add(long double s);
 	void add(const std::string &s);
 
