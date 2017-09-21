@@ -768,7 +768,14 @@ proc restart_ssdb_server {{level 0}} {
     set ssdbstdout [dict get $config ssdbstdout]
     set ssdbstderr [dict get $config ssdbstderr]
     exec cat $ssdbstdout >> $ssdbstderr
-    set ssdbpid [exec ssdb-server $ssdb_config_file > $ssdbstdout 2>> $ssdbstderr &]
+    if {[file exists ../../../../swap-ssdb-1.9.2/build/ssdb-server]} {
+        set ssdbprogram ../../../../swap-ssdb-1.9.2/build/ssdb-server
+    } elseif {[file exists ../../../../build/ssdb-server]} {
+        set ssdbprogram ../../../../build/ssdb-server
+    } else {
+        error "no ssdb-server found in build directory!!!"
+    }
+    set ssdbpid [exec $ssdbprogram $ssdb_config_file > $ssdbstdout 2>> $ssdbstderr &]
 
     wait_start_ssdb_server $level
     send_data_packet $::test_server_fd server-spawned $ssdbpid
