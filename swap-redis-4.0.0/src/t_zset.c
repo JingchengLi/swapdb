@@ -1289,12 +1289,6 @@ int zsetAdd(robj *zobj, double score, sds ele, int *flags, double *newscore) {
             if (incr) {
                 score += curscore;
 
-                if (server.swap_mode
-                    && server.behave_as_ssdb
-                    && checkScoreRangeForZset(&score, 1) == C_ERR)
-                    /* -1 means out of range in swap-mode. */
-                    return -1;
-
                 if (isnan(score)) {
                     *flags |= ZADD_NAN;
                     return 0;
@@ -1341,12 +1335,6 @@ int zsetAdd(robj *zobj, double score, sds ele, int *flags, double *newscore) {
             /* Prepare the score for the increment if needed. */
             if (incr) {
                 score += curscore;
-
-                if (server.swap_mode
-                    && server.behave_as_ssdb
-                    && checkScoreRangeForZset(&score, 1) == C_ERR)
-                    /* -1 means out of range in swap-mode. */
-                    return -1;
 
                 if (isnan(score)) {
                     *flags |= ZADD_NAN;
@@ -1498,17 +1486,6 @@ long zsetRank(robj *zobj, sds ele, int reverse) {
  * Sorted set commands
  *----------------------------------------------------------------------------*/
 
-/* Called in swap-mode, behave the same as ssdb. */
-int checkScoreRangeForZset(double *scores, int count) {
-    int j;
-    for (j = 0; j < count; j ++) {
-        if (scores[j] >= 1e13 || scores[j] <= -1e13)
-            return C_ERR;
-    }
-
-    return C_OK;
-}
-
 /* This generic command implements both ZADD and ZINCRBY. */
 void zaddGenericCommand(client *c, int flags) {
     static char *nanerr = "resulting score is not a number (NaN)";
@@ -1579,15 +1556,6 @@ void zaddGenericCommand(client *c, int flags) {
     /* Lookup the key and create the sorted set if does not exist. */
     zobj = lookupKeyWrite(c->db,key);
 
-    if (server.swap_mode && server.behave_as_ssdb) {
-        /* Check the score range: (-1e13, 1e13) in swap-mode. */
-        if ((!incr || (incr && !zobj))
-            && checkScoreRangeForZset(scores, elements) == C_ERR) {
-            addReplyError(c, "value is out of range");
-            goto cleanup;
-        }
-    }
-
     if (zobj == NULL) {
         if (xx) goto reply_to_client; /* No key + XX option: nothing to do. */
         if (server.zset_max_ziplist_entries == 0 ||
@@ -1616,12 +1584,7 @@ void zaddGenericCommand(client *c, int flags) {
             addReplyError(c,nanerr);
             goto cleanup;
         }
-        if (server.swap_mode
-            && server.behave_as_ssdb
-            && retval == -1) {
-            addReplyError(c, "value is out of range");
-            goto cleanup;
-        }
+
         if (retflags & ZADD_ADDED) added++;
         if (retflags & ZADD_UPDATED) updated++;
         if (!(retflags & ZADD_NOP)) processed++;
