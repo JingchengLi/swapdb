@@ -122,11 +122,10 @@ overrides {maxmemory 0}} {
             assert {[ssdbr zadd ztmp ch 12 x 22 y 30 z] == 2}
         }
 
-        # ssdb not support inf set
-#        test "ZINCRBY calls leading to NaN result in error" {
-#            r zincrby myzset +inf abc
-#            assert_error "*NaN*" {r zincrby myzset -inf abc}
-#        }
+        test "ZINCRBY calls leading to NaN result in error" {
+            ssdbr zincrby myzset +inf abc
+            assert_error "*NaN*" {ssdbr zincrby myzset -inf abc}
+        }
 
         test {ZADD - Variadic version base case} {
             ssdbr del myzset
@@ -299,7 +298,7 @@ overrides {maxmemory 0}} {
         }
 
         proc create_default_zset {} {
-            create_zset zset {-9999999999999 a 1 b 2 c 3 d 4 e 5 f 9999999999999 g}
+            create_zset zset {-inf a 1 b 2 c 3 d 4 e 5 f +inf g}
         }
 
         test "ZRANGEBYSCORE/ZREVRANGEBYSCORE/ZCOUNT basics" {
@@ -317,14 +316,14 @@ overrides {maxmemory 0}} {
             assert_equal 3 [ssdbr zcount zset 0 3]
 
             # exclusive range
-            assert_equal {a b}   [ssdbr zrangebyscore zset (-inf (2]
+            assert_equal {b}   [ssdbr zrangebyscore zset (-inf (2]
             assert_equal {b c} [ssdbr zrangebyscore zset (0 (3]
             assert_equal {e f} [ssdbr zrangebyscore zset (3 (6]
-            assert_equal {f g}   [ssdbr zrangebyscore zset (4 (+inf]
-            assert_equal {b a}   [ssdbr zrevrangebyscore zset (2 (-inf]
+            assert_equal {f}   [ssdbr zrangebyscore zset (4 (+inf]
+            assert_equal {b}   [ssdbr zrevrangebyscore zset (2 (-inf]
             assert_equal {c b} [ssdbr zrevrangebyscore zset (3 (0]
             assert_equal {f e} [ssdbr zrevrangebyscore zset (6 (3]
-            assert_equal {g f}   [ssdbr zrevrangebyscore zset (+inf (4]
+            assert_equal {f}   [ssdbr zrevrangebyscore zset (+inf (4]
             assert_equal 2 [ssdbr zcount zset (0 (3]
 
             # test empty ranges
@@ -736,7 +735,7 @@ overrides {maxmemory 0}} {
             ssdbr debug reload
             assert_encoding $encoding zscoretest
             for {set i 0} {$i < $elements} {incr i} {
-                assert { abs([expr [lindex $aux $i]-[ssdbr zscore zscoretest $i]]) < $eps  }
+                assert_equal [lindex $aux $i] [ssdbr zscore zscoretest $i]
             }
         }
 
@@ -1024,7 +1023,7 @@ overrides {maxmemory 0}} {
                 if {[expr rand()] < .2} {
                     ssdbr zrem myzset $i
                 } else {
-                    set score [randomSignedInt 9999999999999]
+                    set score [expr rand()]
                     ssdbr zadd myzset $score $i
                     assert_encoding $encoding myzset
                 }

@@ -1,36 +1,43 @@
 start_server {tags {"type"}
 overrides {maxmemory 0}} {
-    test "Exceed MAX/MIN score in ssdb return err" {
+    test "Exceed MAX/MIN score return err" {
         ssdbr del zscoretest
-        # redis behave as ssdb return err if > 12 9 or < -12 9
-        assert_error "*out of range*" {ssdbr zadd zscoretest 1e13 x}
+        assert_error "*valid float*" {ssdbr zadd zscoretest 1e309 x}
         assert_equal 0 [ssdbr exists zscoretest]
-        assert_error "*out of range*" {ssdbr zadd zscoretest -1e13 y}
+        assert_error "*valid float*" {ssdbr zadd zscoretest -1e309 y}
         assert_equal 0 [ssdbr exists zscoretest]
     }
 
-    test "zadd +/-inf key in ssdb return err" {
-        ssdbr del ztmp
-        assert_error "*out of range*" {ssdbr zadd ztmp inf x}
-        assert_equal 0 [ssdbr exists ztmp]
-        assert_error "*out of range*" {ssdbr zadd ztmp -inf y}
-        assert_equal 0 [ssdbr exists ztmp]
+    test "Support double float MAX/MIN score" {
+        r del zscoretest
+        assert_equal 1 [ssdbr zadd zscoretest 1e308 m]
+        assert_equal {1e+308} [ssdbr zscore zscoretest m]
+        assert_equal 1 [ssdbr zadd zscoretest -1e308 n]
+        assert_equal {-1e+308} [ssdbr zscore zscoretest n]
     }
 
-    test "zadd incr +/-inf key in ssdb" {
+    test "Support zadd +/-inf key" {
         ssdbr del ztmp
-        assert_error "*out of range*" {ssdbr zadd ztmp incr inf x}
-        assert_equal 0 [ssdbr exists ztmp]
-        assert_error "*out of range*" {ssdbr zadd ztmp incr -inf y}
-        assert_equal 0 [ssdbr exists ztmp]
+        assert_equal 1 [ssdbr zadd ztmp inf m]
+        assert_equal {inf} [ssdbr zscore ztmp m]
+        assert_equal 1 [ssdbr zadd ztmp -inf n]
+        assert_equal {-inf} [ssdbr zscore ztmp n]
     }
 
-    test "zincrby +/-inf key in ssdb" {
+    test "zadd incr +/-inf key" {
         ssdbr del ztmp
-        assert_error "*out of range*" {ssdbr zincrby ztmp inf x}
-        assert_equal 0 [ssdbr exists ztmp]
-        assert_error "*out of range*" {ssdbr zincrby ztmp -inf y}
-        assert_equal 0 [ssdbr exists ztmp]
+        assert_equal {inf} [ssdbr zadd ztmp incr inf m]
+        assert_equal {inf} [ssdbr zscore ztmp m]
+        assert_equal {-inf} [ssdbr zadd ztmp incr -inf n]
+        assert_equal {-inf} [ssdbr zscore ztmp n]
+    }
+
+    test "zincrby +/-inf key" {
+        ssdbr del ztmp
+        assert_equal {inf} [ssdbr zincrby ztmp inf m]
+        assert_equal {inf} [ssdbr zscore ztmp m]
+        assert_equal {-inf} [ssdbr zincrby ztmp -inf n]
+        assert_equal {-inf} [ssdbr zscore ztmp n]
     }
 
     if {$::accurate} {
@@ -38,24 +45,18 @@ overrides {maxmemory 0}} {
     } else {
         set elements 50
     }
-    test "Big score int range +/- 2.8e12" {
-    #   127.0.0.1:41212>  zadd zk 3021985275215 q
-    #   (integer) 1
-    #   127.0.0.1:41212> dump zk
-    #   "\x03\x01\x01q\x123021985275215.0005\b\x00\xfa\x0c3wK!s\x0e"
+    test "Big score int range" {
         ssdbr del zscoretest
         set aux {}
         for {set i 0} {$i < $elements} {incr i} {
-            set score [randomSignedInt 3800000000000]
-            # set score [randomSignedInt 2800000000000]
+            set score [randomSignedInt 9007199254740992]
             lappend aux $score
             ssdbr zadd zscoretest $score $i
         }
 
         set flag 0
         for {set i 0; set j 0} {$i < $elements} {incr i} {
-            # if {[lindex $aux $i] ne [ssdbr zscore zscoretest $i]}
-            if {abs([expr [lindex $aux $i]-[ssdbr zscore zscoretest $i]]) > 0.001} {
+            if {[lindex $aux $i] ne [ssdbr zscore zscoretest $i]} {
                 set flag 1
                 puts "[lindex $aux $i]:[ssdbr zscore zscoretest $i]"
                 incr j
@@ -67,9 +68,7 @@ overrides {maxmemory 0}} {
         assert_equal 0 $flag "some big int score lose accuracy."
     }
 
-    # set eps 0.000001
-    set eps 0.00001
-    test "Decimal score accuracy 5 bits" {
+    test "Decimal score accuracy" {
         ssdbr del zscoretest
         set aux {}
         for {set i 0} {$i < $elements} {incr i} {
@@ -80,7 +79,7 @@ overrides {maxmemory 0}} {
 
         set flag 0
         for {set i 0; set j 0} {$i < $elements} {incr i} {
-            if {abs([expr [lindex $aux $i]-[ssdbr zscore zscoretest $i]]) > $eps} {
+            if {[lindex $aux $i] ne [ssdbr zscore zscoretest $i]} {
                 set flag 1
                 puts "[lindex $aux $i]:[ssdbr zscore zscoretest $i]"
                 incr j

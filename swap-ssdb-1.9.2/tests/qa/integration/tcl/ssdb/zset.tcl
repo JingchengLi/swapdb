@@ -107,8 +107,8 @@ start_server {tags {"zset"}} {
         }
 
         test "ZINCRBY calls leading to NaN result in error" {
-            assert_error "*out of range*" {r zincrby myzset +inf abc}
-            assert_error "*out of range*" {r zincrby myzset -inf abc}
+            r zincrby myzset +inf abc
+            assert_error "*NaN*" {r zincrby myzset -inf abc}
         }
 
         test {ZADD - Variadic version base case} {
@@ -282,8 +282,7 @@ start_server {tags {"zset"}} {
         }
 
         proc create_default_zset {} {
-            create_zset zset {-9999999999999 a 1 b 2 c 3 d 4 e 5 f 9999999999999 g}
-            # create_zset zset {$SCORE_MIN a 1 b 2 c 3 d 4 e 5 f $SCORE_MAX g}
+            create_zset zset {-inf a 1 b 2 c 3 d 4 e 5 f +inf g}
         }
 
         test "ZRANGEBYSCORE/ZREVRANGEBYSCORE/ZCOUNT basics" {
@@ -301,14 +300,14 @@ start_server {tags {"zset"}} {
             assert_equal 3 [r zcount zset 0 3]
 
             # exclusive range
-            assert_equal {a b}   [r zrangebyscore zset (-inf (2]
+            assert_equal {b}   [r zrangebyscore zset (-inf (2]
             assert_equal {b c} [r zrangebyscore zset (0 (3]
             assert_equal {e f} [r zrangebyscore zset (3 (6]
-            assert_equal {f g}   [r zrangebyscore zset (4 (+inf]
-            assert_equal {b a}   [r zrevrangebyscore zset (2 (-inf]
+            assert_equal {f}   [r zrangebyscore zset (4 (+inf]
+            assert_equal {b}   [r zrevrangebyscore zset (2 (-inf]
             assert_equal {c b} [r zrevrangebyscore zset (3 (0]
             assert_equal {f e} [r zrevrangebyscore zset (6 (3]
-            assert_equal {g f}   [r zrevrangebyscore zset (+inf (4]
+            assert_equal {f}   [r zrevrangebyscore zset (+inf (4]
             assert_equal 2 [r zcount zset (0 (3]
 
             # test empty ranges
@@ -683,19 +682,18 @@ start_server {tags {"zset"}} {
 
     proc stressers {encoding} {
         set elements 256
-        set eps 0.00001
         test "ZSCORE - $encoding" {
             r del zscoretest
             set aux {}
             for {set i 0} {$i < $elements} {incr i} {
-                set score [randomInt 9999999999999]
+                set score [expr rand()]
                 lappend aux $score
                 r zadd zscoretest $score $i
             }
 
             assert_encoding $encoding zscoretest
             for {set i 0} {$i < $elements} {incr i} {
-                assert { abs([expr [lindex $aux $i]-[r zscore zscoretest $i]]) < $eps }
+                assert_equal [lindex $aux $i] [r zscore zscoretest $i]
             }
         }
 
@@ -724,7 +722,7 @@ start_server {tags {"zset"}} {
                 r del myzset
                 for {set i 0} {$i < $elements} {incr i} {
                     if {$test == 0} {
-                        set score [randomInt 9999999999999]
+                        set score [expr rand()]
                     } else {
                         set score [expr int(rand()*10)]
                     }
@@ -734,7 +732,7 @@ start_server {tags {"zset"}} {
                     if {[expr rand()] < .2} {
                         set j [expr int(rand()*1000)]
                         if {$test == 0} {
-                            set score [randomInt 9999999999999]
+                            set score [expr rand()]
                         } else {
                             set score [expr int(rand()*10)]
                         }
@@ -767,13 +765,13 @@ start_server {tags {"zset"}} {
             set err {}
             r del zset
             for {set i 0} {$i < $elements} {incr i} {
-                r zadd zset [randomInt 9999999999999] $i
+                r zadd zset [expr rand()] $i
             }
 
             assert_encoding $encoding zset
             for {set i 0} {$i < 100} {incr i} {
-                set min [randomInt 9999999999999]
-                set max [randomInt 9999999999999]
+                set min [expr rand()]
+                set max [expr rand()]
                 if {$min > $max} {
                     set aux $min
                     set min $max
@@ -955,7 +953,7 @@ start_server {tags {"zset"}} {
         test "ZSETs skiplist implementation backlink consistency test - $encoding" {
             set diff 0
             for {set j 0} {$j < $elements} {incr j} {
-                r zadd myzset [randomInt 9999999999999] "Element-$j"
+                r zadd myzset [expr rand()] "Element-$j"
                 r zrem myzset "Element-[expr int(rand()*$elements)]"
             }
 
@@ -978,7 +976,7 @@ start_server {tags {"zset"}} {
                 if {[expr rand()] < .2} {
                     r zrem myzset $i
                 } else {
-                    set score [randomInt 9999999999999]
+                    set score [expr rand()]
                     r zadd myzset $score $i
                     assert_encoding $encoding myzset
                 }

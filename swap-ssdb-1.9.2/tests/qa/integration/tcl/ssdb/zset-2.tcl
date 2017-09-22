@@ -2,35 +2,42 @@ source "./ssdb/init_ssdb.tcl"
 start_server {tags {"zset"}} {
     test "Exceed MAX/MIN score in ssdb return err" {
         r del zscoretest
-        # redis behave as ssdb return err if > 12 9 or < -12 9
-        assert_error "*out of range*" {r zadd zscoretest 1e13 x}
+        assert_error "*valid float*" {r zadd zscoretest 1e309 x}
         assert_equal 0 [r exists zscoretest]
-        assert_error "*out of range*" {r zadd zscoretest -1e13 y}
+        assert_error "*valid float*" {r zadd zscoretest -1e309 y}
         assert_equal 0 [r exists zscoretest]
     }
 
-    test "zadd +/-inf key in ssdb return err" {
-        r del ztmp
-        assert_error "*out of range*" {r zadd ztmp inf x}
-        assert_equal 0 [r exists ztmp]
-        assert_error "*out of range*" {r zadd ztmp -inf y}
-        assert_equal 0 [r exists ztmp]
+    test "Support double float MAX/MIN score in ssdb" {
+        r del zscoretest
+        assert_equal 1 [r zadd zscoretest 1e308 m]
+        assert_equal {1e+308} [r zscore zscoretest m]
+        assert_equal 1 [r zadd zscoretest -1e308 n]
+        assert_equal {-1e+308} [r zscore zscoretest n]
     }
 
-    test "zadd incr +/-inf key in ssdb" {
+    test "Support zadd +/-inf key in ssdb" {
         r del ztmp
-        assert_error "*out of range*" {r zadd ztmp incr inf x}
-        assert_equal 0 [r exists ztmp]
-        assert_error "*out of range*" {r zadd ztmp incr -inf y}
-        assert_equal 0 [r exists ztmp]
+        assert_equal 1 [r zadd ztmp inf m]
+        assert_equal {inf} [r zscore ztmp m]
+        assert_equal 1 [r zadd ztmp -inf n]
+        assert_equal {-inf} [r zscore ztmp n]
     }
 
-    test "zincrby +/-inf key in ssdb" {
+    test "zadd incr +/-inf key" {
         r del ztmp
-        assert_error "*out of range*" {r zincrby ztmp inf x}
-        assert_equal 0 [r exists ztmp]
-        assert_error "*out of range*" {r zincrby ztmp -inf y}
-        assert_equal 0 [r exists ztmp]
+        assert_equal {inf} [r zadd ztmp incr inf m]
+        assert_equal {inf} [r zscore ztmp m]
+        assert_equal {-inf} [r zadd ztmp incr -inf n]
+        assert_equal {-inf} [r zscore ztmp n]
+    }
+
+    test "zincrby +/-inf key" {
+        r del ztmp
+        assert_equal {inf} [r zincrby ztmp inf m]
+        assert_equal {inf} [r zscore ztmp m]
+        assert_equal {-inf} [r zincrby ztmp -inf n]
+        assert_equal {-inf} [r zscore ztmp n]
     }
 
     if {$::accurate} {
@@ -38,16 +45,11 @@ start_server {tags {"zset"}} {
     } else {
         set elements 50
     }
-    test "Big score int range +/- 2.8e12" {
-    #   127.0.0.1:41212>  zadd zk 3021985275215 q
-    #   (integer) 1
-    #   127.0.0.1:41212> dump zk
-    #   "\x03\x01\x01q\x123021985275215.0005\b\x00\xfa\x0c3wK!s\x0e"
+    test "Big score int range" {
         r del zscoretest
         set aux {}
         for {set i 0} {$i < $elements} {incr i} {
-            set score [randomSignedInt 3800000000000]
-            # set score [randomSignedInt 2800000000000]
+            set score [randomSignedInt 9007199254740992]
             lappend aux $score
             r zadd zscoretest $score $i
         }
@@ -66,8 +68,7 @@ start_server {tags {"zset"}} {
         assert_equal 0 $flag "some big int score lose accuracy."
     }
 
-    set eps 0.000001
-    test "Decimal score accuracy 5 bits" {
+    test "Decimal score accuracy" {
         r del zscoretest
         set aux {}
         for {set i 0} {$i < $elements} {incr i} {
@@ -78,7 +79,7 @@ start_server {tags {"zset"}} {
 
         set flag 0
         for {set i 0; set j 0} {$i < $elements} {incr i} {
-            if {abs([expr [lindex $aux $i]-[r zscore zscoretest $i]]) > $eps} {
+            if {[lindex $aux $i] ne [r zscore zscoretest $i]} {
                 set flag 1
                 puts "[lindex $aux $i]:[r zscore zscoretest $i]"
                 incr j
