@@ -3998,6 +3998,15 @@ int processCommandMaybeInSSDB(client *c) {
             if (processBeforeVisitingSSDB(c, keyobj) == C_OK)
                 return C_OK;
 
+            /* Sent the command to clients in MONITOR mode, only if the commands are
+             * not generated from reading an AOF. */
+            if (listLength(server.monitors) &&
+                !server.loading &&
+                !(c->cmd->flags & (CMD_SKIP_MONITOR|CMD_ADMIN)))
+            {
+                replicationFeedMonitors(c,server.monitors,EVICTED_DATA_DBID,c->argv,c->argc);
+            }
+
             ret = sendCommandToSSDB(c, NULL);
             if (ret != C_OK)
                 goto check_blocked_clients;
