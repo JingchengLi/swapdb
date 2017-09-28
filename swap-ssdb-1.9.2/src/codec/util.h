@@ -91,6 +91,25 @@ inline double decodeScore(const int64_t score) {
 }
 */
 
+template<typename T, typename F>
+struct alias_cast_t
+{
+    union
+    {
+        F raw;
+        T data;
+    };
+};
+
+template<typename T, typename F>
+T alias_cast(F raw_data)
+{
+    alias_cast_t<T, F> ac{};
+    ac.raw = raw_data;
+    return ac.data;
+}
+
+
 static_assert(sizeof(uint64_t) == sizeof(double), "sizeof(uint64_t) != sizeof(double), please check platform");
 
 static const unsigned int bit_num = sizeof(uint64_t) * 8;
@@ -107,13 +126,15 @@ inline double decodeScore(uint64_t c) {
         c = c ^ UINT64_MAX;
 
     }
-    double score = *reinterpret_cast<double *>(&c);
+//    double score = *reinterpret_cast<double *>(&c);
+    double score = alias_cast<double>(c);
     return score;
 }
 
 inline uint64_t encodeScore(double score) {
 
-    uint64_t it = *reinterpret_cast<uint64_t *>(&score);
+//    uint64_t it = *reinterpret_cast<uint64_t *>(&score);
+    uint64_t it = alias_cast<uint64_t>(score);
     uint64_t pos_num = it >> (bit_num - 1);
     if (pos_num == bit_one) {
         it = it ^ UINT64_MAX;

@@ -39,6 +39,7 @@ set ::all_tests {
 
 set ::all_tests {
 
+   unit/type/zset
    unit/type/list
    unit/type/hash
    unit/type/set
