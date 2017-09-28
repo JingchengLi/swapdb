@@ -59,7 +59,7 @@ start_server {tags {"ssdb"}} {
             test "$flush ok during sync process" {
                 $master set foo bar
                 $slave slaveof $master_host $master_port
-                wait_for_condition 50 100 {
+                wait_for_condition 200 100 {
                     {bar} == [$slave get foo]
                 } else {
                     fail "SET on master did not propagated on slave"
@@ -258,7 +258,7 @@ start_server {tags {"ssdb"}} {
         lappend slaves [srv 0 client]
         start_server {} {
             lappend slaves [srv 0 client]
-            set num 10000
+            set num 20000
             set clients 10
             foreach flush $allflush {
                 test "single $flush all keys during clients writing after sync" {
@@ -267,6 +267,7 @@ start_server {tags {"ssdb"}} {
                     wait_for_online $master 1
                     set size_before [$master dbsize]
                     catch { $master $flush } err
+                    after 100
                     stop_bg_client_list $clist
                     set size_after [$master dbsize]
                     assert_equal {OK} $err "$flush should return OK"

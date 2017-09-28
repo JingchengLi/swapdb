@@ -1,7 +1,7 @@
 start_server {tags {"dump"}} {
 
     proc wait_key_exists_ssdb {key {level 0}} {
-        wait_for_condition 500 10 {
+        wait_for_condition 1000 10 {
             [sr $level exists $key] == 1
         } else {
             fail "$key not found in ssdb after some time."

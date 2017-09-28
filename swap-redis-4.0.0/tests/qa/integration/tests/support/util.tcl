@@ -696,9 +696,9 @@ proc kill_ssdb_server {{level 0}} {
     # kill ssdb server and wait for the process to be totally exited
     catch {exec kill -9 $ssdbpid}
     if {$::valgrind} {
-        set max_wait 60000
+        set max_wait 30000
     } else {
-        set max_wait 10000
+        set max_wait 5000
     }
     while {[is_ssdb_alive $level]} {
         incr wait 10
@@ -877,10 +877,11 @@ proc access_key_tps_time {key tps time {wait true} {level 0}} {
     set n 0
     # update [clock milliseconds] to cur.
     set cur [clock milliseconds]
-    while {[expr ($cur - $begin)/1000 < $time]} {
-        if {[expr ($cur - $begin)/1000 >= $n]} {
+    while {[expr ($cur - $begin) < $time*1000]} {
+        if {[expr ($cur - $begin) >= $n*1000]} {
             for {set i 0} {$i < $tps} {incr i} {
                 r $level exists $key
+                after [expr int([expr 1000/$tps]*0.7)]
             }
             incr n
             # break out when reach tps if wait == true

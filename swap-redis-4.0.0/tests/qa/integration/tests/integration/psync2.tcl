@@ -91,6 +91,8 @@ start_server {config {rdb.conf}} {
                 }
             }
         }
+        # value is equal not mean that sync complete.
+        wait_for_online $R($master_id) 4
 
         # 4) Generate load while breaking the connection of random
         # slave-master pairs.

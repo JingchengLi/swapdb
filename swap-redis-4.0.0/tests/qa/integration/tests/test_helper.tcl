@@ -250,7 +250,7 @@ proc test_server_main {} {
         set p [exec $tclsh [info script] {*}$::argv \
             --client $port --port $start_port &]
         lappend ::clients_pids $p
-        incr start_port 10
+        incr start_port 50
     }
 
     # Setup global state for the test server

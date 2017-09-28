@@ -10,10 +10,13 @@ proc start_hit_ssdb_tps {host port seconds} {
     while 1 {
         for {set i 0} {$i < [expr $tps/$time*1.1]} {incr i} {
             catch { $r setlfu keynull 0 }
-            catch { $r setex keynull 2 nullkey }
+            catch { $r get keynull }
+            after [expr int([expr 1000/($tps/$time*1.1)]*0.8)]
+            # catch { $r setex keynull 2 nullkey }
         }
         after 1
         if {[clock seconds]-$start_time > $seconds} {
+            catch {$r del keynull}
             exit 0
         }
     }

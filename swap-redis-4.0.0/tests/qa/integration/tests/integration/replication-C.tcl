@@ -44,9 +44,9 @@ start_server {tags {"repl"}} {
                 # assert_equal {redis} [$master locatekey foo] "load should success when no key timeout"
                 assert_equal [expr 400000+$num1+$num2+$num3+$num4] [$master llen foo] "All operation return no ERR should success."
                 wait_for_condition 10 200 {
-                    [$master debug digest] eq [$slave debug digest]
+                    [$master llen foo] eq [$slave llen foo]
                 } else {
-                    fail "Master([$master debug digest]) and Slave([$slave debug digest]) not identical"
+                    fail "Master([$master llen foo]) and Slave([$slave llen foo]) not identical"
                 }
             }
         }

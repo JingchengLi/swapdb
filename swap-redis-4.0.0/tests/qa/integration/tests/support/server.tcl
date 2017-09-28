@@ -58,9 +58,9 @@ proc kill_server config {
     catch {exec kill $pid}
     catch {exec kill $ssdbpid}
     if {$::valgrind} {
-        set max_wait 60000
+        set max_wait 30000
     } else {
-        set max_wait 10000
+        set max_wait 5000
     }
     while {[is_alive $config]} {
         incr wait 10
@@ -250,7 +250,7 @@ proc start_server {options {code undefined}} {
     } else {
         set ssdbpid [exec $ssdbprogram $ssdb_config_file > $ssdbstdout 2> $ssdbstderr &]
     }
-    if {[server_is_up 127.0.0.1 $ssdbport 10000] == 0} {
+    if {[server_is_up 127.0.0.1 $ssdbport 500] == 0} {
         set err {}
         append err "Cant' start the ssdb server:$workdir\n"
         send_data_packet $::test_server_fd err $err

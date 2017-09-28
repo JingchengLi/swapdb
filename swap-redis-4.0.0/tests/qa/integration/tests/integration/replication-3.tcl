@@ -36,7 +36,7 @@ start_server {tags {"repl"}} {
         set slave [srv 0 client]
         test {MASTER and SLAVE consistency with single key expire} {
             $slave slaveof [srv -1 host] [srv -1 port]
-            wait_for_condition 50 100 {
+            wait_for_condition 200 100 {
                 [s master_link_status] eq {up}
             } else {
                 fail "Replication not started."

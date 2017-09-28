@@ -131,8 +131,8 @@ overrides {maxmemory 0}} {
                 wait_for_dumpto_ssdb r foo
 
                 after 3100
-                list [r locatekey foo] [r get foo]
-            } {none {}}
+                list [r get foo] [r locatekey foo]
+            } {{} none}
         }
     }
 }
