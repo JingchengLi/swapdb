@@ -73,6 +73,8 @@ typedef long long mstime_t; /* millisecond time type. */
 #include "endianconv.h"
 #include "crc64.h"
 
+/* used this macro when compile hiredis to avoid wrongly including sds header file. */
+#define HIREDIS_WITHOUT_SDS
 #include "hiredis.h"
 
 /* Error codes */

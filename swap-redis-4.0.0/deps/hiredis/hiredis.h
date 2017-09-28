@@ -37,7 +37,9 @@
 #include <stdarg.h> /* for va_list */
 #include <sys/time.h> /* for struct timeval */
 #include <stdint.h> /* uintXX_t, etc */
+#ifndef HIREDIS_WITHOUT_SDS
 #include "sds.h" /* for sds */
+#endif
 
 #define HIREDIS_MAJOR 0
 #define HIREDIS_MINOR 13
@@ -127,9 +129,11 @@ void freeReplyObject(void *reply);
 int redisvFormatCommand(char **target, const char *format, va_list ap);
 int redisFormatCommand(char **target, const char *format, ...);
 int redisFormatCommandArgv(char **target, int argc, const char **argv, const size_t *argvlen);
+#ifndef HIREDIS_WITHOUT_SDS
 int redisFormatSdsCommandArgv(sds *target, int argc, const char ** argv, const size_t *argvlen);
-void redisFreeCommand(char *cmd);
 void redisFreeSdsCommand(sds cmd);
+#endif
+void redisFreeCommand(char *cmd);
 
 enum redisConnectionType {
     REDIS_CONN_TCP,
