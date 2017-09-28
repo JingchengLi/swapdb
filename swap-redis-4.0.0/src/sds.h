@@ -446,7 +446,6 @@ void *sdsAllocPtr(sds s);
 void *sds_malloc(size_t size);
 void *sds_realloc(void *ptr, size_t size);
 void sds_free(void *ptr);
-sds algin_sdsnewlen(const void *init, size_t initlen);
 
 #ifdef REDIS_TEST
 int sdsTest(int argc, char *argv[]);
