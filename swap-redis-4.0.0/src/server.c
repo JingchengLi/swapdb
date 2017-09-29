@@ -3825,6 +3825,14 @@ int processCommandReplicationConn(client* c, struct ssdb_write_op* slave_retry_w
          * command, we remove its key index from redis to avoid some consistency issues.*/
         updateExpireInfo(argv, argc, cmd);
 
+        /* Sent the command to clients in MONITOR mode, only if the commands are
+         * not generated from reading an AOF. */
+        if (listLength(server.monitors) &&
+            !server.loading &&
+            !(c->cmd->flags & (CMD_SKIP_MONITOR|CMD_ADMIN))) {
+            replicationFeedMonitors(c,server.monitors,EVICTED_DATA_DBID,argv,argc);
+        }
+
         if (slave_retry_write) {
             sds finalcmd;
             /* this is a failed write retry, reuse its write op time and id. */
