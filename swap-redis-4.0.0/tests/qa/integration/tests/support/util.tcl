@@ -875,13 +875,13 @@ proc check_real_diff_keys {master slaves} {
 proc access_key_tps_time {key tps time {wait true} {level 0}} {
     set begin [clock milliseconds]
     set n 0
+    set time [expr $time+1]
     # update [clock milliseconds] to cur.
     set cur [clock milliseconds]
     while {[expr ($cur - $begin) < $time*1000]} {
         if {[expr ($cur - $begin) >= $n*1000]} {
             for {set i 0} {$i < $tps} {incr i} {
                 r $level exists $key
-                after [expr int([expr 1000/$tps]*0.7)]
             }
             incr n
             # break out when reach tps if wait == true

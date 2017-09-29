@@ -13,36 +13,4 @@ then
 fi
 mkdir -p ../jenkins/report/integration
 cd tests/qa/integration
-LOG_LEVEL=""
-TCLARGS=""
-for ((i=1;i<=$#;i++))
-do
-    eval str=\${$i}
-    case $str in
-        --loglevel*)
-            while ((i++<=$#))
-            do
-                eval str=\${$i}
-                str=$(echo $str | tr [A-Z] [a-z])
-                if [[ "debug notice verbose warning" =~ $str ]];then
-                    LOG_LEVEL+=" "$str
-                else
-                    ((i--))
-                    break
-                fi
-            done
-            ;;
-        *)
-            TCLARGS+=" "$str
-            ;;
-    esac
-done
-LOG_LEVEL=$(echo $LOG_LEVEL)
-if [[ $LOG_LEVEL == "" ]];then
-    LOG_LEVEL="notice"
-fi
-
-for level in $LOG_LEVEL;do
-    $TCLSH tests/cluster/run.tcl $TCLARGS --loglevel $level
-done
-# $TCLSH tests/cluster/run.tcl $*
+$TCLSH tests/cluster/run.tcl $*
