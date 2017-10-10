@@ -874,6 +874,7 @@ typedef struct client {
     int revert_len; /* save the length we have feed to c->buf or c->reply, we may need
                      * to revert it from client buffer. */
     int first_key_index;
+    long long visit_ssdb_start;
 } client;
 
 #define TYPE_TRANSFER_TO_SSDB 999

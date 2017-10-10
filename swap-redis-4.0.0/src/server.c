@@ -4312,6 +4312,10 @@ int runCommand(client *c) {
                the resetClient is delayed to ssdbClientUnixHandler. */
             serverLog(LL_DEBUG, "processing %s, fd: %d in ssdb: %s",
                       c->cmd->name, c->fd, firstkey ? (char *)firstkey->ptr : "");
+
+            if (!isSpecialConnection(c))
+                c->visit_ssdb_start = ustime();
+
             return C_ERR;
         } else if (ret == C_FD_ERR) {
             addReplyErrorFormat(c, "SSDB disconnect");

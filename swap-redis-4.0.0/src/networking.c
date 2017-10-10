@@ -32,6 +32,7 @@
 #include <sys/uio.h>
 #include <math.h>
 #include <ctype.h>
+#include "slowlog.h"
 
 static void setProtocolError(const char *errstr, client *c, int pos);
 
@@ -2067,6 +2068,8 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
 
     client * c = (client *)privdata;
     void *aux = NULL;
+    int flags = CMD_CALL_FULL;
+    long long duration;
 
     if (!c || !c->context)
         return;
@@ -2255,6 +2258,26 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
                 "install write callback to handle it");
     serverLog(LL_DEBUG, "read process end<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<");
 #endif
+
+    /* When EVAL is called loading the AOF we don't want commands called
+     * from Lua to go into the slowlog or to populate statistics. */
+    if (server.loading && c->flags & CLIENT_LUA)
+        flags &= ~(CMD_CALL_SLOWLOG | CMD_CALL_STATS);
+
+
+    if (!isSpecialConnection(c) && !(c->flags & CLIENT_MASTER)) {
+        duration = ustime() - c->visit_ssdb_start;
+        /* Log the command into the Slow log if needed, and populate the
+         * per-command statistics that we show in INFO commandstats. */
+        if (flags & CMD_CALL_SLOWLOG && c->cmd->proc != execCommand
+            && !isSpecialConnection(c) && !(c->flags & CLIENT_MASTER)) {
+            char *latency_event = (c->cmd->flags & CMD_FAST) ?
+                "fast-command" : "command";
+            latencyAddSampleIfNeeded(latency_event,duration/1000);
+            slowlogPushEntryIfNeeded(c,c->argv,c->argc,duration);
+        }
+    }
+
     handleSSDBReply(c, c->revert_len);
 
 clean:
