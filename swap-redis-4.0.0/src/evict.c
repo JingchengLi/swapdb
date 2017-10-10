@@ -933,7 +933,7 @@ int tryEvictingKeysToSSDB(size_t *mem_tofree) {
         if (de) {
             unsigned int lfu_counter = 255 & sdsgetlfu(dictGetKey(de));
             unsigned int idle = 255 - lfu_counter;
-            if (idle >= server.lowest_idle_val_of_cold_key) {
+            if (idle >= (unsigned long long)server.lowest_idle_val_of_cold_key) {
                 robj *keyobj = createStringObject(bestkey,sdslen(bestkey));
 
                 db = server.db+bestdbid;
@@ -1708,7 +1708,7 @@ void ssdbRespNotfoundCommand(client *c) {
 }
 
 void ssdbRespFailCommand(client *c) {
-    dictEntry* de;
+    dictEntry* de = NULL;
     robj *cmd = c->argv[1];
     robj *keyobj = c->argv[2];
 
@@ -1723,6 +1723,8 @@ void ssdbRespFailCommand(client *c) {
         addReplyError(c, "key is already unblocked");
         return;
     }
+
+    serverAssert(de);
     long long resp_transfer_id;
     unsigned long long transfer_id = dictGetUnsignedIntegerVal(de);
 

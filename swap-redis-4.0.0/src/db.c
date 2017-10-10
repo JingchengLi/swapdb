@@ -541,9 +541,10 @@ void keysCommand(client *c) {
 
     serverLog(LL_DEBUG, "argv[0]:%s", (char*)c->argv[0]->ptr);
     /* if command name is not "ssdbkeys" */
+    allkeys = (pattern[0] == '*' && pattern[1] == '\0');
     if (!server.swap_mode || (server.swap_mode && (is_keys_command || is_rediskeys_command))) {
         di = dictGetSafeIterator(c->db->dict);
-        allkeys = (pattern[0] == '*' && pattern[1] == '\0');
+
         while((de = dictNext(di)) != NULL) {
             sds key = dictGetKey(de);
             robj *keyobj;
