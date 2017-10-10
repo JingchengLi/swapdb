@@ -1626,7 +1626,8 @@ int handleResponseOfDeleteCheckConfirm(client *c) {
         serverLog(LL_WARNING, "[!!!]delete-confirm response content is wrong.");
     }
 
-    serverAssert(dictDelete(EVICTED_DATA_DB->delete_confirm_keys, c->argv[1]->ptr) == DICT_OK);
+    serverAssert(dictDelete(EVICTED_DATA_DB->delete_confirm_keys, c->argv[1]->ptr) == DICT_OK
+                 || dictDelete(server.maybe_deleted_ssdb_keys, c->argv[1]->ptr) == DICT_OK);
     serverLog(LL_DEBUG, "delete_confirm_key: %s is deleted.", (char *)c->argv[1]->ptr);
     /* Queue the ready key to ssdb_ready_keys. */
     signalBlockingKeyAsReady(c->db, c->argv[1]);
