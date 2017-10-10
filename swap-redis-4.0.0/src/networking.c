@@ -2269,7 +2269,7 @@ void ssdbClientUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
         duration = ustime() - c->visit_ssdb_start;
         /* Log the command into the Slow log if needed, and populate the
          * per-command statistics that we show in INFO commandstats. */
-        if (flags & CMD_CALL_SLOWLOG && c->cmd->proc != execCommand
+        if (flags & CMD_CALL_SLOWLOG && c->cmd && c->cmd->proc != execCommand
             && !isSpecialConnection(c) && !(c->flags & CLIENT_MASTER)) {
             char *latency_event = (c->cmd->flags & CMD_FAST) ?
                 "fast-command" : "command";
