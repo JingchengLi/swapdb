@@ -79,3 +79,33 @@ start_server {tags {"slowlog"} overrides {slowlog-log-slower-than 1000000}} {
         assert_equal {lastentry_client} [lindex $e 5]
     }
 }
+
+start_server {tags {"slowlog"}} {
+    set master [srv 0 client]
+    set master_host [srv 0 host]
+    set master_port [srv 0 port]
+    set num 1000000
+    set clients 50
+    start_server {} {
+        set slave [srv 0 client]
+        set clist [start_bg_complex_data_list $master_host $master_port $num $clients sexpire]
+        after 1000
+
+        $slave slaveof [srv -1 host] [srv -1 port]
+        wait_for_condition 200 100 {
+            [s master_link_status] eq {up}
+        } else {
+            stop_bg_client_list $clist
+            fail "Replication not started."
+        }
+
+        test {SLOWLOG - #issue slave crash when slow get multi-times} {
+            $slave config set slowlog-log-slower-than 10
+            for {set var 0} {$var < 200} {incr var} {
+                $slave slowlog get 200
+                after 10
+            }
+        }
+        stop_bg_client_list $clist
+    }
+}
