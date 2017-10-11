@@ -44,6 +44,7 @@ set ::all_tests {
     unit/keyspace
     unit/limits
     unit/other
+    unit/slowlog
 
     integration/aof
     integration/replication-base

@@ -1,4 +1,5 @@
-start_server {tags {"slowlog"} overrides {slowlog-log-slower-than 1000000}} {
+start_server {tags {"slowlog"} overrides {slowlog-log-slower-than 1000000
+maxmemory 0}} {
     test {SLOWLOG - check that it starts with an empty log} {
         r slowlog len
     } {0}
@@ -58,17 +59,17 @@ start_server {tags {"slowlog"} overrides {slowlog-log-slower-than 1000000}} {
         lindex $e 3
     } {sadd set foo {AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA... (1 more bytes)}}
 
-    test {SLOWLOG - EXEC is not logged, just executed commands} {
-        r config set slowlog-log-slower-than 100000
-        r slowlog reset
-        assert_equal [r slowlog len] 0
-        r multi
-        r debug sleep 0.2
-        r exec
-        assert_equal [r slowlog len] 1
-        set e [lindex [r slowlog get] 0]
-        assert_equal [lindex $e 3] {debug sleep 0.2}
-    }
+#    test {SLOWLOG - EXEC is not logged, just executed commands} {
+#        r config set slowlog-log-slower-than 100000
+#        r slowlog reset
+#        assert_equal [r slowlog len] 0
+#        r multi
+#        r debug sleep 0.2
+#        r exec
+#        assert_equal [r slowlog len] 1
+#        set e [lindex [r slowlog get] 0]
+#        assert_equal [lindex $e 3] {debug sleep 0.2}
+#    }
 
     test {SLOWLOG - can clean older entires} {
         r client setname lastentry_client
@@ -78,6 +79,17 @@ start_server {tags {"slowlog"} overrides {slowlog-log-slower-than 1000000}} {
         set e [lindex [r slowlog get] 0]
         assert_equal {lastentry_client} [lindex $e 5]
     }
+
+    test {SLOWLOG - can log executed commands in ssdb} {
+        r set foo bar
+        dumpto_ssdb_and_wait r foo
+        r config set slowlog-log-slower-than 0
+        r config set slowlog-max-len 10
+        r slowlog reset
+        r get foo
+        set e [lindex [r slowlog get] 0]
+        lindex $e 3
+    } {get foo}
 }
 
 start_server {tags {"slowlog"}} {

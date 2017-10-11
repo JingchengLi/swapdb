@@ -19,9 +19,9 @@ class ZsetTest : public SSDBTest
         double score, getScore;
         uint16_t keysNum;
         int64_t ret;
-        //Currently support range
-        const int64_t ZSET_SCORE_MAX = 9999999999999LL;               //10,000,000,000,000 ( *10,000 for Shift  )
-        const int64_t ZSET_SCORE_MIN = -ZSET_SCORE_MAX;
+        //Currently support double range
+        const double ZSET_SCORE_MAX = DBL_MAX;
+        const double ZSET_SCORE_MIN = DBL_MIN;
 
 };
 
@@ -62,20 +62,21 @@ TEST_F(ZsetTest, Test_zset_zadd) {
     key = GetRandomKey_(); 
     field = GetRandomField_();
     score = ZSET_SCORE_MAX;
-    
+
+    OKZset
+
+    score = -1*score;
+
     OKZset
 
     score = ZSET_SCORE_MIN;
     
     OKZset
 
-    score = ZSET_SCORE_MAX+1;
+    score = -1*score;
 
-    FalseZset
+    OKZset
 
-    score = ZSET_SCORE_MIN-1;
-
-    FalseZset
     client->del(key);
 
     // Some random keys
@@ -239,17 +240,23 @@ TEST_F(ZsetTest, Test_zset_zincrby) {
 
     s = client->del(key);
     s = client->zincr(key, field, ZSET_SCORE_MAX, &ret);
-    s = client->zincr(key, field, 1, &ret);
-    EXPECT_TRUE(s.error())<<"Exceed ZSET_SCORE_MAX!";
     s = client->zget(key, field, &getScore);
     EXPECT_NEAR(ZSET_SCORE_MAX, getScore, eps);
 
     s = client->del(key);
+    s = client->zincr(key, field, -1*ZSET_SCORE_MAX, &ret);
+    s = client->zget(key, field, &getScore);
+    EXPECT_NEAR(-1*ZSET_SCORE_MAX, getScore, eps);
+
+    s = client->del(key);
     s = client->zincr(key, field, ZSET_SCORE_MIN, &ret);
-    s = client->zincr(key, field, -1, &ret);
-    EXPECT_TRUE(s.error())<<"Exceed ZSET_SCORE_MIN!";
     s = client->zget(key, field, &getScore);
     EXPECT_NEAR(ZSET_SCORE_MIN, getScore, eps);
+
+    s = client->del(key);
+    s = client->zincr(key, field, -1*ZSET_SCORE_MIN, &ret);
+    s = client->zget(key, field, &getScore);
+    EXPECT_NEAR(-1*ZSET_SCORE_MIN, getScore, eps);
     s = client->zdel(key, field);
 }
 
