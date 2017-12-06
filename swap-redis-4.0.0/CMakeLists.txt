@@ -34,68 +34,6 @@ LINK_DIRECTORIES(
         "deps/lua/src"       #lua
 )
 
-ADD_LIBRARY(jemalloc-static deps/jemalloc/lib)
-SET_TARGET_PROPERTIES(jemalloc-static PROPERTIES LINKER_LANGUAGE C OUTPUT_NAME jemalloc)
-
-ADD_LIBRARY(linenoise deps/linenoise)
-SET_TARGET_PROPERTIES(linenoise PROPERTIES LINKER_LANGUAGE C OUTPUT_NAME linenoise)
-
-SET ( SRC_HIREDIS
-        deps/hiredis/async.c
-        deps/hiredis/dict.c
-        deps/hiredis/hiredis.c
-        deps/hiredis/net.c
-        deps/hiredis/sds.c
-        deps/hiredis/read.c
-        deps/hiredis/test.c
-        )
-ADD_LIBRARY(hiredis-static deps/hiredis)
-SET_TARGET_PROPERTIES(hiredis-static PROPERTIES LINKER_LANGUAGE C OUTPUT_NAME hiredis)
-
-
-SET ( SRC_LIBLUA
-        deps/lua/src/fpconv.c
-        deps/lua/src/lapi.c
-        deps/lua/src/lauxlib.c
-        deps/lua/src/lbaselib.c
-        deps/lua/src/lcode.c
-        deps/lua/src/ldblib.c
-        deps/lua/src/ldebug.c
-        deps/lua/src/ldo.c
-        deps/lua/src/ldump.c
-        deps/lua/src/lfunc.c
-        deps/lua/src/lgc.c
-        deps/lua/src/linit.c
-        deps/lua/src/liolib.c
-        deps/lua/src/llex.c
-        deps/lua/src/lmathlib.c
-        deps/lua/src/lmem.c
-        deps/lua/src/loadlib.c
-        deps/lua/src/lobject.c
-        deps/lua/src/lopcodes.c
-        deps/lua/src/loslib.c
-        deps/lua/src/lparser.c
-        deps/lua/src/lstate.c
-        deps/lua/src/lstring.c
-        deps/lua/src/lstrlib.c
-        deps/lua/src/ltable.c
-        deps/lua/src/ltablib.c
-        deps/lua/src/ltm.c
-        deps/lua/src/lundump.c
-        deps/lua/src/lvm.c
-        deps/lua/src/lzio.c
-        deps/lua/src/lua_bit.c
-        deps/lua/src/luac.c
-        deps/lua/src/lua_cjson.c
-        deps/lua/src/lua_cmsgpack.c
-        deps/lua/src/lua_struct.c
-        deps/lua/src/print.c
-        deps/lua/src/strbuf.c )
-ADD_LIBRARY(lua-static deps/lua/src)
-TARGET_LINK_LIBRARIES ( lua-static m dl)
-SET_TARGET_PROPERTIES(lua-static PROPERTIES LINKER_LANGUAGE C OUTPUT_NAME lua)
-
-
 SET(redis-benchmark_files
         src/redis-benchmark.c
         src/ae.c
@@ -138,7 +76,6 @@ SET(redis-server_files
         src/db.c
         src/dict.c
         src/debug.c
-        src/memprotect.c
         src/endianconv.c
         src/evict.c
         src/expire.c
@@ -196,3 +133,4 @@ TARGET_LINK_LIBRARIES(redis-server hiredis jemalloc lua m pthread dl)
 
 ADD_EXECUTABLE(redis-check-rdb ${redis-server_files})
 TARGET_LINK_LIBRARIES(redis-check-rdb hiredis jemalloc lua m pthread dl)
+

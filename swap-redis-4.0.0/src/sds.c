@@ -36,8 +36,6 @@
 #include <ctype.h>
 #include <assert.h>
 #include <limits.h>
-#include <malloc.h>
-#include <unistd.h>
 #include "sds.h"
 #include "sdsalloc.h"
 
