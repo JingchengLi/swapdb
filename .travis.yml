@@ -1,0 +1,50 @@
+language: cpp
+sudo: enabled
+compiler: gcc
+
+before_install:
+  - sudo apt-get -qq update
+#  - sudo apt-get install -y libxml2-dev
+
+os:
+  - linux
+
+addons:
+  apt:
+    packages:
+    - cmake
+    - cmake-data
+    - make
+    - autoconf
+    - g++
+
+script:
+#prepare
+
+  - mkdir build
+  - export PATH=$PATH:$PWD/build
+  - export PATH=$PATH:$PWD/build/SWAP_SSDB
+  - export PATH=$PATH:$PWD/build/SWAP_REDIS
+
+#build
+
+  - cd build
+  - cmake ..
+  - make -j8
+  - cd ../
+
+#test
+
+  - cd swap-ssdb-1.9.2
+  - ./runtest.sh
+  - cd ../
+
+  - cd swap-redis-4.0.0
+  #TODO add test here
+  - cd ../
+
+#done
+
+env:
+  global:
+    - MAKEFLAGS="-j 8"
