@@ -219,6 +219,10 @@ start_server {tags {"dump"}} {
             assert {[$first exists list] == 1}
             wait_key_exists_ssdb list
             assert {[$second exists list] == 1}
+            if {[$second type list] eq {string}} {
+                puts "second type string"
+                after 10000000
+}
             assert {[$first lrange list 0 -1] eq [$second lrange list 0 -1]}
         }
     }
@@ -246,7 +250,9 @@ start_server {tags {"dump"}} {
         }
     }
 
-    foreach {loop time} {40 100 400 100 4000 1000 20000 5000} {
+    set ltlist {40 100 400 100 4000 1000}
+    if {$::accurate} {lappend ltlist 20000 5000}
+    foreach {loop time} $ltlist {
         test "MIGRATE can correctly transfer large values($loop)" {
             set first [srv 0 client]
             r config set maxmemory 0
@@ -265,7 +271,7 @@ start_server {tags {"dump"}} {
 
                 assert {[$first exists key] == 1}
                 assert {[$second exists key] == 0}
-                dumpto_ssdb_and_wait $first key
+                dumpto_ssdb_and_wait $first key 1000
                 set pretime [clock milliseconds]
                 set ret [r -1 migrate $second_host $second_port key 0 $time]
                 puts "$loop migrate cost [expr [clock milliseconds]-$pretime] ms"

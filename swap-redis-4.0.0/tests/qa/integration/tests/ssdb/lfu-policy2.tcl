@@ -94,11 +94,11 @@ overrides {maxmemory 0}} {
         set rule [lindex [r config get ssdb-load-rule] 1]
         foreach {time tps} $rule {
             test "load key when satisfy rule $time $tps" {
-                after 1000
                 dumpto_ssdb_and_wait r foo
                 dumpto_ssdb_and_wait r foo_1
                 dumpto_ssdb_and_wait r foo_2
                 access_key_tps_time foo_2 [expr $tps/$time*0.1] 1;# make its lfu > 5
+                after 1500
                 access_key_tps_time foo [expr $tps/$time*0.8] $time
                 assert_equal {ssdb} [r locatekey foo] "foo should not be loaded"
                 assert_equal {ssdb} [r locatekey foo_2] "foo_2 should not be loaded"

@@ -62,6 +62,7 @@ start_server {tags {"other"}} {
                 r flushdb
                 wait_ssdb_reconnect
                 createComplexDataset r $numops
+                after 1000
                 set dump [csvdump r]
                 set sha1 [ssdbr debug digest]
                 r debug reload

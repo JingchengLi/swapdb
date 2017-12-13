@@ -331,7 +331,7 @@ start_server {tags {"lfu"}} {
             r config set ssdb-transfer-lower-limit $ssdb_transfer_limit
             r config set maxmemory $limit
             wait_memory_stable
-            assert {[s used_memory] < $limit*($ssdb_transfer_limit/100.0)*1}
+            assert {[s used_memory] < $limit*($ssdb_transfer_limit/100.0)*1.1}
             # memory usage near to the limit.
             assert {[s used_memory] > $limit*($ssdb_transfer_limit/100.0)*0.5}
             set key_a_ssdb [sum_keystatus key_a 3000 ssdb]

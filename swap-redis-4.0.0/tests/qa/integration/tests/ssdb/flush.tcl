@@ -29,7 +29,7 @@ start_server {tags {"ssdb"}} {
             test "$flush not break master-slave link after sync done" {
                 $master set foo bar
                 $slave slaveof $master_host $master_port
-                wait_for_condition 50 100 {
+                wait_for_condition 200 100 {
                     {bar} == [$slave get foo]
                 } else {
                     fail "SET on master did not propagated on slave"
@@ -163,9 +163,10 @@ start_server {tags {"ssdb"}} {
                 $slave slaveof $master_host $master_port
                 set pattern "Sending rr_make_snapshot to SSDB"
                 wait_log_pattern $pattern [srv -1 stdout]
-                $master $flush
+                set flushclient [redis $master_host $master_port]
+                $flushclient $flush
                 wait_for_online $master 1
-                wait_for_condition 10 500 {
+                wait_for_condition 20 500 {
                     [$master debug digest] == 0000000000000000000000000000000000000000 &&
                     [$slave debug digest] == 0000000000000000000000000000000000000000
                 } else {
@@ -445,7 +446,7 @@ overrides {client-blocked-by-flushall-timeout 1}} {
                     stop_bg_client_list $clist
                     after 1000
                     set flushclient [redis $master_host $master_port]
-                    catch { $flushclient $flush } ret
+                    catch { $flushclient $flush  } ret
                     $master ping
                 } {PONG}
 

@@ -25,7 +25,6 @@ set ::all_tests {
     ssdb/lfu
     ssdb/lfu-policy
     ssdb/lfu-policy2
-    ssdb/lfu-policy3
     ssdb/client-recon
 
     unit/dump
@@ -52,14 +51,8 @@ set ::all_tests {
     integration/replication-3
     integration/replication-4
     integration/replication-5
-    integration/replication-r1
-    integration/replication-r2
-    integration/replication-r3
     integration/replication-psync
     integration/psync2
-    integration/replication-A
-    integration/replication-B
-    integration/replication-C
 }
 # Too slow without SSD, need to run manually.
     # integration/replication-stable
@@ -541,6 +534,15 @@ for {set j 0} {$j < [llength $argv]} {incr j} {
         incr j
     } elseif {$opt eq {--accurate}} {
         set ::accurate 1
+        lappend ::all_tests {*}{
+            ssdb/lfu-policy3
+            integration/replication-r1
+            integration/replication-r2
+            integration/replication-r3
+            integration/replication-A
+            integration/replication-B
+            integration/replication-C
+        }
     } elseif {$opt eq {--force-failure}} {
         set ::force_failure 1
     } elseif {$opt eq {--single}} {

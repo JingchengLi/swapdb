@@ -524,14 +524,16 @@ proc wait_for_restoreto_redis {r key} {
     }
 }
 
-proc dumpto_ssdb_and_wait {r key} {
-    $r storetossdb $key
-    #wait key dumped to ssdb: 100ms -> 500ms for bighash dump timeout
-    wait_for_condition 500 1 {
-        [ $r locatekey $key ] eq {ssdb}
-    } else {
-        fail "key $key be storetossdb failed"
+proc dumpto_ssdb_and_wait {r key {time 500}} {
+    set loops 500
+    for {set n 0} {$n < $loops} {incr n} {
+        catch { $r storetossdb $key  } err
+        after [expr $time/$loops]
+        if {[ $r locatekey $key ] eq {ssdb}} {
+            break
+        }
     }
+    assert {[ $r locatekey $key ] ne {redis}} "key($key) should be dumped or null"
 }
 
 proc ssdbr {args} {

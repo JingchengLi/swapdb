@@ -198,6 +198,7 @@ proc start_server {options {code undefined}} {
         }
     }
 
+    for {set n 0} {$n < 3} {incr n} {
     # use a different directory every time a server is started
     dict set config dir [tmpdir server]
 
@@ -251,8 +252,10 @@ proc start_server {options {code undefined}} {
         set ssdbpid [exec $ssdbprogram $ssdb_config_file > $ssdbstdout 2> $ssdbstderr &]
     }
     if {[server_is_up 127.0.0.1 $ssdbport 500] == 0} {
+        if {$n < 2} continue
         set err {}
         append err "Cant' start the ssdb server:$workdir\n"
+        append err "ssdb port $ssdbport may already in use, try again!"
         send_data_packet $::test_server_fd err $err
         return
     }
@@ -306,6 +309,7 @@ proc start_server {options {code undefined}} {
     }
 
     if {!$serverisup} {
+        if {$n < 2} continue
         set err {}
         append err [exec cat $stdout] "\n" [exec cat $stderr]
         start_server_error $config_file $err
@@ -317,7 +321,8 @@ proc start_server {options {code undefined}} {
         regexp {PID:\s(\d+)} [exec cat $stdout] _ _pid
         after 100
     }
-
+    break  ;#redis and ssdb server started successfully.
+    }
     # setup properties to be able to initialize a client object
     set host $::host
     set port $::port
