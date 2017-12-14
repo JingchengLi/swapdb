@@ -212,6 +212,7 @@ proc cleanup {} {
     if {!$::quiet} {puts -nonewline "Cleanup: may take some time... "}
     flush stdout
     catch {exec rm -rf {*}[glob tmp/redis.conf.*]}
+    catch {exec rm -rf {*}[glob tests/tmp/ssdb.conf.*]}
     catch {exec rm -rf {*}[glob tmp/server.*]}
     if {!$::quiet} {puts "OK"}
 }

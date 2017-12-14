@@ -7,16 +7,6 @@ class EncodeTest : public SSDBTest
 {
 };
 
-inline uint64_t encodeScore(const double score) {
-    int64_t iscore;
-    if (score < 0) {
-        iscore = (int64_t)(score * 100000LL - 0.5) + ZSET_SCORE_SHIFT;
-    } else {
-        iscore = (int64_t)(score * 100000LL + 0.5) + ZSET_SCORE_SHIFT;
-    }
-    return (uint64_t)(iscore);
-}
-
 void compare_encode_meta_key(const string & key, char* expectStr){
     string meta_key = encode_meta_key(Bytes(key.data(), key.size()));
     // uint16_t slot = (uint16_t)keyHashSlot(key.data(), (int)key.size());

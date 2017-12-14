@@ -94,7 +94,8 @@ proc ping_server {host port} {
     if {[catch {
         set fd [socket $host $port]
         fconfigure $fd -translation binary
-        puts $fd "PING\r\n"
+        # for ssdb ping
+        puts $fd "*1\r\n\$4\r\nping\r\n"
         flush $fd
         set reply [gets $fd]
         if {[string range $reply 0 0] eq {+} ||
@@ -157,8 +158,10 @@ proc start_server {options {code undefined}} {
         return
     }
 
+    dict set config dir [tmpdir server]
+    set ::port [find_available_port [expr {$::port+1}]]
     # setup defaults
-    set baseconfig "default.conf"
+    set baseconfig "ssdb_default.conf"
     set overrides {}
     set tags {}
 
@@ -176,49 +179,34 @@ proc start_server {options {code undefined}} {
                 error "Unknown option $option" }
         }
     }
-
-    set data [split [exec cat "assets/$baseconfig"] "\n"]
-    set config {}
-    foreach line $data {
-        if {[string length $line] > 0 && [string index $line 0] ne "#"} {
-            set elements [split $line " "]
-            set directive [lrange $elements 0 0]
-            set arguments [lrange $elements 1 end]
-            dict set config $directive $arguments
-        }
-    }
-
-    # use a different directory every time a server is started
-    dict set config dir [tmpdir server]
-
-    # start every server on a different port
-    set ::port [find_available_port [expr {$::port+1}]]
-    dict set config port $::port
-
-    # apply overrides from global space and arguments
-    foreach {directive arguments} [concat $::global_overrides $overrides] {
-        dict set config $directive $arguments
-    }
-
-    # write new configuration to temporary file
-    set config_file [tmpfile redis.conf]
+    set config_file [tmpfile ssdb.conf]
+    set workdir [dict get $config dir]
+    set workdir [string range $workdir 6 end]
+    set data [exec cat "./support/$baseconfig"]
+    # puts "$data: $config_file"
     set fp [open $config_file w+]
-    foreach directive [dict keys $config] {
-        puts -nonewline $fp "$directive "
-        puts $fp [dict get $config $directive]
-    }
+    set data [regsub -all {{work_dir}} $data $workdir]
+    set data [regsub -all {{ssdbport}} $data $::port]
+    puts $fp $data
     close $fp
-
     set stdout [format "%s/%s" [dict get $config "dir"] "stdout"]
     set stderr [format "%s/%s" [dict get $config "dir"] "stderr"]
+    puts "start dir: $workdir"
+
+    if {[file exists ../../../../../swap-ssdb-1.9.2/build/ssdb-server]} {
+        set program ../../../../../swap-ssdb-1.9.2/build/ssdb-server
+    } elseif {[file exists ../../../../../build/ssdb-server]} {
+        set program ../../../../../build/ssdb-server
+    } else {
+        error "no ssdb-server found in build directory!!!"
+    }
 
     if {$::valgrind} {
-        set pid [exec valgrind --track-origins=yes --suppressions=src/valgrind.sup --show-reachable=no --show-possibly-lost=no --leak-check=full ../../../src/redis-server $config_file > $stdout 2> $stderr &]
-    } elseif ($::stack_logging) {
-        set pid [exec /usr/bin/env MallocStackLogging=1 MallocLogFile=/tmp/malloc_log.txt ../../../src/redis-server $config_file > $stdout 2> $stderr &]
+        set pid [exec valgrind --track-origins=yes --suppressions=../../../src/valgrind.sup --show-reachable=no --show-possibly-lost=no --leak-check=full $ssdbprogram $ssdb_config_file > $ssdbstdout 2> $ssdbstderr &]
     } else {
-        set pid [exec ../../../src/redis-server $config_file > $stdout 2> $stderr &]
+        set pid [exec $program $config_file > $stdout 2> $stderr &]
     }
+
 
     # Tell the test server about this new instance.
     send_data_packet $::test_server_fd server-spawned $pid
@@ -250,7 +238,7 @@ proc start_server {options {code undefined}} {
 
     # Wait for actual startup
     while {![info exists _pid]} {
-        regexp {PID:\s(\d+)} [exec cat $stdout] _ _pid
+        regexp {pid:\s(\d+)} [exec cat $stdout] _ _pid
         after 100
     }
 
@@ -275,14 +263,6 @@ proc start_server {options {code undefined}} {
         set line [exec head -n1 $stdout]
         if {[string match {*already in use*} $line]} {
             error_and_quit $config_file $line
-        }
-
-        while 1 {
-            # check that the server actually started and is ready for connections
-            if {[exec grep "ready to accept" | wc -l < $stdout] > 0} {
-                break
-            }
-            after 10
         }
 
         # append the server to the stack

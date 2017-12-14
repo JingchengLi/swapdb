@@ -18,10 +18,7 @@ set ::all_tests {
     ssdb/aofrw
     ssdb/keystatus
     ssdb/basecommands
-    ssdb/threads
-    ssdb/flush
     ssdb/ssdbinfo
-    ssdb/python
     ssdb/lfu
     ssdb/lfu-policy
     ssdb/lfu-policy2
@@ -45,7 +42,6 @@ set ::all_tests {
     unit/other
     unit/slowlog
 
-    integration/aof
     integration/replication-base
     integration/replication-2
     integration/replication-3
@@ -535,6 +531,11 @@ for {set j 0} {$j < [llength $argv]} {incr j} {
     } elseif {$opt eq {--accurate}} {
         set ::accurate 1
         lappend ::all_tests {*}{
+            ssdb/threads
+            ssdb/flush
+            integration/aof
+            ssdb/python
+
             ssdb/lfu-policy3
             integration/replication-r1
             integration/replication-r2

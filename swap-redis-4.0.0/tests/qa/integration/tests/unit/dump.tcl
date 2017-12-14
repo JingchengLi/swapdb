@@ -330,7 +330,10 @@ start_server {tags {"dump"}} {
 
     test {MIGRATE with wrong params} {
         set first [srv 0 client]
-        $first flushdb
+        set first_host [srv 0 host]
+        set first_port [srv 0 port]
+        [redis $first_host $first_port] flushdb
+        wait_ssdb_reconnect
         $first set foo bar
         start_server {tags {"repl"}} {
             set second [srv 0 client]

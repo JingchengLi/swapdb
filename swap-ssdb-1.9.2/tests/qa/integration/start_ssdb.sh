@@ -9,7 +9,7 @@ funStartServer(){
     mkdir -p var_$1
     # touch ./valgrind_$1.sup
     # valgrind --track-origins=yes --suppressions=./valgrind_$1.sup --show-reachable=no --show-possibly-lost=no --leak-check=full ../../../../ssdb-server -d ssdb_$1.config 2> ssdbstderr_$1
-    ../../../../ssdb-server -d ssdb_$1.config
+    ../../../../../build/ssdb-server -d ssdb_$1.config
 }
 
 killall -9 ssdb-server
