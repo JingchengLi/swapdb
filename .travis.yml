@@ -36,11 +36,24 @@ script:
 #test
 
   - cd swap-ssdb-1.9.2
-  - ./runtest.sh
+  # - ./runtest.sh
+
+  - cd tests/qa/unit
+  - cmake .;make -j4
+  - ./build/ssdb-server
+  - cd -
+
+  - cd tests/qa/integration
+  - sh start_ssdb.sh
+  - cmake .;make -j4
+  - ./integ-test --gtest_filter=-ReplicTest.*:RobustTest.*
+  - cd -
+
+  - ./runtest_qa.sh
   - cd ../
 
   - cd swap-redis-4.0.0
-  #TODO add test here
+  - ./runtest_qa_redis --loglevel notice
   - cd ../
 
 #done
