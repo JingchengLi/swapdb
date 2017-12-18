@@ -79,12 +79,6 @@ LINK_DIRECTORIES(
         ${ROCKSDB_PATH}/third-party/gtest-1.7.0/fused-src/gtest
         ${ROCKSDB_PATH}/
 )
-ADD_LIBRARY(librocksdb-static ${ROCKSDB_PATH})
-TARGET_LINK_LIBRARIES(librocksdb-static snappy.a gtest gflags)
-SET_TARGET_PROPERTIES(librocksdb-static PROPERTIES
-        LINKER_LANGUAGE CXX
-        OUTPUT_NAME "rocksdb")
-
 
 SET(SSDB_OBJS
         src/ssdb/ssdb_impl.cpp
@@ -103,7 +97,7 @@ SET(SSDB_OBJS
 
 
 ADD_LIBRARY(libssdb-static STATIC ${SSDB_OBJS})
-TARGET_LINK_LIBRARIES(libssdb-static rocksdb snappy.a z bz2)
+TARGET_LINK_LIBRARIES(libssdb-static rocksdb snappy z bz2)
 set_target_properties(libssdb-static PROPERTIES
         LINKER_LANGUAGE CXX
         OUTPUT_NAME "ssdb")
@@ -208,7 +202,7 @@ SET(SRC_OBJS
 ADD_EXECUTABLE(ssdb-server ${SRC_OBJS})
 
 
-TARGET_LINK_LIBRARIES(ssdb-server libssdb-static librdb-static libutil-static libnet-static libcodec-static rocksdb gflags snappy.a jemalloc.a pthread) # z bz2
+TARGET_LINK_LIBRARIES(ssdb-server libssdb-static librdb-static libutil-static libnet-static libcodec-static rocksdb gflags snappy ${JEMALLOC_PATH}/lib/libjemalloc.a pthread) # z bz2
 if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
     #nothing
 ELSE ()

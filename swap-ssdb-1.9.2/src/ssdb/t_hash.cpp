@@ -313,7 +313,7 @@ int SSDBImpl::hsetCommon(Context &ctx, const Bytes &name, const Bytes &key, cons
 
     //ret == 0
     *added = hset_one(batch, hv, (!nx), name, key, val);
-    if(added < 0) {
+    if(*added < 0) {
         return *added;
     }
 
