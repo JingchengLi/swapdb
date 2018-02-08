@@ -7,7 +7,7 @@ pidfile = ./ssdb.pid
 
 server:
 	ip: 127.0.0.1
-	port: 26379
+	port: ssdbport
 	file: ./ssdb.sock
 	# bind to public ip
 	#ip: 0.0.0.0
@@ -26,7 +26,7 @@ upstream:
 #redis link
 	redis: no
 	ip: 127.0.0.1
-	port: 6379
+	port: redisport
 
 replication:
 	binlog: yes
